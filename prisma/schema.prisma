@@ -1,0 +1,905 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum Platform {
+  steam
+  epic
+  playstation
+  xbox
+  nintendo
+  fortnite
+  instantgaming
+  twitter
+  deals
+  free_games
+  patch_notes
+  game_updates
+  blogs
+  youtube
+  all
+  epicgames
+  instantgaming_news
+}
+
+enum SanctionType {
+  BAN
+  KICK
+  MUTE
+  WARN
+  TIMEOUT
+  TEMPBAN
+  UNBAN
+}
+
+enum AlertStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum AlertLevel {
+  critical
+  warning
+  info
+}
+
+enum RiskLevel {
+  FAIBLE
+  MOYEN
+  ELEVE
+  CRITIQUE
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
+}
+
+model Source {
+  id              Int      @id @default(autoincrement())
+  guildId         String
+  channelId       String
+  type            String
+  urlOrHandle     String
+  lastProcessedId String?
+  createdAt       DateTime @default(now())
+
+  @@unique([urlOrHandle, type, channelId])
+  @@index([guildId])
+  @@index([type])
+  @@index([channelId])
+  @@index([urlOrHandle])
+  @@index([guildId, type])
+}
+
+model Notification {
+  id       String   @id @default(uuid())
+  sourceId String
+  content  String
+  url      String?  @unique
+  platform Platform
+  sentAt   DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([sentAt(sort: Desc)])
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  guildId   String?
+  type      String
+  action    String
+  userId    String?
+  targetId  String?
+  details   String?
+  moderator String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+}
+
+model CommandLog {
+  id        Int      @id @default(autoincrement())
+  guildId   String?
+  userId    String?
+  command   String
+  args      String?
+  timestamp DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+}
+
+model ModAction {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  moderatorId String
+  action      SanctionType
+  targetId    String
+  reason      String?
+  duration    Int?
+  createdAt   DateTime @default(now())
+
+  @@index([guildId])
+  @@index([targetId])
+}
+
+model WarningLog {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  userId      String
+  moderatorId String?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+}
+
+model UserActivityLog {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  userId    String
+  activity  String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+}
+
+model ErrorMessage {
+  id         Int       @id @default(autoincrement())
+  guildId    String?
+  message    String
+  stack      String?
+  context    String?
+  resolved   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  discordId       String    @unique
+  guildId         String?
+  xp              Int       @default(0)
+  level           Int       @default(1)
+  balance         Int       @default(0)
+  lastMessageDate DateTime?
+  joinedAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([discordId])
+  @@index([guildId])
+}
+
+model SteamProfile {
+  id          Int      @id @default(autoincrement())
+  userId      String   @unique
+  steamId     String
+  personaName String?
+  avatarUrl   String?
+  linkedAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserPreference {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  wishlistDm Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model UserGamePreference {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String?
+  platform  Platform @default(all)
+  genres    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserPlatformPreference {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String?
+  platform  Platform
+  notify    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+
+model Sanction {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String
+  type        SanctionType
+  reason      String
+  duration    Int?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([guildId])
+  @@index([userId, guildId])
+  @@index([type])
+}
+
+model Warning {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String?
+  reason      String?
+  points      Int      @default(1)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([guildId])
+  @@index([userId, guildId])
+}
+
+model Blacklist {
+  targetId  String    @id
+  type      String
+  reason    String?
+  guildId   String?
+  addedBy   String?
+  expiresAt DateTime?
+  addedAt   DateTime  @default(now())
+
+  @@index([type])
+  @@index([guildId])
+}
+
+model UserInventory {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String?
+  itemId    Int
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, itemId])
+  @@index([userId])
+}
+
+model GuildConfig {
+  id                  String   @id @default(uuid())
+  guildId             String   @unique
+  logChannelId        String?
+  adminRoleId         String?
+  modRoleId           String?
+  antiPhishing        Boolean? @default(false)
+  aiModerationEnabled Boolean? @default(false)
+  antiRaidEnabled     Boolean? @default(false)
+  antiRaidSeuilHeures Int?     @default(24)
+  aiSystemPrompt      String?
+  embedColor          String?  @default("#0099ff")
+  embedFooter         String?
+  embedThumbnail      String?
+  welcomeMessage      String?
+  leaveMessage        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, key])
+  @@index([guildId])
+}
+
+model TrackedGame {
+  id           Int      @id @default(autoincrement())
+  appId        Int      @unique
+  gameName     String
+  lastNewsDate DateTime
+  lastNewsGid  String?
+  addedAt      DateTime @default(now())
+
+  @@index([appId])
+}
+
+model GameSubscription {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  channelId String
+  appId     Int
+  gameName  String
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, appId])
+  @@index([guildId])
+}
+
+model GameNewsCache {
+  id        Int      @id @default(autoincrement())
+  appId     Int
+  gid       String   @unique
+  title     String?
+  url       String?
+  contents  String?
+  createdAt DateTime @default(now())
+
+  @@index([appId])
+}
+
+model GameTag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model AutoRole {
+  id        String   @id @default(uuid())
+  guildId   String
+  roleId    String
+  createdAt DateTime @default(now())
+}
+
+model ReactionRole {
+  id        String   @id @default(uuid())
+  guildId   String
+  channelId String
+  messageId String
+  emoji     String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+  @@index([messageId])
+}
+
+model AutoModConfig {
+  id          String   @id @default(uuid())
+  guildId     String   @unique
+  enabled     Boolean  @default(false)
+  maxMentions Int?     @default(5)
+  maxLinks    Int?     @default(3)
+  maxLines    Int?     @default(20)
+  capsLimit   Int?     @default(50)
+  spamLimit   Int?     @default(5)
+  spamWindow  Int?     @default(5)
+  badwords    String?  @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MentionSetting {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  maxUsers  Int      @default(5)
+  maxRoles  Int      @default(3)
+  action    String   @default("warn")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationSetting {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  type      String
+  channelId String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, type])
+  @@index([guildId])
+}
+
+model NameHistory {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String
+  oldName   String
+  newName   String
+  changedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, guildId])
+}
+
+model AvatarHistory {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String
+  oldHash   String
+  newHash   String
+  changedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, guildId])
+}
+
+model TwitchFollow {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  channelId    String
+  streamerName String
+  streamerId   String
+  isLive       Boolean  @default(false)
+  addedBy      String
+  addedAt      DateTime @default(now())
+
+  @@unique([guildId, streamerId])
+  @@index([guildId])
+}
+
+model StreamAlert {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  channelId    String
+  streamerName String
+  streamerId   String
+  title        String?
+  game         String?
+  startedAt    DateTime
+  notified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([guildId])
+  @@index([streamerId])
+}
+
+model StreamHighlight {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  streamerName String
+  title        String?
+  url          String
+  description  String?
+  createdAt    DateTime @default(now())
+
+  @@index([guildId])
+}
+
+model Reminder {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String?
+  channelId String
+  message   String
+  triggerAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([triggerAt])
+}
+
+model ScheduledMessage {
+  id        Int       @id @default(autoincrement())
+  guildId   String
+  channelId String
+  content   String
+  cron      String
+  enabled   Boolean   @default(true)
+  lastSent  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([guildId])
+}
+
+model ChatHistory {
+  id        Int      @id @default(autoincrement())
+  channelId String
+  userId    String?
+  guildId   String?
+  role      ChatRole
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([channelId])
+  @@index([channelId, createdAt])
+  @@index([userId])
+}
+
+model ChatConversation {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  channelId String
+  userId    String
+  role      String   @default("user")
+  content   String
+  model     String?
+  tokens    Int?
+  createdAt DateTime @default(now())
+
+  @@index([channelId])
+  @@index([userId])
+}
+
+model InstantGamingConfig {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  channelId String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InstantGamingDeal {
+  id        Int       @id @default(autoincrement())
+  title     String    @unique
+  url       String?
+  price     String?
+  oldPrice  String?
+  discount  Int?
+  endDate   DateTime?
+  imageUrl  String?
+  notified  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model IgGiveaway {
+  id        String   @id
+  title     String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model ProcessedTweets {
+  id          Int      @id @default(autoincrement())
+  tweetId     String   @unique
+  account     String
+  content     String
+  processedAt DateTime @default(now())
+}
+
+model ShopItem {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  name        String
+  description String?
+  price       Int
+  roleId      String?
+  stock       Int?     @default(-1)
+  emoji       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+model Inventory {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  guildId   String
+  itemName  String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, guildId, itemName])
+  @@index([userId])
+  @@index([guildId])
+}
+
+model Wishlist {
+  id             Int       @id @default(autoincrement())
+  userId         String
+  guildId        String?
+  itemName       String
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([userId, itemName])
+  @@index([userId])
+  @@index([guildId])
+}
+
+model ProcessedFreeGames {
+  id           Int      @id @default(autoincrement())
+  redditPostId String   @unique
+  title        String   @default("")
+  processedAt  DateTime @default(now())
+}
+
+model EpicNotificationConfig {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  channelId String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EpicDeal {
+  id        Int       @id @default(autoincrement())
+  title     String    @unique
+  url       String?
+  imageUrl  String?
+  price     String?
+  endDate   DateTime?
+  notified  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model SteamNotificationConfig {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  channelId String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SteamDeal {
+  id        Int       @id @default(autoincrement())
+  title     String    @unique
+  url       String?
+  imageUrl  String?
+  price     String?
+  discount  Int?
+  endDate   DateTime?
+  notified  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model RiskProfile {
+  id             Int       @id @default(autoincrement())
+  userId         String
+  guildId        String
+  riskScore      Int       @default(0)
+  riskLevel      RiskLevel @default(FAIBLE)
+  warnCount      Int       @default(0)
+  timeoutCount   Int       @default(0)
+  kickCount      Int       @default(0)
+  tempbanCount   Int       @default(0)
+  banCount       Int       @default(0)
+  lastSanctionAt DateTime?
+  lastAlertAt    DateTime?
+  totalSanctions Int       @default(0)
+  underWatch     Boolean   @default(false)
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  @@unique([userId, guildId])
+  @@index([guildId])
+  @@index([riskLevel])
+}
+
+model Alert {
+  id         String    @id @default(uuid())
+  guildId    String
+  userId     String
+  type       String
+  riskScore  Int
+  riskLevel  String
+  status     AlertStatus @default(PENDING)
+  details    String?
+  resolvedBy String?
+  resolvedAt DateTime?
+  action     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StickyMessage {
+  id        Int       @id @default(autoincrement())
+  guildId   String
+  channelId String    @unique
+  content   String
+  lastSent  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([guildId])
+}
+
+model Afk {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique
+  guildId   String?
+  message   String   @default("AFK")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Badword {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  word      String
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, word])
+  @@index([guildId])
+}
+
+model Poll {
+  id        Int       @id @default(autoincrement())
+  guildId   String
+  channelId String
+  messageId String?
+  question  String
+  options   String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([guildId])
+}
+
+model PollVote {
+  id        Int      @id @default(autoincrement())
+  pollId    Int
+  userId    String
+  option    Int
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, userId])
+}
+
+model Suggestion {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  userId      String
+  content     String
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  status      String   @default("pending")
+  response    String?
+  respondedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+model ProcessedPatchNotes {
+  id        String   @id @default(uuid())
+  guid      String   @unique @default(cuid())
+  title     String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model ProcessedDeal {
+  id        String   @id @default(uuid())
+  guid      String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+}
+
+model ProcessedVideos {
+  id        String   @id @default(uuid())
+  videoId   String   @unique
+  createdAt DateTime @default(now())
+}
+
+model TranslationHistory {
+  id             Int      @id @default(autoincrement())
+  userId         String
+  guildId        String?
+  originalText   String
+  translatedText String
+  sourceLanguage String
+  targetLanguage String
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([guildId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model NftCollection {
+  id              Int      @id @default(autoincrement())
+  contractAddress String   @unique
+  name            String
+  symbol          String
+  floorPrice      Float
+  volume24h       Float
+  owners          Int
+  lastUpdated     DateTime
+}
+
+model GamingToken {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @unique
+  name        String
+  price       Float
+  change24h   Float
+  marketCap   Float
+  lastUpdated DateTime
+}
+
+model BehaviorPattern {
+  id                   Int      @id @default(autoincrement())
+  userId               String   @unique
+  messageFrequency     Float
+  averageMessageLength Float
+  activeChannels       String
+  activeTimeSlots      String
+  mentionRate          Float
+  lastUpdated          DateTime
+}
+
+model ProcessedGameUpdate {
+  id        Int      @id @default(autoincrement())
+  updateId  String   @unique
+  createdAt DateTime @default(now())
+}
+
+model ProcessedPriceAlert {
+  id        Int      @id @default(autoincrement())
+  alertId   String   @unique
+  createdAt DateTime @default(now())
+}
+
+model UserProfile {
+  id            Int      @id @default(autoincrement())
+  userId        String   @unique
+  preferences   String
+  history       String
+  activityScore Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SourceReputation {
+  id               Int      @id @default(autoincrement())
+  sourceId         String   @unique
+  sourceName       String
+  reliabilityScore Float
+  accuracyScore    Float
+  totalDeals       Int
+  successfulDeals  Int
+  failedDeals      Int
+  lastUpdated      Float
+  metadata         String
+}
+
+model UserSteamLink {
+  id        Int      @id @default(autoincrement())
+  discordId String   @unique
+  steamId   String
+  linkedAt  Float
+}
+
+// --- Anti-doublon Cache Neon ---
+
+model ProcessedCache {
+  id        Int      @id @default(autoincrement())
+  platform  Platform
+  uniqueId  String
+  createdAt DateTime @default(now())
+
+  @@unique([platform, uniqueId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+model AppState {
+  key   String @id
+  value String
+}

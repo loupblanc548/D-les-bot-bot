@@ -1,0 +1,72 @@
+Développe un bot Discord avec Discord.js et Prisma, centré sur la surveillance des réseaux sociaux (arrobas YouTube, Twitter) et sur une gestion avancée des événements du serveur, avec des commandes de modération et des réactions automatisées. Le bot doit fonctionner uniquement en backend, sans interface graphique, et inclure ces fonctionnalités :
+
+Commandes principales :
+
+1. Commande `/start` : Lance le bot, initialise les services API et base de données.
+2. Commande `/help` : Liste toutes les commandes disponibles.
+3. Commande `/status` : Affiche le statut du bot (en ligne, derniers scans, etc.).
+4. Commande `/retro` : Rétrospective sur les 24 dernières heures.
+5. Commande `/addsource [arrobas]` : Ajoute un identifiant de chaîne YouTube ou Twitter à surveiller.
+6. Commande `/removesource [arrobas]` : Supprime un identifiant surveillé.
+7. Commande `/listsources` : Liste tous les identifiants surveillés.
+8. Commande `/restart` : Redémarre le bot (admin uniquement).
+9. Commande `/deletehistory` : Supprime les notifications enregistrées (confirmation requise).
+10. Commande `/logs` : Affiche un résumé des logs (actions, erreurs).
+11. Commande `/broadcast [message]` : Envoie un message à tous les membres (admin, avec confirmation).
+12. Commande `/dm [@user] [message]` : Envoie un message privé sous l'identité du bot (admin uniquement).
+
+Commandes IA et interactions :
+13. Commande `/chat [message]` : Permet de discuter avec l’IA, le bot transmet et renvoie la réponse.
+14. Commande `/mention [message]` : Si un message commence par un arrobas, le bot transmet à l’IA pour une réponse personnalisée.
+
+Commandes de modération :
+15. Commande `/ban [@user]` : Banne un utilisateur (admin uniquement).
+16. Commande `/kick [@user]` : Expulse un utilisateur du serveur.
+17. Commande `/mute [@user] [durée]` : Mute un utilisateur pour un temps défini.
+18. Commande `/unmute [@user]` : Enlève le mute d’un utilisateur.
+19. Commande `/warn [@user] [raison]` : Avertit un membre, logge l’avertissement.
+20. Commande `/clear [nombre]` : Supprime les derniers messages (admin/modérateur).
+21. Commande `/autorole [rôle]` : Attribue un rôle, puis déclenche automatiquement des réactions sur ses messages.
+
+Surveillance des événements du serveur :
+
+1. Membres :
+
+   * `member_join` : Détecte l’arrivée d’un nouveau membre.
+   * `member_leave` : Détecte le départ d’un membre.
+
+2. Rôles :
+
+   * `role_add` : Suivi de l’ajout d’un rôle.
+   * `role_remove` : Suivi du retrait d’un rôle.
+   * `role_create` : Création d’un nouveau rôle.
+   * `role_delete` : Suppression d’un rôle.
+
+3. Salons :
+
+   * `channel_create` : Création d’un nouveau salon.
+   * `channel_delete` : Suppression d’un salon.
+
+4. Messages :
+
+   * `message_pin` : Épinglage d’un message.
+   * `message_unpin` : Désépinglage d’un message.
+
+5. Emojis :
+
+   * `emoji_create` : Ajout d’un nouvel emoji.
+   * `emoji_delete` : Suppression d’un emoji.
+
+6. Modération :
+
+   * `ban` : Membre banni du serveur.
+   * `unban` : Membre débanni.
+
+Sécurité et suivi :
+
+* Chaque événement (membre, rôle, salon, emoji, modération) doit être logué dans Prisma, avec un suivi clair.
+* Les commandes critiques (ban, kick, mute, broadcast, dm) doivent être limitées aux administrateurs ou modérateurs.
+* Toutes les actions doivent être confirmées avant exécution pour les actions massives.
+* Le bot doit respecter les bonnes pratiques, éviter les abus et garantir un historique complet pour les administrateurs.
+
+Résultat attendu

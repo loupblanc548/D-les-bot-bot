@@ -1,0 +1,132 @@
+import { describe, it, expect } from 'vitest';
+import { CATEGORIES } from '../commands/main';
+
+// ─── All registered top-level slash commands (from setName() across command files) ───
+// These are the command names as they appear in Discord (e.g., /help, /status).
+// Any new command added to the bot MUST also be added here AND appear in CATEGORIES.
+const REGISTERED_COMMANDS = new Set([
+  // Principales
+  "start", "help", "status", "restart", "retro", "retrospective", "debug", "hotreload",
+  // Surveillance
+  "addsource", "removesource", "listsources", "twitch", "psn",
+  // Administration
+  "broadcast", "dm", "logs", "deletehistory", "maintenance",
+  // IA
+  "chat", "mention", "aichat", "smartpoll", "translate", "summarize", "ask-gaming", "ask-tech",
+  // AlertCenter
+  "alertcenter", "riskscore", "riskyusers", "alertconfig",
+  // Moderation
+  "warn", "mute", "unmute", "kick", "ban", "timeout", "clear", "lock", "unlock",
+  "softban", "purge", "slowmode", "snipe", "history", "purgeuser", "tempban",
+  // Securite
+  "lockdown", "nuke", "check-alt", "blacklist", "role-mass", "antiraid", "verif",
+  "namehistory", "avatarhistory", "linkcheck", "antiphishing",
+  // Gaming
+  "game-status", "free-games", "patch-notes", "deal", "steam",
+  "track-game", "untrack-game", "list-tracked", "wishlist",
+  // Communaute
+  "reminder", "ticket-setup", "wishlist-notify", "poll",
+  // Utilitaires
+  "embed-builder", "say", "vocal", "mp3", "dictee", "reverse",
+  // Casier
+  "casier", "casier-clear",
+  // Fun
+  "echo-tds", "ask-bot", "shop",
+]);
+
+/**
+ * Extracts all command names from a CATEGORIES.commands string.
+ * Format: `/commandname - description` or `/commandname [params] - description`
+ */
+function extractCommands(commandsString: string): string[] {
+  const matches = commandsString.matchAll(/`\/([a-zA-Z][a-zA-Z0-9_-]*)/g);
+  return Array.from(matches, (m) => m[1]);
+}
+
+describe("Command /help - Categories coverage", () => {
+  it("should have at least one category defined", () => {
+    expect(CATEGORIES.length).toBeGreaterThan(0);
+  });
+
+  it("should have every registered command appear in at least one category", () => {
+    // Collect all command names mentioned across all categories
+    const allCategoryCommands = new Set<string>();
+    for (const cat of CATEGORIES) {
+      const cmds = extractCommands(cat.commands);
+      for (const cmd of cmds) {
+        allCategoryCommands.add(cmd);
+      }
+    }
+
+    const missingCommands: string[] = [];
+    for (const cmd of REGISTERED_COMMANDS) {
+      if (!allCategoryCommands.has(cmd)) {
+        missingCommands.push(cmd);
+      }
+    }
+
+    expect(missingCommands).toEqual([]);
+  });
+
+  it("should not have duplicate commands across categories", () => {
+    const seen = new Map<string, string[]>(); // cmd -> [categoryIds]
+
+    for (const cat of CATEGORIES) {
+      const cmds = extractCommands(cat.commands);
+      for (const cmd of cmds) {
+        if (!seen.has(cmd)) {
+          seen.set(cmd, []);
+        }
+        seen.get(cmd)!.push(cat.id);
+      }
+    }
+
+    const duplicates: string[] = [];
+    for (const [cmd, catIds] of seen) {
+      if (catIds.length > 1) {
+        // Some commands legitimately appear in multiple categories (e.g., translate in both IA and Utilitaires)
+        // We exclude known intentional duplicates
+        const intentionalDupes = new Set(["translate", "poll", "alertcenter"]);
+        if (!intentionalDupes.has(cmd)) {
+          duplicates.push(cmd + " appears in: " + catIds.join(", "));
+        }
+      }
+    }
+
+    expect(duplicates).toEqual([]);
+  });
+
+  it("should not have orphaned commands in categories (not registered)", () => {
+    const allCategoryCommands = new Set<string>();
+    for (const cat of CATEGORIES) {
+      const cmds = extractCommands(cat.commands);
+      for (const cmd of cmds) {
+        allCategoryCommands.add(cmd);
+      }
+    }
+
+    const orphaned: string[] = [];
+    for (const cmd of allCategoryCommands) {
+      if (!REGISTERED_COMMANDS.has(cmd)) {
+        // Exclude commands with params that might have been parsed differently
+        // Example: "/retrospective [type] [limite]" -> we extract "retrospective"
+        orphaned.push(cmd);
+      }
+    }
+
+    expect(orphaned).toEqual([]);
+  });
+
+  it("should have a non-empty description for each category", () => {
+    for (const cat of CATEGORIES) {
+      expect(cat.description, cat.id + " description should not be empty").toBeTruthy();
+    }
+  });
+
+  it("should have at least one command in each category", () => {
+    for (const cat of CATEGORIES) {
+      const cmds = extractCommands(cat.commands);
+      expect(cmds.length, cat.id + " should have at least one command").toBeGreaterThan(0);
+    }
+  });
+});

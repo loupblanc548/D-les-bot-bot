@@ -1,0 +1,142 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.commands = void 0;
+exports.handleCommand = handleCommand;
+const logger_1 = __importDefault(require("../../utils/logger"));
+const discord_js_1 = require("discord.js");
+const fortnite_api_1 = require("../../services/fortnite-api");
+const ITEMS_PER_PAGE = 8;
+const SECTION_LABELS = {
+    all: "📦 Toute la boutique",
+    featured: "⭐ Featured",
+    daily: "📅 Daily",
+    specialFeatured: "✨ Special Featured",
+    specialDaily: "🔄 Special Daily",
+};
+exports.commands = [
+    new discord_js_1.SlashCommandBuilder()
+        .setName("shop")
+        .setDescription("Affiche la boutique Fortnite du jour")
+        .addStringOption((opt) => opt
+        .setName("section")
+        .setDescription("Section de la boutique à afficher")
+        .addChoices({ name: "Toute la boutique", value: "all" }, { name: "Featured", value: "featured" }, { name: "Daily", value: "daily" }, { name: "Special Featured", value: "specialFeatured" }, { name: "Special Daily", value: "specialDaily" }))
+        .toJSON(),
+];
+function buildPage(allItems, page, totalPages, date, sectionLabel) {
+    const start = page * ITEMS_PER_PAGE;
+    const slice = allItems.slice(start, start + ITEMS_PER_PAGE);
+    const embed = new discord_js_1.EmbedBuilder()
+        .setTitle(`🛒 Boutique Fortnite — ${date}`)
+        .setColor(0x9b59b6)
+        .setTimestamp();
+    if (slice.length === 0) {
+        embed.setDescription("Aucun objet dans cette section.");
+        return embed;
+    }
+    const lines = [];
+    for (let i = 0; i < slice.length; i++) {
+        const item = slice[i];
+        const idx = start + i + 1;
+        const rarity = item.rarity ? ` • ${item.rarity}` : "";
+        const price = item.price ? ` • ${item.price} V-Bucks` : "";
+        const packBadge = item.allNames.length > 1 ? " 📦" : "";
+        lines.push(`**${idx}.** ${item.displayName}${rarity}${price}${packBadge}`);
+    }
+    embed.setDescription(lines.join("\n"));
+    // Image du premier objet de la page
+    const first = slice[0];
+    if (first.featuredImage || first.icon) {
+        embed.setThumbnail(first.featuredImage || first.icon);
+    }
+    embed.setFooter({
+        text: `Page ${page + 1}/${totalPages} • ${allItems.length} objets • ${sectionLabel} • fortnite-api.com`,
+    });
+    return embed;
+}
+async function handleCommand(interaction) {
+    await interaction.deferReply();
+    try {
+        const shop = await (0, fortnite_api_1.fetchShop)();
+        if (!shop) {
+            await interaction.editReply({
+                content: "❌ Impossible de récupérer la boutique Fortnite (API indisponible).",
+            });
+            return;
+        }
+        const sectionFilter = interaction.options.getString("section") || "all";
+        const sectionMap = {
+            all: [...shop.featured, ...shop.daily, ...shop.specialFeatured, ...shop.specialDaily],
+            featured: shop.featured,
+            daily: shop.daily,
+            specialFeatured: shop.specialFeatured,
+            specialDaily: shop.specialDaily,
+        };
+        const allItems = sectionMap[sectionFilter] || sectionMap.all;
+        if (allItems.length === 0) {
+            await interaction.editReply({ content: "📄 La boutique est vide aujourd'hui." });
+            return;
+        }
+        const totalPages = Math.ceil(allItems.length / ITEMS_PER_PAGE);
+        let currentPage = 0;
+        const sectionLabel = SECTION_LABELS[sectionFilter] || SECTION_LABELS.all;
+        const embed = buildPage(allItems, currentPage, totalPages, shop.date, sectionLabel);
+        // Si une seule page → pas de pagination
+        if (totalPages <= 1) {
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+        // Pagination avec boutons Prev/Next
+        const prevBtn = new discord_js_1.ButtonBuilder()
+            .setCustomId("shop_prev")
+            .setLabel("◀")
+            .setStyle(discord_js_1.ButtonStyle.Primary)
+            .setDisabled(true);
+        const nextBtn = new discord_js_1.ButtonBuilder()
+            .setCustomId("shop_next")
+            .setLabel("▶")
+            .setStyle(discord_js_1.ButtonStyle.Primary);
+        const row = new discord_js_1.ActionRowBuilder().addComponents(prevBtn, nextBtn);
+        const reply = await interaction.editReply({
+            embeds: [embed],
+            components: [row],
+        });
+        const collector = reply.createMessageComponentCollector({
+            componentType: discord_js_1.ComponentType.Button,
+            time: 120_000,
+        });
+        collector.on("collect", async (btn) => {
+            if (btn.user.id !== interaction.user.id) {
+                await btn.reply({
+                    content: "❌ Seul l'auteur de la commande peut naviguer.",
+                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                });
+                return;
+            }
+            if (btn.customId === "shop_prev")
+                currentPage--;
+            if (btn.customId === "shop_next")
+                currentPage++;
+            const newEmbed = buildPage(allItems, currentPage, totalPages, shop.date, sectionLabel);
+            // Réutilise les boutons, change juste le disabled
+            prevBtn.setDisabled(currentPage === 0);
+            nextBtn.setDisabled(currentPage >= totalPages - 1);
+            const updatedRow = new discord_js_1.ActionRowBuilder().addComponents(prevBtn, nextBtn);
+            await btn.update({ embeds: [newEmbed], components: [updatedRow] });
+        });
+        collector.on("end", async () => {
+            prevBtn.setDisabled(true).setStyle(discord_js_1.ButtonStyle.Secondary);
+            nextBtn.setDisabled(true).setStyle(discord_js_1.ButtonStyle.Secondary);
+            const disabledRow = new discord_js_1.ActionRowBuilder().addComponents(prevBtn, nextBtn);
+            await reply.edit({ components: [disabledRow] }).catch(() => { });
+        });
+    }
+    catch (err) {
+        logger_1.default.error("[Shop] Erreur:", String(err));
+        await interaction.editReply({ content: "❌ Une erreur est survenue." }).catch(() => { });
+    }
+}
+//# sourceMappingURL=shop.js.map

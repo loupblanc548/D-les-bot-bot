@@ -1,0 +1,1 @@
+{"version":3,"file":"scraper.d.ts","sourceRoot":"","sources":["../../src/utils/scraper.ts"],"names":[],"mappings":"AAAA,OAAO,EAAY,OAAO,EAAE,cAAc,EAAE,IAAI,EAAE,MAAM,YAAY,CAAC;AAuBrE,wBAAsB,aAAa,IAAI,OAAO,CAAC;IAAE,OAAO,EAAE,OAAO,CAAC;IAAC,OAAO,EAAE,cAAc,CAAC;IAAC,IAAI,EAAE,IAAI,CAAA;CAAE,CAAC,CA4CxG;AAED;;GAEG;AACH,wBAAsB,YAAY,IAAI,OAAO,CAAC,IAAI,CAAC,CAUlD"}

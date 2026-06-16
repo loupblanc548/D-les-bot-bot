@@ -1,0 +1,38 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated/prisma
+
+# Database
+database.sqlite
+*.sqlite
+*.db
+
+# Backups
+backups/
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+nul
+
+# Cache runtime (genere automatiquement, obsolete apres migration Neon)
+notification_cache.json
+notification_cache.json.tmp
+
+# Diagnostic / one-shot scripts
+_*.js
+ts_errors_raw.txt
+test-control-server.js
+node_modules/
+.env
+desktop-app/dist/

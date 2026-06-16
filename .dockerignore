@@ -1,0 +1,17 @@
+node_modules
+.git
+.gitignore
+backups
+logs
+*.log
+database.sqlite
+*.db
+.env
+.env.local
+dist
+.vscode
+.idea
+*.md
+!POSTGRES_MIGRATION.md
+.husky
+.github
