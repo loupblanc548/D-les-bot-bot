@@ -3,7 +3,7 @@ import { config } from "../config";
 
 import {
   exchangeNpssoForCode,
-  exchangeCodeForAccessToken,
+  exchangeAccessCodeForAuthTokens,
   getProfileFromUserName,
   getUserTitles,
   getUserTrophyProfileSummary,
@@ -64,7 +64,7 @@ export async function authenticatePsn(): Promise<string> {
   authPromise = (async () => {
     try {
       const accessCode = await exchangeNpssoForCode(npsso);
-      const authorization = await exchangeCodeForAccessToken(accessCode);
+      const authorization = await exchangeAccessCodeForAuthTokens(accessCode);
       cachedAuth = {
         accessToken: authorization.accessToken,
         expiresAt: now + (authorization.expiresIn ?? 3600) * 1000,
