@@ -1,0 +1,55 @@
+# Dependabot configuration for automatic dependency updates
+# See: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # npm / pnpm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    labels:
+      - "dependencies"
+      - "automerge"
+    groups:
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+          - "typescript-eslint*"
+          - "@typescript-eslint/*"
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+      discord:
+        patterns:
+          - "discord.js"
+          - "@discordjs/*"
+      testing:
+        patterns:
+          - "vitest*"
+          - "@vitest/*"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"

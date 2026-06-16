@@ -1,0 +1,194 @@
+/**
+ * startup.ts — Logique de démarrage (ClientReady)
+ *
+ * Extrait de index.ts pour réduire sa complexité.
+ * Contient : initSchedulers, sendStatusReport, attachStartupLogic
+ */
+
+import {
+  Client,
+  Events,
+} from "discord.js";
+import { config } from "./config";
+import logger from "./utils/logger";
+import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api";
+import { startTwitchMonitoring } from "./services/twitch";
+import { runStartupRetrospective } from "./services/feeds";
+import { startMonitoring, runDbSourcesRetrospective } from "./services/monitor";
+import { sendHealthReport } from "./services/healthcheck";
+import { validateChannels } from "./services/channel-validator";
+import { startPatchNotesService } from "./services/patchNotes";
+import { startBackupService } from "./services/backup";
+import { startInstantGamingNewsCheck, checkInstantGamingNews } from "./services/instantgaming-news";
+import { startInstantGamingCheck } from "./services/instantgaming";
+import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron";
+import { checkFreeGames } from "./cron/freeGamesCron";
+import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron";
+import { startDealsMonitoring, checkDeals } from "./cron/dealsCron";
+import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron";
+import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter";
+import { startFreeGamesMonitoring } from "./cron/freeGamesCron";
+import { startMonthlyMaintenance } from "./cron/monthlyMaintenance";
+import { registerInterval } from "./shutdown";
+import prisma from "./prisma";
+import { dedupCache } from "./utils/deduplicationCache";
+import { startAutoCleanup } from "./services/auto-cleanup";
+
+
+// ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
+
+async function initSchedulers(client: Client): Promise<void> {
+  // ═══════════════════════════════════════════════════════════════════════
+  // 🔒 PHASE 0 : Prime silencieuse (cache uniquement, AUCUN envoi Discord)
+  // Charge les posts des dernieres 24h dans le cache pour creer une
+  // barriere de securite immediate et empecher le spam au demarrage.
+  // ═══════════════════════════════════════════════════════════════════════
+  logger.info("🔒 [PHASE 0] Prime silencieuse du cache (anti-spam demarrage)...");
+
+  // 0a. Prime depuis Neon ProcessedCache (posts deja traites)
+  try {
+    await dedupCache.warmUpFromDatabase(async (platform) => {
+      const entries = await prisma.processedCache.findMany({
+        where: { platform },
+        select: { uniqueId: true },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+      return entries.map(e => e.uniqueId);
+    });
+    logger.info("🔒 Cache prime depuis Neon (ProcessedCache) : OK");
+  } catch (err) {
+    logger.error(`🔒 Echec prime Neon: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // 0b. Active le mode silencieux (routeArticle retourne un succes factice)
+  enableSilentMode();
+
+  // 0c. Scan silencieux depuis les sources (fetch -> cache, pas d'envoi Discord)
+  logger.info("🔒 [PHASE 0] Scan silencieux depuis les sources (24h)...");
+  try {
+    await Promise.allSettled([
+      checkTwitterAccounts(client),
+      checkFreeGames(client),
+      checkInstantGamingNews(client),
+      checkTrackedGames(client),
+      checkDeals(client),
+      checkPatchNotes(client),
+    ]);
+    logger.info("🔒 [PHASE 0] Scan silencieux termine (cache prime, 0 message envoye)");
+  } catch (err) {
+    logger.error(`🔒 [PHASE 0] Erreur scan silencieux: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // 0d. Desactive le mode silencieux
+  disableSilentMode();
+  logger.info("🔒 [PHASE 0] Mode silencieux desactive");
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PHASE 1 : Scan reel (les items deja en cache seront ignores)
+  // ═══════════════════════════════════════════════════════════════════════
+  logger.info("♻️ [PHASE 1] Scan reel de demarrage...");
+
+  const results = await Promise.allSettled([
+    checkTwitterAccounts(client),
+    checkFreeGames(client),
+    checkInstantGamingNews(client),
+    checkTrackedGames(client),
+    checkDeals(client),
+    checkPatchNotes(client),
+  ]);
+
+  const succeeded = results.filter(r => r.status === "fulfilled").length;
+  const failed = results.filter(r => r.status === "rejected").length;
+  logger.info(`♻️ [PHASE 1] Scan reel termine (${succeeded} OK, ${failed} echec(s))`);
+
+  logger.info("⏱️ Planification Cron...");
+  startTwitterMonitoring(client);
+  startFreeGamesMonitoring(client);
+  startInstantGamingNewsCheck(client);
+  startGlobalPatchNotesMonitoring(client);
+  logger.info("⏱️ Tous les crons sont planifies");
+}
+
+// car elle est appelée indirectement via startGlobalPatchNotesMonitoring.
+
+// L'import ci-dessus résout le problème.
+
+// ─── Helper : Embed de statut (actuellement désactivé) ─────────────────────
+
+export function attachStartupLogic(client: Client, healthResults: import("./services/healthcheck").CheckResult[]): void {
+  client.once(Events.ClientReady, async (readyClient) => {
+    logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
+    logger.info(`📡 ${client.guilds.cache.size} serveurs`);
+
+    // Notification propriétaire
+    if (config.ownerId) {
+      client.users
+        .fetch(config.ownerId)
+        .then((owner) => owner.send(`🚀 **${readyClient.user.username}** vient de demarrer !`))
+        .catch((error) => logger.error(`[Startup] Impossible d'envoyer le MP au proprietaire: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined }));
+    }
+
+    // Wishlist Fortnite (startup + interval)
+    logger.info("[Startup] Verification wishlist Fortnite...");
+    try {
+      const matches = await checkWishlistMatches(client);
+      if (matches > 0) logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) au demarrage`);
+    } catch (e) {
+      logger.error(`[Startup] Erreur wishlist check: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+    }
+    const wishlistInterval = setInterval(() => {
+      checkWishlistMatches(client).then((matches) => {
+        if (matches > 0) logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) (check cyclique)`);
+      }).catch((e) => logger.error(`[FortniteAPI/Wishlist] Erreur cyclique: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined }));
+    }, 24 * 60 * 60 * 1000);
+    registerInterval(wishlistInterval);
+
+    // Rattrapage startup
+    logger.info("[Startup] Rattrapage des actualites manquees...");
+    try {
+      await runStartupRetrospective(client);
+      await runDbSourcesRetrospective(client);
+      await runWishlistRetrospective(client);
+    } catch (e) {
+      logger.error(`[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+    }
+
+    // Validation des salons
+    logger.info("[Startup] Validation des salons Discord...");
+    const channelsReport = await validateChannels(client);
+    if (channelsReport.errors > 0) {
+      logger.warn(`[Startup] ${channelsReport.errors} salon(s) inaccessible(s)`);
+    }
+
+    // Démarrage de tous les services
+    logger.info("[Startup] Demarrage des services...");
+    const services = [
+      () => startMonitoring(client),
+      () => startTwitchMonitoring(client),
+      () => startPatchNotesService(client),
+      () => startBackupService(client),
+      () => startInstantGamingCheck(client),
+      () => startSteamNewsMonitoring(client),
+      () => startDealsMonitoring(client),
+      () => startMonthlyMaintenance(client),
+      () => startGlobalPatchNotesMonitoring(client),
+      () => startAutoCleanup(client),
+    ];
+    for (const start of services) {
+      try { start(); } catch (e) { logger.error(`[Startup] Erreur démarrage service: ${e}`); }
+    }
+
+    await initSchedulers(client);
+    await sendHealthReport(client, healthResults);
+
+    logger
+.info("");
+    logger.info("=".repeat(55));
+    logger.info("  ✅ BOT DEMARRE AVEC SUCCES");
+    logger.info(`  📡 Surveillance active (${client.guilds.cache.size} serveurs)`);
+    logger.info("  🟢 Tous les modules sont operationnels");
+    logger.info("=".repeat(55));
+  
+  });
+}

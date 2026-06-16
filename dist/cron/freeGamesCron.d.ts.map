@@ -1,0 +1,1 @@
+{"version":3,"file":"freeGamesCron.d.ts","sourceRoot":"","sources":["../../src/cron/freeGamesCron.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,MAAM,EAAE,MAAM,YAAY,CAAC;AAyJpC,iBAAe,cAAc,CAAC,MAAM,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CA6F3D;AAOD,wBAAgB,wBAAwB,CAAC,MAAM,EAAE,MAAM,GAAG,IAAI,CAuB7D;AAED,wBAAgB,uBAAuB,IAAI,IAAI,CAM9C;AAED,OAAO,EAAE,cAAc,EAAE,CAAC"}

@@ -1,0 +1,269 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dashboard CSS — Professional Bot Control Panel
+   Palette: #0b1220 (bg) | #111827 (cards) | #3b82f6 (accent)
+            #22c55e (success) | #f59e0b (warning) | #ef4444 (error)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-base: #0b1220;
+  --bg-primary: #111827;
+  --bg-secondary: #1a2332;
+  --bg-tertiary: #1f2a3a;
+  --bg-hover: #263348;
+  --border: #2d3a4f;
+  --border-light: #3d4f66;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-bg: rgba(59,130,246,0.1);
+  --success: #22c55e;
+  --success-bg: rgba(34,197,94,0.1);
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245,158,11,0.1);
+  --sidebar-width: 240px;
+  --titlebar-height: 38px;
+  --statusbar-height: 38px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  font-family: var(--font-ui);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Layout ─────────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: var(--titlebar-height) auto 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-areas:
+    "titlebar titlebar"
+    "sidebar  statusbar"
+    "sidebar  main";
+  height: 100vh;
+}
+
+#titlebar { grid-area: titlebar; }
+#sidebar  { grid-area: sidebar; }
+#statusbar { grid-area: statusbar; }
+#main     { grid-area: main; overflow-y: auto; }
+
+/* ─── Titlebar ───────────────────────────────────────────────── */
+#titlebar {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  z-index: 200;
+  -webkit-app-region: drag;
+}
+#titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+#titlebar-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+#titlebar-dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+#titlebar-controls {
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+#titlebar-controls button {
+  background: none; border: none;
+  color: var(--text-muted);
+  font-size: 15px; cursor: pointer;
+  width: 32px; height: 28px;
+  border-radius: 6px;
+  transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+#titlebar-controls button:hover { background: var(--bg-hover); color: var(--text-primary); }
+#btn-close:hover { background: var(--danger) !important; color: #fff !important; }
+
+/* ─── Status Bar ─────────────────────────────────────────────── */
+#statusbar {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 20px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.status-item { display: flex; align-items: center; gap: 7px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.ok   { background: var(--success); }
+.status-dot.warn { background: var(--warning); }
+.status-dot.err  { background: var(--danger); }
+#sb-ping { margin-left: auto; font-family: var(--font-mono); font-size: 10px; }
+
+/* ─── Sidebar ────────────────────────────────────────────────── */
+#sidebar {
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+}
+.sidebar-logo {
+  padding: 12px 18px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+}
+.sidebar-logo-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+.sidebar-section {
+  font-size: 10px; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 700;
+  letter-spacing: 1.2px;
+  padding: 18px 12px 6px;
+}
+.nav-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  background: none; border: none;
+  color: var(--text-secondary); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: var(--transition);
+  text-align: left; width: 100%;
+  font-family: var(--font-ui);
+}
+.nav-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.nav-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.nav-btn .nav-icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+.nav-btn .nav-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff; font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+  animation: badgePulse 2s infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+n/* Fortnite detection blink */
+@keyframes fnBlink {
+  0%, 100% { transform: scale(1); background: var(--danger); }
+  25% { transform: scale(1.25); background: #ff6b6b; }
+  50% { transform: scale(1); background: var(--danger); }
+  75% { transform: scale(1.25); background: #ff6b6b; }
+}
+.fn-blink { animation: fnBlink 0.5s ease-in-out 4; }
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.sidebar-footer .ws-indicator {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success);
+}
+.sidebar-footer .ws-indicator.disconnected { background: var(--danger); }
+
+/* ─── Main Content ───────────────────────────────────────────── */
+#main {
+  padding: 24px;
+  background: var(--bg-base);
+}
+#main::-webkit-scrollbar { width: 5px; }
+#main::-webkit-scrollbar-track { background: transparent; }
+#main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#main::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+.tab { display: none; }
+.tab.active { display: flex; flex-direction: column; gap: 20px; }
+
+/* ─── Row Header ─────────────────────────────────────────────── */
+.row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.row-header h2 {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ─── Stats Grid ─────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+/* ─── Gauge Container ────────────────────────────────────────── */
+.gauge-container {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 20px;
+}
+.gauge-circle {
+  position: relative; width: 130px; height: 130px;
+}
+.gauge-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge-bg { fill: none; stroke: var(--bg-tertiary); stroke-width: 9; }
+.gauge-fill {
+  fill: none; stroke-width: 9; stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
+}
+.gauge-value {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800; letter-spacing: -1px;
+}
+.gauge-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+/* ─── Charts ─────────────────────────────────────────────────── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 14px;
+}
+.chart-box {
+  background: var(--bg-tertiary);
+  border
