@@ -1,4 +1,4 @@
-import logger from "../../utils/logger";
+import logger from "../../utils/logger.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,
@@ -6,9 +6,9 @@ import {
   EmbedBuilder,
   AutocompleteInteraction,
 } from "discord.js";
-import prisma from "../../prisma";
-import { validateCosmeticName } from "../../services/fortnite-cosmetics";
-import { fetchShop } from "../../services/fortnite-api";
+import prisma from "../../prisma.js";
+import { validateCosmeticName } from "../../services/fortnite-cosmetics.js";
+import { fetchShop } from "../../services/fortnite-api.js";
 
 const FOOTER = { text: "Wishlist Fortnite \u2022 v4.0.0" };
 
@@ -17,16 +17,23 @@ export const commands = [
     .setName("wishlist")
     .setDescription("G\u00e8re ta wishlist Fortnite")
     .addStringOption((option) =>
-      option.setName("action").setDescription("Action \u00e0 effectuer").setRequired(true)
+      option
+        .setName("action")
+        .setDescription("Action \u00e0 effectuer")
+        .setRequired(true)
         .addChoices(
           { name: "\u2795 Ajouter un objet", value: "add" },
           { name: "\u2796 Retirer un objet", value: "remove" },
           { name: "\ud83d\udccb Voir ma liste", value: "list" },
-          { name: "\ud83d\udd14 Notifications DM ON/OFF", value: "notify" }
-        )
+          { name: "\ud83d\udd14 Notifications DM ON/OFF", value: "notify" },
+        ),
     )
     .addStringOption((option) =>
-      option.setName("nom").setDescription("Nom de l'objet (add/remove)").setRequired(false).setAutocomplete(true)
+      option
+        .setName("nom")
+        .setDescription("Nom de l'objet (add/remove)")
+        .setRequired(false)
+        .setAutocomplete(true),
     )
     .toJSON(),
 ];
@@ -35,6 +42,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   const action = interaction.options.getString("action", true);
   const userId = interaction.user.id;
 
+  // ─── Validation du champ 'nom' selon l'action ─────────────────────
+  if (action === "add" || action === "remove") {
+    const rawName = interaction.options.getString("nom");
+    if (!rawName || rawName.trim() === "") {
+      await interaction.reply({
+        content: "❌ Vous devez spécifier le nom d'un cosmétique pour cette action !",
+        flags: [MessageFlags.Ephemeral],
+      });
+      return;
+    }
+  }
+
   try {
     // ─── ADD ──────────────────────────────────────────────
     if (action === "add") {
@@ -42,7 +61,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
       if (!rawName) {
         await interaction.reply({
-          content: "\u274c Donne le nom de l'objet (option \"nom\") \u00e0 ajouter.",
+          content: '\u274c Donne le nom de l\'objet (option "nom") \u00e0 ajouter.',
           flags: [MessageFlags.Ephemeral],
         });
         logger.info("\u26a0\ufe0f [Wishlist] Commande /add sans nom fourni par", userId);
@@ -62,7 +81,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       const isValid = await validateCosmeticName(itemName);
       if (!isValid) {
         await interaction.reply({
-          content: "\u274c \"" + itemName + "\" n'est pas un item Fortnite valide. V\u00e9rifie l'orthographe ou utilise l'autocompl\u00e9tion.",
+          content:
+            '\u274c "' +
+            itemName +
+            "\" n'est pas un item Fortnite valide. V\u00e9rifie l'orthographe ou utilise l'autocompl\u00e9tion.",
           flags: [MessageFlags.Ephemeral],
         });
         logger.info("\u274c [Wishlist] Cosmetic invalide :", itemName);
@@ -74,7 +96,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       });
       if (existing) {
         await interaction.reply({
-          content: "\u26a0\ufe0f \"" + itemName + "\" est d\u00e9j\u00e0 dans ta wishlist.",
+          content: '\u26a0\ufe0f "' + itemName + '" est d\u00e9j\u00e0 dans ta wishlist.',
           flags: [MessageFlags.Ephemeral],
         });
         logger.info("\u26a0\ufe0f [Wishlist] Doublon d\u00e9tect\u00e9 :", userId, "->", itemName);
@@ -84,11 +106,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       await prisma.wishlist.create({ data: { userId, itemName } });
       logger.info("\u2705 [Wishlist] ID", userId, "a ajout\u00e9 l'objet :", itemName);
       await interaction.reply({
-        content: "\u2705 \"" + itemName + "\" ajout\u00e9 \u00e0 ta wishlist !",
+        content: '\u2705 "' + itemName + '" ajout\u00e9 \u00e0 ta wishlist !',
         flags: [MessageFlags.Ephemeral],
       });
 
-    // ─── REMOVE ───────────────────────────────────────────
+      // ─── REMOVE ───────────────────────────────────────────
     } else if (action === "remove") {
       const rawName = interaction.options.getString("nom");
 
@@ -109,25 +131,35 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         return;
       }
 
-      logger.info("\ud83d\uddd1\ufe0f [Wishlist] Tentative de suppression :", userId, "->", itemName);
+      logger.info(
+        "\ud83d\uddd1\ufe0f [Wishlist] Tentative de suppression :",
+        userId,
+        "->",
+        itemName,
+      );
       const deleted = await prisma.wishlist.deleteMany({ where: { userId, itemName } });
 
       if (deleted.count === 0) {
         await interaction.reply({
-          content: "\u274c \"" + itemName + "\" n'est pas dans ta wishlist.",
+          content: '\u274c "' + itemName + "\" n'est pas dans ta wishlist.",
           flags: [MessageFlags.Ephemeral],
         });
-        logger.info("\u26a0\ufe0f [Wishlist] Suppression \u00e9chou\u00e9e (non trouv\u00e9) :", userId, "->", itemName);
+        logger.info(
+          "\u26a0\ufe0f [Wishlist] Suppression \u00e9chou\u00e9e (non trouv\u00e9) :",
+          userId,
+          "->",
+          itemName,
+        );
         return;
       }
 
       logger.info("\u2705 [Wishlist] ID", userId, "a retir\u00e9 l'objet :", itemName);
       await interaction.reply({
-        content: "\u2705 \"" + itemName + "\" retir\u00e9 de ta wishlist.",
+        content: '\u2705 "' + itemName + '" retir\u00e9 de ta wishlist.',
         flags: [MessageFlags.Ephemeral],
       });
 
-    // ─── LIST (enrichi avec la boutique du jour) ──────────
+      // ─── LIST (enrichi avec la boutique du jour) ──────────
     } else if (action === "list") {
       await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
@@ -139,16 +171,26 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       logger.info("\ud83d\udcca [Wishlist] Liste de", userId, ":", items.length, "objet(s)");
 
       if (items.length === 0) {
-        await interaction.editReply({ content: "\ud83d\udcc4 Ta wishlist est vide. Ajoute des objets avec `/wishlist add` !" });
+        await interaction.editReply({
+          content: "\ud83d\udcc4 Ta wishlist est vide. Ajoute des objets avec `/wishlist add` !",
+        });
         return;
       }
 
       // R\u00e9cup\u00e9rer la boutique du jour pour croiser les disponibilit\u00e9s
-      let shopMap: Map<string, { rarity: string; price: number; icon: string; displayName: string }> | null = null;
+      let shopMap: Map<
+        string,
+        { rarity: string; price: number; icon: string; displayName: string }
+      > | null = null;
       try {
         const shop = await fetchShop();
         if (shop) {
-          const allShopItems = [...shop.featured, ...shop.daily, ...shop.specialFeatured, ...shop.specialDaily];
+          const allShopItems = [
+            ...shop.featured,
+            ...shop.daily,
+            ...shop.specialFeatured,
+            ...shop.specialDaily,
+          ];
           shopMap = new Map();
           for (const entry of allShopItems) {
             for (const name of entry.allNames) {
@@ -163,7 +205,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
             }
           }
         }
-      } catch (err) { logger.error("[Wishlist] Erreur:", String(err)) }
+      } catch (err) {
+        logger.error("[Wishlist] Erreur:", String(err));
+      }
       // Construire la description avec statut de disponibilit\u00e9
       const lines: string[] = [];
       let availableCount = 0;
@@ -176,11 +220,17 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           availableCount++;
           const priceStr = matched.price > 0 ? matched.price + " V-Bucks" : "Gratuit";
           lines.push(
-            (i + 1) + ". \ud83d\udfe2 **" + matched.displayName + "** \u2014 " +
-            (matched.rarity || "?") + " | " + priceStr
+            i +
+              1 +
+              ". \ud83d\udfe2 **" +
+              matched.displayName +
+              "** \u2014 " +
+              (matched.rarity || "?") +
+              " | " +
+              priceStr,
           );
         } else {
-          lines.push((i + 1) + ". \u26aa " + wish.itemName);
+          lines.push(i + 1 + ". \u26aa " + wish.itemName);
         }
       }
 
@@ -190,7 +240,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           (shopMap
             ? "\ud83d\udfe2 **" + availableCount + "/" + items.length + " dispo aujourd'hui !**\n"
             : "\ud83d\udce6 Boutique inaccessible \u2014 liste simple :\n") +
-          "\n" + lines.join("\n")
+            "\n" +
+            lines.join("\n"),
         )
         .setColor(0x9b59b6)
         .setFooter(FOOTER)
@@ -198,7 +249,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
       // Ajouter le thumbnail du premier item dispo si pr\u00e9sent
       if (shopMap) {
-        const firstAvailable = items.find(w => shopMap!.has(w.itemName));
+        const firstAvailable = items.find((w) => shopMap!.has(w.itemName));
         if (firstAvailable) {
           const info = shopMap.get(firstAvailable.itemName)!;
           if (info.icon) embed.setThumbnail(info.icon);
@@ -207,7 +258,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
       await interaction.editReply({ embeds: [embed] });
 
-    // ─── NOTIFY (toggle DM) ───────────────────────────────
+      // ─── NOTIFY (toggle DM) ───────────────────────────────
     } else if (action === "notify") {
       const pref = await prisma.userPreference.findUnique({ where: { userId } });
       const current = pref?.wishlistDm ?? true; // par d\u00e9faut : activ\u00e9
@@ -226,24 +277,31 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         flags: [MessageFlags.Ephemeral],
       });
     }
-
   } catch (error) {
-    logger.error("\ud83d\udca5 [CRASH WISHLIST] Erreur Prisma d\u00e9tect\u00e9e dans la commande :", error);
+    logger.error(
+      "\ud83d\udca5 [CRASH WISHLIST] Erreur Prisma d\u00e9tect\u00e9e dans la commande :",
+      error,
+    );
     try {
       if (interaction.deferred) {
         await interaction.editReply({ content: "\u274c Une erreur interne est survenue." });
       } else {
         await interaction.reply({
-          content: "\u274c Une erreur interne est survenue. L'erreur a \u00e9t\u00e9 loggu\u00e9e dans la console.",
+          content:
+            "\u274c Une erreur interne est survenue. L'erreur a \u00e9t\u00e9 loggu\u00e9e dans la console.",
           flags: [MessageFlags.Ephemeral],
         });
       }
     } catch (err) {
       logger.error("[Wishlist] Erreur reply:", String(err));
-      await interaction.followUp({
-        content: "❌ Une erreur interne est survenue.",
-        flags: [MessageFlags.Ephemeral],
-      }).catch((err) => { logger.error("[Wishlist] Erreur followUp:", String(err)) });
+      await interaction
+        .followUp({
+          content: "❌ Une erreur interne est survenue.",
+          flags: [MessageFlags.Ephemeral],
+        })
+        .catch((err) => {
+          logger.error("[Wishlist] Erreur followUp:", String(err));
+        });
     }
   }
 }
@@ -275,7 +333,12 @@ export async function handleAutocomplete(interaction: AutocompleteInteraction) {
     try {
       const shop = await fetchShop();
       if (shop) {
-        const allItems = [...shop.featured, ...shop.daily, ...shop.specialFeatured, ...shop.specialDaily];
+        const allItems = [
+          ...shop.featured,
+          ...shop.daily,
+          ...shop.specialFeatured,
+          ...shop.specialDaily,
+        ];
         const seen = new Set<string>();
         for (const item of allItems) {
           for (const name of item.allNames) {
@@ -286,18 +349,18 @@ export async function handleAutocomplete(interaction: AutocompleteInteraction) {
           }
         }
       }
-    } catch (err) { logger.error("[Wishlist] Erreur:", String(err)) }
+    } catch (err) {
+      logger.error("[Wishlist] Erreur:", String(err));
+    }
 
-    // 2. Fallback : chercher dans la BDD cosm\u00e9tiques si la boutique est vide
+    // 2. Fallback : chercher dans la BDD cosmétiques si la boutique est vide
     if (suggestions.length === 0) {
-      const { searchCosmetics } = await import("../../services/fortnite-cosmetics");
+      const { searchCosmetics } = await import("../../services/fortnite-cosmetics.js");
       const fallback = await searchCosmetics(query, 25);
       suggestions.push(...fallback);
     }
 
-    await interaction.respond(
-      suggestions.slice(0, 25).map((name) => ({ name, value: name }))
-    );
+    await interaction.respond(suggestions.slice(0, 25).map((name) => ({ name, value: name })));
   } catch (error) {
     logger.error("\ud83d\udca5 [Wishlist] Erreur autocomplete :", error);
     await interaction.respond([]);
