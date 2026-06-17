@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import { config } from "../config";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
 
 import * as psnApi from "psn-api";
 
