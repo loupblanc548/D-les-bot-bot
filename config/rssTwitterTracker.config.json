@@ -1,0 +1,84 @@
+{
+  "rules": [
+    {
+      "name": "Fortnite",
+      "keywords": [
+        "fortnite",
+        "battle royale",
+        "chapter ",
+        "season ",
+        "live event",
+        "fn ",
+        "fortbytes",
+        "victory crown"
+      ],
+      "channelEnv": "FORTNITE_CHANNEL_ID",
+      "color": 16218112
+    },
+    {
+      "name": "PlayStation",
+      "keywords": [
+        "playstation",
+        "ps5 ",
+        "ps4 ",
+        "psn",
+        "sony interactive",
+        "playstation plus",
+        "ps plus",
+        "psn store",
+        "playstation studios"
+      ],
+      "channelEnv": "PLAYSTATION_CHANNEL_ID",
+      "color": 14225
+    },
+    {
+      "name": "Xbox",
+      "keywords": [
+        "xbox",
+        "microsoft",
+        " game pass",
+        "series x",
+        "series s",
+        "halo",
+        "forza",
+        "bethesda",
+        "activision blizzard"
+      ],
+      "channelEnv": "XBOX_CHANNEL_ID",
+      "color": 10787856
+    },
+    {
+      "name": "Nintendo",
+      "keywords": [
+        "nintendo",
+        "switch",
+        "nintendo switch",
+        "mario",
+        "zelda",
+        "pok\u00e9mon",
+        "pokemon",
+        "nintendo direct",
+        "3ds"
+      ],
+      "channelEnv": "NINTENDO_CHANNEL_ID",
+      "color": 15059986
+    },
+    {
+      "name": "Instant Gaming",
+      "keywords": [
+        "instant gaming",
+        "instantgaming",
+        "instant-gaming",
+        "ig deal",
+        "cdkey"
+      ],
+      "channelEnv": "INSTANT_GAMING_CHANNEL_ID",
+      "color": 10186422
+    }
+  ],
+  "defaultRule": {
+    "name": "Steam / Epic / Jeux",
+    "channelEnv": "STEAM_EPIC_CHANNEL_ID",
+    "color": 1780024
+  }
+}
