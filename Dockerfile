@@ -1,4 +1,5 @@
 # ---- Build Stage ----
+# Force cache invalidation for psn-api ESM fix
 FROM node:20-alpine AS builder
 
 WORKDIR /app
