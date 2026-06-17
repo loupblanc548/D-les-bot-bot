@@ -1,13 +1,7 @@
 import logger from "../utils/logger";
 import { config } from "../config";
 
-import {
-  exchangeNpssoForCode,
-  exchangeAccessCodeForAuthTokens,
-  getProfileFromUserName,
-  getUserTitles,
-  getUserTrophyProfileSummary,
-} from "psn-api";
+import * as psnApi from "psn-api";
 
 export interface PsnProfile {
   onlineId: string;
@@ -63,8 +57,8 @@ export async function authenticatePsn(): Promise<string> {
 
   authPromise = (async () => {
     try {
-      const accessCode = await exchangeNpssoForCode(npsso);
-      const authorization = await exchangeAccessCodeForAuthTokens(accessCode);
+      const accessCode = await psnApi.exchangeNpssoForCode(npsso);
+      const authorization = await psnApi.exchangeAccessCodeForAuthTokens(accessCode);
       cachedAuth = {
         accessToken: authorization.accessToken,
         expiresAt: now + (authorization.expiresIn ?? 3600) * 1000,
@@ -93,17 +87,23 @@ interface RawPsnData {
 export async function getPsnProfile(username: string): Promise<PsnProfile | null> {
   try {
     const accessToken = await authenticatePsn();
-    const result = await getProfileFromUserName({ accessToken }, username);
+    const result = await psnApi.getProfileFromUserName({ accessToken }, username);
     const p = result.profile as unknown as RawPsnData;
     const accountId = p.accountId;
 
     let trophySummary: PsnTrophySummary = {
-      level: 0, progress: 0, platinum: 0, gold: 0, silver: 0, bronze: 0, total: 0,
+      level: 0,
+      progress: 0,
+      platinum: 0,
+      gold: 0,
+      silver: 0,
+      bronze: 0,
+      total: 0,
     };
 
     if (accountId) {
       try {
-        const td = await getUserTrophyProfileSummary({ accessToken }, accountId);
+        const td = await psnApi.getUserTrophyProfileSummary({ accessToken }, accountId);
         trophySummary = {
           level: Number(td.trophyLevel) || 0,
           progress: Number(td.progress) || 0,
@@ -111,9 +111,7 @@ export async function getPsnProfile(username: string): Promise<PsnProfile | null
           gold: td.earnedTrophies?.gold || 0,
           silver: td.earnedTrophies?.silver || 0,
           bronze: td.earnedTrophies?.bronze || 0,
-          total: Object.values(td.earnedTrophies || {}).reduce(
-            (a: number, b: number) => a + b, 0
-          ),
+          total: Object.values(td.earnedTrophies || {}).reduce((a: number, b: number) => a + b, 0),
         };
       } catch (trophyErr) {
         logger.warn(`[PSN] Trophees indisponibles pour "${username}":`, String(trophyErr));
@@ -136,7 +134,7 @@ export async function getPsnProfile(username: string): Promise<PsnProfile | null
 
 export async function getPsnRecentGames(
   accountIdOrUsername: string,
-  limit = 10
+  limit = 10,
 ): Promise<PsnGameTitle[]> {
   try {
     const accessToken = await authenticatePsn();
@@ -150,7 +148,7 @@ export async function getPsnRecentGames(
       if (!accountId) return [];
     }
 
-    const response = await getUserTitles({ accessToken }, accountId, { limit });
+    const response = await psnApi.getUserTitles({ accessToken }, accountId, { limit });
 
     return (response.trophyTitles || []).map((t) => ({
       npCommunicationId: t.npCommunicationId,
@@ -182,7 +180,7 @@ export async function getPsnDeals(limit = 5): Promise<PsnDeal[]> {
     const response = await fetch(url, {
       headers: {
         "User-Agent": "DiscordSurveillanceBot/1.0",
-        "Accept": "text/html",
+        Accept: "text/html",
       },
       signal: AbortSignal.timeout(10000),
     });
@@ -192,15 +190,18 @@ export async function getPsnDeals(limit = 5): Promise<PsnDeal[]> {
 
     // Extraction basique des deals via regex sur les data attributes
     const deals: PsnDeal[] = [];
-    const gameRegex = /<div[^>]*class="[^"]*game-row[^"]*"[^>]*data-name="([^"]*)"[^>]*data-price="([^"]*)"[^>]*data-cut="([^"]*)"[^>]*data-end="([^"]*)"[^>]*>/g;
+    const gameRegex =
+      /<div[^>]*class="[^"]*game-row[^"]*"[^>]*data-name="([^"]*)"[^>]*data-price="([^"]*)"[^>]*data-cut="([^"]*)"[^>]*data-end="([^"]*)"[^>]*>/g;
     let match;
 
     while ((match = gameRegex.exec(html)) !== null && deals.length < limit) {
       const [, title, discountedPrice, discountPercent, endDate] = match;
-      const originalPrice = String(Math.round(Number(discountedPrice) / (1 - Number(discountPercent) / 100) * 100) / 100);
-      
+      const originalPrice = String(
+        Math.round((Number(discountedPrice) / (1 - Number(discountPercent) / 100)) * 100) / 100,
+      );
+
       deals.push({
-        title: title.replace(/&amp;/g, "&").replace(/&quot;/g, "\""),
+        title: title.replace(/&amp;/g, "&").replace(/&quot;/g, '"'),
         originalPrice: `${originalPrice}€`,
         discountedPrice: `${discountedPrice}€`,
         discountPercent: Number(discountPercent),
