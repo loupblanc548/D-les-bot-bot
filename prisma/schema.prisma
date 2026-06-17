@@ -121,14 +121,14 @@ model CommandLog {
 }
 
 model ModAction {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   guildId     String
   moderatorId String
   action      SanctionType
   targetId    String
   reason      String?
   duration    Int?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime     @default(now())
 
   @@index([guildId])
   @@index([targetId])
@@ -229,16 +229,16 @@ model UserPlatformPreference {
 }
 
 model Sanction {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   userId      String
   guildId     String
   moderatorId String
   type        SanctionType
   reason      String
   duration    Int?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([userId])
   @@index([guildId])
@@ -688,7 +688,7 @@ model RiskProfile {
 }
 
 model Alert {
-  id         String    @id @default(uuid())
+  id         String      @id @default(uuid())
   guildId    String
   userId     String
   type       String
@@ -699,7 +699,7 @@ model Alert {
   resolvedBy String?
   resolvedAt DateTime?
   action     String?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime    @default(now())
 
   @@index([guildId])
   @@index([userId])
@@ -867,8 +867,8 @@ model UserProfile {
 }
 
 model SourceReputation {
-  id               Int      @id @default(autoincrement())
-  sourceId         String   @unique
+  id               Int    @id @default(autoincrement())
+  sourceId         String @unique
   sourceName       String
   reliabilityScore Float
   accuracyScore    Float
@@ -880,8 +880,8 @@ model SourceReputation {
 }
 
 model UserSteamLink {
-  id        Int      @id @default(autoincrement())
-  discordId String   @unique
+  id        Int    @id @default(autoincrement())
+  discordId String @unique
   steamId   String
   linkedAt  Float
 }
@@ -902,4 +902,66 @@ model ProcessedCache {
 model AppState {
   key   String @id
   value String
+}
+
+// ===== AI Memory (Epic) =====
+
+model UserMemory {
+  userId       String          @id
+  guildId      String?
+  tone         String          @default("casual")
+  locale       String          @default("fr")
+  summary      String?         @db.Text
+  lastActiveAt DateTime        @default(now())
+  facts        MemoryFact[]
+  messages     MemoryMessage[]
+
+  @@index([guildId])
+  @@map("user_memory")
+}
+
+model MemoryFact {
+  id          String     @id @default(cuid())
+  userId      String
+  user        UserMemory @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  key         String
+  value       String     @db.Text
+  weight      Float      @default(1.0)
+  category    String?
+  sourceMsg   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  expiresAt   DateTime?
+  accessedAt  DateTime   @default(now())
+  accessCount Int        @default(0)
+
+  @@unique([userId, key])
+  @@index([userId, weight])
+  @@index([expiresAt])
+  @@map("memory_fact")
+}
+
+model MemoryMessage {
+  id        String     @id @default(cuid())
+  userId    String
+  user      UserMemory @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  role      String
+  content   String     @db.Text
+  channelId String?
+  tokens    Int?
+  createdAt DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@map("memory_message")
+}
+
+model MemoryDecayLog {
+  id          String   @id @default(cuid())
+  factsBefore Int
+  factsAfter  Int
+  ranAt       DateTime @default(now())
+  notes       String?  @db.Text
+
+  @@index([ranAt])
+  @@map("memory_decay_log")
 }
