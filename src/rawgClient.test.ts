@@ -1,14 +1,12 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 // src/rawgClient.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { RawgClient } from "./rawgClient.js";
+import { RawgClient, type RawgClientInternals } from "./rawgClient.js";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {} };
 
 /** @returns {typeof fetch} */
-function fakeFetch(body: any, status = 200): Promise<any> {
-  return /** @type {any} */ vi.fn(async () => ({
+function fakeFetch(body: any, status = 200): typeof globalThis.fetch {
+  return vi.fn(async () => ({
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? "OK" : "Error",
@@ -23,7 +21,7 @@ function fakeFetch(body: any, status = 200): Promise<any> {
     blob: async () => new Blob(),
     formData: async () => new FormData(),
     clone: () => ({ ok: status >= 200 && status < 300, status, json: async () => body }),
-  })) as unknown as Response;
+  })) as unknown as typeof globalThis.fetch;
 }
 
 describe("RawgClient", () => {
@@ -67,7 +65,7 @@ describe("RawgClient", () => {
     });
     const c = new RawgClient({ fetchImpl, logger: noopLog });
     await c.searchByTitle("X");
-    const f = fetchImpl;
+    const f = fetchImpl as any;
     f.mockClear();
     const r2 = await c.searchByTitle("X");
     expect(r2?.background_image).toBe("https://x.jpg");
@@ -86,7 +84,7 @@ describe("RawgClient", () => {
     const c = new RawgClient({ fetchImpl, logger: noopLog });
     const r = await c.searchByTitle("Nothing");
     expect(r).toBeNull();
-    const f = fetchImpl;
+    const f = fetchImpl as any;
     f.mockClear();
     const r2 = await c.searchByTitle("Nothing");
     expect(r2).toBeNull();
@@ -95,7 +93,7 @@ describe("RawgClient", () => {
 
   it("retries once on timeout", async () => {
     let calls = 0;
-    const fetchImpl = /** @type {any} */ vi.fn(async () => {
+    const fetchImpl = vi.fn(async () => {
       calls += 1;
       if (calls === 1) {
         const err = new Error("aborted");
@@ -105,11 +103,22 @@ describe("RawgClient", () => {
       return {
         ok: true,
         status: 200,
+        statusText: "OK",
+        headers: new Headers(),
+        url: "",
+        redirected: false,
+        body: null,
+        bodyUsed: false,
+        text: async () => "",
         json: async () => ({
           results: [{ id: 9, name: "AfterRetry", background_image: "https://r.jpg" }],
         }),
+        arrayBuffer: async () => new ArrayBuffer(0),
+        blob: async () => new Blob(),
+        formData: async () => new FormData(),
+        clone: () => ({ ok: true, status: 200, json: async () => ({ results: [] }) }),
       };
-    });
+    }) as any;
     const c = new RawgClient({ fetchImpl, logger: noopLog, timeoutMs: 50 });
     const r = await c.searchByTitle("AfterRetry");
     expect(r?.background_image).toBe("https://r.jpg");
@@ -126,7 +135,7 @@ describe("RawgClient", () => {
     expect(await c.searchByTitle("Whatever")).toBeNull();
     expect(c.cooldownUntil()).toBeGreaterThan(Date.now());
 
-    const f = fetchImpl;
+    const f = fetchImpl as any;
     f.mockClear();
     expect(await c.searchByTitle("Other")).toBeNull();
     expect(f).not.toHaveBeenCalled();
@@ -134,17 +143,28 @@ describe("RawgClient", () => {
 
   it("deduplicates concurrent in-flight requests for the same title", async () => {
     let calls = 0;
-    const fetchImpl = /** @type {any} */ vi.fn(async () => {
+    const fetchImpl = vi.fn(async () => {
       calls += 1;
       await new Promise((r) => setTimeout(r, 20));
       return {
         ok: true,
         status: 200,
+        statusText: "OK",
+        headers: new Headers(),
+        url: "",
+        redirected: false,
+        body: null,
+        bodyUsed: false,
+        text: async () => "",
         json: async () => ({
           results: [{ id: 5, name: "Concurrent", background_image: "https://concur.jpg" }],
         }),
+        arrayBuffer: async () => new ArrayBuffer(0),
+        blob: async () => new Blob(),
+        formData: async () => new FormData(),
+        clone: () => ({ ok: true, status: 200, json: async () => ({ results: [] }) }),
       };
-    });
+    }) as any;
     const c = new RawgClient({ fetchImpl, logger: noopLog });
     const [r1, r2, r3] = await Promise.all([
       c.searchByTitle("Concurrent"),
@@ -159,7 +179,7 @@ describe("RawgClient", () => {
   });
 
   it("caller AbortSignal cancels the fetch", async () => {
-    const fetchImpl = /** @type {any} */ vi.fn(async (_url, init) => {
+    const fetchImpl = vi.fn(async (_url, init) => {
       await new Promise((resolve, reject) => {
         const t = setTimeout(resolve, 1000);
         if (init && init.signal) {
@@ -171,8 +191,23 @@ describe("RawgClient", () => {
           });
         }
       });
-      return { ok: true, status: 200, json: async () => ({}) };
-    });
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers(),
+        url: "",
+        redirected: false,
+        body: null,
+        bodyUsed: false,
+        text: async () => "",
+        json: async () => ({}),
+        arrayBuffer: async () => new ArrayBuffer(0),
+        blob: async () => new Blob(),
+        formData: async () => new FormData(),
+        clone: () => ({ ok: true, status: 200, json: async () => ({}) }),
+      };
+    }) as any;
     const c = new RawgClient({ fetchImpl, logger: noopLog });
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 20);
