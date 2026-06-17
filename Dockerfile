@@ -2,6 +2,8 @@
 # Force cache invalidation for psn-api ESM fix
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -15,7 +17,7 @@ RUN npx prisma generate
 # ---- Production Stage ----
 FROM node:20-alpine
 
-RUN apk add --no-cache dumb-init chromium
+RUN apk add --no-cache dumb-init chromium openssl libc6-compat
 
 WORKDIR /app
 
