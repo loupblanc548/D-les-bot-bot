@@ -36,3 +36,6 @@ test-control-server.js
 node_modules/
 .env
 desktop-app/dist/
+
+# Build output
+dist/
