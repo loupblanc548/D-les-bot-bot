@@ -58,7 +58,7 @@ vi.mock("discord.js", () => ({
   }),
 }));
 
-import { commandRouter, buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter";
+import { commandRouter, buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter.js";
 
 describe("commandRouter", () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -104,7 +104,7 @@ describe("commandRouter", () => {
 
   describe("handleMainSelectMenu re-export", () => {
     it("exporte le handler depuis main", async () => {
-      const mod = await import("./commandRouter");
+      const mod = await import("./commandRouter.js");
       expect(mod.handleMainSelectMenu).toBeDefined();
     });
   });

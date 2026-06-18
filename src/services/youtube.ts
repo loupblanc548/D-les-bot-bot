@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Resolution @handle YouTube → channel ID (UC...)
 // Utilise le page scraping (pas de quota API)
 

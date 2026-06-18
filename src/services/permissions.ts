@@ -4,8 +4,8 @@ import {
   GuildMember,
   PermissionFlagsBits,
 } from "discord.js";
-import { config } from "../config";
-import prisma from "../prisma";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 
 
 export enum PermissionLevel {

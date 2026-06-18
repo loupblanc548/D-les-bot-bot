@@ -1,5 +1,5 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
-import logger from './logger';
+import logger from './logger.js';
 
 let browser: Browser | null = null;
 let context: BrowserContext | null = null;

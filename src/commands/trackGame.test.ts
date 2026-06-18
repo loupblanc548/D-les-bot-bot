@@ -39,7 +39,7 @@ vi.mock("../services/steamNewsService", () => ({
 import {
   handleCommand as handleTrackGameCommand,
   handleAutocomplete as handleTrackGameAutocomplete,
-} from "./trackGame";
+} from "./trackGame.js";
 
 // === Helpers ===
 

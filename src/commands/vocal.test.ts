@@ -19,7 +19,7 @@ vi.mock("../utils/logger", () => ({ default: mockLogger }));
 vi.mock("../services/permissions", () => ({ requireAdmin: mockRequireAdmin }));
 vi.mock("@discordjs/voice", () => mockVoice);
 
-import { handleCommand } from "./vocal";
+import { handleCommand } from "./vocal.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 
 // ── Helpers ────────────────────────────────────────────────────

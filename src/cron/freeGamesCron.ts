@@ -13,18 +13,18 @@
 
 import { Client } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
-import { config } from "../config";
-import logger from "../utils/logger";
-import { translateAutoToFrench } from "../utils/translator";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { translateAutoToFrench } from "../utils/translator.js";
 import {
   ContentType,
   isNewItem,
   markAsProcessed,
   isWithinTemporalBarrier,
-} from "../managers/ScraperManager";
-import { FreeGameFetcher, FreeGameItem } from "../services/FreeGameFetcher";
-import { routeArticle } from "../managers/ChannelRouter";
-import { dedupCache } from "../utils/deduplicationCache";
+} from "../managers/ScraperManager.js";
+import { FreeGameFetcher, FreeGameItem } from "../services/FreeGameFetcher.js";
+import { routeArticle } from "../managers/ChannelRouter.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

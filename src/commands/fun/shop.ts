@@ -1,4 +1,4 @@
-import logger from "../../utils/logger";
+import logger from "../../utils/logger.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,
@@ -9,7 +9,7 @@ import {
   ButtonStyle,
   ComponentType
   } from "discord.js";
-import { fetchShop, ShopEntry } from "../../services/fortnite-api";
+import { fetchShop, ShopEntry } from "../../services/fortnite-api.js";
 
 const ITEMS_PER_PAGE = 8;
 const SECTION_LABELS: Record<string, string> = {

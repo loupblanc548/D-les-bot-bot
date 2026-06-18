@@ -1,5 +1,5 @@
 import { MessageFlags, Client, Role, GuildMember, PartialGuildMember } from "discord.js";
-import { createLog } from "../services/logs";
+import { createLog } from "../services/logs.js";
 
 export function handleRoleEvents(client: Client) {
   client.on("roleCreate", async (role: Role) => {

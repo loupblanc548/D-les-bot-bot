@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import {
@@ -9,9 +9,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
-import { sendErrorLog } from "./logs";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { sendErrorLog } from "./logs.js";
 
 const GIVEAWAY_BASE = config.instantGamingBaseUrl;
 const GIVEAWAY_URL = GIVEAWAY_BASE + "/fr/giveaway/INSTANTGAMING";

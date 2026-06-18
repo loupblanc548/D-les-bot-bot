@@ -46,7 +46,7 @@ vi.mock("../config", () => ({
   },
 }));
 
-import { createRateLimitMiddleware } from "./rateLimit";
+import { createRateLimitMiddleware } from "./rateLimit.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function makeInteraction(overrides: {

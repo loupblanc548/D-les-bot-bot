@@ -1,7 +1,7 @@
-import { SteamApiResponse, SteamPlayerSummaries, SteamOwnedGames, SteamVanityResponse } from "../types/api";
-import logger from "../utils/logger";
+import { SteamApiResponse, SteamPlayerSummaries, SteamOwnedGames, SteamVanityResponse } from "../types/api.js";
+import logger from "../utils/logger.js";
 // Service Steam — récupération des profils et jeux
-import { config } from "../config";
+import { config } from "../config.js";
 
 const STEAM_API_BASE = config.steamApiBaseUrl;
 

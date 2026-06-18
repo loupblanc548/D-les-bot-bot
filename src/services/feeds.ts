@@ -1,14 +1,14 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { MessageFlags, Client, EmbedBuilder, TextChannel } from "discord.js";
-import { getYouTubeThumbnail, getOgImage, getTweetImage, getBlogImage, extractMediaThumbnail } from "../utils/image-helpers";
-import prisma from "../prisma";
+import { getYouTubeThumbnail, getOgImage, getTweetImage, getBlogImage, extractMediaThumbnail } from "../utils/image-helpers.js";
+import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
-import { cleanUrl } from "../utils/url-cleaner";
-import { config } from "../config";
-import { getYouTubeRssUrl } from "./youtube";
-import { fetchFreeGames } from "./epicgames";
-import { embedEpicGames } from "../utils/gaming-embeds";
-import { RSS_HEADERS, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS, xmlParser, textOf, extractLink } from "../utils/rss-parser";
+import { cleanUrl } from "../utils/url-cleaner.js";
+import { config } from "../config.js";
+import { getYouTubeRssUrl } from "./youtube.js";
+import { fetchFreeGames } from "./epicgames.js";
+import { embedEpicGames } from "../utils/gaming-embeds.js";
+import { RSS_HEADERS, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
 
 interface SourceConfig {
   platform: "youtube" | "twitter" | "blogs";

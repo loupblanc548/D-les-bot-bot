@@ -1,6 +1,6 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, GuildMember, Message } from "discord.js";
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 
 
 // Safe JSON.parse: returns fallback on null/undefined/parse error instead of throwing

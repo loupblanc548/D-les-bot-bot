@@ -1,10 +1,10 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import { config } from "../config";
-import { socialGraphService } from "./social-graph";
-import { behaviorDetectionService } from "./behavior-detection";
-import { trendDetectionService } from "./trend-detection";
-import { sourceReputationService } from "./source-reputation";
+import { config } from "../config.js";
+import { socialGraphService } from "./social-graph.js";
+import { behaviorDetectionService } from "./behavior-detection.js";
+import { trendDetectionService } from "./trend-detection.js";
+import { sourceReputationService } from "./source-reputation.js";
 
 interface ReportData {
   period: "daily" | "weekly" | "monthly";

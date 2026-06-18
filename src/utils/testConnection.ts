@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import logger from "./logger";
+import logger from "./logger.js";
 
 async function testConnection(): Promise<void> {
   logger.info("=== Test de connexion PostgreSQL via Prisma ===");

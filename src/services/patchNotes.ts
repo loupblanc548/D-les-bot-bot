@@ -1,11 +1,11 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { EmbedBuilder, TextChannel, Client } from "discord.js";
 import { XMLParser } from "fast-xml-parser";
-import { getOpenAIClient } from "./ai";
-import { getOgImage } from "../utils/image-helpers";
-import prisma from "../prisma";
-import { config } from "../config";
-import { PLATFORM_LABELS, PLATFORM_COLORS } from "./feeds";
+import { getOpenAIClient } from "./ai.js";
+import { getOgImage } from "../utils/image-helpers.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { PLATFORM_LABELS, PLATFORM_COLORS } from "./feeds.js";
 
 interface PatchNote {
   game: string;

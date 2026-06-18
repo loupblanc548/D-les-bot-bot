@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { XMLParser } from "fast-xml-parser";
-import { extractMediaThumbnail, getYouTubeThumbnail, getBlogImage, getOgImage, getTweetImage } from "./image-helpers";
-import { parseRssItems } from "../services/feeds";
+import { extractMediaThumbnail, getYouTubeThumbnail, getBlogImage, getOgImage, getTweetImage } from "./image-helpers.js";
+import { parseRssItems } from "../services/feeds.js";
 
 // ============================================================
 // extractMediaThumbnail — Tests unitaires (objets JS pré-construits)

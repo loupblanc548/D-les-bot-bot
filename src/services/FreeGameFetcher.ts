@@ -9,10 +9,10 @@
  */
 
 import axios from "axios";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { scrapeRssFeed } from "../managers/ScraperManager";
-import { parseRssXmlItems, RssItem } from "../utils/rss";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { scrapeRssFeed } from "../managers/ScraperManager.js";
+import { parseRssXmlItems, RssItem } from "../utils/rss.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

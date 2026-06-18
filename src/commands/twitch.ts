@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Commandes Twitch — /twitch add|list|remove
 import {
   MessageFlags,
@@ -7,7 +7,7 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
 } from "discord.js";
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 
 const FOOTER = { text: "Surveillance System • Twitch" };
 
@@ -102,7 +102,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
 
   try {
     // Tenter de récupérer l'ID Twitch du streamer (nécessite le service Twitch)
-    const { getStreamerByLogin } = await import("../services/twitch");
+    const { getStreamerByLogin } = await import("../services/twitch.js");
     const streamer = await getStreamerByLogin(streamerName);
 
     await prisma.twitchFollow.create({

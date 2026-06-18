@@ -1,6 +1,6 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, GuildBan, GuildTextBasedChannel } from "discord.js";
-import { createLog, sendBanPurgeLog } from "../services/logs";
+import { createLog, sendBanPurgeLog } from "../services/logs.js";
 
 export function handleModerationEvents(client: Client) {
   // Ban + Purge automatique des messages

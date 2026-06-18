@@ -1,4 +1,4 @@
-import { fortniteLogger } from "../utils/logger";
+import { fortniteLogger } from "../utils/logger.js";
 // Fortnite Cosmetics API Service
 // Utilise fortnite-api.com/v2/cosmetics/br pour valider les noms d'items
 // et récupérer les métadonnées (saison de sortie, etc.)

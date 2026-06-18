@@ -115,7 +115,7 @@ import {
   startSteamNewsMonitoring,
   stopSteamNewsMonitoring,
   PLATFORM_CONFIGS,
-} from "./steamNewsCron";
+} from "./steamNewsCron.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

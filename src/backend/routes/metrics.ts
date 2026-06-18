@@ -1,6 +1,6 @@
 import http from "http";
-import { authenticate } from "../middleware/auth";
-import type { MetricSnapshot, MetricsResponse } from "../types";
+import { authenticate } from "../middleware/auth.js";
+import type { MetricSnapshot, MetricsResponse } from "../types.js";
 
 const MAX_SNAPSHOTS = 2016; // 7 jours à 5 min d'intervalle
 const snapshots: MetricSnapshot[] = [];

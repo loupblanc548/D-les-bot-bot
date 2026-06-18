@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import { sendEscalatedAlert } from "../utils/alert-escalation";
+import logger from "../utils/logger.js";
+import { sendEscalatedAlert } from "../utils/alert-escalation.js";
 
 const TELEGRAM_API_URL = "https://api.telegram.org/bot";
 

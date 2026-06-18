@@ -1,11 +1,11 @@
-import logger from "../../utils/logger";
+import logger from "../../utils/logger.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
-import { getOpenAIClient } from "../../services/ai";
+import { getOpenAIClient } from "../../services/ai.js";
 
 const COOLDOWN_MS = 15_000;
 const cooldowns = new Map<string, number>();

@@ -1,12 +1,12 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
-import prisma from "../prisma";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { retry } from "../utils/retry";
-import { validateRssItem, sanitizeString } from "../utils/validation";
-import { dbCache } from "../utils/cache";
-import { metricsCollector } from "../utils/metrics";
-import { dedupCache } from "../utils/deduplicationCache";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { retry } from "../utils/retry.js";
+import { validateRssItem, sanitizeString } from "../utils/validation.js";
+import { dbCache } from "../utils/cache.js";
+import { metricsCollector } from "../utils/metrics.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 
 // Types
 

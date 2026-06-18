@@ -1,4 +1,4 @@
-import logger from "./logger";
+import logger from "./logger.js";
 /**
  * seed-fortnite.ts
  *
@@ -15,8 +15,8 @@ import logger from "./logger";
 import dotenv from "dotenv";
 dotenv.config();
 
-import prisma from "../prisma";
-import { resolveYouTubeChannelId as resolveHandleToId } from "../services/youtube";
+import prisma from "../prisma.js";
+import { resolveYouTubeChannelId as resolveHandleToId } from "../services/youtube.js";
 
 // ── Constantes (placeholders clairs, chargés depuis .env) ──────────────────
 

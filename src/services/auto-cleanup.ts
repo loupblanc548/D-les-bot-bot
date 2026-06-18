@@ -1,6 +1,6 @@
 import { Client, TextChannel, Message } from "discord.js";
-import { config } from "../config";
-import logger from "../utils/logger";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
 
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const FETCH_LIMIT = 100;

@@ -1,7 +1,7 @@
-import prisma from "../prisma";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { createLog } from "./logs";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { createLog } from "./logs.js";
 import {
   EmbedBuilder,
   ButtonBuilder,
@@ -10,8 +10,8 @@ import {
   Client,
   TextChannel,
 } from "discord.js";
-import type { RiskProfile, RiskLevel } from "./risk-engine";
-import { getRiskReport } from "./risk-engine";
+import type { RiskProfile, RiskLevel } from "./risk-engine.js";
+import { getRiskReport } from "./risk-engine.js";
 
 // ============================================================
 // Types

@@ -1,7 +1,7 @@
 import { Client, TextChannel, EmbedBuilder, ColorResolvable } from "discord.js";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { AdvancedEmbedBuilder, AlertPriority, ALERT_COLORS } from "../components/embedBuilder";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder, AlertPriority, ALERT_COLORS } from "../components/embedBuilder.js";
 
 /**
  * Service d'alertes priorisées par couleur

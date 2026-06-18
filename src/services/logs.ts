@@ -1,7 +1,7 @@
-import logger from "../utils/logger";
-import prisma from "../prisma";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 import { MessageFlags, EmbedBuilder, Client, TextChannel } from 'discord.js';
-import { config } from '../config';
+import { config } from '../config.js';
 
 
 

@@ -10,7 +10,7 @@ vi.mock("../utils/logger", () => ({
   default: { info: mocks.info, warn: mocks.warn, error: mocks.error },
 }));
 
-import { createLoggingMiddleware } from "./logging";
+import { createLoggingMiddleware } from "./logging.js";
 
 function makeInteraction(overrides: { commandName?: string; guild?: any; guildId?: string | null } = {}) {
   return {

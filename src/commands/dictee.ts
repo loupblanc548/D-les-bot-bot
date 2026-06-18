@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
@@ -8,8 +8,8 @@ import {
   GuildMember,
   TextChannel,
 } from "discord.js";
-import { requireAdmin } from "../services/permissions";
-import { startDictation, stopDictation, hasActiveSession, cancelDictation } from "../services/dictation";
+import { requireAdmin } from "../services/permissions.js";
+import { startDictation, stopDictation, hasActiveSession, cancelDictation } from "../services/dictation.js";
 
 export const commands = [
   new SlashCommandBuilder()

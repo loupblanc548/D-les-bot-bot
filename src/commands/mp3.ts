@@ -15,9 +15,9 @@ import {
   VoiceConnectionStatus,
   NoSubscriberBehavior,
 } from "@discordjs/voice";
-import { config } from "../config";
-import { SoundFile, SOUNDS_DIR, AUTOCOMPLETE_LIMIT, DISCONNECT_DELAY_MS, activeConnections, activePlayers, listSoundFiles, findSoundFile, cleanupConnection } from "../services/audioPlayer";
-import logger from "../utils/logger";
+import { config } from "../config.js";
+import { SoundFile, SOUNDS_DIR, AUTOCOMPLETE_LIMIT, DISCONNECT_DELAY_MS, activeConnections, activePlayers, listSoundFiles, findSoundFile, cleanupConnection } from "../services/audioPlayer.js";
+import logger from "../utils/logger.js";
 import { existsSync } from "fs";
 
 const FOOTER = { text: "Système Audio • Owner Only" };

@@ -6,11 +6,11 @@ import {
   PermissionFlagsBits,
   TextChannel,
 } from "discord.js";
-import prisma from "../prisma";
-import logger from "../utils/logger";
-import { createLog } from "../services/logs";
-import { resolveAlert, type AlertAction } from "../services/alert-service";
-import { recordSanction, type SanctionType } from "../services/risk-engine";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { createLog } from "../services/logs.js";
+import { resolveAlert, type AlertAction } from "../services/alert-service.js";
+import { recordSanction, type SanctionType } from "../services/risk-engine.js";
 
 // ============================================================
 // Gestionnaire des boutons interactifs d'alerte

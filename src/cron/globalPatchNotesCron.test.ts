@@ -21,7 +21,7 @@ vi.mock("../utils/deduplicationCache", () => ({
 }));
 
 
-import { parseRssXmlItems } from '../utils/rss';
+import { parseRssXmlItems } from '../utils/rss.js';
 
 // ─── RSS 2.0 Fixtures ──────────────────────────────────────────────────────
 
@@ -428,7 +428,7 @@ vi.mock('../config', () => ({
 
 // ─── Import dynamique de la fonction sous test ─────────────────────────────
 
-import { checkPatchNotes } from "../cron/globalPatchNotesCron";
+import { checkPatchNotes } from "../cron/globalPatchNotesCron.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

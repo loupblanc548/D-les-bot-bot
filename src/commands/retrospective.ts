@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
@@ -6,10 +6,10 @@ import {
   EmbedBuilder,
   Client,
 } from "discord.js";
-import { requireAdmin } from "../services/permissions";
-import { runStartupRetrospective } from "../services/feeds";
-import { runDbSourcesRetrospective } from "../services/monitor";
-import prisma from "../prisma";
+import { requireAdmin } from "../services/permissions.js";
+import { runStartupRetrospective } from "../services/feeds.js";
+import { runDbSourcesRetrospective } from "../services/monitor.js";
+import prisma from "../prisma.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 

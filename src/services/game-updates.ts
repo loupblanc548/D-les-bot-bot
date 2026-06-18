@@ -1,9 +1,9 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import { config } from "../config";
-import prisma from "../prisma";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 import Parser from "rss-parser";
-import { dedupCache } from "../utils/deduplicationCache";
+import { dedupCache } from "../utils/deduplicationCache.js";
 
 interface GameUpdate {
   gameId: string;

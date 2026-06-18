@@ -1,9 +1,9 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import fs from "fs";
 import path from "path";
 import { EmbedBuilder, Client, TextChannel } from "discord.js";
-import { config } from "../config";
-import prisma from "../prisma";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

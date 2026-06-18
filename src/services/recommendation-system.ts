@@ -1,8 +1,8 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, User } from "discord.js";
-import prisma from "../prisma";
-import { sentimentAnalysisService } from "./sentiment-analysis";
-import { aiPredictionService } from "./ai-prediction";
+import prisma from "../prisma.js";
+import { sentimentAnalysisService } from "./sentiment-analysis.js";
+import { aiPredictionService } from "./ai-prediction.js";
 
 interface UserProfile {
   userId: string;

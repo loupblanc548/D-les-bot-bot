@@ -1,20 +1,20 @@
 import { Client } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
 import axios from "axios";
-import { config } from "../config";
-import logger from "../utils/logger";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
 import { randomUUID } from "crypto";
-import { translateAutoToFrench } from "../utils/translator";
+import { translateAutoToFrench } from "../utils/translator.js";
 import {
   isNewItem,
   markAsProcessed,
   ContentType,
   isWithinTemporalBarrier,
-} from "../managers/ScraperManager";
-import { scrapeRssFeed } from "../managers/ScraperManager";
-import { routeArticle } from "../managers/ChannelRouter";
-import { dedupCache } from "../utils/deduplicationCache";
-import { parseRssXmlItems } from "../utils/rss";
+} from "../managers/ScraperManager.js";
+import { scrapeRssFeed } from "../managers/ScraperManager.js";
+import { routeArticle } from "../managers/ChannelRouter.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
+import { parseRssXmlItems } from "../utils/rss.js";
 
 // âââ Constantes âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 

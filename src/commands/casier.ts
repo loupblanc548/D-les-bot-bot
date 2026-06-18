@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
@@ -9,8 +9,8 @@ import {
   ButtonStyle,
   ComponentType,
 } from "discord.js";
-import prisma from "../prisma";
-import { requireMod, requireAdmin } from "../services/permissions";
+import prisma from "../prisma.js";
+import { requireMod, requireAdmin } from "../services/permissions.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.1.0" };
 

@@ -1,11 +1,11 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { config } from "../config";
+import { config } from "../config.js";
 import {
   getPsnProfile,
   getPsnRecentGames,
@@ -13,7 +13,7 @@ import {
   isValidPsnId,
   PsnProfile,
   PsnGameTitle,
-} from "../services/psn";
+} from "../services/psn.js";
 
 const FOOTER = { text: "Système de Surveillance • PSN" };
 const PSN_COLOR = 0x003087; // Bleu PlayStation
@@ -280,7 +280,7 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
   }
 
   // Stocker le lien dans la DB via le même modèle que Steam
-  const prisma = (await import("../prisma")).default;
+  const prisma = (await import("../prisma.js")).default;
   await prisma.steamProfile.upsert({
     where: { userId: interaction.user.id },
     update: { steamId: `psn:${username}` },

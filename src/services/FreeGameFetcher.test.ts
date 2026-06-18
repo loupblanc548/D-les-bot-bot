@@ -21,7 +21,7 @@ import {
   FreeGameFetcher, FreeGameItem, FetchStrategy,
   RedditScraperStrategy, Rss2JsonStrategy,
   DirectRssStrategy, EpicApiStrategy,
-} from "./FreeGameFetcher";
+} from "./FreeGameFetcher.js";
 
 // --- Helpers ---
 

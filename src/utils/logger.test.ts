@@ -10,7 +10,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 // Import après les mocks (re-importe le module pour que les mocks soient actifs)
-import logger, { fortniteLogger } from "./logger";
+import logger, { fortniteLogger } from "./logger.js";
 
 // ================================================================
 // Logger principal

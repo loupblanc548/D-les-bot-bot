@@ -10,8 +10,8 @@ vi.mock("../utils/logger", () => ({ default: mockLogger }));
 import {
   detectPlatforms, resolveChannelIds, buildPlatformEmbed,
   dispatchToChannels, routeArticle, RoutedArticle,
-} from "./ChannelRouter";
-import { PLATFORM_CONFIGS } from "./ChannelRouter";
+} from "./ChannelRouter.js";
+import { PLATFORM_CONFIGS } from "./ChannelRouter.js";
 import { EmbedBuilder, Client } from "discord.js";
 
 // --- Helpers ---

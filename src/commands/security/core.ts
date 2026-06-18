@@ -6,7 +6,7 @@ import {
   PermissionFlagsBits,
   MessageFlags,
 } from "discord.js";
-import logger from "../../utils/logger";
+import logger from "../../utils/logger.js";
 import {
   handleLockdown,
   handleNuke,
@@ -19,7 +19,7 @@ import {
   handleAvatarHistory,
   handleLinkCheck,
   handleAntiphishing,
-} from "./handlers";
+} from "./handlers.js";
 
 
 export const commands = [

@@ -1,6 +1,6 @@
 import http from "http";
-import { authenticate } from "../middleware/auth";
-import type { FeedInfo } from "../types";
+import { authenticate } from "../middleware/auth.js";
+import type { FeedInfo } from "../types.js";
 
 const PLATFORM_LABELS: Record<string, string> = {
   "free-games": "Jeux gratuits (Epic/Steam/GOG...)",

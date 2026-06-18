@@ -5,7 +5,7 @@
  */
 
 import * as Sentry from "@sentry/node";
-import logger from "./utils/logger";
+import logger from "./utils/logger.js";
 
 export function attachProcessHandlers(): void {
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {

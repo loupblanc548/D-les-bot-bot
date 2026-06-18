@@ -1,4 +1,4 @@
-import logger from "./logger";
+import logger from "./logger.js";
 
 /**
  * Utilitaire centralisé pour la gestion des erreurs

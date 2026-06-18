@@ -7,8 +7,8 @@
  * Persiste entre les redémarrages. Limité à 100 IDs par plateforme.
  */
 
-import { prisma } from "../prisma";
-import logger from "./logger";
+import { prisma } from "../prisma.js";
+import logger from "./logger.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

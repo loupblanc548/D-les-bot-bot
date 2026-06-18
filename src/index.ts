@@ -13,6 +13,6 @@
  *   - processHandlers.ts : Gestionnaires d'erreurs process
  */
 
-import { main } from "./bot";
+import { main } from "./bot.js";
 
 main();

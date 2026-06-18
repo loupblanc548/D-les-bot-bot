@@ -10,8 +10,8 @@ import {
   getVoiceConnection,
   VoiceConnectionStatus,
 } from "@discordjs/voice";
-import logger from "../utils/logger";
-import { requireAdmin } from "../services/permissions";
+import logger from "../utils/logger.js";
+import { requireAdmin } from "../services/permissions.js";
 
 const FOOTER = { text: "Système Vocal • v1.0.0" };
 

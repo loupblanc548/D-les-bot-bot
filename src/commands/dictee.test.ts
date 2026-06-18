@@ -16,7 +16,7 @@ vi.mock("../utils/logger", () => ({ default: mockLogger }));
 vi.mock("../services/permissions", () => ({ requireAdmin: mockRequireAdmin }));
 vi.mock("../services/dictation", () => mockDictation);
 
-import { handleCommand } from "./dictee";
+import { handleCommand } from "./dictee.js";
 import type { ChatInputCommandInteraction, Client } from "discord.js";
 
 // ── Helpers ────────────────────────────────────────────────────

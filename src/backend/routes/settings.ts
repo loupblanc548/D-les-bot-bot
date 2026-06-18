@@ -1,6 +1,6 @@
 import http from "http";
-import { authenticate } from "../middleware/auth";
-import type { AppSettings } from "../types";
+import { authenticate } from "../middleware/auth.js";
+import type { AppSettings } from "../types.js";
 
 let settings: AppSettings = {
   refreshInterval: 5,

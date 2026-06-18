@@ -5,7 +5,7 @@ import {
   getCircuitBreakerState,
   resetCircuitBreaker,
   translateText,
-} from './translator';
+} from './translator.js';
 
 // ─── Logger Mock ─────────────────────────────────────────────────────────────
 

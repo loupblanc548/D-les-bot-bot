@@ -1,7 +1,7 @@
 import { Client, TextChannel } from "discord.js";
-import { config } from "../config";
-import logger from "../utils/logger";
-import { isValidDiscordId } from "../utils/validators";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { isValidDiscordId } from "../utils/validators.js";
 
 // ==========================================================================
 // Types

@@ -1,11 +1,11 @@
-import { EpicGamesApiResponse, EpicGamesElement, EpicGamesPromotion, EpicGamesOffer, EpicGamesImage } from "../types/api";
-import logger from "../utils/logger";
+import { EpicGamesApiResponse, EpicGamesElement, EpicGamesPromotion, EpicGamesOffer, EpicGamesImage } from "../types/api.js";
+import logger from "../utils/logger.js";
 // API Epic Games - Jeux gratuits et promos
 // Dedup via Prisma (pas de Set memoire)
 
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
-import { config } from "../config";
+import { config } from "../config.js";
 import { Client } from "discord.js";
 
 const EPIC_FREE_GAMES_URL =

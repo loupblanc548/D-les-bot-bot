@@ -52,7 +52,7 @@ vi.mock("../services/FreeGameFetcher", () => ({
   FreeGameFetcher: vi.fn().mockImplementation(function() { return { fetchGames: mockFetchGames }; }),
 }));
 
-import { checkFreeGames, startFreeGamesMonitoring, stopFreeGamesMonitoring } from "./freeGamesCron";
+import { checkFreeGames, startFreeGamesMonitoring, stopFreeGamesMonitoring } from "./freeGamesCron.js";
 
 function createMockClient(): any {
   return { channels: { fetch: vi.fn().mockResolvedValue({ isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) }) } };

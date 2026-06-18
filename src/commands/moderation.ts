@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
@@ -10,10 +10,10 @@ import {
   GuildTextBasedChannel,
   Message,
 } from "discord.js";
-import prisma from "../prisma";
-import { createLog } from "../services/logs";
-import { recordSanction } from "../services/risk-engine";
-import { requireMod } from "../services/permissions";
+import prisma from "../prisma.js";
+import { createLog } from "../services/logs.js";
+import { recordSanction } from "../services/risk-engine.js";
+import { requireMod } from "../services/permissions.js";
 
 const FOOTER = { text: "Systeme de Surveillance - v1.0.0" };
 

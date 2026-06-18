@@ -4,7 +4,7 @@ import {
   ButtonInteraction,
   EmbedBuilder,
 } from "discord.js";
-import logger from "../../utils/logger";
+import logger from "../../utils/logger.js";
 
 
 export function handleVerifButton(interaction: ButtonInteraction) {

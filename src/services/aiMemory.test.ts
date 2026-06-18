@@ -36,7 +36,7 @@ vi.mock("../prisma", () => {
   return { default: mock, ...mock };
 });
 
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 import {
   remember,
   recall,
@@ -47,7 +47,7 @@ import {
   setSummary,
   decayStep,
   purgeExpired,
-} from "./aiMemory";
+} from "./aiMemory.js";
 
 const m = prisma as unknown as {
   memoryFact: {

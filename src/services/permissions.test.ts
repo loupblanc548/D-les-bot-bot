@@ -16,7 +16,7 @@ vi.mock("../config", () => ({
   },
 }));
 
-import { getPermissionLevel, requireAdmin, requireMod, PermissionLevel } from "./permissions";
+import { getPermissionLevel, requireAdmin, requireMod, PermissionLevel } from "./permissions.js";
 import type { GuildMember, CommandInteraction, Guild } from "discord.js";
 
 function mockMember(overrides: {
@@ -71,8 +71,8 @@ describe("getPermissionLevel", () => {
   });
 
   it("should return ADMIN for members with configured admin role", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = ["role-admin-1"];
     (prisma.default.guildConfig.findUnique as any).mockResolvedValue({
@@ -86,7 +86,7 @@ describe("getPermissionLevel", () => {
   });
 
   it("should return ADMIN for members with static config admin role", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.adminRoles = ["role-static-admin"];
     config.modRoles = [];
 
@@ -96,8 +96,8 @@ describe("getPermissionLevel", () => {
   });
 
   it("should return MODERATOR for members with configured mod role", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = [];
     config.modRoles = [];
@@ -112,7 +112,7 @@ describe("getPermissionLevel", () => {
   });
 
   it("should return MODERATOR for members with static config mod role", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.adminRoles = [];
     config.modRoles = ["role-static-mod"];
 
@@ -122,8 +122,8 @@ describe("getPermissionLevel", () => {
   });
 
   it("should return EVERYONE for members with no special roles", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = [];
     config.modRoles = [];
@@ -135,8 +135,8 @@ describe("getPermissionLevel", () => {
   });
 
   it("should prioritize admin over mod when member has both", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = ["role-a"];
     config.modRoles = ["role-a"];
@@ -171,8 +171,8 @@ describe("requireAdmin", () => {
   });
 
   it("should return false and reply for non-admin members", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = [];
     config.modRoles = [];
@@ -214,8 +214,8 @@ describe("requireMod", () => {
   });
 
   it("should return false and reply for everyone-level members", async () => {
-    const prisma = await import("../prisma");
-    const { config } = await import("../config");
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
 
     config.adminRoles = [];
     config.modRoles = [];

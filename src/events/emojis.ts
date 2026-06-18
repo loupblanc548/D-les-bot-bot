@@ -1,5 +1,5 @@
 import { MessageFlags, Client, GuildEmoji } from "discord.js";
-import { createLog } from "../services/logs";
+import { createLog } from "../services/logs.js";
 
 export function handleEmojiEvents(client: Client) {
   // Emoji created

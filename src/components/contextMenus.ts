@@ -6,7 +6,7 @@ import {
   PermissionFlagsBits,
   EmbedBuilder
 } from "discord.js";
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 
 /**
  * Système de menus contextuels pour commandes

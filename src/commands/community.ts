@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Commandes Communauté & Automatisation
 // reminder, ticket-setup (+ gestion des boutons de ticket)
 
@@ -17,10 +17,10 @@ import {
   TextChannel,
   CategoryChannel,
 } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
-import { requireAdmin } from "../services/permissions";
-import { createLog } from "../services/logs";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { requireAdmin } from "../services/permissions.js";
+import { createLog } from "../services/logs.js";
 
 // Rappels persistés via Prisma (table Reminder)
 

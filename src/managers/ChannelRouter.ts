@@ -11,7 +11,7 @@
  */
 
 import { EmbedBuilder, TextChannel, Client, MessageCreateOptions } from "discord.js";
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 
 // ─── Configuration des plateformes ─────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import {
   Message, 
   MessageComponentInteraction 
 } from "discord.js";
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 
 /**
  * Système de pagination pour les longues listes
