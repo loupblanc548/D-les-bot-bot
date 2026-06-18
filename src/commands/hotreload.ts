@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
-import logger from "../utils/logger";
-import { requireAdmin } from "../services/permissions";
+import logger from "../utils/logger.js";
+import { requireAdmin } from "../services/permissions.js";
 import {
   enableMaintenanceMode,
   disableMaintenanceMode,
@@ -9,7 +9,7 @@ import {
   enableAutoReload,
   disableAutoReload,
   getHotReloadStatus,
-} from "../utils/hot-reload";
+} from "../utils/hot-reload.js";
 
 export const data = new SlashCommandBuilder()
   .setName("hotreload")

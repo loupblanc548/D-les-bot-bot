@@ -15,7 +15,7 @@ const { mockLogger, mockItad } = vi.hoisted(() => ({
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 vi.mock("../services/itad", () => mockItad);
 
-import { handleCommand } from "./gaming";
+import { handleCommand } from "./gaming.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 
 function mi(o: Record<string, any> = {}) {

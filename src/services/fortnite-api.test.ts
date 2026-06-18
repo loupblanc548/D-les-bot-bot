@@ -1,7 +1,7 @@
 // Tests unitaires pour extractAllNamesFromEntry() + checkWishlistMatches()
 // Valide l'extraction des noms de packs/bundles, le matching, et l'envoi de DMs
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractAllNamesFromEntry, matchesWishlist } from "./fortnite-api";
+import { extractAllNamesFromEntry, matchesWishlist } from "./fortnite-api.js";
 
 // ─── Mocks Prisma (pattern vi.hoisted, comme dans logs.test.ts) ───
 const { mockPrisma } = vi.hoisted(() => ({
@@ -410,7 +410,7 @@ describe("checkWishlistMatches", () => {
     };
 
     // Ré-importer après resetModules pour avoir un module frais (shopCache vide)
-    const mod = await import("./fortnite-api");
+    const mod = await import("./fortnite-api.js");
     checkWishlistMatches = mod.checkWishlistMatches;
   });
 

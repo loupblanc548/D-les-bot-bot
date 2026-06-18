@@ -41,7 +41,7 @@ import {
   attachShutdownHandlers,
   registerDestroyClient,
   registerInterval,
-} from "./shutdown";
+} from "./shutdown.js";
 
 describe("shutdown", () => {
   beforeEach(() => {
@@ -141,7 +141,7 @@ describe("shutdown", () => {
     });
 
     it("nettoie les intervalles enregistrés", async () => {
-      const { registerInterval } = await import("./shutdown");
+      const { registerInterval } = await import("./shutdown.js");
       
       const interval = setInterval(() => {}, 100000);
       registerInterval(interval);

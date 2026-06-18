@@ -1,6 +1,6 @@
 import { Client, REST, Routes } from "discord.js";
-import logger from "./logger";
-import { config } from "../config";
+import logger from "./logger.js";
+import { config } from "../config.js";
 
 let isReloading = false;
 let reloadInterval: NodeJS.Timeout | null = null;

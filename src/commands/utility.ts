@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Commandes Utilitaires UI & Affichage
 // embed-builder (Modal), say, translate
 
@@ -17,9 +17,9 @@ import { Message,
   TextChannel,
   ChannelType,
 } from "discord.js";
-import { createLog } from "../services/logs";
-import { translateAutoToFrench, translateText, translateFrenchToEnglish, SUPPORTED_LANGUAGES, LanguageCode } from "../utils/translator";
-import { addTranslationToHistory } from "../services/translationHistory";
+import { createLog } from "../services/logs.js";
+import { translateAutoToFrench, translateText, translateFrenchToEnglish, SUPPORTED_LANGUAGES, LanguageCode } from "../utils/translator.js";
+import { addTranslationToHistory } from "../services/translationHistory.js";
 
 // ===== Définition des commandes =====
 

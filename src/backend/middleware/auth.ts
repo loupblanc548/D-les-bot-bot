@@ -1,5 +1,5 @@
 import http from "http";
-import { config } from "../../config";
+import { config } from "../../config.js";
 
 export function authenticate(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   if (!config.controlToken) {

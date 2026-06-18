@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
@@ -6,20 +6,20 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
 } from "discord.js";
-import prisma from "../prisma";
-import { requireAdmin } from "../services/permissions";
-import { createLog } from "../services/logs";
+import prisma from "../prisma.js";
+import { requireAdmin } from "../services/permissions.js";
+import { createLog } from "../services/logs.js";
 import {
   getRiskReport,
   getAllRiskyUsers,
   resetRiskProfile,
   type RiskLevel,
-} from "../services/risk-engine";
+} from "../services/risk-engine.js";
 import {
   getPendingAlerts,
   getAlertHistory,
   getAlertsByUser,
-} from "../services/alert-service";
+} from "../services/alert-service.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 

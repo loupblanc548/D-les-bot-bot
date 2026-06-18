@@ -3,7 +3,7 @@ import {
   extractArticleImage,
   extractImageFromHtml,
   isValidImageUrl,
-} from "./instantgaming-news";
+} from "./instantgaming-news.js";
 
 // ==================== Tests ====================
 

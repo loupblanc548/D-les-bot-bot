@@ -1,9 +1,9 @@
-import { TwitchTokenResponse, TwitchUsersResponse, TwitchStreamsResponse, TwitchStream } from "../types/api";
-import logger from "../utils/logger";
+import { TwitchTokenResponse, TwitchUsersResponse, TwitchStreamsResponse, TwitchStream } from "../types/api.js";
+import logger from "../utils/logger.js";
 // Service de surveillance Twitch — notifie quand un streamer passe en live
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
 
 let twitchAccessToken: string | null = null;
 let tokenExpiresAt: number = 0;

@@ -30,9 +30,9 @@ vi.mock("../config", () => ({
   },
 }));
 
-import { createLog, getLogs, getLogsByType, getLogsByUser, deleteOldLogs, sendErrorLog, sendBanPurgeLog } from "./logs";
-import type { LogEntry } from "./logs";
-import logger from "../utils/logger";
+import { createLog, getLogs, getLogsByType, getLogsByUser, deleteOldLogs, sendErrorLog, sendBanPurgeLog } from "./logs.js";
+import type { LogEntry } from "./logs.js";
+import logger from "../utils/logger.js";
 
 describe("createLog", () => {
   beforeEach(() => {
@@ -253,7 +253,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should log the error to logger.error regardless of config", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = null;
 
     // consoleSpy replaced with logger.error
@@ -270,7 +270,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should return early when config.logChannel is null (no client needed)", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = null;
 
     // consoleSpy replaced with logger.error
@@ -285,7 +285,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should return early when config.logChannel is set but client is not provided", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-123";
 
     // consoleSpy replaced with logger.error
@@ -298,7 +298,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should attempt to send embed when logChannel and client are provided", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-123";
 
     const mockSend = vi.fn().mockResolvedValue(undefined);
@@ -333,7 +333,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should truncate long error messages to 1024 chars", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-123";
 
     const mockSend = vi.fn().mockResolvedValue(undefined);
@@ -361,7 +361,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should silently catch errors when channel send fails", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-123";
 
     const mockSend = vi.fn().mockRejectedValue(new Error("Send failed"));
@@ -387,7 +387,7 @@ describe("sendErrorLog", () => {
   });
 
   it("should skip sending if log channel is not text-based", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-456";
 
     const mockSend = vi.fn();
@@ -418,7 +418,7 @@ describe("sendBanPurgeLog", () => {
   });
 
   it("should return early when config.logChannel is null", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = null;
 
     const mockClient = {};
@@ -432,7 +432,7 @@ describe("sendBanPurgeLog", () => {
   });
 
   it("should return early when log channel is not found", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-missing";
 
     const mockClient = {
@@ -451,7 +451,7 @@ describe("sendBanPurgeLog", () => {
   });
 
   it("should return early when log channel is not text-based", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-voice";
 
     const mockSend = vi.fn();
@@ -472,7 +472,7 @@ describe("sendBanPurgeLog", () => {
   });
 
   it("should send a properly structured embed to the log channel", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-logs";
 
     const mockSend = vi.fn().mockResolvedValue(undefined);
@@ -504,7 +504,7 @@ describe("sendBanPurgeLog", () => {
   });
 
   it("should silently catch errors when channel send fails", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     config.logChannel = "channel-err";
 
     const mockSend = vi.fn().mockRejectedValue(new Error("Send failed"));

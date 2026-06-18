@@ -85,7 +85,7 @@ import {
   stopTwitterMonitoring,
   fetchTweetsForAccount,
   extractTweetId,
-} from "./twitterCron";
+} from "./twitterCron.js";
 
 // === Helpers ===
 

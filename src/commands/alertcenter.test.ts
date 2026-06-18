@@ -39,7 +39,7 @@ vi.mock("../services/alert-service", () => mockAlertService);
 vi.mock("../services/risk-engine", () => mockRiskEngine);
 vi.mock("../services/logs", () => ({ createLog: mockLogs.createLog }));
 
-import { handleCommand } from "./alertcenter";
+import { handleCommand } from "./alertcenter.js";
 import type { ChatInputCommandInteraction, User } from "discord.js";
 
 // ── Helpers ────────────────────────────────────────────────────

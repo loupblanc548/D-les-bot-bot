@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORIES } from '../commands/main';
+import { CATEGORIES } from '../commands/main.js';
 
 // ─── All registered top-level slash commands (from setName() across command files) ───
 // These are the command names as they appear in Discord (e.g., /help, /status).

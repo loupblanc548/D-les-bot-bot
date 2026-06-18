@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import { getDeals, buildDealEmbed } from "../services/itad";
+import logger from "../utils/logger.js";
+import { getDeals, buildDealEmbed } from "../services/itad.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,

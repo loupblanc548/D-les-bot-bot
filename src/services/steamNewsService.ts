@@ -1,7 +1,7 @@
 import axios from "axios";
-import { config } from "../config";
-import logger from "../utils/logger";
-import { setCache, getCache } from "../utils/redis";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { setCache, getCache } from "../utils/redis.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

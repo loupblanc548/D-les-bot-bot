@@ -6,67 +6,67 @@
  */
 
 import { REST, Routes, Interaction, ChatInputCommandInteraction, Client } from "discord.js";
-import { config } from "./config";
-import logger from "./utils/logger";
-import { createLoggingMiddleware, createRateLimitMiddleware, withMiddleware } from "./middleware";
+import { config } from "./config.js";
+import logger from "./utils/logger.js";
+import { createLoggingMiddleware, createRateLimitMiddleware, withMiddleware } from "./middleware.js";
 
 import {
   commands as mainCommands,
   handleCommand as handleMain,
   handleSelectMenu as handleMainSelectMenu,
-} from "./commands/main";
-import { commands as sourceCommands, handleCommand as handleSource } from "./commands/sources";
-import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin";
-import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai";
-import { commands as modCommands, handleCommand as handleModeration } from "./commands/moderation";
-import { commands as casierCommands, handleCommand as handleCasier } from "./commands/casier";
+} from "./commands/main.js";
+import { commands as sourceCommands, handleCommand as handleSource } from "./commands/sources.js";
+import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin.js";
+import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai.js";
+import { commands as modCommands, handleCommand as handleModeration } from "./commands/moderation.js";
+import { commands as casierCommands, handleCommand as handleCasier } from "./commands/casier.js";
 import {
   commands as securityCommands,
   handleCommand as handleSecurity,
-} from "./commands/security/core";
-import { commands as gamingCommands, handleCommand as handleGaming } from "./commands/gaming";
+} from "./commands/security/core.js";
+import { commands as gamingCommands, handleCommand as handleGaming } from "./commands/gaming.js";
 import {
   commands as communityCommands,
   handleCommand as handleCommunity,
-} from "./commands/community";
-import { commands as utilityCommands, handleCommand as handleUtility } from "./commands/utility";
-import { commands as vocalCommands, handleCommand as handleVocal } from "./commands/vocal";
+} from "./commands/community.js";
+import { commands as utilityCommands, handleCommand as handleUtility } from "./commands/utility.js";
+import { commands as vocalCommands, handleCommand as handleVocal } from "./commands/vocal.js";
 import {
   commands as retrospectiveCommands,
   handleCommand as handleRetrospective,
-} from "./commands/retrospective";
-import { commands as twitchCommands, handleCommand as handleTwitch } from "./commands/twitch";
-import { commands as steamCommands, handleCommand as handleSteam } from "./commands/steam";
+} from "./commands/retrospective.js";
+import { commands as twitchCommands, handleCommand as handleTwitch } from "./commands/twitch.js";
+import { commands as steamCommands, handleCommand as handleSteam } from "./commands/steam.js";
 import {
   commands as trackGameCommands,
   handleCommand as handleTrackGame,
-} from "./commands/trackGame";
-import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn";
+} from "./commands/trackGame.js";
+import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
 import {
   commands as echoTdsCommands,
   handleCommand as handleEchoTds,
-} from "./commands/fun/echoTds";
-import { commands as askBotCommands, handleCommand as handleAskBot } from "./commands/fun/askBot";
+} from "./commands/fun/echoTds.js";
+import { commands as askBotCommands, handleCommand as handleAskBot } from "./commands/fun/askBot.js";
 import {
   commands as wishlistCommands,
   handleCommand as handleWishlist,
-} from "./commands/fun/wishlist";
-import { commands as shopCommands, handleCommand as handleShop } from "./commands/fun/shop";
-import { commands as dicteeCommands, handleCommand as handleDictee } from "./commands/dictee";
+} from "./commands/fun/wishlist.js";
+import { commands as shopCommands, handleCommand as handleShop } from "./commands/fun/shop.js";
+import { commands as dicteeCommands, handleCommand as handleDictee } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
   handleCommand as handleAlertcenter,
-} from "./commands/alertcenter";
-import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3";
+} from "./commands/alertcenter.js";
+import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
 import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
-} from "./commands/clean-duplicates";
-import { commands as aiExtraCommands, handleCommand as handleAIExtra } from "./commands/ai-extra";
+} from "./commands/clean-duplicates.js";
+import { commands as aiExtraCommands, handleCommand as handleAIExtra } from "./commands/ai-extra.js";
 import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
-} from "./commands/maintenance";
+} from "./commands/maintenance.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};

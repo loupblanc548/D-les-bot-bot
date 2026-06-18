@@ -1,6 +1,6 @@
-import logger from "../utils/logger";
-import { getOpenAIClient } from "./ai";
-import { config } from "../config";
+import logger from "../utils/logger.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 
 export interface ToxicityResult {
   isToxic: boolean;

@@ -7,15 +7,15 @@
 
 import { Client, Events, Interaction, MessageFlags } from "discord.js";
 import * as Sentry from "@sentry/node";
-import logger from "./utils/logger";
-import prisma from "./prisma";
-import { commandRouter } from "./commandRouter";
-import { handleMainSelectMenu } from "./commandRouter";
-import { handleVerifButton } from "./commands/security";
-import { handleAutocomplete } from "./commands/trackGame";
-import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3";
-import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist";
-import { handleTranslateAutocomplete } from "./commands/utility";
+import logger from "./utils/logger.js";
+import prisma from "./prisma.js";
+import { commandRouter } from "./commandRouter.js";
+import { handleMainSelectMenu } from "./commandRouter.js";
+import { handleVerifButton } from "./commands/security.js";
+import { handleAutocomplete } from "./commands/trackGame.js";
+import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
+import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
+import { handleTranslateAutocomplete } from "./commands/utility.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 1. Commandes slash ──────────────────────────────────────────────

@@ -11,26 +11,26 @@ import {
   Client,
   GatewayIntentBits,
 } from "discord.js";
-import prisma from "./prisma";
-import { config, validateConfig } from "./config";
-import logger from "./utils/logger";
-import { startHealthServer } from "./services/health-http";
-import { startMetricsServer } from "./services/metrics";
-import { startControlServer, stopControlServer } from "./control-server";
-import { startDataPruning, pruneOldData } from "./services/data-pruning";
-import { dedupCache } from "./utils/deduplicationCache";
-import { runHealthCheck } from "./services/healthcheck";
-import { buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter";
-import { attachInteractionHandlers } from "./interactionHandler";
-import { attachStartupLogic } from "./startup";
-import { attachShutdownHandlers, registerDestroyClient } from "./shutdown";
-import { attachProcessHandlers } from "./processHandlers";
-import { handleMemberEvents } from "./events/members";
-import { handleRoleEvents } from "./events/roles";
-import { handleChannelEvents } from "./events/channels";
-import { handleMessageEvents, startMapCleanup } from "./events/messages";
-import { handleEmojiEvents } from "./events/emojis";
-import { handleModerationEvents } from "./events/moderation";
+import prisma from "./prisma.js";
+import { config, validateConfig } from "./config.js";
+import logger from "./utils/logger.js";
+import { startHealthServer } from "./services/health-http.js";
+import { startMetricsServer } from "./services/metrics.js";
+import { startControlServer, stopControlServer } from "./control-server.js";
+import { startDataPruning, pruneOldData } from "./services/data-pruning.js";
+import { dedupCache } from "./utils/deduplicationCache.js";
+import { runHealthCheck } from "./services/healthcheck.js";
+import { buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter.js";
+import { attachInteractionHandlers } from "./interactionHandler.js";
+import { attachStartupLogic } from "./startup.js";
+import { attachShutdownHandlers, registerDestroyClient } from "./shutdown.js";
+import { attachProcessHandlers } from "./processHandlers.js";
+import { handleMemberEvents } from "./events/members.js";
+import { handleRoleEvents } from "./events/roles.js";
+import { handleChannelEvents } from "./events/channels.js";
+import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
+import { handleEmojiEvents } from "./events/emojis.js";
+import { handleModerationEvents } from "./events/moderation.js";
 
 const client = new Client({
   intents: [
@@ -51,7 +51,7 @@ const client = new Client({
   },
 });
 
-let healthResults: import("./services/healthcheck").CheckResult[] = [];
+let healthResults: import("./services/healthcheck.js").CheckResult[] = [];
 
 async function main(): Promise<void> {
   logger.info("=== Discord Surveillance Bot ===");

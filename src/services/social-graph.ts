@@ -1,6 +1,6 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { Client, GuildMember, User } from "discord.js";
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 
 interface GraphNode {
   id: string;

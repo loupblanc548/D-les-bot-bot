@@ -16,7 +16,7 @@ const { mockPrisma, mockLogger } = vi.hoisted(() => ({
 vi.mock("../prisma", () => ({ default: mockPrisma }));
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
-import { startHealthServer, stopHealthServer } from "./health-http";
+import { startHealthServer, stopHealthServer } from "./health-http.js";
 
 function httpGet(url: string): Promise<{ status: number; body: unknown }> {
   return new Promise((resolve, reject) => {

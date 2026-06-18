@@ -84,7 +84,7 @@ vi.mock('../utils/logger', () => ({
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
-import { handleMessageEvents, startMapCleanup, stopMapCleanup } from './messages';
+import { handleMessageEvents, startMapCleanup, stopMapCleanup } from './messages.js';
 import { Client, Collection } from 'discord.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

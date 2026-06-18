@@ -1,6 +1,6 @@
 import type { Interaction, Client } from "discord.js";
-import logger from "../utils/logger";
-import type { Middleware } from "./compose";
+import logger from "../utils/logger.js";
+import type { Middleware } from "./compose.js";
 
 /**
  * Middleware de logging pour les commandes slash.

@@ -9,7 +9,7 @@ const { mockLogger, mockSentry } = vi.hoisted(() => ({
 vi.mock("./utils/logger", () => ({ default: mockLogger }));
 vi.mock("@sentry/node", () => ({ default: mockSentry, captureException: mockSentry.captureException }));
 
-import { attachProcessHandlers } from "./processHandlers";
+import { attachProcessHandlers } from "./processHandlers.js";
 
 describe("processHandlers", () => {
   beforeEach(() => {

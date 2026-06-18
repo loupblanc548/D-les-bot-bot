@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import { getCache, setCache, deleteCache } from "../utils/redis";
+import logger from "../utils/logger.js";
+import { getCache, setCache, deleteCache } from "../utils/redis.js";
 
 /**
  * Cache avec fallback: utilise Redis si dispo, sinon un Map en mémoire.

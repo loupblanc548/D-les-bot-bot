@@ -16,7 +16,7 @@ const { mockPrisma, mockLogger } = vi.hoisted(() => ({
 vi.mock("../prisma", () => ({ default: mockPrisma }));
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
-import { pruneOldData, startDataPruning, stopDataPruning } from "./data-pruning";
+import { pruneOldData, startDataPruning, stopDataPruning } from "./data-pruning.js";
 
 describe("data-pruning", () => {
   beforeEach(() => {

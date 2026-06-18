@@ -1,13 +1,13 @@
-import { fortniteLogger } from "../utils/logger";
-import { broadcastFortniteUpdate, pushFortniteDetection } from "./fortnite-broadcast";
+import { fortniteLogger } from "../utils/logger.js";
+import { broadcastFortniteUpdate, pushFortniteDetection } from "./fortnite-broadcast.js";
 // Service Fortnite-API.com — boutique du jour, cosmétiques, wishlist check
-import { config } from "../config";
+import { config } from "../config.js";
 // API gratuite, pas de clé requise
 // Docs: https://fortnite-api.com
 
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 import { Client, EmbedBuilder } from "discord.js";
-import { getCosmeticsMap } from "./fortnite-cosmetics";
+import { getCosmeticsMap } from "./fortnite-cosmetics.js";
 
 interface FortniteApiResponse {
   status: number;

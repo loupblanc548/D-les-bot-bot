@@ -25,13 +25,13 @@ import { chromium, Browser } from 'playwright';
 
 import { z } from "zod";
 
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 
 import { Prisma } from "@prisma/client";
 
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 
-import { closeBrowser as closeScraperBrowser } from "../utils/scraper";
+import { closeBrowser as closeScraperBrowser } from "../utils/scraper.js";
 
 /** Re-export du closeBrowser du scraper */
 export async function closeBrowser(): Promise<void> {

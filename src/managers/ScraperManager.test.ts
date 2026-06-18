@@ -47,7 +47,7 @@ import {
   isWithinTemporalBarrier,
   ScrapedDataSchema,
   ScrapedItemSchema,
-} from '../managers/ScraperManager';
+} from '../managers/ScraperManager.js';
 
 // âââ Helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 

@@ -1,4 +1,4 @@
-import logger from "./logger";
+import logger from "./logger.js";
 
 /**
  * Service de traduction intelligent avec Circuit Breaker (Disjoncteur réseau)

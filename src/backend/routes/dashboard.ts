@@ -1,7 +1,7 @@
 import http from "http";
 import os from "os";
-import { authenticate } from "../middleware/auth";
-import type { DashboardResponse } from "../types";
+import { authenticate } from "../middleware/auth.js";
+import type { DashboardResponse } from "../types.js";
 
 let clientRef: import("discord.js").Client | null = null;
 let startTime = Date.now();

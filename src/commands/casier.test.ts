@@ -15,8 +15,8 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("../prisma", () => ({ default: mockPrisma }));
 vi.mock("../services/permissions", () => ({ requireMod: vi.fn().mockResolvedValue(true), requireAdmin: vi.fn().mockResolvedValue(true) }));
 
-import { buildEntries, chunkEntries, buildNavRow, handleCommand, handleCasierClear } from "./casier";
-import type { CasierEntry } from "./casier";
+import { buildEntries, chunkEntries, buildNavRow, handleCommand, handleCasierClear } from "./casier.js";
+import type { CasierEntry } from "./casier.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 import { MessageFlags } from "discord.js";
 

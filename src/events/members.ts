@@ -1,8 +1,8 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import { MessageFlags, Client, GuildMember, PartialGuildMember } from "discord.js";
-import prisma from "../prisma";
-import { createLog } from "../services/logs";
-import { isAntiRaidActive } from "../commands/security";
+import prisma from "../prisma.js";
+import { createLog } from "../services/logs.js";
+import { isAntiRaidActive } from "../commands/security.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {

@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Commandes IA etendues : /aichat + /smartpoll
 import {
   MessageFlags,
@@ -6,8 +6,8 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { requireAdmin } from "../services/permissions";
-import { chatWithAI, handleMention } from "../services/ai";
+import { requireAdmin } from "../services/permissions.js";
+import { chatWithAI, handleMention } from "../services/ai.js";
 import {
   enableAiChat,
   disableAiChat,
@@ -15,7 +15,7 @@ import {
   getConversationSize,
   clearHistory,
   generatePollOptions,
-} from "../services/aichat";
+} from "../services/aichat.js";
 
 const FOOTER = { text: "Systeme de Surveillance • IA" };
 

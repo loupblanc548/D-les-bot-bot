@@ -46,8 +46,8 @@ vi.mock('../utils/logger', () => ({
 import {
   runScrapingPipeline,
   ContentType,
-} from '../managers/ScraperManager';
-import type { ScraperOptions } from '../managers/ScraperManager';
+} from '../managers/ScraperManager.js';
+import type { ScraperOptions } from '../managers/ScraperManager.js';
 
 // ─── Spawn Helpers ─────────────────────────────────────────────────────────
 

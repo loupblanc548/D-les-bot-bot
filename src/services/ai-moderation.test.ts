@@ -15,7 +15,7 @@ vi.mock("./ai", () => ({ getOpenAIClient: () => mockOpenAI as any }));
 vi.mock("../config", () => ({ config: mockConfig }));
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
-import { analyzeToxicity, clearToxicityCache } from "./ai-moderation";
+import { analyzeToxicity, clearToxicityCache } from "./ai-moderation.js";
 
 const mockAIResponse = (json: object) => {
   mockOpenAI.chat.completions.create.mockResolvedValueOnce({

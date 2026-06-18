@@ -33,7 +33,7 @@ vi.mock('../utils/logger', () => ({
   default: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-import { executeScraper } from './ScraperManager';
+import { executeScraper } from './ScraperManager.js';
 
 const TEST_URL = 'https://example.com/article';
 

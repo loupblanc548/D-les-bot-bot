@@ -1,7 +1,7 @@
-import logger from "./logger";
+import logger from "./logger.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import { config } from "../config";
-import { sendEscalatedAlert } from "./alert-escalation";
+import { config } from "../config.js";
+import { sendEscalatedAlert } from "./alert-escalation.js";
 
 interface GroupedAlert {
   key: string;

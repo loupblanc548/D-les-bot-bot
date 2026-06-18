@@ -1,14 +1,14 @@
-import logger from "../utils/logger";
-import prisma from "../prisma";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
-import { cleanUrl } from "../utils/url-cleaner";
+import { cleanUrl } from "../utils/url-cleaner.js";
 import { MessageFlags, Client, TextChannel, EmbedBuilder } from "discord.js";
-import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds";
-import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers";
-import { fetchFreeGames } from "./epicgames";
-import { embedEpicGames } from "../utils/gaming-embeds";
-import { config } from "../config";
-import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser";
+import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds.js";
+import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers.js";
+import { fetchFreeGames } from "./epicgames.js";
+import { embedEpicGames } from "../utils/gaming-embeds.js";
+import { config } from "../config.js";
+import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;

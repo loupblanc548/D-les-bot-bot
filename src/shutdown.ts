@@ -6,23 +6,23 @@
  */
 
 import * as Sentry from "@sentry/node";
-import prisma from "./prisma";
-import logger from "./utils/logger";
+import prisma from "./prisma.js";
+import logger from "./utils/logger.js";
 
 // Fonctions d'arrêt importées
-import { stopMonitoring } from "./services/monitor";
-import { stopTwitchMonitoring } from "./services/twitch";
-import { stopPatchNotesService } from "./services/patchNotes";
-import { stopInstantGamingCheck } from "./services/instantgaming";
-import { stopInstantGamingNewsCheck } from "./services/instantgaming-news";
-import { stopSteamNewsMonitoring } from "./cron/steamNewsCron";
-import { stopFreeGamesMonitoring } from "./cron/freeGamesCron";
-import { stopDealsMonitoring } from "./cron/dealsCron";
-import { stopGlobalPatchNotesMonitoring } from "./cron/globalPatchNotesCron";
-import { stopMonthlyMaintenance } from "./cron/monthlyMaintenance";
-import { stopTwitterMonitoring } from "./cron/twitterCron";
-import { stopMapCleanup } from "./events/messages";
-import { closeBrowser } from "./managers/ScraperManager";
+import { stopMonitoring } from "./services/monitor.js";
+import { stopTwitchMonitoring } from "./services/twitch.js";
+import { stopPatchNotesService } from "./services/patchNotes.js";
+import { stopInstantGamingCheck } from "./services/instantgaming.js";
+import { stopInstantGamingNewsCheck } from "./services/instantgaming-news.js";
+import { stopSteamNewsMonitoring } from "./cron/steamNewsCron.js";
+import { stopFreeGamesMonitoring } from "./cron/freeGamesCron.js";
+import { stopDealsMonitoring } from "./cron/dealsCron.js";
+import { stopGlobalPatchNotesMonitoring } from "./cron/globalPatchNotesCron.js";
+import { stopMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
+import { stopTwitterMonitoring } from "./cron/twitterCron.js";
+import { stopMapCleanup } from "./events/messages.js";
+import { closeBrowser } from "./managers/ScraperManager.js";
 
 export type ClientDestroyFn = () => void;
 

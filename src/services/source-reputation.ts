@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import prisma from "../prisma";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 
 interface SourceReputation {
   sourceId: string;

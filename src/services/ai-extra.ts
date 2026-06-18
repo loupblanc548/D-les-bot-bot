@@ -1,6 +1,6 @@
-import logger from "../utils/logger";
-import { getOpenAIClient } from "./ai";
-import { config } from "../config";
+import logger from "../utils/logger.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 
 const SUPPORTED_LANGUAGES: Record<string, string> = {
   fr: "Français",

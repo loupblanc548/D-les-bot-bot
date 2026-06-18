@@ -23,9 +23,9 @@ vi.mock("../utils/logger", () => ({
   },
 }));
 
-import { handleCommand } from "./security";
+import { handleCommand } from "./security.js";
 import { Client } from "discord.js";
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 
 // ── Mock interaction builder ────────────────────────────────────────────────
 function mi(o: any = {}) {

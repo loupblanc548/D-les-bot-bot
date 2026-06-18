@@ -5,10 +5,10 @@ import {
   type Interaction,
   type Client,
 } from "discord.js";
-import { incrementCache, setCacheExpire, getCacheTTL } from "../utils/redis";
-import { config } from "../config";
-import logger from "../utils/logger";
-import type { Middleware } from "./compose";
+import { incrementCache, setCacheExpire, getCacheTTL } from "../utils/redis.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import type { Middleware } from "./compose.js";
 
 export interface RateLimitConfig {
   /** Fenêtre de temps (en secondes) pendant laquelle les requêtes sont comptées. */

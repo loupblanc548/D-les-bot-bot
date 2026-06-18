@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import cron from "node-cron";
 import axios from "axios";
 import { XMLParser } from "fast-xml-parser";
@@ -10,10 +10,10 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
-import { sendErrorLog } from "./logs";
-import { dedupCache } from "../utils/deduplicationCache";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { sendErrorLog } from "./logs.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 
 const NEWS_BASE = "https://news.instant-gaming.com";
 const NEWS_FEED_URL = NEWS_BASE + "/fr/rss.xml";

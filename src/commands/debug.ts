@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
-import logger from "../utils/logger";
-import prisma from "../prisma";
-import { config } from "../config";
-import { requireAdmin } from "../services/permissions";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { requireAdmin } from "../services/permissions.js";
 
 export const data = new SlashCommandBuilder()
   .setName("debug")

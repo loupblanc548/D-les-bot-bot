@@ -1,6 +1,6 @@
 import { Client, User, GuildMember } from "discord.js";
-import prisma from "../prisma";
-import logger from "../utils/logger";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
 
 /**
  * Système de personnalisation utilisateur

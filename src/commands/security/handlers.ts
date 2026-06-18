@@ -12,13 +12,13 @@ import {
   ButtonStyle,
   ActionRowBuilder,
 } from "discord.js";
-import prisma from "../../prisma";
-import { config } from "../../config";
-import { createLog } from "../../services/logs";
-import { checkSuspiciousLinksDetailed } from "./utils";
-import logger from "../../utils/logger";
-import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache";
-import { isAntiPhishingActive } from "./utils";
+import prisma from "../../prisma.js";
+import { config } from "../../config.js";
+import { createLog } from "../../services/logs.js";
+import { checkSuspiciousLinksDetailed } from "./utils.js";
+import logger from "../../utils/logger.js";
+import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache.js";
+import { isAntiPhishingActive } from "./utils.js";
 
 const FOOTER = { text: "Surveillance System • Securite" };
 

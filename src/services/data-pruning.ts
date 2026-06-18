@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import prisma from "../prisma";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // Tous les jours
 

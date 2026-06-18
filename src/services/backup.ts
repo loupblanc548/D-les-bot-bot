@@ -1,9 +1,9 @@
 import { Client, TextChannel } from "discord.js";
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import cron from "node-cron";
 import fs from "fs";
 import path from "path";
-import { config } from "../config";
+import { config } from "../config.js";
 
 const BACKUP_DIR = path.resolve(process.cwd(), "backups");
 const DB_PATH = path.resolve(process.cwd(), "database.sqlite");

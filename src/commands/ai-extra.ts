@@ -1,12 +1,12 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { requireAdmin } from "../services/permissions";
-import { translateText, getSupportedLanguages, summarizeMessages } from "../services/ai-extra";
+import { requireAdmin } from "../services/permissions.js";
+import { translateText, getSupportedLanguages, summarizeMessages } from "../services/ai-extra.js";
 
 const FOOTER = { text: "Système de Surveillance • IA" };
 

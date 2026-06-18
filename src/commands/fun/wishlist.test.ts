@@ -7,9 +7,9 @@ vi.mock("../../prisma", () => ({ default: mockPrisma }));
 vi.mock("../../services/fortnite-cosmetics", () => ({ validateCosmeticName: vi.fn(), searchCosmetics: vi.fn() }));
 vi.mock("../../services/fortnite-api", () => ({ fetchShop: vi.fn() }));
 
-import { handleCommand, handleAutocomplete } from "./wishlist";
-import { fetchShop } from "../../services/fortnite-api";
-import { validateCosmeticName, searchCosmetics } from "../../services/fortnite-cosmetics";
+import { handleCommand, handleAutocomplete } from "./wishlist.js";
+import { fetchShop } from "../../services/fortnite-api.js";
+import { validateCosmeticName, searchCosmetics } from "../../services/fortnite-cosmetics.js";
 import { MessageFlags } from "discord.js";
 
 function mi(o: any = {}) {

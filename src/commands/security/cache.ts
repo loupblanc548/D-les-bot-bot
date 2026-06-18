@@ -1,4 +1,4 @@
-import prisma from "../../prisma";
+import prisma from "../../prisma.js";
 
 // ── Cache anti-raid (evite un appel DB par membre qui rejoint) ──────────────
 type AntiRaidCacheEntry = { seuilHeures: number; active: boolean; cachedAt: number };

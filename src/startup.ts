@@ -9,30 +9,30 @@ import {
   Client,
   Events,
 } from "discord.js";
-import { config } from "./config";
-import logger from "./utils/logger";
-import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api";
-import { startTwitchMonitoring } from "./services/twitch";
-import { runStartupRetrospective } from "./services/feeds";
-import { startMonitoring, runDbSourcesRetrospective } from "./services/monitor";
-import { sendHealthReport } from "./services/healthcheck";
-import { validateChannels } from "./services/channel-validator";
-import { startPatchNotesService } from "./services/patchNotes";
-import { startBackupService } from "./services/backup";
-import { startInstantGamingNewsCheck, checkInstantGamingNews } from "./services/instantgaming-news";
-import { startInstantGamingCheck } from "./services/instantgaming";
-import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron";
-import { checkFreeGames } from "./cron/freeGamesCron";
-import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron";
-import { startDealsMonitoring, checkDeals } from "./cron/dealsCron";
-import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron";
-import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter";
-import { startFreeGamesMonitoring } from "./cron/freeGamesCron";
-import { startMonthlyMaintenance } from "./cron/monthlyMaintenance";
-import { registerInterval } from "./shutdown";
-import prisma from "./prisma";
-import { dedupCache } from "./utils/deduplicationCache";
-import { startAutoCleanup } from "./services/auto-cleanup";
+import { config } from "./config.js";
+import logger from "./utils/logger.js";
+import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
+import { startTwitchMonitoring } from "./services/twitch.js";
+import { runStartupRetrospective } from "./services/feeds.js";
+import { startMonitoring, runDbSourcesRetrospective } from "./services/monitor.js";
+import { sendHealthReport } from "./services/healthcheck.js";
+import { validateChannels } from "./services/channel-validator.js";
+import { startPatchNotesService } from "./services/patchNotes.js";
+import { startBackupService } from "./services/backup.js";
+import { startInstantGamingNewsCheck, checkInstantGamingNews } from "./services/instantgaming-news.js";
+import { startInstantGamingCheck } from "./services/instantgaming.js";
+import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron.js";
+import { checkFreeGames } from "./cron/freeGamesCron.js";
+import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron.js";
+import { startDealsMonitoring, checkDeals } from "./cron/dealsCron.js";
+import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron.js";
+import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
+import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
+import { startMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
+import { registerInterval } from "./shutdown.js";
+import prisma from "./prisma.js";
+import { dedupCache } from "./utils/deduplicationCache.js";
+import { startAutoCleanup } from "./services/auto-cleanup.js";
 
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
@@ -116,7 +116,7 @@ async function initSchedulers(client: Client): Promise<void> {
 
 // ─── Helper : Embed de statut (actuellement désactivé) ─────────────────────
 
-export function attachStartupLogic(client: Client, healthResults: import("./services/healthcheck").CheckResult[]): void {
+export function attachStartupLogic(client: Client, healthResults: import("./services/healthcheck.js").CheckResult[]): void {
   client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);

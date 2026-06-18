@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSeasonRange, isSeasonInRange, getSeasonNumericOrder, normalizeSeason, seasonsMatch, getAllValidSeasons } from "./seasons";
+import { parseSeasonRange, isSeasonInRange, getSeasonNumericOrder, normalizeSeason, seasonsMatch, getAllValidSeasons } from "./seasons.js";
 
 // Helpers existants
 describe("normalizeSeason", () => {

@@ -39,3 +39,10 @@ desktop-app/dist/
 
 # Build output
 dist/
+
+# Build & test artifacts (fix-everything)
+dist/
+/playwright-report/
+/test-results/
+/coverage/
+*.tsbuildinfo

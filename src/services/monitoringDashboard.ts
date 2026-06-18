@@ -1,8 +1,8 @@
 import { Client, TextChannel, EmbedBuilder, GatewayIntentBits } from "discord.js";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { AdvancedEmbedBuilder, PLATFORM_THEMES } from "../components/embedBuilder";
-import { metricsCollector } from "../utils/metrics";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder, PLATFORM_THEMES } from "../components/embedBuilder.js";
+import { metricsCollector } from "../utils/metrics.js";
 
 /**
  * Service de tableau de bord de monitoring en temps reel

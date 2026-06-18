@@ -97,7 +97,7 @@ import {
   stopDealsMonitoring,
   detectPlatforms,
   PLATFORM_CONFIGS,
-} from "./dealsCron";
+} from "./dealsCron.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

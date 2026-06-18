@@ -1,13 +1,13 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
 } from "discord.js";
-import prisma from "../prisma";
-import { resolveYouTubeChannelId } from "../services/youtube";
-import { requireAdmin } from "../services/permissions";
+import prisma from "../prisma.js";
+import { resolveYouTubeChannelId } from "../services/youtube.js";
+import { requireAdmin } from "../services/permissions.js";
 
 export const commands = [
   new SlashCommandBuilder()

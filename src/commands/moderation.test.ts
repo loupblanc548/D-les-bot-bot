@@ -24,7 +24,7 @@ vi.mock('../services/risk-engine', () => ({ recordSanction: mockRecordSanction }
 vi.mock('../services/permissions', () => ({ requireMod: mockRequireMod }));
 vi.mock('../utils/logger', () => ({ default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
-import { handleCommand, commands } from './moderation';
+import { handleCommand, commands } from './moderation.js';
 
 function createMockInteraction(overrides = {}) {
   return {

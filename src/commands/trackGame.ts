@@ -5,10 +5,10 @@ import {
   MessageFlags,
   AutocompleteInteraction,
 } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
-import logger from "../utils/logger";
-import { findAppIdByName, getLatestNews } from "../services/steamNewsService";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { findAppIdByName, getLatestNews } from "../services/steamNewsService.js";
 
 const FOOTER = { text: "Système de Surveillance • Steam News Tracker" };
 

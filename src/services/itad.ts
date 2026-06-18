@@ -1,7 +1,7 @@
-import { ITADSearchResponse, ITADPricesResponse, ITADLowestResponse } from "../types/api";
+import { ITADSearchResponse, ITADPricesResponse, ITADLowestResponse } from "../types/api.js";
 import { EmbedBuilder } from "discord.js";
-import { config } from "../config";
-import logger from "../utils/logger";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
 
 const ITAD_BASE = config.itadApiBaseUrl;
 

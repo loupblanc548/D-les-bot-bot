@@ -9,9 +9,9 @@
 
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
-import logger from "../utils/logger";
-import { dedupCache } from "../utils/deduplicationCache";
-import { config } from "../config";
+import logger from "../utils/logger.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
+import { config } from "../config.js";
 
 // --- Constantes ---
 

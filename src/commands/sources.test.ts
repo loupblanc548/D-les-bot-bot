@@ -21,8 +21,8 @@ vi.mock("../services/permissions", () => ({
   requireAdmin: vi.fn(),
 }));
 
-import { requireAdmin } from "../services/permissions";
-import { resolveYouTubeChannelId } from "../services/youtube";
+import { requireAdmin } from "../services/permissions.js";
+import { resolveYouTubeChannelId } from "../services/youtube.js";
 
 // ── Helper : créer une fausse interaction ──
 function mockInteraction(overrides: Record<string, any> = {}) {
@@ -47,7 +47,7 @@ function mockInteraction(overrides: Record<string, any> = {}) {
 }
 
 // ── Regular import (vi.mock is hoisted so mocks apply) ──
-import { handleCommand } from "../commands/sources";
+import { handleCommand } from "../commands/sources.js";
 
 // ═══════════════════════════════════════════════════════════════
 // handleAddSource

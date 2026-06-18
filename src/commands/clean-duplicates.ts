@@ -18,8 +18,8 @@ import {
   Collection,
   Message,
 } from "discord.js";
-import logger from "../utils/logger";
-import { requireAdmin } from "../services/permissions";
+import logger from "../utils/logger.js";
+import { requireAdmin } from "../services/permissions.js";
 
 // ─── Definition Slash Command ──────────────────────────────────────────────
 

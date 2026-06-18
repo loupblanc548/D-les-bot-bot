@@ -1,8 +1,8 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import prisma from "../prisma";
-import logger from "../utils/logger";
-import { config } from "../config";
-import { AdvancedEmbedBuilder } from "../components/embedBuilder";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder } from "../components/embedBuilder.js";
 
 /**
  * Service de rapports d'activité avec statistiques

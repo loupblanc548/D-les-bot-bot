@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,
@@ -10,12 +10,12 @@ import {
   ComponentType,
   StringSelectMenuInteraction,
 } from "discord.js";
-import prisma from "../prisma";
-import { config } from "../config";
-import { requireAdmin } from "../services/permissions";
-import { getLogs } from "../services/logs";
-import { runStartupRetrospective } from "../services/feeds";
-import { runDbSourcesRetrospective } from "../services/monitor";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { requireAdmin } from "../services/permissions.js";
+import { getLogs } from "../services/logs.js";
+import { runStartupRetrospective } from "../services/feeds.js";
+import { runDbSourcesRetrospective } from "../services/monitor.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 

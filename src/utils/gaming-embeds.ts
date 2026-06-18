@@ -5,7 +5,7 @@
  * de bons plans et sorties de jeux. Une fonction par plateforme,
  * chaque plateforme ayant son identité visuelle propre.
  *
- * Usage : import { embedEpicGames, embedSteam, ... } from "../utils/gaming-embeds";
+ * Usage : import { embedEpicGames, embedSteam, ... } from "../utils/gaming-embeds.js";
  */
 
 import { MessageFlags, EmbedBuilder } from "discord.js";

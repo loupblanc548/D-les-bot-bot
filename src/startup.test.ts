@@ -100,7 +100,7 @@ vi.mock("./cron/monthlyMaintenance", () => ({ startMonthlyMaintenance: mockServi
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";
-import { attachStartupLogic } from "./startup";
+import { attachStartupLogic } from "./startup.js";
 
 describe("startup", () => {
   beforeEach(() => {

@@ -2,12 +2,12 @@ import { Client, EmbedBuilder, TextChannel, ActionRowBuilder, ButtonBuilder, But
 import cron, { ScheduledTask } from "node-cron";
 import axios from "axios";
 import { XMLParser } from "fast-xml-parser";
-import prisma from "../prisma";
-import { config } from "../config";
-import logger from "../utils/logger";
-import { translateToFrench, isLikelyEnglish } from "../utils/translator";
-import { dedupCache } from "../utils/deduplicationCache";
-import { pushFortniteDetection } from "../services/fortnite-broadcast";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { translateToFrench, isLikelyEnglish } from "../utils/translator.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
+import { pushFortniteDetection } from "../services/fortnite-broadcast.js";
 
 // Constantes
 

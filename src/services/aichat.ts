@@ -1,7 +1,7 @@
-import logger from "../utils/logger";
-import prisma from "../prisma";
-import { getOpenAIClient } from "./ai";
-import { config } from "../config";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 
 // ── Configuration ────────────────────────────────────────────────
 const MAX_HISTORY = 20;       // Max messages chargés depuis la DB

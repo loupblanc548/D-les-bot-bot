@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   TextChannel,
@@ -7,10 +7,10 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
 } from "discord.js";
-import prisma from "../prisma";
-import { requireAdmin } from "../services/permissions";
-import { getLogs } from "../services/logs";
-import { requestConfirmation } from "../utils/confirm";
+import prisma from "../prisma.js";
+import { requireAdmin } from "../services/permissions.js";
+import { getLogs } from "../services/logs.js";
+import { requestConfirmation } from "../utils/confirm.js";
 
 export const commands = [
   new SlashCommandBuilder()

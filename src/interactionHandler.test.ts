@@ -37,7 +37,7 @@ vi.mock("./commands/fun/wishlist", () => ({ handleAutocomplete: mockHandlers.han
 vi.mock("./commands/utility", () => ({ handleTranslateAutocomplete: mockHandlers.handleTranslateAutocomplete }));
 
 import { Events } from "discord.js";
-import { attachInteractionHandlers } from "./interactionHandler";
+import { attachInteractionHandlers } from "./interactionHandler.js";
 
 describe("interactionHandler", () => {
   let mockClient: any;

@@ -1,6 +1,6 @@
 import http from "http";
-import { authenticate } from "../middleware/auth";
-import type { LogEntry, LogsResponse } from "../types";
+import { authenticate } from "../middleware/auth.js";
+import type { LogEntry, LogsResponse } from "../types.js";
 
 const MAX_LOGS = 2000;
 let logs: LogEntry[] = [];

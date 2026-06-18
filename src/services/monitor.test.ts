@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { textOf, extractLink } from "../utils/rss-parser";
+import { textOf, extractLink } from "../utils/rss-parser.js";
 
 describe("textOf (internal helper)", () => {
   it("should return string values directly", () => {
@@ -83,7 +83,7 @@ vi.mock("../prisma", () => ({
   },
 }));
 
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 
 vi.mock("../config", () => ({
   config: {
@@ -141,7 +141,7 @@ vi.mock("../utils/logger", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-import { startMonitoring, stopMonitoring, runDbSourcesRetrospective } from "./monitor";
+import { startMonitoring, stopMonitoring, runDbSourcesRetrospective } from "./monitor.js";
 import { Client } from "discord.js";
 
 function mockClient(): Client {
@@ -194,7 +194,7 @@ describe("startMonitoring", () => {
   });
 
   it("should log activation message on start", async () => {
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
     const client = mockClient();
     startMonitoring(client);
 
@@ -227,7 +227,7 @@ describe("startMonitoring", () => {
     // checkAndNotify has its own try/catch, so startMonitoring never sees errors.
     // Verify: even when findMany throws, startMonitoring completes and creates the interval.
     const setIntervalSpy = vi.spyOn(global, "setInterval");
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
     // Using static prisma import (vi.hoisted)
 
     // Synchronous throw that checkAndNotify's internal try/catch will handle
@@ -258,7 +258,7 @@ describe("startMonitoring", () => {
       throw new Error("Simulated crash");
     });
 
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
     const client = mockClient();
     startMonitoring(client);
 
@@ -311,7 +311,7 @@ describe("stopMonitoring", () => {
   });
 
   it("should log deactivation message", async () => {
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
     const client = mockClient();
     startMonitoring(client);
     (logger.info as any).mockClear(); // Clear the start log
@@ -369,7 +369,7 @@ describe("runDbSourcesRetrospective", () => {
   });
 
   it("should log start and end markers", async () => {
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
     // Using static prisma import (vi.hoisted)
     (prisma.source.findMany as any).mockResolvedValue([]);
 
@@ -384,7 +384,7 @@ describe("runDbSourcesRetrospective", () => {
   });
   it("should process multiple items from a single source", async () => {
     // Using static prisma import (vi.hoisted)
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
 
     config.maxRetroPosts = 25;
 
@@ -442,7 +442,7 @@ describe("runDbSourcesRetrospective", () => {
 
   it("should stop processing when MAX_RETRO_POSTS cap is reached", async () => {
     // Using static prisma import (vi.hoisted)
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
 
     // Set a low cap
     config.maxRetroPosts = 2;
@@ -482,7 +482,7 @@ describe("runDbSourcesRetrospective", () => {
       guilds: { cache: new Map() },
     } as any;
 
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
 
     await runDbSourcesRetrospective(client);
 
@@ -503,7 +503,7 @@ describe("runDbSourcesRetrospective", () => {
 
   it("should skip items that already have notifications", async () => {
     // Using static prisma import (vi.hoisted)
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
 
     config.maxRetroPosts = 25;
 
@@ -548,11 +548,11 @@ describe("runDbSourcesRetrospective", () => {
 
   it("should continue processing other sources after one fails", async () => {
     // Using static prisma import (vi.hoisted)
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
 
     config.maxRetroPosts = 25;
 
-    const { default: logger } = await import("../utils/logger");
+    const { default: logger } = await import("../utils/logger.js");
 
     (prisma.source.findMany as any).mockResolvedValue([
       { id: 1, type: "YOUTUBE", urlOrHandle: "BadChannel", channelId: "ch-1" },

@@ -1,4 +1,4 @@
-import { REGEX_PATTERNS } from "./constants";
+import { REGEX_PATTERNS } from "./constants.js";
 
 /**
  * Utilitaires de validation pour les entrées utilisateur

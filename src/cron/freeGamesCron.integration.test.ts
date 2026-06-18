@@ -117,7 +117,7 @@ function createMockClient(ch: ReturnType<typeof createMockChannel>) {
 }
 
 // ─── Import du module testé ───────────────────────────────────────────────────
-import { checkFreeGames } from "./freeGamesCron";
+import { checkFreeGames } from "./freeGamesCron.js";
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00e9)", () => {
@@ -305,7 +305,7 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
   });
 
   it.skip("s'arr\u00eate proprement quand FREE_GAMES_CHANNEL_ID est absent", async () => {
-    const { config } = await import("../config");
+    const { config } = await import("../config.js");
     const prev = config.freeGamesChannel;
 
     try {

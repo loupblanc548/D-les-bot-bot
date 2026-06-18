@@ -1,7 +1,7 @@
-import logger from "./logger";
-import { canSendAlert, resetCooldown } from "./cooldown";
+import logger from "./logger.js";
+import { canSendAlert, resetCooldown } from "./cooldown.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import { config } from "../config";
+import { config } from "../config.js";
 
 interface EscalationRule {
   severity: "low" | "medium" | "high" | "critical";

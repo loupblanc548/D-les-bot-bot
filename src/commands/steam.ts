@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 // Commandes Steam — /steam connect|nowplaying|wishlist
 import {
   MessageFlags,
@@ -6,14 +6,14 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import prisma from "../prisma";
+import prisma from "../prisma.js";
 import {
   getPlayerSummaries,
   getOwnedGames,
   resolveVanityUrl,
   isValidSteamId,
-} from "../services/steam";
-import { config } from "../config";
+} from "../services/steam.js";
+import { config } from "../config.js";
 
 
 // Cache TTL pour handleNowPlaying (evite de fetch tous les membres a chaque appel)

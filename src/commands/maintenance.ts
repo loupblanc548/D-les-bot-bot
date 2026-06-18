@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
 import Parser from "rss-parser";
-import logger from "../utils/logger";
-import { requireAdmin } from "../services/permissions";
+import logger from "../utils/logger.js";
+import { requireAdmin } from "../services/permissions.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /maintenance — Commandes de maintenance technique (admin only)

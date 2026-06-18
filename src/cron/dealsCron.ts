@@ -1,16 +1,16 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
-import logger from "../utils/logger";
-import prisma from "../prisma";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 import cron from "node-cron";
 import axios from "axios";
 import { randomUUID } from "crypto";
-import { config } from "../config";
-import { retry, isRetryableError } from "../utils/retry";
-import { dbCache } from "../utils/cache";
-import { validateRssItem, sanitizeString } from "../utils/validation";
-import { metricsCollector } from "../utils/metrics";
-import { translateAutoToFrench } from "../utils/translator";
-import { dedupCache } from "../utils/deduplicationCache";
+import { config } from "../config.js";
+import { retry, isRetryableError } from "../utils/retry.js";
+import { dbCache } from "../utils/cache.js";
+import { validateRssItem, sanitizeString } from "../utils/validation.js";
+import { metricsCollector } from "../utils/metrics.js";
+import { translateAutoToFrench } from "../utils/translator.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 
 interface DealItem {
   title: string;

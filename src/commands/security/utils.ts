@@ -1,4 +1,4 @@
-import prisma from "../../prisma";
+import prisma from "../../prisma.js";
 
 // ===== Constantes de détection de liens suspects =====
 const SUSPICIOUS_TLDS = new Set([
@@ -110,5 +110,5 @@ export async function isAntiRaidActive(guildId: string): Promise<{ active: boole
 }
 
 // Réimports des caches et constantes pour les helpers isActive
-import { antiRaidCache, ANTI_RAID_CACHE_TTL_MS } from "./cache";
-import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache";
+import { antiRaidCache, ANTI_RAID_CACHE_TTL_MS } from "./cache.js";
+import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache.js";

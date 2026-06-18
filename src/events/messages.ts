@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger from "../utils/logger.js";
 import {
   MessageFlags,
   Client,
@@ -9,17 +9,17 @@ import {
   TextChannel,
   EmbedBuilder,
 } from "discord.js";
-import { createLog } from "../services/logs";
-import { recordSecurityEvent } from "../services/risk-engine";
-import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security";
-import { isAiChatEnabled, chatWithHistory } from "../services/aichat";
-import { analyzeToxicity } from "../services/ai-moderation";
-import prisma from "../prisma";
-import { withCache } from "../utils/redis-enhance";
-import { translateAutoToFrench } from "../utils/translator";
-import { addMessageToConversation, getConversationHistory, clearConversation } from "../services/aiMemory";
-import { getCachedResponse, cacheResponse } from "../services/aiCache";
-import { checkRateLimit } from "../services/rateLimiter";
+import { createLog } from "../services/logs.js";
+import { recordSecurityEvent } from "../services/risk-engine.js";
+import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
+import { isAiChatEnabled, chatWithHistory } from "../services/aichat.js";
+import { analyzeToxicity } from "../services/ai-moderation.js";
+import prisma from "../prisma.js";
+import { withCache } from "../utils/redis-enhance.js";
+import { translateAutoToFrench } from "../utils/translator.js";
+import { addMessageToConversation, getConversationHistory, clearConversation } from "../services/aiMemory.js";
+import { getCachedResponse, cacheResponse } from "../services/aiCache.js";
+import { checkRateLimit } from "../services/rateLimiter.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 

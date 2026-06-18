@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../utils/logger", () => ({ default: mocks.mockLogger }));
 vi.mock("../config", () => ({ config: { freeGamesChannel: "111111111" } }));
 
-import { handleCommand } from "./admin";
+import { handleCommand } from "./admin.js";
 
 function makeInteraction(opts: { channelMock?: any; envValue?: string | undefined } = {}) {
   const original = process.env.FREE_GAMES_CHANNEL_ID;

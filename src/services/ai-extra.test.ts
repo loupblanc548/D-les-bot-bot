@@ -34,7 +34,7 @@ import {
   summarizeMessages,
   getSupportedLanguages,
   getLanguageName,
-} from "./ai-extra";
+} from "./ai-extra.js";
 
 describe("ai-extra", () => {
   beforeEach(() => {
