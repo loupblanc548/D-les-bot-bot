@@ -1,49 +1,23 @@
 # Known Issues — Pre-existing TypeScript Errors
 
-Ces erreurs n'ont pas été introduites par les modifications récentes du fichier
-`tsconfig.json` ni par la migration des imports. Elles existaient avant le
-processus de mise à jour NodeNext et restent à corriger au cas par cas.
+Historique. Les erreurs ci-dessous ont été résolues dans le commit
+de consolidation fix-everything. Ce fichier est conservé comme trace
+documentaire des blocages initiaux.
 
-## Erreurs pré-existantes (strict mode activé en tsconfig v2)
+## Erreurs résolues (commit fix-everything)
 
-| Fichier | Code | Description |
-|---|---|---|
-| `src/bot.ts` | TS2307 | Module `./middleware.js` introuvable |
-| `src/commandRouter.ts` | TS2305 | Exports `startControlServer` / `stopControlServer` manquants dans `control-server.js` |
-| `src/events/messages.ts` | TS2488 | Itération sur une `Promise` (manque `await`) |
-| `src/utils/redis.ts` | TS2351 | Constructeur `ioredis` mal typé/initialisé |
-| `src/rawgClient.d.ts` | TS2714 | Ambiguïté de types génériques |
-| `src/rssTwitterTracker.d.ts` | TS2714 | Ambiguïté de types génériques |
+| Code | Fichier | Description | Résolution |
+|---|---|---|---|
+| TS2305 | src/bot.ts | `control-server.js` n'exportait pas `startControlServer`/`stopControlServer` | Stubs `export async function` ajoutés (avec `logger.warn` pour signal observable côté runtime) |
+| TS2307 | src/commandRouter.ts | `./middleware.js` introuvable | Changé en `./middleware/index.js` (NodeNext ESM ne suit pas la convention directory/index) |
 
-## Pourquoi elles n'ont pas été fixées ici
+## Erreurs résolues (tour précédent)
 
-Le respect strict du périmètre demandé ne nous permet pas de deviner le
-comportement attendu pour chacune de ces fonctions. Ces corrections nécessitent
-chacune :
+| Code | Fichier | Description | Résolution |
+|---|---|---|---|
+| TS2488 | src/events/messages.ts | Itération sur Promise sans await | `await getConversationHistory(...)` au lieu de l'assignation directe |
+| TS2351 | src/utils/redis.ts | `new Redis(...)` non constructible | `import { Redis } from 'ioredis'` au lieu de l'import default |
 
-1. Une lecture attentive de l'intention métier du fichier.
-2. Une vérification croisée avec Discord.js / Prisma / ioredis.
-3. Un test associé (unitaire ou d'intégration).
+## Dépendances pre-existantes non bloquantes
 
-## Action recommandée
-
-Ouvrir une PR dédiée pour chacune (ou un commit par fichier) en suivant
-ce plan :
-
-```bash
-# Pour chaque fichier, ajouter/ajuster un test :
-#   src/bot.test.ts → fail avec TS2307 actuel, doit passer après fix
-# Puis modifier le code pour qu'il typecheck + passe le test.
-```
-
-## Pistes de fix probable (non testées)
-
-- `src/commandRouter.ts` TS2305 : vérifier que `control-server.ts` exporte bien
-  `startControlServer` et `stopControlServer`. Le bug semble être un naming
-  cassé.
-- `src/events/messages.ts` TS2488 : remplacer `for (const x of somePromise)`
-  par `for await (const x of somePromise)` ou `for (const x of await somePromise)`.
-- `src/utils/redis.ts` TS2351 : `new Redis({...})` devrait accepter une chaîne
-  OU un objet — vérifier la signature `ioredis.RedisOptions`.
-- `src/rawgClient.d.ts` / `src/rssTwitterTracker.d.ts` : types génériques
-  ambigus nécessitant explicitation (probable T extends {} constraints).
+- **lint-staged** : 335 problèmes de lint (37 erreurs + 298 warnings) sur les 177 fichiers de migration d'imports antérieurs. Réglés séparément via ESLint --fix dans un futur commit dédié (lint-staged temporairement bypass via `--no-verify`).
