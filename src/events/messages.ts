@@ -224,7 +224,7 @@ async function handleAiChatMention(
       return;
     }
 
-    const conversationHistory = getConversationHistory(message.author.id, message.guildId || undefined);
+    const conversationHistory = await getConversationHistory(message.author.id, message.guildId || undefined);
     const messages = [
       { role: "system", content: JOHN_HELLDIVER_SYSTEM_PROMPT },
       ...conversationHistory,

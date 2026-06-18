@@ -8,7 +8,7 @@
 import { REST, Routes, Interaction, ChatInputCommandInteraction, Client } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
-import { createLoggingMiddleware, createRateLimitMiddleware, withMiddleware } from "./middleware.js";
+import { createLoggingMiddleware, createRateLimitMiddleware, withMiddleware } from "./middleware/index.js";
 
 import {
   commands as mainCommands,
