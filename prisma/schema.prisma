@@ -743,23 +743,32 @@ model Poll {
   id        Int       @id @default(autoincrement())
   guildId   String
   channelId String
-  messageId String?
+  messageId String
+  authorId  String
   question  String
   options   String
+  active    Boolean   @default(true)
   expiresAt DateTime?
   createdAt DateTime  @default(now())
+  votes     PollVote[]
 
   @@index([guildId])
+  @@index([channelId])
+  @@index([authorId])
+  @@index([active])
 }
 
 model PollVote {
   id        Int      @id @default(autoincrement())
   pollId    Int
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
   userId    String
   option    Int
   createdAt DateTime @default(now())
 
   @@unique([pollId, userId])
+  @@index([pollId])
+  @@index([userId])
 }
 
 model Suggestion {
