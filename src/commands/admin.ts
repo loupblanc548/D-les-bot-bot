@@ -11,6 +11,7 @@ import prisma from "../prisma.js";
 import { requireAdmin } from "../services/permissions.js";
 import { getLogs } from "../services/logs.js";
 import { requestConfirmation } from "../utils/confirm.js";
+import { manualBackup } from "../modules/backup/databaseBackup.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -151,6 +152,13 @@ export const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
+  
+  // /backup : Lancer un backup manuel de la base de données
+  new SlashCommandBuilder()
+    .setName("backup")
+    .setDescription("Lancer un backup manuel de la base de données (admin)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
@@ -186,6 +194,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       break;
     case "pause-source":
       await handlePauseSource(interaction);
+      break;
+    case "backup":
+      await handleBackup(interaction);
       break;
   }
 }
@@ -613,7 +624,25 @@ async function handleListSources(interaction: ChatInputCommandInteraction) {
   }
 }
 
-// ===== /pause-source =====
+// ===== /backup =====
+
+async function handleBackup(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    await manualBackup(interaction.client);
+    await interaction.editReply({ content: "✅ Backup manuel lancé. Vous recevrez une notification dans le LOG_CHANNEL_ID." });
+  } catch (error) {
+    logger.error("[CRASH COMMANDE BACKUP]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible de lancer le backup." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible de lancer le backup.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
 
 async function handlePauseSource(interaction: ChatInputCommandInteraction) {
   if (!(await requireAdmin(interaction))) return;
