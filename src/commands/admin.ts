@@ -12,6 +12,7 @@ import { requireAdmin } from "../services/permissions.js";
 import { getLogs } from "../services/logs.js";
 import { requestConfirmation } from "../utils/confirm.js";
 import { manualBackup } from "../modules/backup/databaseBackup.js";
+import { searchNotifications } from "../modules/search/notificationSearch.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -159,6 +160,79 @@ export const commands = [
     .setDescription("Lancer un backup manuel de la base de données (admin)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
+  
+  // /create-workflow : Créer un nouveau workflow
+  new SlashCommandBuilder()
+    .setName("create-workflow")
+    .setDescription("Créer un nouveau workflow d'automatisation (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("name")
+        .setDescription("Nom du workflow")
+        .setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("description")
+        .setDescription("Description du workflow")
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /list-workflows : Lister tous les workflows
+  new SlashCommandBuilder()
+    .setName("list-workflows")
+    .setDescription("Lister tous les workflows d'automatisation (admin)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /toggle-workflow : Activer/désactiver un workflow
+  new SlashCommandBuilder()
+    .setName("toggle-workflow")
+    .setDescription("Activer ou désactiver un workflow (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("workflow-id")
+        .setDescription("ID du workflow")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /search-notifications : Rechercher dans les notifications historiques
+  new SlashCommandBuilder()
+    .setName("search-notifications")
+    .setDescription("Rechercher dans les notifications historiques (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("query")
+        .setDescription("Terme de recherche")
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("platform")
+        .setDescription("Filtrer par plateforme")
+        .setRequired(false)
+        .addChoices(
+          { name: "YouTube", value: "youtube" },
+          { name: "Twitter", value: "twitter" },
+          { name: "Bluesky", value: "bluesky" },
+          { name: "Twitch", value: "twitch" },
+          { name: "Reddit", value: "reddit" },
+          { name: "Instagram", value: "instagram" }
+        )
+    )
+    .addIntegerOption((opt) =>
+      opt
+        .setName("page")
+        .setDescription("Numéro de page")
+        .setRequired(false)
+        .setMinValue(1)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
@@ -197,6 +271,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       break;
     case "backup":
       await handleBackup(interaction);
+      break;
+    case "create-workflow":
+      await handleCreateWorkflow(interaction);
+      break;
+    case "list-workflows":
+      await handleListWorkflows(interaction);
+      break;
+    case "toggle-workflow":
+      await handleToggleWorkflow(interaction);
+      break;
+    case "search-notifications":
+      await handleSearchNotifications(interaction);
       break;
   }
 }
@@ -640,6 +726,190 @@ async function handleBackup(interaction: ChatInputCommandInteraction) {
       await interaction.editReply({ content: "❌ Impossible de lancer le backup." });
     } catch {
       try { await interaction.followUp({ content: "❌ Impossible de lancer le backup.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
+
+// ===== /create-workflow =====
+
+async function handleCreateWorkflow(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const name = interaction.options.get("name", true).value as string;
+  const description = interaction.options.get("description")?.value as string | undefined;
+  const guild = interaction.guild;
+
+  if (!guild) {
+    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur.", ephemeral: true });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const workflow = await prisma.workflow.create({
+      data: {
+        guildId: guild.id,
+        name,
+        description,
+      },
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("✅ Workflow créé")
+      .setColor(0x53fc18)
+      .addFields(
+        { name: "ID", value: workflow.id, inline: true },
+        { name: "Nom", value: workflow.name, inline: true },
+        { name: "Description", value: workflow.description || "Aucune", inline: true }
+      )
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+    logger.info(`[Admin] Workflow créé: ${name} par ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error("[CRASH COMMANDE CREATE-WORKFLOW]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible de créer le workflow." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible de créer le workflow.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
+
+// ===== /list-workflows =====
+
+async function handleListWorkflows(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const guild = interaction.guild;
+    if (!guild) {
+      await interaction.editReply({ content: "Cette commande doit être utilisée sur un serveur." });
+      return;
+    }
+
+    const workflows = await prisma.workflow.findMany({
+      where: { guildId: guild.id },
+      include: {
+        triggers: true,
+        actions: true,
+      },
+    });
+
+    if (workflows.length === 0) {
+      await interaction.editReply({ content: "Aucun workflow configuré." });
+      return;
+    }
+
+    const workflowLines = workflows.map((w) => {
+      const status = w.enabled ? "✅ Actif" : "❌ Inactif";
+      return `**${w.name}** (${status}) - ${w.triggers.length} triggers, ${w.actions.length} actions`;
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Workflows configurés")
+      .setColor(0x2f3136)
+      .setDescription(workflowLines.join("\n").slice(0, 4000) || "Aucun workflow")
+      .setFooter({ text: `Total: ${workflows.length} workflows` })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[CRASH COMMANDE LIST-WORKFLOWS]:", error);
+    try { await interaction.editReply({ content: "❌ Impossible d'afficher les workflows." }); }
+    catch { try { await interaction.followUp({ content: "❌ Impossible d'afficher les workflows.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+  }
+}
+
+// ===== /toggle-workflow =====
+
+async function handleToggleWorkflow(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const workflowId = interaction.options.get("workflow-id", true).value as string;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+    });
+
+    if (!workflow) {
+      await interaction.editReply({ content: "⚠️ Workflow introuvable." });
+      return;
+    }
+
+    const updatedWorkflow = await prisma.workflow.update({
+      where: { id: workflowId },
+      data: { enabled: !workflow.enabled },
+    });
+
+    const status = updatedWorkflow.enabled ? "activé" : "désactivé";
+    await interaction.editReply({ content: `✅ Workflow **${workflow.name}** ${status}.` });
+    logger.info(`[Admin] Workflow ${status}: ${workflow.name} par ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error("[CRASH COMMANDE TOGGLE-WORKFLOW]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible de modifier le workflow." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible de modifier le workflow.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
+
+// ===== /search-notifications =====
+
+async function handleSearchNotifications(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const query = interaction.options.get("query")?.value as string | undefined;
+  const platform = interaction.options.get("platform")?.value as string | undefined;
+  const page = interaction.options.get("page")?.value as number | undefined;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const result = await searchNotifications({
+      query,
+      platform,
+      page: page || 1,
+      limit: 25,
+    });
+
+    if (result.notifications.length === 0) {
+      await interaction.editReply({ content: "Aucune notification trouvée." });
+      return;
+    }
+
+    const notificationLines = result.notifications.map((n) => {
+      const date = n.sentAt.toLocaleDateString("fr-FR");
+      const platformLabel = n.platform || "Unknown";
+      const content = n.content.slice(0, 50) + (n.content.length > 50 ? "..." : "");
+      return `[${date}] **${platformLabel}** - ${content}`;
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("🔍 Résultats de recherche")
+      .setColor(0x2f3136)
+      .setDescription(notificationLines.join("\n").slice(0, 4000) || "Aucun résultat")
+      .addFields(
+        { name: "Total", value: result.totalCount.toString(), inline: true },
+        { name: "Page", value: `${result.currentPage}/${result.totalPages}`, inline: true }
+      )
+      .setFooter({ text: `Page ${result.currentPage} sur ${result.totalPages}` })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[CRASH COMMANDE SEARCH-NOTIFICATIONS]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible de rechercher les notifications." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible de rechercher les notifications.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
     }
   }
 }
