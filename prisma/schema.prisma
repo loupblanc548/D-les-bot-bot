@@ -27,6 +27,9 @@ enum Platform {
   all
   epicgames
   instantgaming_news
+  humble_bundle
+  green_man_gaming
+  xbox_game_pass
 }
 
 enum SanctionType {
@@ -924,6 +927,7 @@ model UserMemory {
   lastActiveAt DateTime        @default(now())
   facts        MemoryFact[]
   messages     MemoryMessage[]
+  embeddings   MemoryEmbedding[]
 
   @@index([guildId])
   @@map("user_memory")
@@ -964,6 +968,19 @@ model MemoryMessage {
   @@map("memory_message")
 }
 
+model MemoryEmbedding {
+  id          String     @id @default(cuid())
+  userId      String
+  user        UserMemory @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  content     String     @db.Text
+  embedding   String     @db.Text // JSON array of floats
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@map("memory_embedding")
+}
+
 model MemoryDecayLog {
   id          String   @id @default(cuid())
   factsBefore Int
@@ -973,4 +990,52 @@ model MemoryDecayLog {
 
   @@index([ranAt])
   @@map("memory_decay_log")
+}
+
+// ===== Price History (Phase 2) =====
+
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  gameId      String
+  platform    Platform
+  title       String
+  price       Float
+  currency    String   @default("EUR")
+  url         String?
+  imageUrl    String?
+  recordedAt  DateTime @default(now())
+
+  @@unique([gameId, platform, recordedAt])
+  @@index([gameId])
+  @@index([platform])
+  @@index([recordedAt])
+  @@map("price_history")
+}
+
+// ===== CAPTCHA Verification (Phase 3) =====
+
+model CaptchaVerification {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  guildId   String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+  @@index([expiresAt])
+  @@map("captcha_verification")
+}
+
+model RaidLog {
+  id         String   @id @default(cuid())
+  guildId    String
+  detectedAt DateTime @default(now())
+  status     String   @default("active")
+
+  @@index([guildId])
+  @@index([detectedAt])
+  @@map("raid_log")
 }
