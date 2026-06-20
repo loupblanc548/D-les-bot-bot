@@ -4,6 +4,7 @@ import { handleAIChat } from "./ai/handler.js";
 import { startRSSAggregator } from "./rss/aggregator.js";
 import { startSystemDiagnostic } from "./diagnostic/systemDiagnostic.js";
 import { startEpicGamesAggregator } from "./epic/epicGames.js";
+import { handleMediaResponse } from "./media/mediaResponder.js";
 import { command as remindmeCommand } from "./reminders/command.js";
 
 export function initializeModules(client: Client): void {
@@ -16,3 +17,4 @@ export function initializeModules(client: Client): void {
 
 export { remindmeCommand };
 export { handleAIChat };
+export { handleMediaResponse };

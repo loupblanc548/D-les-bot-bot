@@ -1,5 +1,5 @@
-import { Worker, Job } from "bullmq";
-import { Client, EmbedBuilder } from "discord.js";
+import { Worker, Job, QueueEvents } from "bullmq";
+import { Client, MessageEmbed } from "discord.js";
 
 const connection = {
   host: process.env.REDIS_HOST || "localhost",
@@ -15,7 +15,7 @@ export function startReminderWorker(client: Client): void {
         const { userId, raison } = job.data;
 
         const user = await client.users.fetch(userId);
-        const embed = new EmbedBuilder()
+        const embed = new MessageEmbed()
           .setTitle("⏰ RAPPEL - JOHN HELLDIVER")
           .setDescription(raison)
           .setColor(0xffd700)
@@ -30,8 +30,22 @@ export function startReminderWorker(client: Client): void {
         throw error;
       }
     },
-    { connection },
+    {
+      connection,
+      removeOnComplete: { count: 0 },
+      removeOnFail: { count: 0, age: 24 * 3600 },
+    },
   );
+
+  const queueEvents = new QueueEvents("reminders", { connection });
+
+  queueEvents.on("completed", (job) => {
+    console.log(`[ReminderWorker] Job ${job.jobId} complété`);
+  });
+
+  queueEvents.on("failed", (job, err) => {
+    console.error(`[ReminderWorker] Job ${job?.jobId} échoué:`, err);
+  });
 
   worker.on("completed", (job) => {
     console.log(`[ReminderWorker] Job ${job.id} complété`);

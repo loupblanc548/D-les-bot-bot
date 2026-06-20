@@ -1,4 +1,4 @@
-import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
+import { Client, Message, MessageEmbed, TextChannel, DMChannel } from "discord.js";
 import { createClient } from "redis";
 
 const redis = createClient({
@@ -10,6 +10,7 @@ redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
 const CONTEXT_KEY_PREFIX = "ai:context:";
 const CONTEXT_TTL = 15 * 60; // 15 minutes
 const MAX_MESSAGES = 8;
+const MAX_TOKENS = 4000;
 
 interface MessageContext {
   role: string;
@@ -21,7 +22,8 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
     if (!message.content || message.author.bot) return;
 
     const userId = message.author.id;
-    const contextKey = `${CONTEXT_KEY_PREFIX}${userId}`;
+    const channelId = message.channelId;
+    const contextKey = `${CONTEXT_KEY_PREFIX}${channelId}:${userId}`;
 
     if (message.channel instanceof TextChannel || message.channel instanceof DMChannel) {
       await message.channel.sendTyping();
@@ -32,6 +34,13 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
 
     if (context.length > MAX_MESSAGES) {
       context.shift();
+    }
+
+    const estimatedTokens = estimateTokens(context);
+    if (estimatedTokens > MAX_TOKENS) {
+      while (context.length > 2 && estimateTokens(context) > MAX_TOKENS) {
+        context.shift();
+      }
     }
 
     const systemPrompt = process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
@@ -48,7 +57,7 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
 
       await saveContext(contextKey, context);
 
-      const embed = new EmbedBuilder()
+      const embed = new MessageEmbed()
         .setTitle("🤖 JOHN HELLDIVER AI")
         .setDescription(response)
         .setColor(0xffd700)
@@ -81,6 +90,10 @@ async function saveContext(key: string, context: MessageContext[]): Promise<void
   } catch (error) {
     console.error("[AIChat] Error saving context:", error);
   }
+}
+
+function estimateTokens(context: MessageContext[]): number {
+  return context.reduce((total, msg) => total + msg.content.length, 0);
 }
 
 async function fetchOpenRouter(context: MessageContext[], systemPrompt: string, model: string): Promise<string> {
