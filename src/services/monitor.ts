@@ -9,6 +9,14 @@ import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
 import { config } from "../config.js";
 import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
+import { createClient } from "redis";
+
+const redis = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+});
+
+redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
+redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;
@@ -21,6 +29,59 @@ type BlueskyRSSContent = { title: string; url: string };
 let whitelistWarningShown = false;
 
 // ============================================================
+// CACHE INTELLIGENT REDIS
+// ============================================================
+
+interface CacheStats {
+  hits: number;
+  misses: number;
+}
+
+const cacheStats: CacheStats = { hits: 0, misses: 0 };
+
+async function getCachedData<T>(key: string): Promise<T | null> {
+  try {
+    const data = await redis.get(key);
+    if (data) {
+      cacheStats.hits++;
+      return JSON.parse(data) as T;
+    }
+    cacheStats.misses++;
+    return null;
+  } catch (error) {
+    console.error("[Cache] Error getting data:", error);
+    cacheStats.misses++;
+    return null;
+  }
+}
+
+async function setCachedData<T>(key: string, data: T, ttl: number = 300): Promise<void> {
+  try {
+    await redis.set(key, JSON.stringify(data), { EX: ttl });
+  } catch (error) {
+    console.error("[Cache] Error setting data:", error);
+  }
+}
+
+async function invalidateCache(pattern: string): Promise<void> {
+  try {
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+      await redis.del(keys);
+      console.log(`[Cache] Invalidated ${keys.length} keys matching ${pattern}`);
+    }
+  } catch (error) {
+    console.error("[Cache] Error invalidating cache:", error);
+  }
+}
+
+function getCacheStats(): string {
+  const total = cacheStats.hits + cacheStats.misses;
+  const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(1) : "0.0";
+  return `Hits: ${cacheStats.hits} | Misses: ${cacheStats.misses} | Hit Rate: ${hitRate}%`;
+}
+
+// ============================================================
 // FONCTIONS RSS (sources DB)
 // ============================================================
 
@@ -28,6 +89,12 @@ async function checkYouTubeChannel(handle: string): Promise<{
   status: "new" | "none" | "error";
   content?: YouTubeRSSContent;
 }> {
+  const cacheKey = `youtube:${handle}`;
+  const cached = await getCachedData<{ status: string; content?: YouTubeRSSContent }>(cacheKey);
+  if (cached) {
+    return cached as any;
+  }
+
   const urls = [
     `https://www.youtube.com/feeds/videos.xml?user=${handle}`,
     `https://www.youtube.com/feeds/videos.xml?channel_id=${handle}`,
@@ -46,7 +113,9 @@ async function checkYouTubeChannel(handle: string): Promise<{
       const link = extractLink(firstEntry.link);
       const thumbnail = extractMediaThumbnail(firstEntry);
       if (title && link) {
-        return { status: "new", content: { title, url: link, thumbnail } };
+        const result = { status: "new" as const, content: { title, url: link, thumbnail } };
+        await setCachedData(cacheKey, result, 300); // 5 minutes TTL
+        return result;
       }
       return { status: "none" };
     } catch {}
@@ -195,6 +264,78 @@ async function checkBlueskyUserMulti(handle: string, limit: number = 3): Promise
     return results.slice(0, limit);
   } catch (error) {
     logger.error(`[Monitor] Erreur lors du check:`, error);
+    return [];
+  }
+}
+
+async function checkTwitchChannelMulti(handle: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+  const url = `https://www.twitch.tv/${handle}`;
+  try {
+    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    if (!response.ok) return [];
+    const text = await response.text();
+    const videoMatch = text.match(/"video_id":"(\w+)"/g);
+    if (!videoMatch) return [];
+    const results: YouTubeRSSContent[] = [];
+    for (const match of videoMatch.slice(0, limit)) {
+      const videoId = match.match(/"video_id":"(\w+)"/)?.[1];
+      if (videoId) {
+        results.push({
+          title: `Stream de ${handle}`,
+          url: `https://www.twitch.tv/videos/${videoId}`,
+          thumbnail: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${handle}-440x248.jpg`,
+        });
+      }
+    }
+    return results;
+  } catch (error) {
+    logger.error("[Monitor] Erreur lors du check Twitch pour @${handle}:", error);
+    return [];
+  }
+}
+
+async function checkRedditSubredditMulti(subreddit: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+  const url = `https://www.reddit.com/r/${subreddit}/hot/.rss`;
+  try {
+    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    if (!response.ok) return [];
+    const text = await response.text();
+    const parsed = xmlParser.parse(text);
+    const items = parsed.rss?.channel?.item;
+    if (!items) return [];
+    const list = Array.isArray(items) ? items : [items];
+    const results: YouTubeRSSContent[] = [];
+    for (const item of list) {
+      const title = textOf(item.title).trim();
+      const link = extractLink(item.link).trim();
+      if (title && link) results.push({ title, url: link });
+    }
+    return results.slice(0, limit);
+  } catch (error) {
+    logger.error("[Monitor] Erreur lors du check Reddit pour r/${subreddit}:", error);
+    return [];
+  }
+}
+
+async function checkInstagramUserMulti(handle: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+  const url = `https://www.instagram.com/${handle}/`;
+  try {
+    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    if (!response.ok) return [];
+    const text = await response.text();
+    const imageMatch = text.match(/https:\/\/instagram\.f[\w-]+\.fbcdn\.net\/[^"]+\.(jpg|png)/g);
+    if (!imageMatch) return [];
+    const results: YouTubeRSSContent[] = [];
+    for (const match of imageMatch.slice(0, limit)) {
+      results.push({
+        title: `Post de @${handle}`,
+        url: `https://www.instagram.com/${handle}/`,
+        thumbnail: match,
+      });
+    }
+    return results;
+  } catch (error) {
+    logger.error("[Monitor] Erreur lors du check Instagram pour @${handle}:", error);
     return [];
   }
 }
@@ -438,6 +579,12 @@ dbRetroLoop:
         items = twItems.map(i => ({ title: i.text, url: i.url }));
       } else if (source.type === "BLUESKY") {
         items = await checkBlueskyUserMulti(source.urlOrHandle, 3);
+      } else if (source.type === "TWITCH") {
+        items = await checkTwitchChannelMulti(source.urlOrHandle, 3);
+      } else if (source.type === "REDDIT") {
+        items = await checkRedditSubredditMulti(source.urlOrHandle, 3);
+      } else if (source.type === "INSTAGRAM") {
+        items = await checkInstagramUserMulti(source.urlOrHandle, 3);
       }
       let publishedForSource = 0;
       for (const item of items) {
@@ -563,6 +710,9 @@ async function sendHealthAlert(
 TEMPS       -> [1;36m ${executionTimeFormatted}s [0m]
 STATUT      -> [1;${statusColor}m ${statusText} [0m]
 
+--- CACHE REDIS ---
+[1;36mPERFORMANCE[0m] ${getCacheStats()}
+
 =======================================================
 [1;30m// Cycle de rattrapage terminé. Système opérationnel.[0m\`\`\``;
 
@@ -570,6 +720,60 @@ STATUT      -> [1;${statusColor}m ${statusText} [0m]
     console.log("[HealthAlert] Health report sent");
   } catch (error) {
     console.error("[HealthAlert] Error:", error);
+  }
+}
+
+async function checkSourceInactivity(client: Client): Promise<void> {
+  try {
+    const sources = await prisma.source.findMany();
+    const inactiveThreshold = 7 * 24 * 60 * 60 * 1000; // 7 jours
+    const now = Date.now();
+
+    for (const source of sources) {
+      const lastNotification = await prisma.notification.findFirst({
+        where: { sourceId: String(source.id) },
+        orderBy: { sentAt: "desc" },
+      });
+
+      if (!lastNotification) {
+        const sourceAge = now - source.createdAt.getTime();
+        if (sourceAge > inactiveThreshold) {
+          await sendInactivityAlert(client, source, "Jamais notifiée");
+        }
+      } else {
+        const timeSinceLastNotification = now - lastNotification.sentAt.getTime();
+        if (timeSinceLastNotification > inactiveThreshold) {
+          await sendInactivityAlert(client, source, `Dernière notification: ${lastNotification.sentAt.toLocaleDateString("fr-FR")}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[SourceInactivity] Error:", error);
+  }
+}
+
+async function sendInactivityAlert(client: Client, source: any, reason: string): Promise<void> {
+  try {
+    const logChannelId = process.env.LOG_CHANNEL_ID;
+    if (!logChannelId) return;
+
+    const channel = await client.channels.fetch(logChannelId);
+    if (!channel || !(channel instanceof TextChannel)) return;
+
+    const alertOutput = `\`\`\`ansi
+[1;33mALERTE INACTIVITÉ[0m === SOURCE SANS ACTIVITÉ ===
+> Type     : ${source.type}
+> Handle   : ${source.urlOrHandle}
+> Salon    : <#${source.channelId}>
+> Raison   : ${reason}
+
+=======================================================
+[1;30m// Source inactive depuis plus de 7 jours.[0m\`\`\``;
+
+    await channel.send({ content: alertOutput });
+    console.log(`[SourceInactivity] Alert sent for ${source.urlOrHandle}`);
+  } catch (error) {
+    console.error("[SourceInactivity] Error sending alert:", error);
   }
 }
 
@@ -588,6 +792,15 @@ export function startMonitoring(client: Client) {
       logger.error("[Monitor] Crash dans le setInterval:", String(err));
     }
   }, CHECK_INTERVAL_MS);
+  
+  // Vérification d'inactivité hebdomadaire
+  setInterval(async () => {
+    try {
+      await checkSourceInactivity(client);
+    } catch (err) {
+      logger.error("[Monitor] Erreur vérification inactivité:", String(err));
+    }
+  }, 7 * 24 * 60 * 60 * 1000); // 7 jours
 }
 
 export function stopMonitoring() {

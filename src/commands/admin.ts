@@ -98,7 +98,10 @@ export const commands = [
         .addChoices(
           { name: "YouTube", value: "YOUTUBE" },
           { name: "Twitter/X", value: "TWITTER" },
-          { name: "Bluesky", value: "BLUESKY" }
+          { name: "Bluesky", value: "BLUESKY" },
+          { name: "Twitch", value: "TWITCH" },
+          { name: "Reddit", value: "REDDIT" },
+          { name: "Instagram", value: "INSTAGRAM" }
         )
     )
     .addStringOption((opt) =>
