@@ -36,7 +36,7 @@ client.on("interactionCreate", async (interaction) => {
 client.on("messageCreate", async (message) => {
   // Remplacez AI_CHANNEL_ID par l'ID du salon dédié à l'IA
   const AI_CHANNEL_ID = process.env.AI_CHANNEL_ID;
-  
+
   if (message.channelId === AI_CHANNEL_ID || message.mentions.has(client.user)) {
     await handleAIChat(client, message);
   }
@@ -75,6 +75,12 @@ PATCH_XBOX_RSS=https://news.xbox.com/en-us/feed
 
 # Salon IA
 AI_CHANNEL_ID=votre_channel_id
+
+# Salon Epic Games
+EPIC_GAMES_CHANNEL_ID=votre_channel_id
+
+# Salon Logs (pour diagnostic système)
+LOG_CHANNEL_ID=votre_channel_id
 ```
 
 ## Commandes npm install
@@ -95,6 +101,39 @@ src/modules/
 │   └── handler.ts      # Gestionnaire IA avec mémoire Redis
 ├── rss/
 │   └── aggregator.ts   # Agrégateur RSS avec anti-doublon
+├── diagnostic/
+│   └── systemDiagnostic.ts  # Diagnostic système quotidien
+├── epic/
+│   └── epicGames.ts    # Agrégateur Epic Games (jeux gratuits)
 ├── index.ts            # Point d'entrée des modules
 └── INTEGRATION_GUIDE.md # Ce fichier
 ```
+
+## Fonctionnalités des modules
+
+### 1. Rappels (/remindme)
+- Commande slash pour programmer des rappels
+- Utilise BullMQ pour la gestion des tâches différées
+- Envoie un DM à l'utilisateur quand le rappel expire
+
+### 2. IA Chat avec mémoire
+- Mémorise les 8 derniers messages de chaque utilisateur
+- TTL de 15 minutes pour éviter de surcharger Redis
+- Intégration avec OpenRouter pour les réponses IA
+
+### 3. Agrégateur RSS
+- Vérifie les flux RSS toutes les 15 minutes
+- Anti-doublon via Redis (TTL 7 jours)
+- Supporte plusieurs URLs par flux (séparées par virgules)
+
+### 4. Diagnostic Système
+- Exécute un diagnostic quotidien (toutes les 24h)
+- Collecte: RAM, Uptime, Ping Discord, Ping Redis
+- Style Cyberpunk/Terminal BIOS pour l'embed
+- Envoie le rapport dans le salon de logs
+
+### 5. Epic Games
+- Vérifie les jeux gratuits Epic Games toutes les 15 minutes
+- Anti-doublon via Redis (TTL 7 jours)
+- Envoie un embed avec les détails du jeu gratuit
+
