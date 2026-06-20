@@ -22,7 +22,9 @@ export function startSystemDiagnostic(client: Client): void {
     await runDiagnostic(client);
   }, DIAGNOSTIC_INTERVAL);
 
-  runDiagnostic(client);
+  setTimeout(async () => {
+    await runDiagnostic(client);
+  }, 5000);
 }
 
 async function runDiagnostic(client: Client): Promise<void> {
