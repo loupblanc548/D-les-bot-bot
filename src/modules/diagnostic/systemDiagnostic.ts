@@ -4,6 +4,7 @@ import {
   TextChannel,
 } from "discord.js";
 import { createClient } from "redis";
+import prisma from "../../prisma.js";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -43,6 +44,10 @@ async function runDiagnostic(client: Client): Promise<void> {
     await redis.ping();
     const redisPing = Date.now() - redisPingStart;
 
+    const postgresPingStart = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const postgresPing = Date.now() - postgresPingStart;
+
     const diagnosticTime = Date.now() - startTime;
 
     const ramBar = createProgressBar(parseInt(ramPercent), 20);
@@ -52,13 +57,25 @@ async function runDiagnostic(client: Client): Promise<void> {
     const discordColor = discordPing < 50 ? "33" : discordPing < 100 ? "33" : "31";
     const redisStatus = redisPing < 5 ? "INSTANTANÉ" : redisPing < 20 ? "EXCELLENT" : "BON";
     const redisColor = redisPing < 5 ? "32" : redisPing < 20 ? "32" : "33";
+    const postgresStatus = postgresPing < 20 ? "EXCELLENT" : postgresPing < 50 ? "BON" : "MODÉRÉ";
+    const postgresColor = postgresPing < 20 ? "32" : postgresPing < 50 ? "33" : "33";
+
+    const ramCritical = parseInt(ramPercent) > 85;
+    const pingCritical = discordPing > 250 || redisPing > 250 || postgresPing > 250;
+
+    let alertBanner = "";
+    if (ramCritical || pingCritical) {
+      alertBanner = "\n[1;5;31m⚠️ ALERTE CRITIQUE DÉTECTÉE ⚠️[0m\n";
+      if (ramCritical) alertBanner += "[1;31mRAM: SEUIL CRITIQUE DÉPASSÉ[0m\n";
+      if (pingCritical) alertBanner += "[1;31mLATENCE: SEUIL CRITIQUE DÉPASSÉ[0m\n";
+      alertBanner += "\n";
+    }
 
     const diagnosticOutput = `\`\`\`ansi
 [1;32mOPÉRATIONNEL[0m === SYSTÈME DE DIAGNOSTIC HELldiver ===
 > Version Core : f35eede
 > Identité     : John_Helldiver.aic
-
---- RESSORTIES MATÉRIELLES ---
+${alertBanner}--- RESSORTIES MATÉRIELLES ---
 [1;36mRAM[0m] [${ramBar}] ${ramPercent}% - ${heapUsedMB}MB / ${heapTotalMB}MB
 [1;36mCPU[0m] [${cpuBar}] 08% - Charge faible
 [1;36mUPT[0m] ${uptimeFormatted}
@@ -66,6 +83,7 @@ async function runDiagnostic(client: Client): Promise<void> {
 --- LATENCES RÉSEAU ---
 Discord API  -> [1;${discordColor}m ${discordPing}ms [0m] -> ${discordStatus}
 Régis(Redis) -> [1;${redisColor}m ${redisPing}ms [0m] -> ${redisStatus}
+Neon DB     -> [1;${postgresColor}m ${postgresPing}ms [0m] -> ${postgresStatus}
 
 =======================================================
 [1;30m// Auto-check complet. Aucune anomalie détectée.[0m\`\`\``;
