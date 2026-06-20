@@ -74,6 +74,7 @@ model Source {
   type            String
   urlOrHandle     String
   lastProcessedId String?
+  priority        Int      @default(0)
   createdAt       DateTime @default(now())
 
   @@unique([urlOrHandle, type, channelId])
@@ -82,6 +83,48 @@ model Source {
   @@index([channelId])
   @@index([urlOrHandle])
   @@index([guildId, type])
+  @@index([priority])
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  guildId     String
+  name        String
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  triggers    Trigger[]
+  actions     Action[]
+
+  @@index([guildId])
+  @@index([enabled])
+}
+
+model Trigger {
+  id          String   @id @default(uuid())
+  workflowId  String
+  type        String
+  config      String
+  createdAt   DateTime @default(now())
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+}
+
+model Action {
+  id          String   @id @default(uuid())
+  workflowId  String
+  type        String
+  config      String
+  order       Int
+  createdAt   DateTime @default(now())
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
 }
 
 model Notification {
@@ -305,6 +348,10 @@ model GuildConfig {
   embedThumbnail      String?
   welcomeMessage      String?
   leaveMessage        String?
+  freeGamesChannelId  String?
+  monitoringEnabled   Boolean? @default(true)
+  monitoringIntervalMs Int?     @default(300000)
+  maxRetroPosts       Int?     @default(10)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
