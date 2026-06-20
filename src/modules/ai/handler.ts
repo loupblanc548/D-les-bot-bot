@@ -1,4 +1,4 @@
-import { Client, Message, MessageEmbed, TextChannel, DMChannel } from "discord.js";
+import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
 import { createClient } from "redis";
 
 const redis = createClient({
@@ -57,7 +57,7 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
 
       await saveContext(contextKey, context);
 
-      const embed = new MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle("🤖 JOHN HELLDIVER AI")
         .setDescription(response)
         .setColor(0xffd700)

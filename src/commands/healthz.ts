@@ -88,8 +88,7 @@ export async function handleCommand(
     });
   }
 
-  logger.info(
-    {
+  logger.info("event", {
       cmd: "healthz",
       user: interaction.user.id,
       results: checks.map((c) => ({ name: c.name, ok: c.ok, ms: c.latencyMs })),

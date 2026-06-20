@@ -2,7 +2,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
-import { Client, TextChannel, EmbedBuilder } from "discord.js";
+import { Client, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
 import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds.js";
 import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers.js";
 import { fetchFreeGames } from "./epicgames.js";
@@ -412,7 +412,7 @@ async function checkAndNotify(client: Client) {
           if (!resultAuto.success) continue;
 
           const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
-          if (channel?.isTextBased()) {
+          if (channel && channel.type === ChannelType.GuildText) {
             // Titre enrichi par plateforme
             const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
             const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
@@ -612,7 +612,7 @@ dbRetroLoop:
         if (resultAuto.notificationInserted) notificationsInserted++;
 
         const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
-        if (channel?.isTextBased()) {
+        if (channel && channel.type === ChannelType.GuildText) {
           // Titre enrichi par plateforme
           const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
           const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";

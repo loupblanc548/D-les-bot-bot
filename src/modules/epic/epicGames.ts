@@ -1,4 +1,4 @@
-import { Client, MessageEmbed, TextChannel } from "discord.js";
+import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import { createClient } from "redis";
 
 const redis = createClient({
@@ -119,7 +119,7 @@ async function processGame(client: Client, game: EpicGame): Promise<void> {
       return;
     }
 
-    const embed = new MessageEmbed()
+    const embed = new EmbedBuilder()
       .setTitle("🎮 EPIC GAMES - GRATUIT")
       .setDescription(game.title)
       .addFields(
