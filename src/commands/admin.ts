@@ -13,6 +13,7 @@ import { getLogs } from "../services/logs.js";
 import { requestConfirmation } from "../utils/confirm.js";
 import { manualBackup } from "../modules/backup/databaseBackup.js";
 import { searchNotifications } from "../modules/search/notificationSearch.js";
+import { updateGuildConfig } from "../modules/guild/guildConfig.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -233,6 +234,45 @@ export const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
+  
+  // /guild-config : Configurer les paramètres de la guilde
+  new SlashCommandBuilder()
+    .setName("guild-config")
+    .setDescription("Configurer les paramètres de la guilde (admin)")
+    .addChannelOption((opt) =>
+      opt
+        .setName("log-channel")
+        .setDescription("Salon de logs")
+        .setRequired(false)
+    )
+    .addChannelOption((opt) =>
+      opt
+        .setName("free-games-channel")
+        .setDescription("Salon des jeux gratuits")
+        .setRequired(false)
+    )
+    .addBooleanOption((opt) =>
+      opt
+        .setName("monitoring-enabled")
+        .setDescription("Activer/désactiver le monitoring")
+        .setRequired(false)
+    )
+    .addIntegerOption((opt) =>
+      opt
+        .setName("monitoring-interval")
+        .setDescription("Intervalle de monitoring (ms)")
+        .setRequired(false)
+        .setMinValue(60000)
+    )
+    .addIntegerOption((opt) =>
+      opt
+        .setName("max-retro-posts")
+        .setDescription("Nombre max de posts rétrospectifs")
+        .setRequired(false)
+        .setMinValue(1)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
@@ -283,6 +323,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       break;
     case "search-notifications":
       await handleSearchNotifications(interaction);
+      break;
+    case "guild-config":
+      await handleGuildConfig(interaction);
       break;
   }
 }
@@ -910,6 +953,59 @@ async function handleSearchNotifications(interaction: ChatInputCommandInteractio
       await interaction.editReply({ content: "❌ Impossible de rechercher les notifications." });
     } catch {
       try { await interaction.followUp({ content: "❌ Impossible de rechercher les notifications.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
+
+// ===== /guild-config =====
+
+async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const logChannel = interaction.options.getChannel("log-channel");
+  const freeGamesChannel = interaction.options.getChannel("free-games-channel");
+  const monitoringEnabled = interaction.options.getBoolean("monitoring-enabled");
+  const monitoringInterval = interaction.options.getInteger("monitoring-interval");
+  const maxRetroPosts = interaction.options.getInteger("max-retro-posts");
+
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur.", ephemeral: true });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const updateData: any = {};
+    if (logChannel) updateData.logChannelId = logChannel.id;
+    if (freeGamesChannel) updateData.freeGamesChannelId = freeGamesChannel.id;
+    if (monitoringEnabled !== null) updateData.monitoringEnabled = monitoringEnabled;
+    if (monitoringInterval !== null) updateData.monitoringIntervalMs = monitoringInterval;
+    if (maxRetroPosts !== null) updateData.maxRetroPosts = maxRetroPosts;
+
+    const config = await updateGuildConfig(guild.id, updateData);
+
+    const embed = new EmbedBuilder()
+      .setTitle("✅ Configuration de guilde mise à jour")
+      .setColor(0x53fc18)
+      .addFields(
+        { name: "Salon de logs", value: config?.logChannelId || "Non configuré", inline: true },
+        { name: "Salon jeux gratuits", value: config?.freeGamesChannelId || "Non configuré", inline: true },
+        { name: "Monitoring", value: config?.monitoringEnabled ? "Activé" : "Désactivé", inline: true },
+        { name: "Intervalle monitoring", value: `${config?.monitoringIntervalMs || 300000}ms`, inline: true },
+        { name: "Max posts rétrospectifs", value: config?.maxRetroPosts?.toString() || "10", inline: true }
+      )
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+    logger.info(`[Admin] Guild config updated by ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error("[CRASH COMMANDE GUILD-CONFIG]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible de mettre à jour la configuration." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible de mettre à jour la configuration.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
     }
   }
 }

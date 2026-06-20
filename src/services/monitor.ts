@@ -2,7 +2,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
-import { MessageFlags, Client, TextChannel, EmbedBuilder } from "discord.js";
+import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds.js";
 import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers.js";
 import { fetchFreeGames } from "./epicgames.js";
@@ -10,6 +10,7 @@ import { embedEpicGames } from "../utils/gaming-embeds.js";
 import { config } from "../config.js";
 import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
 import { createClient } from "redis";
+import { isMonitoringEnabled, getMaxRetroPosts } from "../modules/guild/guildConfig.js";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -63,18 +64,6 @@ async function setCachedData<T>(key: string, data: T, ttl: number = 300): Promis
   }
 }
 
-async function invalidateCache(pattern: string): Promise<void> {
-  try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(keys);
-      console.log(`[Cache] Invalidated ${keys.length} keys matching ${pattern}`);
-    }
-  } catch (error) {
-    console.error("[Cache] Error invalidating cache:", error);
-  }
-}
-
 function getCacheStats(): string {
   const total = cacheStats.hits + cacheStats.misses;
   const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(1) : "0.0";
@@ -118,7 +107,9 @@ async function checkYouTubeChannel(handle: string): Promise<{
         return result;
       }
       return { status: "none" };
-    } catch {}
+    } catch {
+      // Ignore cache errors
+    }
   }
   return { status: "error" };
 }
@@ -388,6 +379,12 @@ async function checkAndNotify(client: Client) {
     const sources = await prisma.source.findMany();
     for (const source of sources) {
       try {
+        // Check if monitoring is enabled for this guild
+        const monitoringEnabled = await isMonitoringEnabled(source.guildId);
+        if (!monitoringEnabled) {
+          continue;
+        }
+
         let result = null;
         if (source.type === "YOUTUBE") {
           result = await checkYouTubeChannel(source.urlOrHandle);
@@ -444,7 +441,9 @@ async function checkAndNotify(client: Client) {
                 const og = await getOgImage(result.content.url);
                 if (og) embed.setImage(og);
               }
-            } catch {}
+            } catch {
+              // Ignore image fetch errors
+            }
             await channel.send({ embeds: [embed] });
             logger.info(`[Monitor] Notification envoyée pour @${source.urlOrHandle}`);
           }
@@ -478,7 +477,9 @@ async function checkAndNotify(client: Client) {
   } catch (err) {
     const errMsg = String(err);
     logger.error("[Monitor] Erreur globale:", errMsg);
-    try { await logError(client, "Monitor/Global", errMsg); } catch {}
+    try { await logError(client, "Monitor/Global", errMsg); } catch {
+      // Ignore log errors
+    }
   } finally {
     isChecking = false;
   }
@@ -567,13 +568,16 @@ export async function runDbSourcesRetrospective(client: Client) {
   let sourcesCreated = 0;
   let notificationsInserted = 0;
   let errorsEncountered = 0;
-  const MAX_RETRO_POSTS = config.maxRetroPosts;
+  let maxRetroPosts = 10; // Default value
 dbRetroLoop:
   for (const source of sources) {
     try {
+      // Get guild-specific max retro posts
+      maxRetroPosts = await getMaxRetroPosts(source.guildId);
+      
       let items: YouTubeRSSContent[] = [];
       if (source.type === "YOUTUBE") {
-        items = await checkYouTubeChannelMulti(source.urlOrHandle, 3);
+        items = await checkYouTubeChannelMulti(source.urlOrHandle, maxRetroPosts);
       } else if (source.type === "TWITTER") {
         const twItems = await checkTwitterUserMulti(source.urlOrHandle, 3);
         items = twItems.map(i => ({ title: i.text, url: i.url }));
@@ -638,12 +642,14 @@ dbRetroLoop:
               const og = await getOgImage(item.url);
               if (og) embed.setImage(og);
             }
-          } catch {}
+          } catch {
+            // Ignore image fetch errors
+          }
           await channel.send({ embeds: [embed] });
           publishedForSource++;
           totalPublished++;
-          if (totalPublished >= MAX_RETRO_POSTS) {
-            logger.info("[RetroDB] Cap global atteint (" + MAX_RETRO_POSTS + " publications)");
+          if (totalPublished >= maxRetroPosts) {
+            logger.info("[RetroDB] Cap global atteint (" + maxRetroPosts + " publications)");
             break dbRetroLoop;
           }
         }
@@ -662,7 +668,7 @@ dbRetroLoop:
   const executionTime = Date.now() - startTime;
   
   logger.info("=".repeat(50));
-  logger.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`);
+  logger.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= maxRetroPosts ? " (cap atteint)" : ""}`);
   logger.info("=".repeat(50));
   logger.info("");
   
