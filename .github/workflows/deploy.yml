@@ -1,0 +1,43 @@
+# .github/workflows/deploy.yml
+name: Deploy to Railway
+
+# Déclencheur : uniquement sur push vers la branche main
+on:
+  push:
+    branches:
+      - main
+
+# Sécurité : uniquement pour l'auteur spécifié
+# Remplacez MON_PSEUDO_GITHUB par votre nom d'utilisateur GitHub exact
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.actor == 'MON_PSEUDO_GITHUB'
+    
+    steps:
+      # Étape 1 : Checkout du code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Étape 2 : Installation de Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # Étape 3 : Installation des dépendances
+      - name: Install dependencies
+        run: npm ci
+      
+      # Étape 4 : Installation de la Railway CLI
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      # Étape 5 : Déploiement sur Railway
+      - name: Deploy to Railway
+        run: |
+          railway login --token ${{ secrets.RAILWAY_TOKEN }}
+          railway deploy --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
