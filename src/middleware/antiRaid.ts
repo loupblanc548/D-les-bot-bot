@@ -1,5 +1,5 @@
 import logger from "../utils/logger.js";
-import { GuildMember, Guild, MessageFlags } from "discord.js";
+import { GuildMember, Guild } from "discord.js";
 import prisma from "../prisma.js";
 
 const RAID_THRESHOLD = 10;

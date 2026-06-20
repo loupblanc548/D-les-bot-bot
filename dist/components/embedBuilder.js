@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.COMMON_ACTIONS = exports.AdvancedEmbedBuilder = exports.ALERT_COLORS = exports.AlertPriority = exports.PLATFORM_THEMES = void 0;
-const discord_js_1 = require("discord.js");
-exports.PLATFORM_THEMES = {
+import { EmbedBuilder } from "discord.js";
+export const PLATFORM_THEMES = {
     steam: {
         color: 0x000080,
         iconUrl: "https://store.steampowered.com/favicon.ico",
@@ -43,15 +40,15 @@ exports.PLATFORM_THEMES = {
 /**
  * Niveaux de priorité pour les alertes
  */
-var AlertPriority;
+export var AlertPriority;
 (function (AlertPriority) {
     AlertPriority[AlertPriority["CRITICAL"] = 0] = "CRITICAL";
     AlertPriority[AlertPriority["HIGH"] = 1] = "HIGH";
     AlertPriority[AlertPriority["MEDIUM"] = 2] = "MEDIUM";
     AlertPriority[AlertPriority["LOW"] = 3] = "LOW";
     AlertPriority[AlertPriority["INFO"] = 4] = "INFO";
-})(AlertPriority || (exports.AlertPriority = AlertPriority = {}));
-exports.ALERT_COLORS = {
+})(AlertPriority || (AlertPriority = {}));
+export const ALERT_COLORS = {
     [AlertPriority.CRITICAL]: 0xff0000,
     [AlertPriority.HIGH]: 0xff6600,
     [AlertPriority.MEDIUM]: 0xffcc00,
@@ -61,14 +58,14 @@ exports.ALERT_COLORS = {
 /**
  * Créateur d'embeds visuels avancés
  */
-class AdvancedEmbedBuilder extends discord_js_1.EmbedBuilder {
+export class AdvancedEmbedBuilder extends EmbedBuilder {
     theme;
     priority;
     /**
      * Définit le thème de la plateforme
      */
     setPlatformTheme(platform) {
-        this.theme = exports.PLATFORM_THEMES[platform.toLowerCase()] || exports.PLATFORM_THEMES.default;
+        this.theme = PLATFORM_THEMES[platform.toLowerCase()] || PLATFORM_THEMES.default;
         this.setColor(this.theme.color);
         return this;
     }
@@ -77,7 +74,7 @@ class AdvancedEmbedBuilder extends discord_js_1.EmbedBuilder {
      */
     setAlertPriority(priority) {
         this.priority = priority;
-        this.setColor(exports.ALERT_COLORS[priority]);
+        this.setColor(ALERT_COLORS[priority]);
         return this;
     }
     /**
@@ -209,8 +206,7 @@ class AdvancedEmbedBuilder extends discord_js_1.EmbedBuilder {
         return embed;
     }
 }
-exports.AdvancedEmbedBuilder = AdvancedEmbedBuilder;
-exports.COMMON_ACTIONS = {
+export const COMMON_ACTIONS = {
     patchNote: [
         { label: "👍 Utile", style: "Success", customId: "patch_upvote" },
         { label: "👎 Pas utile", style: "Danger", customId: "patch_downvote" },

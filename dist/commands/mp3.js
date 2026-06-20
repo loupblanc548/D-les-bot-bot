@@ -1,22 +1,14 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleAutocomplete = handleAutocomplete;
-exports.handleCommand = handleCommand;
-const discord_js_1 = require("discord.js");
-const path_1 = require("path");
-const voice_1 = require("@discordjs/voice");
-const config_1 = require("../config");
-const audioPlayer_1 = require("../services/audioPlayer");
-const logger_1 = __importDefault(require("../utils/logger"));
-const fs_1 = require("fs");
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags, } from "discord.js";
+import { join } from "path";
+import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, NoSubscriberBehavior, } from "@discordjs/voice";
+import { config } from "../config.js";
+import { SOUNDS_DIR, AUTOCOMPLETE_LIMIT, DISCONNECT_DELAY_MS, activeConnections, activePlayers, listSoundFiles, findSoundFile, cleanupConnection } from "../services/audioPlayer.js";
+import logger from "../utils/logger.js";
+import { existsSync } from "fs";
 const FOOTER = { text: "Système Audio • Owner Only" };
 // Slash Command
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("mp3")
         .setDescription("Joue un fichier MP3 local (Owner Only)")
         .addStringOption((option) => option
@@ -27,38 +19,38 @@ exports.commands = [
         .toJSON(),
 ];
 // Autocomplete
-async function handleAutocomplete(interaction) {
+export async function handleAutocomplete(interaction) {
     if (interaction.commandName !== "mp3")
         return;
     const focused = interaction.options.getFocused(true);
     if (focused.name !== "nom_du_son")
         return;
     const focusedValue = focused.value.toLowerCase();
-    const files = (0, audioPlayer_1.listSoundFiles)();
+    const files = listSoundFiles();
     const filtered = focusedValue
         ? files
             .filter((f) => f.displayName.toLowerCase().includes(focusedValue))
-            .slice(0, audioPlayer_1.AUTOCOMPLETE_LIMIT)
-        : files.slice(0, audioPlayer_1.AUTOCOMPLETE_LIMIT);
+            .slice(0, AUTOCOMPLETE_LIMIT)
+        : files.slice(0, AUTOCOMPLETE_LIMIT);
     await interaction.respond(filtered.map((f) => ({ name: f.displayName.slice(0, 100), value: f.name })));
 }
 // Command Handler
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     // Sécurité : Owner Only
-    if (!config_1.config.ownerId || interaction.user.id !== config_1.config.ownerId) {
-        if (!config_1.config.ownerId) {
-            logger_1.default.warn("[MP3] OWNER_ID non configuré dans .env");
+    if (!config.ownerId || interaction.user.id !== config.ownerId) {
+        if (!config.ownerId) {
+            logger.warn("[MP3] OWNER_ID non configuré dans .env");
         }
         await interaction.reply({
             content: "🔒 Cette commande est réservée au propriétaire du bot.",
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
     const soundName = interaction.options.getString("nom_du_son", true).trim();
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
-        const sound = (0, audioPlayer_1.findSoundFile)(soundName);
+        const sound = findSoundFile(soundName);
         if (!sound) {
             await interaction.editReply({
                 content: `❌ Fichier **${soundName}** introuvable dans \`assets/sounds/\`.`,
@@ -73,9 +65,9 @@ async function handleCommand(interaction) {
             });
             return;
         }
-        const filePath = (0, path_1.join)(audioPlayer_1.SOUNDS_DIR, sound.name);
-        if (!(0, fs_1.existsSync)(filePath)) {
-            logger_1.default.error(`[MP3] Fichier introuvable après vérification : ${filePath}`);
+        const filePath = join(SOUNDS_DIR, sound.name);
+        if (!existsSync(filePath)) {
+            logger.error(`[MP3] Fichier introuvable après vérification : ${filePath}`);
             await interaction.editReply({
                 content: `❌ Le fichier \`${sound.name}\` est introuvable ou corrompu.`,
             });
@@ -83,66 +75,66 @@ async function handleCommand(interaction) {
         }
         // Nettoyer toute connexion existante
         const guildId = interaction.guildId;
-        if (audioPlayer_1.activeConnections.has(guildId)) {
-            (0, audioPlayer_1.cleanupConnection)(guildId);
+        if (activeConnections.has(guildId)) {
+            cleanupConnection(guildId);
         }
         // Rejoindre le vocal
-        const connection = (0, voice_1.joinVoiceChannel)({
+        const connection = joinVoiceChannel({
             channelId: voiceChannel.id,
             guildId,
             adapterCreator: interaction.guild.voiceAdapterCreator,
             selfDeaf: false,
             selfMute: false,
         });
-        audioPlayer_1.activeConnections.set(guildId, connection);
+        activeConnections.set(guildId, connection);
         // Attendre que la connexion soit prête
         await new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 reject(new Error("Timeout de connexion au salon vocal"));
             }, 10000);
-            connection.once(voice_1.VoiceConnectionStatus.Ready, () => {
+            connection.once(VoiceConnectionStatus.Ready, () => {
                 clearTimeout(timeout);
                 resolve();
             });
-            connection.once(voice_1.VoiceConnectionStatus.Disconnected, () => {
+            connection.once(VoiceConnectionStatus.Disconnected, () => {
                 clearTimeout(timeout);
-                (0, audioPlayer_1.cleanupConnection)(guildId);
+                cleanupConnection(guildId);
                 reject(new Error("Déconnecté du salon vocal"));
             });
         });
         // Créer l'AudioPlayer et la ressource
-        const player = (0, voice_1.createAudioPlayer)({
-            behaviors: { noSubscriber: voice_1.NoSubscriberBehavior.Pause },
+        const player = createAudioPlayer({
+            behaviors: { noSubscriber: NoSubscriberBehavior.Pause },
         });
-        const resource = (0, voice_1.createAudioResource)(filePath);
-        audioPlayer_1.activePlayers.set(guildId, player);
+        const resource = createAudioResource(filePath);
+        activePlayers.set(guildId, player);
         connection.subscribe(player);
         player.play(resource);
-        logger_1.default.info(`[MP3] ▶ ${interaction.user.tag} joue "${sound.displayName}" (${sound.name})`);
+        logger.info(`[MP3] ▶ ${interaction.user.tag} joue "${sound.displayName}" (${sound.name})`);
         // Gérer la fin de lecture
-        player.once(voice_1.AudioPlayerStatus.Idle, () => {
-            logger_1.default.info(`[MP3] ■ Lecture terminée : "${sound.displayName}"`);
+        player.once(AudioPlayerStatus.Idle, () => {
+            logger.info(`[MP3] ■ Lecture terminée : "${sound.displayName}"`);
             setTimeout(() => {
-                if (audioPlayer_1.activePlayers.get(guildId) === player &&
-                    player.state.status === voice_1.AudioPlayerStatus.Idle) {
-                    (0, audioPlayer_1.cleanupConnection)(guildId);
-                    logger_1.default.info(`[MP3] 🔌 Déconnexion après ${audioPlayer_1.DISCONNECT_DELAY_MS / 1000}s d'inactivité`);
+                if (activePlayers.get(guildId) === player &&
+                    player.state.status === AudioPlayerStatus.Idle) {
+                    cleanupConnection(guildId);
+                    logger.info(`[MP3] 🔌 Déconnexion après ${DISCONNECT_DELAY_MS / 1000}s d'inactivité`);
                 }
-            }, audioPlayer_1.DISCONNECT_DELAY_MS);
+            }, DISCONNECT_DELAY_MS);
         });
         // Gérer les erreurs de lecture
         player.once("error", (error) => {
-            logger_1.default.error(`[MP3] Erreur lecture "${sound.name}":`, String(error));
-            (0, audioPlayer_1.cleanupConnection)(guildId);
+            logger.error(`[MP3] Erreur lecture "${sound.name}":`, String(error));
+            cleanupConnection(guildId);
             interaction
                 .followUp({
                 content: `❌ Erreur de lecture pour **${sound.displayName}** : ${String(error).slice(0, 100)}`,
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             })
                 .catch(() => { });
         });
         // Embed de confirmation
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("🔊 MP3")
             .setColor(0x9146ff)
             .setDescription(`▶ Lecture de **${sound.displayName}** en cours...`)
@@ -152,7 +144,7 @@ async function handleCommand(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[MP3] Erreur:", String(error));
+        logger.error("[MP3] Erreur:", String(error));
         try {
             await interaction.editReply({
                 content: `❌ Erreur lors de la lecture : ${String(error).slice(0, 150)}`,

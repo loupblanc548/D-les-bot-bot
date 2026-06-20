@@ -8,6 +8,6 @@ export declare const PLATFORM_ICONS: Record<string, string>;
 export declare const PLATFORM_LABELS: Record<string, string>;
 export declare const PLATFORM_NAMES: Record<string, string>;
 export declare const xmlParser: XMLParser;
-export declare function textOf(val: Record<string, unknown>): string;
-export declare function extractLink(link: Record<string, unknown>): string;
+export declare function textOf(val: any): string;
+export declare function extractLink(link: any): string;
 //# sourceMappingURL=rss-parser.d.ts.map

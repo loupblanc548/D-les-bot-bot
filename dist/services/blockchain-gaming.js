@@ -1,13 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.blockchainGamingService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 class BlockchainGamingService {
     nftCollections;
     gamingTokens;
@@ -17,7 +11,7 @@ class BlockchainGamingService {
         this.nftCollections = new Map();
         this.gamingTokens = new Map();
         this.alerts = [];
-        logger_1.default.info("[BlockchainGaming] Service initialisé");
+        logger.info("[BlockchainGaming] Service initialisé");
     }
     async initializeCollections() {
         const collections = [
@@ -35,7 +29,7 @@ class BlockchainGamingService {
         for (const collection of collections) {
             this.nftCollections.set(collection.contractAddress, collection);
         }
-        logger_1.default.info(`[BlockchainGaming] ${collections.length} collection(s) NFT initialisée(s)`);
+        logger.info(`[BlockchainGaming] ${collections.length} collection(s) NFT initialisée(s)`);
     }
     async initializeTokens() {
         const tokens = [
@@ -55,7 +49,7 @@ class BlockchainGamingService {
         for (const token of tokens) {
             this.gamingTokens.set(token.symbol, token);
         }
-        logger_1.default.info(`[BlockchainGaming] ${tokens.length} token(s) gaming initialisé(s)`);
+        logger.info(`[BlockchainGaming] ${tokens.length} token(s) gaming initialisé(s)`);
     }
     async updateNFTPrices() {
         for (const [address, collection] of this.nftCollections) {
@@ -69,7 +63,7 @@ class BlockchainGamingService {
             }
             this.nftCollections.set(address, collection);
         }
-        logger_1.default.debug("[BlockchainGaming] Prix NFT mis à jour");
+        logger.debug("[BlockchainGaming] Prix NFT mis à jour");
     }
     async updateTokenPrices() {
         for (const [symbol, token] of this.gamingTokens) {
@@ -84,14 +78,14 @@ class BlockchainGamingService {
             }
             this.gamingTokens.set(symbol, token);
         }
-        logger_1.default.debug("[BlockchainGaming] Prix tokens mis à jour");
+        logger.debug("[BlockchainGaming] Prix tokens mis à jour");
     }
     createAlert(type, severity, message, data) {
         const alert = {
             type, severity, message, data, timestamp: Date.now(),
         };
         this.alerts.push(alert);
-        logger_1.default.warn(`[BlockchainGaming] Alert: ${message}`);
+        logger.warn(`[BlockchainGaming] Alert: ${message}`);
         this.cleanupOldAlerts();
     }
     cleanupOldAlerts() {
@@ -118,19 +112,19 @@ class BlockchainGamingService {
             .slice(0, limit);
     }
     async sendBlockchainReport(client) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.error("[BlockchainGaming] Channel de logs non configuré");
+        if (!config.logChannel) {
+            logger.error("[BlockchainGaming] Channel de logs non configuré");
             return;
         }
-        const channel = client.channels.cache.get(config_1.config.logChannel);
+        const channel = client.channels.cache.get(config.logChannel);
         if (!channel || !channel.isTextBased()) {
-            logger_1.default.error("[BlockchainGaming] Channel non disponible");
+            logger.error("[BlockchainGaming] Channel non disponible");
             return;
         }
         const topGainers = this.getTopGainers(3);
         const topLosers = this.getTopLosers(3);
         const recentAlerts = this.getRecentAlerts(24);
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("🔗 Rapport Blockchain Gaming")
             .setDescription("Aperçu du marché gaming NFT et tokens")
             .setColor(0x00ff00)
@@ -151,18 +145,18 @@ class BlockchainGamingService {
             .setFooter({ text: "Données mises à jour automatiquement" });
         try {
             await channel.send({ embeds: [embed] });
-            logger_1.default.info("[BlockchainGaming] Rapport envoyé");
+            logger.info("[BlockchainGaming] Rapport envoyé");
         }
         catch (error) {
-            logger_1.default.error("[BlockchainGaming] Erreur lors de l'envoi du rapport:", error);
+            logger.error("[BlockchainGaming] Erreur lors de l'envoi du rapport:", error);
         }
     }
     enableMonitoring(client, intervalMs = 300000) {
         if (this.monitoringInterval) {
-            logger_1.default.warn("[BlockchainGaming] Surveillance déjà active");
+            logger.warn("[BlockchainGaming] Surveillance déjà active");
             return;
         }
-        logger_1.default.info(`[BlockchainGaming] Surveillance activée (intervalle: ${intervalMs}ms)`);
+        logger.info(`[BlockchainGaming] Surveillance activée (intervalle: ${intervalMs}ms)`);
         this.monitoringInterval = setInterval(async () => {
             await this.updateNFTPrices();
             await this.updateTokenPrices();
@@ -173,14 +167,12 @@ class BlockchainGamingService {
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
             this.monitoringInterval = null;
-            logger_1.default.info("[BlockchainGaming] Surveillance désactivée");
+            logger.info("[BlockchainGaming] Surveillance désactivée");
         }
     }
     getGlobalStats() {
         const collections = Array.from(this.nftCollections.values());
         const tokens = Array.from(this.gamingTokens.values());
-        const totalVolume = collections.reduce((sum, c) => sum + c.volume24h, 0);
-        co;
         const totalVolume = collections.reduce((sum, c) => sum + c.volume24h, 0);
         const averageFloorPrice = collections.length > 0
             ? collections.reduce((sum, c) => sum + c.floorPrice, 0) / collections.length
@@ -195,32 +187,32 @@ class BlockchainGamingService {
     }
     async saveData() {
         for (const collection of this.nftCollections.values()) {
-            await prisma_1.default.nftCollection.upsert({
+            await prisma.nftCollection.upsert({
                 where: { contractAddress: collection.contractAddress },
                 create: collection,
                 update: collection,
             });
         }
         for (const token of this.gamingTokens.values()) {
-            await prisma_1.default.gamingToken.upsert({
+            await prisma.gamingToken.upsert({
                 where: { symbol: token.symbol },
                 create: token,
                 update: token,
             });
         }
-        logger_1.default.info("[BlockchainGaming] Données sauvegardées dans Prisma");
+        logger.info("[BlockchainGaming] Données sauvegardées dans Prisma");
     }
     async loadDataFromPrisma() {
-        const collections = await prisma_1.default.nftCollection.findMany();
+        const collections = await prisma.nftCollection.findMany();
         for (const collection of collections) {
             this.nftCollections.set(collection.contractAddress, collection);
         }
-        const tokens = await prisma_1.default.gamingToken.findMany();
+        const tokens = await prisma.gamingToken.findMany();
         for (const token of tokens) {
             this.gamingTokens.set(token.symbol, token);
         }
-        logger_1.default.info(`[BlockchainGaming] ${collections.length} collection(s) et ${tokens.length} token(s) chargé(s)`);
+        logger.info(`[BlockchainGaming] ${collections.length} collection(s) et ${tokens.length} token(s) chargé(s)`);
     }
 }
-exports.blockchainGamingService = new BlockchainGamingService();
+export const blockchainGamingService = new BlockchainGamingService();
 //# sourceMappingURL=blockchain-gaming.js.map

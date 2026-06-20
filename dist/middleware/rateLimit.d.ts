@@ -1,4 +1,4 @@
-import type { Middleware } from "./compose";
+import type { Middleware } from "./compose.js";
 export interface RateLimitConfig {
     /** Fenêtre de temps (en secondes) pendant laquelle les requêtes sont comptées. */
     windowSeconds: number;

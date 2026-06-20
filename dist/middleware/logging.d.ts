@@ -1,4 +1,4 @@
-import type { Middleware } from "./compose";
+import type { Middleware } from "./compose.js";
 /**
  * Middleware de logging pour les commandes slash.
  * - Log l'invocation (commande, utilisateur, guilde).

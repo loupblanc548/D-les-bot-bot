@@ -1,4 +1,3 @@
-"use strict";
 /**
  * ChannelRouter.ts — Routeur Multi-Salon avec Regex & Couleurs Dynamiques
  *
@@ -10,18 +9,8 @@
  *
  * Applique les couleurs d'embed officielles des marques.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PLATFORM_CONFIGS = void 0;
-exports.detectPlatforms = detectPlatforms;
-exports.resolveChannelIds = resolveChannelIds;
-exports.buildPlatformEmbed = buildPlatformEmbed;
-exports.dispatchToChannels = dispatchToChannels;
-exports.routeArticle = routeArticle;
-const discord_js_1 = require("discord.js");
-const logger_1 = __importDefault(require("../utils/logger"));
+import { EmbedBuilder } from "discord.js";
+import logger from "../utils/logger.js";
 const PLATFORM_CONFIGS = [
     {
         name: "Steam/PC",
@@ -51,14 +40,20 @@ const PLATFORM_CONFIGS = [
         color: 0xe60012, // Rouge Nintendo
         icon: "https://www.nintendo.com/favicon.ico",
     },
+    {
+        name: "Fortnite",
+        keywords: [/\bfortnite\b/i, /\bfn\b/i, /\bfort\b/i, /\bhypex\b/i, /\bshiina\b/i],
+        envChannelKey: "FORTNITE_CHANNEL_ID",
+        color: 0x9147ff, // Violet Fortnite
+        icon: "https://static-assets-prod.epicgames.com/fortnite/favicon.ico",
+    },
 ];
-exports.PLATFORM_CONFIGS = PLATFORM_CONFIGS;
 // ─── Détection des plateformes par regex ────────────────────────────────────
 /**
  * Analyse un titre et retourne les plateformes matchées.
  * Un article peut matcher plusieurs plateformes.
  */
-function detectPlatforms(title) {
+export function detectPlatforms(title) {
     const matched = [];
     for (const config of PLATFORM_CONFIGS) {
         const matches = config.keywords.some((regex) => regex.test(title));
@@ -72,7 +67,7 @@ function detectPlatforms(title) {
  * Résout les IDs de channels à partir des plateformes détectées.
  * Retourne un set dédoublonné.
  */
-function resolveChannelIds(platforms) {
+export function resolveChannelIds(platforms) {
     const channelIds = new Set();
     for (const platform of platforms) {
         const channelId = process.env[platform.envChannelKey];
@@ -87,8 +82,8 @@ function resolveChannelIds(platforms) {
  * Construit un embed Discord avec la couleur de la plateforme.
  * Si plusieurs plateformes, utilise la première comme dominante.
  */
-function buildPlatformEmbed(article, platform) {
-    const embed = new discord_js_1.EmbedBuilder()
+export function buildPlatformEmbed(article, platform) {
+    const embed = new EmbedBuilder()
         .setColor(platform.color)
         .setTitle(article.title.slice(0, 256))
         .setURL(article.url || null)
@@ -116,7 +111,7 @@ function buildPlatformEmbed(article, platform) {
  * Envoie un article dans TOUS les salons correspondant aux plateformes détectées.
  * Sauvegarde l'état dans Prisma SEULEMENT après confirmation de l'envoi Discord.
  */
-async function dispatchToChannels(client, article) {
+export async function dispatchToChannels(client, article) {
     const result = {
         routed: false,
         article,
@@ -125,7 +120,7 @@ async function dispatchToChannels(client, article) {
     };
     if (article.channelIds.length === 0) {
         result.errors.push("Aucun channel configuré pour les plateformes détectées");
-        logger_1.default.warn(`[ChannelRouter] Aucun channel pour: "${article.title.slice(0, 60)}" — plateformes: ${article.platforms.join(", ")}`);
+        logger.warn(`[ChannelRouter] Aucun channel pour: "${article.title.slice(0, 60)}" — plateformes: ${article.platforms.join(", ")}`);
         return result;
     }
     // Récupérer les configs de plateformes pour les channels résolus
@@ -142,7 +137,7 @@ async function dispatchToChannels(client, article) {
             const channel = await client.channels.fetch(channelId);
             if (!channel || !channel.isTextBased()) {
                 result.errors.push(`Channel ${channelId} introuvable ou non textuel`);
-                logger_1.default.error(`[ChannelRouter] Channel invalide: ${channelId}`);
+                logger.error(`[ChannelRouter] Channel invalide: ${channelId}`);
                 continue;
             }
             const textChannel = channel;
@@ -156,14 +151,16 @@ async function dispatchToChannels(client, article) {
                 messagePayload.content = article.url;
             }
             await textChannel.send(messagePayload);
+            // 🔒 Delai anti rate-limit Discord (1s entre chaque envoi canal)
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             result.sentTo.push(channelId);
             result.routed = true;
-            logger_1.default.info(`[ChannelRouter] ✅ Envoyé → #${textChannel.name} (${platform.name}): "${article.title.slice(0, 60)}"`);
+            logger.info(`[ChannelRouter] ✅ Envoyé → #${textChannel.name} (${platform.name}): "${article.title.slice(0, 60)}"`);
         }
         catch (error) {
             const errMsg = `Échec envoi channel ${channelId}: ${error.message}`;
             result.errors.push(errMsg);
-            logger_1.default.error(`[ChannelRouter] ${errMsg}`);
+            logger.error(`[ChannelRouter] ${errMsg}`);
         }
     }
     return result;
@@ -173,12 +170,26 @@ async function dispatchToChannels(client, article) {
  * Pipeline complet : détection → résolution → dispatch.
  * À appeler depuis les crons après validation/dédup.
  */
-async function routeArticle(client, title, content, url, pubDate, image) {
-    logger_1.default.info(`[ChannelRouter] Routage: "${title.slice(0, 60)}"`);
+// ─── Silent Mode (anti-spam prime au demarrage) ──────────────────────────
+let __silentMode = false;
+/** Active le mode silencieux : routeArticle retourne un succes factice sans envoyer a Discord */
+export function enableSilentMode() {
+    __silentMode = true;
+}
+/** Desactive le mode silencieux : les envois Discord reprennent normalement */
+export function disableSilentMode() {
+    __silentMode = false;
+}
+export async function routeArticle(client, title, content, url, pubDate, image) {
+    // 🔒 Mode silencieux : retourne un succes factice (cache prime sans envoi Discord)
+    if (__silentMode) {
+        return { routed: true, article: { title, content, url, pubDate, image, platforms: ["silent"], channelIds: ["silent"] }, sentTo: ["silent"], errors: [] };
+    }
+    logger.info(`[ChannelRouter] Routage: "${title.slice(0, 60)}"`);
     // Étape 1: Détection des plateformes
     const platforms = detectPlatforms(title);
     const platformNames = platforms.map((p) => p.name);
-    logger_1.default.debug(`[ChannelRouter] Plateformes détectées: ${platformNames.length > 0 ? platformNames.join(", ") : "AUCUNE"}`);
+    logger.debug(`[ChannelRouter] Plateformes détectées: ${platformNames.length > 0 ? platformNames.join(", ") : "AUCUNE"}`);
     // Étape 2: Résolution des channels
     const channelIds = resolveChannelIds(platforms);
     // Étape 3: Construction de l'article routé
@@ -193,7 +204,8 @@ async function routeArticle(client, title, content, url, pubDate, image) {
     };
     // Étape 4: Dispatch multi-salon
     const result = await dispatchToChannels(client, article);
-    logger_1.default.info(`[ChannelRouter] Routage terminé: ${result.sentTo.length} channel(s), ${result.errors.length} erreur(s)`);
+    logger.info(`[ChannelRouter] Routage terminé: ${result.sentTo.length} channel(s), ${result.errors.length} erreur(s)`);
     return result;
 }
+export { PLATFORM_CONFIGS };
 //# sourceMappingURL=ChannelRouter.js.map

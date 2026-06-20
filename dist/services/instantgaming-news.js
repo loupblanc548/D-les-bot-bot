@@ -1,23 +1,12 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkInstantGamingNews = checkInstantGamingNews;
-exports.startInstantGamingNewsCheck = startInstantGamingNewsCheck;
-exports.stopInstantGamingNewsCheck = stopInstantGamingNewsCheck;
-exports.fetchNewsRSS = fetchNewsRSS;
-exports.extractArticleImage = extractArticleImage;
-exports.extractImageFromHtml = extractImageFromHtml;
-exports.isValidImageUrl = isValidImageUrl;
-const logger_1 = __importDefault(require("../utils/logger"));
-const node_cron_1 = __importDefault(require("node-cron"));
-const axios_1 = __importDefault(require("axios"));
-const fast_xml_parser_1 = require("fast-xml-parser");
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const logs_1 = require("./logs");
+import logger from "../utils/logger.js";
+import cron from "node-cron";
+import axios from "axios";
+import { XMLParser } from "fast-xml-parser";
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, } from "discord.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { sendErrorLog } from "./logs.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 const NEWS_BASE = "https://news.instant-gaming.com";
 const NEWS_FEED_URL = NEWS_BASE + "/fr/rss.xml";
 const IG_ORANGE = 0xef7f1a;
@@ -37,7 +26,7 @@ const HEADERS = {
     "Sec-Fetch-User": "?1",
     "Cache-Control": "max-age=0",
 };
-const rssParser = new fast_xml_parser_1.XMLParser({
+const rssParser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     removeNSPrefix: true,
@@ -127,7 +116,7 @@ function extractArticleImage(item) {
 // ─── Fetch RSS ────────────────────────────────────────────────────────────────
 async function fetchNewsRSS() {
     try {
-        const response = await axios_1.default.get(NEWS_FEED_URL, {
+        const response = await axios.get(NEWS_FEED_URL, {
             headers: HEADERS,
             timeout: 15000,
             maxRedirects: 5,
@@ -135,7 +124,7 @@ async function fetchNewsRSS() {
         const parsed = rssParser.parse(response.data);
         const channel = parsed?.rss?.channel;
         if (!channel || !channel.item) {
-            logger_1.default.warn("[IG News] Flux RSS vide ou invalide.");
+            logger.warn("[IG News] Flux RSS vide ou invalide.");
             return [];
         }
         const items = Array.isArray(channel.item)
@@ -159,21 +148,21 @@ async function fetchNewsRSS() {
         return articles;
     }
     catch (error) {
-        logger_1.default.error("[IG News] Erreur RSS:", error instanceof Error ? error.message : String(error));
+        logger.error("[IG News] Erreur RSS:", error instanceof Error ? error.message : String(error));
         return [];
     }
 }
 // ─── Send Embed ───────────────────────────────────────────────────────────────
 async function sendNewsEmbed(client, article) {
     // Priorité au GAMING_BLOG_CHANNEL_ID, fallback sur INSTANT_GAMING_CHANNEL_ID
-    const channelId = config_1.config.gamingBlogChannel || config_1.config.instantGamingChannel;
+    const channelId = config.gamingBlogChannel || config.instantGamingChannel;
     if (!channelId) {
-        logger_1.default.warn("[IG News] Aucun salon configuré (GAMING_BLOG_CHANNEL_ID / INSTANT_GAMING_CHANNEL_ID).");
+        logger.warn("[IG News] Aucun salon configuré (GAMING_BLOG_CHANNEL_ID / INSTANT_GAMING_CHANNEL_ID).");
         return;
     }
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.warn("[IG News] Salon introuvable ou non textuel.");
+        logger.warn("[IG News] Salon introuvable ou non textuel.");
         return;
     }
     const parts = [];
@@ -181,7 +170,7 @@ async function sendNewsEmbed(client, article) {
         parts.push(truncateText(article.summary, 300));
     }
     parts.push("\n\n[Lire l'article complet](" + article.url + ")");
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("\uD83D\uDCF0 " + article.title)
         .setDescription(parts.join("\n"))
         .setColor(IG_ORANGE)
@@ -202,50 +191,52 @@ async function sendNewsEmbed(client, article) {
         ? article.image
         : FALLBACK_IMAGE_URL;
     embed.setImage(imageUrl);
-    const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder()
         .setLabel("\uD83D\uDCF0 Lire l'article")
-        .setStyle(discord_js_1.ButtonStyle.Link)
+        .setStyle(ButtonStyle.Link)
         .setURL(article.url));
     await channel.send({
         embeds: [embed],
         components: [row],
     });
-    logger_1.default.info("[IG News] Article envoy\u00E9 : " + article.title);
+    logger.info("[IG News] Article envoy\u00E9 : " + article.title);
 }
 // ─── Check & Scheduling ───────────────────────────────────────────────────────
 let isCheckingNews = false;
-async function checkInstantGamingNews(client) {
+export async function checkInstantGamingNews(client) {
+    // 🔒 Recharge le cache anti-doublon depuis le disque (persistance inter-cycles)
+    await dedupCache.reloadFromDisk();
     if (isCheckingNews)
         return;
     isCheckingNews = true;
     try {
-        logger_1.default.info("[IG News] V\u00E9rification des actus...");
+        logger.info("[IG News] V\u00E9rification des actus...");
         const articles = (await fetchNewsRSS()).slice(0, 5);
         if (articles.length === 0) {
-            logger_1.default.info("[IG News] Aucun article extrait.");
+            logger.info("[IG News] Aucun article extrait.");
             return;
         }
         let newCount = 0;
         for (const article of articles) {
             try {
-                await prisma_1.default.notification.upsert({
+                await prisma.notification.upsert({
                     where: { url: article.url },
                     update: {},
                     create: {
                         sourceId: "ig-news",
                         content: article.title,
                         url: article.url,
-                        platform: "instantgaming-news",
+                        platform: "instantgaming_news",
                     },
                 });
                 newCount++;
-                logger_1.default.info("[IG News] Nouvel article : " + article.title);
+                logger.info("[IG News] Nouvel article : " + article.title);
             }
             catch (error) {
                 // Autre erreur : on laisse passer pour ne pas bloquer le flux
                 const err = error instanceof Error ? error : new Error(String(error));
-                logger_1.default.error(`[IG News] Erreur article: ${article.url} ${err.message}`, { stack: err.stack });
-                await (0, logs_1.sendErrorLog)("IG News article", err, client);
+                logger.error(`[IG News] Erreur article: ${article.url} ${err.message}`, { stack: err.stack });
+                await sendErrorLog("IG News article", err, client);
                 continue;
             }
             try {
@@ -253,11 +244,11 @@ async function checkInstantGamingNews(client) {
             }
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
-                logger_1.default.error("[IG News] Erreur d'envoi:", err.message);
-                await (0, logs_1.sendErrorLog)("IG News sendNewsEmbed", err, client);
+                logger.error("[IG News] Erreur d'envoi:", err.message);
+                await sendErrorLog("IG News sendNewsEmbed", err, client);
             }
         }
-        logger_1.default.info("[IG News] Termin\u00E9 : " +
+        logger.info("[IG News] Termin\u00E9 : " +
             newCount +
             " nouveau(x), " +
             articles.length +
@@ -265,30 +256,32 @@ async function checkInstantGamingNews(client) {
     }
     catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        logger_1.default.error("[IG News] Erreur globale:", err.message);
-        await (0, logs_1.sendErrorLog)("IG News check", err, client);
+        logger.error("[IG News] Erreur globale:", err.message);
+        await sendErrorLog("IG News check", err, client);
     }
     finally {
         isCheckingNews = false;
     }
 }
 let newsCronJob = null;
-function startInstantGamingNewsCheck(client) {
+export function startInstantGamingNewsCheck(client) {
     if (newsCronJob) {
-        logger_1.default.warn("[IG News] Surveillance actus déjà active.");
+        logger.warn("[IG News] Surveillance actus déjà active.");
         return;
     }
-    logger_1.default.info("[IG News] ⏱️ Exécution Cron planifiée pour Instant Gaming — toutes les 15 minutes");
-    newsCronJob = node_cron_1.default.schedule("*/15 * * * *", () => {
-        logger_1.default.info("[IG News] ⏱️ Exécution Cron planifiée pour Instant Gaming");
-        checkInstantGamingNews(client).catch((err) => logger_1.default.error("[IG News] Erreur cron:", String(err)));
+    logger.info("[IG News] ⏱️ Exécution Cron planifiée pour Instant Gaming — toutes les 15 minutes");
+    newsCronJob = cron.schedule("*/15 * * * *", () => {
+        logger.info("[IG News] ⏱️ Exécution Cron planifiée pour Instant Gaming");
+        checkInstantGamingNews(client).catch((err) => logger.error("[IG News] Erreur cron:", String(err)));
     });
 }
-function stopInstantGamingNewsCheck() {
+export function stopInstantGamingNewsCheck() {
     if (newsCronJob) {
         newsCronJob.stop();
         newsCronJob = null;
-        logger_1.default.info("[IG News] Surveillance actus arrêtée.");
+        logger.info("[IG News] Surveillance actus arrêtée.");
     }
 }
+// Export pour les tests unitaires
+export { fetchNewsRSS, extractArticleImage, extractImageFromHtml, isValidImageUrl };
 //# sourceMappingURL=instantgaming-news.js.map

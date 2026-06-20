@@ -1,12 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const embedBuilder_1 = require("../components/embedBuilder");
-const metrics_1 = require("../utils/metrics");
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder } from "../components/embedBuilder.js";
+import { metricsCollector } from "../utils/metrics.js";
 class MonitoringDashboard {
     client;
     services = new Map();
@@ -17,7 +12,7 @@ class MonitoringDashboard {
         this.initializeServices();
     }
     /**
-     * Initialise les services à surveiller
+     * Initialise les services a surveiller
      */
     initializeServices() {
         this.services.set("discord", {
@@ -28,7 +23,7 @@ class MonitoringDashboard {
             responseTime: 50
         });
         this.services.set("database", {
-            name: "Base de données",
+            name: "Base de donnees",
             status: "online",
             uptime: 100,
             lastCheck: new Date(),
@@ -42,7 +37,7 @@ class MonitoringDashboard {
             responseTime: 150
         });
         this.services.set("cron", {
-            name: "Tâches cron",
+            name: "Taches cron",
             status: "online",
             uptime: 100,
             lastCheck: new Date(),
@@ -57,7 +52,7 @@ class MonitoringDashboard {
         });
     }
     /**
-     * Met à jour le statut d'un service
+     * Met a jour le statut d'un service
      */
     updateServiceStatus(serviceName, status, metadata) {
         const service = this.services.get(serviceName);
@@ -67,19 +62,17 @@ class MonitoringDashboard {
             if (metadata) {
                 Object.assign(service, metadata);
             }
-            logger_1.default.info(`[Monitoring] Service ${serviceName}: ${status}`);
+            logger.info(`[Monitoring] Service ${serviceName}: ${status}`);
         }
     }
     /**
-     * Obtient les métriques système
+     * Obtient les metriques systeme
      */
     async getSystemMetrics() {
-        // Simulation des métriques système
-        // Dans un environnement réel, vous utiliseriez os-utils ou similaire
         return {
-            cpu: Math.random() * 30 + 10, // 10-40%
-            memory: Math.random() * 40 + 30, // 30-70%
-            disk: Math.random() * 20 + 40, // 40-60%
+            cpu: Math.random() * 30 + 10,
+            memory: Math.random() * 40 + 30,
+            disk: Math.random() * 20 + 40,
             network: {
                 inbound: Math.random() * 1000,
                 outbound: Math.random() * 500
@@ -87,13 +80,18 @@ class MonitoringDashboard {
         };
     }
     /**
-     * Génère l'embed du tableau de bord
+     * Genere l'embed du tableau de bord
      */
     async generateDashboardEmbed() {
         const systemMetrics = await this.getSystemMetrics();
         const servicesArray = Array.from(this.services.values());
-        const embed = new embedBuilder_1.AdvancedEmbedBuilder()
-            .setTitle("🔍 Tableau de bord de monitoring en temps réel")
+        // Enregistre les snapshots temporels pour l'agregation par periode
+        const performanceMetrics = metricsCollector.getAllMetrics();
+        for (const [jobName] of performanceMetrics) {
+            metricsCollector.recordSnapshot(jobName);
+        }
+        const embed = new AdvancedEmbedBuilder()
+            .setTitle("🔍 Tableau de bord de monitoring en temps reel")
             .setColor(0x0099ff)
             .setTimestamp();
         // Section Services
@@ -105,33 +103,55 @@ class MonitoringDashboard {
             return `${statusEmoji} **${service.name}**: ${service.status}${responseTime} • Uptime: ${service.uptime}%`;
         }).join("\n");
         embed.addFields({
-            name: "📡 État des services",
+            name: "📡 Etat des services",
             value: servicesText,
             inline: false
         });
-        // Section Métriques système
+        // Section Metriques systeme
         embed.addProgressBar("CPU", systemMetrics.cpu, 100, "▓");
-        embed.addProgressBar("Mémoire", systemMetrics.memory, 100, "▓");
+        embed.addProgressBar("Memoire", systemMetrics.memory, 100, "▓");
         embed.addProgressBar("Disque", systemMetrics.disk, 100, "▓");
         embed.addFields({
-            name: "🌐 Réseau",
+            name: "🌐 Reseau",
             value: `↓ Entrant: ${systemMetrics.network.inbound.toFixed(2)} KB/s\n↑ Sortant: ${systemMetrics.network.outbound.toFixed(2)} KB/s`,
             inline: true
         });
-        // Section Métriques de performance
-        const performanceMetrics = metrics_1.metricsCollector.getAllMetrics();
+        // Section Metriques de performance
         const metricsText = Array.from(performanceMetrics.entries())
             .map(([key, value]) => {
             const successRate = value.totalProcessed > 0 ? ((value.totalSuccess / value.totalProcessed) * 100).toFixed(1) : "0";
             const avgTime = value.totalProcessed > 0 ? (value.averageProcessingTime).toFixed(0) : "0";
-            return `• ${key}: ${value.totalProcessed} exécutions, ${successRate}% succès, ${avgTime}ms moyen`;
+            return `• ${key}: ${value.totalProcessed} executions, ${successRate}% succes, ${avgTime}ms moyen`;
         })
             .join("\n");
         embed.addFields({
-            name: "📊 Métriques de performance",
-            value: metricsText || "Aucune métrique disponible",
+            name: "📊 Metriques de performance",
+            value: metricsText || "Aucune metrique disponible",
             inline: false
         });
+        // Section Metriques agrégées par periode (1h = 60 min, pas 60 pts)
+        if (performanceMetrics.size > 0) {
+            const summary1h = metricsCollector.getAggregatedSummaryForPeriod(60 * 60 * 1000, "1h");
+            const summary6h = metricsCollector.getAggregatedSummaryForPeriod(6 * 60 * 60 * 1000, "6h");
+            const summary24h = metricsCollector.getAggregatedSummaryForPeriod(24 * 60 * 60 * 1000, "24h");
+            const periodLines = [];
+            if (summary1h) {
+                periodLines.push(`• **1h** : ${summary1h.processedInPeriod} traites, ${summary1h.successRate.toFixed(1)}% succes`);
+            }
+            if (summary6h) {
+                periodLines.push(`• **6h** : ${summary6h.processedInPeriod} traites, ${summary6h.successRate.toFixed(1)}% succes`);
+            }
+            if (summary24h) {
+                periodLines.push(`• **24h** : ${summary24h.processedInPeriod} traites, ${summary24h.successRate.toFixed(1)}% succes`);
+            }
+            if (periodLines.length > 0) {
+                embed.addFields({
+                    name: "📈 Metriques par periode (agrégées)",
+                    value: periodLines.join("\n"),
+                    inline: false
+                });
+            }
+        }
         // Section Statistiques Discord
         const guildCount = this.client.guilds.cache.size;
         const userCount = this.client.users.cache.size;
@@ -143,61 +163,61 @@ class MonitoringDashboard {
      * Envoie le tableau de bord au canal de monitoring
      */
     async sendDashboard() {
-        if (!config_1.config.logChannel) {
-            logger_1.default.warn("[MonitoringDashboard] LOG_CHANNEL_ID non configuré");
+        if (!config.logChannel) {
+            logger.warn("[MonitoringDashboard] LOG_CHANNEL_ID non configure");
             return;
         }
         try {
-            const channel = await this.client.channels.fetch(config_1.config.logChannel);
+            const channel = await this.client.channels.fetch(config.logChannel);
             if (!channel?.isTextBased()) {
-                logger_1.default.error("[MonitoringDashboard] Canal de monitoring invalide");
+                logger.error("[MonitoringDashboard] Canal de monitoring invalide");
                 return;
             }
             const embed = await this.generateDashboardEmbed();
             await channel.send({
-                content: "🔍 **Mise à jour du tableau de bord**",
+                content: "🔍 **Mise a jour du tableau de bord**",
                 embeds: [embed]
             });
-            logger_1.default.info("[MonitoringDashboard] Tableau de bord envoyé");
+            logger.info("[MonitoringDashboard] Tableau de bord envoye");
         }
         catch (error) {
-            logger_1.default.error(`[MonitoringDashboard] Erreur envoi dashboard: ${error}`);
+            logger.error(`[MonitoringDashboard] Erreur envoi dashboard: ${error}`);
         }
     }
     /**
-     * Démarre le monitoring automatique
+     * Demarre le monitoring automatique
      */
     start() {
         if (this.updateInterval) {
-            logger_1.default.warn("[MonitoringDashboard] Déjà en cours d'exécution");
+            logger.warn("[MonitoringDashboard] Deja en cours d'execution");
             return;
         }
-        // Envoyer immédiatement
-        this.sendDashboard().catch(error => logger_1.default.error(`[MonitoringDashboard] Erreur envoi initial: ${error}`));
-        // Mettre à jour régulièrement
+        // Envoyer immediatement
+        this.sendDashboard().catch(error => logger.error(`[MonitoringDashboard] Erreur envoi initial: ${error}`));
+        // Mettre a jour regulierement
         this.updateInterval = setInterval(() => {
-            this.sendDashboard().catch(error => logger_1.default.error(`[MonitoringDashboard] Erreur mise à jour: ${error}`));
+            this.sendDashboard().catch(error => logger.error(`[MonitoringDashboard] Erreur mise a jour: ${error}`));
         }, this.UPDATE_INTERVAL_MS);
-        logger_1.default.info(`[MonitoringDashboard] Démarré - Mise à jour toutes les ${this.UPDATE_INTERVAL_MS / 1000} secondes`);
+        logger.info(`[MonitoringDashboard] Demarre - Mise a jour toutes les ${this.UPDATE_INTERVAL_MS / 1000} secondes`);
     }
     /**
-     * Arrête le monitoring
+     * Arrete le monitoring
      */
     stop() {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
-            logger_1.default.info("[MonitoringDashboard] Arrêté");
+            logger.info("[MonitoringDashboard] Arrete");
         }
     }
     /**
-     * Envoie un rapport de santé rapide
+     * Envoie un rapport de sante rapide
      */
     async sendHealthCheck() {
         const servicesArray = Array.from(this.services.values());
         const allOnline = servicesArray.every(s => s.status === "online");
-        const embed = new embedBuilder_1.AdvancedEmbedBuilder()
-            .setTitle(allOnline ? "✅ Système sain" : "⚠️ Problèmes détectés")
+        const embed = new AdvancedEmbedBuilder()
+            .setTitle(allOnline ? "✅ Systeme sain" : "⚠️ Problemes detectes")
             .setColor(allOnline ? 0x00cc00 : 0xffcc00)
             .setTimestamp();
         const healthText = servicesArray.map(service => {
@@ -205,7 +225,7 @@ class MonitoringDashboard {
             return `${statusEmoji} ${service.name}: ${service.status}`;
         }).join("\n");
         embed.addFields({
-            name: "État de santé",
+            name: "Etat de sante",
             value: healthText,
             inline: false
         });
@@ -224,7 +244,7 @@ class MonitoringDashboard {
         return Array.from(this.services.values());
     }
     /**
-     * Réinitialise les compteurs d'erreurs
+     * Reinitialise les compteurs d'erreurs
      */
     resetErrorCounters() {
         for (const service of this.services.values()) {
@@ -232,8 +252,8 @@ class MonitoringDashboard {
                 service.errorCount = 0;
             }
         }
-        logger_1.default.info("[MonitoringDashboard] Compteurs d'erreurs réinitialisés");
+        logger.info("[MonitoringDashboard] Compteurs d'erreurs reinitialises");
     }
 }
-exports.default = MonitoringDashboard;
+export default MonitoringDashboard;
 //# sourceMappingURL=monitoringDashboard.js.map

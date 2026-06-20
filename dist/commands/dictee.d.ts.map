@@ -1,1 +1,1 @@
-{"version":3,"file":"dictee.d.ts","sourceRoot":"","sources":["../../src/commands/dictee.ts"],"names":[],"mappings":"AACA,OAAO,EACL,2BAA2B,EAI3B,MAAM,EAEP,MAAM,YAAY,CAAC;AAIpB,eAAO,MAAM,QAAQ,wEAsBpB,CAAC;AAEF,wBAAsB,aAAa,CACjC,WAAW,EAAE,2BAA2B,EACxC,MAAM,EAAE,MAAM,iBAkIf"}
+{"version":3,"file":"dictee.d.ts","sourceRoot":"","sources":["../../src/commands/dictee.ts"],"names":[],"mappings":"AACA,OAAO,EACL,2BAA2B,EAI3B,MAAM,EAGP,MAAM,YAAY,CAAC;AAIpB,eAAO,MAAM,QAAQ,wEAsBpB,CAAC;AAEF,wBAAsB,aAAa,CACjC,WAAW,EAAE,2BAA2B,EACxC,MAAM,EAAE,MAAM,iBAmIf"}

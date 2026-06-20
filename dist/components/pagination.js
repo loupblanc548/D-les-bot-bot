@@ -1,13 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PaginationPresets = exports.PaginationSystem = void 0;
-exports.createPagination = createPagination;
-const discord_js_1 = require("discord.js");
-const logger_1 = __importDefault(require("../utils/logger"));
-class PaginationSystem {
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
+import logger from "../utils/logger.js";
+export class PaginationSystem {
     message;
     items;
     itemsPerPage;
@@ -17,7 +10,7 @@ class PaginationSystem {
     embedColor;
     embedTitle;
     footerText;
-    collector;
+    collector = null;
     timeoutId = null;
     constructor(message, options) {
         this.message = message;
@@ -37,7 +30,7 @@ class PaginationSystem {
         const startIndex = this.currentPage * this.itemsPerPage;
         const endIndex = Math.min(startIndex + this.itemsPerPage, this.items.length);
         const pageItems = this.items.slice(startIndex, endIndex);
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(this.embedColor)
             .setTitle(this.embedTitle)
             .setDescription(this.generatePageContent(pageItems))
@@ -62,36 +55,36 @@ class PaginationSystem {
      * Génère les boutons de navigation
      */
     generateButtons() {
-        const row = new discord_js_1.ActionRowBuilder();
+        const row = new ActionRowBuilder();
         // Bouton première page
-        row.addComponents(new discord_js_1.ButtonBuilder()
+        row.addComponents(new ButtonBuilder()
             .setCustomId('pagination_first')
             .setLabel('⏮️')
-            .setStyle(discord_js_1.ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(this.currentPage === 0));
         // Bouton page précédente
-        row.addComponents(new discord_js_1.ButtonBuilder()
+        row.addComponents(new ButtonBuilder()
             .setCustomId('pagination_prev')
             .setLabel('◀️')
-            .setStyle(discord_js_1.ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(this.currentPage === 0));
         // Bouton page suivante
-        row.addComponents(new discord_js_1.ButtonBuilder()
+        row.addComponents(new ButtonBuilder()
             .setCustomId('pagination_next')
             .setLabel('▶️')
-            .setStyle(discord_js_1.ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(this.currentPage === this.totalPages - 1));
         // Bouton dernière page
-        row.addComponents(new discord_js_1.ButtonBuilder()
+        row.addComponents(new ButtonBuilder()
             .setCustomId('pagination_last')
             .setLabel('⏭️')
-            .setStyle(discord_js_1.ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(this.currentPage === this.totalPages - 1));
         // Bouton stop
-        row.addComponents(new discord_js_1.ButtonBuilder()
+        row.addComponents(new ButtonBuilder()
             .setCustomId('pagination_stop')
             .setLabel('⏹️')
-            .setStyle(discord_js_1.ButtonStyle.Danger));
+            .setStyle(ButtonStyle.Danger));
         return row;
     }
     /**
@@ -105,7 +98,7 @@ class PaginationSystem {
             });
         }
         catch (error) {
-            logger_1.default.error(`[Pagination] Erreur mise à jour message: ${error}`);
+            logger.error(`[Pagination] Erreur mise à jour message: ${error}`);
         }
     }
     /**
@@ -158,7 +151,7 @@ class PaginationSystem {
         this.timeoutId = setTimeout(() => {
             this.stop();
         }, this.timeout);
-        logger_1.default.info(`[Pagination] Démarrée pour ${this.items.length} éléments, ${this.totalPages} pages`);
+        logger.info(`[Pagination] Démarrée pour ${this.items.length} éléments, ${this.totalPages} pages`);
     }
     /**
      * Arrête la pagination
@@ -171,7 +164,7 @@ class PaginationSystem {
             clearTimeout(this.timeoutId);
         }
         this.message.edit({ components: [] }).catch(() => { });
-        logger_1.default.info("[Pagination] Arrêtée");
+        logger.info("[Pagination] Arrêtée");
     }
     /**
      * Change de page manuellement
@@ -195,11 +188,10 @@ class PaginationSystem {
         return this.totalPages;
     }
 }
-exports.PaginationSystem = PaginationSystem;
 /**
  * Fonction utilitaire pour créer une pagination rapidement
  */
-async function createPagination(message, items, options = {}) {
+export async function createPagination(message, items, options = {}) {
     const defaultOptions = {
         items,
         itemsPerPage: options.itemsPerPage || 10,
@@ -215,7 +207,7 @@ async function createPagination(message, items, options = {}) {
 /**
  * Types de pagination prédéfinis
  */
-class PaginationPresets {
+export class PaginationPresets {
     /**
      * Pagination pour les commandes
      */
@@ -257,5 +249,4 @@ class PaginationPresets {
         }));
     }
 }
-exports.PaginationPresets = PaginationPresets;
 //# sourceMappingURL=pagination.js.map

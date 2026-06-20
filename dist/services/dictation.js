@@ -1,27 +1,17 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.transcribeAudio = transcribeAudio;
-exports.startDictation = startDictation;
-exports.stopDictation = stopDictation;
-exports.hasActiveSession = hasActiveSession;
-exports.cancelDictation = cancelDictation;
-const logger_1 = __importDefault(require("../utils/logger"));
-const voice_1 = require("@discordjs/voice");
-const prism_media_1 = __importDefault(require("prism-media"));
-const stream_1 = require("stream");
-const promises_1 = require("stream/promises");
-const openai_1 = __importDefault(require("openai"));
-const config_1 = require("../config");
+import logger from "../utils/logger.js";
+import { joinVoiceChannel, VoiceConnectionStatus, EndBehaviorType } from "@discordjs/voice";
+import prism from "prism-media";
+import { Readable } from "stream";
+import { finished } from "stream/promises";
+import OpenAI from "openai";
+import { config } from "../config.js";
 // \u2500\u2500\u2500 \u00c9tat global \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const activeSessions = new Map();
 // \u2500\u2500\u2500 Client OpenAI (OpenRouter) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function getOpenAIClient() {
-    return new openai_1.default({
+    return new OpenAI({
         baseURL: "https://openrouter.ai/api/v1",
-        apiKey: config_1.config.openRouterApiKey,
+        apiKey: config.openRouterApiKey,
         defaultHeaders: {
             "HTTP-Referer": "https://discord.com",
             "X-Title": "John Helldiver Dictation",
@@ -70,14 +60,14 @@ function pcmToWavBuffer(pcmBuffer, sampleRate = 16000, channels = 1, bitDepth = 
     return Buffer.concat([header, pcmBuffer]);
 }
 // \u2500\u2500\u2500 Transcription Whisper \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-async function transcribeAudio(audioBuffer) {
+export async function transcribeAudio(audioBuffer) {
     if (audioBuffer.length <= 44) {
-        logger_1.default.warn("\u26a0\ufe0f [Dictation] Audio vide ou trop court, transcription ignor\u00e9e.");
+        logger.warn("\u26a0\ufe0f [Dictation] Audio vide ou trop court, transcription ignor\u00e9e.");
         return "";
     }
     const openai = getOpenAIClient();
     // Cr\u00e9er un stream lisible depuis le buffer (pas de fichier disque)
-    const stream = stream_1.Readable.from(audioBuffer);
+    const stream = Readable.from(audioBuffer);
     stream.path = "audio.wav"; // n\u00e9cessaire pour l'API OpenAI
     try {
         const transcription = await openai.audio.transcriptions.create({
@@ -88,17 +78,17 @@ async function transcribeAudio(audioBuffer) {
         return transcription.text || "";
     }
     catch (err) {
-        logger_1.default.error("\u274c [Dictation] \u00c9chec transcription Whisper :", String(err));
+        logger.error("\u274c [Dictation] \u00c9chec transcription Whisper :", String(err));
         return "";
     }
 }
 // \u2500\u2500\u2500 D\u00e9marrage de la dict\u00e9e \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-async function startDictation(voiceChannelId, guildId, adapterCreator, userId, username, targetChannelId) {
+export async function startDictation(voiceChannelId, guildId, adapterCreator, userId, username, targetChannelId) {
     if (activeSessions.has(userId)) {
         throw new Error("Tu as d\u00e9j\u00e0 une dict\u00e9e en cours. Utilise `/dictee stop` d'abord.");
     }
-    logger_1.default.info("\ud83c\udf99\ufe0f [Dictation] Connexion au salon vocal pour", username);
-    const connection = (0, voice_1.joinVoiceChannel)({
+    logger.info("\ud83c\udf99\ufe0f [Dictation] Connexion au salon vocal pour", username);
+    const connection = joinVoiceChannel({
         channelId: voiceChannelId,
         guildId,
         adapterCreator,
@@ -112,11 +102,11 @@ async function startDictation(voiceChannelId, guildId, adapterCreator, userId, u
             reject(new Error("Timeout de connexion vocale (5s)"));
         }, 5000);
         connection.on("stateChange", (oldState, newState) => {
-            if (newState.status === voice_1.VoiceConnectionStatus.Ready) {
+            if (newState.status === VoiceConnectionStatus.Ready) {
                 clearTimeout(timeout);
                 resolve();
             }
-            else if (newState.status === voice_1.VoiceConnectionStatus.Disconnected) {
+            else if (newState.status === VoiceConnectionStatus.Disconnected) {
                 clearTimeout(timeout);
                 reject(new Error("Connexion vocale perdue."));
             }
@@ -126,11 +116,11 @@ async function startDictation(voiceChannelId, guildId, adapterCreator, userId, u
             reject(err);
         });
     });
-    logger_1.default.info("\u2705 [Dictation] Connect\u00e9 au salon vocal, \u00e9coute de", username);
+    logger.info("\u2705 [Dictation] Connect\u00e9 au salon vocal, \u00e9coute de", username);
     const audioStream = connection.receiver.subscribe(userId, {
-        end: { behavior: voice_1.EndBehaviorType.Manual },
+        end: { behavior: EndBehaviorType.Manual },
     });
-    const decoder = new prism_media_1.default.opus.Decoder({
+    const decoder = new prism.opus.Decoder({
         rate: 48000,
         channels: 2,
         frameSize: 960,
@@ -142,7 +132,7 @@ async function startDictation(voiceChannelId, guildId, adapterCreator, userId, u
     decoder.on("data", (chunk) => {
         totalBytes += chunk.length;
         if (totalBytes > MAX_PCM_BYTES) {
-            logger_1.default.warn("⚠️ [Dictation] Limite de 50 Mo atteinte, arrêt automatique.");
+            logger.warn("⚠️ [Dictation] Limite de 50 Mo atteinte, arrêt automatique.");
             audioStream.destroy();
             return;
         }
@@ -164,17 +154,17 @@ async function startDictation(voiceChannelId, guildId, adapterCreator, userId, u
     });
 }
 // \u2500\u2500\u2500 Arr\u00eat de la dict\u00e9e \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-async function stopDictation(userId) {
+export async function stopDictation(userId) {
     const session = activeSessions.get(userId);
     if (!session)
         return null;
-    logger_1.default.info("\u23f9\ufe0f [Dictation] Arr\u00eat de l'enregistrement pour", session.username);
+    logger.info("\u23f9\ufe0f [Dictation] Arr\u00eat de l'enregistrement pour", session.username);
     // Arr\u00eater le flux audio (Manual mode)
     session.audioStream.destroy();
     // Attendre que le decoder flush ses derniers chunks (event 'end')
     if (!session.finished) {
         try {
-            await (0, promises_1.finished)(session.decoder, { cleanup: true });
+            await finished(session.decoder, { cleanup: true });
         }
         catch {
             // Le decoder peut \u00e9mettre une erreur si d\u00e9truit avant 'end'
@@ -184,7 +174,7 @@ async function stopDictation(userId) {
     const pcmBuffer = Buffer.concat(session.chunks);
     // D\u00e9truire la connexion vocale
     session.connection.destroy();
-    logger_1.default.info("\ud83d\udcca [Dictation] Audio captur\u00e9 :", (pcmBuffer.length / 1024).toFixed(1), "Ko PCM", pcmBuffer.length === 0 ? "(silence)" : "");
+    logger.info("\ud83d\udcca [Dictation] Audio captur\u00e9 :", (pcmBuffer.length / 1024).toFixed(1), "Ko PCM", pcmBuffer.length === 0 ? "(silence)" : "");
     // Audio vide ?
     if (pcmBuffer.length === 0) {
         activeSessions.delete(userId);
@@ -197,22 +187,22 @@ async function stopDictation(userId) {
         text = await transcribeAudio(wavBuffer);
     }
     catch (err) {
-        logger_1.default.error("\u274c [Dictation] Transcription \u00e9chou\u00e9e :", String(err));
+        logger.error("\u274c [Dictation] Transcription \u00e9chou\u00e9e :", String(err));
     }
     // Supprimer la session APR\u00c8S transcription (m\u00eame si \u00e9chec)
     activeSessions.delete(userId);
     const preview = text ? text.substring(0, 100) + (text.length > 100 ? "..." : "") : "(vide)";
-    logger_1.default.info("\u2705 [Dictation] Transcription :", preview);
+    logger.info("\u2705 [Dictation] Transcription :", preview);
     return {
         text,
         username: session.username,
         targetChannelId: session.targetChannelId,
     };
 }
-function hasActiveSession(userId) {
+export function hasActiveSession(userId) {
     return activeSessions.has(userId);
 }
-function cancelDictation(userId) {
+export function cancelDictation(userId) {
     const session = activeSessions.get(userId);
     if (!session)
         return;
@@ -220,6 +210,6 @@ function cancelDictation(userId) {
     session.decoder.destroy();
     session.connection.destroy();
     activeSessions.delete(userId);
-    logger_1.default.info("\u26a0\ufe0f [Dictation] Session annul\u00e9e pour", session.username);
+    logger.info("\u26a0\ufe0f [Dictation] Session annul\u00e9e pour", session.username);
 }
 //# sourceMappingURL=dictation.js.map

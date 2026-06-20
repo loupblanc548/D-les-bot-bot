@@ -1,18 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateRiskScore = calculateRiskScore;
-exports.getOrCreateRiskProfile = getOrCreateRiskProfile;
-exports.recordSanction = recordSanction;
-exports.recordSecurityEvent = recordSecurityEvent;
-exports.checkAlertThreshold = checkAlertThreshold;
-exports.getRiskReport = getRiskReport;
-exports.resetRiskProfile = resetRiskProfile;
-exports.getAllRiskyUsers = getAllRiskyUsers;
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+// ============================================================
+// Types
+// ============================================================
+import { RiskLevel } from "@prisma/client";
+export { RiskLevel };
 // ============================================================
 // Pondération des sanctions et événements
 // ============================================================
@@ -36,7 +28,7 @@ const DECAY_RATE_PER_DAY = 0.05;
 // Seuils de risque
 const THRESHOLDS = {
     MOYEN: 30,
-    "ÉLEVÉ": 60,
+    "ELEVE": 60,
     CRITIQUE: 100,
 };
 // ============================================================
@@ -45,13 +37,13 @@ const THRESHOLDS = {
 function getRiskLevel(score) {
     if (score >= THRESHOLDS.CRITIQUE)
         return "CRITIQUE";
-    if (score >= THRESHOLDS["ÉLEVÉ"])
-        return "ÉLEVÉ";
+    if (score >= THRESHOLDS["ELEVE"])
+        return "ELEVE";
     if (score >= THRESHOLDS.MOYEN)
         return "MOYEN";
     return "FAIBLE";
 }
-function calculateRiskScore(counts, events, lastSanctionAt) {
+export function calculateRiskScore(counts, events, lastSanctionAt) {
     let score = 0;
     score += counts.warn * SANCTION_WEIGHTS.WARN;
     score += counts.timeout * SANCTION_WEIGHTS.TIMEOUT;
@@ -80,12 +72,12 @@ function calculateRiskScore(counts, events, lastSanctionAt) {
 // ============================================================
 // Gestion du profil de risque
 // ============================================================
-async function getOrCreateRiskProfile(userId, guildId) {
-    let profile = await prisma_1.default.riskProfile.findUnique({
+export async function getOrCreateRiskProfile(userId, guildId) {
+    let profile = await prisma.riskProfile.findUnique({
         where: { userId_guildId: { userId, guildId } },
     });
     if (!profile) {
-        profile = await prisma_1.default.riskProfile.create({
+        profile = await prisma.riskProfile.create({
             data: { userId, guildId },
         });
     }
@@ -94,10 +86,10 @@ async function getOrCreateRiskProfile(userId, guildId) {
 // ============================================================
 // Enregistrement d'une sanction
 // ============================================================
-async function recordSanction(userId, guildId, type) {
+export async function recordSanction(userId, guildId, type) {
     const now = new Date();
     // Upsert atomique pour éviter les race conditions
-    await prisma_1.default.riskProfile.upsert({
+    await prisma.riskProfile.upsert({
         where: { userId_guildId: { userId, guildId } },
         create: { userId, guildId, lastSanctionAt: now },
         update: { lastSanctionAt: now },
@@ -117,12 +109,12 @@ async function recordSanction(userId, guildId, type) {
     else if (type === "BAN" || type === "SOFTBAN")
         increments.banCount = { increment: 1 };
     // Mettre à jour avec les increments atomiques
-    await prisma_1.default.riskProfile.update({
+    await prisma.riskProfile.update({
         where: { userId_guildId: { userId, guildId } },
         data: increments,
     });
     // Recalculer le score
-    const updated = await prisma_1.default.riskProfile.findUniqueOrThrow({
+    const updated = await prisma.riskProfile.findUniqueOrThrow({
         where: { userId_guildId: { userId, guildId } },
     });
     const score = calculateRiskScore({
@@ -134,29 +126,29 @@ async function recordSanction(userId, guildId, type) {
         softban: 0,
     }, { antiRaid: 0, antiSpam: 0, antiPhishing: 0, suspicious: 0 }, updated.lastSanctionAt);
     const riskLevel = getRiskLevel(score);
-    await prisma_1.default.riskProfile.update({
+    await prisma.riskProfile.update({
         where: { userId_guildId: { userId, guildId } },
         data: { riskScore: score, riskLevel },
     });
-    logger_1.default.info(`[RiskEngine] Score mis \u00E0 jour pour ${userId}: ${score} (${riskLevel})`);
+    logger.info(`[RiskEngine] Score mis \u00E0 jour pour ${userId}: ${score} (${riskLevel})`);
     return { ...updated, riskScore: score, riskLevel };
 }
 // ============================================================
 // Enregistrement d'un événement de sécurité
 // ============================================================
-async function recordSecurityEvent(userId, guildId, eventType) {
+export async function recordSecurityEvent(userId, guildId, eventType) {
     const profile = await getOrCreateRiskProfile(userId, guildId);
     const eventWeight = EVENT_WEIGHTS[eventType] || 0;
     const currentScore = profile.riskScore + eventWeight;
     const riskLevel = getRiskLevel(currentScore);
-    await prisma_1.default.riskProfile.update({
+    await prisma.riskProfile.update({
         where: { userId_guildId: { userId, guildId } },
         data: { riskScore: currentScore, riskLevel, lastSanctionAt: new Date() },
     });
-    logger_1.default.info(`[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`);
+    logger.info(`[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`);
     return { ...profile, riskScore: currentScore, riskLevel };
 }
-async function checkAlertThreshold(profile, guildId) {
+export async function checkAlertThreshold(profile, guildId) {
     const now = new Date();
     // Ne pas alerter si déjà une alerte dans les 12 dernières heures
     if (profile.lastAlertAt) {
@@ -170,12 +162,12 @@ async function checkAlertThreshold(profile, guildId) {
         return { shouldAlert: true, profile, reason: `Score de risque critique (${profile.riskScore})` };
     }
     // Alerte élevé avec 5+ sanctions
-    if (profile.riskLevel === "ÉLEVÉ" && profile.totalSanctions >= 5) {
+    if (profile.riskLevel === "ELEVE" && profile.totalSanctions >= 5) {
         return { shouldAlert: true, profile, reason: "Score \u00E9lev\u00E9 avec 5+ sanctions cumul\u00E9es" };
     }
     // 3+ sanctions en 24h
     if (profile.lastSanctionAt) {
-        const recentSanctions = await prisma_1.default.sanction.count({
+        const recentSanctions = await prisma.sanction.count({
             where: {
                 userId: profile.userId,
                 guildId,
@@ -191,9 +183,9 @@ async function checkAlertThreshold(profile, guildId) {
 // ============================================================
 // Rapport de risque complet
 // ============================================================
-async function getRiskReport(userId, guildId) {
+export async function getRiskReport(userId, guildId) {
     const profile = await getOrCreateRiskProfile(userId, guildId);
-    const recentSanctions = await prisma_1.default.sanction.findMany({
+    const recentSanctions = await prisma.sanction.findMany({
         where: { userId, guildId },
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -203,17 +195,17 @@ async function getRiskReport(userId, guildId) {
 // ============================================================
 // Fonctions administratives
 // ============================================================
-async function resetRiskProfile(userId, guildId) {
-    await prisma_1.default.riskProfile.deleteMany({ where: { userId, guildId } });
-    logger_1.default.info(`[RiskEngine] Profil de risque r\u00E9initialis\u00E9 pour ${userId}`);
+export async function resetRiskProfile(userId, guildId) {
+    await prisma.riskProfile.deleteMany({ where: { userId, guildId } });
+    logger.info(`[RiskEngine] Profil de risque r\u00E9initialis\u00E9 pour ${userId}`);
 }
-async function getAllRiskyUsers(guildId, minLevel = "MOYEN") {
+export async function getAllRiskyUsers(guildId, minLevel = "MOYEN") {
     const levels = [minLevel];
     if (minLevel === "MOYEN")
-        levels.push("ÉLEVÉ", "CRITIQUE");
-    else if (minLevel === "ÉLEVÉ")
+        levels.push("ELEVE", "CRITIQUE");
+    else if (minLevel === "ELEVE")
         levels.push("CRITIQUE");
-    return prisma_1.default.riskProfile.findMany({
+    return prisma.riskProfile.findMany({
         where: {
             guildId,
             riskLevel: { in: levels },

@@ -1,5 +1,5 @@
 import { Client, EmbedBuilder } from "discord.js";
-import { PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "../utils/rss-parser";
+import { PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "../utils/rss-parser.js";
 export declare function parseRssItems(xml: string): {
     title: string;
     url: string;

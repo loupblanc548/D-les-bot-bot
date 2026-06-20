@@ -1,12 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const embedBuilder_1 = require("../components/embedBuilder");
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder } from "../components/embedBuilder.js";
 class DigestService {
     client;
     dailyInterval = null;
@@ -21,16 +16,16 @@ class DigestService {
         const since = new Date(Date.now() - hours * 60 * 60 * 1000);
         try {
             const [patchNotesCount, dealsCount, newsCount, logs] = await Promise.all([
-                prisma_1.default.processedPatchNotes.count({
+                prisma.processedPatchNotes.count({
                     where: { createdAt: { gte: since } }
                 }),
-                prisma_1.default.processedDeal.count({
+                prisma.processedDeal.count({
                     where: { createdAt: { gte: since } }
                 }),
-                prisma_1.default.notification.count({
+                prisma.notification.count({
                     where: { sentAt: { gte: since } }
                 }),
-                prisma_1.default.log.findMany({
+                prisma.log.findMany({
                     where: {
                         createdAt: { gte: since }
                     },
@@ -46,7 +41,7 @@ class DigestService {
             };
         }
         catch (error) {
-            logger_1.default.error(`[DigestService] Erreur récupération stats: ${error}`);
+            logger.error(`[DigestService] Erreur récupération stats: ${error}`);
             return {
                 patchNotes: 0,
                 deals: 0,
@@ -89,7 +84,7 @@ class DigestService {
                 emoji: "⚡"
             }
         ];
-        return embedBuilder_1.AdvancedEmbedBuilder.createDailyDigest(`Digest Quotidien - ${date}`, sections);
+        return AdvancedEmbedBuilder.createDailyDigest(`Digest Quotidien - ${date}`, sections);
     }
     /**
      * Génère le digest hebdomadaire
@@ -111,37 +106,37 @@ class DigestService {
                 emoji: "📈"
             }
         ];
-        return embedBuilder_1.AdvancedEmbedBuilder.createDailyDigest(`Digest Hebdomadaire - ${weekRange}`, sections);
+        return AdvancedEmbedBuilder.createDailyDigest(`Digest Hebdomadaire - ${weekRange}`, sections);
     }
     /**
      * Envoie le digest au canal configuré
      */
     async sendDigest(embed) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.warn("[DigestService] LOG_CHANNEL_ID non configuré");
+        if (!config.logChannel) {
+            logger.warn("[DigestService] LOG_CHANNEL_ID non configuré");
             return;
         }
         try {
-            const channel = await this.client.channels.fetch(config_1.config.logChannel);
+            const channel = await this.client.channels.fetch(config.logChannel);
             if (!channel?.isTextBased()) {
-                logger_1.default.error("[DigestService] Canal de log invalide");
+                logger.error("[DigestService] Canal de log invalide");
                 return;
             }
             await channel.send({
                 content: "📊 **Rapport automatique**",
                 embeds: [embed]
             });
-            logger_1.default.info("[DigestService] Digest envoyé avec succès");
+            logger.info("[DigestService] Digest envoyé avec succès");
         }
         catch (error) {
-            logger_1.default.error(`[DigestService] Erreur envoi digest: ${error}`);
+            logger.error(`[DigestService] Erreur envoi digest: ${error}`);
         }
     }
     /**
      * Envoie le digest quotidien
      */
     async sendDailyDigest() {
-        logger_1.default.info("[DigestService] Génération du digest quotidien...");
+        logger.info("[DigestService] Génération du digest quotidien...");
         const embed = await this.generateDailyDigest();
         await this.sendDigest(embed);
     }
@@ -149,7 +144,7 @@ class DigestService {
      * Envoie le digest hebdomadaire
      */
     async sendWeeklyDigest() {
-        logger_1.default.info("[DigestService] Génération du digest hebdomadaire...");
+        logger.info("[DigestService] Génération du digest hebdomadaire...");
         const embed = await this.generateWeeklyDigest();
         await this.sendDigest(embed);
     }
@@ -158,7 +153,7 @@ class DigestService {
      */
     start() {
         if (this.dailyInterval || this.weeklyInterval) {
-            logger_1.default.warn("[DigestService] Service déjà démarré");
+            logger.warn("[DigestService] Service déjà démarré");
             return;
         }
         // Digest quotidien à 9h00
@@ -170,11 +165,11 @@ class DigestService {
         }
         const dailyDelay = dailyTime.getTime() - now.getTime();
         this.dailyInterval = setInterval(() => {
-            this.sendDailyDigest().catch(error => logger_1.default.error(`[DigestService] Erreur digest quotidien: ${error}`));
+            this.sendDailyDigest().catch(error => logger.error(`[DigestService] Erreur digest quotidien: ${error}`));
         }, 24 * 60 * 60 * 1000); // Toutes les 24h
         // Premier envoi après le délai initial
         setTimeout(() => {
-            this.sendDailyDigest().catch(error => logger_1.default.error(`[DigestService] Erreur digest quotidien initial: ${error}`));
+            this.sendDailyDigest().catch(error => logger.error(`[DigestService] Erreur digest quotidien initial: ${error}`));
         }, dailyDelay);
         // Digest hebdomadaire le lundi à 9h00
         const weeklyTime = new Date(dailyTime);
@@ -183,12 +178,12 @@ class DigestService {
         }
         const weeklyDelay = weeklyTime.getTime() - now.getTime();
         this.weeklyInterval = setInterval(() => {
-            this.sendWeeklyDigest().catch(error => logger_1.default.error(`[DigestService] Erreur digest hebdomadaire: ${error}`));
+            this.sendWeeklyDigest().catch(error => logger.error(`[DigestService] Erreur digest hebdomadaire: ${error}`));
         }, 7 * 24 * 60 * 60 * 1000); // Toutes les semaines
         setTimeout(() => {
-            this.sendWeeklyDigest().catch(error => logger_1.default.error(`[DigestService] Erreur digest hebdomadaire initial: ${error}`));
+            this.sendWeeklyDigest().catch(error => logger.error(`[DigestService] Erreur digest hebdomadaire initial: ${error}`));
         }, weeklyDelay);
-        logger_1.default.info("[DigestService] Service démarré - Quotidien: 9h00, Hebdomadaire: Lundi 9h00");
+        logger.info("[DigestService] Service démarré - Quotidien: 9h00, Hebdomadaire: Lundi 9h00");
     }
     /**
      * Arrête le service de digest
@@ -202,7 +197,7 @@ class DigestService {
             clearInterval(this.weeklyInterval);
             this.weeklyInterval = null;
         }
-        logger_1.default.info("[DigestService] Service arrêté");
+        logger.info("[DigestService] Service arrêté");
     }
     /**
      * Envoie un digest manuel (pour test)
@@ -216,5 +211,5 @@ class DigestService {
         }
     }
 }
-exports.default = DigestService;
+export default DigestService;
 //# sourceMappingURL=digestService.js.map

@@ -1,5 +1,5 @@
 import { EmbedBuilder, Client } from "discord.js";
-import type { RiskProfile, RiskLevel } from "./risk-engine";
+import type { RiskProfile, RiskLevel } from "./risk-engine.js";
 export type AlertStatus = "PENDING" | "RESOLVED" | "DISMISSED";
 export type AlertAction = "IGNORE" | "WATCH" | "WARN" | "TIMEOUT" | "KICK" | "BAN";
 export interface AlertData {
@@ -25,8 +25,8 @@ export declare function getPendingAlerts(guildId: string): Promise<{
     type: string;
     createdAt: Date;
     id: string;
+    status: import(".prisma/client").$Enums.AlertStatus;
     guildId: string;
-    status: string;
     action: string | null;
     userId: string;
     details: string | null;
@@ -39,8 +39,8 @@ export declare function getAlertHistory(guildId: string, limit?: number): Promis
     type: string;
     createdAt: Date;
     id: string;
+    status: import(".prisma/client").$Enums.AlertStatus;
     guildId: string;
-    status: string;
     action: string | null;
     userId: string;
     details: string | null;
@@ -53,8 +53,8 @@ export declare function getAlertsByUser(userId: string, guildId: string): Promis
     type: string;
     createdAt: Date;
     id: string;
+    status: import(".prisma/client").$Enums.AlertStatus;
     guildId: string;
-    status: string;
     action: string | null;
     userId: string;
     details: string | null;

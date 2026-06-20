@@ -1,25 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sentimentAnalysisService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const openai_1 = require("openai");
+import logger from "../utils/logger.js";
+import { OpenAI } from "openai";
 class SentimentAnalysisService {
     openai = null;
     reviewCache;
     constructor() {
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (apiKey) {
-            this.openai = new openai_1.OpenAI({
+            this.openai = new OpenAI({
                 apiKey,
                 baseURL: "https://openrouter.ai/api/v1",
             });
-            logger_1.default.info("[SentimentAnalysis] Service initialisé avec OpenRouter");
+            logger.info("[SentimentAnalysis] Service initialisé avec OpenRouter");
         }
         else {
-            logger_1.default.warn("[SentimentAnalysis] OPENROUTER_API_KEY non configuré, service désactivé");
+            logger.warn("[SentimentAnalysis] OPENROUTER_API_KEY non configuré, service désactivé");
         }
         this.reviewCache = new Map();
     }
@@ -83,7 +77,7 @@ Fournis ta réponse au format JSON :
             };
         }
         catch (error) {
-            logger_1.default.error("[SentimentAnalysis] Erreur lors de l'analyse:", error);
+            logger.error("[SentimentAnalysis] Erreur lors de l'analyse:", error);
             return {
                 sentiment: "neutral",
                 confidence: 0,
@@ -97,7 +91,7 @@ Fournis ta réponse au format JSON :
      * Analyse plusieurs commentaires pour un jeu
      */
     async analyzeGameReviews(gameId, gameName, platform, comments) {
-        logger_1.default.info(`[SentimentAnalysis] Analyse de ${comments.length} commentaires pour ${gameName}`);
+        logger.info(`[SentimentAnalysis] Analyse de ${comments.length} commentaires pour ${gameName}`);
         const reviews = [];
         for (const comment of comments.slice(0, 10)) {
             const result = await this.analyzeSentiment(comment);
@@ -148,19 +142,19 @@ Fournis ta réponse au format JSON :
             // Extraire l'ID du jeu depuis l'URL
             const gameId = this.extractGameIdFromUrl(redditUrl);
             if (!gameId) {
-                logger_1.default.warn("[SentimentAnalysis] Impossible d'extraire l'ID du jeu depuis l'URL");
+                logger.warn("[SentimentAnalysis] Impossible d'extraire l'ID du jeu depuis l'URL");
                 return null;
             }
             // Simuler la récupération des commentaires (à remplacer par vraie intégration Reddit API)
             const comments = await this.fetchRedditComments(redditUrl);
             if (comments.length === 0) {
-                logger_1.default.warn("[SentimentAnalysis] Aucun commentaire trouvé");
+                logger.warn("[SentimentAnalysis] Aucun commentaire trouvé");
                 return null;
             }
             return await this.analyzeGameReviews(gameId, "Jeu Reddit", "Reddit", comments);
         }
         catch (error) {
-            logger_1.default.error("[SentimentAnalysis] Erreur lors de l'analyse Reddit:", error);
+            logger.error("[SentimentAnalysis] Erreur lors de l'analyse Reddit:", error);
             return null;
         }
     }
@@ -206,7 +200,7 @@ Fournis ta réponse au format JSON :
      */
     clearCache() {
         this.reviewCache.clear();
-        logger_1.default.info("[SentimentAnalysis] Cache nettoyé");
+        logger.info("[SentimentAnalysis] Cache nettoyé");
     }
     /**
      * Obtient les statistiques du cache
@@ -234,5 +228,5 @@ Fournis ta réponse au format JSON :
         };
     }
 }
-exports.sentimentAnalysisService = new SentimentAnalysisService();
+export const sentimentAnalysisService = new SentimentAnalysisService();
 //# sourceMappingURL=sentiment-analysis.js.map

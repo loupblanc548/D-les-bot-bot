@@ -1,19 +1,13 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleAlertInteractions = handleAlertInteractions;
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
-const logs_1 = require("../services/logs");
-const alert_service_1 = require("../services/alert-service");
-const risk_engine_1 = require("../services/risk-engine");
+import { EmbedBuilder, PermissionFlagsBits, } from "discord.js";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { createLog } from "../services/logs.js";
+import { resolveAlert } from "../services/alert-service.js";
+import { recordSanction } from "../services/risk-engine.js";
 // ============================================================
 // Gestionnaire des boutons interactifs d'alerte
 // ============================================================
-function handleAlertInteractions(client) {
+export function handleAlertInteractions(client) {
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.isButton())
             return;
@@ -42,7 +36,7 @@ function handleAlertInteractions(client) {
                 return;
             }
             // Résoudre l'alerte
-            const alert = await (0, alert_service_1.resolveAlert)(alertId, action, interaction.user.id);
+            const alert = await resolveAlert(alertId, action, interaction.user.id);
             if (!alert) {
                 await interaction.editReply({ content: "\u274C Cette alerte n'est plus en attente ou n'existe pas." });
                 return;
@@ -53,7 +47,7 @@ function handleAlertInteractions(client) {
             try {
                 const originalMessage = interaction.message;
                 if (originalMessage) {
-                    const embed = discord_js_1.EmbedBuilder.from(originalMessage.embeds[0] || {});
+                    const embed = EmbedBuilder.from(originalMessage.embeds[0] || {});
                     embed.setColor(action === "IGNORE" ? 0x808080 : 0x53fc18);
                     embed.setFooter({
                         text: `R\u00E9solu par ${interaction.user.tag} \u2022 Action: ${action}`,
@@ -71,7 +65,7 @@ function handleAlertInteractions(client) {
             await interaction.editReply({ content: responseText });
         }
         catch (error) {
-            logger_1.default.error(`[AlertInteraction] Erreur traitement alerte ${alertId}:`, error);
+            logger.error(`[AlertInteraction] Erreur traitement alerte ${alertId}:`, error);
             try {
                 await interaction.editReply({ content: "\u274C Une erreur est survenue lors du traitement de l'alerte." });
             }
@@ -86,16 +80,16 @@ function getRequiredPermissions(action) {
     switch (action) {
         case "WARN":
         case "TIMEOUT":
-            return discord_js_1.PermissionFlagsBits.ModerateMembers;
+            return PermissionFlagsBits.ModerateMembers;
         case "KICK":
-            return discord_js_1.PermissionFlagsBits.KickMembers;
+            return PermissionFlagsBits.KickMembers;
         case "BAN":
-            return discord_js_1.PermissionFlagsBits.BanMembers;
+            return PermissionFlagsBits.BanMembers;
         case "IGNORE":
         case "WATCH":
             return null; // Tout modérateur peut ignorer ou surveiller
         default:
-            return discord_js_1.PermissionFlagsBits.ModerateMembers;
+            return PermissionFlagsBits.ModerateMembers;
     }
 }
 // ============================================================
@@ -109,7 +103,7 @@ async function executeAlertAction(action, userId, guildId, interaction, client) 
         case "IGNORE":
             return "\u274C Alerte ignor\u00E9e.";
         case "WATCH": {
-            await (0, logs_1.createLog)({
+            await createLog({
                 type: "ALERT_ACTION",
                 action: `Utilisateur plac\u00E9 sous surveillance`,
                 userId,
@@ -120,22 +114,22 @@ async function executeAlertAction(action, userId, guildId, interaction, client) 
         }
         case "WARN": {
             await executeWarn(userId, guildId, interaction);
-            await (0, risk_engine_1.recordSanction)(userId, guildId, "WARN");
+            await recordSanction(userId, guildId, "WARN");
             return "\u26A0 Avertissement envoy\u00E9 et enregistr\u00E9.";
         }
         case "TIMEOUT": {
             await executeTimeout(userId, guildId, interaction);
-            await (0, risk_engine_1.recordSanction)(userId, guildId, "TIMEOUT");
+            await recordSanction(userId, guildId, "TIMEOUT");
             return "\u23F0 Timeout de 1 heure appliqu\u00E9.";
         }
         case "KICK": {
             await executeKick(userId, guildId, interaction);
-            await (0, risk_engine_1.recordSanction)(userId, guildId, "KICK");
+            await recordSanction(userId, guildId, "KICK");
             return "\uD83D\uDCE6 Membre expuls\u00E9.";
         }
         case "BAN": {
             await executeBan(userId, guildId, interaction);
-            await (0, risk_engine_1.recordSanction)(userId, guildId, "BAN");
+            await recordSanction(userId, guildId, "BAN");
             return "\uD83D\uDEA8 Membre banni.";
         }
         default:
@@ -143,7 +137,7 @@ async function executeAlertAction(action, userId, guildId, interaction, client) 
     }
 }
 async function executeWarn(userId, guildId, interaction) {
-    await prisma_1.default.sanction.create({
+    await prisma.sanction.create({
         data: {
             guildId,
             userId,
@@ -152,7 +146,7 @@ async function executeWarn(userId, guildId, interaction) {
             reason: "Avertissement depuis alerte de mod\u00E9ration",
         },
     });
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "WARN",
         action: "Avertissement depuis alerte",
         userId,
@@ -168,7 +162,7 @@ async function executeTimeout(userId, guildId, interaction) {
     if (member) {
         await member.timeout(60 * 60 * 1000, "Timeout depuis alerte de mod\u00E9ration");
     }
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "TIMEOUT",
         action: "Timeout 1h depuis alerte",
         userId,
@@ -184,7 +178,7 @@ async function executeKick(userId, guildId, interaction) {
     if (member) {
         await member.kick("Expulsion depuis alerte de mod\u00E9ration");
     }
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "KICK",
         action: "Expulsion depuis alerte",
         userId,
@@ -200,7 +194,7 @@ async function executeBan(userId, guildId, interaction) {
         reason: "Bannissement depuis alerte de mod\u00E9ration",
         deleteMessageSeconds: 7 * 86400,
     });
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "BAN",
         action: "Bannissement depuis alerte",
         userId,

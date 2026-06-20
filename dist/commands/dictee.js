@@ -1,16 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const permissions_1 = require("../services/permissions");
-const dictation_1 = require("../services/dictation");
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+import logger from "../utils/logger.js";
+import { SlashCommandBuilder, MessageFlags, ChannelType, } from "discord.js";
+import { requireAdmin } from "../services/permissions.js";
+import { startDictation, stopDictation, hasActiveSession, cancelDictation } from "../services/dictation.js";
+export const commands = [
+    new SlashCommandBuilder()
         .setName("dictee")
         .setDescription("Dictée vocale : le bot écoute ta voix et écrit le texte à ta place")
         .addStringOption((option) => option
@@ -22,11 +15,11 @@ exports.commands = [
         .setName("salon")
         .setDescription("Salon où le texte sera envoyé (requis pour start)")
         .setRequired(true)
-        .addChannelTypes(discord_js_1.ChannelType.GuildText))
+        .addChannelTypes(ChannelType.GuildText))
         .toJSON(),
 ];
-async function handleCommand(interaction, client) {
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+export async function handleCommand(interaction, client) {
+    if (!(await requireAdmin(interaction)))
         return;
     const action = interaction.options.getString("action", true);
     const userId = interaction.user.id;
@@ -37,7 +30,7 @@ async function handleCommand(interaction, client) {
             if (!member) {
                 await interaction.reply({
                     content: "❌ Impossible de trouver ton membre sur ce serveur.",
-                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                    flags: [MessageFlags.Ephemeral],
                 });
                 return;
             }
@@ -45,21 +38,21 @@ async function handleCommand(interaction, client) {
             if (!voiceChannel) {
                 await interaction.reply({
                     content: "❌ Tu dois être dans un salon vocal pour utiliser la dictée.",
-                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                    flags: [MessageFlags.Ephemeral],
                 });
                 return;
             }
             const targetChannel = interaction.options.getChannel("salon");
-            if (!targetChannel || targetChannel.type !== discord_js_1.ChannelType.GuildText) {
+            if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
                 await interaction.reply({
                     content: "❌ Tu dois spécifier un salon textuel (option «salon») où le texte sera envoyé.",
-                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                    flags: [MessageFlags.Ephemeral],
                 });
                 return;
             }
-            await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+            await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
             try {
-                await (0, dictation_1.startDictation)(voiceChannel.id, interaction.guildId, interaction.guild.voiceAdapterCreator, userId, interaction.user.displayName, targetChannel.id);
+                await startDictation(voiceChannel.id, interaction.guildId, interaction.guild.voiceAdapterCreator, userId, interaction.user.displayName, targetChannel.id);
                 await interaction.editReply({
                     content: "🎙️ **Dictée démarrée !** Je t'écoute... Parle dans le micro.\n" +
                         "Quand tu as fini, utilise `/dictee stop` pour envoyer le texte dans " +
@@ -67,22 +60,23 @@ async function handleCommand(interaction, client) {
                 });
             }
             catch (err) {
+                const errorMsg = err instanceof Error ? err.message : "Erreur de connexion vocale.";
                 await interaction.editReply({
-                    content: "❌ " + (err.message || "Erreur de connexion vocale."),
+                    content: "❌ " + errorMsg,
                 });
             }
             // ─── STOP ───────────────────────────────────────────
         }
         else if (action === "stop") {
-            if (!(0, dictation_1.hasActiveSession)(userId)) {
+            if (!hasActiveSession(userId)) {
                 await interaction.reply({
                     content: "❌ Tu n'as pas de dictée en cours. Utilise `/dictee start` d'abord.",
-                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                    flags: [MessageFlags.Ephemeral],
                 });
                 return;
             }
-            await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
-            const result = await (0, dictation_1.stopDictation)(userId);
+            await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+            const result = await stopDictation(userId);
             if (!result) {
                 await interaction.editReply({
                     content: "❌ Aucune dictée trouvée.",
@@ -102,7 +96,7 @@ async function handleCommand(interaction, client) {
                 }
             }
             catch (chanErr) {
-                logger_1.default.error("❌ [Dictation] Impossible d'envoyer dans le salon :", chanErr);
+                logger.error("❌ [Dictation] Impossible d'envoyer dans le salon :", chanErr);
             }
             await interaction.editReply({
                 content: "✅ **Dictée terminée !** Texte envoyé dans <#" +
@@ -118,10 +112,10 @@ async function handleCommand(interaction, client) {
         }
     }
     catch (error) {
-        logger_1.default.error("💥 [CRASH DICTEE] Erreur :", error);
+        logger.error("💥 [CRASH DICTEE] Erreur :", error);
         // Cleanup en cas d'erreur
-        if (action === "start" || (0, dictation_1.hasActiveSession)(userId)) {
-            (0, dictation_1.cancelDictation)(userId);
+        if (action === "start" || hasActiveSession(userId)) {
+            cancelDictation(userId);
         }
         const msg = "❌ Une erreur est survenue pendant la dictée.";
         try {
@@ -129,11 +123,11 @@ async function handleCommand(interaction, client) {
                 await interaction.editReply({ content: msg });
             }
             else {
-                await interaction.reply({ content: msg, flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await interaction.reply({ content: msg, flags: [MessageFlags.Ephemeral] });
             }
         }
         catch {
-            await interaction.followUp({ content: msg, flags: [discord_js_1.MessageFlags.Ephemeral] }).catch(() => { });
+            await interaction.followUp({ content: msg, flags: [MessageFlags.Ephemeral] }).catch((err) => { logger.error("[Dictee] Erreur followUp:", String(err)); });
         }
     }
 }

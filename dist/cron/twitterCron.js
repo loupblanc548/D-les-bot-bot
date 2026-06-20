@@ -1,39 +1,33 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startTwitterMonitoring = startTwitterMonitoring;
-exports.stopTwitterMonitoring = stopTwitterMonitoring;
-exports.checkTwitterAccounts = checkTwitterAccounts;
-exports.fetchTweetsForAccount = fetchTweetsForAccount;
-exports.extractTweetId = extractTweetId;
-const discord_js_1 = require("discord.js");
-const node_cron_1 = __importDefault(require("node-cron"));
-const axios_1 = __importDefault(require("axios"));
-const fast_xml_parser_1 = require("fast-xml-parser");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const logger_1 = __importDefault(require("../utils/logger"));
-const translator_1 = require("../utils/translator");
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import cron from "node-cron";
+import axios from "axios";
+import { XMLParser } from "fast-xml-parser";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { translateToFrench, isLikelyEnglish } from "../utils/translator.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
+import { pushFortniteDetection } from "../services/fortnite-broadcast.js";
 // Constantes
 const TWITTER_BLUE = 0x1da1f2;
 const RSSHUB_BASE = "https://rsshub.app/twitter/user";
 const MAX_TWEETS_PER_ACCOUNT = 3;
 const FOOTER = { text: "Twitter Monitor • Surveillance automatique" };
 const TWITTER_ICON = "https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png";
-const rssParser = new fast_xml_parser_1.XMLParser({
+const rssParser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     removeNSPrefix: true,
 });
 // Configuration des plateformes (routage multi-console pour tweets gaming)
 const PLATFORM_CONFIGS = [
-    { id: "epic", channelId: config_1.config.steamEpicChannel, color: 0x2a2a2a, label: "Epic Games", iconUrl: "https://store.epicgames.com/favicon.ico" },
-    { id: "steam", channelId: config_1.config.steamEpicChannel, color: 0x000080, label: "Steam", iconUrl: "https://store.steampowered.com/favicon.ico" },
-    { id: "playstation", channelId: config_1.config.playstationChannel, color: 0x003791, label: "PlayStation", iconUrl: "https://www.playstation.com/favicon.ico" },
-    { id: "xbox", channelId: config_1.config.xboxChannel, color: 0x107c10, label: "Xbox", iconUrl: "https://www.xbox.com/favicon.ico" },
-    { id: "nintendo", channelId: config_1.config.nintendoChannel, color: 0xe60012, label: "Nintendo", iconUrl: "https://www.nintendo.com/favicon.ico" },
+    { id: "epic", channelId: config.steamEpicChannel, color: 0x2a2a2a, label: "Epic Games", iconUrl: "https://store.epicgames.com/favicon.ico" },
+    { id: "steam", channelId: config.steamEpicChannel, color: 0x000080, label: "Steam", iconUrl: "https://store.steampowered.com/favicon.ico" },
+    { id: "playstation", channelId: config.playstationChannel, color: 0x003791, label: "PlayStation", iconUrl: "https://www.playstation.com/favicon.ico" },
+    { id: "xbox", channelId: config.xboxChannel, color: 0x107c10, label: "Xbox", iconUrl: "https://www.xbox.com/favicon.ico" },
+    { id: "nintendo", channelId: config.nintendoChannel, color: 0xe60012, label: "Nintendo", iconUrl: "https://www.nintendo.com/favicon.ico" },
+    { id: "fortnite", channelId: config.fortniteChannel, color: 0x9147ff, label: "Fortnite", iconUrl: "https://static-assets-prod.epicgames.com/fortnite/favicon.ico" },
+    { id: "instantgaming", channelId: config.instantGamingChannel, color: 0xcd7f32, label: "Instant Gaming", iconUrl: "https://www.instant-gaming.com/favicon.ico" },
 ];
 // Etat interne
 let cronJob = null;
@@ -59,7 +53,7 @@ async function fetchTweetsForAccount(account) {
     const url = RSSHUB_BASE + "/" + account;
     const tweets = [];
     try {
-        const response = await axios_1.default.get(url, {
+        const response = await axios.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 Accept: "application/rss+xml, application/xml, text/xml",
@@ -110,7 +104,7 @@ async function fetchTweetsForAccount(account) {
         }
     }
     catch (error) {
-        logger_1.default.warn("[TwitterCron] Flux RSS inaccessible pour @" + account + ": " + (error instanceof Error ? error.message : String(error)));
+        logger.warn("[TwitterCron] Flux RSS inaccessible pour @" + account + ": " + (error instanceof Error ? error.message : String(error)));
     }
     return tweets;
 }
@@ -139,24 +133,35 @@ function detectPlatforms(text) {
         matched.push(PLATFORM_CONFIGS.find(p => p.id === "nintendo"));
         seen.add("nintendo");
     }
+    if (/(fortnite|fn|battle\s*royale)/.test(t) && !seen.has("fortnite")) {
+        matched.push(PLATFORM_CONFIGS.find(p => p.id === "fortnite"));
+        seen.add("fortnite");
+    }
+    if (/(instant\s*gaming)/.test(t) && !seen.has("instantgaming")) {
+        matched.push(PLATFORM_CONFIGS.find(p => p.id === "instantgaming"));
+        seen.add("instantgaming");
+    }
     return matched;
 }
 // Fonction principale
 async function checkTwitterAccounts(client) {
+    // 🔒 Recharge le cache anti-doublon depuis le disque (persistance inter-cycles)
+    await dedupCache.reloadFromDisk();
     // Securite anti-crash : verifier qu'au moins un salon est configure
-    const hasAnyChannel = config_1.config.twitterChannel || config_1.config.steamEpicChannel ||
-        config_1.config.playstationChannel || config_1.config.xboxChannel || config_1.config.nintendoChannel;
+    const hasAnyChannel = config.twitterChannel || config.steamEpicChannel ||
+        config.playstationChannel || config.xboxChannel || config.nintendoChannel ||
+        config.fortniteChannel || config.instantGamingChannel;
     if (!hasAnyChannel) {
-        logger_1.default.warn("[TwitterCron] Aucun CHANNEL_ID configure (TWITTER_CHANNEL_ID, STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive");
+        logger.warn("[TwitterCron] Aucun CHANNEL_ID configure (TWITTER_CHANNEL_ID, STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID, FORTNITE_CHANNEL_ID, INSTANT_GAMING_CHANNEL_ID) — cron desactive");
         return;
     }
-    const accountsRaw = config_1.config.twitterAccounts;
+    const accountsRaw = config.twitterAccounts;
     if (!accountsRaw || accountsRaw.length === 0) {
-        logger_1.default.warn("[TwitterCron] TWITTER_ACCOUNTS non configuré — cron desactive");
+        logger.warn("[TwitterCron] TWITTER_ACCOUNTS non configuré — cron desactive");
         return;
     }
     if (isChecking) {
-        logger_1.default.info("[TwitterCron] Vérification déjà en cours, ignorée");
+        logger.info("[TwitterCron] Vérification déjà en cours, ignorée");
         return;
     }
     isChecking = true;
@@ -168,11 +173,11 @@ async function checkTwitterAccounts(client) {
             .map((a) => a.trim())
             .filter((a) => a.length > 0);
         if (accounts.length === 0) {
-            logger_1.default.warn("[TwitterCron] Aucun compte Twitter configuré");
+            logger.warn("[TwitterCron] Aucun compte Twitter configuré");
             return;
         }
         checkCount++;
-        logger_1.default.info("[TwitterCron] Verification #" + checkCount + " de " + accounts.length + " compte(s)...");
+        logger.info("[TwitterCron] Verification #" + checkCount + " de " + accounts.length + " compte(s)...");
         const results = await Promise.allSettled(accounts.map(async (account) => fetchTweetsForAccount(account)));
         const allTweets = [];
         for (const result of results) {
@@ -181,13 +186,13 @@ async function checkTwitterAccounts(client) {
             }
         }
         if (allTweets.length === 0) {
-            logger_1.default.info("[TwitterCron] Aucun tweet trouve");
+            logger.info("[TwitterCron] Aucun tweet trouve");
             return;
         }
         // Deduplication via ProcessedTweets (SQLite)
         const freshTweets = [];
         for (const tweet of allTweets) {
-            const existing = await prisma_1.default.processedTweets.findUnique({
+            const existing = await prisma.processedTweets.findUnique({
                 where: { tweetId: tweet.tweetId },
             });
             if (!existing) {
@@ -195,14 +200,20 @@ async function checkTwitterAccounts(client) {
             }
         }
         if (freshTweets.length === 0) {
-            logger_1.default.info("[TwitterCron] Tous les tweets sont déjà connus");
+            logger.info("[TwitterCron] Tous les tweets sont déjà connus");
             return;
         }
-        logger_1.default.info("[TwitterCron] " + freshTweets.length + " nouveau(x) tweet(s) à publier");
+        logger.info("[TwitterCron] " + freshTweets.length + " nouveau(x) tweet(s) à publier");
+        // VERROU ANTI-SPAM : dedup cache JSON local (barriere absolue)
         for (const tweet of freshTweets) {
-            // Barriere temporelle 48h
+            // Dedup cache check on tweetId
+            if (dedupCache.isAlreadyProcessed("twitter", tweet.tweetId)) {
+                logger.debug("[SPAM BLOQUE] Twitter doublon cache: " + tweet.tweetId);
+                continue;
+            }
+            // 🔒 Barriere temporelle 24h (anti-spam strict)
             const articleDate = new Date(tweet.pubDate);
-            const limitDate = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            const limitDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
             if (isNaN(articleDate.getTime()) || articleDate < limitDate)
                 continue;
             const platforms = detectPlatforms(tweet.content);
@@ -211,7 +222,7 @@ async function checkTwitterAccounts(client) {
                 ? platforms
                 : [{
                         id: "steam",
-                        channelId: config_1.config.twitterChannel,
+                        channelId: config.twitterChannel,
                         color: TWITTER_BLUE,
                         label: "Twitter",
                         iconUrl: TWITTER_ICON,
@@ -230,21 +241,21 @@ async function checkTwitterAccounts(client) {
                 }
                 catch { /* ignore */ }
                 if (!channel) {
-                    logger_1.default.warn("[TwitterCron] Salon " + cfg.channelId + " indisponible pour " + cfg.label);
+                    logger.warn("[TwitterCron] Salon " + cfg.channelId + " indisponible pour " + cfg.label);
                     continue;
                 }
                 const embedColor = cfg.id === "epic" && !platforms.length ? TWITTER_BLUE : cfg.color;
                 // Traduire le contenu du tweet si nécessaire
                 let translatedContent = tweet.content.slice(0, 2048) || "Contenu du tweet indisponible";
                 try {
-                    if ((0, translator_1.isLikelyEnglish)(tweet.content)) {
-                        translatedContent = await (0, translator_1.translateToFrench)(tweet.content.slice(0, 2048));
+                    if (isLikelyEnglish(tweet.content)) {
+                        translatedContent = await translateToFrench(tweet.content.slice(0, 2048));
                     }
                 }
                 catch (error) {
-                    logger_1.default.debug(`[TwitterCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`);
+                    logger.debug(`[TwitterCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`);
                 }
-                const embed = new discord_js_1.EmbedBuilder()
+                const embed = new EmbedBuilder()
                     .setTitle("\uD83D\uDD25 Nouveau Tweet de @" + tweet.account)
                     .setURL(tweet.link)
                     .setColor(embedColor)
@@ -267,9 +278,9 @@ async function checkTwitterAccounts(client) {
                 if (tweet.imageUrl) {
                     embed.setImage(tweet.imageUrl);
                 }
-                const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+                const row = new ActionRowBuilder().addComponents(new ButtonBuilder()
                     .setLabel("\uD83D\uDD17 Ouvrir sur X")
-                    .setStyle(discord_js_1.ButtonStyle.Link)
+                    .setStyle(ButtonStyle.Link)
                     .setURL(tweet.link));
                 try {
                     await channel.send({
@@ -277,16 +288,21 @@ async function checkTwitterAccounts(client) {
                         embeds: [embed],
                         components: [row],
                     });
-                    logger_1.default.info("[TwitterCron] \u2713 " + cfg.label + " : @" + tweet.account);
+                    logger.info("[TwitterCron] \u2713 " + cfg.label + " : @" + tweet.account);
+                    if (cfg.id === "fortnite") {
+                        pushFortniteDetection("tweets", `Tweet Fortnite: ${tweet.content?.slice(0, 100) || "(media)"}`);
+                    }
                 }
                 catch (sendError) {
                     const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
-                    logger_1.default.error("[TwitterCron] \u2717 Echec envoi " + cfg.label + ": " + sendMsg);
+                    logger.error("[TwitterCron] \u2717 Echec envoi " + cfg.label + ": " + sendMsg);
                     continue;
                 }
-                await new Promise((resolve) => setTimeout(resolve, 250));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
             }
-            await prisma_1.default.processedTweets.create({
+            // Marquer dans le cache JSON anti-doublon
+            await dedupCache.markAsProcessed("twitter", tweet.tweetId);
+            await prisma.processedTweets.create({
                 data: {
                     tweetId: tweet.tweetId,
                     account: tweet.account,
@@ -296,42 +312,44 @@ async function checkTwitterAccounts(client) {
             tweetsSent++;
         }
         const elapsed = Date.now() - startTime;
-        logger_1.default.info("[TwitterCron] ✓ " + tweetsSent + " tweet(s) envoyé(s) en " + (elapsed / 1000).toFixed(1) + "s");
+        logger.info("[TwitterCron] ✓ " + tweetsSent + " tweet(s) envoyé(s) en " + (elapsed / 1000).toFixed(1) + "s");
     }
     catch (error) {
-        logger_1.default.error("[TwitterCron] Erreur critique: " + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : undefined });
+        logger.error("[TwitterCron] Erreur critique: " + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : undefined });
     }
     finally {
         isChecking = false;
     }
 }
 // Demarrage / Arret
-function startTwitterMonitoring(client) {
+export function startTwitterMonitoring(client) {
     if (cronJob) {
-        logger_1.default.warn("[TwitterCron] Déjà actif — ignoré");
+        logger.warn("[TwitterCron] Déjà actif — ignoré");
         return;
     }
-    if (!config_1.config.twitterAccounts || config_1.config.twitterAccounts.length === 0) {
-        logger_1.default.warn("[TwitterCron] TWITTER_ACCOUNTS non configuré — surveillance désactivée");
+    if (!config.twitterAccounts || config.twitterAccounts.length === 0) {
+        logger.warn("[TwitterCron] TWITTER_ACCOUNTS non configuré — surveillance désactivée");
         return;
     }
-    const hasAnyChannel = config_1.config.twitterChannel || config_1.config.steamEpicChannel ||
-        config_1.config.playstationChannel || config_1.config.xboxChannel || config_1.config.nintendoChannel;
+    const hasAnyChannel = config.twitterChannel || config.steamEpicChannel ||
+        config.playstationChannel || config.xboxChannel || config.nintendoChannel ||
+        config.fortniteChannel || config.instantGamingChannel;
     if (!hasAnyChannel) {
-        logger_1.default.warn("[TwitterCron] Aucun CHANNEL_ID configuré — surveillance désactivée");
+        logger.warn("[TwitterCron] Aucun CHANNEL_ID configuré — surveillance désactivée");
         return;
     }
-    logger_1.default.info("[TwitterCron] ⏱️ Exécution Cron planifiée pour Twitter — toutes les 15 minutes");
-    cronJob = node_cron_1.default.schedule("*/15 * * * *", () => {
-        logger_1.default.info("[TwitterCron] ⏱️ Exécution Cron planifiée pour Twitter");
-        checkTwitterAccounts(client).catch((err) => logger_1.default.error("[TwitterCron] Erreur cron: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
+    logger.info("[TwitterCron] ⏱️ Exécution Cron planifiée pour Twitter — toutes les 15 minutes");
+    cronJob = cron.schedule("*/15 * * * *", () => {
+        logger.info("[TwitterCron] ⏱️ Exécution Cron planifiée pour Twitter");
+        checkTwitterAccounts(client).catch((err) => logger.error("[TwitterCron] Erreur cron: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
     });
 }
-function stopTwitterMonitoring() {
+export function stopTwitterMonitoring() {
     if (cronJob) {
         cronJob.stop();
         cronJob = null;
-        logger_1.default.info("[TwitterCron] Arrêté");
+        logger.info("[TwitterCron] Arrêté");
     }
 }
+export { checkTwitterAccounts, fetchTweetsForAccount, extractTweetId };
 //# sourceMappingURL=twitterCron.js.map

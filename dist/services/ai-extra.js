@@ -1,15 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSupportedLanguages = getSupportedLanguages;
-exports.getLanguageName = getLanguageName;
-exports.translateText = translateText;
-exports.summarizeMessages = summarizeMessages;
-const logger_1 = __importDefault(require("../utils/logger"));
-const ai_1 = require("./ai");
-const config_1 = require("../config");
+import logger from "../utils/logger.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 const SUPPORTED_LANGUAGES = {
     fr: "Français",
     en: "Anglais",
@@ -27,20 +18,20 @@ const SUPPORTED_LANGUAGES = {
     tr: "Turc",
     hi: "Hindi",
 };
-function getSupportedLanguages() {
+export function getSupportedLanguages() {
     return SUPPORTED_LANGUAGES;
 }
-function getLanguageName(code) {
+export function getLanguageName(code) {
     return SUPPORTED_LANGUAGES[code] || code;
 }
-async function translateText(text, targetLang) {
+export async function translateText(text, targetLang) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config_1.config.aiTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), config.aiTimeoutMs);
     try {
-        const client = (0, ai_1.getOpenAIClient)();
+        const client = getOpenAIClient();
         const langName = getLanguageName(targetLang);
         const completion = await client.chat.completions.create({
-            model: config_1.config.openRouterModel,
+            model: config.openRouterModel,
             messages: [
                 {
                     role: "system",
@@ -71,26 +62,26 @@ async function translateText(text, targetLang) {
         };
     }
     catch (error) {
-        logger_1.default.error("[AI-Translate] Erreur:", String(error));
+        logger.error("[AI-Translate] Erreur:", String(error));
         if (error.name === "AbortError") {
-            throw new Error("La traduction a pris trop de temps. Réessayez.");
+            throw new Error("La traduction a pris trop de temps. Réessayez.", { cause: error });
         }
-        throw new Error("Erreur lors de la traduction.");
+        throw new Error("Erreur lors de la traduction.", { cause: error });
     }
     finally {
         clearTimeout(timeout);
     }
 }
-async function summarizeMessages(messages) {
+export async function summarizeMessages(messages) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config_1.config.aiSummarizeTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), config.aiSummarizeTimeoutMs);
     try {
-        const client = (0, ai_1.getOpenAIClient)();
+        const client = getOpenAIClient();
         const conversation = messages
             .map((m) => `[${m.author}]: ${m.content}`)
             .join("\n");
         const completion = await client.chat.completions.create({
-            model: config_1.config.openRouterModel,
+            model: config.openRouterModel,
             messages: [
                 {
                     role: "system",
@@ -110,11 +101,11 @@ async function summarizeMessages(messages) {
             "Impossible de générer un résumé.");
     }
     catch (error) {
-        logger_1.default.error("[AI-Summarize] Erreur:", String(error));
+        logger.error("[AI-Summarize] Erreur:", String(error));
         if (error.name === "AbortError") {
-            throw new Error("Le résumé a pris trop de temps. Réessayez avec moins de messages.");
+            throw new Error("Le résumé a pris trop de temps. Réessayez avec moins de messages.", { cause: error });
         }
-        throw new Error("Erreur lors du résumé.");
+        throw new Error("Erreur lors du résumé.", { cause: error });
     }
     finally {
         clearTimeout(timeout);

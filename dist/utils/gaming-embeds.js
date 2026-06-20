@@ -1,4 +1,3 @@
-"use strict";
 /**
  * gaming-embeds.ts
  *
@@ -6,21 +5,14 @@
  * de bons plans et sorties de jeux. Une fonction par plateforme,
  * chaque plateforme ayant son identité visuelle propre.
  *
- * Usage : import { embedEpicGames, embedSteam, ... } from "../utils/gaming-embeds";
+ * Usage : import { embedEpicGames, embedSteam, ... } from "../utils/gaming-embeds.js";
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.embedEpicGames = embedEpicGames;
-exports.embedSteam = embedSteam;
-exports.embedPlayStation = embedPlayStation;
-exports.embedXbox = embedXbox;
-exports.embedInstantGaming = embedInstantGaming;
-exports.embedGamingNotification = embedGamingNotification;
-const discord_js_1 = require("discord.js");
+import { EmbedBuilder } from "discord.js";
 // ── Footer commun ─────────────────────────────────────────────────────────
 const GAMING_FOOTER = { text: "Alerte Bons Plans • Surveillance Gaming" };
 const SEPARATOR = "\n────────────────────────────────";
-function embedEpicGames(game) {
-    const embed = new discord_js_1.EmbedBuilder()
+export function embedEpicGames(game) {
+    const embed = new EmbedBuilder()
         .setTitle("🎁 JEU GRATUIT EPIC GAMES • " + game.name)
         .setColor(0x00f0ff)
         .setFooter(GAMING_FOOTER)
@@ -48,13 +40,13 @@ function embedEpicGames(game) {
     }
     return embed;
 }
-function embedSteam(game) {
+export function embedSteam(game) {
     const offerLabels = {
         free: "🆓 100% Gratuit (À garder à vie)",
         discount: "🔥 Offre Spéciale (-" + (game.discountPercent || 0) + "%)",
         special: "🔥 Offre Spéciale",
     };
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🔥 PROMO OU JEU GRATUIT STEAM • " + game.name)
         .setColor(0x1b2838)
         .setURL(game.steamAppUrl)
@@ -71,7 +63,7 @@ function embedSteam(game) {
     }
     return embed;
 }
-function embedPlayStation(game) {
+export function embedPlayStation(game) {
     const tierLabels = {
         Essential: "[PS Plus Essential]",
         Extra: "[PS Plus Extra]",
@@ -79,7 +71,7 @@ function embedPlayStation(game) {
         Soldes: "[Soldes PSN]",
         Promo: "[Promo PSN]",
     };
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🎮 AJOUTS PLAYSTATION PLUS / PROMO • " + game.name)
         .setColor(0x003087)
         .setFooter(GAMING_FOOTER)
@@ -107,8 +99,8 @@ function embedPlayStation(game) {
     }
     return embed;
 }
-function embedXbox(game) {
-    const embed = new discord_js_1.EmbedBuilder()
+export function embedXbox(game) {
+    const embed = new EmbedBuilder()
         .setTitle("🟩 ENTRÉE XBOX GAME PASS / PROMO • " + game.name)
         .setColor(0x107c10)
         .setFooter(GAMING_FOOTER)
@@ -140,8 +132,8 @@ function embedXbox(game) {
     }
     return embed;
 }
-function embedInstantGaming(game) {
-    const embed = new discord_js_1.EmbedBuilder()
+export function embedInstantGaming(game) {
+    const embed = new EmbedBuilder()
         .setTitle("💥 VENTE FLASH / BAISSE DE PRIX • " + game.name)
         .setColor(0xff5400)
         .setFooter(GAMING_FOOTER)
@@ -169,7 +161,7 @@ function embedInstantGaming(game) {
     return embed;
 }
 // Implementation
-function embedGamingNotification(platform, data) {
+export function embedGamingNotification(platform, data) {
     switch (platform) {
         case "epic":
             return embedEpicGames(data);

@@ -1,22 +1,13 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.addTranslationToHistory = addTranslationToHistory;
-exports.getUserTranslationHistory = getUserTranslationHistory;
-exports.clearUserTranslationHistory = clearUserTranslationHistory;
-exports.cleanupOldTranslationHistory = cleanupOldTranslationHistory;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 const MAX_HISTORY_PER_USER = 50; // Garder les 50 dernières traductions par utilisateur
 /**
  * Ajoute une traduction à l'historique
  */
-async function addTranslationToHistory(userId, originalText, translatedText, sourceLanguage, targetLanguage, guildId) {
+export async function addTranslationToHistory(userId, originalText, translatedText, sourceLanguage, targetLanguage, guildId) {
     try {
         // Stocker dans Prisma pour persistance
-        await prisma_1.default.translationHistory.create({
+        await prisma.translationHistory.create({
             data: {
                 userId,
                 guildId: guildId || null,
@@ -26,18 +17,18 @@ async function addTranslationToHistory(userId, originalText, translatedText, sou
                 targetLanguage,
             }
         });
-        logger_1.default.debug(`[TranslationHistory] Traduction ajoutée pour ${userId}: ${sourceLanguage} → ${targetLanguage}`);
+        logger.debug(`[TranslationHistory] Traduction ajoutée pour ${userId}: ${sourceLanguage} → ${targetLanguage}`);
     }
     catch (error) {
-        logger_1.default.debug(`[TranslationHistory] Erreur ajout historique: ${error instanceof Error ? error.message : String(error)}`);
+        logger.debug(`[TranslationHistory] Erreur ajout historique: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 /**
  * Récupère l'historique des traductions d'un utilisateur
  */
-async function getUserTranslationHistory(userId, guildId, limit = 10) {
+export async function getUserTranslationHistory(userId, guildId, limit = 10) {
     try {
-        const records = await prisma_1.default.translationHistory.findMany({
+        const records = await prisma.translationHistory.findMany({
             where: {
                 userId,
                 guildId: guildId || null,
@@ -58,34 +49,34 @@ async function getUserTranslationHistory(userId, guildId, limit = 10) {
         }));
     }
     catch (error) {
-        logger_1.default.debug(`[TranslationHistory] Erreur récupération historique: ${error instanceof Error ? error.message : String(error)}`);
+        logger.debug(`[TranslationHistory] Erreur récupération historique: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
 }
 /**
  * Efface l'historique des traductions d'un utilisateur
  */
-async function clearUserTranslationHistory(userId, guildId) {
+export async function clearUserTranslationHistory(userId, guildId) {
     try {
-        await prisma_1.default.translationHistory.deleteMany({
+        await prisma.translationHistory.deleteMany({
             where: {
                 userId,
                 guildId: guildId || null,
             }
         });
-        logger_1.default.debug(`[TranslationHistory] Historique effacé pour ${userId}`);
+        logger.debug(`[TranslationHistory] Historique effacé pour ${userId}`);
     }
     catch (error) {
-        logger_1.default.debug(`[TranslationHistory] Erreur suppression historique: ${error instanceof Error ? error.message : String(error)}`);
+        logger.debug(`[TranslationHistory] Erreur suppression historique: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 /**
  * Nettoie les anciennes entrées de l'historique (plus de 30 jours)
  */
-async function cleanupOldTranslationHistory() {
+export async function cleanupOldTranslationHistory() {
     try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const result = await prisma_1.default.translationHistory.deleteMany({
+        const result = await prisma.translationHistory.deleteMany({
             where: {
                 createdAt: {
                     lt: thirtyDaysAgo
@@ -93,11 +84,11 @@ async function cleanupOldTranslationHistory() {
             }
         });
         if (result.count > 0) {
-            logger_1.default.info(`[TranslationHistory] Nettoyage de ${result.count} ancienne(s) entrée(s)`);
+            logger.info(`[TranslationHistory] Nettoyage de ${result.count} ancienne(s) entrée(s)`);
         }
     }
     catch (error) {
-        logger_1.default.debug(`[TranslationHistory] Erreur nettoyage historique: ${error instanceof Error ? error.message : String(error)}`);
+        logger.debug(`[TranslationHistory] Erreur nettoyage historique: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 // Nettoyage automatique toutes les heures

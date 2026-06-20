@@ -1,16 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDeals = getDeals;
-exports.buildDealEmbed = buildDealEmbed;
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const logger_1 = __importDefault(require("../utils/logger"));
-const ITAD_BASE = config_1.config.itadApiBaseUrl;
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+const ITAD_BASE = config.itadApiBaseUrl;
 function apiKey() {
-    return config_1.config.itadApiKey || "";
+    return config.itadApiKey || "";
 }
 function buildUrl(path, params) {
     const key = apiKey();
@@ -55,7 +48,7 @@ async function searchGame(query) {
         return data?.data?.list || [];
     }
     catch (err) {
-        logger_1.default.error("[ITAD] Search error:", err);
+        logger.error("[ITAD] Search error:", err);
         return [];
     }
 }
@@ -75,7 +68,7 @@ async function getPrices(plains) {
         return data?.data?.[plains[0]]?.list || [];
     }
     catch (err) {
-        logger_1.default.error("[ITAD] Prices error:", err);
+        logger.error("[ITAD] Prices error:", err);
         return [];
     }
 }
@@ -95,11 +88,11 @@ async function getLowest(plains) {
         return data?.data?.[plains[0]] || null;
     }
     catch (err) {
-        logger_1.default.error("[ITAD] Lowest error:", err);
+        logger.error("[ITAD] Lowest error:", err);
         return null;
     }
 }
-async function getDeals(gameName) {
+export async function getDeals(gameName) {
     const games = await searchGame(gameName);
     if (games.length === 0)
         return null;
@@ -116,9 +109,9 @@ async function getDeals(gameName) {
         url: `https://isthereanydeal.com/game/${plain}/info/`,
     };
 }
-function buildDealEmbed(result) {
+export function buildDealEmbed(result) {
     const { game, prices, lowest, url } = result;
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setAuthor({ name: "Comparateur de prix • IsThereAnyDeal" })
         .setTitle("🏷️ " + game.title)
         .setURL(url)

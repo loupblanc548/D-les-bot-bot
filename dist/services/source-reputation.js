@@ -1,16 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sourceReputationService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 class SourceReputationService {
     reputationCache;
     constructor() {
         this.reputationCache = new Map();
-        logger_1.default.info("[SourceReputation] Service initialisé");
+        logger.info("[SourceReputation] Service initialisé");
     }
     /**
      * Enregistre une source
@@ -28,12 +22,12 @@ class SourceReputationService {
             metadata,
         };
         this.reputationCache.set(sourceId, reputation);
-        await prisma_1.default.sourceReputation.upsert({
+        await prisma.sourceReputation.upsert({
             where: { sourceId },
             create: reputation,
             update: reputation,
         });
-        logger_1.default.info(`[SourceReputation] Source enregistrée: ${sourceName}`);
+        logger.info(`[SourceReputation] Source enregistrée: ${sourceName}`);
     }
     /**
      * Signale un deal réussi pour une source
@@ -49,7 +43,7 @@ class SourceReputationService {
         reputation.lastUpdated = Date.now();
         this.reputationCache.set(sourceId, reputation);
         await this.saveReputation(sourceId);
-        logger_1.default.debug(`[SourceReputation] Deal réussi pour ${sourceId}: score ${reputation.reliabilityScore}`);
+        logger.debug(`[SourceReputation] Deal réussi pour ${sourceId}: score ${reputation.reliabilityScore}`);
     }
     /**
      * Signale un deal échoué pour une source
@@ -65,7 +59,7 @@ class SourceReputationService {
         reputation.lastUpdated = Date.now();
         this.reputationCache.set(sourceId, reputation);
         await this.saveReputation(sourceId);
-        logger_1.default.debug(`[SourceReputation] Deal échoué pour ${sourceId}: score ${reputation.reliabilityScore}`);
+        logger.debug(`[SourceReputation] Deal échoué pour ${sourceId}: score ${reputation.reliabilityScore}`);
     }
     /**
      * Obtient la réputation d'une source
@@ -106,7 +100,7 @@ class SourceReputationService {
         const reputation = this.reputationCache.get(sourceId);
         if (!reputation)
             return;
-        await prisma_1.default.sourceReputation.upsert({
+        await prisma.sourceReputation.upsert({
             where: { sourceId },
             create: reputation,
             update: reputation,
@@ -116,11 +110,11 @@ class SourceReputationService {
      * Charge les réputations depuis Prisma
      */
     async loadReputationsFromPrisma() {
-        const reputations = await prisma_1.default.sourceReputation.findMany();
+        const reputations = await prisma.sourceReputation.findMany();
         for (const reputation of reputations) {
             this.reputationCache.set(reputation.sourceId, reputation);
         }
-        logger_1.default.info(`[SourceReputation] ${reputations.length} réputation(s) chargée(s) depuis Prisma`);
+        logger.info(`[SourceReputation] ${reputations.length} réputation(s) chargée(s) depuis Prisma`);
     }
     /**
      * Réinitialise les scores (pour maintenance)
@@ -134,7 +128,7 @@ class SourceReputationService {
         reputation.lastUpdated = Date.now();
         this.reputationCache.set(sourceId, reputation);
         await this.saveReputation(sourceId);
-        logger_1.default.info(`[SourceReputation] Scores réinitialisés pour ${sourceId}`);
+        logger.info(`[SourceReputation] Scores réinitialisés pour ${sourceId}`);
     }
     /**
      * Obtient les statistiques globales
@@ -159,5 +153,5 @@ class SourceReputationService {
         };
     }
 }
-exports.sourceReputationService = new SourceReputationService();
+export const sourceReputationService = new SourceReputationService();
 //# sourceMappingURL=source-reputation.js.map

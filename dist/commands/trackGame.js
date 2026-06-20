@@ -1,20 +1,12 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleAutocomplete = handleAutocomplete;
-exports.handleCommand = handleCommand;
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const logger_1 = __importDefault(require("../utils/logger"));
-const steamNewsService_1 = require("../services/steamNewsService");
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags, } from "discord.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { findAppIdByName, getLatestNews } from "../services/steamNewsService.js";
 const FOOTER = { text: "Système de Surveillance • Steam News Tracker" };
 // ─── Définitions des commandes Slash ─────────────────────────────────────────
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("track-game")
         .setDescription("Surveiller les actualités d'un jeu Steam")
         .addStringOption((option) => option
@@ -24,7 +16,7 @@ exports.commands = [
         .setMinLength(2)
         .setMaxLength(200))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("untrack-game")
         .setDescription("Retirer un jeu de la surveillance Steam")
         .addStringOption((option) => option
@@ -33,20 +25,20 @@ exports.commands = [
         .setRequired(true)
         .setAutocomplete(true))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("list-tracked")
         .setDescription("Lister tous les jeux surveillés")
         .toJSON(),
 ];
 // ─── Autocomplete pour /untrack-game ─────────────────────────────────────────
-async function handleAutocomplete(interaction) {
+export async function handleAutocomplete(interaction) {
     if (interaction.commandName !== "untrack-game")
         return;
     const focused = interaction.options.getFocused(true);
     if (focused.name !== "jeu")
         return;
     const focusedValue = focused.value.toLowerCase();
-    const games = await prisma_1.default.trackedGame.findMany({
+    const games = await prisma.trackedGame.findMany({
         orderBy: { gameName: "asc" },
     });
     const filtered = focusedValue
@@ -57,7 +49,7 @@ async function handleAutocomplete(interaction) {
     await interaction.respond(filtered.map((g) => ({ name: g.gameName.slice(0, 100), value: g.gameName })));
 }
 // ─── Handler principal ────────────────────────────────────────────────────────
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const { commandName } = interaction;
     switch (commandName) {
         case "track-game":
@@ -74,16 +66,16 @@ async function handleCommand(interaction) {
 // ─── /track-game ─────────────────────────────────────────────────────────────
 async function handleTrackGame(interaction) {
     const gameName = interaction.options.getString("jeu", true).trim();
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
-        const match = await (0, steamNewsService_1.findAppIdByName)(gameName);
+        const match = await findAppIdByName(gameName);
         if (!match) {
             await interaction.editReply({
                 content: `❌ Jeu **${gameName}** introuvable dans la base Steam.\nVérifie l'orthographe ou utilise le nom exact du jeu.`,
             });
             return;
         }
-        const existing = await prisma_1.default.trackedGame.findFirst({
+        const existing = await prisma.trackedGame.findFirst({
             where: { appId: match.appid },
         });
         if (existing) {
@@ -92,12 +84,12 @@ async function handleTrackGame(interaction) {
             });
             return;
         }
-        const latestNews = await (0, steamNewsService_1.getLatestNews)(match.appid);
+        const latestNews = await getLatestNews(match.appid);
         const lastNewsDate = latestNews?.date ?? new Date();
-        const tracked = await prisma_1.default.trackedGame.create({
+        const tracked = await prisma.trackedGame.create({
             data: { appId: match.appid, gameName: match.name, lastNewsDate },
         });
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("🎮 Jeu ajouté à la surveillance")
             .setColor(0x2a475e)
             .setDescription(`Les actualités de **${match.name}** seront désormais surveillées automatiquement.`)
@@ -107,14 +99,14 @@ async function handleTrackGame(interaction) {
                 ? `[${latestNews.title}](${latestNews.url}) — ${latestNews.date.toLocaleDateString()}`
                 : "Aucune news détectée",
             inline: false,
-        }, { name: "Salon de publication", value: `<#${config_1.config.steamChannel || "non configuré"}>`, inline: true })
+        }, { name: "Salon de publication", value: `<#${config.steamChannel || "non configuré"}>`, inline: true })
             .setFooter(FOOTER)
             .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
-        logger_1.default.info(`[TrackGame] ${match.name} (${match.appid}) ajouté à la surveillance`);
+        logger.info(`[TrackGame] ${match.name} (${match.appid}) ajouté à la surveillance`);
     }
     catch (error) {
-        logger_1.default.error("[TrackGame] Erreur:", String(error));
+        logger.error("[TrackGame] Erreur:", String(error));
         try {
             await interaction.editReply({ content: "❌ Une erreur est survenue lors de l'ajout du jeu." });
         }
@@ -124,9 +116,9 @@ async function handleTrackGame(interaction) {
 // ─── /untrack-game ───────────────────────────────────────────────────────────
 async function handleUntrackGame(interaction) {
     const gameName = interaction.options.getString("jeu", true).trim();
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
-        const tracked = await prisma_1.default.trackedGame.findFirst({
+        const tracked = await prisma.trackedGame.findFirst({
             where: { gameName },
         });
         if (!tracked) {
@@ -135,8 +127,8 @@ async function handleUntrackGame(interaction) {
             });
             return;
         }
-        await prisma_1.default.trackedGame.delete({ where: { id: tracked.id } });
-        const embed = new discord_js_1.EmbedBuilder()
+        await prisma.trackedGame.delete({ where: { id: tracked.id } });
+        const embed = new EmbedBuilder()
             .setTitle("🗑️ Jeu retiré de la surveillance")
             .setColor(0xff4444)
             .setDescription(`**${tracked.gameName}** (AppID ${tracked.appId}) ne sera plus surveillé.`)
@@ -148,10 +140,10 @@ async function handleUntrackGame(interaction) {
             .setFooter(FOOTER)
             .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
-        logger_1.default.info(`[TrackGame] ${tracked.gameName} (${tracked.appId}) retiré de la surveillance`);
+        logger.info(`[TrackGame] ${tracked.gameName} (${tracked.appId}) retiré de la surveillance`);
     }
     catch (error) {
-        logger_1.default.error("[TrackGame] Erreur untrack:", String(error));
+        logger.error("[TrackGame] Erreur untrack:", String(error));
         try {
             await interaction.editReply({ content: "❌ Une erreur est survenue lors de la suppression." });
         }
@@ -160,9 +152,9 @@ async function handleUntrackGame(interaction) {
 }
 // ─── /list-tracked ───────────────────────────────────────────────────────────
 async function handleListTracked(interaction) {
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
-        const games = await prisma_1.default.trackedGame.findMany({
+        const games = await prisma.trackedGame.findMany({
             orderBy: { gameName: "asc" },
         });
         if (games.length === 0) {
@@ -174,13 +166,13 @@ async function handleListTracked(interaction) {
         const description = games
             .map((g) => `• **${g.gameName}** (AppID ${g.appId}) — Dernière news : ${g.lastNewsDate.toLocaleDateString()}`)
             .join("\n");
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(`📋 Jeux surveillés (${games.length})`)
             .setColor(0x2a475e)
             .setDescription(description.length > 4096 ? description.slice(0, 4093) + "..." : description)
             .addFields({
             name: "Salon de publication",
-            value: `<#${config_1.config.steamChannel || "non configuré"}>`,
+            value: `<#${config.steamChannel || "non configuré"}>`,
             inline: false,
         })
             .setFooter(FOOTER)
@@ -188,7 +180,7 @@ async function handleListTracked(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[TrackGame] Erreur list:", String(error));
+        logger.error("[TrackGame] Erreur list:", String(error));
         try {
             await interaction.editReply({ content: "❌ Une erreur est survenue lors du listage." });
         }

@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiCache = exports.rssCache = exports.dbCache = void 0;
 /**
  * Simple in-memory cache with TTL support
  */
@@ -60,13 +57,13 @@ class SimpleCache {
     }
 }
 // Singleton instances for different cache types
-exports.dbCache = new SimpleCache(60000); // 1 minute for DB queries
-exports.rssCache = new SimpleCache(300000); // 5 minutes for RSS feeds
-exports.apiCache = new SimpleCache(120000); // 2 minutes for API responses
+export const dbCache = new SimpleCache(60000); // 1 minute for DB queries
+export const rssCache = new SimpleCache(300000); // 5 minutes for RSS feeds
+export const apiCache = new SimpleCache(120000); // 2 minutes for API responses
 // Cleanup expired entries every 5 minutes
 setInterval(() => {
-    exports.dbCache.cleanup();
-    exports.rssCache.cleanup();
-    exports.apiCache.cleanup();
+    dbCache.cleanup();
+    rssCache.cleanup();
+    apiCache.cleanup();
 }, 300000);
 //# sourceMappingURL=cache.js.map

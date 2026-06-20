@@ -1,15 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.fetchFreeGames = fetchFreeGames;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 // API Epic Games - Jeux gratuits et promos
 // Dedup via Prisma (pas de Set memoire)
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const EPIC_FREE_GAMES_URL = `${config_1.config.epicGamesApiUrl}/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR`;
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+const EPIC_FREE_GAMES_URL = `${config.epicGamesApiUrl}/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR`;
 // Word-level fuzzy matching : evite les faux positifs (ex: "Skin" ne matche plus "Skinny")
 function matchesWishlist(wishlistName, shopName) {
     const w = wishlistName.toLowerCase().trim();
@@ -27,11 +21,11 @@ function matchesWishlist(wishlistName, shopName) {
         return true;
     return false;
 }
-async function fetchFreeGames(client) {
+export async function fetchFreeGames(client) {
     try {
         const response = await fetch(EPIC_FREE_GAMES_URL);
         if (!response.ok) {
-            logger_1.default.warn(`[EpicGames] HTTP ${response.status}`);
+            logger.warn(`[EpicGames] HTTP ${response.status}`);
             return [];
         }
         const json = await response.json();
@@ -77,12 +71,12 @@ async function fetchFreeGames(client) {
         // Dedup via Prisma : ne pas renotifier les jeux deja vus
         const newGames = [];
         for (const game of games) {
-            const existing = await prisma_1.default.notification.findFirst({
+            const existing = await prisma.notification.findFirst({
                 where: { url: game.url },
             });
             if (existing)
                 continue;
-            await prisma_1.default.notification.create({
+            await prisma.notification.create({
                 data: {
                     sourceId: "epic-games",
                     platform: "epicgames",
@@ -93,11 +87,11 @@ async function fetchFreeGames(client) {
             newGames.push(game);
         }
         if (newGames.length > 0) {
-            logger_1.default.info(`[EpicGames] ${newGames.length} nouveau(x) jeu(x) gratuit(s)`);
+            logger.info(`[EpicGames] ${newGames.length} nouveau(x) jeu(x) gratuit(s)`);
         }
         // Scan wishlist et notification DM
         if (newGames.length > 0) {
-            const wishlistItems = await prisma_1.default.wishlist.findMany();
+            const wishlistItems = await prisma.wishlist.findMany();
             const matchMap = new Map();
             for (const game of newGames) {
                 for (const item of wishlistItems) {
@@ -112,7 +106,7 @@ async function fetchFreeGames(client) {
                 }
             }
             if (matchMap.size > 0) {
-                logger_1.default.info("[EpicGames/Wishlist] " + matchMap.size + " correspondance(s) trouvee(s)");
+                logger.info("[EpicGames/Wishlist] " + matchMap.size + " correspondance(s) trouvee(s)");
                 for (const [, match] of matchMap) {
                     try {
                         const user = await client.users.fetch(match.userId);
@@ -136,7 +130,7 @@ async function fetchFreeGames(client) {
         return newGames;
     }
     catch (err) {
-        logger_1.default.error("[EpicGames] Erreur API:", String(err));
+        logger.error("[EpicGames] Erreur API:", String(err));
         return [];
     }
 }

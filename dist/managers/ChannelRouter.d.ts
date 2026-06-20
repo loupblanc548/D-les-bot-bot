@@ -54,10 +54,10 @@ export declare function buildPlatformEmbed(article: Omit<RoutedArticle, "platfor
  * Sauvegarde l'état dans Prisma SEULEMENT après confirmation de l'envoi Discord.
  */
 export declare function dispatchToChannels(client: Client, article: RoutedArticle): Promise<RoutingResult>;
-/**
- * Pipeline complet : détection → résolution → dispatch.
- * À appeler depuis les crons après validation/dédup.
- */
+/** Active le mode silencieux : routeArticle retourne un succes factice sans envoyer a Discord */
+export declare function enableSilentMode(): void;
+/** Desactive le mode silencieux : les envois Discord reprennent normalement */
+export declare function disableSilentMode(): void;
 export declare function routeArticle(client: Client, title: string, content: string, url: string, pubDate: string, image?: string): Promise<RoutingResult>;
 export { PLATFORM_CONFIGS };
 //# sourceMappingURL=ChannelRouter.d.ts.map

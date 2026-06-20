@@ -1,30 +1,23 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearToxicityCache = clearToxicityCache;
-exports.analyzeToxicity = analyzeToxicity;
-const logger_1 = __importDefault(require("../utils/logger"));
-const ai_1 = require("./ai");
-const config_1 = require("../config");
+import logger from "../utils/logger.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 const TOXICITY_CACHE = new Map();
 const CACHE_TTL = 60_000;
-function clearToxicityCache() {
+export function clearToxicityCache() {
     TOXICITY_CACHE.clear();
 }
-async function analyzeToxicity(content) {
+export async function analyzeToxicity(content) {
     const cacheKey = content.slice(0, 200);
     const cached = TOXICITY_CACHE.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return cached.result;
     }
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config_1.config.aiModerationTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), config.aiModerationTimeoutMs);
     try {
-        const client = (0, ai_1.getOpenAIClient)();
+        const client = getOpenAIClient();
         const completion = await client.chat.completions.create({
-            model: config_1.config.openRouterModel,
+            model: config.openRouterModel,
             messages: [
                 {
                     role: "system",
@@ -63,7 +56,7 @@ async function analyzeToxicity(content) {
         return result;
     }
     catch (error) {
-        logger_1.default.error("[AI-Moderation] Erreur:", String(error));
+        logger.error("[AI-Moderation] Erreur:", String(error));
         if (error.name === "AbortError") {
             return { isToxic: false, category: "normal", confidence: 0, explanation: "Timeout" };
         }

@@ -1,15 +1,13 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const vitest_1 = require("vitest");
-const mocks = vitest_1.vi.hoisted(() => ({
-    info: vitest_1.vi.fn(),
-    warn: vitest_1.vi.fn(),
-    error: vitest_1.vi.fn(),
+import { describe, it, expect, vi, beforeEach } from "vitest";
+const mocks = vi.hoisted(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
 }));
-vitest_1.vi.mock("../utils/logger", () => ({
+vi.mock("../utils/logger", () => ({
     default: { info: mocks.info, warn: mocks.warn, error: mocks.error },
 }));
-const logging_1 = require("./logging");
+import { createLoggingMiddleware } from "./logging.js";
 function makeInteraction(overrides = {}) {
     return {
         isChatInputCommand: () => true,
@@ -19,40 +17,40 @@ function makeInteraction(overrides = {}) {
         user: { id: "u1", tag: "user#0001" },
     };
 }
-(0, vitest_1.describe)("logging middleware", () => {
-    (0, vitest_1.beforeEach)(() => {
+describe("logging middleware", () => {
+    beforeEach(() => {
         mocks.info.mockClear();
         mocks.warn.mockClear();
         mocks.error.mockClear();
     });
-    (0, vitest_1.it)("log l'invocation et le succès avec latence", async () => {
-        const mw = (0, logging_1.createLoggingMiddleware)();
-        const next = vitest_1.vi.fn(async () => undefined);
+    it("log l'invocation et le succès avec latence", async () => {
+        const mw = createLoggingMiddleware();
+        const next = vi.fn(async () => undefined);
         const interaction = makeInteraction();
         await mw(interaction, {}, next);
-        (0, vitest_1.expect)(mocks.info).toHaveBeenCalledTimes(2);
-        (0, vitest_1.expect)(mocks.info.mock.calls[0][0]).toMatch(/ping par user#0001/);
-        (0, vitest_1.expect)(mocks.info.mock.calls[1][0]).toMatch(/ping OK en \d+ms/);
-        (0, vitest_1.expect)(next).toHaveBeenCalledTimes(1);
+        expect(mocks.info).toHaveBeenCalledTimes(2);
+        expect(mocks.info.mock.calls[0][0]).toMatch(/ping par user#0001/);
+        expect(mocks.info.mock.calls[1][0]).toMatch(/ping OK en \d+ms/);
+        expect(next).toHaveBeenCalledTimes(1);
     });
-    (0, vitest_1.it)("log l'échec via logger.error et remonte l'erreur", async () => {
-        const mw = (0, logging_1.createLoggingMiddleware)();
+    it("log l'échec via logger.error et remonte l'erreur", async () => {
+        const mw = createLoggingMiddleware();
         const boom = new Error("kaboom");
-        const next = vitest_1.vi.fn(async () => {
+        const next = vi.fn(async () => {
             throw boom;
         });
         const interaction = makeInteraction({ commandName: "boom" });
-        await (0, vitest_1.expect)(mw(interaction, {}, next)).rejects.toBe(boom);
-        (0, vitest_1.expect)(mocks.error).toHaveBeenCalledTimes(1);
-        (0, vitest_1.expect)(mocks.error.mock.calls[0][0]).toMatch(/boom FAILED/);
-        (0, vitest_1.expect)(mocks.error.mock.calls[0][0]).toMatch(/kaboom/);
+        await expect(mw(interaction, {}, next)).rejects.toBe(boom);
+        expect(mocks.error).toHaveBeenCalledTimes(1);
+        expect(mocks.error.mock.calls[0][0]).toMatch(/boom FAILED/);
+        expect(mocks.error.mock.calls[0][0]).toMatch(/kaboom/);
     });
-    (0, vitest_1.it)("laisse passer si pas une ChatInputCommand", async () => {
-        const mw = (0, logging_1.createLoggingMiddleware)();
-        const next = vitest_1.vi.fn(async () => undefined);
+    it("laisse passer si pas une ChatInputCommand", async () => {
+        const mw = createLoggingMiddleware();
+        const next = vi.fn(async () => undefined);
         await mw({ isChatInputCommand: () => false }, {}, next);
-        (0, vitest_1.expect)(next).toHaveBeenCalledTimes(1);
-        (0, vitest_1.expect)(mocks.info).not.toHaveBeenCalled();
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(mocks.info).not.toHaveBeenCalled();
     });
 });
 //# sourceMappingURL=logging.test.js.map

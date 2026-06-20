@@ -1,5 +1,3 @@
-import logger from "../utils/logger.js";
-
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;

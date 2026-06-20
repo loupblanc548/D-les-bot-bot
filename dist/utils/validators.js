@@ -1,47 +1,35 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isValidDiscordId = isValidDiscordId;
-exports.isValidUrl = isValidUrl;
-exports.isValidEmail = isValidEmail;
-exports.isValidMention = isValidMention;
-exports.extractIdFromMention = extractIdFromMention;
-exports.extractIdFromChannelMention = extractIdFromChannelMention;
-exports.extractIdFromRoleMention = extractIdFromRoleMention;
-exports.sanitizeString = sanitizeString;
-exports.truncateString = truncateString;
-exports.isNotEmptyString = isNotEmptyString;
-const constants_1 = require("./constants");
+import { REGEX_PATTERNS } from "./constants.js";
 /**
  * Utilitaires de validation pour les entrées utilisateur
  */
-function isValidDiscordId(id) {
-    return constants_1.REGEX_PATTERNS.DISCORD_ID.test(id);
+export function isValidDiscordId(id) {
+    return REGEX_PATTERNS.DISCORD_ID.test(id);
 }
-function isValidUrl(url) {
-    return constants_1.REGEX_PATTERNS.URL.test(url);
+export function isValidUrl(url) {
+    return REGEX_PATTERNS.URL.test(url);
 }
-function isValidEmail(email) {
-    return constants_1.REGEX_PATTERNS.EMAIL.test(email);
+export function isValidEmail(email) {
+    return REGEX_PATTERNS.EMAIL.test(email);
 }
-function isValidMention(mention) {
-    return constants_1.REGEX_PATTERNS.MENTION.test(mention);
+export function isValidMention(mention) {
+    return REGEX_PATTERNS.MENTION.test(mention);
 }
-function extractIdFromMention(mention) {
-    const match = mention.match(constants_1.REGEX_PATTERNS.MENTION);
+export function extractIdFromMention(mention) {
+    const match = mention.match(REGEX_PATTERNS.MENTION);
     return match ? match[1] : null;
 }
-function extractIdFromChannelMention(mention) {
-    const match = mention.match(constants_1.REGEX_PATTERNS.CHANNEL_MENTION);
+export function extractIdFromChannelMention(mention) {
+    const match = mention.match(REGEX_PATTERNS.CHANNEL_MENTION);
     return match ? match[1] : null;
 }
-function extractIdFromRoleMention(mention) {
-    const match = mention.match(constants_1.REGEX_PATTERNS.ROLE_MENTION);
+export function extractIdFromRoleMention(mention) {
+    const match = mention.match(REGEX_PATTERNS.ROLE_MENTION);
     return match ? match[1] : null;
 }
 /**
  * Sanitize une chaîne pour éviter les injections XSS
  */
-function sanitizeString(input) {
+export function sanitizeString(input) {
     return input
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -52,7 +40,7 @@ function sanitizeString(input) {
 /**
  * Tronque une chaîne à une longueur maximale
  */
-function truncateString(str, maxLength, suffix = "...") {
+export function truncateString(str, maxLength, suffix = "...") {
     if (str.length <= maxLength)
         return str;
     return str.slice(0, maxLength - suffix.length) + suffix;
@@ -60,7 +48,7 @@ function truncateString(str, maxLength, suffix = "...") {
 /**
  * Valide qu'une chaîne n'est pas vide après nettoyage
  */
-function isNotEmptyString(str) {
+export function isNotEmptyString(str) {
     return typeof str === "string" && str.trim().length > 0;
 }
 //# sourceMappingURL=validators.js.map

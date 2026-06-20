@@ -1,19 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendTelegramMessage = sendTelegramMessage;
-exports.sendCriticalAlert = sendCriticalAlert;
-exports.sendHealthReport = sendHealthReport;
-exports.sendDeploymentNotification = sendDeploymentNotification;
-exports.initTelegramNotifications = initTelegramNotifications;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 const TELEGRAM_API_URL = "https://api.telegram.org/bot";
 /**
  * Envoie un message via Telegram Bot API
  */
-async function sendTelegramMessage(botToken, chatId, text, parseMode = "Markdown") {
+export async function sendTelegramMessage(botToken, chatId, text, parseMode = "Markdown") {
     try {
         const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
             method: "POST",
@@ -28,27 +18,27 @@ async function sendTelegramMessage(botToken, chatId, text, parseMode = "Markdown
         });
         const data = await response.json();
         if (data.ok) {
-            logger_1.default.info(`[Telegram] Message envoyé à ${chatId}`);
+            logger.info(`[Telegram] Message envoyé à ${chatId}`);
             return true;
         }
         else {
-            logger_1.default.error(`[Telegram] Erreur API: ${data.description}`);
+            logger.error(`[Telegram] Erreur API: ${data.description}`);
             return false;
         }
     }
     catch (error) {
-        logger_1.default.error("[Telegram] Erreur lors de l'envoi du message:", error);
+        logger.error("[Telegram] Erreur lors de l'envoi du message:", error);
         return false;
     }
 }
 /**
  * Envoie une alerte critique via Telegram
  */
-async function sendCriticalAlert(message, data) {
+export async function sendCriticalAlert(message, data) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!botToken || !chatId) {
-        logger_1.default.warn("[Telegram] Configuration Telegram manquante");
+        logger.warn("[Telegram] Configuration Telegram manquante");
         return;
     }
     const formattedMessage = `🚨 **ALERTE CRITIQUE**
@@ -58,17 +48,17 @@ ${message}
 ${data ? `Données: \`${JSON.stringify(data, null, 2)}\`` : ""}`.trim();
     const success = await sendTelegramMessage(botToken, chatId, formattedMessage);
     if (!success) {
-        logger_1.default.error("[Telegram] Échec de l'envoi de l'alerte critique");
+        logger.error("[Telegram] Échec de l'envoi de l'alerte critique");
     }
 }
 /**
  * Envoie un rapport de santé via Telegram
  */
-async function sendHealthReport(uptime, memoryUsage, guildCount, userCount) {
+export async function sendHealthReport(uptime, memoryUsage, guildCount, userCount) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!botToken || !chatId) {
-        logger_1.default.warn("[Telegram] Configuration Telegram manquante");
+        logger.warn("[Telegram] Configuration Telegram manquante");
         return;
     }
     const message = `📊 **Rapport de Santé**
@@ -82,11 +72,11 @@ async function sendHealthReport(uptime, memoryUsage, guildCount, userCount) {
 /**
  * Envoie une notification de déploiement via Telegram
  */
-async function sendDeploymentNotification(version, environment) {
+export async function sendDeploymentNotification(version, environment) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!botToken || !chatId) {
-        logger_1.default.warn("[Telegram] Configuration Telegram manquante");
+        logger.warn("[Telegram] Configuration Telegram manquante");
         return;
     }
     const message = `🚀 **Déploiement**
@@ -99,14 +89,14 @@ Date: ${new Date().toLocaleString()}`.trim();
 /**
  * Initialise les notifications Telegram
  */
-function initTelegramNotifications() {
+export function initTelegramNotifications() {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
-        logger_1.default.info("[Telegram] Notifications Telegram activées");
+        logger.info("[Telegram] Notifications Telegram activées");
     }
     else {
-        logger_1.default.warn("[Telegram] Notifications Telegram désactivées (configuration manquante)");
+        logger.warn("[Telegram] Notifications Telegram désactivées (configuration manquante)");
     }
 }
 //# sourceMappingURL=telegram-notifications.js.map

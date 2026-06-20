@@ -1,22 +1,15 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 // Commandes Steam — /steam connect|nowplaying|wishlist
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const steam_1 = require("../services/steam");
-const config_1 = require("../config");
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, } from "discord.js";
+import prisma from "../prisma.js";
+import { getPlayerSummaries, resolveVanityUrl, isValidSteamId, } from "../services/steam.js";
+import { config } from "../config.js";
 // Cache TTL pour handleNowPlaying (evite de fetch tous les membres a chaque appel)
 const nowPlayingCache = new Map();
 const CACHE_TTL_MS = 60_000; // 1 minute
 const FOOTER = { text: "Surveillance System • Steam" };
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("steam")
         .setDescription("Gere la connexion Steam et affiche les statuts")
         .addSubcommand((sub) => sub
@@ -37,13 +30,13 @@ exports.commands = [
         .addUserOption((o) => o.setName("utilisateur").setDescription("Membre (defaut: toi)").setRequired(false)))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const sub = interaction.options.getSubcommand();
     // Verifier que la cle API Steam est configuree
-    if (!config_1.config.steamApiKey) {
+    if (!config.steamApiKey) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setTitle(`Cle API Steam manquante`)
                     .setDescription(`La cle API Steam n'est pas configuree.
 ` +
@@ -51,7 +44,7 @@ async function handleCommand(interaction) {
 ` +
                     `Obtenez-la sur : https://steamcommunity.com/dev/apikey`)
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
@@ -72,8 +65,8 @@ async function handleCommand(interaction) {
         }
     }
     catch (err) {
-        logger_1.default.error("[Steam] Erreur:", err);
-        const errorEmbed = new discord_js_1.EmbedBuilder()
+        logger.error("[Steam] Erreur:", err);
+        const errorEmbed = new EmbedBuilder()
             .setColor(0xff3344)
             .setDescription("Une erreur est survenue.");
         try {
@@ -81,7 +74,7 @@ async function handleCommand(interaction) {
                 await interaction.editReply({ embeds: [errorEmbed] });
             }
             else {
-                await interaction.reply({ embeds: [errorEmbed], flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
         }
         catch { /* ignore */ }
@@ -90,19 +83,19 @@ async function handleCommand(interaction) {
 async function handleConnect(interaction) {
     const input = interaction.options.getString("steam_id", true);
     const userId = interaction.user.id;
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     let steamId = null;
     // Vérifier si c'est un SteamID64 valide
-    if ((0, steam_1.isValidSteamId)(input)) {
+    if (isValidSteamId(input)) {
         steamId = input;
     }
     else {
         // Tenter de résoudre comme vanity URL
-        steamId = await (0, steam_1.resolveVanityUrl)(input);
+        steamId = await resolveVanityUrl(input);
         if (!steamId) {
             await interaction.editReply({
                 embeds: [
-                    new discord_js_1.EmbedBuilder()
+                    new EmbedBuilder()
                         .setColor(0xffaa00)
                         .setDescription(`Impossible de resoudre **${input}**.\n` +
                         `Verifie que ton profil Steam est public et que l'identifiant est correct.\n` +
@@ -113,11 +106,11 @@ async function handleConnect(interaction) {
         }
     }
     // Vérifier que le SteamID existe
-    const players = await (0, steam_1.getPlayerSummaries)([steamId]);
+    const players = await getPlayerSummaries([steamId]);
     if (players.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription(`Aucun profil Steam trouve pour l'ID **${steamId}**.`),
             ],
@@ -126,7 +119,7 @@ async function handleConnect(interaction) {
     }
     const player = players[0];
     // Upsert le profil
-    await prisma_1.default.steamProfile.upsert({
+    await prisma.steamProfile.upsert({
         where: { userId },
         update: { steamId, personaName: player.personaname, avatarUrl: player.avatarfull },
         create: {
@@ -136,7 +129,7 @@ async function handleConnect(interaction) {
             avatarUrl: player.avatarfull,
         },
     });
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x1b2838)
         .setTitle("Compte Steam lie !")
         .setURL(`https://steamcommunity.com/profiles/${steamId}`)
@@ -163,7 +156,7 @@ async function handleNowPlaying(interaction) {
     else {
         const fetchedMembers = await guild.members.fetch();
         const memberIds = [...fetchedMembers.keys()];
-        const fetchedProfiles = await prisma_1.default.steamProfile.findMany({
+        const fetchedProfiles = await prisma.steamProfile.findMany({
             where: { userId: { in: memberIds } },
         });
         nowPlayingCache.set(cacheKey, { data: { members: fetchedMembers, profiles: fetchedProfiles }, expiry: cacheNow + CACHE_TTL_MS });
@@ -173,7 +166,7 @@ async function handleNowPlaying(interaction) {
     if (profiles.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x2f3136)
                     .setDescription("Aucun membre n'a lie son compte Steam. Utilise `/steam connect` !"),
             ],
@@ -182,7 +175,7 @@ async function handleNowPlaying(interaction) {
     }
     // Récupérer les statuts de jeu pour tous les profils liés
     const steamIds = profiles.map((p) => p.steamId);
-    const players = await (0, steam_1.getPlayerSummaries)(steamIds);
+    const players = await getPlayerSummaries(steamIds);
     const playingNow = [];
     const idle = [];
     for (const player of players) {
@@ -200,7 +193,7 @@ async function handleNowPlaying(interaction) {
             idle.push(name);
         }
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x1b2838)
         .setTitle("En jeu sur Steam")
         .setTimestamp();
@@ -230,14 +223,14 @@ async function handleNowPlaying(interaction) {
 async function handleWishlist(interaction) {
     const user = interaction.options.getUser("utilisateur") || interaction.user;
     await interaction.deferReply();
-    const profile = await prisma_1.default.steamProfile.findUnique({
+    const profile = await prisma.steamProfile.findUnique({
         where: { userId: user.id },
     });
     if (!profile) {
         const isSelf = user.id === interaction.user.id;
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription(isSelf
                     ? "Tu n'as pas lie ton compte Steam. Utilise `/steam connect` d'abord !"
@@ -247,7 +240,7 @@ async function handleWishlist(interaction) {
         return;
     }
     const wishlistUrl = `https://store.steampowered.com/wishlist/profiles/${profile.steamId}`;
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x1b2838)
         .setTitle(`Wishlist de ${profile.personaName || user.username}`)
         .setURL(wishlistUrl)
@@ -260,14 +253,14 @@ async function handleWishlist(interaction) {
 async function handleProfile(interaction) {
     const user = interaction.options.getUser("utilisateur") || interaction.user;
     await interaction.deferReply();
-    const profile = await prisma_1.default.steamProfile.findUnique({
+    const profile = await prisma.steamProfile.findUnique({
         where: { userId: user.id },
     });
     if (!profile) {
         const isSelf = user.id === interaction.user.id;
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription(isSelf
                     ? "Tu n'as pas lie ton compte Steam. Utilise `/steam connect` d'abord !"
@@ -278,9 +271,9 @@ async function handleProfile(interaction) {
     }
     const profileUrl = `https://steamcommunity.com/profiles/${profile.steamId}`;
     // Récupérer le statut actuel
-    const players = await (0, steam_1.getPlayerSummaries)([profile.steamId]);
+    const players = await getPlayerSummaries([profile.steamId]);
     const player = players[0];
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x1b2838)
         .setTitle(`Profil Steam — ${profile.personaName || user.username}`)
         .setURL(profileUrl)

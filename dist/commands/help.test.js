@@ -1,7 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const vitest_1 = require("vitest");
-const main_1 = require("../commands/main");
+import { describe, it, expect } from 'vitest';
+import { CATEGORIES } from '../commands/main.js';
 // ─── All registered top-level slash commands (from setName() across command files) ───
 // These are the command names as they appear in Discord (e.g., /help, /status).
 // Any new command added to the bot MUST also be added here AND appear in CATEGORIES.
@@ -42,14 +40,14 @@ function extractCommands(commandsString) {
     const matches = commandsString.matchAll(/`\/([a-zA-Z][a-zA-Z0-9_-]*)/g);
     return Array.from(matches, (m) => m[1]);
 }
-(0, vitest_1.describe)("Command /help - Categories coverage", () => {
-    (0, vitest_1.it)("should have at least one category defined", () => {
-        (0, vitest_1.expect)(main_1.CATEGORIES.length).toBeGreaterThan(0);
+describe("Command /help - Categories coverage", () => {
+    it("should have at least one category defined", () => {
+        expect(CATEGORIES.length).toBeGreaterThan(0);
     });
-    (0, vitest_1.it)("should have every registered command appear in at least one category", () => {
+    it("should have every registered command appear in at least one category", () => {
         // Collect all command names mentioned across all categories
         const allCategoryCommands = new Set();
-        for (const cat of main_1.CATEGORIES) {
+        for (const cat of CATEGORIES) {
             const cmds = extractCommands(cat.commands);
             for (const cmd of cmds) {
                 allCategoryCommands.add(cmd);
@@ -61,11 +59,11 @@ function extractCommands(commandsString) {
                 missingCommands.push(cmd);
             }
         }
-        (0, vitest_1.expect)(missingCommands).toEqual([]);
+        expect(missingCommands).toEqual([]);
     });
-    (0, vitest_1.it)("should not have duplicate commands across categories", () => {
+    it("should not have duplicate commands across categories", () => {
         const seen = new Map(); // cmd -> [categoryIds]
-        for (const cat of main_1.CATEGORIES) {
+        for (const cat of CATEGORIES) {
             const cmds = extractCommands(cat.commands);
             for (const cmd of cmds) {
                 if (!seen.has(cmd)) {
@@ -85,11 +83,11 @@ function extractCommands(commandsString) {
                 }
             }
         }
-        (0, vitest_1.expect)(duplicates).toEqual([]);
+        expect(duplicates).toEqual([]);
     });
-    (0, vitest_1.it)("should not have orphaned commands in categories (not registered)", () => {
+    it("should not have orphaned commands in categories (not registered)", () => {
         const allCategoryCommands = new Set();
-        for (const cat of main_1.CATEGORIES) {
+        for (const cat of CATEGORIES) {
             const cmds = extractCommands(cat.commands);
             for (const cmd of cmds) {
                 allCategoryCommands.add(cmd);
@@ -103,17 +101,17 @@ function extractCommands(commandsString) {
                 orphaned.push(cmd);
             }
         }
-        (0, vitest_1.expect)(orphaned).toEqual([]);
+        expect(orphaned).toEqual([]);
     });
-    (0, vitest_1.it)("should have a non-empty description for each category", () => {
-        for (const cat of main_1.CATEGORIES) {
-            (0, vitest_1.expect)(cat.description, cat.id + " description should not be empty").toBeTruthy();
+    it("should have a non-empty description for each category", () => {
+        for (const cat of CATEGORIES) {
+            expect(cat.description, cat.id + " description should not be empty").toBeTruthy();
         }
     });
-    (0, vitest_1.it)("should have at least one command in each category", () => {
-        for (const cat of main_1.CATEGORIES) {
+    it("should have at least one command in each category", () => {
+        for (const cat of CATEGORIES) {
             const cmds = extractCommands(cat.commands);
-            (0, vitest_1.expect)(cmds.length, cat.id + " should have at least one command").toBeGreaterThan(0);
+            expect(cmds.length, cat.id + " should have at least one command").toBeGreaterThan(0);
         }
     });
 });

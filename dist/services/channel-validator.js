@@ -1,32 +1,25 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateChannels = validateChannels;
-exports.validateChannelIdsStatic = validateChannelIdsStatic;
-const config_1 = require("../config");
-const logger_1 = __importDefault(require("../utils/logger"));
-const validators_1 = require("../utils/validators");
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { isValidDiscordId } from "../utils/validators.js";
 // ==========================================================================
 // Liste des channels à valider au démarrage
 // ==========================================================================
 const CHANNELS_TO_VALIDATE = [
     // -- Salons multi-plateforme (routage automatique) --
-    { id: config_1.config.steamEpicChannel, label: "Steam/Epic Games", envKey: "STEAM_EPIC_CHANNEL_ID" },
-    { id: config_1.config.playstationChannel, label: "PlayStation", envKey: "PLAYSTATION_CHANNEL_ID" },
-    { id: config_1.config.xboxChannel, label: "Xbox", envKey: "XBOX_CHANNEL_ID" },
-    { id: config_1.config.nintendoChannel, label: "Nintendo", envKey: "NINTENDO_CHANNEL_ID" },
+    { id: config.steamEpicChannel, label: "Steam/Epic Games", envKey: "STEAM_EPIC_CHANNEL_ID" },
+    { id: config.playstationChannel, label: "PlayStation", envKey: "PLAYSTATION_CHANNEL_ID" },
+    { id: config.xboxChannel, label: "Xbox", envKey: "XBOX_CHANNEL_ID" },
+    { id: config.nintendoChannel, label: "Nintendo", envKey: "NINTENDO_CHANNEL_ID" },
     // -- Salons spécialisés --
-    { id: config_1.config.fortniteChannel, label: "Fortnite", envKey: "FORTNITE_CHANNEL_ID", optional: true },
-    { id: config_1.config.steamChannel, label: "Steam News", envKey: "STEAM_CHANNEL_ID", optional: true },
-    { id: config_1.config.robloxChannel, label: "Roblox", envKey: "ROBLOX_CHANNEL_ID", optional: true },
-    { id: config_1.config.instantGamingChannel, label: "Instant Gaming", envKey: "INSTANT_GAMING_CHANNEL_ID", optional: true },
-    { id: config_1.config.gamingBlogChannel, label: "Gaming Blog", envKey: "GAMING_BLOG_CHANNEL_ID", optional: true },
-    { id: config_1.config.twitterChannel, label: "Twitter/X", envKey: "TWITTER_CHANNEL_ID", optional: true },
+    { id: config.fortniteChannel, label: "Fortnite", envKey: "FORTNITE_CHANNEL_ID", optional: true },
+    { id: config.steamChannel, label: "Steam News", envKey: "STEAM_CHANNEL_ID", optional: true },
+    { id: config.robloxChannel, label: "Roblox", envKey: "ROBLOX_CHANNEL_ID", optional: true },
+    { id: config.instantGamingChannel, label: "Instant Gaming", envKey: "INSTANT_GAMING_CHANNEL_ID", optional: true },
+    { id: config.gamingBlogChannel, label: "Gaming Blog", envKey: "GAMING_BLOG_CHANNEL_ID", optional: true },
+    { id: config.twitterChannel, label: "Twitter/X", envKey: "TWITTER_CHANNEL_ID", optional: true },
     // -- Logs & monitoring --
-    { id: config_1.config.logChannel, label: "Logs", envKey: "LOG_CHANNEL_ID", optional: true },
-    { id: config_1.config.dedicatedChannel, label: "Dédié", envKey: "DEDICATED_CHANNEL_ID", optional: true },
+    { id: config.logChannel, label: "Logs", envKey: "LOG_CHANNEL_ID", optional: true },
+    { id: config.dedicatedChannel, label: "Dédié", envKey: "DEDICATED_CHANNEL_ID", optional: true },
 ];
 // ==========================================================================
 // Helper
@@ -45,13 +38,13 @@ function safeChannelName(channel) {
  * @param client - Le client Discord connecté
  * @returns Un rapport détaillé avec le statut de chaque salon
  */
-async function validateChannels(client) {
+export async function validateChannels(client) {
     const results = [];
     if (!client.user) {
-        logger_1.default.error("[ChannelValidator] Client user non disponible — vérification impossible");
+        logger.error("[ChannelValidator] Client user non disponible — vérification impossible");
         return { passed: 0, warnings: 0, errors: CHANNELS_TO_VALIDATE.length, results: [] };
     }
-    logger_1.default.info("[ChannelValidator] Vérification des salons Discord configurés...");
+    logger.info("[ChannelValidator] Vérification des salons Discord configurés...");
     for (const def of CHANNELS_TO_VALIDATE) {
         // 1. Variable d'environnement absente ?
         if (!def.id || def.id.length === 0) {
@@ -63,7 +56,7 @@ async function validateChannels(client) {
             continue;
         }
         // 2. Format Snowflake invalide ?
-        if (!(0, validators_1.isValidDiscordId)(def.id)) {
+        if (!isValidDiscordId(def.id)) {
             results.push({
                 label: def.label,
                 envKey: def.envKey,
@@ -136,15 +129,15 @@ async function validateChannels(client) {
     const errors = results.filter((r) => r.status !== "ok" && r.status !== "skipped" && r.status !== "unchecked").length;
     // Log récapitulatif
     if (errors > 0) {
-        logger_1.default.warn(`[ChannelValidator] ${passed} salon(s) OK, ${warnings} ignoré(s), ${errors} erreur(s) détectée(s)`);
+        logger.warn(`[ChannelValidator] ${passed} salon(s) OK, ${warnings} ignoré(s), ${errors} erreur(s) détectée(s)`);
         for (const r of results) {
             if (r.status !== "ok" && r.status !== "skipped" && r.status !== "unchecked") {
-                logger_1.default.warn(`[ChannelValidator] ⚠️  ${r.label} (${r.envKey}) : ${r.message}`);
+                logger.warn(`[ChannelValidator] ⚠️  ${r.label} (${r.envKey}) : ${r.message}`);
             }
         }
     }
     else {
-        logger_1.default.info(`[ChannelValidator] ✅ ${passed} salon(s) validé(s), ${warnings} ignoré(s), 0 erreur`);
+        logger.info(`[ChannelValidator] ✅ ${passed} salon(s) validé(s), ${warnings} ignoré(s), 0 erreur`);
     }
     return { passed, warnings, errors, results };
 }
@@ -152,7 +145,7 @@ async function validateChannels(client) {
  * Version synchrone légère qui vérifie juste que les IDs sont des Snowflakes
  * valides (sans appeler l'API Discord). Utile pour le healthcheck statique.
  */
-function validateChannelIdsStatic() {
+export function validateChannelIdsStatic() {
     const results = [];
     for (const def of CHANNELS_TO_VALIDATE) {
         if (!def.id || def.id.length === 0) {
@@ -166,7 +159,7 @@ function validateChannelIdsStatic() {
                     : `Variable ${def.envKey} non definie`,
             });
         }
-        else if (!(0, validators_1.isValidDiscordId)(def.id)) {
+        else if (!isValidDiscordId(def.id)) {
             results.push({
                 label: def.label,
                 envKey: def.envKey,

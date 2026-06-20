@@ -1,35 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleLockdown = handleLockdown;
-exports.handleNuke = handleNuke;
-exports.handleCheckAlt = handleCheckAlt;
-exports.handleBlacklist = handleBlacklist;
-exports.handleRoleMass = handleRoleMass;
-exports.handleAntiraid = handleAntiraid;
-exports.handleVerif = handleVerif;
-exports.handleNameHistory = handleNameHistory;
-exports.handleAvatarHistory = handleAvatarHistory;
-exports.handleLinkCheck = handleLinkCheck;
-exports.handleAntiphishing = handleAntiphishing;
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../../prisma"));
-const config_1 = require("../../config");
-const logs_1 = require("../../services/logs");
-const utils_1 = require("./utils");
-const logger_1 = __importDefault(require("../../utils/logger"));
-const cache_1 = require("./cache");
-const utils_2 = require("./utils");
+import { MessageFlags, EmbedBuilder, PermissionFlagsBits, ChannelType, ButtonBuilder, ButtonStyle, ActionRowBuilder, } from "discord.js";
+import prisma from "../../prisma.js";
+import { config } from "../../config.js";
+import { createLog } from "../../services/logs.js";
+import { checkSuspiciousLinksDetailed } from "./utils.js";
+import logger from "../../utils/logger.js";
+import { antiPhishingCache } from "./cache.js";
+import { isAntiPhishingActive } from "./utils.js";
 const FOOTER = { text: "Surveillance System • Securite" };
-async function handleLockdown(interaction) {
+export async function handleLockdown(interaction) {
     const action = interaction.options.getString("action", true);
     const guild = interaction.guild;
     const isLocking = action === "on";
     await interaction.deferReply();
-    const textChannels = guild.channels.cache.filter((ch) => ch.type === discord_js_1.ChannelType.GuildText &&
-        ch.permissionsFor(guild.roles.everyone)?.has(discord_js_1.PermissionFlagsBits.ViewChannel) === true);
+    const textChannels = guild.channels.cache.filter((ch) => ch.type === ChannelType.GuildText &&
+        ch.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel) === true);
     let modified = 0;
     const failed = [];
     for (const channel of textChannels.values()) {
@@ -43,7 +27,7 @@ async function handleLockdown(interaction) {
             failed.push(channel.name);
         }
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(isLocking ? 0xff3344 : 0x53fc18)
         .setTitle(isLocking ? "🔒 Lockdown activé" : "🔓 Lockdown désactivé")
         .setDescription(isLocking
@@ -57,7 +41,7 @@ async function handleLockdown(interaction) {
         });
     }
     await interaction.editReply({ embeds: [embed] });
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "moderation",
         action: isLocking ? "lockdown_on" : "lockdown_off",
         userId: interaction.user.id,
@@ -65,10 +49,10 @@ async function handleLockdown(interaction) {
     });
 }
 // ===== /nuke =====
-async function handleNuke(interaction) {
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+export async function handleNuke(interaction) {
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     const channel = interaction.channel;
-    if (!channel || channel.type !== discord_js_1.ChannelType.GuildText) {
+    if (!channel || channel.type !== ChannelType.GuildText) {
         await interaction.editReply("Cette commande ne fonctionne que dans un salon textuel.");
         return;
     }
@@ -86,7 +70,7 @@ async function handleNuke(interaction) {
     await interaction.editReply({ content: "☢️ Salon regénéré avec succès." });
     await channel.delete("Nuke par " + interaction.user.tag);
     // Envoyer la confirmation dans le nouveau salon
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0xffaa00)
         .setTitle("☢️ Salon nuké")
         .setDescription("Ce salon a été régénéré par **" + interaction.user.tag + "**.\nL'historique a été effacé.")
@@ -94,10 +78,10 @@ async function handleNuke(interaction) {
     await newChannel.send({ embeds: [embed] });
 }
 // ===== /check-alt =====
-async function handleCheckAlt(interaction) {
+export async function handleCheckAlt(interaction) {
     const hours = interaction.options.getInteger("heures") || 24;
     const guild = interaction.guild;
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     // Récupérer tous les membres
     await guild.members.fetch();
     const cutoff = Date.now() - hours * 60 * 60 * 1000;
@@ -112,7 +96,7 @@ async function handleCheckAlt(interaction) {
     if (suspicious.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x53fc18)
                     .setDescription("Aucun compte créé il y a moins de **" + hours + "h** détecté."),
             ],
@@ -125,7 +109,7 @@ async function handleCheckAlt(interaction) {
     const totalPages = Math.ceil(suspicious.length / itemsPerPage);
     for (let i = 0; i < suspicious.length; i += itemsPerPage) {
         const pageItems = suspicious.slice(i, i + itemsPerPage);
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(0xff3344)
             .setTitle("🚨 Comptes suspects (< " + hours + "h)")
             .setDescription("**" + suspicious.length + "** membres ont un compte créé il y a moins de **" + hours + " heures**.\n\n" +
@@ -140,14 +124,14 @@ async function handleCheckAlt(interaction) {
     await interaction.editReply({ embeds: [pages[0]] });
 }
 // ===== /blacklist =====
-async function handleBlacklist(interaction, _client) {
+export async function handleBlacklist(interaction, _client) {
     await interaction.deferReply({ ephemeral: true });
     try {
         // Vérification owner
-        if (interaction.user.id !== config_1.config.ownerId) {
+        if (interaction.user.id !== config.ownerId) {
             await interaction.editReply({
                 embeds: [
-                    new discord_js_1.EmbedBuilder()
+                    new EmbedBuilder()
                         .setColor(0xff3344)
                         .setDescription("🔒 Cette commande est réservée au créateur du bot."),
                 ],
@@ -157,31 +141,31 @@ async function handleBlacklist(interaction, _client) {
         const action = interaction.options.getString("action", true);
         const cible = interaction.options.getString("cible", true);
         const id = interaction.options.getString("id", true);
-        logger_1.default.info("🔒 [Blacklist] Action demandée par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action, "| Cible :", cible, "| ID :", id);
+        logger.info("🔒 [Blacklist] Action demandée par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action, "| Cible :", cible, "| ID :", id);
         const isAdd = action === "add";
         if (isAdd) {
-            const exists = await prisma_1.default.blacklist.findUnique({ where: { targetId: id } });
+            const exists = await prisma.blacklist.findUnique({ where: { targetId: id } });
             if (exists) {
                 await interaction.editReply({
                     embeds: [
-                        new discord_js_1.EmbedBuilder()
+                        new EmbedBuilder()
                             .setColor(0xffaa00)
                             .setDescription("`" + id + "` est déjà dans la liste noire."),
                     ],
                 });
                 return;
             }
-            await prisma_1.default.blacklist.create({
+            await prisma.blacklist.create({
                 data: {
                     targetId: id,
                     type: cible,
                     reason: "Ajouté par " + interaction.user.tag,
                 },
             });
-            logger_1.default.info("🚫 [Blacklist] Entrée ajoutée :", id, "(" + cible + ")");
+            logger.info("🚫 [Blacklist] Entrée ajoutée :", id, "(" + cible + ")");
             await interaction.editReply({
                 embeds: [
-                    new discord_js_1.EmbedBuilder()
+                    new EmbedBuilder()
                         .setColor(0xff3344)
                         .setTitle("🚫 Ajouté à la liste noire")
                         .setDescription("**Type :** " + (cible === "user" ? "Utilisateur" : "Serveur") + "\n" +
@@ -191,28 +175,28 @@ async function handleBlacklist(interaction, _client) {
             });
         }
         else {
-            const removed = await prisma_1.default.blacklist.deleteMany({ where: { targetId: id } });
+            const removed = await prisma.blacklist.deleteMany({ where: { targetId: id } });
             if (removed.count === 0) {
                 await interaction.editReply({
                     embeds: [
-                        new discord_js_1.EmbedBuilder()
+                        new EmbedBuilder()
                             .setColor(0xffaa00)
                             .setDescription("`" + id + "` n'est pas dans la liste noire."),
                     ],
                 });
                 return;
             }
-            logger_1.default.info("✅ [Blacklist] Entrée retirée :", id);
+            logger.info("✅ [Blacklist] Entrée retirée :", id);
             await interaction.editReply({
                 embeds: [
-                    new discord_js_1.EmbedBuilder()
+                    new EmbedBuilder()
                         .setColor(0x53fc18)
                         .setTitle("✅ Retiré de la liste noire")
                         .setDescription("`" + id + "` peut de nouveau interagir avec le bot."),
                 ],
             });
         }
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "moderation",
             action: isAdd ? "blacklist_add" : "blacklist_remove",
             userId: interaction.user.id,
@@ -221,23 +205,23 @@ async function handleBlacklist(interaction, _client) {
         });
     }
     catch (error) {
-        logger_1.default.error("[CRASH CRITIQUE BLACKLIST]:", error);
+        logger.error("[CRASH CRITIQUE BLACKLIST]:", error);
         await interaction.editReply({
             content: "❌ Impossible d'exécuter la commande blacklist. Une erreur a été logguée dans la console.",
         }).catch(() => { });
     }
 }
-async function handleRoleMass(interaction) {
+export async function handleRoleMass(interaction) {
     const action = interaction.options.getString("action", true);
     const role = interaction.options.getRole("rôle", true);
     const guild = interaction.guild;
     const isAdding = action === "add";
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     // Vérifier que le rôle est gérable
     if (!role.editable) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription("Je ne peux pas gérer ce rôle (il est peut-être au-dessus du mien dans la hiérarchie)."),
             ],
@@ -252,7 +236,7 @@ async function handleRoleMass(interaction) {
     const failed = [];
     await interaction.editReply({
         embeds: [
-            new discord_js_1.EmbedBuilder()
+            new EmbedBuilder()
                 .setColor(0x2f3136)
                 .setDescription((isAdding ? "➕ Ajout" : "➖ Retrait") + " du rôle " + role.toString() + " en cours... (0/" + members.length + ")"),
         ],
@@ -276,7 +260,7 @@ async function handleRoleMass(interaction) {
             if ((i + 1) % 50 === 0 || i === members.length - 1) {
                 await interaction.editReply({
                     embeds: [
-                        new discord_js_1.EmbedBuilder()
+                        new EmbedBuilder()
                             .setColor(0x2f3136)
                             .setDescription((isAdding ? "➕ Ajout" : "➖ Retrait") + " du rôle " + role.toString() + " en cours... (" + (i + 1) + "/" + members.length + ")"),
                     ],
@@ -289,7 +273,7 @@ async function handleRoleMass(interaction) {
             failed.push(member.user.tag);
         }
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(isAdding ? 0x53fc18 : 0xffaa00)
         .setTitle(isAdding ? "✅ Rôle ajouté en masse" : "✅ Rôle retiré en masse")
         .setDescription("**Rôle :** " + role.toString() + "\n" +
@@ -304,7 +288,7 @@ async function handleRoleMass(interaction) {
         });
     }
     await interaction.editReply({ embeds: [embed] });
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "moderation",
         action: isAdding ? "role_mass_add" : "role_mass_remove",
         userId: interaction.user.id,
@@ -312,7 +296,7 @@ async function handleRoleMass(interaction) {
     });
 }
 // ===== /antiraid =====
-async function handleAntiraid(interaction) {
+export async function handleAntiraid(interaction) {
     // 1. Differer TOUT DE SUITE pour eviter le timeout Discord
     await interaction.deferReply({ ephemeral: true });
     try {
@@ -325,16 +309,16 @@ async function handleAntiraid(interaction) {
             return;
         }
         // 3. Log de securite
-        logger_1.default.info("\u{1F6E1}\uFE0F [Anti-Raid] Activation/Desactivation demandee par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action, "| Seuil :", seuilHeures + "h");
+        logger.info("\u{1F6E1}\uFE0F [Anti-Raid] Activation/Desactivation demandee par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action, "| Seuil :", seuilHeures + "h");
         // 4. Execution (persistee dans GuildConfig via Prisma)
         if (action === "on") {
-            logger_1.default.info("\u2699\uFE0F [Anti-Raid] Mise a jour des permissions ou de la DB en cours...");
-            await prisma_1.default.guildConfig.upsert({
+            logger.info("\u2699\uFE0F [Anti-Raid] Mise a jour des permissions ou de la DB en cours...");
+            await prisma.guildConfig.upsert({
                 where: { guildId },
                 update: { antiRaidEnabled: true, antiRaidSeuilHeures: seuilHeures },
                 create: { guildId, antiRaidEnabled: true, antiRaidSeuilHeures: seuilHeures },
             });
-            const embed = new discord_js_1.EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setTitle("\u{1F6E1}\uFE0F Mode Anti-Raid Active")
                 .setColor(0xff3344)
                 .setDescription("Tout nouveau membre avec un compte de **moins de " +
@@ -342,28 +326,28 @@ async function handleAntiraid(interaction) {
                 "h** sera automatiquement timeout 1h.")
                 .setFooter(FOOTER);
             await interaction.editReply({ embeds: [embed] });
-            logger_1.default.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
+            logger.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
         }
         else if (action === "off") {
-            logger_1.default.info("\u2699\uFE0F [Anti-Raid] Mise a jour des permissions ou de la DB en cours...");
-            await prisma_1.default.guildConfig.upsert({
+            logger.info("\u2699\uFE0F [Anti-Raid] Mise a jour des permissions ou de la DB en cours...");
+            await prisma.guildConfig.upsert({
                 where: { guildId },
                 update: { antiRaidEnabled: false },
                 create: { guildId, antiRaidEnabled: false },
             });
-            const embed = new discord_js_1.EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setTitle("\u2705 Mode Anti-Raid Desactive")
                 .setColor(0x00ff66)
                 .setDescription("Les nouveaux membres ne seront plus filtres automatiquement.")
                 .setFooter(FOOTER);
             await interaction.editReply({ embeds: [embed] });
-            logger_1.default.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
+            logger.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
         }
         else if (action === "status") {
-            const config = await prisma_1.default.guildConfig.findUnique({ where: { guildId } });
+            const config = await prisma.guildConfig.findUnique({ where: { guildId } });
             const active = config?.antiRaidEnabled === true;
             const seuil = config?.antiRaidSeuilHeures ?? 24;
-            const embed = new discord_js_1.EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setTitle("\u{1F6E1}\uFE0F Statut Anti-Raid")
                 .setColor(active ? 0xff3344 : 0x666666)
                 .setDescription(active
@@ -374,13 +358,13 @@ async function handleAntiraid(interaction) {
         }
     }
     catch (error) {
-        logger_1.default.error("[CRASH CRITIQUE ANTIRAID]:", error);
+        logger.error("[CRASH CRITIQUE ANTIRAID]:", error);
         await interaction.editReply({
             content: "\u274C Impossible d'executer la commande anti-raid. Une erreur a ete logguee dans la console.",
         }).catch(() => { });
     }
 }
-async function handleVerif(interaction) {
+export async function handleVerif(interaction) {
     await interaction.deferReply();
     try {
         const guildId = interaction.guildId;
@@ -389,34 +373,34 @@ async function handleVerif(interaction) {
             return;
         }
         const role = interaction.options.getRole("role", true);
-        logger_1.default.info("✅ [Verif] Panneau de verification demande par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Role :", role.name);
-        const embed = new discord_js_1.EmbedBuilder()
+        logger.info("✅ [Verif] Panneau de verification demande par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Role :", role.name);
+        const embed = new EmbedBuilder()
             .setTitle("✅ Vérification")
             .setColor(0x3498db)
             .setDescription("Cliquez sur le bouton ci-dessous pour obtenir le rôle **" +
             role.name +
             "** et accéder au serveur.")
             .setFooter(FOOTER);
-        const button = new discord_js_1.ButtonBuilder()
+        const button = new ButtonBuilder()
             .setCustomId("verif_" + role.id)
             .setLabel("✅ Vérifier")
-            .setStyle(discord_js_1.ButtonStyle.Success);
-        const row = new discord_js_1.ActionRowBuilder().addComponents(button);
+            .setStyle(ButtonStyle.Success);
+        const row = new ActionRowBuilder().addComponents(button);
         await interaction.editReply({ embeds: [embed], components: [row] });
     }
     catch (error) {
-        logger_1.default.error("[CRASH CRITIQUE VERIF]:", error);
+        logger.error("[CRASH CRITIQUE VERIF]:", error);
         await interaction.editReply({
             content: "❌ Impossible d'executer la commande de verification. Une erreur a ete logguee dans la console.",
         }).catch(() => { });
     }
 }
 // ===== /namehistory =====
-async function handleNameHistory(interaction) {
+export async function handleNameHistory(interaction) {
     const user = interaction.options.getUser("utilisateur", true);
     const guildId = interaction.guildId;
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
-    const history = await prisma_1.default.nameHistory.findMany({
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    const history = await prisma.nameHistory.findMany({
         where: { userId: user.id, guildId },
         orderBy: { changedAt: "desc" },
         take: 25,
@@ -424,7 +408,7 @@ async function handleNameHistory(interaction) {
     if (history.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x2f3136)
                     .setDescription("Aucun changement de pseudo enregistré pour **" + user.tag + "**."),
             ],
@@ -440,7 +424,7 @@ async function handleNameHistory(interaction) {
         "\" → **\"" +
         h.newName +
         "\"**");
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x3498db)
         .setTitle("Historique des pseudos — " + user.tag)
         .setThumbnail(user.displayAvatarURL())
@@ -450,11 +434,11 @@ async function handleNameHistory(interaction) {
     await interaction.editReply({ embeds: [embed] });
 }
 // ===== /avatarhistory =====
-async function handleAvatarHistory(interaction) {
+export async function handleAvatarHistory(interaction) {
     const user = interaction.options.getUser("utilisateur", true);
     const guildId = interaction.guildId;
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
-    const history = await prisma_1.default.avatarHistory.findMany({
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    const history = await prisma.avatarHistory.findMany({
         where: { userId: user.id, guildId },
         orderBy: { changedAt: "desc" },
         take: 10,
@@ -462,7 +446,7 @@ async function handleAvatarHistory(interaction) {
     if (history.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x2f3136)
                     .setDescription("Aucun changement d'avatar enregistré pour **" + user.tag + "**."),
             ],
@@ -478,7 +462,7 @@ async function handleAvatarHistory(interaction) {
         "...` → `" +
         h.newHash.slice(0, 12) +
         "...`");
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x9b59b6)
         .setTitle("Historique des avatars — " + user.tag)
         .setThumbnail(user.displayAvatarURL())
@@ -488,14 +472,14 @@ async function handleAvatarHistory(interaction) {
     await interaction.editReply({ embeds: [embed] });
 }
 // ===== /linkcheck =====
-async function handleLinkCheck(interaction) {
+export async function handleLinkCheck(interaction) {
     const url = interaction.options.getString("url", true);
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
-    const allFlags = (0, utils_1.checkSuspiciousLinksDetailed)(url);
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    const allFlags = checkSuspiciousLinksDetailed(url);
     let riskLevel;
     let color;
     if (allFlags.length >= 3) {
-        riskLevel = "🔴 CRITIQUE";
+        riskLevel = "CRITIQUE";
         color = 0xff0000;
     }
     else if (allFlags.length >= 2) {
@@ -510,7 +494,7 @@ async function handleLinkCheck(interaction) {
         riskLevel = "🟢 Aucun risque détecté";
         color = 0x53fc18;
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(color)
         .setTitle("🔍 Analyse de lien")
         .setDescription("**URL :** " +
@@ -526,7 +510,7 @@ async function handleLinkCheck(interaction) {
     await interaction.editReply({ embeds: [embed] });
 }
 // ===== /antiphishing =====
-async function handleAntiphishing(interaction) {
+export async function handleAntiphishing(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
         const action = interaction.options.getString("action", true);
@@ -535,35 +519,35 @@ async function handleAntiphishing(interaction) {
             await interaction.editReply({ content: "❌ Cette commande doit être exécutée dans un serveur." });
             return;
         }
-        logger_1.default.info("🛡️ [Anti-Phishing] Activation/Désactivation demandée par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action);
+        logger.info("🛡️ [Anti-Phishing] Activation/Désactivation demandée par", interaction.user.displayName, "(" + interaction.user.id + ")", "| Action :", action);
         if (action === "on") {
-            logger_1.default.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
-            await prisma_1.default.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: true }, update: { antiPhishing: true } });
-            cache_1.antiPhishingCache.set(guildId, { active: true, cachedAt: Date.now() });
-            const embed = new discord_js_1.EmbedBuilder()
+            logger.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
+            await prisma.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: true }, update: { antiPhishing: true } });
+            antiPhishingCache.set(guildId, { active: true, cachedAt: Date.now() });
+            const embed = new EmbedBuilder()
                 .setTitle("🛡️ Anti-Phishing Activé")
                 .setColor(0xff3344)
                 .setDescription("Les messages contenant des liens suspects seront automatiquement supprimés.\n" +
                 "**Types détectés :** phishing Discord, IP directes, TLDs suspects, raccourcisseurs d'URL")
                 .setFooter(FOOTER);
             await interaction.editReply({ embeds: [embed] });
-            logger_1.default.info("✅ [Anti-Phishing] Système configuré avec succès.");
+            logger.info("✅ [Anti-Phishing] Système configuré avec succès.");
         }
         else if (action === "off") {
-            logger_1.default.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
-            await prisma_1.default.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: false }, update: { antiPhishing: false } });
-            cache_1.antiPhishingCache.set(guildId, { active: false, cachedAt: Date.now() });
-            const embed = new discord_js_1.EmbedBuilder()
+            logger.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
+            await prisma.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: false }, update: { antiPhishing: false } });
+            antiPhishingCache.set(guildId, { active: false, cachedAt: Date.now() });
+            const embed = new EmbedBuilder()
                 .setTitle("✅ Anti-Phishing Désactivé")
                 .setColor(0x53fc18)
                 .setDescription("Les liens suspects ne seront plus filtrés automatiquement.")
                 .setFooter(FOOTER);
             await interaction.editReply({ embeds: [embed] });
-            logger_1.default.info("✅ [Anti-Phishing] Système configuré avec succès.");
+            logger.info("✅ [Anti-Phishing] Système configuré avec succès.");
         }
         else if (action === "status") {
-            const active = await (0, utils_2.isAntiPhishingActive)(guildId);
-            const embed = new discord_js_1.EmbedBuilder()
+            const active = await isAntiPhishingActive(guildId);
+            const embed = new EmbedBuilder()
                 .setTitle("🛡️ Statut Anti-Phishing")
                 .setColor(active ? 0xff3344 : 0x666666)
                 .setDescription(active ? "**ACTIF**" : "**INACTIF**")
@@ -572,7 +556,7 @@ async function handleAntiphishing(interaction) {
         }
     }
     catch (error) {
-        logger_1.default.error("[CRASH CRITIQUE ANTIPHISHING]:", error);
+        logger.error("[CRASH CRITIQUE ANTIPHISHING]:", error);
         await interaction.editReply({ content: "❌ Impossible d'exécuter la commande anti-phishing. Une erreur a été logguée dans la console." }).catch(() => { });
     }
 }

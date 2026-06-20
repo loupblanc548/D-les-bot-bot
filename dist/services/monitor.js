@@ -1,22 +1,14 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.runDbSourcesRetrospective = runDbSourcesRetrospective;
-exports.startMonitoring = startMonitoring;
-exports.stopMonitoring = stopMonitoring;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
-const url_cleaner_1 = require("../utils/url-cleaner");
-const discord_js_1 = require("discord.js");
-const feeds_1 = require("./feeds");
-const image_helpers_1 = require("../utils/image-helpers");
-const epicgames_1 = require("./epicgames");
-const gaming_embeds_1 = require("../utils/gaming-embeds");
-const config_1 = require("../config");
-const rss_parser_1 = require("../utils/rss-parser");
-const CHECK_INTERVAL_MS = config_1.config.monitoringIntervalMs;
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { cleanUrl } from "../utils/url-cleaner.js";
+import { EmbedBuilder } from "discord.js";
+import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds.js";
+import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers.js";
+import { fetchFreeGames } from "./epicgames.js";
+import { embedEpicGames } from "../utils/gaming-embeds.js";
+import { config } from "../config.js";
+import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
+const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId = null;
 let isChecking = false;
 let whitelistWarningShown = false;
@@ -34,14 +26,14 @@ async function checkYouTubeChannel(handle) {
             if (!response.ok)
                 continue;
             const text = await response.text();
-            const parsed = rss_parser_1.xmlParser.parse(text);
+            const parsed = xmlParser.parse(text);
             const entries = parsed.feed?.entry;
             if (!entries)
                 return { status: "none" };
             const firstEntry = Array.isArray(entries) ? entries[0] : entries;
-            const title = (0, rss_parser_1.textOf)(firstEntry.title).trim();
-            const link = (0, rss_parser_1.extractLink)(firstEntry.link);
-            const thumbnail = (0, image_helpers_1.extractMediaThumbnail)(firstEntry);
+            const title = textOf(firstEntry.title).trim();
+            const link = extractLink(firstEntry.link);
+            const thumbnail = extractMediaThumbnail(firstEntry);
             if (title && link) {
                 return { status: "new", content: { title, url: link, thumbnail } };
             }
@@ -54,34 +46,34 @@ async function checkYouTubeChannel(handle) {
 async function checkTwitterUser(handle) {
     const url = `https://xcancel.com/${handle}/rss`;
     try {
-        const response = await fetch(url, { headers: rss_parser_1.RSS_HEADERS });
+        const response = await fetch(url, { headers: RSS_HEADERS });
         if (!response.ok) {
-            logger_1.default.warn(`[Monitor] Twitter RSS: HTTP ${response.status} pour @${handle}`);
+            logger.warn(`[Monitor] Twitter RSS: HTTP ${response.status} pour @${handle}`);
             return { status: "error" };
         }
         const text = await response.text();
         if (text.includes("RSS reader not yet whitelisted")) {
             if (!whitelistWarningShown) {
                 whitelistWarningShown = true;
-                logger_1.default.warn(`[Monitor] ⚠️  xcancel.com exige une whitelist. ` +
+                logger.warn(`[Monitor] ⚠️  xcancel.com exige une whitelist. ` +
                     `Envoyez un email à rss@xcancel.com avec votre User-Agent (DiscordSurveillanceBot/1.0)`);
             }
             return { status: "error" };
         }
-        const parsed = rss_parser_1.xmlParser.parse(text);
+        const parsed = xmlParser.parse(text);
         const items = parsed.rss?.channel?.item;
         if (!items)
             return { status: "none" };
         const firstItem = Array.isArray(items) ? items[0] : items;
-        const content = (0, rss_parser_1.textOf)(firstItem.title).trim();
-        const link = (0, rss_parser_1.extractLink)(firstItem.link).trim();
+        const content = textOf(firstItem.title).trim();
+        const link = extractLink(firstItem.link).trim();
         if (content && link) {
             return { status: "new", content: { text: content, url: link } };
         }
         return { status: "none" };
     }
     catch (error) {
-        logger_1.default.error(`[Monitor] Erreur lors du check Twitter pour @${handle}:`, error);
+        logger.error(`[Monitor] Erreur lors du check Twitter pour @${handle}:`, error);
         return { status: "error" };
     }
 }
@@ -92,13 +84,13 @@ async function checkBlueskyUser(handle) {
         if (!response.ok)
             return { status: "error" };
         const text = await response.text();
-        const parsed = rss_parser_1.xmlParser.parse(text);
+        const parsed = xmlParser.parse(text);
         const items = parsed.rss?.channel?.item;
         if (!items)
             return { status: "none" };
         const firstItem = Array.isArray(items) ? items[0] : items;
-        const title = (0, rss_parser_1.textOf)(firstItem.title).trim();
-        const link = (0, rss_parser_1.extractLink)(firstItem.link).trim();
+        const title = textOf(firstItem.title).trim();
+        const link = extractLink(firstItem.link).trim();
         if (title && link) {
             return { status: "new", content: { title, url: link } };
         }
@@ -120,23 +112,23 @@ async function checkYouTubeChannelMulti(handle, limit = 3) {
             if (!response.ok)
                 continue;
             const text = await response.text();
-            const parsed = rss_parser_1.xmlParser.parse(text);
+            const parsed = xmlParser.parse(text);
             const entries = parsed.feed?.entry;
             if (!entries)
                 return [];
             const list = Array.isArray(entries) ? entries : [entries];
             const results = [];
             for (const entry of list) {
-                const title = (0, rss_parser_1.textOf)(entry.title).trim();
-                const link = (0, rss_parser_1.extractLink)(entry.link);
-                const thumbnail = (0, image_helpers_1.extractMediaThumbnail)(entry);
+                const title = textOf(entry.title).trim();
+                const link = extractLink(entry.link);
+                const thumbnail = extractMediaThumbnail(entry);
                 if (title && link)
                     results.push({ title, url: link, thumbnail });
             }
             return results.slice(0, limit);
         }
         catch (error) {
-            logger_1.default.error(`[Monitor] Erreur lors du check YouTube multi pour @${handle}:`, error);
+            logger.error(`[Monitor] Erreur lors du check YouTube multi pour @${handle}:`, error);
         }
     }
     return [];
@@ -144,28 +136,28 @@ async function checkYouTubeChannelMulti(handle, limit = 3) {
 async function checkTwitterUserMulti(handle, limit = 3) {
     const url = `https://xcancel.com/${handle}/rss`;
     try {
-        const response = await fetch(url, { headers: rss_parser_1.RSS_HEADERS });
+        const response = await fetch(url, { headers: RSS_HEADERS });
         if (!response.ok)
             return [];
         const text = await response.text();
         if (text.includes("RSS reader not yet whitelisted"))
             return [];
-        const parsed = rss_parser_1.xmlParser.parse(text);
+        const parsed = xmlParser.parse(text);
         const items = parsed.rss?.channel?.item;
         if (!items)
             return [];
         const list = Array.isArray(items) ? items : [items];
         const results = [];
         for (const item of list) {
-            const content = (0, rss_parser_1.textOf)(item.title).trim();
-            const link = (0, rss_parser_1.extractLink)(item.link).trim();
+            const content = textOf(item.title).trim();
+            const link = extractLink(item.link).trim();
             if (content && link)
                 results.push({ text: content, url: link });
         }
         return results.slice(0, limit);
     }
     catch (error) {
-        logger_1.default.error(`[Monitor] Erreur lors du check:`, error);
+        logger.error(`[Monitor] Erreur lors du check:`, error);
         return [];
     }
 }
@@ -176,22 +168,22 @@ async function checkBlueskyUserMulti(handle, limit = 3) {
         if (!response.ok)
             return [];
         const text = await response.text();
-        const parsed = rss_parser_1.xmlParser.parse(text);
+        const parsed = xmlParser.parse(text);
         const items = parsed.rss?.channel?.item;
         if (!items)
             return [];
         const list = Array.isArray(items) ? items : [items];
         const results = [];
         for (const item of list) {
-            const title = (0, rss_parser_1.textOf)(item.title).trim();
-            const link = (0, rss_parser_1.extractLink)(item.link).trim();
+            const title = textOf(item.title).trim();
+            const link = extractLink(item.link).trim();
             if (title && link)
                 results.push({ title, url: link });
         }
         return results.slice(0, limit);
     }
     catch (error) {
-        logger_1.default.error(`[Monitor] Erreur lors du check:`, error);
+        logger.error(`[Monitor] Erreur lors du check:`, error);
         return [];
     }
 }
@@ -200,9 +192,9 @@ async function checkBlueskyUserMulti(handle, limit = 3) {
 // ============================================================
 async function checkEpicGames(client) {
     try {
-        const games = await (0, epicgames_1.fetchFreeGames)(client);
+        const games = await fetchFreeGames(client);
         for (const game of games) {
-            const embed = (0, gaming_embeds_1.embedEpicGames)({
+            const embed = embedEpicGames({
                 name: game.title,
                 originalPrice: game.originalPrice || "Gratuit",
                 endDate: game.freeEndDate
@@ -212,17 +204,17 @@ async function checkEpicGames(client) {
                 imageUrl: game.imageUrl || undefined,
             });
             embed.setURL(game.url);
-            const steamEpicChannel = config_1.config.steamEpicChannel;
+            const steamEpicChannel = config.steamEpicChannel;
             if (steamEpicChannel) {
-                await (0, feeds_1.sendToChannel)(client, steamEpicChannel, embed);
-                logger_1.default.info(`[EpicGames] Notification: ${game.title}`);
+                await sendToChannel(client, steamEpicChannel, embed);
+                logger.info(`[EpicGames] Notification: ${game.title}`);
             }
         }
     }
     catch (err) {
         const errMsg = String(err);
-        logger_1.default.error("[EpicGames] Erreur:", errMsg);
-        await (0, feeds_1.logError)(client, "EpicGames", errMsg);
+        logger.error("[EpicGames] Erreur:", errMsg);
+        await logError(client, "EpicGames", errMsg);
     }
 }
 // ============================================================
@@ -233,9 +225,9 @@ async function checkAndNotify(client) {
         return;
     isChecking = true;
     try {
-        logger_1.default.info("[Monitor] Vérification des sources...");
+        logger.info("[Monitor] Vérification des sources...");
         // 1. Sources de la DB (utilisateur)
-        const sources = await prisma_1.default.source.findMany();
+        const sources = await prisma.source.findMany();
         for (const source of sources) {
             try {
                 let result = null;
@@ -254,12 +246,12 @@ async function checkAndNotify(client) {
                     const contentText = "title" in result.content ? result.content.title : result.content.text;
                     let isNewNotification = false;
                     try {
-                        await prisma_1.default.notification.create({
+                        await prisma.notification.create({
                             data: {
                                 sourceId: String(source.id),
                                 platform: source.type,
                                 content: contentText,
-                                url: (0, url_cleaner_1.cleanUrl)(notifUrl) || null,
+                                url: cleanUrl(notifUrl) || null,
                             },
                         });
                         isNewNotification = true;
@@ -267,7 +259,7 @@ async function checkAndNotify(client) {
                     catch (err) {
                         // P2002 = contenu déjà notifié, on ignore silencieusement
                         if (err?.code !== "P2002") {
-                            logger_1.default.error(`[Monitor] Erreur insertion notification pour @${source.urlOrHandle}:`, String(err));
+                            logger.error(`[Monitor] Erreur insertion notification pour @${source.urlOrHandle}:`, String(err));
                         }
                     }
                     if (!isNewNotification)
@@ -275,58 +267,58 @@ async function checkAndNotify(client) {
                     const channel = client.channels.cache.get(source.channelId);
                     if (channel?.isTextBased()) {
                         // Titre enrichi par plateforme
-                        const icon = feeds_1.PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
-                        const label = feeds_1.PLATFORM_LABELS[source.type.toLowerCase()] || "";
+                        const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
+                        const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
                         const contentText = "title" in result.content ? result.content.title : result.content.text;
                         const embedTitle = label
                             ? icon + " " + contentText + " — " + label
                             : icon + " " + contentText;
-                        const embed = new discord_js_1.EmbedBuilder()
+                        const embed = new EmbedBuilder()
                             .setTitle(embedTitle)
                             .setDescription("title" in result.content ? result.content.title : result.content.text)
-                            .setColor(feeds_1.PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
-                            .addFields({ name: "Plateforme", value: rss_parser_1.PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true })
+                            .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
+                            .addFields({ name: "Plateforme", value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true })
                             .setTimestamp();
                         if (result.content.url)
                             embed.setURL(result.content.url);
                         try {
                             if (source.type === "YOUTUBE" && result.content.url) {
                                 const ytContent = result.content;
-                                const thumb = ytContent.thumbnail || await (0, image_helpers_1.getYouTubeThumbnail)(ytContent.url);
+                                const thumb = ytContent.thumbnail || await getYouTubeThumbnail(ytContent.url);
                                 if (thumb)
                                     embed.setImage(thumb);
                             }
                             else if (source.type === "TWITTER" && result.content.url) {
-                                const og = await (0, image_helpers_1.getTweetImage)(result.content.url);
+                                const og = await getTweetImage(result.content.url);
                                 if (og)
                                     embed.setImage(og);
                             }
                             else if (source.type === "BLUESKY" && result.content.url) {
-                                const og = await (0, image_helpers_1.getOgImage)(result.content.url);
+                                const og = await getOgImage(result.content.url);
                                 if (og)
                                     embed.setImage(og);
                             }
                         }
                         catch { }
                         await channel.send({ embeds: [embed] });
-                        logger_1.default.info(`[Monitor] Notification envoyée pour @${source.urlOrHandle}`);
+                        logger.info(`[Monitor] Notification envoyée pour @${source.urlOrHandle}`);
                     }
                 }
             }
             catch (err) {
                 const errMsg = String(err);
-                logger_1.default.error(`[Monitor] Erreur source ${source.urlOrHandle}:`, errMsg);
-                await (0, feeds_1.logError)(client, `Monitor/DB/${source.urlOrHandle}`, errMsg);
+                logger.error(`[Monitor] Erreur source ${source.urlOrHandle}:`, errMsg);
+                await logError(client, `Monitor/DB/${source.urlOrHandle}`, errMsg);
             }
         }
         // 2. Comptes gaming pré-configurés (feeds.ts)
         try {
-            await (0, feeds_1.runGamingFeeds)(client);
+            await runGamingFeeds(client);
         }
         catch (err) {
             const errMsg = String(err);
-            logger_1.default.error("[Monitor] Erreur gaming feeds:", errMsg);
-            await (0, feeds_1.logError)(client, "Monitor/GamingFeeds", errMsg);
+            logger.error("[Monitor] Erreur gaming feeds:", errMsg);
+            await logError(client, "Monitor/GamingFeeds", errMsg);
         }
         // 3. Epic Games gratuits
         try {
@@ -334,16 +326,16 @@ async function checkAndNotify(client) {
         }
         catch (err) {
             const errMsg = String(err);
-            logger_1.default.error("[Monitor] Erreur Epic Games:", errMsg);
-            await (0, feeds_1.logError)(client, "Monitor/EpicGames", errMsg);
+            logger.error("[Monitor] Erreur Epic Games:", errMsg);
+            await logError(client, "Monitor/EpicGames", errMsg);
         }
-        logger_1.default.info(`[Monitor] Vérification terminée (${sources.length} sources DB)`);
+        logger.info(`[Monitor] Vérification terminée (${sources.length} sources DB)`);
     }
     catch (err) {
         const errMsg = String(err);
-        logger_1.default.error("[Monitor] Erreur globale:", errMsg);
+        logger.error("[Monitor] Erreur globale:", errMsg);
         try {
-            await (0, feeds_1.logError)(client, "Monitor/Global", errMsg);
+            await logError(client, "Monitor/Global", errMsg);
         }
         catch { }
     }
@@ -354,14 +346,14 @@ async function checkAndNotify(client) {
 // ============================================================
 // RETROSPECTIVE DE DEMARRAGE - Rattrapage sources DB
 // ============================================================
-async function runDbSourcesRetrospective(client) {
-    logger_1.default.info("");
-    logger_1.default.info("=".repeat(50));
-    logger_1.default.info("  RETROSPECTIVE DB - Rattrapage sources personnalisées");
-    logger_1.default.info("=".repeat(50));
-    const sources = await prisma_1.default.source.findMany();
+export async function runDbSourcesRetrospective(client) {
+    logger.info("");
+    logger.info("=".repeat(50));
+    logger.info("  RETROSPECTIVE DB - Rattrapage sources personnalisées");
+    logger.info("=".repeat(50));
+    const sources = await prisma.source.findMany();
     let totalPublished = 0;
-    const MAX_RETRO_POSTS = config_1.config.maxRetroPosts;
+    const MAX_RETRO_POSTS = config.maxRetroPosts;
     dbRetroLoop: for (const source of sources) {
         try {
             let items = [];
@@ -380,19 +372,19 @@ async function runDbSourcesRetrospective(client) {
                 // Insert-first anti-doublon
                 let isNewRetroNotif = false;
                 try {
-                    await prisma_1.default.notification.create({
+                    await prisma.notification.create({
                         data: {
                             sourceId: String(source.id),
                             platform: source.type,
                             content: item.title,
-                            url: (0, url_cleaner_1.cleanUrl)(item.url) || null,
+                            url: cleanUrl(item.url) || null,
                         },
                     });
                     isNewRetroNotif = true;
                 }
                 catch (err) {
                     if (err?.code !== "P2002") {
-                        logger_1.default.error(`[RetroDB] Erreur insertion notification @${source.urlOrHandle}:`, String(err));
+                        logger.error(`[RetroDB] Erreur insertion notification @${source.urlOrHandle}:`, String(err));
                     }
                 }
                 if (!isNewRetroNotif)
@@ -400,31 +392,31 @@ async function runDbSourcesRetrospective(client) {
                 const channel = client.channels.cache.get(source.channelId);
                 if (channel?.isTextBased()) {
                     // Titre enrichi par plateforme
-                    const icon = feeds_1.PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
-                    const label = feeds_1.PLATFORM_LABELS[source.type.toLowerCase()] || "";
+                    const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
+                    const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
                     const embedTitle = label
                         ? icon + " " + item.title + " — " + label
                         : icon + " " + item.title;
-                    const embed = new discord_js_1.EmbedBuilder()
+                    const embed = new EmbedBuilder()
                         .setTitle(embedTitle)
                         .setDescription(item.title)
-                        .setColor(feeds_1.PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
-                        .addFields({ name: "Plateforme", value: rss_parser_1.PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true }, { name: "Note", value: "📌 Rattrapage (publié pendant l'arrêt du bot)", inline: true })
+                        .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
+                        .addFields({ name: "Plateforme", value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true }, { name: "Note", value: "📌 Rattrapage (publié pendant l'arrêt du bot)", inline: true })
                         .setURL(item.url)
                         .setTimestamp();
                     try {
                         if (source.type === "YOUTUBE") {
-                            const thumb = item.thumbnail || await (0, image_helpers_1.getYouTubeThumbnail)(item.url);
+                            const thumb = item.thumbnail || await getYouTubeThumbnail(item.url);
                             if (thumb)
                                 embed.setImage(thumb);
                         }
                         else if (source.type === "TWITTER") {
-                            const og = await (0, image_helpers_1.getTweetImage)(item.url);
+                            const og = await getTweetImage(item.url);
                             if (og)
                                 embed.setImage(og);
                         }
                         else if (source.type === "BLUESKY") {
-                            const og = await (0, image_helpers_1.getOgImage)(item.url);
+                            const og = await getOgImage(item.url);
                             if (og)
                                 embed.setImage(og);
                         }
@@ -434,50 +426,50 @@ async function runDbSourcesRetrospective(client) {
                     publishedForSource++;
                     totalPublished++;
                     if (totalPublished >= MAX_RETRO_POSTS) {
-                        logger_1.default.info("[RetroDB] Cap global atteint (" + MAX_RETRO_POSTS + " publications)");
+                        logger.info("[RetroDB] Cap global atteint (" + MAX_RETRO_POSTS + " publications)");
                         break dbRetroLoop;
                     }
                 }
             }
             if (publishedForSource > 0) {
-                logger_1.default.info(`[RetroDB] @${source.urlOrHandle}: ${publishedForSource} rattrapage(s)`);
+                logger.info(`[RetroDB] @${source.urlOrHandle}: ${publishedForSource} rattrapage(s)`);
             }
         }
         catch (err) {
             const errMsg = String(err);
-            logger_1.default.error(`[RetroDB] Erreur source ${source.urlOrHandle}:`, errMsg);
-            await (0, feeds_1.logError)(client, "RetroDB/" + source.urlOrHandle, errMsg);
+            logger.error(`[RetroDB] Erreur source ${source.urlOrHandle}:`, errMsg);
+            await logError(client, "RetroDB/" + source.urlOrHandle, errMsg);
         }
     }
-    logger_1.default.info("=".repeat(50));
-    logger_1.default.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`);
-    logger_1.default.info("=".repeat(50));
-    logger_1.default.info("");
+    logger.info("=".repeat(50));
+    logger.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`);
+    logger.info("=".repeat(50));
+    logger.info("");
 }
-function startMonitoring(client) {
+export function startMonitoring(client) {
     if (intervalId)
         return;
-    logger_1.default.info("[Monitor] Surveillance activée (intervalle: " + (CHECK_INTERVAL_MS / 60000) + " min)");
+    logger.info("[Monitor] Surveillance activée (intervalle: " + (CHECK_INTERVAL_MS / 60000) + " min)");
     try {
         checkAndNotify(client);
     }
     catch (err) {
-        logger_1.default.error("[Monitor] Crash au premier check:", String(err));
+        logger.error("[Monitor] Crash au premier check:", String(err));
     }
     intervalId = setInterval(function () {
         try {
             checkAndNotify(client);
         }
         catch (err) {
-            logger_1.default.error("[Monitor] Crash dans le setInterval:", String(err));
+            logger.error("[Monitor] Crash dans le setInterval:", String(err));
         }
     }, CHECK_INTERVAL_MS);
 }
-function stopMonitoring() {
+export function stopMonitoring() {
     if (intervalId) {
         clearInterval(intervalId);
         intervalId = null;
-        logger_1.default.info("[Monitor] Surveillance arrêtée");
+        logger.info("[Monitor] Surveillance arrêtée");
     }
 }
 //# sourceMappingURL=monitor.js.map

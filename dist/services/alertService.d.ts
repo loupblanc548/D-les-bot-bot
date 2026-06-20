@@ -1,5 +1,5 @@
 import { Client } from "discord.js";
-import { AlertPriority } from "../components/embedBuilder";
+import { AlertPriority } from "../components/embedBuilder.js";
 /**
  * Service d'alertes priorisées par couleur
  * Gère l'envoi d'alertes avec différents niveaux de priorité et couleurs

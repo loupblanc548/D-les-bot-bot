@@ -18,18 +18,21 @@ const dealWorker = new Worker(
   async (job: Job) => {
     logger.info(`[DealWorker] Processing job ${job.id}:`, job.name);
     switch (job.name) {
-      case "humble_bundle":
+      case "humble_bundle": {
         const { runHumbleBundleCron } = await import("../cron/humbleBundleCron.js");
         await runHumbleBundleCron();
         break;
-      case "gmg":
+      }
+      case "gmg": {
         const { runGMGCron } = await import("../cron/gmgCron.js");
         await runGMGCron();
         break;
-      case "xbox_game_pass":
+      }
+      case "xbox_game_pass": {
         const { runXboxGamePassCron } = await import("../cron/xboxGamePassCron.js");
         await runXboxGamePassCron();
         break;
+      }
     }
   },
   { connection },

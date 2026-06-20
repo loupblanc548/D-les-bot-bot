@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.steamActivityService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 class SteamActivityService {
     apiKey = null;
     userLinks;
@@ -15,10 +9,10 @@ class SteamActivityService {
         this.userLinks = new Map();
         this.activityCache = new Map();
         if (this.apiKey) {
-            logger_1.default.info("[SteamActivity] Service initialisé avec clé API");
+            logger.info("[SteamActivity] Service initialisé avec clé API");
         }
         else {
-            logger_1.default.warn("[SteamActivity] STEAM_API_KEY non configuré, service limité");
+            logger.warn("[SteamActivity] STEAM_API_KEY non configuré, service limité");
         }
     }
     /**
@@ -29,7 +23,7 @@ class SteamActivityService {
             // Vérifier si le compte Steam est valide
             const profile = await this.getSteamProfile(steamId);
             if (!profile) {
-                logger_1.default.warn(`[SteamActivity] Profil Steam invalide: ${steamId}`);
+                logger.warn(`[SteamActivity] Profil Steam invalide: ${steamId}`);
                 return false;
             }
             // Sauvegarder le lien
@@ -39,16 +33,16 @@ class SteamActivityService {
                 linkedAt: Date.now(),
             };
             this.userLinks.set(discordId, link);
-            await prisma_1.default.steamLink.upsert({
+            await prisma.steamLink.upsert({
                 where: { discordId },
                 create: link,
                 update: link,
             });
-            logger_1.default.info(`[SteamActivity] Compte lié: ${discordId} -> ${steamId}`);
+            logger.info(`[SteamActivity] Compte lié: ${discordId} -> ${steamId}`);
             return true;
         }
         catch (error) {
-            logger_1.default.error("[SteamActivity] Erreur lors du lien du compte:", error);
+            logger.error("[SteamActivity] Erreur lors du lien du compte:", error);
             return false;
         }
     }
@@ -57,7 +51,7 @@ class SteamActivityService {
      */
     async getSteamProfile(steamId) {
         if (!this.apiKey) {
-            logger_1.default.warn("[SteamActivity] Clé API non configurée");
+            logger.warn("[SteamActivity] Clé API non configurée");
             return null;
         }
         try {
@@ -77,7 +71,7 @@ class SteamActivityService {
             };
         }
         catch (error) {
-            logger_1.default.error("[SteamActivity] Erreur lors de la récupération du profil:", error);
+            logger.error("[SteamActivity] Erreur lors de la récupération du profil:", error);
             return null;
         }
     }
@@ -86,7 +80,7 @@ class SteamActivityService {
      */
     async getSteamGames(steamId) {
         if (!this.apiKey) {
-            logger_1.default.warn("[SteamActivity] Clé API non configurée");
+            logger.warn("[SteamActivity] Clé API non configurée");
             return [];
         }
         try {
@@ -108,7 +102,7 @@ class SteamActivityService {
             return games;
         }
         catch (error) {
-            logger_1.default.error("[SteamActivity] Erreur lors de la récupération des jeux:", error);
+            logger.error("[SteamActivity] Erreur lors de la récupération des jeux:", error);
             return [];
         }
     }
@@ -118,7 +112,7 @@ class SteamActivityService {
     async getRecentActivity(discordId) {
         const link = this.userLinks.get(discordId);
         if (!link) {
-            logger_1.default.warn(`[SteamActivity] Aucun lien Steam trouvé pour ${discordId}`);
+            logger.warn(`[SteamActivity] Aucun lien Steam trouvé pour ${discordId}`);
             return {
                 profile: null,
                 recentGames: [],
@@ -181,11 +175,11 @@ class SteamActivityService {
      * Charge les liens depuis Prisma
      */
     async loadLinksFromPrisma() {
-        const links = await prisma_1.default.steamLink.findMany();
+        const links = await prisma.steamLink.findMany();
         for (const link of links) {
             this.userLinks.set(link.discordId, link);
         }
-        logger_1.default.info(`[SteamActivity] ${links.length} lien(s) chargé(s) depuis Prisma`);
+        logger.info(`[SteamActivity] ${links.length} lien(s) chargé(s) depuis Prisma`);
     }
     /**
      * Obtient tous les utilisateurs liés
@@ -199,14 +193,14 @@ class SteamActivityService {
     async unlinkSteamAccount(discordId) {
         try {
             this.userLinks.delete(discordId);
-            await prisma_1.default.steamLink.delete({
+            await prisma.steamLink.delete({
                 where: { discordId },
             });
-            logger_1.default.info(`[SteamActivity] Lien supprimé pour ${discordId}`);
+            logger.info(`[SteamActivity] Lien supprimé pour ${discordId}`);
             return true;
         }
         catch (error) {
-            logger_1.default.error("[SteamActivity] Erreur lors de la suppression du lien:", error);
+            logger.error("[SteamActivity] Erreur lors de la suppression du lien:", error);
             return false;
         }
     }
@@ -226,5 +220,5 @@ class SteamActivityService {
         };
     }
 }
-exports.steamActivityService = new SteamActivityService();
+export const steamActivityService = new SteamActivityService();
 //# sourceMappingURL=steam-activity.js.map

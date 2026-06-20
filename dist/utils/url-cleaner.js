@@ -1,11 +1,8 @@
-"use strict";
 /**
  * Nettoie une URL en retirant les paramètres de tracking et en normalisant
  * les URLs YouTube pour éviter les doublons causés par des liens
  * légèrement différents pointant vers le même contenu.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanUrl = cleanUrl;
 const TRACKING_PARAMS = [
     "si", // YouTube source info
     "t", // YouTube timestamp
@@ -89,7 +86,7 @@ function cleanYouTubeUrl(url) {
  *
  * Si l'URL est invalide ou vide, retourne la chaîne d'origine.
  */
-function cleanUrl(rawUrl) {
+export function cleanUrl(rawUrl) {
     if (!rawUrl)
         return rawUrl;
     try {

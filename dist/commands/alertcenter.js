@@ -1,20 +1,13 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const permissions_1 = require("../services/permissions");
-const logs_1 = require("../services/logs");
-const risk_engine_1 = require("../services/risk-engine");
-const alert_service_1 = require("../services/alert-service");
+import logger from "../utils/logger.js";
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, } from "discord.js";
+import prisma from "../prisma.js";
+import { requireAdmin } from "../services/permissions.js";
+import { createLog } from "../services/logs.js";
+import { getRiskReport, getAllRiskyUsers, resetRiskProfile, } from "../services/risk-engine.js";
+import { getPendingAlerts, getAlertHistory, getAlertsByUser, } from "../services/alert-service.js";
 const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 function baseEmbed(title, color) {
-    return new discord_js_1.EmbedBuilder()
+    return new EmbedBuilder()
         .setTitle(title)
         .setColor(color)
         .setFooter(FOOTER)
@@ -23,9 +16,9 @@ function baseEmbed(title, color) {
 // ============================================================
 // Définitions des commandes
 // ============================================================
-exports.commands = [
+export const commands = [
     // /alertcenter - Centre d'alertes global
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("alertcenter")
         .setDescription("Centre d'alertes global - consulter et gérer les alertes")
         .addSubcommand((s) => s.setName("pending").setDescription("Voir les alertes en attente"))
@@ -34,28 +27,28 @@ exports.commands = [
         .setName("user")
         .setDescription("Voir les alertes d'un utilisateur")
         .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur").setRequired(true)))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ModerateMembers)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .toJSON(),
     // /riskscore - Voir le score de risque d'un utilisateur
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("riskscore")
         .setDescription("Voir le score de risque d'un utilisateur")
         .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur").setRequired(true))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ModerateMembers)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .toJSON(),
     // /riskyusers - Liste des utilisateurs à risque
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("riskyusers")
         .setDescription("Lister les utilisateurs à risque sur le serveur")
         .addStringOption((o) => o
         .setName("niveau")
         .setDescription("Niveau de risque minimum")
         .setRequired(false)
-        .addChoices({ name: "Moyen", value: "MOYEN" }, { name: "Élevé", value: "ÉLEVÉ" }, { name: "Critique", value: "CRITIQUE" }))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ModerateMembers)
+        .addChoices({ name: "Moyen", value: "MOYEN" }, { name: "Élevé", value: "ELEVE" }, { name: "Critique", value: "CRITIQUE" }))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .toJSON(),
     // /alertconfig - Configurer les alertes
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("alertconfig")
         .setDescription("Configurer le système d'alertes")
         .addSubcommand((s) => s
@@ -81,14 +74,14 @@ exports.commands = [
         .addSubcommand((s) => s.setName("reset").setDescription("Réinitialiser les alertes d'un utilisateur")
         .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur").setRequired(true)))
         .addSubcommand((s) => s.setName("view").setDescription("Voir la configuration actuelle"))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.Administrator)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .toJSON(),
 ];
 // ============================================================
 // Handler principal
 // ============================================================
-async function handleCommand(interaction) {
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+export async function handleCommand(interaction) {
+    if (!(await requireAdmin(interaction)))
         return false;
     const { commandName } = interaction;
     switch (commandName) {
@@ -131,7 +124,7 @@ async function handleCommand(interaction) {
 async function handleAlertPending(interaction) {
     await interaction.deferReply();
     try {
-        const alerts = await (0, alert_service_1.getPendingAlerts)(interaction.guildId);
+        const alerts = await getPendingAlerts(interaction.guildId);
         if (alerts.length === 0) {
             await interaction.editReply({
                 embeds: [baseEmbed("🚨 Centre d'Alertes", 0x53fc18).setDescription("Aucune alerte en attente. ✅")],
@@ -147,7 +140,7 @@ async function handleAlertPending(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCENTER PENDING]:", error);
+        logger.error("[ALERTCENTER PENDING]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de récupérer les alertes.")],
         });
@@ -156,7 +149,7 @@ async function handleAlertPending(interaction) {
 async function handleAlertHistory(interaction) {
     await interaction.deferReply();
     try {
-        const alerts = await (0, alert_service_1.getAlertHistory)(interaction.guildId, 25);
+        const alerts = await getAlertHistory(interaction.guildId, 25);
         if (alerts.length === 0) {
             await interaction.editReply({
                 embeds: [baseEmbed("📜 Historique", 0x53fc18).setDescription("Aucune alerte dans l'historique.")],
@@ -174,7 +167,7 @@ async function handleAlertHistory(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCENTER HISTORY]:", error);
+        logger.error("[ALERTCENTER HISTORY]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de récupérer l'historique.")],
         });
@@ -184,7 +177,7 @@ async function handleAlertUser(interaction) {
     await interaction.deferReply();
     try {
         const user = interaction.options.getUser("cible", true);
-        const alerts = await (0, alert_service_1.getAlertsByUser)(user.id, interaction.guildId);
+        const alerts = await getAlertsByUser(user.id, interaction.guildId);
         if (alerts.length === 0) {
             await interaction.editReply({
                 embeds: [baseEmbed("👤 Alertes Utilisateur", 0x53fc18)
@@ -201,7 +194,7 @@ async function handleAlertUser(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCENTER USER]:", error);
+        logger.error("[ALERTCENTER USER]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de récupérer les alertes.")],
         });
@@ -214,11 +207,11 @@ async function handleRiskScore(interaction) {
     await interaction.deferReply();
     try {
         const user = interaction.options.getUser("cible", true);
-        const { profile, recentSanctions } = await (0, risk_engine_1.getRiskReport)(user.id, interaction.guildId);
+        const { profile, recentSanctions } = await getRiskReport(user.id, interaction.guildId);
         const riskEmojis = {
             "FAIBLE": "ℹ",
             "MOYEN": "⚠",
-            "ÉLEVÉ": "🚨",
+            "ELEVE": "🚨",
             "CRITIQUE": "❌",
         };
         let sanctionsText = "Aucune sanction récente";
@@ -231,7 +224,7 @@ async function handleRiskScore(interaction) {
         const colorMap = {
             "FAIBLE": 0x53fc18,
             "MOYEN": 0xffaa00,
-            "ÉLEVÉ": 0xff6600,
+            "ELEVE": 0xff6600,
             "CRITIQUE": 0xff3344,
         };
         const embed = baseEmbed(`Score de Risque - ${user.tag}`, colorMap[profile.riskLevel] || 0x808080)
@@ -246,7 +239,7 @@ async function handleRiskScore(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[RISKSCORE]:", error);
+        logger.error("[RISKSCORE]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de calculer le score de risque.")],
         });
@@ -259,7 +252,7 @@ async function handleRiskyUsers(interaction) {
     await interaction.deferReply();
     try {
         const niveau = (interaction.options.getString("niveau") || "MOYEN");
-        const users = await (0, risk_engine_1.getAllRiskyUsers)(interaction.guildId, niveau);
+        const users = await getAllRiskyUsers(interaction.guildId, niveau);
         if (users.length === 0) {
             await interaction.editReply({
                 embeds: [baseEmbed("👥 Utilisateurs à Risque", 0x53fc18)
@@ -270,7 +263,7 @@ async function handleRiskyUsers(interaction) {
         const riskEmojis = {
             "FAIBLE": "ℹ",
             "MOYEN": "⚠",
-            "ÉLEVÉ": "🚨",
+            "ELEVE": "🚨",
             "CRITIQUE": "❌",
         };
         const embed = baseEmbed("👥 Utilisateurs à Risque", 0xff6600)
@@ -285,7 +278,7 @@ async function handleRiskyUsers(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[RISKYUSERS]:", error);
+        logger.error("[RISKYUSERS]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de lister les utilisateurs.")],
         });
@@ -298,12 +291,12 @@ async function handleAlertConfigChannel(interaction) {
     await interaction.deferReply();
     try {
         const channel = interaction.options.getChannel("salon", true);
-        await prisma_1.default.guildConfig.upsert({
+        await prisma.guildConfig.upsert({
             where: { guildId: interaction.guildId },
             create: { guildId: interaction.guildId, logChannelId: channel.id },
             update: { logChannelId: channel.id },
         });
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "CONFIG",
             action: `Salon d'alertes défini: #${channel.name}`,
             moderator: interaction.user.id,
@@ -315,7 +308,7 @@ async function handleAlertConfigChannel(interaction) {
         });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCONFIG CHANNEL]:", error);
+        logger.error("[ALERTCONFIG CHANNEL]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de configurer le salon.")],
         });
@@ -325,7 +318,7 @@ async function handleAlertConfigThreshold(interaction) {
     await interaction.deferReply();
     try {
         const score = interaction.options.getInteger("score", true);
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "CONFIG",
             action: `Seuil d'alerte modifié: ${score}`,
             moderator: interaction.user.id,
@@ -336,7 +329,7 @@ async function handleAlertConfigThreshold(interaction) {
         });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCONFIG THRESHOLD]:", error);
+        logger.error("[ALERTCONFIG THRESHOLD]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de configurer le seuil.")],
         });
@@ -346,7 +339,7 @@ async function handleAlertConfigOwnerNotify(interaction) {
     await interaction.deferReply();
     try {
         const actif = interaction.options.getBoolean("actif", true);
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "CONFIG",
             action: `Notifications propriétaires: ${actif ? "ON" : "OFF"}`,
             moderator: interaction.user.id,
@@ -357,7 +350,7 @@ async function handleAlertConfigOwnerNotify(interaction) {
         });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCONFIG OWNER_NOTIFY]:", error);
+        logger.error("[ALERTCONFIG OWNER_NOTIFY]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de configurer les notifications.")],
         });
@@ -367,8 +360,8 @@ async function handleAlertConfigReset(interaction) {
     await interaction.deferReply();
     try {
         const user = interaction.options.getUser("cible", true);
-        await (0, risk_engine_1.resetRiskProfile)(user.id, interaction.guildId);
-        await (0, logs_1.createLog)({
+        await resetRiskProfile(user.id, interaction.guildId);
+        await createLog({
             type: "CONFIG",
             action: `Profil de risque réinitialisé: ${user.tag}`,
             moderator: interaction.user.id,
@@ -380,7 +373,7 @@ async function handleAlertConfigReset(interaction) {
         });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCONFIG RESET]:", error);
+        logger.error("[ALERTCONFIG RESET]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible de réinitialiser le profil.")],
         });
@@ -389,14 +382,14 @@ async function handleAlertConfigReset(interaction) {
 async function handleAlertConfigView(interaction) {
     await interaction.deferReply();
     try {
-        const config = await prisma_1.default.guildConfig.findUnique({
+        const config = await prisma.guildConfig.findUnique({
             where: { guildId: interaction.guildId },
         });
-        const pendingAlerts = await (0, alert_service_1.getPendingAlerts)(interaction.guildId);
-        const riskyCount = await prisma_1.default.riskProfile.count({
+        const pendingAlerts = await getPendingAlerts(interaction.guildId);
+        const riskyCount = await prisma.riskProfile.count({
             where: {
                 guildId: interaction.guildId,
-                riskLevel: { in: ["ÉLEVÉ", "CRITIQUE"] },
+                riskLevel: { in: ["ELEVE", "CRITIQUE"] },
             },
         });
         const embed = baseEmbed("⚙ Configuration des Alertes", 0x3498db)
@@ -404,7 +397,7 @@ async function handleAlertConfigView(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[ALERTCONFIG VIEW]:", error);
+        logger.error("[ALERTCONFIG VIEW]:", error);
         await interaction.editReply({
             embeds: [baseEmbed("Erreur", 0xff3344).setDescription("Impossible d'afficher la configuration.")],
         });

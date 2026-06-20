@@ -1,33 +1,22 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.buildEntries = buildEntries;
-exports.chunkEntries = chunkEntries;
-exports.buildNavRow = buildNavRow;
-exports.handleCasierClear = handleCasierClear;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const permissions_1 = require("../services/permissions");
+import logger from "../utils/logger.js";
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, } from "discord.js";
+import prisma from "../prisma.js";
+import { requireMod, requireAdmin } from "../services/permissions.js";
 const FOOTER = { text: "Système de Surveillance • v1.1.0" };
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("casier")
         .setDescription("Affiche le casier judiciaire d'un membre")
         .addUserOption((option) => option.setName("cible").setDescription("Le membre à consulter").setRequired(true))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("casier-clear")
         .setDescription("Supprime une sanction ou tout le casier (admin)")
         .addIntegerOption((option) => option.setName("id").setDescription("ID de la sanction").setRequired(false))
         .addUserOption((option) => option.setName("membre").setDescription("Membre à effacer").setRequired(false))
         .toJSON(),
 ];
-function buildEntries(warnings, mutes, kicks, banSanctions, bans) {
+export function buildEntries(warnings, mutes, kicks, banSanctions, bans) {
     const entries = [];
     const hdr = (s, l) => ({
         section: s, isHeader: true, headerLine: l, line: l,
@@ -72,7 +61,7 @@ function buildEntries(warnings, mutes, kicks, banSanctions, bans) {
     }
     return entries;
 }
-function chunkEntries(entries, maxChars) {
+export function chunkEntries(entries, maxChars) {
     const pages = [];
     let current = "", lastHeader = "";
     for (const e of entries) {
@@ -93,62 +82,62 @@ function chunkEntries(entries, maxChars) {
         pages.push(current);
     return pages;
 }
-function buildNavRow(page, total) {
-    return new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder().setCustomId("casier_prev").setLabel("◀️").setStyle(discord_js_1.ButtonStyle.Secondary).setDisabled(page === 0), new discord_js_1.ButtonBuilder().setCustomId("casier_page").setLabel("Page " + (page + 1) + " / " + total).setStyle(discord_js_1.ButtonStyle.Secondary).setDisabled(true), new discord_js_1.ButtonBuilder().setCustomId("casier_next").setLabel("▶️").setStyle(discord_js_1.ButtonStyle.Secondary).setDisabled(page === total - 1));
+export function buildNavRow(page, total) {
+    return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("casier_prev").setLabel("◀️").setStyle(ButtonStyle.Secondary).setDisabled(page === 0), new ButtonBuilder().setCustomId("casier_page").setLabel("Page " + (page + 1) + " / " + total).setStyle(ButtonStyle.Secondary).setDisabled(true), new ButtonBuilder().setCustomId("casier_next").setLabel("▶️").setStyle(ButtonStyle.Secondary).setDisabled(page === total - 1));
 }
-async function handleCasierClear(interaction) {
+export async function handleCasierClear(interaction) {
     const sanctionId = interaction.options.getInteger("id");
     const membre = interaction.options.getUser("membre");
     if (!sanctionId && !membre) {
-        await interaction.reply({ content: "❌ Fournis un ID de sanction OU un membre.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+        await interaction.reply({ content: "❌ Fournis un ID de sanction OU un membre.", flags: [MessageFlags.Ephemeral] });
         return;
     }
     if (sanctionId) {
-        const s = await prisma_1.default.sanction.findUnique({ where: { id: sanctionId } });
+        const s = await prisma.sanction.findUnique({ where: { id: sanctionId } });
         if (!s) {
-            await interaction.reply({ content: "❌ Sanction introuvable.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+            await interaction.reply({ content: "❌ Sanction introuvable.", flags: [MessageFlags.Ephemeral] });
             return;
         }
-        await prisma_1.default.sanction.delete({ where: { id: sanctionId } });
-        await interaction.reply({ content: "✅ Sanction #" + sanctionId + " (" + s.type + ") supprimée.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+        await prisma.sanction.delete({ where: { id: sanctionId } });
+        await interaction.reply({ content: "✅ Sanction #" + sanctionId + " (" + s.type + ") supprimée.", flags: [MessageFlags.Ephemeral] });
     }
     else if (membre) {
-        const d = await prisma_1.default.sanction.deleteMany({ where: { userId: membre.id, guildId: interaction.guildId } });
-        await interaction.reply({ content: "✅ " + d.count + " sanction(s) supprimée(s) pour " + membre.tag + ".", flags: [discord_js_1.MessageFlags.Ephemeral] });
+        const d = await prisma.sanction.deleteMany({ where: { userId: membre.id, guildId: interaction.guildId } });
+        await interaction.reply({ content: "✅ " + d.count + " sanction(s) supprimée(s) pour " + membre.tag + ".", flags: [MessageFlags.Ephemeral] });
     }
 }
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     if (interaction.commandName === "casier-clear") {
-        if (!(await (0, permissions_1.requireAdmin)(interaction)))
+        if (!(await requireAdmin(interaction)))
             return;
         await handleCasierClear(interaction);
         return;
     }
-    if (!(await (0, permissions_1.requireMod)(interaction)))
+    if (!(await requireMod(interaction)))
         return;
     const cible = interaction.options.getUser("cible", true);
     const guildId = interaction.guildId;
     if (!guildId) {
-        await interaction.reply({ content: "❌ Commande utilisable seulement sur un serveur.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+        await interaction.reply({ content: "❌ Commande utilisable seulement sur un serveur.", flags: [MessageFlags.Ephemeral] });
         return;
     }
     await interaction.deferReply();
     try {
-        logger_1.default.info("🔍 [Casier] Recherche sanctions pour ID:", cible.id, "| Tag:", cible.tag);
-        const warnings = await prisma_1.default.sanction.findMany({ where: { userId: cible.id, guildId, type: "WARN" }, orderBy: { createdAt: "desc" } });
-        logger_1.default.info("📊 [Casier] WARN:", warnings.length);
-        const mutes = await prisma_1.default.sanction.findMany({ where: { userId: cible.id, guildId, type: "TIMEOUT" }, orderBy: { createdAt: "desc" } });
-        logger_1.default.info("📊 [Casier] TIMEOUT:", mutes.length);
-        const kicks = await prisma_1.default.sanction.findMany({ where: { userId: cible.id, guildId, type: "KICK" }, orderBy: { createdAt: "desc" } });
-        logger_1.default.info("📊 [Casier] KICK:", kicks.length);
-        const banSanctions = await prisma_1.default.sanction.findMany({ where: { userId: cible.id, guildId, type: "BAN" }, orderBy: { createdAt: "desc" } });
-        logger_1.default.info("📊 [Casier] BAN:", banSanctions.length);
-        const bans = await prisma_1.default.log.findMany({ where: { type: "ban", OR: [{ userId: cible.id }, { targetId: cible.id }] }, orderBy: { createdAt: "desc" } });
-        logger_1.default.info("📊 [Casier] BAN logs:", bans.length);
+        logger.info("🔍 [Casier] Recherche sanctions pour ID:", cible.id, "| Tag:", cible.tag);
+        const warnings = await prisma.sanction.findMany({ where: { userId: cible.id, guildId, type: "WARN" }, orderBy: { createdAt: "desc" } });
+        logger.info("📊 [Casier] WARN:", warnings.length);
+        const mutes = await prisma.sanction.findMany({ where: { userId: cible.id, guildId, type: "TIMEOUT" }, orderBy: { createdAt: "desc" } });
+        logger.info("📊 [Casier] TIMEOUT:", mutes.length);
+        const kicks = await prisma.sanction.findMany({ where: { userId: cible.id, guildId, type: "KICK" }, orderBy: { createdAt: "desc" } });
+        logger.info("📊 [Casier] KICK:", kicks.length);
+        const banSanctions = await prisma.sanction.findMany({ where: { userId: cible.id, guildId, type: "BAN" }, orderBy: { createdAt: "desc" } });
+        logger.info("📊 [Casier] BAN:", banSanctions.length);
+        const bans = await prisma.log.findMany({ where: { type: "ban", OR: [{ userId: cible.id }, { targetId: cible.id }] }, orderBy: { createdAt: "desc" } });
+        logger.info("📊 [Casier] BAN logs:", bans.length);
         const total = warnings.length + mutes.length + kicks.length + banSanctions.length + bans.length;
-        logger_1.default.info("📊 [Casier] Total sanctions:", total);
+        logger.info("📊 [Casier] Total sanctions:", total);
         const vierge = total === 0;
-        const baseEmbed = () => new discord_js_1.EmbedBuilder()
+        const baseEmbed = () => new EmbedBuilder()
             .setTitle("🗂️ Casier Judiciaire • " + cible.username)
             .setColor(vierge ? 0x2ecc71 : 0xff3344)
             .setFooter(FOOTER).setTimestamp();
@@ -169,10 +158,10 @@ Aucun historique de sanction.`)
         }
         let page = 0;
         const reply = await interaction.editReply({ embeds: [embeds[0]], components: [buildNavRow(0, pages.length)] });
-        const collector = reply.createMessageComponentCollector({ componentType: discord_js_1.ComponentType.Button, time: 120_000 });
+        const collector = reply.createMessageComponentCollector({ componentType: ComponentType.Button, time: 120_000 });
         collector.on("collect", async (btn) => {
             if (btn.user.id !== interaction.user.id) {
-                await btn.reply({ content: "❌ Seul l'auteur peut naviguer.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await btn.reply({ content: "❌ Seul l'auteur peut naviguer.", flags: [MessageFlags.Ephemeral] });
                 return;
             }
             page = btn.customId === "casier_prev" ? Math.max(0, page - 1) : Math.min(pages.length - 1, page + 1);
@@ -181,16 +170,16 @@ Aucun historique de sanction.`)
         collector.on("end", async () => {
             const row = buildNavRow(page, pages.length);
             row.components.forEach(b => b.setDisabled(true));
-            await reply.edit({ components: [row] }).catch(() => { });
+            await reply.edit({ components: [row] }).catch((err) => { logger.error("[Casier] Erreur edit reply:", String(err)); });
         });
     }
     catch (error) {
-        logger_1.default.error("[CRASH CASIER]", error);
+        logger.error("[CRASH CASIER]", error);
         try {
             await interaction.editReply({ content: "❌ Erreur interne. L'erreur a été logguée dans la console." });
         }
         catch {
-            await interaction.followUp({ content: "❌ Erreur interne.", flags: [discord_js_1.MessageFlags.Ephemeral] });
+            await interaction.followUp({ content: "❌ Erreur interne.", flags: [MessageFlags.Ephemeral] });
         }
     }
 }

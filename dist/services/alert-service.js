@@ -1,44 +1,31 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateAlert = generateAlert;
-exports.buildAlertEmbed = buildAlertEmbed;
-exports.sendAlertToChannel = sendAlertToChannel;
-exports.notifyOwners = notifyOwners;
-exports.resolveAlert = resolveAlert;
-exports.getPendingAlerts = getPendingAlerts;
-exports.getAlertHistory = getAlertHistory;
-exports.getAlertsByUser = getAlertsByUser;
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const logs_1 = require("./logs");
-const discord_js_1 = require("discord.js");
-const risk_engine_1 = require("./risk-engine");
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { createLog } from "./logs.js";
+import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, } from "discord.js";
+import { getRiskReport } from "./risk-engine.js";
 // ============================================================
 // Constantes
 // ============================================================
 const RISK_EMOJIS = {
     "FAIBLE": "\u2139",
     "MOYEN": "\u26A0",
-    "ÉLEVÉ": "\uD83D\uDEA8",
+    "ELEVE": "\uD83D\uDEA8",
     "CRITIQUE": "\u274C",
 };
 const ALERT_BUTTONS = [
-    { id: "IGNORE", label: "Ignorer", emoji: "\u274C", style: discord_js_1.ButtonStyle.Secondary },
-    { id: "WATCH", label: "Surveiller", emoji: "\u2139", style: discord_js_1.ButtonStyle.Primary },
-    { id: "WARN", label: "Warn", emoji: "\u26A0", style: discord_js_1.ButtonStyle.Success },
-    { id: "TIMEOUT", label: "Timeout", emoji: "\u23F0", style: discord_js_1.ButtonStyle.Danger },
-    { id: "KICK", label: "Kick", emoji: "\uD83D\uDCE6", style: discord_js_1.ButtonStyle.Danger },
-    { id: "BAN", label: "Ban", emoji: "\uD83D\uDEA8", style: discord_js_1.ButtonStyle.Danger },
+    { id: "IGNORE", label: "Ignorer", emoji: "\u274C", style: ButtonStyle.Secondary },
+    { id: "WATCH", label: "Surveiller", emoji: "\u2139", style: ButtonStyle.Primary },
+    { id: "WARN", label: "Warn", emoji: "\u26A0", style: ButtonStyle.Success },
+    { id: "TIMEOUT", label: "Timeout", emoji: "\u23F0", style: ButtonStyle.Danger },
+    { id: "KICK", label: "Kick", emoji: "\uD83D\uDCE6", style: ButtonStyle.Danger },
+    { id: "BAN", label: "Ban", emoji: "\uD83D\uDEA8", style: ButtonStyle.Danger },
 ];
 // ============================================================
 // Génération d'une alerte
 // ============================================================
-async function generateAlert(profile, reason, type = "RISK_THRESHOLD") {
-    const alert = await prisma_1.default.alert.create({
+export async function generateAlert(profile, reason, type = "RISK_THRESHOLD") {
+    const alert = await prisma.alert.create({
         data: {
             guildId: profile.guildId,
             userId: profile.userId,
@@ -50,25 +37,25 @@ async function generateAlert(profile, reason, type = "RISK_THRESHOLD") {
         },
     });
     // Marquer le profil avec la dernière alerte
-    await prisma_1.default.riskProfile.updateMany({
+    await prisma.riskProfile.updateMany({
         where: { userId: profile.userId, guildId: profile.guildId },
         data: { lastAlertAt: new Date() },
     });
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "ALERT",
         action: `Alerte g\u00E9n\u00E9r\u00E9e pour ${profile.userId}`,
         userId: profile.userId,
         targetId: profile.guildId,
         details: JSON.stringify({ riskScore: profile.riskScore, riskLevel: profile.riskLevel, reason }),
     });
-    logger_1.default.info(`[AlertService] Alerte g\u00E9n\u00E9r\u00E9e pour ${profile.userId} (${profile.riskLevel}, score=${profile.riskScore})`);
+    logger.info(`[AlertService] Alerte g\u00E9n\u00E9r\u00E9e pour ${profile.userId} (${profile.riskLevel}, score=${profile.riskScore})`);
     return alert;
 }
 // ============================================================
 // Construction de l'embed d'alerte
 // ============================================================
-async function buildAlertEmbed(alert, client) {
-    const { profile, recentSanctions } = await (0, risk_engine_1.getRiskReport)(alert.userId, alert.guildId);
+export async function buildAlertEmbed(alert, client) {
+    const { profile, recentSanctions } = await getRiskReport(alert.userId, alert.guildId);
     // Récupérer infos utilisateur
     let userTag = "Inconnu";
     let accountCreatedAt = "Inconnu";
@@ -101,11 +88,11 @@ async function buildAlertEmbed(alert, client) {
     const colorMap = {
         "FAIBLE": 0x53fc18,
         "MOYEN": 0xffaa00,
-        "ÉLEVÉ": 0xff6600,
+        "ELEVE": 0xff6600,
         "CRITIQUE": 0xff3344,
     };
     const color = colorMap[alert.riskLevel] || 0x808080;
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(`\uD83D\uDEA8 Alerte de Mod\u00E9ration \uD83D\uDEA8`)
         .setColor(color)
         .setDescription(`## ${riskEmoji} Niveau de Risque : **${alert.riskLevel}**\n` +
@@ -128,14 +115,14 @@ async function buildAlertEmbed(alert, client) {
 // ============================================================
 // Envoi de l'alerte vers le salon dédié
 // ============================================================
-async function sendAlertToChannel(alert, client) {
+export async function sendAlertToChannel(alert, client) {
     const embed = await buildAlertEmbed(alert, client);
     // Boutons d'action (2 rows of 3)
     const rows = [];
-    let currentRow = new discord_js_1.ActionRowBuilder();
+    let currentRow = new ActionRowBuilder();
     let buttonCount = 0;
     for (const btn of ALERT_BUTTONS) {
-        currentRow.addComponents(new discord_js_1.ButtonBuilder()
+        currentRow.addComponents(new ButtonBuilder()
             .setCustomId(`alert_${btn.id}_${alert.id}`)
             .setLabel(btn.label)
             .setEmoji(btn.emoji)
@@ -143,13 +130,13 @@ async function sendAlertToChannel(alert, client) {
         buttonCount++;
         if (buttonCount % 3 === 0 || buttonCount === ALERT_BUTTONS.length) {
             rows.push(currentRow);
-            currentRow = new discord_js_1.ActionRowBuilder();
+            currentRow = new ActionRowBuilder();
         }
     }
     // Trouver le canal d'alerte
     let targetChannel = null;
     try {
-        const guildConfig = await prisma_1.default.guildConfig.findUnique({ where: { guildId: alert.guildId } });
+        const guildConfig = await prisma.guildConfig.findUnique({ where: { guildId: alert.guildId } });
         if (guildConfig?.logChannelId) {
             const guild = client.guilds.cache.get(alert.guildId);
             if (guild) {
@@ -160,7 +147,7 @@ async function sendAlertToChannel(alert, client) {
         }
     }
     catch (err) {
-        logger_1.default.warn(`[AlertService] Impossible de trouver le canal d'alerte: ${err}`);
+        logger.warn(`[AlertService] Impossible de trouver le canal d'alerte: ${err}`);
     }
     if (targetChannel) {
         try {
@@ -169,22 +156,22 @@ async function sendAlertToChannel(alert, client) {
                 embeds: [embed],
                 components: rows,
             });
-            logger_1.default.info(`[AlertService] Alerte envoy\u00E9e dans #${targetChannel.name}`);
+            logger.info(`[AlertService] Alerte envoy\u00E9e dans #${targetChannel.name}`);
         }
         catch (err) {
-            logger_1.default.error(`[AlertService] \u00C9chec envoi alerte canal: ${err}`);
+            logger.error(`[AlertService] \u00C9chec envoi alerte canal: ${err}`);
         }
     }
     else {
-        logger_1.default.warn(`[AlertService] Aucun canal d'alerte configur\u00E9 pour ${alert.guildId}`);
+        logger.warn(`[AlertService] Aucun canal d'alerte configur\u00E9 pour ${alert.guildId}`);
     }
 }
 // ============================================================
 // Notification des propriétaires du bot
 // ============================================================
-async function notifyOwners(alert, message, client) {
-    const ownerIds = config_1.config.ownerId
-        ? config_1.config.ownerId.split(",").map((s) => s.trim())
+export async function notifyOwners(alert, message, client) {
+    const ownerIds = config.ownerId
+        ? config.ownerId.split(",").map((s) => s.trim())
         : [];
     if (ownerIds.length === 0)
         return;
@@ -193,29 +180,29 @@ async function notifyOwners(alert, message, client) {
             continue;
         try {
             const owner = await client.users.fetch(ownerId);
-            const embed = new discord_js_1.EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setTitle(`\uD83D\uDEA8 Alerte Propri\u00E9taire - ${alert.riskLevel}`)
                 .setColor(0xff3344)
                 .setDescription(message)
                 .addFields({ name: "Serveur", value: alert.guildId, inline: true }, { name: "Utilisateur", value: `<@${alert.userId}>`, inline: true }, { name: "Score", value: `${alert.riskScore}`, inline: true })
                 .setTimestamp();
             await owner.send({ embeds: [embed] }).catch((err) => {
-                logger_1.default.warn(`[AlertService] Impossible de DM le propri\u00E9taire ${ownerId}: ${err.message}`);
+                logger.warn(`[AlertService] Impossible de DM le propri\u00E9taire ${ownerId}: ${err.message}`);
             });
         }
         catch (err) {
-            logger_1.default.warn(`[AlertService] Erreur notification owner ${ownerId}: ${err}`);
+            logger.warn(`[AlertService] Erreur notification owner ${ownerId}: ${err}`);
         }
     }
 }
 // ============================================================
 // Traitement des actions des boutons d'alerte
 // ============================================================
-async function resolveAlert(alertId, action, moderatorId) {
-    const alert = await prisma_1.default.alert.findUnique({ where: { id: alertId } });
+export async function resolveAlert(alertId, action, moderatorId) {
+    const alert = await prisma.alert.findUnique({ where: { id: alertId } });
     if (!alert || alert.status !== "PENDING")
         return null;
-    const updated = await prisma_1.default.alert.update({
+    const updated = await prisma.alert.update({
         where: { id: alertId },
         data: {
             status: action === "IGNORE" ? "DISMISSED" : "RESOLVED",
@@ -225,40 +212,40 @@ async function resolveAlert(alertId, action, moderatorId) {
         },
     });
     if (action === "WATCH") {
-        await prisma_1.default.riskProfile.updateMany({
+        await prisma.riskProfile.updateMany({
             where: { userId: alert.userId, guildId: alert.guildId },
             data: { underWatch: true },
         });
     }
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "ALERT_ACTION",
         action: `Alerte r\u00E9solue: ${action}`,
         userId: alert.userId,
         moderator: moderatorId,
         details: JSON.stringify({ alertId, action }),
     });
-    logger_1.default.info(`[AlertService] Alerte ${alertId} r\u00E9solue par ${moderatorId}: ${action}`);
+    logger.info(`[AlertService] Alerte ${alertId} r\u00E9solue par ${moderatorId}: ${action}`);
     return updated;
 }
 // ============================================================
 // Récupération des alertes
 // ============================================================
-async function getPendingAlerts(guildId) {
-    return prisma_1.default.alert.findMany({
+export async function getPendingAlerts(guildId) {
+    return prisma.alert.findMany({
         where: { guildId, status: "PENDING" },
         orderBy: { createdAt: "desc" },
         take: 25,
     });
 }
-async function getAlertHistory(guildId, limit = 50) {
-    return prisma_1.default.alert.findMany({
+export async function getAlertHistory(guildId, limit = 50) {
+    return prisma.alert.findMany({
         where: { guildId },
         orderBy: { createdAt: "desc" },
         take: limit,
     });
 }
-async function getAlertsByUser(userId, guildId) {
-    return prisma_1.default.alert.findMany({
+export async function getAlertsByUser(userId, guildId) {
+    return prisma.alert.findMany({
         where: { userId, guildId },
         orderBy: { createdAt: "desc" },
         take: 25,

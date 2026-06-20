@@ -1,21 +1,15 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.reportGeneratorService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const social_graph_1 = require("./social-graph");
-const behavior_detection_1 = require("./behavior-detection");
-const trend_detection_1 = require("./trend-detection");
-const source_reputation_1 = require("./source-reputation");
+import logger from "../utils/logger.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import { socialGraphService } from "./social-graph.js";
+import { behaviorDetectionService } from "./behavior-detection.js";
+import { trendDetectionService } from "./trend-detection.js";
+import { sourceReputationService } from "./source-reputation.js";
 class ReportGeneratorService {
     reportCache;
     constructor() {
         this.reportCache = new Map();
-        logger_1.default.info("[ReportGenerator] Service initialisé");
+        logger.info("[ReportGenerator] Service initialisé");
     }
     /**
      * Génère un rapport quotidien
@@ -49,12 +43,12 @@ class ReportGeneratorService {
      * Génère un rapport
      */
     async generateReport(client, period, startDate, endDate) {
-        logger_1.default.info(`[ReportGenerator] Génération rapport ${period} du ${startDate.toISOString()} au ${endDate.toISOString()}`);
+        logger.info(`[ReportGenerator] Génération rapport ${period} du ${startDate.toISOString()} au ${endDate.toISOString()}`);
         // Collecter les données
-        const graphReport = social_graph_1.socialGraphService.generateGraphReport();
-        const behaviorAlerts = behavior_detection_1.behaviorDetectionService.getRecentAlerts(24);
-        const trends = trend_detection_1.trendDetectionService.getCurrentTrends(10);
-        const sourceStats = source_reputation_1.sourceReputationService.getGlobalStats();
+        const graphReport = socialGraphService.generateGraphReport();
+        const behaviorAlerts = behaviorDetectionService.getRecentAlerts(24);
+        const trends = trendDetectionService.getCurrentTrends(10);
+        const sourceStats = sourceReputationService.getGlobalStats();
         const reportData = {
             period,
             startDate,
@@ -106,16 +100,16 @@ class ReportGeneratorService {
      * Envoie le rapport via Discord
      */
     async sendReport(client, reportData) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.error("[ReportGenerator] Channel de logs non configuré");
+        if (!config.logChannel) {
+            logger.error("[ReportGenerator] Channel de logs non configuré");
             return;
         }
-        const channel = client.channels.cache.get(config_1.config.logChannel);
+        const channel = client.channels.cache.get(config.logChannel);
         if (!channel || !channel.isTextBased()) {
-            logger_1.default.error("[ReportGenerator] Channel non disponible");
+            logger.error("[ReportGenerator] Channel non disponible");
             return;
         }
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(`📊 Rapport ${reportData.period === "daily" ? "Quotidien" : reportData.period === "weekly" ? "Hebdomadaire" : "Mensuel"}`)
             .setDescription(`Période: ${reportData.startDate.toLocaleDateString()} - ${reportData.endDate.toLocaleDateString()}`)
             .setColor(0x00ff00)
@@ -151,10 +145,10 @@ class ReportGeneratorService {
         }
         try {
             await channel.send({ embeds: [embed] });
-            logger_1.default.info(`[ReportGenerator] Rapport ${reportData.period} envoyé`);
+            logger.info(`[ReportGenerator] Rapport ${reportData.period} envoyé`);
         }
         catch (error) {
-            logger_1.default.error("[ReportGenerator] Erreur lors de l'envoi du rapport:", error);
+            logger.error("[ReportGenerator] Erreur lors de l'envoi du rapport:", error);
         }
     }
     /**
@@ -186,7 +180,7 @@ RECOMMANDATIONS
 ---------------
 ${reportData.recommendations.join("\n")}
     `.trim();
-        logger_1.default.info("[ReportGenerator] Rapport PDF généré (simulé)");
+        logger.info("[ReportGenerator] Rapport PDF généré (simulé)");
         return reportContent;
     }
     /**
@@ -220,7 +214,7 @@ ${reportData.recommendations.join("\n")}
             }
             await this.sendReport(client, reportData);
         }, intervalMs);
-        logger_1.default.info(`[ReportGenerator] Auto-reporting activé (période: ${period})`);
+        logger.info(`[ReportGenerator] Auto-reporting activé (période: ${period})`);
     }
     /**
      * Obtient un rapport depuis le cache
@@ -239,8 +233,8 @@ ${reportData.recommendations.join("\n")}
                 this.reportCache.delete(key);
             }
         }
-        logger_1.default.debug(`[ReportGenerator] Cache nettoyé (rapports > ${daysToKeep} jours supprimés)`);
+        logger.debug(`[ReportGenerator] Cache nettoyé (rapports > ${daysToKeep} jours supprimés)`);
     }
 }
-exports.reportGeneratorService = new ReportGeneratorService();
+export const reportGeneratorService = new ReportGeneratorService();
 //# sourceMappingURL=report-generator.js.map

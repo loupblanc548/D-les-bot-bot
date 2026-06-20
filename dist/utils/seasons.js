@@ -1,18 +1,8 @@
-"use strict";
 // Utilitaire de normalisation des saisons Fortnite
 // Format reconnus :
 //   - "Season 1" .. "Season X" (Chapitre 1, format historique)
 //   - "Chapter N Season M" (Chapitres 2+)
 //   - "Saison X" / "Chapitre N Saison M" (français)
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.normalizeSeason = normalizeSeason;
-exports.formatApiSeason = formatApiSeason;
-exports.getAllValidSeasons = getAllValidSeasons;
-exports.seasonsMatch = seasonsMatch;
-exports.getSeasonNumericOrder = getSeasonNumericOrder;
-exports.parseSeasonRange = parseSeasonRange;
-exports.normalizeSeasonRange = normalizeSeasonRange;
-exports.isSeasonInRange = isSeasonInRange;
 const SEASON_REGEX = /^(?:saison|season)\s*(\d+)$/i;
 const CHAPTER_SEASON_REGEX = /^(?:chapitre|chapter)\s*(\d+)\s*(?:saison|season)\s*(\d+)$/i;
 // Maximums connus (approximatifs, pour validation)
@@ -28,7 +18,7 @@ const CHAPTER_MAX_SEASONS = {
  * Normalise une saison saisie par l'utilisateur.
  * Retourne le format canonique (ex: "Season 3", "Chapter 2 Season 2") ou null si invalide.
  */
-function normalizeSeason(input) {
+export function normalizeSeason(input) {
     const trimmed = input.trim();
     // Essayer le format "Chapter N Season M" / "Chapitre N Saison M"
     const chapterMatch = trimmed.match(CHAPTER_SEASON_REGEX);
@@ -60,7 +50,7 @@ function normalizeSeason(input) {
  * Convertit les champs chapter/season de l'API Fortnite en tag saison normalisé.
  * L'API renvoie chapter et season comme des strings (ex: "2", "3").
  */
-function formatApiSeason(chapter, season) {
+export function formatApiSeason(chapter, season) {
     const ch = parseInt(chapter, 10);
     const se = parseInt(season, 10);
     if (isNaN(ch) || isNaN(se))
@@ -73,7 +63,7 @@ function formatApiSeason(chapter, season) {
 /**
  * Génère la liste de toutes les saisons valides pour l'autocomplétion.
  */
-function getAllValidSeasons() {
+export function getAllValidSeasons() {
     const seasons = [];
     for (const [chapter, maxSeason] of Object.entries(CHAPTER_MAX_SEASONS)) {
         const ch = parseInt(chapter, 10);
@@ -91,7 +81,7 @@ function getAllValidSeasons() {
 /**
  * Vérifie si deux tags saison correspondent (comparaison normalisée).
  */
-function seasonsMatch(a, b) {
+export function seasonsMatch(a, b) {
     if (!a || !b)
         return false;
     return a.toLowerCase() === b.toLowerCase();
@@ -107,7 +97,7 @@ function seasonsMatch(a, b) {
  *   Chapter 2 S 1   → 201
  *   Chapter 5 S 4   → 504
  */
-function getSeasonNumericOrder(seasonTag) {
+export function getSeasonNumericOrder(seasonTag) {
     const normalized = normalizeSeason(seasonTag);
     if (!normalized)
         return -1;
@@ -133,7 +123,7 @@ function getSeasonNumericOrder(seasonTag) {
  *
  * Retourne { start, end } normalisés ou null si invalide.
  */
-function parseSeasonRange(input) {
+export function parseSeasonRange(input) {
     const trimmed = input.trim();
     // Chercher un séparateur de plage : tiret, tiret cadratin, "à", "to", "->"
     const sepMatch = trimmed.match(/^(.*?)\s*[-–—→]+\s*(.+)$/)
@@ -154,7 +144,7 @@ function parseSeasonRange(input) {
  * Normalise une plage saisie et retourne le format canonique.
  * Ex: "season 1 - season 3" → "Season 1-Season 3"
  */
-function normalizeSeasonRange(input) {
+export function normalizeSeasonRange(input) {
     const parsed = parseSeasonRange(input);
     if (!parsed)
         return null;
@@ -163,7 +153,7 @@ function normalizeSeasonRange(input) {
 /**
  * Vérifie si une saison donnée se trouve dans une plage (bornes incluses).
  */
-function isSeasonInRange(cosmeticSeason, rangeStart, rangeEnd) {
+export function isSeasonInRange(cosmeticSeason, rangeStart, rangeEnd) {
     const cosmeticOrder = getSeasonNumericOrder(cosmeticSeason);
     const startOrder = getSeasonNumericOrder(rangeStart);
     const endOrder = getSeasonNumericOrder(rangeEnd);

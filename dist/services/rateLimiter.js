@@ -1,21 +1,12 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkRateLimit = checkRateLimit;
-exports.resetRateLimit = resetRateLimit;
-exports.resetAllRateLimitsForUser = resetAllRateLimitsForUser;
-exports.getRateLimitStats = getRateLimitStats;
-exports.cleanupExpiredRateLimits = cleanupExpiredRateLimits;
-exports.configureRateLimit = configureRateLimit;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 // Configurations par défaut pour différents types de requêtes
 const DEFAULT_CONFIGS = {
     ai_chat: { maxRequests: 10, windowMs: 60 * 1000, cooldownMs: 5000 }, // 10 requêtes/min, 5s cooldown
     translate: { maxRequests: 20, windowMs: 60 * 1000, cooldownMs: 1000 }, // 20 traductions/min, 1s cooldown
     general: { maxRequests: 30, windowMs: 60 * 1000, cooldownMs: 500 }, // 30 requêtes/min, 0.5s cooldown
 };
+// Configurations spécifiques par serveur
+const guildConfigs = new Map();
 // Stockage en mémoire (pourrait être remplacé par Redis pour la persistance distribuée)
 const rateLimits = new Map();
 /**
@@ -25,14 +16,94 @@ function getRateLimitKey(userId, type, guildId) {
     return guildId ? `${guildId}:${userId}:${type}` : `dm:${userId}:${type}`;
 }
 /**
- * Vérifie si un utilisateur est limité
+ * Configure une limite personnalisée pour un serveur
+ */
+export function configureGuildRateLimit(guildId, config) {
+    const currentConfig = guildConfigs.get(guildId) || {
+        enabled: true,
+        configs: { ...DEFAULT_CONFIGS },
+        adminBypass: true,
+        adminRoles: [],
+    };
+    const newConfig = {
+        enabled: config.enabled ?? currentConfig.enabled,
+        configs: { ...currentConfig.configs, ...config.configs },
+        adminBypass: config.adminBypass ?? currentConfig.adminBypass,
+        adminRoles: config.adminRoles ?? currentConfig.adminRoles,
+    };
+    guildConfigs.set(guildId, newConfig);
+    logger.info(`[RateLimiter] Configuration serveur ${guildId} mise à jour`);
+}
+/**
+ * Vérifie si un utilisateur a le bypass admin pour un serveur
+ */
+export function hasAdminBypass(userId, guildId, userRoles = []) {
+    const guildConfig = guildConfigs.get(guildId);
+    if (!guildConfig || !guildConfig.enabled || !guildConfig.adminBypass) {
+        return false;
+    }
+    return userRoles.some((role) => guildConfig.adminRoles.includes(role));
+}
+/**
+ * Récupère la configuration de rate limit pour un serveur
+ */
+export function getGuildRateLimitConfig(guildId) {
+    return guildConfigs.get(guildId) || null;
+}
+/**
+ * Désactive le rate limiting pour un serveur
+ */
+export function disableGuildRateLimit(guildId) {
+    const config = guildConfigs.get(guildId);
+    if (config) {
+        config.enabled = false;
+        guildConfigs.set(guildId, config);
+        logger.info(`[RateLimiter] Rate limiting désactivé pour serveur ${guildId}`);
+    }
+}
+/**
+ * Active le rate limiting pour un serveur
+ */
+export function enableGuildRateLimit(guildId) {
+    const config = guildConfigs.get(guildId);
+    if (config) {
+        config.enabled = true;
+        guildConfigs.set(guildId, config);
+        logger.info(`[RateLimiter] Rate limiting activé pour serveur ${guildId}`);
+    }
+}
+/**
+ * Vérifie si un utilisateur est limité (avec support serveur)
  * @param userId - ID de l'utilisateur
  * @param type - Type de requête (ai_chat, translate, general)
  * @param guildId - ID du serveur (optionnel)
+ * @param userRoles - Rôles de l'utilisateur pour le bypass admin
  * @returns { allowed: boolean, remaining: number, resetTime: number }
  */
-function checkRateLimit(userId, type = "general", guildId) {
-    const config = DEFAULT_CONFIGS[type] || DEFAULT_CONFIGS.general;
+export function checkRateLimit(userId, type = "general", guildId, userRoles = []) {
+    // Vérifier le bypass admin si dans un serveur
+    if (guildId && hasAdminBypass(userId, guildId, userRoles)) {
+        logger.debug(`[RateLimiter] Bypass admin pour ${userId} dans serveur ${guildId}`);
+        return {
+            allowed: true,
+            remaining: Number.MAX_SAFE_INTEGER,
+            resetTime: Date.now(),
+        };
+    }
+    // Récupérer la configuration serveur ou utiliser les défauts
+    let config;
+    if (guildId) {
+        const guildConfig = guildConfigs.get(guildId);
+        if (guildConfig && guildConfig.enabled && guildConfig.configs[type]) {
+            config = guildConfig.configs[type];
+        }
+        else {
+            config = DEFAULT_CONFIGS[type] || DEFAULT_CONFIGS.general;
+        }
+    }
+    else {
+        config = DEFAULT_CONFIGS[type] || DEFAULT_CONFIGS.general;
+    }
     const key = getRateLimitKey(userId, type, guildId);
     const now = Date.now();
     let entry = rateLimits.get(key);
@@ -41,28 +112,28 @@ function checkRateLimit(userId, type = "general", guildId) {
         entry = {
             count: 0,
             windowStart: now,
-            lastRequest: 0
+            lastRequest: 0,
         };
         rateLimits.set(key, entry);
     }
     // Vérifier le cooldown entre requêtes
     if (entry.lastRequest > 0 && now - entry.lastRequest < config.cooldownMs) {
         const cooldownRemaining = config.cooldownMs - (now - entry.lastRequest);
-        logger_1.default.debug(`[RateLimiter] Cooldown actif pour ${userId} (${type}): ${cooldownRemaining}ms restants`);
+        logger.debug(`[RateLimiter] Cooldown actif pour ${userId} (${type}): ${cooldownRemaining}ms restants`);
         return {
             allowed: false,
             remaining: 0,
-            resetTime: entry.lastRequest + config.cooldownMs
+            resetTime: entry.lastRequest + config.cooldownMs,
         };
     }
     // Vérifier si la limite est atteinte
     if (entry.count >= config.maxRequests) {
         const resetTime = entry.windowStart + config.windowMs;
-        logger_1.default.debug(`[RateLimiter] Limite atteinte pour ${userId} (${type}): ${entry.count}/${config.maxRequests}`);
+        logger.debug(`[RateLimiter] Limite atteinte pour ${userId} (${type}): ${entry.count}/${config.maxRequests}`);
         return {
             allowed: false,
             remaining: 0,
-            resetTime
+            resetTime,
         };
     }
     // Incrémenter le compteur
@@ -70,37 +141,37 @@ function checkRateLimit(userId, type = "general", guildId) {
     entry.lastRequest = now;
     rateLimits.set(key, entry);
     const remaining = config.maxRequests - entry.count;
-    logger_1.default.debug(`[RateLimiter] Requête autorisée pour ${userId} (${type}): ${remaining} restantes`);
+    logger.debug(`[RateLimiter] Requête autorisée pour ${userId} (${type}): ${remaining} restantes`);
     return {
         allowed: true,
         remaining,
-        resetTime: entry.windowStart + config.windowMs
+        resetTime: entry.windowStart + config.windowMs,
     };
 }
 /**
  * Réinitialise le rate limit pour un utilisateur
  */
-function resetRateLimit(userId, type = "general", guildId) {
+export function resetRateLimit(userId, type = "general", guildId) {
     const key = getRateLimitKey(userId, type, guildId);
     rateLimits.delete(key);
-    logger_1.default.debug(`[RateLimiter] Rate limit réinitialisé pour ${userId} (${type})`);
+    logger.debug(`[RateLimiter] Rate limit réinitialisé pour ${userId} (${type})`);
 }
 /**
  * Réinitialise tous les rate limits pour un utilisateur
  */
-function resetAllRateLimitsForUser(userId, guildId) {
+export function resetAllRateLimitsForUser(userId, guildId) {
     const prefix = guildId ? `${guildId}:${userId}:` : `dm:${userId}:`;
     for (const key of rateLimits.keys()) {
         if (key.startsWith(prefix)) {
             rateLimits.delete(key);
         }
     }
-    logger_1.default.debug(`[RateLimiter] Tous les rate limits réinitialisés pour ${userId}`);
+    logger.debug(`[RateLimiter] Tous les rate limits réinitialisés pour ${userId}`);
 }
 /**
  * Récupère les statistiques de rate limiting
  */
-function getRateLimitStats() {
+export function getRateLimitStats() {
     const entriesByType = {};
     let oldestTimestamp = null;
     for (const [key, entry] of rateLimits.entries()) {
@@ -113,13 +184,13 @@ function getRateLimitStats() {
     return {
         totalEntries: rateLimits.size,
         entriesByType,
-        oldestEntry: oldestTimestamp
+        oldestEntry: oldestTimestamp,
     };
 }
 /**
  * Nettoie les entrées expirées du rate limiting
  */
-function cleanupExpiredRateLimits() {
+export function cleanupExpiredRateLimits() {
     const now = Date.now();
     let cleaned = 0;
     for (const [key, entry] of rateLimits.entries()) {
@@ -131,7 +202,7 @@ function cleanupExpiredRateLimits() {
         }
     }
     if (cleaned > 0) {
-        logger_1.default.debug(`[RateLimiter] Nettoyage de ${cleaned} entrée(s) expirée(s)`);
+        logger.debug(`[RateLimiter] Nettoyage de ${cleaned} entrée(s) expirée(s)`);
     }
 }
 // Nettoyage automatique toutes les 5 minutes
@@ -139,8 +210,8 @@ setInterval(cleanupExpiredRateLimits, 5 * 60 * 1000);
 /**
  * Configure une limite personnalisée pour un type de requête
  */
-function configureRateLimit(type, config) {
+export function configureRateLimit(type, config) {
     DEFAULT_CONFIGS[type] = config;
-    logger_1.default.info(`[RateLimiter] Configuration personnalisée pour ${type}: ${config.maxRequests} requêtes/${config.windowMs}ms`);
+    logger.info(`[RateLimiter] Configuration personnalisée pour ${type}: ${config.maxRequests} requêtes/${config.windowMs}ms`);
 }
 //# sourceMappingURL=rateLimiter.js.map
