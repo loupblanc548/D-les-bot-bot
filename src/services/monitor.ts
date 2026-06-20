@@ -261,7 +261,7 @@ async function checkAndNotify(client: Client) {
           const notifUrl = result.content.url || "";
           const contentText = "title" in result.content ? result.content.title : result.content.text;
           
-          const success = await ensureSourceAndInsertNotification(
+          const resultAuto = await ensureSourceAndInsertNotification(
             source.urlOrHandle,
             source.type,
             source.channelId,
@@ -271,7 +271,7 @@ async function checkAndNotify(client: Client) {
             source.type as Platform
           );
 
-          if (!success) continue;
+          if (!resultAuto.success) continue;
 
           const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
           if (channel?.isTextBased()) {
@@ -347,6 +347,12 @@ async function checkAndNotify(client: Client) {
 // AUTO-CRÉATION DE SOURCES ET INSERTION DE NOTIFICATIONS
 // ============================================================
 
+interface AutoSourceResult {
+  success: boolean;
+  sourceCreated: boolean;
+  notificationInserted: boolean;
+}
+
 async function ensureSourceAndInsertNotification(
   urlOrHandle: string,
   type: string,
@@ -355,7 +361,7 @@ async function ensureSourceAndInsertNotification(
   content: string,
   url: string,
   platform: Platform
-): Promise<boolean> {
+): Promise<AutoSourceResult> {
   try {
     // Étape 1 : Auto-création de la source si elle n'existe pas
     const source = await prisma.source.upsert({
@@ -375,6 +381,8 @@ async function ensureSourceAndInsertNotification(
       },
     });
 
+    const sourceCreated = source.createdAt.getTime() === Date.now() - (source.createdAt.getTime() % 1000);
+
     // Étape 2 : Insertion de la notification avec le sourceId garanti
     await prisma.notification.upsert({
       where: { url: cleanUrl(url) || "" },
@@ -387,10 +395,18 @@ async function ensureSourceAndInsertNotification(
       },
     });
 
-    return true;
+    return {
+      success: true,
+      sourceCreated,
+      notificationInserted: true,
+    };
   } catch (error) {
     console.error(`⚠️ [AutoSource] Erreur pour ${urlOrHandle} :`, String(error));
-    return false;
+    return {
+      success: false,
+      sourceCreated: false,
+      notificationInserted: false,
+    };
   }
 }
 
@@ -403,8 +419,13 @@ export async function runDbSourcesRetrospective(client: Client) {
   logger.info("=".repeat(50));
   logger.info("  RETROSPECTIVE DB - Rattrapage sources personnalisées");
   logger.info("=".repeat(50));
+  
+  const startTime = Date.now();
   const sources = await prisma.source.findMany();
   let totalPublished = 0;
+  let sourcesCreated = 0;
+  let notificationsInserted = 0;
+  let errorsEncountered = 0;
   const MAX_RETRO_POSTS = config.maxRetroPosts;
 dbRetroLoop:
   for (const source of sources) {
@@ -421,7 +442,7 @@ dbRetroLoop:
       let publishedForSource = 0;
       for (const item of items) {
         // Auto-création de source et insertion de notification sécurisée
-        const success = await ensureSourceAndInsertNotification(
+        const resultAuto = await ensureSourceAndInsertNotification(
           source.urlOrHandle,
           source.type,
           source.channelId,
@@ -431,7 +452,13 @@ dbRetroLoop:
           source.type as Platform
         );
 
-        if (!success) continue;
+        if (!resultAuto.success) {
+          errorsEncountered++;
+          continue;
+        }
+
+        if (resultAuto.sourceCreated) sourcesCreated++;
+        if (resultAuto.notificationInserted) notificationsInserted++;
 
         const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
         if (channel?.isTextBased()) {
@@ -480,13 +507,70 @@ dbRetroLoop:
     } catch (err) {
       const errMsg = String(err);
       logger.error(`[RetroDB] Erreur source ${source.urlOrHandle}:`, errMsg);
+      errorsEncountered++;
       await logError(client, "RetroDB/" + source.urlOrHandle, errMsg);
     }
   }
+  
+  const executionTime = Date.now() - startTime;
+  
   logger.info("=".repeat(50));
   logger.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`);
   logger.info("=".repeat(50));
   logger.info("");
+  
+  // Envoi de l'alerte de santé
+  await sendHealthAlert(client, sourcesCreated, notificationsInserted, totalPublished, errorsEncountered, executionTime);
+}
+
+async function sendHealthAlert(
+  client: Client,
+  sourcesCreated: number,
+  notificationsInserted: number,
+  totalPublished: number,
+  errorsEncountered: number,
+  executionTime: number
+): Promise<void> {
+  try {
+    const logChannelId = process.env.LOG_CHANNEL_ID;
+    if (!logChannelId) {
+      console.error("[HealthAlert] LOG_CHANNEL_ID not defined");
+      return;
+    }
+
+    const channel = await client.channels.fetch(logChannelId);
+    if (!channel || !(channel instanceof TextChannel)) {
+      console.error(`[HealthAlert] Invalid log channel: ${logChannelId}`);
+      return;
+    }
+
+    const executionTimeFormatted = (executionTime / 1000).toFixed(2);
+    const statusColor = errorsEncountered === 0 ? "32" : "33";
+    const statusText = errorsEncountered === 0 ? "SUCCÈS" : "AVERTISSEMENT";
+
+    const healthOutput = `\`\`\`ansi
+[1;32mOPÉRATIONNEL[0m === RAPPORT DE SANTÉ RÉTROSPECTIVE ===
+> Version Core : f35eede
+> Identité     : John_Helldiver.aic
+
+--- STATISTIQUES CYCLE ---
+[1;36mSOURCES CRÉÉES[0m] [▓▓▓▓▓▒▒▒▒▒▒▒] ${sourcesCreated}
+[1;36mNOTIFICATIONS[0m] [▓▓▓▓▓▒▒▒▒▒▒▒] ${notificationsInserted}
+[1;36mPUBLIÉES[0m]      [▓▓▓▓▓▒▒▒▒▒▒▒] ${totalPublished}
+[1;36mERREURS[0m]       [▓▓▓▓▓▒▒▒▒▒▒▒] ${errorsEncountered}
+
+--- MÉTRIQUES EXÉCUTION ---
+TEMPS       -> [1;36m ${executionTimeFormatted}s [0m]
+STATUT      -> [1;${statusColor}m ${statusText} [0m]
+
+=======================================================
+[1;30m// Cycle de rattrapage terminé. Système opérationnel.[0m\`\`\``;
+
+    await channel.send({ content: healthOutput });
+    console.log("[HealthAlert] Health report sent");
+  } catch (error) {
+    console.error("[HealthAlert] Error:", error);
+  }
 }
 
 export function startMonitoring(client: Client) {
