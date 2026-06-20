@@ -1,6 +1,13 @@
-import { Client, EmbedBuilder, TextChannel } from "discord.js";
+import { Client, TextChannel, MessageEmbed } from "discord.js";
 import Parser from "rss-parser";
 import { createClient } from "redis";
+import {
+  createEpicEmbed,
+  createSteamEmbed,
+  createPlayStationEmbed,
+  createXboxEmbed,
+  createNintendoEmbed,
+} from "./themedEmbeds.js";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -18,6 +25,7 @@ interface RSSFeed {
   name: string;
   urls: string[];
   channelId: string;
+  type: "epic" | "steam" | "playstation" | "xbox" | "nintendo";
 }
 
 const RSS_FEEDS: RSSFeed[] = [
@@ -25,21 +33,31 @@ const RSS_FEEDS: RSSFeed[] = [
     name: "Fortnite",
     urls: process.env.PATCH_FORTNITE_RSS?.split(",") || [],
     channelId: process.env.PATCH_CHANNEL_FORTNITE_ID || "",
+    type: "epic",
   },
   {
     name: "PlayStation",
     urls: process.env.PATCH_PLAYSTATION_RSS?.split(",") || [],
     channelId: process.env.PATCH_CHANNEL_PLAYSTATION_ID || "",
+    type: "playstation",
   },
   {
     name: "Steam",
     urls: process.env.PATCH_STEAM_RSS?.split(",") || [],
     channelId: process.env.PATCH_CHANNEL_STEAM_ID || "",
+    type: "steam",
   },
   {
     name: "Xbox",
     urls: process.env.PATCH_XBOX_RSS?.split(",") || [],
     channelId: process.env.PATCH_CHANNEL_XBOX_ID || "",
+    type: "xbox",
+  },
+  {
+    name: "Nintendo",
+    urls: process.env.PATCH_NINTENDO_RSS?.split(",") || [],
+    channelId: process.env.PATCH_CHANNEL_NINTENDO_ID || "",
+    type: "nintendo",
   },
 ];
 
@@ -97,19 +115,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle(`📢 ${feed.name} - Nouvelle Mise à Jour`)
-      .setDescription(latestItem.title || "Sans titre")
-      .addFields(
-        { name: "Lien", value: latestItem.link || "Non disponible" },
-        {
-          name: "Description",
-          value: (latestItem.contentSnippet || latestItem.description || "Sans description").substring(0, 300),
-        },
-      )
-      .setColor(0xffd700)
-      .setFooter({ text: "John Helldiver • Super Earth Command" })
-      .setTimestamp(latestItem.pubDate ? new Date(latestItem.pubDate) : new Date());
+    const embed = createThemedEmbed(feed.type, latestItem);
 
     await channel.send({ embeds: [embed] });
 
@@ -118,5 +124,32 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
     console.log(`[RSSAggregator] Posted new ${feed.name} item: ${latestItem.title}`);
   } catch (error) {
     console.error(`[RSSAggregator] Error processing ${feed.name} (${url}):`, error);
+  }
+}
+
+function createThemedEmbed(type: string, item: any): MessageEmbed {
+  const rssItem = {
+    title: item.title || "Sans titre",
+    description: item.contentSnippet || item.description || "Sans description",
+    link: item.link || "",
+    pubDate: item.pubDate,
+    guid: item.guid,
+    author: item.author || item.creator || "",
+    category: item.category,
+  };
+
+  switch (type) {
+    case "epic":
+      return createEpicEmbed(rssItem);
+    case "steam":
+      return createSteamEmbed(rssItem);
+    case "playstation":
+      return createPlayStationEmbed(rssItem);
+    case "xbox":
+      return createXboxEmbed(rssItem);
+    case "nintendo":
+      return createNintendoEmbed(rssItem);
+    default:
+      return createEpicEmbed(rssItem);
   }
 }
