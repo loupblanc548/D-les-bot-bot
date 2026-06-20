@@ -257,27 +257,21 @@ async function checkAndNotify(client: Client) {
         }
 
         if (result?.status === "new" && result.content) {
-          // Insert-first : la contrainte @unique sur l'URL fait office de bouclier
+          // Auto-création de source et insertion de notification sécurisée
           const notifUrl = result.content.url || "";
           const contentText = "title" in result.content ? result.content.title : result.content.text;
-          let isNewNotification = false;
-          try {
-            await prisma.notification.upsert({
-              where: { url: cleanUrl(notifUrl) || "" },
-              update: {},
-              create: {
-                sourceId: String(source.id),
-                platform: source.type as Platform,
-                content: contentText,
-                url: cleanUrl(notifUrl) || null,
-              },
-            });
-            isNewNotification = true;
-          } catch (err: unknown) {
-            console.error(`⚠️ [Monitor] Erreur insertion notification pour @${source.urlOrHandle} :`, String(err));
-            continue;
-          }
-          if (!isNewNotification) continue;
+          
+          const success = await ensureSourceAndInsertNotification(
+            source.urlOrHandle,
+            source.type,
+            source.channelId,
+            source.guildId,
+            contentText,
+            notifUrl,
+            source.type as Platform
+          );
+
+          if (!success) continue;
 
           const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
           if (channel?.isTextBased()) {
@@ -350,6 +344,57 @@ async function checkAndNotify(client: Client) {
 }
 
 // ============================================================
+// AUTO-CRÉATION DE SOURCES ET INSERTION DE NOTIFICATIONS
+// ============================================================
+
+async function ensureSourceAndInsertNotification(
+  urlOrHandle: string,
+  type: string,
+  channelId: string,
+  guildId: string,
+  content: string,
+  url: string,
+  platform: Platform
+): Promise<boolean> {
+  try {
+    // Étape 1 : Auto-création de la source si elle n'existe pas
+    const source = await prisma.source.upsert({
+      where: {
+        urlOrHandle_type_channelId: {
+          urlOrHandle,
+          type,
+          channelId,
+        },
+      },
+      update: {},
+      create: {
+        guildId,
+        channelId,
+        type,
+        urlOrHandle,
+      },
+    });
+
+    // Étape 2 : Insertion de la notification avec le sourceId garanti
+    await prisma.notification.upsert({
+      where: { url: cleanUrl(url) || "" },
+      update: {},
+      create: {
+        sourceId: String(source.id),
+        platform,
+        content,
+        url: cleanUrl(url) || null,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    console.error(`⚠️ [AutoSource] Erreur pour ${urlOrHandle} :`, String(error));
+    return false;
+  }
+}
+
+// ============================================================
 // RETROSPECTIVE DE DEMARRAGE - Rattrapage sources DB
 // ============================================================
 
@@ -375,25 +420,19 @@ dbRetroLoop:
       }
       let publishedForSource = 0;
       for (const item of items) {
-        // Insert-first anti-doublon avec upsert
-        let isNewRetroNotif = false;
-        try {
-          await prisma.notification.upsert({
-            where: { url: cleanUrl(item.url) || "" },
-            update: {},
-            create: {
-              sourceId: String(source.id),
-              platform: source.type as Platform,
-              content: item.title,
-              url: cleanUrl(item.url) || null,
-            },
-          });
-          isNewRetroNotif = true;
-        } catch (err: unknown) {
-          console.error(`⚠️ [RetroDB] Erreur insertion notification @${source.urlOrHandle} :`, String(err));
-          continue;
-        }
-        if (!isNewRetroNotif) continue;
+        // Auto-création de source et insertion de notification sécurisée
+        const success = await ensureSourceAndInsertNotification(
+          source.urlOrHandle,
+          source.type,
+          source.channelId,
+          source.guildId,
+          item.title,
+          item.url,
+          source.type as Platform
+        );
+
+        if (!success) continue;
+
         const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
         if (channel?.isTextBased()) {
           // Titre enrichi par plateforme
