@@ -1,4 +1,4 @@
-import { Client, TextChannel, MessageEmbed } from "discord.js";
+import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import Parser from "rss-parser";
 import { createClient } from "redis";
 import {
@@ -127,7 +127,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
   }
 }
 
-function createThemedEmbed(type: string, item: any): MessageEmbed {
+function createThemedEmbed(type: string, item: any): EmbedBuilder {
   const rssItem = {
     title: item.title || "Sans titre",
     description: item.contentSnippet || item.description || "Sans description",

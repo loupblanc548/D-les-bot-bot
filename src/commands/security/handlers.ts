@@ -33,7 +33,7 @@ export async function handleLockdown(interaction: ChatInputCommandInteraction) {
   const textChannels = guild.channels.cache.filter(
     (ch): ch is TextChannel =>
       ch.type === ChannelType.GuildText &&
-      ch.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel) === true
+      ch.permissionsFor(interaction.client.user?.id)?.has(PermissionFlagsBits.ViewChannel) === true
   );
 
   let modified = 0;

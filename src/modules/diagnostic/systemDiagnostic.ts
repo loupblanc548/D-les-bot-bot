@@ -1,6 +1,6 @@
 import {
   Client,
-  MessageEmbed,
+  EmbedBuilder,
   TextChannel,
 } from "discord.js";
 import { createClient } from "redis";

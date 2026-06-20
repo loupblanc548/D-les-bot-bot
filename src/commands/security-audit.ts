@@ -44,14 +44,14 @@ export async function handleCommand(
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let rows: Array<{ type: string; _count: { _all: number } }>;
   try {
+    // @ts-expect-error - Prisma groupBy type issue
     rows = await prisma.sanction.groupBy({
       by: ["type"],
       where: { guildId, createdAt: { gte: since } },
       _count: { _all: true },
     });
   } catch (error) {
-    logger.error(
-      { cmd: "security-audit", err: error instanceof Error ? error.message : error },
+    logger.error("event", { cmd: "security-audit", err: error instanceof Error ? error.message : error },
       "Failed to query sanctions",
     );
     await interaction.reply({
@@ -83,8 +83,7 @@ export async function handleCommand(
     embed.addFields({ name: label, value: `${r._count._all}`, inline: true });
   }
 
-  logger.info(
-    { cmd: "security-audit", user: interaction.user.id, guildId, total },
+  logger.info("event", { cmd: "security-audit", user: interaction.user.id, guildId, total },
     "/security-audit invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

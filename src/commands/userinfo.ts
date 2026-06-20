@@ -26,7 +26,7 @@ export async function handleCommand(
   const embed = new EmbedBuilder().setColor("#b1b12a").setTimestamp(new Date());
 
   try {
-    const dbUser = await prisma.user.findUnique({ where: { id: target.id } });
+    const dbUser = await prisma.user.findUnique({ where: { discordId: target.id } });
     const guildId = interaction.guildId;
     const sanctionsCount = guildId
       ? await prisma.sanction.count({ where: { userId: target.id, guildId } })
@@ -75,8 +75,7 @@ export async function handleCommand(
         );
     }
   } catch (error) {
-    logger.error(
-      {
+    logger.error("event", {
         cmd: "userinfo",
         err: error instanceof Error ? error.message : error,
         target: target.id,
@@ -88,8 +87,7 @@ export async function handleCommand(
       .setDescription("\u26a0\ufe0f Erreur lors de la lecture de la base de donn\u00e9es.");
   }
 
-  logger.info(
-    { cmd: "userinfo", user: interaction.user.id, target: target.id },
+  logger.info("event", { cmd: "userinfo", user: interaction.user.id, target: target.id },
     "/userinfo invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

@@ -1,4 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import {
+  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags,
+} from "discord.js";
 import ms from "ms";
 import { Queue } from "bullmq";
 
@@ -27,20 +29,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const raison = interaction.options.getString("raison", true);
     const userId = interaction.user.id;
 
+    // @ts-expect-error - ms function has overloaded signatures, this works at runtime
     const delay = ms(temps);
     if (!delay || delay <= 0) {
       await interaction.reply({
         content: "❌ Format de temps invalide. Utilisez des formats comme: 10m, 2h, 1d",
-        flags: ["Ephemeral"],
       });
       return;
     }
 
     if (delay > 30 * 24 * 60 * 60 * 1000) {
-      await interaction.reply({
-        content: "❌ Le rappel ne peut pas dépasser 30 jours",
-        flags: ["Ephemeral"],
-      });
+      await interaction.reply({ content: "❌ Le rappel ne peut pas dépasser 30 jours", ephemeral: true });
       return;
     }
 
@@ -58,12 +57,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setFooter({ text: "John Helldiver • Super Earth Command" })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], flags: ["Ephemeral"] });
+    await interaction.reply({ embeds: [embed]});
   } catch (error) {
     console.error("[RemindMe] Error:", error);
-    await interaction.reply({
-      content: "❌ Erreur lors de la programmation du rappel",
-      flags: ["Ephemeral"],
-    });
+    await interaction.reply({ content: "❌ Erreur lors de la programmation du rappel", ephemeral: true });
   }
 }

@@ -49,8 +49,7 @@ export async function handleCommand(
     )
     .setTimestamp(new Date());
 
-  logger.info(
-    { cmd: "uptime", user: interaction.user.id, guild: interaction.guildId },
+  logger.info("event", { cmd: "uptime", user: interaction.user.id, guild: interaction.guildId },
     "/uptime invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

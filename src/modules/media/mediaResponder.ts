@@ -1,4 +1,4 @@
-import { Client, Message, MessageAttachment } from "discord.js";
+import { Client, Message, AttachmentBuilder } from "discord.js";
 import { readdir } from "fs/promises";
 import { join } from "path";
 import { createClient } from "redis";
@@ -67,7 +67,7 @@ async function sendMediaResponse(message: Message, mediaFiles: string[]): Promis
     const randomFile = mediaFiles[Math.floor(Math.random() * mediaFiles.length)];
     const filePath = join(MEDIA_DIR, randomFile);
 
-    const attachment = new MessageAttachment(filePath);
+    const attachment = new AttachmentBuilder(filePath);
 
     await message.reply({
       content: "🔊 **[TRANSMISSION CAPTURÉE]**",

@@ -1,4 +1,4 @@
-import { MessageEmbed } from "discord.js";
+import { EmbedBuilder } from "discord.js";
 
 interface RSSItem {
   title: string;
@@ -10,10 +10,10 @@ interface RSSItem {
   category?: string;
 }
 
-export function createEpicEmbed(item: RSSItem): MessageEmbed {
+export function createEpicEmbed(item: RSSItem): EmbedBuilder {
   const cleanDescription = cleanHTML(item.description).substring(0, 250);
 
-  return new MessageEmbed()
+  return new EmbedBuilder()
     .setAuthor({ name: "📦 LARGAGE TACTIQUE DE JEU GRATUIT" })
     .setColor("#00AAFF")
     .addFields(
@@ -26,10 +26,10 @@ export function createEpicEmbed(item: RSSItem): MessageEmbed {
     .setTimestamp(item.pubDate ? new Date(item.pubDate) : new Date());
 }
 
-export function createSteamEmbed(item: RSSItem): MessageEmbed {
+export function createSteamEmbed(item: RSSItem): EmbedBuilder {
   const cleanDescription = cleanHTML(item.description).substring(0, 250);
 
-  return new MessageEmbed()
+  return new EmbedBuilder()
     .setAuthor({ name: "📦 LARGAGE TACTIQUE DE JEU GRATUIT" })
     .setColor("#1b2838")
     .addFields(
@@ -42,11 +42,11 @@ export function createSteamEmbed(item: RSSItem): MessageEmbed {
     .setTimestamp(item.pubDate ? new Date(item.pubDate) : new Date());
 }
 
-export function createPlayStationEmbed(item: RSSItem): MessageEmbed {
+export function createPlayStationEmbed(item: RSSItem): EmbedBuilder {
   const cleanDescription = cleanHTML(item.description);
   const timestamp = item.pubDate ? Math.floor(new Date(item.pubDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
 
-  return new MessageEmbed()
+  return new EmbedBuilder()
     .setAuthor({ name: "📡 TRANSMISSION ENTRANTE // INTEL PLAYSTATION" })
     .setColor("#003087")
     .setTitle(`➢ ${item.title}`)
@@ -55,10 +55,10 @@ export function createPlayStationEmbed(item: RSSItem): MessageEmbed {
     .setTimestamp(item.pubDate ? new Date(item.pubDate) : new Date());
 }
 
-export function createXboxEmbed(item: RSSItem): MessageEmbed {
+export function createXboxEmbed(item: RSSItem): EmbedBuilder {
   const cleanDescription = cleanHTML(item.description);
 
-  return new MessageEmbed()
+  return new EmbedBuilder()
     .setAuthor({ name: "🟢 SYSTEM_LOG // SÉCURITÉ XBOX" })
     .setColor("#107C10")
     .setTitle(item.title)
@@ -67,10 +67,10 @@ export function createXboxEmbed(item: RSSItem): MessageEmbed {
     .setTimestamp(item.pubDate ? new Date(item.pubDate) : new Date());
 }
 
-export function createNintendoEmbed(item: RSSItem): MessageEmbed {
+export function createNintendoEmbed(item: RSSItem): EmbedBuilder {
   const cleanDescription = cleanHTML(item.description).substring(0, 200);
 
-  return new MessageEmbed()
+  return new EmbedBuilder()
     .setAuthor({ name: "🚨 ALERTE LARGAGE // ARCHIVES NINTENDO" })
     .setColor("#E60012")
     .setTitle(item.title)

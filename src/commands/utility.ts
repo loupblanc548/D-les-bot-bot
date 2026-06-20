@@ -317,7 +317,9 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Erreur lors de la création du sondage." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de la création du sondage.", ephemeral: true }); } catch {}
+      try { await interaction.followUp({ content: "❌ Erreur lors de la création du sondage.", ephemeral: true }); } catch {
+        // Ignore follow-up errors
+      }
     }
   }
 }
@@ -330,9 +332,7 @@ async function handleSay(interaction: ChatInputCommandInteraction, client: Clien
 
   // Vérification AVANT deferReply (utilise reply)
   if (
-    !channel
-      .permissionsFor(client.user!.id)
-      ?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages])
+    !channel.permissionsFor(client.user!)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages])
   ) {
     await interaction.reply({
       content: "Je n'ai pas la permission d'envoyer des messages dans ce salon.",
@@ -366,7 +366,9 @@ async function handleSay(interaction: ChatInputCommandInteraction, client: Clien
     try {
       await interaction.editReply({ content: "❌ Erreur lors de l'envoi du message." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de l'envoi du message.", ephemeral: true }); } catch {}
+      try { await interaction.followUp({ content: "❌ Erreur lors de l'envoi du message.", ephemeral: true }); } catch {
+        // Ignore follow-up errors
+      }
     }
   }
 }
@@ -458,7 +460,9 @@ async function handleTranslate(interaction: ChatInputCommandInteraction) {
         ]
       });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de la traduction.", ephemeral: true }); } catch {}
+      try { await interaction.followUp({ content: "❌ Erreur lors de la traduction.", ephemeral: true }); } catch {
+        // Ignore follow-up errors
+      }
     }
   }
 }
@@ -549,7 +553,9 @@ async function handleAskGaming(interaction: ChatInputCommandInteraction) {
         ]
       });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {}
+      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {
+        // Ignore follow-up errors
+      }
     }
   }
 }
@@ -640,7 +646,9 @@ async function handleAskTech(interaction: ChatInputCommandInteraction) {
         ]
       });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {}
+      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {
+        // Ignore follow-up errors
+      }
     }
   }
 }

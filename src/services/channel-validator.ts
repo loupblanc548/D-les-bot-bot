@@ -140,7 +140,7 @@ export async function validateChannels(client: Client): Promise<ChannelsValidati
 
       // 5. Vérifier que le bot peut envoyer des messages
       const textChannel = channel as TextChannel;
-      const permissions = textChannel.permissionsFor(client.user!.id);
+      const permissions = textChannel.permissionsFor(client.user?.id);
       if (permissions && !permissions.has("SendMessages")) {
         results.push({
           label: def.label,

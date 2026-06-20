@@ -1,5 +1,5 @@
 import { Worker, Job, QueueEvents } from "bullmq";
-import { Client, MessageEmbed } from "discord.js";
+import { Client, EmbedBuilder } from "discord.js";
 
 const connection = {
   host: process.env.REDIS_HOST || "localhost",
@@ -15,7 +15,7 @@ export function startReminderWorker(client: Client): void {
         const { userId, raison } = job.data;
 
         const user = await client.users.fetch(userId);
-        const embed = new MessageEmbed()
+        const embed = new EmbedBuilder()
           .setTitle("⏰ RAPPEL - JOHN HELLDIVER")
           .setDescription(raison)
           .setColor(0xffd700)
