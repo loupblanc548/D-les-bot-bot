@@ -85,6 +85,69 @@ export const commands = [
         )
     )
     .toJSON(),
+  
+  // /add-source : Ajouter une nouvelle source de surveillance
+  new SlashCommandBuilder()
+    .setName("add-source")
+    .setDescription("Ajouter une nouvelle source de surveillance (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("type")
+        .setDescription("Type de source")
+        .setRequired(true)
+        .addChoices(
+          { name: "YouTube", value: "YOUTUBE" },
+          { name: "Twitter/X", value: "TWITTER" },
+          { name: "Bluesky", value: "BLUESKY" }
+        )
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("handle")
+        .setDescription("Handle ou ID de la source (ex: @channel ou UC...)")
+        .setRequired(true)
+    )
+    .addChannelOption((opt) =>
+      opt
+        .setName("salon")
+        .setDescription("Salon où envoyer les notifications")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /remove-source : Supprimer une source de surveillance
+  new SlashCommandBuilder()
+    .setName("remove-source")
+    .setDescription("Supprimer une source de surveillance (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("handle")
+        .setDescription("Handle ou ID de la source à supprimer")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /list-sources : Lister toutes les sources configurées
+  new SlashCommandBuilder()
+    .setName("list-sources")
+    .setDescription("Lister toutes les sources de surveillance (admin)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+  
+  // /pause-source : Mettre en pause une source
+  new SlashCommandBuilder()
+    .setName("pause-source")
+    .setDescription("Mettre en pause une source de surveillance (admin)")
+    .addStringOption((opt) =>
+      opt
+        .setName("handle")
+        .setDescription("Handle ou ID de la source à mettre en pause")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
@@ -108,6 +171,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
         break;
     case "status":
       await handleStatus(interaction);
+      break;
+    case "add-source":
+      await handleAddSource(interaction);
+      break;
+    case "remove-source":
+      await handleRemoveSource(interaction);
+      break;
+    case "list-sources":
+      await handleListSources(interaction);
+      break;
+    case "pause-source":
+      await handlePauseSource(interaction);
       break;
   }
 }
@@ -399,5 +474,165 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
       ],
     });
     logger.error("[TestFreeGames] Erreur envoi:", msg);
+  }
+}
+
+// ===== /add-source =====
+
+async function handleAddSource(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const type = interaction.options.get("type", true).value as string;
+  const handle = interaction.options.get("handle", true).value as string;
+  const channel = interaction.options.get("salon", true).channel;
+  const guild = interaction.guild;
+
+  if (!guild || !channel) {
+    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur avec un salon valide.", ephemeral: true });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const existingSource = await prisma.source.findFirst({
+      where: {
+        urlOrHandle: handle,
+        type: type,
+        channelId: channel.id,
+      },
+    });
+
+    if (existingSource) {
+      await interaction.editReply({ content: "⚠️ Cette source existe déjà." });
+      return;
+    }
+
+    await prisma.source.create({
+      data: {
+        guildId: guild.id,
+        channelId: channel.id,
+        type: type,
+        urlOrHandle: handle,
+      },
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("✅ Source ajoutée")
+      .setColor(0x53fc18)
+      .addFields(
+        { name: "Type", value: type, inline: true },
+        { name: "Handle", value: handle, inline: true },
+        { name: "Salon", value: `<#${channel.id}>`, inline: true }
+      )
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+    logger.info(`[Admin] Source ajoutée: ${type} - ${handle} par ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error("[CRASH COMMANDE ADD-SOURCE]:", error);
+    try {
+      await interaction.editReply({ content: "❌ Impossible d'ajouter la source." });
+    } catch {
+      try { await interaction.followUp({ content: "❌ Impossible d'ajouter la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    }
+  }
+}
+
+// ===== /remove-source =====
+
+async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const handle = interaction.options.get("handle", true).value as string;
+
+  const source = await prisma.source.findFirst({
+    where: { urlOrHandle: handle },
+  });
+
+  if (!source) {
+    await interaction.reply({ content: "⚠️ Source introuvable.", ephemeral: true });
+    return;
+  }
+
+  const confirmed = await requestConfirmation(
+    interaction,
+    "Supprimer la source **" + handle + "** ? Cette action est irréversible."
+  );
+  if (!confirmed) return;
+
+  try {
+    await prisma.source.delete({ where: { id: source.id } });
+    await interaction.followUp({
+      content: "✅ Source **" + handle + "** supprimée.",
+      ephemeral: true,
+    });
+    logger.info(`[Admin] Source supprimée: ${handle} par ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error("[CRASH COMMANDE REMOVE-SOURCE]:", error);
+    try { await interaction.followUp({ content: "❌ Impossible de supprimer la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+  }
+}
+
+// ===== /list-sources =====
+
+async function handleListSources(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const sources = await prisma.source.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (sources.length === 0) {
+      await interaction.editReply({ content: "Aucune source configurée." });
+      return;
+    }
+
+    const sourceLines = sources.map((s) => {
+      return `**${s.type}** - \`${s.urlOrHandle}\` → <#${s.channelId}>`;
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Sources configurées")
+      .setColor(0x2f3136)
+      .setDescription(sourceLines.join("\n").slice(0, 4000) || "Aucune source")
+      .setFooter({ text: `Total: ${sources.length} sources` })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[CRASH COMMANDE LIST-SOURCES]:", error);
+    try { await interaction.editReply({ content: "❌ Impossible d'afficher les sources." }); }
+    catch { try { await interaction.followUp({ content: "❌ Impossible d'afficher les sources.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+  }
+}
+
+// ===== /pause-source =====
+
+async function handlePauseSource(interaction: ChatInputCommandInteraction) {
+  if (!(await requireAdmin(interaction))) return;
+
+  const handle = interaction.options.get("handle", true).value as string;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const source = await prisma.source.findFirst({
+      where: { urlOrHandle: handle },
+    });
+
+    if (!source) {
+      await interaction.editReply({ content: "⚠️ Source introuvable." });
+      return;
+    }
+
+    await interaction.editReply({ content: "ℹ️ Fonctionnalité de pause à implémenter (nécessite un champ 'active' dans le schéma)." });
+  } catch (error) {
+    logger.error("[CRASH COMMANDE PAUSE-SOURCE]:", error);
+    try { await interaction.editReply({ content: "❌ Impossible de mettre en pause la source." }); }
+    catch { try { await interaction.followUp({ content: "❌ Impossible de mettre en pause la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
   }
 }
