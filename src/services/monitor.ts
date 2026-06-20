@@ -262,8 +262,10 @@ async function checkAndNotify(client: Client) {
           const contentText = "title" in result.content ? result.content.title : result.content.text;
           let isNewNotification = false;
           try {
-            await prisma.notification.create({
-              data: {
+            await prisma.notification.upsert({
+              where: { url: cleanUrl(notifUrl) || "" },
+              update: {},
+              create: {
                 sourceId: String(source.id),
                 platform: source.type as Platform,
                 content: contentText,
@@ -272,10 +274,8 @@ async function checkAndNotify(client: Client) {
             });
             isNewNotification = true;
           } catch (err: unknown) {
-            // P2002 = contenu déjà notifié, on ignore silencieusement
-            if ((err as any)?.code !== "P2002") {
-              logger.error(`[Monitor] Erreur insertion notification pour @${source.urlOrHandle}:`, String(err));
-            }
+            console.error(`⚠️ [Monitor] Erreur insertion notification pour @${source.urlOrHandle} :`, String(err));
+            continue;
           }
           if (!isNewNotification) continue;
 
@@ -375,11 +375,13 @@ dbRetroLoop:
       }
       let publishedForSource = 0;
       for (const item of items) {
-        // Insert-first anti-doublon
+        // Insert-first anti-doublon avec upsert
         let isNewRetroNotif = false;
         try {
-          await prisma.notification.create({
-            data: {
+          await prisma.notification.upsert({
+            where: { url: cleanUrl(item.url) || "" },
+            update: {},
+            create: {
               sourceId: String(source.id),
               platform: source.type as Platform,
               content: item.title,
@@ -388,9 +390,8 @@ dbRetroLoop:
           });
           isNewRetroNotif = true;
         } catch (err: unknown) {
-          if ((err as any)?.code !== "P2002") {
-            logger.error(`[RetroDB] Erreur insertion notification @${source.urlOrHandle}:`, String(err));
-          }
+          console.error(`⚠️ [RetroDB] Erreur insertion notification @${source.urlOrHandle} :`, String(err));
+          continue;
         }
         if (!isNewRetroNotif) continue;
         const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
