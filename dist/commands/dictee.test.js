@@ -1,21 +1,19 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const vitest_1 = require("vitest");
+import { describe, it, expect, vi, beforeEach } from "vitest";
 // ── Hoisted mocks ──────────────────────────────────────────────
-const { mockLogger, mockRequireAdmin, mockDictation } = vitest_1.vi.hoisted(() => ({
-    mockLogger: { info: vitest_1.vi.fn(), warn: vitest_1.vi.fn(), error: vitest_1.vi.fn() },
-    mockRequireAdmin: vitest_1.vi.fn(),
+const { mockLogger, mockRequireAdmin, mockDictation } = vi.hoisted(() => ({
+    mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    mockRequireAdmin: vi.fn(),
     mockDictation: {
-        startDictation: vitest_1.vi.fn(),
-        stopDictation: vitest_1.vi.fn(),
-        hasActiveSession: vitest_1.vi.fn(),
-        cancelDictation: vitest_1.vi.fn(),
+        startDictation: vi.fn(),
+        stopDictation: vi.fn(),
+        hasActiveSession: vi.fn(),
+        cancelDictation: vi.fn(),
     },
 }));
-vitest_1.vi.mock("../utils/logger", () => ({ default: mockLogger }));
-vitest_1.vi.mock("../services/permissions", () => ({ requireAdmin: mockRequireAdmin }));
-vitest_1.vi.mock("../services/dictation", () => mockDictation);
-const dictee_1 = require("./dictee");
+vi.mock("../utils/logger", () => ({ default: mockLogger }));
+vi.mock("../services/permissions", () => ({ requireAdmin: mockRequireAdmin }));
+vi.mock("../services/dictation", () => mockDictation);
+import { handleCommand } from "./dictee.js";
 function mi(opts = {}) {
     const voiceChannel = ("voiceChannel" in opts) ? opts.voiceChannel : { id: "vc-123", name: "Général" };
     return {
@@ -31,21 +29,21 @@ function mi(opts = {}) {
             voice: { channel: voiceChannel },
         },
         options: {
-            getString: vitest_1.vi.fn((name, required) => {
+            getString: vi.fn((name, required) => {
                 if (name === "action")
                     return opts.action ?? "start";
                 return null;
             }),
-            getChannel: vitest_1.vi.fn((name) => {
+            getChannel: vi.fn((name) => {
                 if (name === "salon")
                     return ("targetChannel" in opts) ? opts.targetChannel : { id: "ch-999", name: "dictée", type: 0 };
                 return null;
             }),
         },
-        deferReply: vitest_1.vi.fn().mockResolvedValue(undefined),
-        editReply: vitest_1.vi.fn().mockResolvedValue(undefined),
-        reply: vitest_1.vi.fn().mockResolvedValue(undefined),
-        followUp: vitest_1.vi.fn().mockResolvedValue(undefined),
+        deferReply: vi.fn().mockResolvedValue(undefined),
+        editReply: vi.fn().mockResolvedValue(undefined),
+        reply: vi.fn().mockResolvedValue(undefined),
+        followUp: vi.fn().mockResolvedValue(undefined),
         deferred: opts.deferred ?? false,
         replied: false,
     };
@@ -58,13 +56,13 @@ function getEditReplyContent(interaction) {
 }
 const mockClient = {
     channels: {
-        fetch: vitest_1.vi.fn(),
+        fetch: vi.fn(),
     },
 };
 // ════════════════════════════════════════════════════════════════
-(0, vitest_1.describe)("handleCommand – dictee", () => {
-    (0, vitest_1.beforeEach)(() => {
-        vitest_1.vi.clearAllMocks();
+describe("handleCommand – dictee", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
         mockRequireAdmin.mockResolvedValue(true);
         mockDictation.hasActiveSession.mockReturnValue(false);
         mockDictation.startDictation.mockResolvedValue(undefined);
@@ -73,66 +71,66 @@ const mockClient = {
         mockClient.channels.fetch.mockResolvedValue(null);
     });
     // ── Admin check ──────────────────────────────────────────
-    (0, vitest_1.describe)("admin check", () => {
-        (0, vitest_1.it)("rejette l'accès si requireAdmin retourne false", async () => {
+    describe("admin check", () => {
+        it("rejette l'accès si requireAdmin retourne false", async () => {
             mockRequireAdmin.mockResolvedValue(false);
             const interaction = mi({ action: "start" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(interaction.deferReply).not.toHaveBeenCalled();
-            (0, vitest_1.expect)(interaction.reply).not.toHaveBeenCalled();
+            await handleCommand(interaction, mockClient);
+            expect(interaction.deferReply).not.toHaveBeenCalled();
+            expect(interaction.reply).not.toHaveBeenCalled();
         });
     });
     // ── /dictee start ────────────────────────────────────────
-    (0, vitest_1.describe)("/dictee start", () => {
-        (0, vitest_1.it)("rejette si le membre n'est pas trouvé", async () => {
+    describe("/dictee start", () => {
+        it("rejette si le membre n'est pas trouvé", async () => {
             const interaction = mi({ action: "start" });
             interaction.member = null;
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getReplyContent(interaction)).toContain("Impossible de trouver ton membre");
+            await handleCommand(interaction, mockClient);
+            expect(getReplyContent(interaction)).toContain("Impossible de trouver ton membre");
         });
-        (0, vitest_1.it)("rejette si l'utilisateur n'est pas dans un salon vocal", async () => {
+        it("rejette si l'utilisateur n'est pas dans un salon vocal", async () => {
             const interaction = mi({ action: "start", voiceChannel: null });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getReplyContent(interaction)).toContain("Tu dois être dans un salon vocal");
+            await handleCommand(interaction, mockClient);
+            expect(getReplyContent(interaction)).toContain("Tu dois être dans un salon vocal");
         });
-        (0, vitest_1.it)("rejette si le salon cible est invalide", async () => {
+        it("rejette si le salon cible est invalide", async () => {
             const interaction = mi({ action: "start", targetChannel: null });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getReplyContent(interaction)).toContain("spécifier un salon textuel");
+            await handleCommand(interaction, mockClient);
+            expect(getReplyContent(interaction)).toContain("spécifier un salon textuel");
         });
-        (0, vitest_1.it)("démarre la dictée et confirme", async () => {
+        it("démarre la dictée et confirme", async () => {
             const interaction = mi({ action: "start", targetChannel: { id: "ch-999", name: "dictée", type: 0 } });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(interaction.deferReply).toHaveBeenCalled();
-            (0, vitest_1.expect)(mockDictation.startDictation).toHaveBeenCalledWith("vc-123", "guild-789", vitest_1.expect.anything(), "user-456", "TestUser", "ch-999");
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("Dictée démarrée");
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("<#ch-999>");
+            await handleCommand(interaction, mockClient);
+            expect(interaction.deferReply).toHaveBeenCalled();
+            expect(mockDictation.startDictation).toHaveBeenCalledWith("vc-123", "guild-789", expect.anything(), "user-456", "TestUser", "ch-999");
+            expect(getEditReplyContent(interaction)).toContain("Dictée démarrée");
+            expect(getEditReplyContent(interaction)).toContain("<#ch-999>");
         });
-        (0, vitest_1.it)("affiche l'erreur de startDictation dans editReply", async () => {
+        it("affiche l'erreur de startDictation dans editReply", async () => {
             mockDictation.startDictation.mockRejectedValue(new Error("Connexion vocale impossible"));
             const interaction = mi({ action: "start" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("❌ Connexion vocale impossible");
+            await handleCommand(interaction, mockClient);
+            expect(getEditReplyContent(interaction)).toContain("❌ Connexion vocale impossible");
         });
     });
     // ── /dictee stop ─────────────────────────────────────────
-    (0, vitest_1.describe)("/dictee stop", () => {
-        (0, vitest_1.it)("rejette si aucune session active", async () => {
+    describe("/dictee stop", () => {
+        it("rejette si aucune session active", async () => {
             mockDictation.hasActiveSession.mockReturnValue(false);
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getReplyContent(interaction)).toContain("Tu n'as pas de dictée en cours");
+            await handleCommand(interaction, mockClient);
+            expect(getReplyContent(interaction)).toContain("Tu n'as pas de dictée en cours");
         });
-        (0, vitest_1.it)("gère le cas où stopDictation retourne null", async () => {
+        it("gère le cas où stopDictation retourne null", async () => {
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockResolvedValue(null);
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(interaction.deferReply).toHaveBeenCalled();
-            (0, vitest_1.expect)(mockDictation.stopDictation).toHaveBeenCalledWith("user-456");
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("Aucune dictée trouvée");
+            await handleCommand(interaction, mockClient);
+            expect(interaction.deferReply).toHaveBeenCalled();
+            expect(mockDictation.stopDictation).toHaveBeenCalledWith("user-456");
+            expect(getEditReplyContent(interaction)).toContain("Aucune dictée trouvée");
         });
-        (0, vitest_1.it)("termine la dictée, envoie le texte dans le salon cible et confirme", async () => {
+        it("termine la dictée, envoie le texte dans le salon cible et confirme", async () => {
             const result = {
                 text: "Bonjour, ceci est un test de dictée vocale",
                 username: "TestUser",
@@ -140,18 +138,18 @@ const mockClient = {
             };
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockResolvedValue(result);
-            const mockTextChannel = { isTextBased: () => true, send: vitest_1.vi.fn().mockResolvedValue(undefined) };
+            const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
             mockClient.channels.fetch.mockResolvedValue(mockTextChannel);
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(mockClient.channels.fetch).toHaveBeenCalledWith("ch-999");
-            (0, vitest_1.expect)(mockTextChannel.send).toHaveBeenCalledWith(vitest_1.expect.objectContaining({
-                content: vitest_1.expect.stringContaining("Bonjour, ceci est un test de dictée vocale"),
+            await handleCommand(interaction, mockClient);
+            expect(mockClient.channels.fetch).toHaveBeenCalledWith("ch-999");
+            expect(mockTextChannel.send).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining("Bonjour, ceci est un test de dictée vocale"),
             }));
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("Dictée terminée");
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("<#ch-999>");
+            expect(getEditReplyContent(interaction)).toContain("Dictée terminée");
+            expect(getEditReplyContent(interaction)).toContain("<#ch-999>");
         });
-        (0, vitest_1.it)("gère le cas où le salon cible n'est pas accessible", async () => {
+        it("gère le cas où le salon cible n'est pas accessible", async () => {
             const result = {
                 text: "Texte de test",
                 username: "TestUser",
@@ -161,56 +159,56 @@ const mockClient = {
             mockDictation.stopDictation.mockResolvedValue(result);
             mockClient.channels.fetch.mockRejectedValue(new Error("Unknown Channel"));
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("Dictée terminée");
-            (0, vitest_1.expect)(mockLogger.error).toHaveBeenCalled();
+            await handleCommand(interaction, mockClient);
+            expect(getEditReplyContent(interaction)).toContain("Dictée terminée");
+            expect(mockLogger.error).toHaveBeenCalled();
         });
-        (0, vitest_1.it)("tronque la transcription à 300 caractères", async () => {
+        it("tronque la transcription à 300 caractères", async () => {
             const longText = "A".repeat(400);
             const result = { text: longText, username: "TestUser", targetChannelId: "ch-999" };
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockResolvedValue(result);
-            const mockTextChannel = { isTextBased: () => true, send: vitest_1.vi.fn().mockResolvedValue(undefined) };
+            const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
             mockClient.channels.fetch.mockResolvedValue(mockTextChannel);
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
+            await handleCommand(interaction, mockClient);
             const content = getEditReplyContent(interaction);
-            (0, vitest_1.expect)(content).toContain("...");
-            (0, vitest_1.expect)(content.length).toBeLessThan(400);
+            expect(content).toContain("...");
+            expect(content.length).toBeLessThan(400);
         });
-        (0, vitest_1.it)("affiche 'aucun texte' si la transcription est vide", async () => {
+        it("affiche 'aucun texte' si la transcription est vide", async () => {
             const result = { text: "", username: "TestUser", targetChannelId: "ch-999" };
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockResolvedValue(result);
-            const mockTextChannel = { isTextBased: () => true, send: vitest_1.vi.fn().mockResolvedValue(undefined) };
+            const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
             mockClient.channels.fetch.mockResolvedValue(mockTextChannel);
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(getEditReplyContent(interaction)).toContain("aucun texte");
-            (0, vitest_1.expect)(mockTextChannel.send).toHaveBeenCalledWith(vitest_1.expect.objectContaining({ content: vitest_1.expect.stringContaining("aucun texte détecté") }));
+            await handleCommand(interaction, mockClient);
+            expect(getEditReplyContent(interaction)).toContain("aucun texte");
+            expect(mockTextChannel.send).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("aucun texte détecté") }));
         });
     });
     // ── Error handling ───────────────────────────────────────
-    (0, vitest_1.describe)("gestion d'erreur", () => {
-        (0, vitest_1.it)("appelle cancelDictation après crash si une session était active", async () => {
+    describe("gestion d'erreur", () => {
+        it("appelle cancelDictation après crash si une session était active", async () => {
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockRejectedValue(new Error("DB crash"));
             const interaction = mi({ action: "stop" });
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(mockDictation.cancelDictation).toHaveBeenCalledWith("user-456");
+            await handleCommand(interaction, mockClient);
+            expect(mockDictation.cancelDictation).toHaveBeenCalledWith("user-456");
         });
-        (0, vitest_1.it)("utilise followUp si impossible de reply/editReply après crash", async () => {
+        it("utilise followUp si impossible de reply/editReply après crash", async () => {
             mockDictation.hasActiveSession.mockReturnValue(true);
             mockDictation.stopDictation.mockRejectedValue(new Error("DB crash"));
             const interaction = mi({ action: "stop" });
             interaction.deferred = false;
             interaction.replied = false;
             // Force reply and editReply to fail so followUp is used as fallback
-            interaction.reply = vitest_1.vi.fn().mockRejectedValue(new Error("Cannot reply"));
-            interaction.editReply = vitest_1.vi.fn().mockRejectedValue(new Error("Cannot edit"));
-            await (0, dictee_1.handleCommand)(interaction, mockClient);
-            (0, vitest_1.expect)(interaction.followUp).toHaveBeenCalled();
-            (0, vitest_1.expect)(mockDictation.cancelDictation).toHaveBeenCalledWith("user-456");
+            interaction.reply = vi.fn().mockRejectedValue(new Error("Cannot reply"));
+            interaction.editReply = vi.fn().mockRejectedValue(new Error("Cannot edit"));
+            await handleCommand(interaction, mockClient);
+            expect(interaction.followUp).toHaveBeenCalled();
+            expect(mockDictation.cancelDictation).toHaveBeenCalledWith("user-456");
         });
     });
 });

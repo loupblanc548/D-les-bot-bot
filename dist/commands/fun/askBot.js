@@ -1,13 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../../utils/logger"));
-const discord_js_1 = require("discord.js");
-const ai_1 = require("../../services/ai");
+import logger from "../../utils/logger.js";
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, } from "discord.js";
+import { getOpenAIClient } from "../../services/ai.js";
 const COOLDOWN_MS = 15_000;
 const cooldowns = new Map();
 let cleanupInterval = null;
@@ -33,8 +26,8 @@ const JOHN_HELLDIVER_PROMPT = "Tu es John Helldiver, un soldat legendaire et ult
     "Utilise regulierement des expressions comme : Pour la democratie !, " +
     "Un bon insecte est un insecte mort !, Prends un shot de liberte ! " +
     "Les reponses doivent rester concises et percutantes (max 300 mots).";
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("ask-bot")
         .setDescription("Pose une question a John Helldiver, soldat d elite de la Super-Terre")
         .addStringOption((option) => option
@@ -44,7 +37,7 @@ exports.commands = [
         .setMaxLength(500))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const userId = interaction.user.id;
     const lastUsed = cooldowns.get(userId);
     if (lastUsed) {
@@ -53,7 +46,7 @@ async function handleCommand(interaction) {
             const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
             await interaction.reply({
                 content: "\u23f3 Patiente " + remaining + "s avant de reposer une question, soldat !",
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
             return;
         }
@@ -61,7 +54,7 @@ async function handleCommand(interaction) {
     const question = interaction.options.getString("question", true);
     await interaction.deferReply();
     try {
-        const client = (0, ai_1.getOpenAIClient)();
+        const client = getOpenAIClient();
         const completion = await client.chat.completions.create({
             model: "openai/gpt-4o-mini",
             messages: [
@@ -74,7 +67,7 @@ async function handleCommand(interaction) {
         const reponse = completion.choices[0]?.message?.content || "Pour la Super-Terre ! (Desole, je n ai pas compris la question.)";
         cooldowns.set(userId, Date.now());
         scheduleCooldownCleanup();
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("\ud83c\udf0d Question de " + interaction.user.displayName)
             .setColor(0xffcc00)
             .setDescription(reponse)
@@ -83,7 +76,7 @@ async function handleCommand(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[ask-bot] Erreur OpenRouter:", String(error));
+        logger.error("[ask-bot] Erreur OpenRouter:", String(error));
         await interaction.editReply({
             content: "\u274c John Helldiver est actuellement en mission. Reessaie plus tard, soldat !",
         });

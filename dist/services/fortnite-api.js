@@ -1,23 +1,14 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractAllNamesFromEntry = extractAllNamesFromEntry;
-exports.matchesWishlist = matchesWishlist;
-exports.fetchShop = fetchShop;
-exports.checkWishlistMatches = checkWishlistMatches;
-exports.runWishlistRetrospective = runWishlistRetrospective;
-const logger_1 = require("../utils/logger");
+import { fortniteLogger } from "../utils/logger.js";
+import { broadcastFortniteUpdate, pushFortniteDetection } from "./fortnite-broadcast.js";
 // Service Fortnite-API.com — boutique du jour, cosmétiques, wishlist check
-const config_1 = require("../config");
+import { config } from "../config.js";
 // API gratuite, pas de clé requise
 // Docs: https://fortnite-api.com
-const prisma_1 = __importDefault(require("../prisma"));
-const discord_js_1 = require("discord.js");
+import prisma from "../prisma.js";
+import { EmbedBuilder } from "discord.js";
 const SHOP_URL = "https://fortnite-api.com/v2/shop";
 // Cache TTL 15 minutes (la boutique change une fois par jour)
-const CACHE_TTL_MS = config_1.config.fortniteCacheTtlMs;
+const CACHE_TTL_MS = config.fortniteCacheTtlMs;
 const shopCache = new Map();
 let lastSweep = 0;
 const SWEEP_COOLDOWN_MS = 60_000;
@@ -57,19 +48,20 @@ function getRarityColor(rarity) {
  * - Récupère le nom de chaque item dans entry.items (utilise displayName ou name en fallback)
  * - Retourne un tableau de noms normalisés (minuscule/trim) et uniques
  */
-function extractAllNamesFromEntry(entry) {
+export function extractAllNamesFromEntry(entry) {
     const names = new Set();
+    const e = entry;
     // 1. Nom du pack/bundle si présent
-    const bundleName = entry.bundle?.name ||
-        entry.bundle?.displayName ||
-        entry.displayName ||
-        entry.name ||
+    const bundleName = e.bundle?.name ||
+        e.bundle?.displayName ||
+        e.displayName ||
+        e.name ||
         "";
     if (bundleName) {
         names.add(bundleName.toLowerCase().trim());
     }
     // 2. Nom de chaque sous-article (items / brItems)
-    const items = entry.items || entry.brItems || [];
+    const items = (e.items || e.brItems || []);
     for (const item of items) {
         const itemName = item.displayName || item.name || "";
         if (itemName) {
@@ -78,7 +70,7 @@ function extractAllNamesFromEntry(entry) {
     }
     // 3. Si rien trouvé, log un avertissement (uniquement si on n'a vraiment aucun nom)
     if (names.size === 0) {
-        logger_1.fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable détectée (offerId: ${entry.offerId || "inconnu"})`);
+        fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable détectée (offerId: ${entry.offerId || "inconnu"})`);
     }
     return [...names];
 }
@@ -89,7 +81,7 @@ function extractAllNamesFromEntry(entry) {
  *  2. Vérifie si un mot du shop est dans l'ensemble wishlist
  *  3. Fallback : boundary regex match (évite les faux positifs type "Skin" → "Skinny")
  */
-function matchesWishlist(wishlistName, shopName) {
+export function matchesWishlist(wishlistName, shopName) {
     const w = wishlistName.toLowerCase().trim();
     const s = shopName.toLowerCase().trim();
     // Correspondance exacte (insensible à la casse)
@@ -111,28 +103,28 @@ function matchesWishlist(wishlistName, shopName) {
     return false;
 }
 // --- API calls ---
-async function fetchShop() {
+export async function fetchShop() {
     const key = SHOP_URL;
     const cached = shopCache.get(key);
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-        logger_1.fortniteLogger.info("[FortniteAPI] Boutique récupérée depuis le cache");
+        fortniteLogger.info("[FortniteAPI] Boutique récupérée depuis le cache");
         return cached.data;
     }
     try {
-        logger_1.fortniteLogger.info("[FortniteAPI] Récupération de la boutique depuis l'API...");
+        fortniteLogger.info("[FortniteAPI] Récupération de la boutique depuis l'API...");
         const res = await fetch(SHOP_URL, {
             headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
             signal: AbortSignal.timeout(10000),
         });
         if (!res.ok) {
-            logger_1.fortniteLogger.warn(`[FortniteAPI] Échec HTTP ${res.status} — boutique indisponible`);
+            fortniteLogger.warn(`[FortniteAPI] Échec HTTP ${res.status} — boutique indisponible`);
             sweepCache();
             shopCache.set(key, { data: null, ts: Date.now() });
             return null;
         }
         const json = await res.json();
         if (json.status !== 200 || !json.data) {
-            logger_1.fortniteLogger.warn("[FortniteAPI] Réponse API invalide (status != 200 ou data manquant)");
+            fortniteLogger.warn("[FortniteAPI] Réponse API invalide (status != 200 ou data manquant)");
             sweepCache();
             shopCache.set(key, { data: null, ts: Date.now() });
             return null;
@@ -143,17 +135,18 @@ async function fetchShop() {
         const specialFeatured = [];
         const specialDaily = [];
         const unknown = []; // Fallback : sections non reconnues
-        for (const entry of entries) {
+        for (const rawEntry of entries) {
+            const entry = rawEntry;
             // Normalisé en minuscule : l'API renvoie "Featured","Daily","BestSellers", etc.
             const section = (entry.section?.id || "").toLowerCase();
-            const items = entry.items || entry.brItems || [];
+            const items = (entry.items || entry.brItems || []);
             // Extraction de TOUS les noms pour cette entrée (pack + sous-articles)
             const allNames = extractAllNamesFromEntry(entry);
             // Log diagnostic pour les packs/bundles (uniquement si un vrai bundle est présent)
             if (allNames.length > 1 && entry.bundle) {
                 const bundleLabel = allNames[0];
                 const subItems = allNames.slice(1);
-                logger_1.fortniteLogger.info(`\u{1F4E6} [Shop Scan] Pack détecté : ${bundleLabel}. Contient les sous-articles : [${subItems.join(", ")}]`);
+                fortniteLogger.info(`\u{1F4E6} [Shop Scan] Pack détecté : ${bundleLabel}. Contient les sous-articles : [${subItems.join(", ")}]`);
             }
             // Compteur pour savoir si au moins un item a été transformé en ShopEntry
             let itemsProcessed = 0;
@@ -215,12 +208,12 @@ async function fetchShop() {
                     specialDaily.push(mapped);
                 else
                     unknown.push(mapped);
-                logger_1.fortniteLogger.info(`\u{1F527} [Shop Scan] Entrée sans sous-items traitée via fallback : "${topName}" ` +
+                fortniteLogger.info(`\u{1F527} [Shop Scan] Entrée sans sous-items traitée via fallback : "${topName}" ` +
                     `(section: ${section || "inconnue"}, offerId: ${entry.offerId || "inconnu"})`);
             }
             else if (itemsProcessed === 0) {
                 // Vraiment rien : ni items avec nom, ni nom de premier niveau
-                logger_1.fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable — ignorée ` +
+                fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable — ignorée ` +
                     `(section: ${section || "inconnue"}, offerId: ${entry.offerId || "inconnu"})`);
             }
         }
@@ -234,13 +227,13 @@ async function fetchShop() {
         // inconnus, c'est probablement un changement d'API → on les met dans "featured"
         const totalKnown = featured.length + daily.length + specialFeatured.length + specialDaily.length;
         if (totalKnown === 0 && unknown.length > 0) {
-            logger_1.fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Aucune section reconnue (featured/daily/etc.) ! ` +
+            fortniteLogger.warn(`[FortniteAPI] \u26a0\ufe0f Aucune section reconnue (featured/daily/etc.) ! ` +
                 `${unknown.length} items récupérés dans des sections inconnues, ajoutés à "featured". ` +
                 `Sections détectées : ${[...new Set(unknown.map(i => i.section))].join(", ")}`);
             featured.push(...unknown);
         }
         else if (unknown.length > 0) {
-            logger_1.fortniteLogger.info(`[FortniteAPI] ${unknown.length} items dans des sections non reconnues ` +
+            fortniteLogger.info(`[FortniteAPI] ${unknown.length} items dans des sections non reconnues ` +
                 `(${[...new Set(unknown.map(i => i.section))].join(", ")}), ajoutés à "daily"`);
             daily.push(...unknown);
         }
@@ -251,30 +244,39 @@ async function fetchShop() {
             specialFeatured,
             specialDaily,
         };
-        logger_1.fortniteLogger.info(`[FortniteAPI] Boutique du ${result.date} récupérée : ` +
+        fortniteLogger.info(`[FortniteAPI] Boutique du ${result.date} récupérée : ` +
             `${featured.length} featured, ${daily.length} daily, ` +
             `${specialFeatured.length} specialFeatured, ${specialDaily.length} specialDaily`);
+        // Broadcast shop update to WebSocket clients
+        broadcastFortniteUpdate({
+            shop: [...featured, ...daily, ...specialFeatured, ...specialDaily].slice(0, 50).map(e => ({
+                name: e.displayName,
+                rarity: e.rarity,
+                price: e.price,
+                icon: e.icon || undefined
+            }))
+        });
         sweepCache();
         shopCache.set(key, { data: result, ts: Date.now() });
         return result;
     }
     catch (err) {
-        logger_1.fortniteLogger.error("[FortniteAPI] Erreur réseau/parse :", String(err));
+        fortniteLogger.error("[FortniteAPI] Erreur réseau/parse :", String(err));
         sweepCache();
         shopCache.set(key, { data: null, ts: Date.now() });
         return null;
     }
 }
 // --- Wishlist check & DM notifications ---
-async function checkWishlistMatches(client) {
-    logger_1.fortniteLogger.info("\n\ud83d\udd0d [Wishlist] ====== DÉBUT DU SCAN DE NOTIFICATION ======");
+export async function checkWishlistMatches(client) {
+    fortniteLogger.info("\n\ud83d\udd0d [Wishlist] ====== DÉBUT DU SCAN DE NOTIFICATION ======");
     let sentCount = 0;
     let failCount = 0;
     try {
-        logger_1.fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération de la boutique Fortnite...");
+        fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération de la boutique Fortnite...");
         const shop = await fetchShop();
         if (!shop) {
-            logger_1.fortniteLogger.info("\u274c [Wishlist] Boutique indisponible, scan annulé.");
+            fortniteLogger.info("\u274c [Wishlist] Boutique indisponible, scan annulé.");
             return 0;
         }
         const allItems = [
@@ -283,15 +285,15 @@ async function checkWishlistMatches(client) {
             ...shop.specialFeatured,
             ...shop.specialDaily,
         ];
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist] Boutique du " + shop.date + " : " + allItems.length + " objets");
-        logger_1.fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération des wishlists en base...");
-        const wishlistItems = await prisma_1.default.wishlist.findMany();
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)");
+        fortniteLogger.info("\ud83d\udcca [Wishlist] Boutique du " + shop.date + " : " + allItems.length + " objets");
+        fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération des wishlists en base...");
+        const wishlistItems = await prisma.wishlist.findMany();
+        fortniteLogger.info("\ud83d\udcca [Wishlist] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)");
         if (wishlistItems.length === 0 || allItems.length === 0) {
-            logger_1.fortniteLogger.info("\u26a0\ufe0f [Wishlist] Aucune entrée wishlist ou boutique vide, scan terminé.");
+            fortniteLogger.info("\u26a0\ufe0f [Wishlist] Aucune entrée wishlist ou boutique vide, scan terminé.");
             return 0;
         }
-        logger_1.fortniteLogger.info("\ud83c\udfaf [Wishlist] Début du matching...");
+        fortniteLogger.info("\ud83c\udfaf [Wishlist] Début du matching...");
         const matchMap = new Map();
         for (const entry of allItems) {
             // On match contre TOUS les noms extraits (pack + sous-articles)
@@ -323,36 +325,36 @@ async function checkWishlistMatches(client) {
                     matchMap.set(key, { userId: wish.userId, itemName: wish.itemName, entry });
                     // Log de diagnostic enrichi
                     if (namesToCheck.length > 1) {
-                        logger_1.fortniteLogger.info(`\ud83c\udfaf [Shop Match] Le skin "${wish.itemName}" trouvé dans un pack correspond à la wishlist de ${wish.userId} !`);
+                        fortniteLogger.info(`\ud83c\udfaf [Shop Match] Le skin "${wish.itemName}" trouvé dans un pack correspond à la wishlist de ${wish.userId} !`);
                     }
                     else {
-                        logger_1.fortniteLogger.info(`\ud83c\udfaf [Wishlist] MATCH ! "${entry.displayName}" correspond à la wishlist de ${wish.userId} (cherchait: ${wish.itemName})`);
+                        fortniteLogger.info(`\ud83c\udfaf [Wishlist] MATCH ! "${entry.displayName}" correspond à la wishlist de ${wish.userId} (cherchait: ${wish.itemName})`);
                     }
                 }
             }
         }
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist] " + matchMap.size + " correspondance(s) trouvée(s)");
+        fortniteLogger.info("\ud83d\udcca [Wishlist] " + matchMap.size + " correspondance(s) trouvée(s)");
         if (matchMap.size === 0) {
-            logger_1.fortniteLogger.info("\u2705 [Wishlist] Aucun match — scan terminé.");
+            fortniteLogger.info("\u2705 [Wishlist] Aucun match — scan terminé.");
             return 0;
         }
-        logger_1.fortniteLogger.info("\ud83d\udce8 [Wishlist] Envoi des notifications DM à " + matchMap.size + " utilisateur(s) (avec pause anti-rate-limit)...");
+        fortniteLogger.info("\ud83d\udce8 [Wishlist] Envoi des notifications DM à " + matchMap.size + " utilisateur(s) (avec pause anti-rate-limit)...");
         // Boucle séquentielle avec micro-pause de 200ms entre chaque DM (anti-rate-limit Discord)
         const matches = [...matchMap.values()];
         for (const match of matches) {
             try {
-                const pref = await prisma_1.default.userPreference.findUnique({ where: { userId: match.userId } });
+                const pref = await prisma.userPreference.findUnique({ where: { userId: match.userId } });
                 if (pref && pref.wishlistDm === false) {
-                    logger_1.fortniteLogger.info("\u23ed\ufe0f [Wishlist] DM ignoré pour " + match.userId + " — wishlistDm désactivé");
+                    fortniteLogger.info("\u23ed\ufe0f [Wishlist] DM ignoré pour " + match.userId + " — wishlistDm désactivé");
                     continue;
                 }
                 const user = await client.users.fetch(match.userId);
                 if (!user) {
-                    logger_1.fortniteLogger.warn("\u26a0\ufe0f [Wishlist] Utilisateur " + match.userId + " introuvable");
+                    fortniteLogger.warn("\u26a0\ufe0f [Wishlist] Utilisateur " + match.userId + " introuvable");
                     failCount++;
                     continue;
                 }
-                const embed = new discord_js_1.EmbedBuilder()
+                const embed = new EmbedBuilder()
                     .setTitle("\ud83c\udf89 " + match.entry.displayName)
                     .setDescription("L'objet **" + match.itemName + "** que tu surveillais est disponible aujourd'hui dans la boutique Fortnite !")
                     .setColor(match.entry.rarityColor || 0x9b59b6)
@@ -365,11 +367,11 @@ async function checkWishlistMatches(client) {
                     embed.setThumbnail(match.entry.icon);
                 await user.send({ embeds: [embed] });
                 sentCount++;
-                logger_1.fortniteLogger.info("\u2705 [Wishlist] DM envoyé à " + user.username + " (" + match.userId + ") pour " + match.itemName);
+                fortniteLogger.info("\u2705 [Wishlist] DM envoyé à " + user.username + " (" + match.userId + ") pour " + match.itemName);
                 // Pause anti-rate-limit Discord (200ms entre chaque DM)
                 await new Promise(resolve => setTimeout(resolve, 200));
                 // Marquer l'item comme notifié (horodatage anti-doublon)
-                await prisma_1.default.wishlist.updateMany({
+                await prisma.wishlist.updateMany({
                     where: { userId: match.userId, itemName: match.itemName },
                     data: { lastNotifiedAt: new Date() }
                 });
@@ -377,26 +379,31 @@ async function checkWishlistMatches(client) {
             catch (dmError) {
                 failCount++;
                 const errMsg = dmError instanceof Error ? dmError.message : String(dmError);
-                logger_1.fortniteLogger.warn("\u274c [Wishlist] Échec DM pour " + match.userId + " : " + errMsg + " (DMs probablement fermés, on continue)");
+                fortniteLogger.warn("\u274c [Wishlist] Échec DM pour " + match.userId + " : " + errMsg + " (DMs probablement fermés, on continue)");
             }
         }
-        logger_1.fortniteLogger.info("\u2705 [Wishlist] ====== SCAN TERMINÉ : " + sentCount + " notification(s) envoyée(s), " + failCount + " échec(s) (sur " + matchMap.size + " correspondance(s)) ======\n");
+        fortniteLogger.info("\u2705 [Wishlist] ====== SCAN TERMINÉ : " + sentCount + " notification(s) envoyée(s), " + failCount + " échec(s) (sur " + matchMap.size + " correspondance(s)) ======\n");
+        // Broadcast Fortnite update to WebSocket clients
+        if (sentCount > 0) {
+            broadcastFortniteUpdate({ skins: sentCount });
+            pushFortniteDetection("skins", sentCount + " skin(s) trouvé(s) en wishlist");
+        }
         return sentCount;
     }
     catch (err) {
-        logger_1.fortniteLogger.error("\ud83d\udca5 [CRASH WISHLIST SCAN] Erreur fatale dans checkWishlistMatches :", err);
+        fortniteLogger.error("\ud83d\udca5 [CRASH WISHLIST SCAN] Erreur fatale dans checkWishlistMatches :", err);
         return 0;
     }
 }
 // --- Wishlist retrospective (catch-up after bot downtime) ---
-async function runWishlistRetrospective(client) {
-    logger_1.fortniteLogger.info("\n\ud83d\udd04 [Wishlist Retrospective] ====== DÉBUT DE LA RÉTROSPECTIVE WISHLIST ======");
+export async function runWishlistRetrospective(client) {
+    fortniteLogger.info("\n\ud83d\udd04 [Wishlist Retrospective] ====== DÉBUT DE LA RÉTROSPECTIVE WISHLIST ======");
     let sentCount = 0;
     try {
-        logger_1.fortniteLogger.info("\ud83d\udd0d [Wishlist Retrospective] Récupération de la boutique Fortnite...");
+        fortniteLogger.info("\ud83d\udd0d [Wishlist Retrospective] Récupération de la boutique Fortnite...");
         const shop = await fetchShop();
         if (!shop) {
-            logger_1.fortniteLogger.info("\u274c [Wishlist Retrospective] Boutique indisponible, rétrospective annulée.");
+            fortniteLogger.info("\u274c [Wishlist Retrospective] Boutique indisponible, rétrospective annulée.");
             return 0;
         }
         const allItems = [
@@ -405,15 +412,15 @@ async function runWishlistRetrospective(client) {
             ...shop.specialFeatured,
             ...shop.specialDaily,
         ];
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] Boutique du " + shop.date + " : " + allItems.length + " objets");
-        logger_1.fortniteLogger.info("\ud83d\udd0d [Wishlist Retrospective] Récupération des wishlists en base...");
-        const wishlistItems = await prisma_1.default.wishlist.findMany();
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)");
+        fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] Boutique du " + shop.date + " : " + allItems.length + " objets");
+        fortniteLogger.info("\ud83d\udd0d [Wishlist Retrospective] Récupération des wishlists en base...");
+        const wishlistItems = await prisma.wishlist.findMany();
+        fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)");
         if (wishlistItems.length === 0 || allItems.length === 0) {
-            logger_1.fortniteLogger.info("\u26a0\ufe0f [Wishlist Retrospective] Aucune entrée wishlist ou boutique vide, rétrospective terminée.");
+            fortniteLogger.info("\u26a0\ufe0f [Wishlist Retrospective] Aucune entrée wishlist ou boutique vide, rétrospective terminée.");
             return 0;
         }
-        logger_1.fortniteLogger.info("\ud83c\udfaf [Wishlist Retrospective] Début du matching...");
+        fortniteLogger.info("\ud83c\udfaf [Wishlist Retrospective] Début du matching...");
         const matchMap = new Map();
         for (const entry of allItems) {
             // On match contre TOUS les noms extraits (pack + sous-articles)
@@ -426,7 +433,7 @@ async function runWishlistRetrospective(client) {
                 if (wish.lastNotifiedAt) {
                     const hoursSinceNotified = (Date.now() - wish.lastNotifiedAt.getTime()) / (1000 * 60 * 60);
                     if (hoursSinceNotified < 24) {
-                        logger_1.fortniteLogger.info("\u23ed\ufe0f [Wishlist Retrospective] Déjà notifié il y a " + Math.floor(hoursSinceNotified) + "h, skip pour " + wish.itemName);
+                        fortniteLogger.info("\u23ed\ufe0f [Wishlist Retrospective] Déjà notifié il y a " + Math.floor(hoursSinceNotified) + "h, skip pour " + wish.itemName);
                         continue;
                     }
                 }
@@ -445,35 +452,35 @@ async function runWishlistRetrospective(client) {
                 if (!matchMap.has(key)) {
                     matchMap.set(key, { userId: wish.userId, itemName: wish.itemName, entry });
                     if (namesToCheck.length > 1) {
-                        logger_1.fortniteLogger.info(`\ud83c\udfaf [Shop Match Retro] Le skin "${wish.itemName}" trouvé dans un pack correspond à la wishlist de ${wish.userId} !`);
+                        fortniteLogger.info(`\ud83c\udfaf [Shop Match Retro] Le skin "${wish.itemName}" trouvé dans un pack correspond à la wishlist de ${wish.userId} !`);
                     }
                     else {
-                        logger_1.fortniteLogger.info(`\ud83c\udfaf [Wishlist Retrospective] MATCH ! "${entry.displayName}" correspond à la wishlist de ${wish.userId} (cherchait: ${wish.itemName})`);
+                        fortniteLogger.info(`\ud83c\udfaf [Wishlist Retrospective] MATCH ! "${entry.displayName}" correspond à la wishlist de ${wish.userId} (cherchait: ${wish.itemName})`);
                     }
                 }
             }
         }
-        logger_1.fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] " + matchMap.size + " correspondance(s) trouvée(s)");
+        fortniteLogger.info("\ud83d\udcca [Wishlist Retrospective] " + matchMap.size + " correspondance(s) trouvée(s)");
         if (matchMap.size === 0) {
-            logger_1.fortniteLogger.info("\u2705 [Wishlist Retrospective] Aucun match — rétrospective terminée.");
+            fortniteLogger.info("\u2705 [Wishlist Retrospective] Aucun match — rétrospective terminée.");
             return 0;
         }
-        logger_1.fortniteLogger.info("\ud83d\udce8 [Wishlist Retrospective] Envoi des notifications DM à " + matchMap.size + " utilisateur(s) (avec pause anti-rate-limit)...");
+        fortniteLogger.info("\ud83d\udce8 [Wishlist Retrospective] Envoi des notifications DM à " + matchMap.size + " utilisateur(s) (avec pause anti-rate-limit)...");
         // Boucle séquentielle avec micro-pause de 200ms entre chaque DM (anti-rate-limit Discord)
         const matches = [...matchMap.values()];
         for (const match of matches) {
             try {
-                const pref = await prisma_1.default.userPreference.findUnique({ where: { userId: match.userId } });
+                const pref = await prisma.userPreference.findUnique({ where: { userId: match.userId } });
                 if (pref && pref.wishlistDm === false) {
-                    logger_1.fortniteLogger.info("\u23ed\ufe0f [Wishlist Retrospective] DM ignoré pour " + match.userId + " — wishlistDm désactivé");
+                    fortniteLogger.info("\u23ed\ufe0f [Wishlist Retrospective] DM ignoré pour " + match.userId + " — wishlistDm désactivé");
                     continue;
                 }
                 const user = await client.users.fetch(match.userId);
                 if (!user) {
-                    logger_1.fortniteLogger.warn("\u26a0\ufe0f [Wishlist Retrospective] Utilisateur " + match.userId + " introuvable");
+                    fortniteLogger.warn("\u26a0\ufe0f [Wishlist Retrospective] Utilisateur " + match.userId + " introuvable");
                     continue;
                 }
-                const embed = new discord_js_1.EmbedBuilder()
+                const embed = new EmbedBuilder()
                     .setTitle("\ud83c\udf89 " + match.entry.displayName)
                     .setDescription("L'objet **" + match.itemName + "** que tu surveillais est disponible aujourd'hui dans la boutique Fortnite !")
                     .setColor(match.entry.rarityColor || 0x9b59b6)
@@ -486,25 +493,30 @@ async function runWishlistRetrospective(client) {
                     embed.setThumbnail(match.entry.icon);
                 await user.send({ embeds: [embed] });
                 sentCount++;
-                logger_1.fortniteLogger.info("\u2705 [Wishlist Retrospective] DM envoyé à " + user.username + " (" + match.userId + ") pour " + match.itemName);
+                fortniteLogger.info("\u2705 [Wishlist Retrospective] DM envoyé à " + user.username + " (" + match.userId + ") pour " + match.itemName);
                 // Pause anti-rate-limit Discord (200ms entre chaque DM)
                 await new Promise(resolve => setTimeout(resolve, 200));
                 // Marquer l'item comme notifié (horodatage anti-doublon)
-                await prisma_1.default.wishlist.updateMany({
+                await prisma.wishlist.updateMany({
                     where: { userId: match.userId, itemName: match.itemName },
                     data: { lastNotifiedAt: new Date() }
                 });
             }
             catch (dmError) {
                 const errMsg = dmError instanceof Error ? dmError.message : String(dmError);
-                logger_1.fortniteLogger.warn("\u274c [Wishlist Retrospective] Échec DM pour " + match.userId + " : " + errMsg + " (DMs probablement fermés, on continue)");
+                fortniteLogger.warn("\u274c [Wishlist Retrospective] Échec DM pour " + match.userId + " : " + errMsg + " (DMs probablement fermés, on continue)");
             }
         }
-        logger_1.fortniteLogger.info("\u2705 [Wishlist Retrospective] ====== RÉTROSPECTIVE TERMINÉE : " + sentCount + " notification(s) envoyée(s) ======\n");
+        fortniteLogger.info("\u2705 [Wishlist Retrospective] ====== RÉTROSPECTIVE TERMINÉE : " + sentCount + " notification(s) envoyée(s) ======\n");
         return sentCount;
+        // Broadcast Fortnite update to WebSocket clients
+        if (sentCount > 0) {
+            broadcastFortniteUpdate({ skins: sentCount });
+            pushFortniteDetection("skins", sentCount + " skin(s) trouvé(s) en rétrospective wishlist");
+        }
     }
     catch (err) {
-        logger_1.fortniteLogger.error("\ud83d\udca5 [CRASH WISHLIST RETROSPECTIVE] Erreur fatale dans runWishlistRetrospective :", err);
+        fortniteLogger.error("\ud83d\udca5 [CRASH WISHLIST RETROSPECTIVE] Erreur fatale dans runWishlistRetrospective :", err);
         return 0;
     }
 }

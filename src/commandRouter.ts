@@ -67,6 +67,10 @@ import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
+import { commands as uptimeCommands, handleCommand as handleUptime } from "./commands/uptime.js";
+import { commands as healthzCommands, handleCommand as handleHealthz } from "./commands/healthz.js";
+import { commands as securityAuditCommands, handleCommand as handleSecurityAudit } from "./commands/security-audit.js";
+import { commands as userinfoCommands, handleCommand as handleUserinfo } from "./commands/userinfo.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -100,6 +104,10 @@ export const allCommands = [
   ...mp3Commands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
+  ...uptimeCommands,
+  ...healthzCommands,
+  ...securityAuditCommands,
+  ...userinfoCommands,
 ];
 
 function registerGroup(
@@ -176,6 +184,10 @@ export function buildCommandRouter(): void {
   registerGroup(["alertcenter", "riskscore", "riskyusers", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
+  registerGroup(["uptime"], handleUptime);
+  registerGroup(["healthz"], handleHealthz);
+  registerGroup(["security-audit"], handleSecurityAudit);
+  registerGroup(["userinfo"], handleUserinfo);
 
   // Commandes fun dispatchées via le handler main
   for (const name of ["echo-tds", "ask-bot", "wishlist", "shop"]) {

@@ -1,16 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.addAlertToBuffer = addAlertToBuffer;
-exports.enableSmartAlerts = enableSmartAlerts;
-exports.disableSmartAlerts = disableSmartAlerts;
-exports.flushAlertBuffer = flushAlertBuffer;
-exports.getBufferStats = getBufferStats;
-const logger_1 = __importDefault(require("./logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
+import logger from "./logger.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
 const alertBuffer = new Map();
 const GROUPING_WINDOW = 30000; // 30 secondes pour grouper les alertes similaires
 let processingInterval = null;
@@ -20,7 +10,7 @@ let processingInterval = null;
  * @param message Message de l'alerte
  * @param severity Sévérité de l'alerte
  */
-function addAlertToBuffer(key, message, severity = "medium") {
+export function addAlertToBuffer(key, message, severity = "medium") {
     const now = Date.now();
     const existing = alertBuffer.get(key);
     if (!existing) {
@@ -40,20 +30,20 @@ function addAlertToBuffer(key, message, severity = "medium") {
         existing.severity = severity; // Mettre à jour la sévérité
         alertBuffer.set(key, existing);
     }
-    logger_1.default.debug(`[SmartAlerts] Alert ajoutée au buffer: ${key} (total: ${existing?.count || 1})`);
+    logger.debug(`[SmartAlerts] Alert ajoutée au buffer: ${key} (total: ${existing?.count || 1})`);
 }
 /**
  * Traite les alertes groupées et les envoie
  */
 async function processGroupedAlerts(client) {
     const now = Date.now();
-    if (!config_1.config.logChannel) {
-        logger_1.default.error("[SmartAlerts] Channel de logs non configuré");
+    if (!config.logChannel) {
+        logger.error("[SmartAlerts] Channel de logs non configuré");
         return;
     }
-    const channel = client.channels.cache.get(config_1.config.logChannel);
+    const channel = client.channels.cache.get(config.logChannel);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.error("[SmartAlerts] Channel de logs non disponible");
+        logger.error("[SmartAlerts] Channel de logs non disponible");
         return;
     }
     for (const [key, grouped] of alertBuffer.entries()) {
@@ -68,13 +58,13 @@ async function processGroupedAlerts(client) {
  * Envoie une alerte groupée
  */
 async function sendGroupedAlert(client, grouped) {
-    if (!config_1.config.logChannel) {
-        logger_1.default.error("[SmartAlerts] Channel de logs non configuré");
+    if (!config.logChannel) {
+        logger.error("[SmartAlerts] Channel de logs non configuré");
         return;
     }
-    const channel = client.channels.cache.get(config_1.config.logChannel);
+    const channel = client.channels.cache.get(config.logChannel);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.error("[SmartAlerts] Channel de logs non disponible");
+        logger.error("[SmartAlerts] Channel de logs non disponible");
         return;
     }
     const colors = {
@@ -89,7 +79,7 @@ async function sendGroupedAlert(client, grouped) {
         high: "🟠",
         critical: "🔴",
     };
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(`${emojis[grouped.severity]} Alert Groupée: ${grouped.key.toUpperCase()}`)
         .setDescription(`${grouped.count} alerte(s) groupée(s)`)
         .setColor(colors[grouped.severity])
@@ -122,21 +112,21 @@ async function sendGroupedAlert(client, grouped) {
     }
     try {
         await channel.send({ embeds: [embed] });
-        logger_1.default.info(`[SmartAlerts] Alert groupée envoyée: ${grouped.key} (${grouped.count} alertes)`);
+        logger.info(`[SmartAlerts] Alert groupée envoyée: ${grouped.key} (${grouped.count} alertes)`);
     }
     catch (error) {
-        logger_1.default.error("[SmartAlerts] Erreur lors de l'envoi de l'alerte groupée:", error);
+        logger.error("[SmartAlerts] Erreur lors de l'envoi de l'alerte groupée:", error);
     }
 }
 /**
  * Active le traitement automatique des alertes groupées
  */
-function enableSmartAlerts(client, intervalMs = 10000) {
+export function enableSmartAlerts(client, intervalMs = 10000) {
     if (processingInterval) {
-        logger_1.default.warn("[SmartAlerts] Traitement automatique déjà activé");
+        logger.warn("[SmartAlerts] Traitement automatique déjà activé");
         return;
     }
-    logger_1.default.info(`[SmartAlerts] Traitement automatique activé (intervalle: ${intervalMs}ms)`);
+    logger.info(`[SmartAlerts] Traitement automatique activé (intervalle: ${intervalMs}ms)`);
     processingInterval = setInterval(() => {
         processGroupedAlerts(client);
     }, intervalMs);
@@ -144,18 +134,18 @@ function enableSmartAlerts(client, intervalMs = 10000) {
 /**
  * Désactive le traitement automatique
  */
-function disableSmartAlerts() {
+export function disableSmartAlerts() {
     if (processingInterval) {
         clearInterval(processingInterval);
         processingInterval = null;
-        logger_1.default.info("[SmartAlerts] Traitement automatique désactivé");
+        logger.info("[SmartAlerts] Traitement automatique désactivé");
     }
 }
 /**
  * Force le traitement immédiat des alertes groupées
  */
-async function flushAlertBuffer(client) {
-    logger_1.default.info("[SmartAlerts] Flush du buffer d'alertes");
+export async function flushAlertBuffer(client) {
+    logger.info("[SmartAlerts] Flush du buffer d'alertes");
     for (const [key, grouped] of alertBuffer.entries()) {
         await sendGroupedAlert(client, grouped);
         alertBuffer.delete(key);
@@ -164,7 +154,7 @@ async function flushAlertBuffer(client) {
 /**
  * Obtient les statistiques du buffer
  */
-function getBufferStats() {
+export function getBufferStats() {
     return Object.fromEntries(alertBuffer);
 }
 //# sourceMappingURL=smart-alerts.js.map

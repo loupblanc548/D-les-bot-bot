@@ -1,33 +1,23 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.logError = logError;
-exports.logWarn = logWarn;
-exports.logInfo = logInfo;
-exports.safeAsync = safeAsync;
-exports.safeSync = safeSync;
-const logger_1 = __importDefault(require("./logger"));
+import logger from "./logger.js";
 /**
  * Utilitaire centralisé pour la gestion des erreurs
  * Fournit des fonctions helpers pour logger les erreurs de manière cohérente
  */
-function logError(context, error, metadata) {
+export function logError(context, error, metadata) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    logger_1.default.error(`[${context}] ${errorMessage}`, metadata ? { ...metadata, stack: errorStack } : errorStack);
+    logger.error(`[${context}] ${errorMessage}`, metadata ? { ...metadata, stack: errorStack } : errorStack);
 }
-function logWarn(context, message, metadata) {
-    logger_1.default.warn(`[${context}] ${message}`, metadata);
+export function logWarn(context, message, metadata) {
+    logger.warn(`[${context}] ${message}`, metadata);
 }
-function logInfo(context, message, metadata) {
-    logger_1.default.info(`[${context}] ${message}`, metadata);
+export function logInfo(context, message, metadata) {
+    logger.info(`[${context}] ${message}`, metadata);
 }
 /**
  * Wrapper pour les fonctions async avec gestion d'erreur automatique
  */
-async function safeAsync(fn, context, fallback) {
+export async function safeAsync(fn, context, fallback) {
     try {
         return await fn();
     }
@@ -39,7 +29,7 @@ async function safeAsync(fn, context, fallback) {
 /**
  * Wrapper pour les fonctions sync avec gestion d'erreur automatique
  */
-function safeSync(fn, context, fallback) {
+export function safeSync(fn, context, fallback) {
     try {
         return fn();
     }

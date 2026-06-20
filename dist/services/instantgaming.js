@@ -1,52 +1,11 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkInstantGamingGiveaway = checkInstantGamingGiveaway;
-exports.startInstantGamingCheck = startInstantGamingCheck;
-exports.stopInstantGamingCheck = stopInstantGamingCheck;
-const logger_1 = __importDefault(require("../utils/logger"));
-const axios_1 = __importDefault(require("axios"));
-const cheerio = __importStar(require("cheerio"));
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const logs_1 = require("./logs");
-const GIVEAWAY_BASE = config_1.config.instantGamingBaseUrl;
+import logger from "../utils/logger.js";
+import axios from "axios";
+import * as cheerio from "cheerio";
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, } from "discord.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { sendErrorLog } from "./logs.js";
+const GIVEAWAY_BASE = config.instantGamingBaseUrl;
 const GIVEAWAY_URL = GIVEAWAY_BASE + "/fr/giveaway/INSTANTGAMING";
 const IG_ORANGE = 0xef7f1a;
 const HEADERS = {
@@ -77,7 +36,7 @@ function resolveUrl(href, base) {
 }
 async function scrapeGiveawayPage() {
     try {
-        const response = await axios_1.default.get(GIVEAWAY_URL, {
+        const response = await axios.get(GIVEAWAY_URL, {
             headers: HEADERS,
             timeout: 15000,
             maxRedirects: 5,
@@ -94,7 +53,7 @@ async function scrapeGiveawayPage() {
             $("title").text() ||
             "";
         if (!title) {
-            logger_1.default.warn("[InstantGaming] Impossible d'extraire le titre.");
+            logger.warn("[InstantGaming] Impossible d'extraire le titre.");
             return null;
         }
         title = cleanTitle(title);
@@ -116,22 +75,22 @@ async function scrapeGiveawayPage() {
         };
     }
     catch (error) {
-        logger_1.default.error("[InstantGaming] Erreur lors du scraping:", error instanceof Error ? error.message : String(error));
+        logger.error("[InstantGaming] Erreur lors du scraping:", error instanceof Error ? error.message : String(error));
         return null;
     }
 }
 async function sendGiveawayEmbed(client, data) {
-    const channelId = config_1.config.instantGamingChannel;
+    const channelId = config.instantGamingChannel;
     if (!channelId) {
-        logger_1.default.warn("[InstantGaming] INSTANT_GAMING_CHANNEL_ID non configure.");
+        logger.warn("[InstantGaming] INSTANT_GAMING_CHANNEL_ID non configure.");
         return;
     }
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.warn("[InstantGaming] Salon introuvable ou non textuel.");
+        logger.warn("[InstantGaming] Salon introuvable ou non textuel.");
         return;
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🎁 NOUVEAU CONCOURS INSTANT GAMING !")
         .setDescription("## **" + data.title + "**\n\n" +
         "🔗 [Voir le concours](" + data.url + ")\n\n" +
@@ -145,31 +104,31 @@ async function sendGiveawayEmbed(client, data) {
     if (data.image) {
         embed.setImage(data.image);
     }
-    const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder()
         .setLabel("🎮 Participer")
-        .setStyle(discord_js_1.ButtonStyle.Link)
+        .setStyle(ButtonStyle.Link)
         .setURL(data.url));
     await channel.send({
         embeds: [embed],
         components: [row],
     });
-    logger_1.default.info("[InstantGaming] Notification envoyee : " + data.title);
+    logger.info("[InstantGaming] Notification envoyee : " + data.title);
 }
 let isChecking = false;
-async function checkInstantGamingGiveaway(client) {
+export async function checkInstantGamingGiveaway(client) {
     if (isChecking)
         return;
     isChecking = true;
     try {
-        logger_1.default.info("[InstantGaming] Verification des concours...");
+        logger.info("[InstantGaming] Verification des concours...");
         const data = await scrapeGiveawayPage();
         if (!data) {
-            logger_1.default.info("[InstantGaming] Aucune donnee extraite.");
+            logger.info("[InstantGaming] Aucune donnee extraite.");
             return;
         }
         let inserted = false;
         try {
-            await prisma_1.default.igGiveaway.upsert({
+            await prisma.igGiveaway.upsert({
                 where: { id: data.id },
                 update: {},
                 create: {
@@ -178,12 +137,12 @@ async function checkInstantGamingGiveaway(client) {
                 },
             });
             inserted = true;
-            logger_1.default.info("[InstantGaming] Nouveau concours detecte : " + data.title);
+            logger.info("[InstantGaming] Nouveau concours detecte : " + data.title);
         }
         catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));
-            logger_1.default.error(`[InstantGaming] Erreur DB: ${err.message}`, { stack: err.stack });
-            await (0, logs_1.sendErrorLog)("InstantGaming DB", err, client);
+            logger.error(`[InstantGaming] Erreur DB: ${err.message}`, { stack: err.stack });
+            await sendErrorLog("InstantGaming DB", err, client);
             return;
         }
         if (inserted) {
@@ -192,38 +151,38 @@ async function checkInstantGamingGiveaway(client) {
             }
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
-                logger_1.default.error("[InstantGaming] Erreur d'envoi:", err.message);
-                await (0, logs_1.sendErrorLog)("InstantGaming sendGiveawayEmbed", err, client);
+                logger.error("[InstantGaming] Erreur d'envoi:", err.message);
+                await sendErrorLog("InstantGaming sendGiveawayEmbed", err, client);
             }
         }
     }
     catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        logger_1.default.error("[InstantGaming] Erreur globale:", err.message);
-        await (0, logs_1.sendErrorLog)("InstantGaming check", err, client);
+        logger.error("[InstantGaming] Erreur globale:", err.message);
+        await sendErrorLog("InstantGaming check", err, client);
     }
     finally {
         isChecking = false;
     }
 }
-const CHECK_INTERVAL_MS = config_1.config.igGiveawayIntervalMs;
+const CHECK_INTERVAL_MS = config.igGiveawayIntervalMs;
 let intervalId = null;
-function startInstantGamingCheck(client) {
+export function startInstantGamingCheck(client) {
     if (intervalId) {
-        logger_1.default.warn("[InstantGaming] Surveillance deja active.");
+        logger.warn("[InstantGaming] Surveillance deja active.");
         return;
     }
-    logger_1.default.info("[InstantGaming] Surveillance activee (intervalle: 12h)");
-    checkInstantGamingGiveaway(client).catch((err) => logger_1.default.error("[InstantGaming] Erreur check initial:", err));
+    logger.info("[InstantGaming] Surveillance activee (intervalle: 12h)");
+    checkInstantGamingGiveaway(client).catch((err) => logger.error("[InstantGaming] Erreur check initial:", err));
     intervalId = setInterval(() => {
-        checkInstantGamingGiveaway(client).catch((err) => logger_1.default.error("[InstantGaming] Erreur check cyclique:", err));
+        checkInstantGamingGiveaway(client).catch((err) => logger.error("[InstantGaming] Erreur check cyclique:", err));
     }, CHECK_INTERVAL_MS);
 }
-function stopInstantGamingCheck() {
+export function stopInstantGamingCheck() {
     if (intervalId) {
         clearInterval(intervalId);
         intervalId = null;
-        logger_1.default.info("[InstantGaming] Surveillance arretee.");
+        logger.info("[InstantGaming] Surveillance arretee.");
     }
 }
 //# sourceMappingURL=instantgaming.js.map

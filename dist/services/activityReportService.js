@@ -1,12 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const embedBuilder_1 = require("../components/embedBuilder");
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder } from "../components/embedBuilder.js";
 class ActivityReportService {
     client;
     constructor(client) {
@@ -22,7 +17,7 @@ class ActivityReportService {
                 `${hours} dernières heures`;
         try {
             // Récupérer les logs de commandes depuis la base de données
-            const commandLogs = await prisma_1.default.commandLog.findMany({
+            const commandLogs = await prisma.commandLog.findMany({
                 where: {
                     timestamp: { gte: since }
                 },
@@ -83,7 +78,7 @@ class ActivityReportService {
             };
         }
         catch (error) {
-            logger_1.default.error(`[ActivityReport] Erreur génération rapport: ${error}`);
+            logger.error(`[ActivityReport] Erreur génération rapport: ${error}`);
             return this.getEmptyReport(period);
         }
     }
@@ -117,7 +112,7 @@ class ActivityReportService {
      * Génère l'embed du rapport d'activité
      */
     generateReportEmbed(report) {
-        const embed = new embedBuilder_1.AdvancedEmbedBuilder()
+        const embed = new AdvancedEmbedBuilder()
             .setTitle(`📊 Rapport d'activité - ${report.period}`)
             .setColor(0x0099ff)
             .setTimestamp();
@@ -173,34 +168,34 @@ class ActivityReportService {
      * Envoie le rapport au canal de log
      */
     async sendReport(hours = 24) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.warn("[ActivityReport] LOG_CHANNEL_ID non configuré");
+        if (!config.logChannel) {
+            logger.warn("[ActivityReport] LOG_CHANNEL_ID non configuré");
             return;
         }
         try {
             const report = await this.generateReport(hours);
             const embed = this.generateReportEmbed(report);
-            const channel = await this.client.channels.fetch(config_1.config.logChannel);
+            const channel = await this.client.channels.fetch(config.logChannel);
             if (!channel?.isTextBased()) {
-                logger_1.default.error("[ActivityReport] Canal de log invalide");
+                logger.error("[ActivityReport] Canal de log invalide");
                 return;
             }
             await channel.send({
                 content: "📊 **Rapport d'activité automatique**",
                 embeds: [embed]
             });
-            logger_1.default.info(`[ActivityReport] Rapport envoyé pour ${report.period}`);
+            logger.info(`[ActivityReport] Rapport envoyé pour ${report.period}`);
         }
         catch (error) {
-            logger_1.default.error(`[ActivityReport] Erreur envoi rapport: ${error}`);
+            logger.error(`[ActivityReport] Erreur envoi rapport: ${error}`);
         }
     }
     /**
      * Envoie un rapport comparatif entre deux périodes
      */
     async sendComparativeReport(hours1, hours2) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.warn("[ActivityReport] LOG_CHANNEL_ID non configuré");
+        if (!config.logChannel) {
+            logger.warn("[ActivityReport] LOG_CHANNEL_ID non configuré");
             return;
         }
         try {
@@ -208,7 +203,7 @@ class ActivityReportService {
                 this.generateReport(hours1),
                 this.generateReport(hours2)
             ]);
-            const embed = new embedBuilder_1.AdvancedEmbedBuilder()
+            const embed = new AdvancedEmbedBuilder()
                 .setTitle("📊 Rapport comparatif d'activité")
                 .setColor(0x0099ff)
                 .setTimestamp();
@@ -230,19 +225,19 @@ class ActivityReportService {
                 value: `${userGrowth > 0 ? "+" : ""}${userGrowth} (${userGrowthPercent}%)`,
                 inline: true
             });
-            const channel = await this.client.channels.fetch(config_1.config.logChannel);
+            const channel = await this.client.channels.fetch(config.logChannel);
             if (!channel?.isTextBased()) {
-                logger_1.default.error("[ActivityReport] Canal de log invalide");
+                logger.error("[ActivityReport] Canal de log invalide");
                 return;
             }
             await channel.send({
                 content: "📊 **Rapport comparatif**",
                 embeds: [embed]
             });
-            logger_1.default.info("[ActivityReport] Rapport comparatif envoyé");
+            logger.info("[ActivityReport] Rapport comparatif envoyé");
         }
         catch (error) {
-            logger_1.default.error(`[ActivityReport] Erreur rapport comparatif: ${error}`);
+            logger.error(`[ActivityReport] Erreur rapport comparatif: ${error}`);
         }
     }
     /**
@@ -255,7 +250,7 @@ class ActivityReportService {
             const dayStart = new Date(date.setHours(0, 0, 0, 0));
             const dayEnd = new Date(date.setHours(23, 59, 59, 999));
             try {
-                const count = await prisma_1.default.commandLog.count({
+                const count = await prisma.commandLog.count({
                     where: {
                         timestamp: {
                             gte: dayStart,
@@ -269,7 +264,7 @@ class ActivityReportService {
                 });
             }
             catch (error) {
-                logger_1.default.error(`[ActivityReport] Erreur récupération tendance: ${error}`);
+                logger.error(`[ActivityReport] Erreur récupération tendance: ${error}`);
                 trends.push({
                     date: dayStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
                     commands: 0
@@ -279,5 +274,5 @@ class ActivityReportService {
         return trends;
     }
 }
-exports.default = ActivityReportService;
+export default ActivityReportService;
 //# sourceMappingURL=activityReportService.js.map

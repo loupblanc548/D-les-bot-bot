@@ -1,12 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.trendDetectionService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const rss_parser_1 = __importDefault(require("rss-parser"));
-const openai_1 = require("openai");
+import logger from "../utils/logger.js";
+import Parser from "rss-parser";
+import { OpenAI } from "openai";
 class TrendDetectionService {
     openai = null;
     trendHistory;
@@ -14,14 +8,14 @@ class TrendDetectionService {
     constructor() {
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (apiKey) {
-            this.openai = new openai_1.OpenAI({
+            this.openai = new OpenAI({
                 apiKey,
                 baseURL: "https://openrouter.ai/api/v1",
             });
-            logger_1.default.info("[TrendDetection] Service initialisé avec OpenRouter");
+            logger.info("[TrendDetection] Service initialisé avec OpenRouter");
         }
         else {
-            logger_1.default.warn("[TrendDetection] OPENROUTER_API_KEY non configuré, service limité");
+            logger.warn("[TrendDetection] OPENROUTER_API_KEY non configuré, service limité");
         }
         this.trendHistory = new Map();
         this.currentTrends = new Map();
@@ -30,7 +24,7 @@ class TrendDetectionService {
      * Analyse les flux RSS pour détecter les tendances
      */
     async analyzeRSSFeeds(feedUrls) {
-        const parser = new rss_parser_1.default();
+        const parser = new Parser();
         const keywordCounts = new Map();
         for (const feedUrl of feedUrls) {
             try {
@@ -46,7 +40,7 @@ class TrendDetectionService {
                 }
             }
             catch (error) {
-                logger_1.default.error(`[TrendDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
+                logger.error(`[TrendDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
             }
         }
         // Mettre à jour les tendances actuelles
@@ -64,7 +58,7 @@ class TrendDetectionService {
                 lastUpdated: now,
             });
         }
-        logger_1.default.info(`[TrendDetection] ${this.currentTrends.size} tendance(s) analysée(s)`);
+        logger.info(`[TrendDetection] ${this.currentTrends.size} tendance(s) analysée(s)`);
     }
     /**
      * Extrait les mots-clés d'un texte
@@ -136,7 +130,7 @@ Fournis ta réponse au format JSON :
             return parsed.emergingTrends || [];
         }
         catch (error) {
-            logger_1.default.error("[TrendDetection] Erreur lors de la détection IA:", error);
+            logger.error("[TrendDetection] Erreur lors de la détection IA:", error);
             return [];
         }
     }
@@ -195,7 +189,7 @@ Fournis ta réponse au format JSON :
             ]);
             this.saveTrendHistory();
         }, intervalMs);
-        logger_1.default.info(`[TrendDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
+        logger.info(`[TrendDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
     }
     /**
      * Obtient les statistiques globales
@@ -216,5 +210,5 @@ Fournis ta réponse au format JSON :
         };
     }
 }
-exports.trendDetectionService = new TrendDetectionService();
+export const trendDetectionService = new TrendDetectionService();
 //# sourceMappingURL=trend-detection.js.map

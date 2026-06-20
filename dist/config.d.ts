@@ -11,6 +11,8 @@ export declare const config: {
     twitchClientId: string;
     twitchClientSecret: string;
     sentryDsn: string;
+    controlToken: string;
+    controlPort: number;
     redisUrl: string;
     psnNpssoToken: string;
     itadApiKey: string;

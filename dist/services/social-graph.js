@@ -1,10 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.socialGraphService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 class SocialGraphService {
     graph;
     updateInterval = null;
@@ -14,7 +8,7 @@ class SocialGraphService {
             edges: [],
             lastUpdated: Date.now(),
         };
-        logger_1.default.info("[SocialGraph] Service initialisé");
+        logger.info("[SocialGraph] Service initialisé");
     }
     /**
      * Initialise le graphe avec les membres du serveur
@@ -23,7 +17,7 @@ class SocialGraphService {
         try {
             const guild = client.guilds.cache.first();
             if (!guild) {
-                logger_1.default.warn("[SocialGraph] Aucun guild trouvée");
+                logger.warn("[SocialGraph] Aucun guild trouvée");
                 return;
             }
             // Ajouter tous les membres comme noeuds
@@ -48,10 +42,10 @@ class SocialGraphService {
                     position: role.position,
                 });
             }
-            logger_1.default.info(`[SocialGraph] Graphe initialisé avec ${this.graph.nodes.size} noeuds`);
+            logger.info(`[SocialGraph] Graphe initialisé avec ${this.graph.nodes.size} noeuds`);
         }
         catch (error) {
-            logger_1.default.error("[SocialGraph] Erreur lors de l'initialisation:", error);
+            logger.error("[SocialGraph] Erreur lors de l'initialisation:", error);
         }
     }
     /**
@@ -195,10 +189,10 @@ class SocialGraphService {
      */
     enableAutoUpdate(intervalMs = 300000) {
         if (this.updateInterval) {
-            logger_1.default.warn("[SocialGraph] Auto-update déjà activé");
+            logger.warn("[SocialGraph] Auto-update déjà activé");
             return;
         }
-        logger_1.default.info(`[SocialGraph] Auto-update activé (intervalle: ${intervalMs}ms)`);
+        logger.info(`[SocialGraph] Auto-update activé (intervalle: ${intervalMs}ms)`);
         this.updateInterval = setInterval(() => {
             this.cleanupOldEdges();
         }, intervalMs);
@@ -210,7 +204,7 @@ class SocialGraphService {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
-            logger_1.default.info("[SocialGraph] Auto-update désactivé");
+            logger.info("[SocialGraph] Auto-update désactivé");
         }
     }
     /**
@@ -221,8 +215,8 @@ class SocialGraphService {
         const beforeCount = this.graph.edges.length;
         this.graph.edges = this.graph.edges.filter(edge => edge.timestamp > thirtyDaysAgo);
         const afterCount = this.graph.edges.length;
-        logger_1.default.debug(`[SocialGraph] ${beforeCount - afterCount} anciennes connexions nettoyées`);
+        logger.debug(`[SocialGraph] ${beforeCount - afterCount} anciennes connexions nettoyées`);
     }
 }
-exports.socialGraphService = new SocialGraphService();
+export const socialGraphService = new SocialGraphService();
 //# sourceMappingURL=social-graph.js.map

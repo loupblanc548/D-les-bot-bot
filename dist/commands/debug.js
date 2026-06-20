@@ -1,15 +1,8 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.data = void 0;
-exports.execute = execute;
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const permissions_1 = require("../services/permissions");
-exports.data = new discord_js_1.SlashCommandBuilder()
+import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { requireAdmin } from "../services/permissions.js";
+export const data = new SlashCommandBuilder()
     .setName("debug")
     .setDescription("Outil de diagnostic du bot (admin only)")
     .addSubcommand(subcommand => subcommand
@@ -24,8 +17,8 @@ exports.data = new discord_js_1.SlashCommandBuilder()
     .addSubcommand(subcommand => subcommand
     .setName("memory")
     .setDescription("Affiche l'utilisation mémoire"));
-async function execute(interaction, client) {
-    await (0, permissions_1.requireAdmin)(interaction);
+export async function execute(interaction, client) {
+    await requireAdmin(interaction);
     const subcommand = interaction.options.getSubcommand();
     switch (subcommand) {
         case "status":
@@ -43,7 +36,7 @@ async function execute(interaction, client) {
     }
 }
 async function debugStatus(interaction, client) {
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🔍 Diagnostic - Statut du Bot")
         .setColor(0x00ff00)
         .setTimestamp();
@@ -76,16 +69,16 @@ async function debugStatus(interaction, client) {
         name: "⚙️ Configuration",
         value: `
 **Env**: ${process.env.NODE_ENV || "development"}
-**Log Channel**: ${config_1.config.logChannel ? "✅ Configuré" : "❌ Non configuré"}
-**Free Games Channel**: ${config_1.config.freeGamesChannel ? "✅ Configuré" : "❌ Non configuré"}
-**Twitter Channel**: ${config_1.config.twitterChannel ? "✅ Configuré" : "❌ Non configuré"}
+**Log Channel**: ${config.logChannel ? "✅ Configuré" : "❌ Non configuré"}
+**Free Games Channel**: ${config.freeGamesChannel ? "✅ Configuré" : "❌ Non configuré"}
+**Twitter Channel**: ${config.twitterChannel ? "✅ Configuré" : "❌ Non configuré"}
     `.trim(),
         inline: false,
     });
     await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 async function debugServices(interaction) {
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🔍 Diagnostic - Services Externes")
         .setColor(0x00ff00)
         .setTimestamp();
@@ -93,7 +86,7 @@ async function debugServices(interaction) {
     // Test Prisma
     try {
         const start = Date.now();
-        await prisma_1.default.$queryRaw `SELECT 1`;
+        await prisma.$queryRaw `SELECT 1`;
         const latency = Date.now() - start;
         results.push({ name: "Prisma (SQLite)", status: "✅ OK", latency });
     }
@@ -125,14 +118,14 @@ async function debugServices(interaction) {
     await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 async function debugDatabase(interaction) {
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🔍 Diagnostic - Base de Données")
         .setColor(0x00ff00)
         .setTimestamp();
     try {
         // Test de connexion
         const start = Date.now();
-        await prisma_1.default.$queryRaw `SELECT 1`;
+        await prisma.$queryRaw `SELECT 1`;
         const latency = Date.now() - start;
         embed.addFields({
             name: "✅ Connexion",
@@ -141,9 +134,9 @@ async function debugDatabase(interaction) {
         });
         // Statistiques
         const [sourcesCount, notificationsCount, logsCount] = await Promise.all([
-            prisma_1.default.source.count(),
-            prisma_1.default.notification.count(),
-            prisma_1.default.log.count(),
+            prisma.source.count(),
+            prisma.notification.count(),
+            prisma.log.count(),
         ]);
         embed.addFields({
             name: "📊 Statistiques",
@@ -167,7 +160,7 @@ async function debugDatabase(interaction) {
 }
 async function debugMemory(interaction) {
     const usage = process.memoryUsage();
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle("🔍 Diagnostic - Utilisation Mémoire")
         .setColor(0x00ff00)
         .setTimestamp();

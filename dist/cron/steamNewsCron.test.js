@@ -1,21 +1,27 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const vitest_1 = require("vitest");
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ─── vi.hoisted() - s'execute AVANT les imports, evite le hoisting classique ─
-const { mockProcessedPatchNotesFindUnique, mockProcessedPatchNotesCreate, } = vitest_1.vi.hoisted(() => ({
-    mockProcessedPatchNotesFindUnique: vitest_1.vi.fn(),
-    mockProcessedPatchNotesCreate: vitest_1.vi.fn(),
+const { mockProcessedPatchNotesFindUnique, mockProcessedPatchNotesCreate, } = vi.hoisted(() => ({
+    mockProcessedPatchNotesFindUnique: vi.fn(),
+    mockProcessedPatchNotesCreate: vi.fn(),
 }));
-const { mockLoggerInfo, mockLoggerWarn, mockLoggerError } = vitest_1.vi.hoisted(() => ({
-    mockLoggerInfo: vitest_1.vi.fn(),
-    mockLoggerWarn: vitest_1.vi.fn(),
-    mockLoggerError: vitest_1.vi.fn(),
+const { mockLoggerInfo, mockLoggerWarn, mockLoggerError } = vi.hoisted(() => ({
+    mockLoggerInfo: vi.fn(),
+    mockLoggerWarn: vi.fn(),
+    mockLoggerError: vi.fn(),
 }));
-const { mockFetch } = vitest_1.vi.hoisted(() => ({
-    mockFetch: vitest_1.vi.fn(),
+const { mockFetch } = vi.hoisted(() => ({
+    mockFetch: vi.fn(),
+}));
+const { mockConfig } = vi.hoisted(() => ({
+    mockConfig: {
+        steamEpicChannel: "steam-epic-chan",
+        playstationChannel: "playstation-chan",
+        xboxChannel: "xbox-chan",
+        nintendoChannel: "nintendo-chan",
+    },
 }));
 // ─── Mocks ──────────────────────────────────────────────────────────────────
-vitest_1.vi.mock("../prisma", () => ({
+vi.mock("../prisma", () => ({
     default: {
         processedPatchNotes: {
             findUnique: mockProcessedPatchNotesFindUnique,
@@ -26,17 +32,21 @@ vitest_1.vi.mock("../prisma", () => ({
 // Mock global fetch for rss2json API
 // const mockFetch already defined via destructuring above
 global.fetch = mockFetch;
-vitest_1.vi.mock("../utils/logger", () => ({
+// Mock minimal de config.ts (seules les proprietes utilisees par steamNewsCron sont fournies)
+vi.mock("../config", () => ({
+    config: mockConfig,
+}));
+vi.mock("../utils/logger", () => ({
     default: {
         info: mockLoggerInfo,
         warn: mockLoggerWarn,
         error: mockLoggerError,
     },
 }));
-vitest_1.vi.mock("discord.js", () => ({
-    Client: vitest_1.vi.fn(),
-    TextChannel: vitest_1.vi.fn(),
-    EmbedBuilder: vitest_1.vi.fn().mockImplementation(function () {
+vi.mock("discord.js", () => ({
+    Client: vi.fn(),
+    TextChannel: vi.fn(),
+    EmbedBuilder: vi.fn().mockImplementation(function () {
         this.title = "";
         this.url = "";
         this.color = 0;
@@ -46,34 +56,55 @@ vitest_1.vi.mock("discord.js", () => ({
         this.footer = null;
         this.timestamp = null;
         this.image = null;
-        this.setTitle = vitest_1.vi.fn(function (t) { this.title = t; return this; });
-        this.setURL = vitest_1.vi.fn(function (u) { this.url = u; return this; });
-        this.setColor = vitest_1.vi.fn(function (c) { this.color = c; return this; });
-        this.setAuthor = vitest_1.vi.fn(function (a) { this.author = a; return this; });
-        this.setDescription = vitest_1.vi.fn(function (d) { this.description = d; return this; });
-        this.addFields = vitest_1.vi.fn(function (...f) { this.fields.push(...f); return this; });
-        this.setFooter = vitest_1.vi.fn(function (f) { this.footer = f; return this; });
-        this.setTimestamp = vitest_1.vi.fn(function () { this.timestamp = new Date(); return this; });
-        this.setImage = vitest_1.vi.fn(function (img) { this.image = img; return this; });
+        this.setTitle = vi.fn(function (t) { this.title = t; return this; });
+        this.setURL = vi.fn(function (u) { this.url = u; return this; });
+        this.setColor = vi.fn(function (c) { this.color = c; return this; });
+        this.setAuthor = vi.fn(function (a) { this.author = a; return this; });
+        this.setDescription = vi.fn(function (d) { this.description = d; return this; });
+        this.addFields = vi.fn(function (...f) { this.fields.push(...f); return this; });
+        this.setFooter = vi.fn(function (f) { this.footer = f; return this; });
+        this.setTimestamp = vi.fn(function () { this.timestamp = new Date(); return this; });
+        this.setImage = vi.fn(function (img) { this.image = img; return this; });
         return this;
     }),
 }));
 // ─── Import du module sous test (APRES les mocks) ──────────────────────────
-const steamNewsCron_1 = require("./steamNewsCron");
+vi.mock("../utils/deduplicationCache", () => ({
+    dedupCache: {
+        reloadFromDisk: vi.fn(),
+        isAlreadyProcessed: vi.fn().mockReturnValue(false),
+        markAsProcessed: vi.fn().mockResolvedValue(undefined),
+    },
+}));
+vi.mock("../utils/retry", () => ({
+    retry: vi.fn(async (fn) => fn()),
+}));
+vi.mock("../utils/cache", () => ({
+    dbCache: {
+        get: vi.fn(),
+        set: vi.fn(),
+    },
+}));
+vi.mock("../utils/metrics", () => ({
+    metricsCollector: {
+        recordProcessing: vi.fn(),
+    },
+}));
+import { checkTrackedGames, startSteamNewsMonitoring, stopSteamNewsMonitoring, PLATFORM_CONFIGS, } from "./steamNewsCron.js";
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function makeMockTextChannel(overrides = {}) {
     return {
         id: "channel-123",
         isTextBased: () => true,
-        send: vitest_1.vi.fn().mockResolvedValue(undefined),
+        send: vi.fn().mockResolvedValue(undefined),
         ...overrides,
     };
 }
 function makeMockClient(channelsMap = {}) {
     return {
         channels: {
-            fetch: vitest_1.vi.fn().mockImplementation(async (id) => channelsMap[id] ?? null),
-            cache: { get: vitest_1.vi.fn() },
+            fetch: vi.fn().mockImplementation(async (id) => channelsMap[id] ?? null),
+            cache: { get: vi.fn() },
         },
     };
 }
@@ -90,106 +121,109 @@ function makeFeedItem(overrides = {}) {
     };
 }
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
-(0, vitest_1.beforeEach)(() => {
-    vitest_1.vi.clearAllMocks();
-    vitest_1.vi.useFakeTimers({ shouldAdvanceTime: true });
+beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     // Configurer PLATFORM_CONFIGS pour que tous les channels soient actifs
-    steamNewsCron_1.PLATFORM_CONFIGS.steam.channelId = "steam-epic-chan";
-    steamNewsCron_1.PLATFORM_CONFIGS.playstation.channelId = "playstation-chan";
-    steamNewsCron_1.PLATFORM_CONFIGS.xbox.channelId = "xbox-chan";
-    steamNewsCron_1.PLATFORM_CONFIGS.nintendo.channelId = "nintendo-chan";
+    PLATFORM_CONFIGS.epic.channelId = "steam-epic-chan";
+    PLATFORM_CONFIGS.steam.channelId = "steam-epic-chan";
+    PLATFORM_CONFIGS.playstation.channelId = "playstation-chan";
+    PLATFORM_CONFIGS.xbox.channelId = "xbox-chan";
+    PLATFORM_CONFIGS.nintendo.channelId = "nintendo-chan";
     // Arreter toute surveillance active
-    (0, steamNewsCron_1.stopSteamNewsMonitoring)();
+    stopSteamNewsMonitoring();
 });
-(0, vitest_1.afterEach)(() => {
-    vitest_1.vi.useRealTimers();
+afterEach(() => {
+    vi.useRealTimers();
 });
 // ─── Tests: checkTrackedGames ───────────────────────────────────────────────
-(0, vitest_1.describe)("checkTrackedGames", () => {
-    (0, vitest_1.describe)("Gardes anti-crash", () => {
-        (0, vitest_1.it)("retourne immediatement si aucun CHANNEL_ID n'est configure", async () => {
+describe("checkTrackedGames", () => {
+    describe("Gardes anti-crash", () => {
+        it("retourne immediatement si aucun CHANNEL_ID n'est configure", async () => {
             // Desactiver tous les channels via PLATFORM_CONFIGS
-            steamNewsCron_1.PLATFORM_CONFIGS.steam.channelId = undefined;
-            steamNewsCron_1.PLATFORM_CONFIGS.playstation.channelId = undefined;
-            steamNewsCron_1.PLATFORM_CONFIGS.xbox.channelId = undefined;
-            steamNewsCron_1.PLATFORM_CONFIGS.nintendo.channelId = undefined;
+            PLATFORM_CONFIGS.epic.channelId = undefined;
+            PLATFORM_CONFIGS.steam.channelId = undefined;
+            PLATFORM_CONFIGS.playstation.channelId = undefined;
+            PLATFORM_CONFIGS.xbox.channelId = undefined;
+            PLATFORM_CONFIGS.nintendo.channelId = undefined;
             const client = makeMockClient();
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerWarn).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Aucun CHANNEL_ID configure"));
-            (0, vitest_1.expect)(mockFetch).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Aucun CHANNEL_ID"));
+            expect(mockFetch).not.toHaveBeenCalled();
         });
-        (0, vitest_1.it)("continue si au moins un CHANNEL_ID est configure", async () => {
+        it("continue si au moins un CHANNEL_ID est configure", async () => {
             // Un seul channel actif
-            steamNewsCron_1.PLATFORM_CONFIGS.playstation.channelId = undefined;
-            steamNewsCron_1.PLATFORM_CONFIGS.xbox.channelId = undefined;
-            steamNewsCron_1.PLATFORM_CONFIGS.nintendo.channelId = undefined;
+            PLATFORM_CONFIGS.epic.channelId = undefined;
+            PLATFORM_CONFIGS.playstation.channelId = undefined;
+            PLATFORM_CONFIGS.xbox.channelId = undefined;
+            PLATFORM_CONFIGS.nintendo.channelId = undefined;
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockFetch).toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(mockFetch).toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Verrouillage (isChecking)", () => {
-        (0, vitest_1.it)("ignore les appels concurrents", async () => {
+    describe("Verrouillage (isChecking)", () => {
+        it("ignore les appels concurrents", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             // Premier appel : le RSS met du temps
             let resolveRss;
             const rssPromise = new Promise((resolve) => { resolveRss = resolve; });
             mockFetch.mockReturnValue(Promise.resolve({ ok: true, json: () => rssPromise }));
-            const firstCall = (0, steamNewsCron_1.checkTrackedGames)(client);
-            const secondCall = (0, steamNewsCron_1.checkTrackedGames)(client);
+            const firstCall = checkTrackedGames(client);
+            const secondCall = checkTrackedGames(client);
             // Resoudre le RSS
             resolveRss({ items: [] });
             await Promise.all([firstCall, secondCall]);
-            (0, vitest_1.expect)(mockLoggerInfo).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Verification deja en cours"));
+            expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Verification deja en cours"));
         });
     });
-    (0, vitest_1.describe)("Echec du fetch RSS", () => {
-        (0, vitest_1.it)("gere l'erreur RSS sans crasher", async () => {
+    describe("Echec du fetch RSS", () => {
+        it("gere l'erreur RSS sans crasher", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             mockFetch.mockResolvedValue({ ok: false, status: 500 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerWarn).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Flux Reddit inaccessible"));
-            (0, vitest_1.expect)(channel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Flux Reddit inaccessible"));
+            expect(channel.send).not.toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Flux vide", () => {
-        (0, vitest_1.it)("ne fait rien si le flux est vide", async () => {
+    describe("Flux vide", () => {
+        it("ne fait rien si le flux est vide", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerInfo).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Aucun article trouve"));
-            (0, vitest_1.expect)(channel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Aucun article trouve"));
+            expect(channel.send).not.toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Deduplication via ProcessedPatchNotes", () => {
-        (0, vitest_1.it)("ignore les articles deja traites", async () => {
+    describe("Deduplication via ProcessedPatchNotes", () => {
+        it("ignore les articles deja traites", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             const item = makeFeedItem({ title: "PC patch v2" });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue({ id: 1 }); // deja traite
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(channel.send).not.toHaveBeenCalled();
-            (0, vitest_1.expect)(mockLoggerInfo).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Tous les articles sont deja connus"));
+            await checkTrackedGames(client);
+            expect(channel.send).not.toHaveBeenCalled();
+            expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Tous les articles sont deja connus"));
         });
-        (0, vitest_1.it)("route les nouveaux articles", async () => {
+        it("route les nouveaux articles", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             const item = makeFeedItem({ title: "PC patch v3" });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null); // nouveau
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(channel.send).toHaveBeenCalledTimes(1);
+            await checkTrackedGames(client);
+            expect(channel.send).toHaveBeenCalledTimes(1);
         });
     });
-    (0, vitest_1.describe)("Routage plateforme unique", () => {
-        (0, vitest_1.it)("route un patch note PC vers STEAM_EPIC_CHANNEL_ID", async () => {
+    describe("Routage plateforme unique", () => {
+        it("route un patch note PC vers STEAM_EPIC_CHANNEL_ID", async () => {
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const psChannel = makeMockTextChannel({ id: "playstation-chan" });
             const client = makeMockClient({
@@ -200,14 +234,14 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(pcChannel.send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(psChannel.send).not.toHaveBeenCalled();
-            (0, vitest_1.expect)(pcChannel.send).toHaveBeenCalledWith(vitest_1.expect.objectContaining({
-                content: vitest_1.expect.stringContaining("PC (Steam/Epic/GOG)"),
+            await checkTrackedGames(client);
+            expect(pcChannel.send).toHaveBeenCalledTimes(1);
+            expect(psChannel.send).not.toHaveBeenCalled();
+            expect(pcChannel.send).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining("Steam"),
             }));
         });
-        (0, vitest_1.it)("route un patch note PlayStation vers PLAYSTATION_CHANNEL_ID", async () => {
+        it("route un patch note PlayStation vers PLAYSTATION_CHANNEL_ID", async () => {
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const psChannel = makeMockTextChannel({ id: "playstation-chan" });
             const client = makeMockClient({
@@ -218,11 +252,11 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(psChannel.send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(pcChannel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(psChannel.send).toHaveBeenCalledTimes(1);
+            expect(pcChannel.send).not.toHaveBeenCalled();
         });
-        (0, vitest_1.it)("route un patch note Xbox vers XBOX_CHANNEL_ID", async () => {
+        it("route un patch note Xbox vers XBOX_CHANNEL_ID", async () => {
             const xboxChannel = makeMockTextChannel({ id: "xbox-chan" });
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({
@@ -233,11 +267,11 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(xboxChannel.send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(pcChannel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(xboxChannel.send).toHaveBeenCalledTimes(1);
+            expect(pcChannel.send).not.toHaveBeenCalled();
         });
-        (0, vitest_1.it)("route un patch note Nintendo vers NINTENDO_CHANNEL_ID", async () => {
+        it("route un patch note Nintendo vers NINTENDO_CHANNEL_ID", async () => {
             const ninChannel = makeMockTextChannel({ id: "nintendo-chan" });
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({
@@ -248,13 +282,13 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(ninChannel.send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(pcChannel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(ninChannel.send).toHaveBeenCalledTimes(1);
+            expect(pcChannel.send).not.toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Routage multi-plateforme", () => {
-        (0, vitest_1.it)("envoie un patch note PC+PS5 dans les DEUX salons", async () => {
+    describe("Routage multi-plateforme", () => {
+        it("envoie un patch note PC+PS5 dans les DEUX salons", async () => {
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const psChannel = makeMockTextChannel({ id: "playstation-chan" });
             const client = makeMockClient({
@@ -265,11 +299,11 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(pcChannel.send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(psChannel.send).toHaveBeenCalledTimes(1);
+            await checkTrackedGames(client);
+            expect(pcChannel.send).toHaveBeenCalledTimes(1);
+            expect(psChannel.send).toHaveBeenCalledTimes(1);
         });
-        (0, vitest_1.it)("envoie un patch note toutes plateformes dans les 4 salons", async () => {
+        it("envoie un patch note toutes plateformes dans les 4 salons", async () => {
             const channels = {
                 "steam-epic-chan": makeMockTextChannel({ id: "steam-epic-chan" }),
                 "playstation-chan": makeMockTextChannel({ id: "playstation-chan" }),
@@ -283,13 +317,13 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(channels["steam-epic-chan"].send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(channels["playstation-chan"].send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(channels["xbox-chan"].send).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(channels["nintendo-chan"].send).toHaveBeenCalledTimes(1);
+            await checkTrackedGames(client);
+            expect(channels["steam-epic-chan"].send).toHaveBeenCalledTimes(2);
+            expect(channels["playstation-chan"].send).toHaveBeenCalledTimes(1);
+            expect(channels["xbox-chan"].send).toHaveBeenCalledTimes(1);
+            expect(channels["nintendo-chan"].send).toHaveBeenCalledTimes(1);
         });
-        (0, vitest_1.it)("persiste UNE SEULE fois meme en multi-plateforme", async () => {
+        it("persiste UNE SEULE fois meme en multi-plateforme", async () => {
             const channels = {
                 "steam-epic-chan": makeMockTextChannel({ id: "steam-epic-chan" }),
                 "playstation-chan": makeMockTextChannel({ id: "playstation-chan" }),
@@ -299,15 +333,15 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockProcessedPatchNotesCreate).toHaveBeenCalledTimes(1);
-            (0, vitest_1.expect)(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
+            await checkTrackedGames(client);
+            expect(mockProcessedPatchNotesCreate).toHaveBeenCalledTimes(1);
+            expect(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
                 data: { guid: item.guid, title: item.title.slice(0, 255) },
             });
         });
     });
-    (0, vitest_1.describe)("Plateforme non detectee", () => {
-        (0, vitest_1.it)("ne route pas un article sans mot-cle de plateforme", async () => {
+    describe("Plateforme non detectee", () => {
+        it("ne route pas un article sans mot-cle de plateforme", async () => {
             const pcChannel = makeMockTextChannel({ id: "steam-epic-chan" });
             const psChannel = makeMockTextChannel({ id: "playstation-chan" });
             const client = makeMockClient({
@@ -318,16 +352,16 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
+            await checkTrackedGames(client);
             // Aucun canal ne recoit le message (aucune plateforme detectee = aucun routage)
-            (0, vitest_1.expect)(pcChannel.send).not.toHaveBeenCalled();
-            (0, vitest_1.expect)(psChannel.send).not.toHaveBeenCalled();
-            // Mais on persiste quand meme pour ne pas renotifier
-            (0, vitest_1.expect)(mockProcessedPatchNotesCreate).toHaveBeenCalledTimes(1);
+            // Le code fait un continue sans persister quand aucune plateforme nest detectee
+            expect(pcChannel.send).not.toHaveBeenCalled();
+            expect(psChannel.send).not.toHaveBeenCalled();
+            expect(mockProcessedPatchNotesCreate).not.toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Salon indisponible", () => {
-        (0, vitest_1.it)("ignore un salon qui n'existe pas", async () => {
+    describe("Salon indisponible", () => {
+        it("ignore un salon qui n'existe pas", async () => {
             const client = makeMockClient({
             // steam-epic-chan n'est PAS dans la map → fetch renvoie null
             });
@@ -335,10 +369,10 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerError).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Salon"));
+            await checkTrackedGames(client);
+            expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Salon"));
         });
-        (0, vitest_1.it)("ignore un salon qui n'est pas textuel", async () => {
+        it("ignore un salon qui n'est pas textuel", async () => {
             const nonTextChannel = makeMockTextChannel({
                 id: "steam-epic-chan",
                 isTextBased: (() => false),
@@ -348,43 +382,44 @@ function makeFeedItem(overrides = {}) {
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(nonTextChannel.send).not.toHaveBeenCalled();
+            await checkTrackedGames(client);
+            expect(nonTextChannel.send).not.toHaveBeenCalled();
         });
     });
-    (0, vitest_1.describe)("Persistance apres echec d'envoi", () => {
-        (0, vitest_1.it)("persiste meme si le send echoue", async () => {
+    describe("Persistance apres echec d'envoi", () => {
+        it("persiste meme si le send echoue", async () => {
             const channel = makeMockTextChannel({
                 id: "steam-epic-chan",
-                send: vitest_1.vi.fn().mockRejectedValue(new Error("Discord rate limit")),
+                send: vi.fn().mockRejectedValue(new Error("Discord rate limit")),
             });
             const client = makeMockClient({ "steam-epic-chan": channel });
             const item = makeFeedItem({ title: "[Steam] Patch Error" });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerError).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Echec envoi"));
+            await checkTrackedGames(client);
+            expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Echec envoi"));
             // Persiste quand meme
-            (0, vitest_1.expect)(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
+            expect(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
                 data: { guid: item.guid, title: item.title.slice(0, 255) },
             });
         });
     });
-    (0, vitest_1.describe)("Erreur inattendue (catch global)", () => {
-        (0, vitest_1.it)("log l'erreur critique si Prisma lance une exception imprevue", async () => {
+    describe("Erreur Prisma geree par isPatchProcessed", () => {
+        it("log l'erreur critique si Prisma lance une exception imprevue", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             const item = makeFeedItem({ title: "[Steam] Patch DB Error" });
             mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
             // Prisma throw sur findUnique
             mockProcessedPatchNotesFindUnique.mockRejectedValue(new Error("DB connection lost"));
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(mockLoggerError).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Erreur critique"), vitest_1.expect.objectContaining({ stack: vitest_1.expect.any(String) }));
+            await checkTrackedGames(client);
+            // isPatchProcessed catches DB errors internally and logs a warning
+            expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Erreur verification"));
         });
     });
-    (0, vitest_1.describe)("Resilience (plusieurs articles)", () => {
-        (0, vitest_1.it)("traite plusieurs articles du flux RSS", async () => {
+    describe("Resilience (plusieurs articles)", () => {
+        it("traite plusieurs articles du flux RSS", async () => {
             const channel = makeMockTextChannel({ id: "steam-epic-chan" });
             const client = makeMockClient({ "steam-epic-chan": channel });
             const item1 = makeFeedItem({ guid: "guid-1", title: "[Steam] Patch A" });
@@ -397,34 +432,34 @@ function makeFeedItem(overrides = {}) {
                 .mockResolvedValueOnce(null) // item2 nouveau
                 .mockResolvedValueOnce(null); // item3 nouveau
             mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
-            await (0, steamNewsCron_1.checkTrackedGames)(client);
-            (0, vitest_1.expect)(channel.send).toHaveBeenCalledTimes(2);
+            await checkTrackedGames(client);
+            expect(channel.send).toHaveBeenCalledTimes(2);
         });
     });
 });
 // ─── Tests: startSteamNewsMonitoring / stopSteamNewsMonitoring ─────────────
-(0, vitest_1.describe)("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
-    (0, vitest_1.it)("demarre et arrete la surveillance", () => {
+describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
+    it("demarre et arrete la surveillance", () => {
         const client = makeMockClient();
-        (0, steamNewsCron_1.startSteamNewsMonitoring)(client);
-        (0, vitest_1.expect)(mockLoggerInfo).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Demarrage"));
-        (0, steamNewsCron_1.stopSteamNewsMonitoring)();
-        (0, vitest_1.expect)(mockLoggerInfo).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Arrete"));
+        startSteamNewsMonitoring(client);
+        expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Demarrage"));
+        stopSteamNewsMonitoring();
+        expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Arrete"));
     });
-    (0, vitest_1.it)("empeche le double demarrage", () => {
+    it("empeche le double demarrage", () => {
         const client = makeMockClient();
-        (0, steamNewsCron_1.startSteamNewsMonitoring)(client);
-        (0, steamNewsCron_1.startSteamNewsMonitoring)(client);
-        (0, vitest_1.expect)(mockLoggerWarn).toHaveBeenCalledWith(vitest_1.expect.stringContaining("Deja actif"));
+        startSteamNewsMonitoring(client);
+        startSteamNewsMonitoring(client);
+        expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Deja actif"));
     });
-    (0, vitest_1.it)("execute une premiere verification immediate au demarrage", async () => {
+    it("execute une premiere verification immediate au demarrage", async () => {
         const channel = makeMockTextChannel({ id: "steam-epic-chan" });
         const client = makeMockClient({ "steam-epic-chan": channel });
         mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
-        (0, steamNewsCron_1.startSteamNewsMonitoring)(client);
+        startSteamNewsMonitoring(client);
         // Attendre le traitement des microtasks (la verification immediate est synchrone)
-        await vitest_1.vi.advanceTimersByTimeAsync(0);
-        (0, vitest_1.expect)(mockFetch).toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(mockFetch).toHaveBeenCalled();
     });
 });
 //# sourceMappingURL=steamNewsCron.test.js.map

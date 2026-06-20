@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleChannelEvents = handleChannelEvents;
-const logs_1 = require("../services/logs");
-function handleChannelEvents(client) {
+import { createLog } from "../services/logs.js";
+export function handleChannelEvents(client) {
     client.on("channelCreate", async (channel) => {
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "channel_create",
             action: `Salon #${channel.name} cree`,
             targetId: channel.id,
@@ -12,7 +9,7 @@ function handleChannelEvents(client) {
     });
     client.on("channelDelete", async (channel) => {
         if ("name" in channel) {
-            await (0, logs_1.createLog)({
+            await createLog({
                 type: "channel_delete",
                 action: `Salon #${channel.name} supprime`,
                 targetId: channel.id,

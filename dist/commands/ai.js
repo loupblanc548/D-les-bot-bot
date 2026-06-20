@@ -1,26 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 // Commandes IA etendues : /aichat + /smartpoll
-const discord_js_1 = require("discord.js");
-const permissions_1 = require("../services/permissions");
-const ai_1 = require("../services/ai");
-const aichat_1 = require("../services/aichat");
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, } from "discord.js";
+import { requireAdmin } from "../services/permissions.js";
+import { chatWithAI, handleMention } from "../services/ai.js";
+import { enableAiChat, disableAiChat, isAiChatEnabled, getConversationSize, clearHistory, generatePollOptions, } from "../services/aichat.js";
 const FOOTER = { text: "Systeme de Surveillance • IA" };
-exports.commands = [
+export const commands = [
     // /chat
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("chat")
         .setDescription("Pose une question a l'IA")
         .addStringOption((o) => o.setName("message").setDescription("Ton message").setRequired(true))
         .toJSON(),
     // /mention
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("mention")
         .setDescription("Mentionne un utilisateur avec l'IA")
         .addStringOption((o) => o
@@ -29,7 +22,7 @@ exports.commands = [
         .setRequired(true))
         .toJSON(),
     // /aichat
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("aichat")
         .setDescription("Active/desactive le chat IA contextuel dans ce salon")
         .addStringOption((o) => o
@@ -39,7 +32,7 @@ exports.commands = [
         .addChoices({ name: "Activer", value: "on" }, { name: "Desactiver", value: "off" }, { name: "Statut", value: "status" }, { name: "Effacer l'historique", value: "clear" }))
         .toJSON(),
     // /smartpoll
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("smartpoll")
         .setDescription("Genere un sondage intelligent avec des options creees par l'IA")
         .addStringOption((o) => o
@@ -48,7 +41,7 @@ exports.commands = [
         .setRequired(true))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     try {
         switch (interaction.commandName) {
             case "chat":
@@ -58,20 +51,20 @@ async function handleCommand(interaction) {
                 await handleMentionCommand(interaction);
                 break;
             case "aichat":
-                if (!(await (0, permissions_1.requireAdmin)(interaction)))
+                if (!(await requireAdmin(interaction)))
                     return;
                 await handleAiChat(interaction);
                 break;
             case "smartpoll":
-                if (!(await (0, permissions_1.requireAdmin)(interaction)))
+                if (!(await requireAdmin(interaction)))
                     return;
                 await handleSmartPoll(interaction);
                 break;
         }
     }
     catch (err) {
-        logger_1.default.error("[AI] Erreur:", err);
-        const errorEmbed = new discord_js_1.EmbedBuilder()
+        logger.error("[AI] Erreur:", err);
+        const errorEmbed = new EmbedBuilder()
             .setColor(0xff3344)
             .setDescription("Une erreur est survenue.");
         try {
@@ -79,7 +72,7 @@ async function handleCommand(interaction) {
                 await interaction.editReply({ embeds: [errorEmbed] });
             }
             else {
-                await interaction.reply({ embeds: [errorEmbed], flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
         }
         catch { /* ignore */ }
@@ -90,8 +83,8 @@ async function handleChat(interaction) {
     const message = interaction.options.getString("message", true);
     const username = interaction.user.username;
     await interaction.deferReply();
-    const response = await (0, ai_1.chatWithAI)(message, username);
-    const embed = new discord_js_1.EmbedBuilder()
+    const response = await chatWithAI(message, username);
+    const embed = new EmbedBuilder()
         .setColor(0x2f3136)
         .setTitle("Chat avec l'IA")
         .setDescription(`**${username}:** ${message}\n\n${response}`)
@@ -103,8 +96,8 @@ async function handleChat(interaction) {
 async function handleMentionCommand(interaction) {
     const message = interaction.options.getString("message", true);
     await interaction.deferReply();
-    const response = await (0, ai_1.handleMention)(message, interaction.user.username);
-    const embed = new discord_js_1.EmbedBuilder()
+    const response = await handleMention(message, interaction.user.username);
+    const embed = new EmbedBuilder()
         .setColor(0x2f3136)
         .setTitle("Mention IA")
         .setDescription(response)
@@ -117,10 +110,10 @@ async function handleAiChat(interaction) {
     const action = interaction.options.getString("action", true);
     const channelId = interaction.channelId;
     if (action === "on") {
-        (0, aichat_1.enableAiChat)(channelId);
+        enableAiChat(channelId);
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x53fc18)
                     .setTitle("Chat IA Active")
                     .setDescription("Le bot repondra a **tous les messages** dans ce salon avec de l'IA.\n" +
@@ -131,10 +124,10 @@ async function handleAiChat(interaction) {
         });
     }
     else if (action === "off") {
-        (0, aichat_1.disableAiChat)(channelId);
+        disableAiChat(channelId);
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setTitle("Chat IA Desactive")
                     .setDescription("Le bot ne repondra plus automatiquement dans ce salon.")
@@ -144,10 +137,10 @@ async function handleAiChat(interaction) {
     }
     else if (action === "clear") {
         await interaction.deferReply();
-        const deleted = await (0, aichat_1.clearHistory)(channelId);
+        const deleted = await clearHistory(channelId);
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x53fc18)
                     .setTitle("Historique Efface")
                     .setDescription(deleted > 0
@@ -158,11 +151,11 @@ async function handleAiChat(interaction) {
         });
     }
     else {
-        const enabled = (0, aichat_1.isAiChatEnabled)(channelId);
-        const size = (0, aichat_1.getConversationSize)(channelId);
+        const enabled = isAiChatEnabled(channelId);
+        const size = getConversationSize(channelId);
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(enabled ? 0x53fc18 : 0x666666)
                     .setTitle("Statut Chat IA")
                     .setDescription(enabled
@@ -177,11 +170,11 @@ async function handleAiChat(interaction) {
 async function handleSmartPoll(interaction) {
     const question = interaction.options.getString("question", true);
     await interaction.deferReply();
-    const results = await (0, aichat_1.generatePollOptions)(question);
+    const results = await generatePollOptions(question);
     if (results.length < 2) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription("L'IA n'a pas pu generer d'options pour ce sondage. Reformule ta question.")
                     .setFooter(FOOTER),
@@ -194,7 +187,7 @@ async function handleSmartPoll(interaction) {
     if (options.length < 2) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription("L'IA n'a pas genere assez d'options. Reessaye avec une question plus ouverte.")
                     .setFooter(FOOTER),
@@ -216,7 +209,7 @@ async function handleSmartPoll(interaction) {
     }
     catch {
         // Fallback: embed avec reactions si le poll natif n'est pas supporte
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(0x9b59b6)
             .setTitle(reformulated)
             .setDescription(options.map((o, i) => `${["🇦", "🇧", "🇨", "🇩", "🇪"][i]} ${o}`).join("\n\n"))

@@ -1,4 +1,5 @@
-export type RiskLevel = "FAIBLE" | "MOYEN" | "ÉLEVÉ" | "CRITIQUE";
+import { RiskLevel } from "@prisma/client";
+export { RiskLevel };
 export type SanctionType = "WARN" | "TIMEOUT" | "KICK" | "TEMPBAN" | "BAN" | "SOFTBAN";
 export type EventType = "ANTI_RAID" | "ANTI_SPAM" | "ANTI_PHISHING" | "SUSPICIOUS_ACCOUNT" | "AI_MODERATION";
 export interface RiskProfile {
@@ -41,7 +42,7 @@ export declare function checkAlertThreshold(profile: RiskProfile, guildId: strin
 export declare function getRiskReport(userId: string, guildId: string): Promise<{
     profile: RiskProfile;
     recentSanctions: {
-        type: string;
+        type: import(".prisma/client").$Enums.SanctionType;
         createdAt: Date;
         id: number;
         guildId: string;
@@ -61,7 +62,7 @@ export declare function getAllRiskyUsers(guildId: string, minLevel?: RiskLevel):
     updatedAt: Date;
     userId: string;
     riskScore: number;
-    riskLevel: string;
+    riskLevel: import(".prisma/client").$Enums.RiskLevel;
     warnCount: number;
     timeoutCount: number;
     kickCount: number;

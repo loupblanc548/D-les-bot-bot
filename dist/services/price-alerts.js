@@ -1,15 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkPriceAlerts = checkPriceAlerts;
-exports.startPriceAlertsMonitoring = startPriceAlertsMonitoring;
-exports.stopPriceAlertsMonitoring = stopPriceAlertsMonitoring;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 const PRICE_SOURCES = {
     steam: "https://store.steampowered.com/api/appdetails",
     instantGaming: "https://www.instant-gaming.com/en/search/",
@@ -54,7 +46,7 @@ async function checkSteamPrices() {
             }
         }
         catch (error) {
-            logger_1.default.error(`[PriceAlerts] Erreur lors de la vérification des prix Steam pour ${game.name}:`, error);
+            logger.error(`[PriceAlerts] Erreur lors de la vérification des prix Steam pour ${game.name}:`, error);
         }
     }
     return alerts;
@@ -63,7 +55,7 @@ async function checkSteamPrices() {
  * Vérifie si une alerte de prix a déjà été envoyée
  */
 async function isPriceAlertSent(alertId) {
-    const existing = await prisma_1.default.processedPriceAlert.findUnique({
+    const existing = await prisma.processedPriceAlert.findUnique({
         where: { alertId },
     });
     return !!existing;
@@ -72,7 +64,7 @@ async function isPriceAlertSent(alertId) {
  * Marque une alerte de prix comme envoyée
  */
 async function markPriceAlertSent(alertId) {
-    await prisma_1.default.processedPriceAlert.create({
+    await prisma.processedPriceAlert.create({
         data: { alertId },
     });
 }
@@ -80,16 +72,16 @@ async function markPriceAlertSent(alertId) {
  * Envoie une notification de prix réduit
  */
 async function sendPriceAlertNotification(client, alert) {
-    if (!config_1.config.logChannel) {
-        logger_1.default.error("[PriceAlerts] Channel de logs non configuré");
+    if (!config.logChannel) {
+        logger.error("[PriceAlerts] Channel de logs non configuré");
         return;
     }
-    const channel = client.channels.cache.get(config_1.config.logChannel);
+    const channel = client.channels.cache.get(config.logChannel);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.error("[PriceAlerts] Channel de logs non disponible");
+        logger.error("[PriceAlerts] Channel de logs non disponible");
         return;
     }
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(`💰 ${alert.gameName} - ${alert.discount}% de réduction !`)
         .setDescription(`Prix actuel : **${alert.currentPrice}€** (au lieu de ${alert.originalPrice}€)`)
         .setColor(0x00ff00)
@@ -117,17 +109,17 @@ async function sendPriceAlertNotification(client, alert) {
     }
     try {
         await channel.send({ embeds: [embed] });
-        logger_1.default.info(`[PriceAlerts] Notification envoyée pour ${alert.gameName} (-${alert.discount}%)`);
+        logger.info(`[PriceAlerts] Notification envoyée pour ${alert.gameName} (-${alert.discount}%)`);
     }
     catch (error) {
-        logger_1.default.error("[PriceAlerts] Erreur lors de l'envoi de la notification:", error);
+        logger.error("[PriceAlerts] Erreur lors de l'envoi de la notification:", error);
     }
 }
 /**
  * Vérifie et traite les alertes de prix
  */
-async function checkPriceAlerts(client) {
-    logger_1.default.info("[PriceAlerts] Vérification des prix réduits...");
+export async function checkPriceAlerts(client) {
+    logger.info("[PriceAlerts] Vérification des prix réduits...");
     const alerts = await checkSteamPrices();
     for (const alert of alerts) {
         const alertId = `${alert.gameId}-${alert.currentPrice}-${alert.discount}`;
@@ -136,17 +128,17 @@ async function checkPriceAlerts(client) {
             await markPriceAlertSent(alertId);
         }
     }
-    logger_1.default.info(`[PriceAlerts] ${alerts.length} alerte(s) de prix vérifiée(s)`);
+    logger.info(`[PriceAlerts] ${alerts.length} alerte(s) de prix vérifiée(s)`);
 }
 /**
  * Démarre la surveillance des prix
  */
-function startPriceAlertsMonitoring(client) {
+export function startPriceAlertsMonitoring(client) {
     if (priceCheckInterval) {
-        logger_1.default.warn("[PriceAlerts] Surveillance déjà active");
+        logger.warn("[PriceAlerts] Surveillance déjà active");
         return;
     }
-    logger_1.default.info("[PriceAlerts] Démarrage de la surveillance des prix");
+    logger.info("[PriceAlerts] Démarrage de la surveillance des prix");
     // Vérification immédiate
     checkPriceAlerts(client);
     // Vérification périodique
@@ -157,11 +149,11 @@ function startPriceAlertsMonitoring(client) {
 /**
  * Arrête la surveillance des prix
  */
-function stopPriceAlertsMonitoring() {
+export function stopPriceAlertsMonitoring() {
     if (priceCheckInterval) {
         clearInterval(priceCheckInterval);
         priceCheckInterval = null;
-        logger_1.default.info("[PriceAlerts] Surveillance arrêtée");
+        logger.info("[PriceAlerts] Surveillance arrêtée");
     }
 }
 //# sourceMappingURL=price-alerts.js.map

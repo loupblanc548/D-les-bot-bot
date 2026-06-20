@@ -1,10 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AVAILABLE_LANGUAGES = exports.AVAILABLE_THEMES = exports.PERSONALIZATION_COMMANDS = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 class UserPersonalizationService {
     client;
     preferencesCache = new Map();
@@ -47,7 +41,7 @@ class UserPersonalizationService {
             return defaultPreferences;
         }
         catch (error) {
-            logger_1.default.error(`[UserPersonalization] Erreur récupération préférences: ${error}`);
+            logger.error(`[UserPersonalization] Erreur récupération préférences: ${error}`);
             return this.getDefaultPreferences(userId, guildId);
         }
     }
@@ -61,7 +55,7 @@ class UserPersonalizationService {
         this.preferencesCache.set(cacheKey, updated);
         // Sauvegarder dans la base de données
         // Note: Implémenter la sauvegarde Prisma quand le modèle sera créé
-        logger_1.default.info(`[UserPersonalization] Préférences mises à jour pour ${userId}`);
+        logger.info(`[UserPersonalization] Préférences mises à jour pour ${userId}`);
     }
     /**
      * Obtient le profil d'un utilisateur
@@ -89,7 +83,7 @@ class UserPersonalizationService {
             return profile;
         }
         catch (error) {
-            logger_1.default.error(`[UserPersonalization] Erreur récupération profil: ${error}`);
+            logger.error(`[UserPersonalization] Erreur récupération profil: ${error}`);
             return this.getDefaultProfile(userId);
         }
     }
@@ -100,7 +94,7 @@ class UserPersonalizationService {
         const current = await this.getUserProfile(userId);
         const updated = { ...current, ...updates };
         this.profileCache.set(userId, updated);
-        logger_1.default.info(`[UserPersonalization] Profil mis à jour pour ${userId}`);
+        logger.info(`[UserPersonalization] Profil mis à jour pour ${userId}`);
     }
     /**
      * Calcule les badges d'un utilisateur
@@ -196,7 +190,7 @@ class UserPersonalizationService {
         const defaultPrefs = this.getDefaultPreferences(userId, guildId);
         const cacheKey = `${userId}-${guildId || 'global'}`;
         this.preferencesCache.set(cacheKey, defaultPrefs);
-        logger_1.default.info(`[UserPersonalization] Préférences réinitialisées pour ${userId}`);
+        logger.info(`[UserPersonalization] Préférences réinitialisées pour ${userId}`);
     }
     /**
      * Exporte les préférences d'un utilisateur
@@ -212,11 +206,11 @@ class UserPersonalizationService {
         try {
             const preferences = JSON.parse(preferencesJson);
             await this.updateUserPreferences(userId, preferences, guildId);
-            logger_1.default.info(`[UserPersonalization] Préférences importées pour ${userId}`);
+            logger.info(`[UserPersonalization] Préférences importées pour ${userId}`);
         }
         catch (error) {
-            logger_1.default.error(`[UserPersonalization] Erreur import préférences: ${error}`);
-            throw new Error("Format de préférences invalide");
+            logger.error(`[UserPersonalization] Erreur import préférences: ${error}`);
+            throw new Error("Format de préférences invalide", { cause: error });
         }
     }
     /**
@@ -244,7 +238,7 @@ class UserPersonalizationService {
     clearCache() {
         this.preferencesCache.clear();
         this.profileCache.clear();
-        logger_1.default.info("[UserPersonalization] Cache vidé");
+        logger.info("[UserPersonalization] Cache vidé");
     }
     /**
      * Obtient les utilisateurs avec des préférences spécifiques
@@ -267,14 +261,14 @@ class UserPersonalizationService {
      */
     async syncWithDatabase() {
         // Implémenter la synchronisation avec Prisma quand le modèle sera créé
-        logger_1.default.info("[UserPersonalization] Synchronisation avec la base de données");
+        logger.info("[UserPersonalization] Synchronisation avec la base de données");
     }
 }
-exports.default = UserPersonalizationService;
+export default UserPersonalizationService;
 /**
  * Commandes de personnalisation
  */
-exports.PERSONALIZATION_COMMANDS = {
+export const PERSONALIZATION_COMMANDS = {
     setTheme: "Définit le thème (light/dark/auto)",
     setLanguage: "Définit la langue (fr/en/es/de)",
     toggleNotifications: "Active/désactive les notifications",
@@ -289,7 +283,7 @@ exports.PERSONALIZATION_COMMANDS = {
 /**
  * Thèmes disponibles
  */
-exports.AVAILABLE_THEMES = {
+export const AVAILABLE_THEMES = {
     light: {
         name: "Clair",
         description: "Thème clair pour une meilleure lisibilité",
@@ -324,7 +318,7 @@ exports.AVAILABLE_THEMES = {
 /**
  * Langues disponibles
  */
-exports.AVAILABLE_LANGUAGES = {
+export const AVAILABLE_LANGUAGES = {
     fr: { name: "Français", flag: "🇫🇷" },
     en: { name: "English", flag: "🇬🇧" },
     es: { name: "Español", flag: "🇪🇸" },

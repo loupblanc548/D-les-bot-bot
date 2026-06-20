@@ -1,13 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AlertService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const embedBuilder_1 = require("../components/embedBuilder");
-class AlertService {
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { AdvancedEmbedBuilder, AlertPriority, ALERT_COLORS } from "../components/embedBuilder.js";
+export class AlertService {
     client;
     alertHistory = new Map();
     COOLDOWN_MS = 30000; // 30 secondes entre alertes similaires
@@ -23,16 +17,16 @@ class AlertService {
         const alertKey = `${category || 'default'}:${title}`;
         const lastAlert = this.alertHistory.get(alertKey);
         if (lastAlert && Date.now() - lastAlert < this.COOLDOWN_MS) {
-            logger_1.default.debug(`[AlertService] Alert cooldown pour: ${title}`);
+            logger.debug(`[AlertService] Alert cooldown pour: ${title}`);
             return;
         }
         this.alertHistory.set(alertKey, Date.now());
         // Créer l'embed avec la couleur appropriée
-        const embed = new embedBuilder_1.AdvancedEmbedBuilder()
+        const embed = new AdvancedEmbedBuilder()
             .setAlertPriority(priority)
             .setTitle(this.getPriorityEmoji(priority) + " " + title)
             .setDescription(message)
-            .setColor(embedBuilder_1.ALERT_COLORS[priority])
+            .setColor(ALERT_COLORS[priority])
             .setTimestamp();
         // Ajouter des informations supplémentaires
         if (category) {
@@ -66,7 +60,7 @@ class AlertService {
         await this.sendAlert({
             title,
             message,
-            priority: embedBuilder_1.AlertPriority.CRITICAL,
+            priority: AlertPriority.CRITICAL,
             ...options
         });
     }
@@ -77,7 +71,7 @@ class AlertService {
         await this.sendAlert({
             title,
             message,
-            priority: embedBuilder_1.AlertPriority.HIGH,
+            priority: AlertPriority.HIGH,
             ...options
         });
     }
@@ -88,7 +82,7 @@ class AlertService {
         await this.sendAlert({
             title,
             message,
-            priority: embedBuilder_1.AlertPriority.MEDIUM,
+            priority: AlertPriority.MEDIUM,
             ...options
         });
     }
@@ -99,7 +93,7 @@ class AlertService {
         await this.sendAlert({
             title,
             message,
-            priority: embedBuilder_1.AlertPriority.LOW,
+            priority: AlertPriority.LOW,
             ...options
         });
     }
@@ -110,7 +104,7 @@ class AlertService {
         await this.sendAlert({
             title,
             message,
-            priority: embedBuilder_1.AlertPriority.INFO,
+            priority: AlertPriority.INFO,
             ...options
         });
     }
@@ -124,7 +118,7 @@ class AlertService {
         if (recentAlerts.length === 0) {
             return;
         }
-        const embed = new embedBuilder_1.AdvancedEmbedBuilder()
+        const embed = new AdvancedEmbedBuilder()
             .setTitle("📊 Tableau de bord des alertes")
             .setColor(0x0099ff)
             .setTimestamp();
@@ -150,18 +144,18 @@ class AlertService {
                 this.alertHistory.delete(key);
             }
         }
-        logger_1.default.debug(`[AlertService] Nettoyage: ${this.alertHistory.size} alertes conservées`);
+        logger.debug(`[AlertService] Nettoyage: ${this.alertHistory.size} alertes conservées`);
     }
     /**
      * Obtient l'emoji pour le niveau de priorité
      */
     getPriorityEmoji(priority) {
         switch (priority) {
-            case embedBuilder_1.AlertPriority.CRITICAL: return "🚨";
-            case embedBuilder_1.AlertPriority.HIGH: return "⚠️";
-            case embedBuilder_1.AlertPriority.MEDIUM: return "🔶";
-            case embedBuilder_1.AlertPriority.LOW: return "🔵";
-            case embedBuilder_1.AlertPriority.INFO: return "ℹ️";
+            case AlertPriority.CRITICAL: return "🚨";
+            case AlertPriority.HIGH: return "⚠️";
+            case AlertPriority.MEDIUM: return "🔶";
+            case AlertPriority.LOW: return "🔵";
+            case AlertPriority.INFO: return "ℹ️";
         }
     }
     /**
@@ -181,24 +175,24 @@ class AlertService {
      * Envoie l'embed au canal de log
      */
     async sendToLogChannel(content, embed) {
-        if (!config_1.config.logChannel) {
-            logger_1.default.warn("[AlertService] LOG_CHANNEL_ID non configuré");
+        if (!config.logChannel) {
+            logger.warn("[AlertService] LOG_CHANNEL_ID non configuré");
             return;
         }
         try {
-            const channel = await this.client.channels.fetch(config_1.config.logChannel);
+            const channel = await this.client.channels.fetch(config.logChannel);
             if (!channel?.isTextBased()) {
-                logger_1.default.error("[AlertService] Canal de log invalide");
+                logger.error("[AlertService] Canal de log invalide");
                 return;
             }
             await channel.send({
                 content: content || undefined,
                 embeds: [embed]
             });
-            logger_1.default.info(`[AlertService] Alert envoyée: ${embed.data.title}`);
+            logger.info(`[AlertService] Alert envoyée: ${embed.data.title}`);
         }
         catch (error) {
-            logger_1.default.error(`[AlertService] Erreur envoi alert: ${error}`);
+            logger.error(`[AlertService] Erreur envoi alert: ${error}`);
         }
     }
     /**
@@ -208,9 +202,8 @@ class AlertService {
         setInterval(() => {
             this.cleanupOldAlerts();
         }, 60 * 60 * 1000); // Toutes les heures
-        logger_1.default.info("[AlertService] Nettoyage automatique démarré");
+        logger.info("[AlertService] Nettoyage automatique démarré");
     }
 }
-exports.AlertService = AlertService;
-exports.default = AlertService;
+export default AlertService;
 //# sourceMappingURL=alertService.js.map

@@ -1,19 +1,13 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.recommendationSystem = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
-const sentiment_analysis_1 = require("./sentiment-analysis");
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { sentimentAnalysisService } from "./sentiment-analysis.js";
 class RecommendationSystem {
     userProfiles;
     gameDatabase;
     constructor() {
         this.userProfiles = new Map();
         this.gameDatabase = new Map();
-        logger_1.default.info("[RecommendationSystem] Service initialisé");
+        logger.info("[RecommendationSystem] Service initialisé");
     }
     async initializeUserProfile(userId) {
         try {
@@ -31,10 +25,10 @@ class RecommendationSystem {
                 activityScore: 0,
             };
             this.userProfiles.set(userId, profile);
-            logger_1.default.info(`[RecommendationSystem] Profil initialisé pour ${userId}`);
+            logger.info(`[RecommendationSystem] Profil initialisé pour ${userId}`);
         }
         catch (error) {
-            logger_1.default.error("[RecommendationSystem] Erreur lors de l'initialisation:", error);
+            logger.error("[RecommendationSystem] Erreur lors de l'initialisation:", error);
         }
     }
     updateUserPreferences(userId, preferences) {
@@ -64,7 +58,7 @@ class RecommendationSystem {
     async generateRecommendations(userId, count = 5) {
         const profile = this.userProfiles.get(userId);
         if (!profile) {
-            logger_1.default.warn(`[RecommendationSystem] Profil non trouvé pour ${userId}`);
+            logger.warn(`[RecommendationSystem] Profil non trouvé pour ${userId}`);
             return [];
         }
         const recommendations = [];
@@ -75,7 +69,7 @@ class RecommendationSystem {
             const matchScore = this.calculateMatchScore(profile, game);
             const reasons = this.generateReasons(profile, game);
             let sentiment;
-            const review = sentiment_analysis_1.sentimentAnalysisService.getCachedReview(game.id);
+            const review = sentimentAnalysisService.getCachedReview(game.id);
             if (review) {
                 sentiment = review.recommendation;
             }
@@ -164,7 +158,7 @@ class RecommendationSystem {
             profile.preferences.platforms = Array.from(likedPlatforms);
         }
         this.userProfiles.set(userId, profile);
-        logger_1.default.info(`[RecommendationSystem] Préférences mises à jour pour ${userId}`);
+        logger.info(`[RecommendationSystem] Préférences mises à jour pour ${userId}`);
     }
     getUserProfile(userId) {
         return this.userProfiles.get(userId) || null;
@@ -173,19 +167,19 @@ class RecommendationSystem {
         const profile = this.userProfiles.get(userId);
         if (!profile)
             return;
-        await prisma_1.default.userProfile.upsert({
+        await prisma.userProfile.upsert({
             where: { userId },
             create: profile,
             update: profile,
         });
     }
     async loadProfilesFromPrisma() {
-        const profiles = await prisma_1.default.userProfile.findMany();
+        const profiles = await prisma.userProfile.findMany();
         for (const profile of profiles) {
             this.userProfiles.set(profile.userId, profile);
         }
-        logger_1.default.info(`[RecommendationSystem] ${profiles.length} profil(s) chargé(s) depuis Prisma`);
+        logger.info(`[RecommendationSystem] ${profiles.length} profil(s) chargé(s) depuis Prisma`);
     }
 }
-exports.recommendationSystem = new RecommendationSystem();
+export const recommendationSystem = new RecommendationSystem();
 //# sourceMappingURL=recommendation-system.js.map

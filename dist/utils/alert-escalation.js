@@ -1,16 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendEscalatedAlert = sendEscalatedAlert;
-exports.resetAlert = resetAlert;
-exports.resetAllAlerts = resetAllAlerts;
-exports.getAlertStats = getAlertStats;
-const logger_1 = __importDefault(require("./logger"));
-const cooldown_1 = require("./cooldown");
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
+import logger from "./logger.js";
+import { canSendAlert, resetCooldown } from "./cooldown.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
 const alertMap = new Map();
 const ESCALATION_RULES = {
     spam: {
@@ -50,15 +41,15 @@ const ESCALATION_RULES = {
  * @param data Données additionnelles
  * @returns true si l'alerte a été envoyée, false sinon
  */
-async function sendEscalatedAlert(client, key, message, data) {
+export async function sendEscalatedAlert(client, key, message, data) {
     const rule = ESCALATION_RULES[key];
     if (!rule) {
-        logger_1.default.warn(`[Escalation] Règle non trouvée pour ${key}, envoi direct`);
+        logger.warn(`[Escalation] Règle non trouvée pour ${key}, envoi direct`);
         return await sendDirectAlert(client, key, message, data);
     }
     // Vérifier le cooldown
-    if (!(0, cooldown_1.canSendAlert)(key, rule.severity)) {
-        logger_1.default.debug(`[Escalation] Cooldown actif pour ${key}`);
+    if (!canSendAlert(key, rule.severity)) {
+        logger.debug(`[Escalation] Cooldown actif pour ${key}`);
         return false;
     }
     // Mettre à jour ou créer l'entrée d'alerte
@@ -83,9 +74,9 @@ async function sendEscalatedAlert(client, key, message, data) {
     const currentEntry = alertMap.get(key);
     // Vérifier si escalation nécessaire
     if (currentEntry.count >= rule.escalateAfter && rule.escalateTo !== rule.severity) {
-        logger_1.default.info(`[Escalation] Escalation de ${key} de ${rule.severity} à ${rule.escalateTo}`);
+        logger.info(`[Escalation] Escalation de ${key} de ${rule.severity} à ${rule.escalateTo}`);
         currentEntry.severity = rule.escalateTo;
-        (0, cooldown_1.resetCooldown)(key); // Reset cooldown pour la nouvelle sévérité
+        resetCooldown(key); // Reset cooldown pour la nouvelle sévérité
     }
     // Envoyer l'alerte
     return await sendDirectAlert(client, key, message, currentEntry);
@@ -95,13 +86,13 @@ async function sendEscalatedAlert(client, key, message, data) {
  */
 async function sendDirectAlert(client, key, message, entry) {
     const severity = entry?.severity || "medium";
-    if (!config_1.config.logChannel) {
-        logger_1.default.error(`[Escalation] Channel de logs non configuré`);
+    if (!config.logChannel) {
+        logger.error(`[Escalation] Channel de logs non configuré`);
         return false;
     }
-    const channel = client.channels.cache.get(config_1.config.logChannel);
+    const channel = client.channels.cache.get(config.logChannel);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.error(`[Escalation] Channel de logs non disponible`);
+        logger.error(`[Escalation] Channel de logs non disponible`);
         return false;
     }
     const colors = {
@@ -116,7 +107,7 @@ async function sendDirectAlert(client, key, message, entry) {
         high: "🟠",
         critical: "🔴",
     };
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(`${emojis[severity]} Alert: ${key.toUpperCase()}`)
         .setDescription(message)
         .setColor(colors[severity])
@@ -145,37 +136,37 @@ async function sendDirectAlert(client, key, message, entry) {
     }
     try {
         await channel.send({ embeds: [embed] });
-        logger_1.default.info(`[Escalation] Alert envoyée: ${key} (${severity})`);
+        logger.info(`[Escalation] Alert envoyée: ${key} (${severity})`);
         return true;
     }
     catch (error) {
-        logger_1.default.error(`[Escalation] Erreur lors de l'envoi de l'alerte:`, error);
+        logger.error(`[Escalation] Erreur lors de l'envoi de l'alerte:`, error);
         return false;
     }
 }
 /**
  * Réinitialise les alertes pour une clé donnée
  */
-function resetAlert(key) {
+export function resetAlert(key) {
     alertMap.delete(key);
-    (0, cooldown_1.resetCooldown)(key);
-    logger_1.default.debug(`[Escalation] Alert réinitialisée pour ${key}`);
+    resetCooldown(key);
+    logger.debug(`[Escalation] Alert réinitialisée pour ${key}`);
 }
 /**
  * Réinitialise toutes les alertes
  */
-function resetAllAlerts() {
+export function resetAllAlerts() {
     const count = alertMap.size;
     alertMap.clear();
     for (const key of alertMap.keys()) {
-        (0, cooldown_1.resetCooldown)(key);
+        resetCooldown(key);
     }
-    logger_1.default.info(`[Escalation] ${count} alerte(s) réinitialisée(s)`);
+    logger.info(`[Escalation] ${count} alerte(s) réinitialisée(s)`);
 }
 /**
  * Obtient les statistiques d'alertes
  */
-function getAlertStats() {
+export function getAlertStats() {
     return Object.fromEntries(alertMap);
 }
 //# sourceMappingURL=alert-escalation.js.map

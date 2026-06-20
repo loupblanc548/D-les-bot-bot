@@ -1,16 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleModerationEvents = handleModerationEvents;
-const logger_1 = __importDefault(require("../utils/logger"));
-const logs_1 = require("../services/logs");
-function handleModerationEvents(client) {
+import logger from "../utils/logger.js";
+import { createLog, sendBanPurgeLog } from "../services/logs.js";
+export function handleModerationEvents(client) {
     // Ban + Purge automatique des messages
     client.on("guildBanAdd", async (ban) => {
         // 1. Journalisation du bannissement
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "ban",
             action: `${ban.user.tag} a ete banni`,
             userId: ban.user.id,
@@ -44,27 +38,27 @@ function handleModerationEvents(client) {
                                 // Messages de plus de 14 jours — on les ignore
                                 continue;
                             }
-                            logger_1.default.warn(`[guildBanAdd] BulkDelete impossible dans #${chan.name} :`, bulkErr.message);
+                            logger.warn(`[guildBanAdd] BulkDelete impossible dans #${chan.name} :`, bulkErr.message);
                         }
                     }
                 }
                 catch (fetchErr) {
                     // Salon inaccessible (verrouille, permissions manquantes, etc.)
                     const chan = channel;
-                    logger_1.default.warn(`[guildBanAdd] Fetch impossible dans #${chan.name} :`, fetchErr.message);
+                    logger.warn(`[guildBanAdd] Fetch impossible dans #${chan.name} :`, fetchErr.message);
                     continue;
                 }
             }
         }
         catch (err) {
-            logger_1.default.error("[guildBanAdd] Erreur lors de la purge automatique :", err);
+            logger.error("[guildBanAdd] Erreur lors de la purge automatique :", err);
         }
         // 3. Envoi du recapitulatif dans le salon de logs
-        await (0, logs_1.sendBanPurgeLog)(ban.user.tag, ban.user.id, totalDeleted, channelsScanned, client);
+        await sendBanPurgeLog(ban.user.tag, ban.user.id, totalDeleted, channelsScanned, client);
     });
     // Unban
     client.on("guildBanRemove", async (ban) => {
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "unban",
             action: `${ban.user.tag} a ete debanni`,
             userId: ban.user.id,

@@ -1,5 +1,5 @@
 import logger from "../utils/logger.js";
-import { GuildMember, MessageFlags } from "discord.js";
+import { GuildMember } from "discord.js";
 import prisma from "../prisma.js";
 
 const CAPTCHA_TIMEOUT = 5 * 60 * 1000;

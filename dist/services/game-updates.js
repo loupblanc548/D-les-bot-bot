@@ -1,16 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkGameUpdates = checkGameUpdates;
-exports.startGameUpdatesMonitoring = startGameUpdatesMonitoring;
-exports.stopGameUpdatesMonitoring = stopGameUpdatesMonitoring;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const prisma_1 = __importDefault(require("../prisma"));
-const rss_parser_1 = __importDefault(require("rss-parser"));
+import logger from "../utils/logger.js";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
+import Parser from "rss-parser";
+import { dedupCache } from "../utils/deduplicationCache.js";
 const UPDATE_SOURCES = {
     steam: "https://store.steampowered.com/feeds/news/app/",
     epic: "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions",
@@ -31,7 +24,7 @@ const CHECK_INTERVAL_MS = 3600000; // 1 heure
  */
 async function checkSteamUpdates() {
     const updates = [];
-    const parser = new rss_parser_1.default();
+    const parser = new Parser();
     for (const game of TRACKED_GAMES.filter(g => g.platform === "steam")) {
         try {
             const feed = await parser.parseURL(`${UPDATE_SOURCES.steam}${game.id}`);
@@ -59,7 +52,7 @@ async function checkSteamUpdates() {
             }
         }
         catch (error) {
-            logger_1.default.error(`[GameUpdates] Erreur lors de la vérification des mises à jour Steam pour ${game.name}:`, error);
+            logger.error(`[GameUpdates] Erreur lors de la vérification des mises à jour Steam pour ${game.name}:`, error);
         }
     }
     return updates;
@@ -68,7 +61,7 @@ async function checkSteamUpdates() {
  * Vérifie si une mise à jour a déjà été traitée
  */
 async function isUpdateProcessed(updateId) {
-    const existing = await prisma_1.default.processedGameUpdate.findUnique({
+    const existing = await prisma.processedGameUpdate.findUnique({
         where: { updateId },
     });
     return !!existing;
@@ -77,7 +70,7 @@ async function isUpdateProcessed(updateId) {
  * Marque une mise à jour comme traitée
  */
 async function markUpdateProcessed(updateId) {
-    await prisma_1.default.processedGameUpdate.create({
+    await prisma.processedGameUpdate.create({
         data: { updateId },
     });
 }
@@ -85,13 +78,13 @@ async function markUpdateProcessed(updateId) {
  * Envoie une notification de mise à jour
  */
 async function sendUpdateNotification(client, update) {
-    if (!config_1.config.logChannel) {
-        logger_1.default.error("[GameUpdates] Channel de logs non configuré");
+    if (!config.logChannel) {
+        logger.error("[GameUpdates] Channel de logs non configuré");
         return;
     }
-    const channel = client.channels.cache.get(config_1.config.logChannel);
+    const channel = client.channels.cache.get(config.logChannel);
     if (!channel || !channel.isTextBased()) {
-        logger_1.default.error("[GameUpdates] Channel de logs non disponible");
+        logger.error("[GameUpdates] Channel de logs non disponible");
         return;
     }
     const colors = {
@@ -106,7 +99,7 @@ async function sendUpdateNotification(client, update) {
         hotfix: "⚡",
         announcement: "📢",
     };
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(`${emojis[update.updateType]} ${update.gameName} - ${update.updateType.toUpperCase()}`)
         .setDescription(update.title)
         .setColor(colors[update.updateType])
@@ -134,36 +127,42 @@ async function sendUpdateNotification(client, update) {
     }
     try {
         await channel.send({ embeds: [embed] });
-        logger_1.default.info(`[GameUpdates] Notification envoyée pour ${update.gameName}`);
+        logger.info(`[GameUpdates] Notification envoyée pour ${update.gameName}`);
     }
     catch (error) {
-        logger_1.default.error("[GameUpdates] Erreur lors de l'envoi de la notification:", error);
+        logger.error("[GameUpdates] Erreur lors de l'envoi de la notification:", error);
     }
 }
 /**
  * Vérifie et traite les mises à jour de jeux
  */
-async function checkGameUpdates(client) {
-    logger_1.default.info("[GameUpdates] Vérification des mises à jour de jeux...");
+export async function checkGameUpdates(client) {
+    logger.info("[GameUpdates] Vérification des mises à jour de jeux...");
     const updates = await checkSteamUpdates();
     for (const update of updates) {
         const updateId = `${update.gameId}-${update.publishedAt.getTime()}`;
         if (!(await isUpdateProcessed(updateId))) {
+            // VERROU ANTI-SPAM : dedup cache JSON local
+            if (dedupCache.isAlreadyProcessed("game_updates", updateId)) {
+                logger.debug(`[SPAM BLOQUE] GameUpdates doublon cache: ${updateId}`);
+                continue;
+            }
             await sendUpdateNotification(client, update);
+            await dedupCache.markAsProcessed("game_updates", updateId);
             await markUpdateProcessed(updateId);
         }
     }
-    logger_1.default.info(`[GameUpdates] ${updates.length} mise(s) à jour vérifiée(s)`);
+    logger.info(`[GameUpdates] ${updates.length} mise(s) à jour vérifiée(s)`);
 }
 /**
  * Démarre la surveillance des mises à jour de jeux
  */
-function startGameUpdatesMonitoring(client) {
+export function startGameUpdatesMonitoring(client) {
     if (updateCheckInterval) {
-        logger_1.default.warn("[GameUpdates] Surveillance déjà active");
+        logger.warn("[GameUpdates] Surveillance déjà active");
         return;
     }
-    logger_1.default.info("[GameUpdates] Démarrage de la surveillance des mises à jour");
+    logger.info("[GameUpdates] Démarrage de la surveillance des mises à jour");
     // Vérification immédiate
     checkGameUpdates(client);
     // Vérification périodique
@@ -174,11 +173,11 @@ function startGameUpdatesMonitoring(client) {
 /**
  * Arrête la surveillance des mises à jour de jeux
  */
-function stopGameUpdatesMonitoring() {
+export function stopGameUpdatesMonitoring() {
     if (updateCheckInterval) {
         clearInterval(updateCheckInterval);
         updateCheckInterval = null;
-        logger_1.default.info("[GameUpdates] Surveillance arrêtée");
+        logger.info("[GameUpdates] Surveillance arrêtée");
     }
 }
 //# sourceMappingURL=game-updates.js.map

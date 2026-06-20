@@ -1,16 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.runHealthCheck = runHealthCheck;
-exports.sendHealthReport = sendHealthReport;
-const logger_1 = __importDefault(require("../utils/logger"));
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import fs from "fs";
+import path from "path";
+import { EmbedBuilder } from "discord.js";
+import { config } from "../config.js";
+import prisma from "../prisma.js";
 // ── Helpers ────────────────────────────────────────────────────────────────
 function ok(name, module, detail = "OK") {
     return { module, name, passed: true, detail };
@@ -22,8 +15,8 @@ function isValidSnowflake(val) {
     return /^\d{17,20}$/.test(val);
 }
 function fileCheck(filePath, module, label) {
-    const fullPath = path_1.default.resolve(process.cwd(), filePath);
-    const exists = fs_1.default.existsSync(fullPath);
+    const fullPath = path.resolve(process.cwd(), filePath);
+    const exists = fs.existsSync(fullPath);
     return exists ? ok(label, module) : fail(label, module, "FICHIER MANQUANT");
 }
 // ── Module 1 : BASE (5 checks) ────────────────────────────────────────────
@@ -54,7 +47,7 @@ async function checkDatabase() {
     r.push(fileCheck("prisma/schema.prisma", m, "schema.prisma"));
     // Vrai ping DB
     try {
-        await prisma_1.default.$queryRaw `SELECT 1`;
+        await prisma.$queryRaw `SELECT 1`;
         r.push(ok("Connexion DB", m, "SQLite operationnelle"));
     }
     catch (e) {
@@ -136,11 +129,11 @@ function checkEvenements() {
     ];
 }
 // ── Runner principal ──────────────────────────────────────────────────────
-async function runHealthCheck() {
-    logger_1.default.info("");
-    logger_1.default.info("=".repeat(55));
-    logger_1.default.info("  🔍 HEALTH CHECK — Verification systeme");
-    logger_1.default.info("=".repeat(55));
+export async function runHealthCheck() {
+    logger.info("");
+    logger.info("=".repeat(55));
+    logger.info("  🔍 HEALTH CHECK — Verification systeme");
+    logger.info("=".repeat(55));
     // Modules synchrones + DB asynchrone en parallèle
     const [dbResults] = await Promise.all([
         checkDatabase(),
@@ -159,35 +152,35 @@ async function runHealthCheck() {
     let totalFailed = 0;
     let totalChecks = 0;
     for (const group of moduleGroups) {
-        logger_1.default.info(`\n  ${group.emoji} ${group.module}`);
+        logger.info(`\n  ${group.emoji} ${group.module}`);
         for (const r of group.results) {
             totalChecks++;
             if (r.passed) {
                 totalPassed++;
-                logger_1.default.info(`    [OK]   ${r.name}`);
+                logger.info(`    [OK]   ${r.name}`);
             }
             else {
                 totalFailed++;
-                logger_1.default.info(`    [FAIL] ${r.name} → ${r.detail}`);
+                logger.info(`    [FAIL] ${r.name} → ${r.detail}`);
             }
         }
     }
-    logger_1.default.info("");
-    logger_1.default.info("=".repeat(55));
+    logger.info("");
+    logger.info("=".repeat(55));
     if (totalFailed === 0) {
-        logger_1.default.info(`  ✅ RESULTAT : ${totalPassed}/${totalChecks} OK — Tous les modules sont operationnels`);
+        logger.info(`  ✅ RESULTAT : ${totalPassed}/${totalChecks} OK — Tous les modules sont operationnels`);
     }
     else {
-        logger_1.default.info(`  ⚠️  RESULTAT : ${totalPassed}/${totalChecks} OK (${totalFailed} echec(s))`);
+        logger.info(`  ⚠️  RESULTAT : ${totalPassed}/${totalChecks} OK (${totalFailed} echec(s))`);
     }
-    logger_1.default.info("=".repeat(55));
-    logger_1.default.info("");
+    logger.info("=".repeat(55));
+    logger.info("");
     // Flat array pour compatibilité avec l'existant
     return moduleGroups.flatMap((g) => g.results);
 }
 // ── Rapport Discord ───────────────────────────────────────────────────────
-async function sendHealthReport(client, results) {
-    if (!config_1.config.logChannel)
+export async function sendHealthReport(client, results) {
+    if (!config.logChannel)
         return;
     const failed = results.filter((r) => !r.passed);
     const passed = results.filter((r) => r.passed);
@@ -199,7 +192,7 @@ async function sendHealthReport(client, results) {
         failuresByModule.set(f.module, list);
     }
     try {
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(failed.length === 0
             ? `✅ Health Check — ${passed.length}/${results.length} OK`
             : `⚠️ Health Check — ${passed.length}/${results.length} OK (${failed.length} echec(s))`)
@@ -228,13 +221,13 @@ async function sendHealthReport(client, results) {
                 inline: false,
             });
         }
-        const channel = client.channels.cache.get(config_1.config.logChannel);
+        const channel = client.channels.cache.get(config.logChannel);
         if (channel?.isTextBased()) {
             await channel.send({ embeds: [embed] });
         }
     }
     catch {
-        logger_1.default.error("[HealthCheck] Impossible d'envoyer le rapport dans LOG_CHANNEL_ID");
+        logger.error("[HealthCheck] Impossible d'envoyer le rapport dans LOG_CHANNEL_ID");
     }
 }
 //# sourceMappingURL=healthcheck.js.map

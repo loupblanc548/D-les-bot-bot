@@ -1,24 +1,15 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-exports.handleTicketButton = handleTicketButton;
-exports.handleTicketClose = handleTicketClose;
-const logger_1 = __importDefault(require("../utils/logger"));
+import logger from "../utils/logger.js";
 // Commandes Communauté & Automatisation
 // reminder, ticket-setup (+ gestion des boutons de ticket)
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const config_1 = require("../config");
-const permissions_1 = require("../services/permissions");
-const logs_1 = require("../services/logs");
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, } from "discord.js";
+import prisma from "../prisma.js";
+import { config } from "../config.js";
+import { requireAdmin } from "../services/permissions.js";
+import { createLog } from "../services/logs.js";
 // Rappels persistés via Prisma (table Reminder)
 // ===== Définition des commandes =====
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("reminder")
         .setDescription("Définit un rappel qui te sera envoyé après le délai spécifié")
         .addStringOption((opt) => opt
@@ -30,12 +21,12 @@ exports.commands = [
         .setDescription("Le message du rappel")
         .setRequired(true))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("ticket-setup")
         .setDescription("Crée le panneau de tickets dans ce salon (Staff)")
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("wishlist-notify")
         .setDescription("Active ou désactive les DMs pour les notifications wishlist")
         .addBooleanOption((opt) => opt
@@ -49,7 +40,7 @@ exports.commands = [
         .toJSON(),
 ];
 // ===== Handler principal =====
-async function handleCommand(interaction, client) {
+export async function handleCommand(interaction, client) {
     try {
         switch (interaction.commandName) {
             case "reminder":
@@ -59,15 +50,15 @@ async function handleCommand(interaction, client) {
                 await handleTicketSetup(interaction);
                 break;
             case "wishlist-notify":
-                if (!(await (0, permissions_1.requireAdmin)(interaction)))
+                if (!(await requireAdmin(interaction)))
                     return;
                 await handleWishlistNotify(interaction);
                 break;
         }
     }
     catch (err) {
-        logger_1.default.error("[Community] Erreur:", err);
-        const errorEmbed = new discord_js_1.EmbedBuilder()
+        logger.error("[Community] Erreur:", err);
+        const errorEmbed = new EmbedBuilder()
             .setColor(0xff3344)
             .setDescription("Une erreur est survenue.");
         try {
@@ -75,16 +66,16 @@ async function handleCommand(interaction, client) {
                 await interaction.editReply({ embeds: [errorEmbed] });
             }
             else {
-                await interaction.reply({ embeds: [errorEmbed], flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
         }
-        catch {
-            // silencieux
+        catch (err) {
+            logger.warn("[Community] Erreur reply:", String(err));
         }
     }
 }
 // ===== Gestion des boutons de ticket (exporté pour index.ts) =====
-async function handleTicketButton(interaction, client) {
+export async function handleTicketButton(interaction, client) {
     if (interaction.customId !== "ticket_create")
         return;
     try {
@@ -93,50 +84,50 @@ async function handleTicketButton(interaction, client) {
         // Nom du salon ticket : ticket-{username}
         const channelName = "ticket-" + member.user.username.toLowerCase().replace(/[^a-z0-9]/g, "-");
         // Vérifier si un ticket existe déjà
-        const existing = guild.channels.cache.find((ch) => ch.name === channelName && ch.type === discord_js_1.ChannelType.GuildText);
+        const existing = guild.channels.cache.find((ch) => ch.name === channelName && ch.type === ChannelType.GuildText);
         if (existing) {
             await interaction.reply({
                 content: "Tu as déjà un ticket ouvert : " + existing.toString(),
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
             return;
         }
         // Trouver ou créer une catégorie "Tickets"
-        let ticketCategory = guild.channels.cache.find((ch) => ch.type === discord_js_1.ChannelType.GuildCategory && ch.name.toLowerCase() === "tickets");
+        let ticketCategory = guild.channels.cache.find((ch) => ch.type === ChannelType.GuildCategory && ch.name.toLowerCase() === "tickets");
         if (!ticketCategory) {
             ticketCategory = await guild.channels.create({
                 name: "Tickets",
-                type: discord_js_1.ChannelType.GuildCategory,
+                type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     {
                         id: guild.roles.everyone.id,
-                        deny: [discord_js_1.PermissionFlagsBits.ViewChannel],
+                        deny: [PermissionFlagsBits.ViewChannel],
                     },
                 ],
             });
         }
         // Construire les permissions pour les rôles staff
         const staffOverwrites = [];
-        for (const roleId of config_1.config.adminRoles) {
+        for (const roleId of config.adminRoles) {
             if (roleId) {
                 staffOverwrites.push({
                     id: roleId,
                     allow: [
-                        discord_js_1.PermissionFlagsBits.ViewChannel,
-                        discord_js_1.PermissionFlagsBits.SendMessages,
-                        discord_js_1.PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
                     ],
                 });
             }
         }
-        for (const roleId of config_1.config.modRoles) {
+        for (const roleId of config.modRoles) {
             if (roleId) {
                 staffOverwrites.push({
                     id: roleId,
                     allow: [
-                        discord_js_1.PermissionFlagsBits.ViewChannel,
-                        discord_js_1.PermissionFlagsBits.SendMessages,
-                        discord_js_1.PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
                     ],
                 });
             }
@@ -144,26 +135,26 @@ async function handleTicketButton(interaction, client) {
         // Créer le salon privé
         const ticketChannel = await guild.channels.create({
             name: channelName,
-            type: discord_js_1.ChannelType.GuildText,
+            type: ChannelType.GuildText,
             parent: ticketCategory.id,
             permissionOverwrites: [
                 {
                     id: guild.roles.everyone.id,
-                    deny: [discord_js_1.PermissionFlagsBits.ViewChannel],
+                    deny: [PermissionFlagsBits.ViewChannel],
                 },
                 {
                     id: member.id,
                     allow: [
-                        discord_js_1.PermissionFlagsBits.ViewChannel,
-                        discord_js_1.PermissionFlagsBits.SendMessages,
-                        discord_js_1.PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
                     ],
                 },
                 ...staffOverwrites,
             ],
         });
         // Message de bienvenue dans le ticket
-        const welcomeEmbed = new discord_js_1.EmbedBuilder()
+        const welcomeEmbed = new EmbedBuilder()
             .setColor(0x00f0ff)
             .setTitle("🎫 Ticket créé")
             .setDescription("Bienvenue " + member.toString() + " !\n\n" +
@@ -171,10 +162,10 @@ async function handleTicketButton(interaction, client) {
             "Décris ton problème ou ta question en attendant.")
             .setFooter({ text: "Systeme de Surveillance • v1.0.0" })
             .setTimestamp();
-        const closeButton = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+        const closeButton = new ActionRowBuilder().addComponents(new ButtonBuilder()
             .setCustomId("ticket_close")
             .setLabel("Fermer le ticket")
-            .setStyle(discord_js_1.ButtonStyle.Danger));
+            .setStyle(ButtonStyle.Danger));
         await ticketChannel.send({
             content: member.toString(),
             embeds: [welcomeEmbed],
@@ -182,10 +173,10 @@ async function handleTicketButton(interaction, client) {
         });
         await interaction.reply({
             content: "✅ Ticket créé : " + ticketChannel.toString(),
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         // Log
-        await (0, logs_1.createLog)({
+        await createLog({
             type: "member",
             action: "ticket_created",
             userId: interaction.user.id,
@@ -194,15 +185,15 @@ async function handleTicketButton(interaction, client) {
         });
     }
     catch (err) {
-        logger_1.default.error("[Community] Erreur création ticket:", err);
+        logger.error("[Community] Erreur création ticket:", err);
         try {
             await interaction.reply({
                 content: "Impossible de créer le ticket.",
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
         }
-        catch {
-            // silencieux
+        catch (err) {
+            logger.warn("[Community] Erreur reply:", String(err));
         }
     }
 }
@@ -216,13 +207,13 @@ async function handleReminder(interaction) {
     if (!match) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription("Format de temps invalide.\n" +
                     "Utilise : `30m`, `2h`, `1d`, `90s`\n" +
                     "Exemple : `/reminder 30m Verifier les logs`"),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
@@ -247,17 +238,17 @@ async function handleReminder(interaction) {
     if (ms > 30 * 24 * 60 * 60 * 1000) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription("Le delai maximum est de 30 jours."),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
     const reminderId = interaction.user.id + "-" + Date.now();
     const endTime = new Date(Date.now() + ms);
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x00f0ff)
         .setTitle("⏰ Rappel programmé")
         .setDescription("Je te rappellerai dans **" + value + unit + "**\n" +
@@ -268,7 +259,7 @@ async function handleReminder(interaction) {
     // Programmer le rappel
     // Persister le rappel en base (capturer l'ID genere par Prisma)
     const triggerAt = new Date(Date.now() + ms);
-    const savedReminder = await prisma_1.default.reminder.create({
+    const savedReminder = await prisma.reminder.create({
         data: {
             userId: interaction.user.id,
             channelId: interaction.channelId,
@@ -284,7 +275,7 @@ async function handleReminder(interaction) {
                 await channel.send({
                     content: "⏰ **Rappel** pour " + interaction.user.toString() + " !",
                     embeds: [
-                        new discord_js_1.EmbedBuilder()
+                        new EmbedBuilder()
                             .setColor(0xffaa00)
                             .setTitle("⏰ Rappel")
                             .setDescription('"' + message + '"')
@@ -294,14 +285,14 @@ async function handleReminder(interaction) {
                 });
             }
             // Nettoyer le rappel de la base apres envoi (avec l'UUID Prisma)
-            await prisma_1.default.reminder.delete({ where: { id: savedReminder.id } }).catch(() => { });
+            await prisma.reminder.delete({ where: { id: savedReminder.id } }).catch((err) => { logger.error("[Community] Erreur suppression rappel:", String(err)); });
         }
         catch (err) {
-            logger_1.default.error("[Community] Erreur envoi rappel:", err);
+            logger.error("[Community] Erreur envoi rappel:", err);
         }
     }, ms);
     // Log
-    await (0, logs_1.createLog)({
+    await createLog({
         type: "member",
         action: "reminder_set",
         userId: interaction.user.id,
@@ -310,7 +301,7 @@ async function handleReminder(interaction) {
 }
 // ===== /ticket-setup =====
 async function handleTicketSetup(interaction) {
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(0x00f0ff)
         .setTitle("🎫 Support - Tickets")
         .setDescription("Besoin d'aide ? Clique sur le bouton ci-dessous pour creer un ticket.\n" +
@@ -322,22 +313,22 @@ async function handleTicketSetup(interaction) {
             "- Reste courtois avec le staff",
     })
         .setFooter({ text: interaction.guild.name });
-    const button = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+    const button = new ActionRowBuilder().addComponents(new ButtonBuilder()
         .setCustomId("ticket_create")
         .setLabel("🎫 Créer un ticket")
         .setEmoji("🎫")
-        .setStyle(discord_js_1.ButtonStyle.Primary));
+        .setStyle(ButtonStyle.Primary));
     await interaction.channel.send({
         embeds: [embed],
         components: [button],
     });
     await interaction.reply({
         content: "✅ Panneau de tickets créé !",
-        flags: [discord_js_1.MessageFlags.Ephemeral],
+        flags: [MessageFlags.Ephemeral],
     });
 }
 // ===== Gestion de la fermeture des tickets (exporté pour index.ts) =====
-async function handleTicketClose(interaction, client) {
+export async function handleTicketClose(interaction, client) {
     if (interaction.customId !== "ticket_close")
         return;
     try {
@@ -345,18 +336,18 @@ async function handleTicketClose(interaction, client) {
         if (!channel || !channel.name.startsWith("ticket-")) {
             await interaction.reply({
                 content: "Ce salon n'est pas un ticket.",
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
             return;
         }
         await interaction.reply({
             content: "Fermeture du ticket dans 5 secondes...",
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         setTimeout(async () => {
             try {
                 await channel.delete("Ticket fermé");
-                await (0, logs_1.createLog)({
+                await createLog({
                     type: "member",
                     action: "ticket_closed",
                     userId: interaction.user.id,
@@ -365,20 +356,20 @@ async function handleTicketClose(interaction, client) {
                 });
             }
             catch (err) {
-                logger_1.default.error("[Community] Erreur fermeture ticket:", err);
+                logger.error("[Community] Erreur fermeture ticket:", err);
             }
         }, 5000);
     }
     catch (err) {
-        logger_1.default.error("[Community] Erreur handleTicketClose:", err);
+        logger.error("[Community] Erreur handleTicketClose:", err);
         try {
             await interaction.reply({
                 content: "Erreur lors de la fermeture du ticket.",
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
         }
-        catch {
-            // silencieux
+        catch (err) {
+            logger.warn("[Community] Erreur reply:", String(err));
         }
     }
 }
@@ -390,12 +381,12 @@ async function handleWishlistNotify(interaction) {
     const targetUserId = targetUser.id;
     const targetDisplayName = targetUser.displayName;
     try {
-        await prisma_1.default.userPreference.upsert({
+        await prisma.userPreference.upsert({
             where: { userId: targetUserId },
             update: { wishlistDm: activer },
             create: { userId: targetUserId, wishlistDm: activer },
         });
-        logger_1.default.info("✅ [WishlistNotify] DMs wishlist", activer ? "activés" : "désactivés", "pour", targetDisplayName, "(" + targetUserId + ")", "par", interaction.user.displayName, "(" + interaction.user.id + ")");
+        logger.info("✅ [WishlistNotify] DMs wishlist", activer ? "activés" : "désactivés", "pour", targetDisplayName, "(" + targetUserId + ")", "par", interaction.user.displayName, "(" + interaction.user.id + ")");
         const isSelf = targetUserId === interaction.user.id;
         const description = isSelf
             ? (activer
@@ -404,7 +395,7 @@ async function handleWishlistNotify(interaction) {
             : (activer
                 ? "Les DMs wishlist ont été activés pour **" + targetDisplayName + "**."
                 : "Les DMs wishlist ont été désactivés pour **" + targetDisplayName + "**.");
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(activer ? "✅ DMs wishlist activés" : "🚫 DMs wishlist désactivés")
             .setDescription(description)
             .setColor(activer ? 0x53fc18 : 0xff3344)
@@ -412,7 +403,7 @@ async function handleWishlistNotify(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (err) {
-        logger_1.default.error("💥 [CRASH WishlistNotify] Erreur Prisma :", err);
+        logger.error("💥 [CRASH WishlistNotify] Erreur Prisma :", err);
         await interaction.editReply({
             content: "❌ Une erreur interne est survenue lors de la modification des préférences. L'erreur a été logguée dans la console.",
         });

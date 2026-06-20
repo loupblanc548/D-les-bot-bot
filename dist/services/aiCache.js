@@ -1,16 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCachedResponse = getCachedResponse;
-exports.cacheResponse = cacheResponse;
-exports.clearCacheEntry = clearCacheEntry;
-exports.clearAllCache = clearAllCache;
-exports.getCacheStats = getCacheStats;
-exports.cleanupExpiredCache = cleanupExpiredCache;
-const logger_1 = __importDefault(require("../utils/logger"));
-const crypto_1 = __importDefault(require("crypto"));
+import logger from "../utils/logger.js";
+import crypto from "crypto";
 // Cache en mémoire (pourrait être remplacé par Redis pour la persistance distribuée)
 const responseCache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure de TTL
@@ -20,12 +9,12 @@ const MAX_CACHE_SIZE = 1000; // Maximum 1000 réponses en cache
  */
 function generateCacheKey(message, context) {
     const data = context ? `${message}:${context}` : message;
-    return crypto_1.default.createHash("md5").update(data).digest("hex");
+    return crypto.createHash("md5").update(data).digest("hex");
 }
 /**
  * Récupère une réponse mise en cache
  */
-function getCachedResponse(message, context) {
+export function getCachedResponse(message, context) {
     const key = generateCacheKey(message, context);
     const cached = responseCache.get(key);
     if (!cached) {
@@ -34,19 +23,19 @@ function getCachedResponse(message, context) {
     // Vérifier si le cache a expiré
     if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
         responseCache.delete(key);
-        logger_1.default.debug(`[AICache] Cache expiré pour: ${message.slice(0, 30)}...`);
+        logger.debug(`[AICache] Cache expiré pour: ${message.slice(0, 30)}...`);
         return null;
     }
     // Incrémenter le compteur de hits
     cached.hitCount++;
     responseCache.set(key, cached);
-    logger_1.default.debug(`[AICache] Cache hit pour: ${message.slice(0, 30)}... (hits: ${cached.hitCount})`);
+    logger.debug(`[AICache] Cache hit pour: ${message.slice(0, 30)}... (hits: ${cached.hitCount})`);
     return cached.response;
 }
 /**
  * Met en cache une réponse IA
  */
-function cacheResponse(message, response, context) {
+export function cacheResponse(message, response, context) {
     const key = generateCacheKey(message, context);
     // Limiter la taille du cache
     if (responseCache.size >= MAX_CACHE_SIZE) {
@@ -61,7 +50,7 @@ function cacheResponse(message, response, context) {
         }
         if (oldestKey) {
             responseCache.delete(oldestKey);
-            logger_1.default.debug(`[AICache] Cache LRU: supprimé ${oldestKey}`);
+            logger.debug(`[AICache] Cache LRU: supprimé ${oldestKey}`);
         }
     }
     responseCache.set(key, {
@@ -69,28 +58,28 @@ function cacheResponse(message, response, context) {
         timestamp: Date.now(),
         hitCount: 0
     });
-    logger_1.default.debug(`[AICache] Réponse mise en cache: ${message.slice(0, 30)}...`);
+    logger.debug(`[AICache] Réponse mise en cache: ${message.slice(0, 30)}...`);
 }
 /**
  * Efface le cache pour un message spécifique
  */
-function clearCacheEntry(message, context) {
+export function clearCacheEntry(message, context) {
     const key = generateCacheKey(message, context);
     responseCache.delete(key);
-    logger_1.default.debug(`[AICache] Cache effacé pour: ${message.slice(0, 30)}...`);
+    logger.debug(`[AICache] Cache effacé pour: ${message.slice(0, 30)}...`);
 }
 /**
  * Efface tout le cache
  */
-function clearAllCache() {
+export function clearAllCache() {
     const size = responseCache.size;
     responseCache.clear();
-    logger_1.default.info(`[AICache] Tout le cache effacé (${size} entrées)`);
+    logger.info(`[AICache] Tout le cache effacé (${size} entrées)`);
 }
 /**
  * Récupère les statistiques du cache
  */
-function getCacheStats() {
+export function getCacheStats() {
     let totalHits = 0;
     let oldestTimestamp = null;
     let newestTimestamp = null;
@@ -116,7 +105,7 @@ function getCacheStats() {
 /**
  * Nettoie les entrées expirées du cache
  */
-function cleanupExpiredCache() {
+export function cleanupExpiredCache() {
     const now = Date.now();
     let cleaned = 0;
     for (const [key, cached] of responseCache.entries()) {
@@ -126,7 +115,7 @@ function cleanupExpiredCache() {
         }
     }
     if (cleaned > 0) {
-        logger_1.default.debug(`[AICache] Nettoyage de ${cleaned} entrée(s) expirée(s)`);
+        logger.debug(`[AICache] Nettoyage de ${cleaned} entrée(s) expirée(s)`);
     }
 }
 // Nettoyage automatique toutes les 30 minutes

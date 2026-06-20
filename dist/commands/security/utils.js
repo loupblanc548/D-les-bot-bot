@@ -1,13 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkSuspiciousLinks = checkSuspiciousLinks;
-exports.checkSuspiciousLinksDetailed = checkSuspiciousLinksDetailed;
-exports.isAntiPhishingActive = isAntiPhishingActive;
-exports.isAntiRaidActive = isAntiRaidActive;
-const prisma_1 = __importDefault(require("../../prisma"));
+import prisma from "../../prisma.js";
 // ===== Constantes de détection de liens suspects =====
 const SUSPICIOUS_TLDS = new Set([
     "tk", "ml", "ga", "cf", "gq", "xyz", "top", "click", "download",
@@ -31,14 +22,14 @@ const URL_SHORTENERS = new Set([
  * Vérifie rapidement si une chaîne contient des liens suspects.
  * (Utilisé par l'event messages pour le filtrage temps réel)
  */
-function checkSuspiciousLinks(content) {
+export function checkSuspiciousLinks(content) {
     return checkSuspiciousLinksDetailed(content).length > 0;
 }
 /**
  * Variante détaillée qui retourne la liste des flags détectés.
  * (Utilisé par la commande /linkcheck pour afficher un rapport)
  */
-function checkSuspiciousLinksDetailed(content) {
+export function checkSuspiciousLinksDetailed(content) {
     const flags = [];
     const urlRegex = /https?:\/\/[^\s<>"']+/gi;
     const urls = content.match(urlRegex) || [];
@@ -75,15 +66,15 @@ function checkSuspiciousLinksDetailed(content) {
     return flags;
 }
 /** Vérifie si l'anti-phishing est activé pour une guilde (avec cache). */
-async function isAntiPhishingActive(guildId) {
-    const cached = cache_2.antiPhishingCache.get(guildId);
-    if (cached && Date.now() - cached.cachedAt < cache_2.ANTI_PHISHING_CACHE_TTL_MS) {
+export async function isAntiPhishingActive(guildId) {
+    const cached = antiPhishingCache.get(guildId);
+    if (cached && Date.now() - cached.cachedAt < ANTI_PHISHING_CACHE_TTL_MS) {
         return cached.active;
     }
     try {
-        const cfg = await prisma_1.default.guildConfig.findUnique({ where: { guildId } });
+        const cfg = await prisma.guildConfig.findUnique({ where: { guildId } });
         const active = cfg?.antiPhishing ?? false;
-        cache_2.antiPhishingCache.set(guildId, { active, cachedAt: Date.now() });
+        antiPhishingCache.set(guildId, { active, cachedAt: Date.now() });
         return active;
     }
     catch {
@@ -91,16 +82,16 @@ async function isAntiPhishingActive(guildId) {
     }
 }
 /** Vérifie si l'anti-raid est activé pour une guilde (avec cache). */
-async function isAntiRaidActive(guildId) {
-    const cached = cache_1.antiRaidCache.get(guildId);
-    if (cached && Date.now() - cached.cachedAt < cache_1.ANTI_RAID_CACHE_TTL_MS) {
+export async function isAntiRaidActive(guildId) {
+    const cached = antiRaidCache.get(guildId);
+    if (cached && Date.now() - cached.cachedAt < ANTI_RAID_CACHE_TTL_MS) {
         return { active: cached.active, seuilHeures: cached.seuilHeures };
     }
     try {
-        const cfg = await prisma_1.default.guildConfig.findUnique({ where: { guildId } });
+        const cfg = await prisma.guildConfig.findUnique({ where: { guildId } });
         const active = cfg?.antiRaidEnabled ?? false;
         const seuilHeures = cfg?.antiRaidSeuilHeures ?? 24;
-        cache_1.antiRaidCache.set(guildId, { active, seuilHeures, cachedAt: Date.now() });
+        antiRaidCache.set(guildId, { active, seuilHeures, cachedAt: Date.now() });
         return { active, seuilHeures };
     }
     catch {
@@ -108,6 +99,6 @@ async function isAntiRaidActive(guildId) {
     }
 }
 // Réimports des caches et constantes pour les helpers isActive
-const cache_1 = require("./cache");
-const cache_2 = require("./cache");
+import { antiRaidCache, ANTI_RAID_CACHE_TTL_MS } from "./cache.js";
+import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache.js";
 //# sourceMappingURL=utils.js.map

@@ -1,12 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.aiPredictionService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const rss_parser_1 = __importDefault(require("rss-parser"));
-const openai_1 = require("openai");
+import logger from "../utils/logger.js";
+import Parser from "rss-parser";
+import { OpenAI } from "openai";
 class AIPredictionService {
     openai = null;
     historicalData = [];
@@ -14,14 +8,14 @@ class AIPredictionService {
     constructor() {
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (apiKey) {
-            this.openai = new openai_1.OpenAI({
+            this.openai = new OpenAI({
                 apiKey,
                 baseURL: "https://openrouter.ai/api/v1",
             });
-            logger_1.default.info("[AIPrediction] Service initialisé avec OpenRouter");
+            logger.info("[AIPrediction] Service initialisé avec OpenRouter");
         }
         else {
-            logger_1.default.warn("[AIPrediction] OPENROUTER_API_KEY non configuré, service désactivé");
+            logger.warn("[AIPrediction] OPENROUTER_API_KEY non configuré, service désactivé");
         }
     }
     /**
@@ -121,7 +115,7 @@ Fournis ta réponse au format JSON :
             };
         }
         catch (error) {
-            logger_1.default.error("[AIPrediction] Erreur lors de la prédiction:", error);
+            logger.error("[AIPrediction] Erreur lors de la prédiction:", error);
             return {
                 predictedOffers: [],
                 confidence: 0,
@@ -135,7 +129,7 @@ Fournis ta réponse au format JSON :
      */
     async analyzeRSSFeed(feedUrl) {
         try {
-            const parser = new rss_parser_1.default();
+            const parser = new Parser();
             const feed = await parser.parseURL(feedUrl);
             if (!feed.items)
                 return;
@@ -151,10 +145,10 @@ Fournis ta réponse au format JSON :
                     source: feedUrl,
                 });
             }
-            logger_1.default.info(`[AIPrediction] ${feed.items.length} items analysés depuis ${feedUrl}`);
+            logger.info(`[AIPrediction] ${feed.items.length} items analysés depuis ${feedUrl}`);
         }
         catch (error) {
-            logger_1.default.error(`[AIPrediction] Erreur lors de l'analyse de ${feedUrl}:`, error);
+            logger.error(`[AIPrediction] Erreur lors de l'analyse de ${feedUrl}:`, error);
         }
     }
     /**
@@ -203,5 +197,5 @@ Fournis ta réponse au format JSON :
         };
     }
 }
-exports.aiPredictionService = new AIPredictionService();
+export const aiPredictionService = new AIPredictionService();
 //# sourceMappingURL=ai-prediction.js.map

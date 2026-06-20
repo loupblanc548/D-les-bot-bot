@@ -1,7 +1,11 @@
 import { Client } from "discord.js";
 /**
- * Service de tableau de bord de monitoring en temps réel
- * Affiche l'état des services, les métriques et les performances
+ * Service de tableau de bord de monitoring en temps reel
+ * Affiche l'etat des services, les metriques et les performances
+ *
+ * Les metriques par periode (1h, 6h, 24h) utilisent l'agregation
+ * temporelle basee sur les snapshots horodates (delta entre le premier
+ * et le dernier snapshot de la periode = 60 min de donnees, pas 60 pts).
  */
 export interface ServiceStatus {
     name: string;
@@ -27,19 +31,19 @@ declare class MonitoringDashboard {
     private readonly UPDATE_INTERVAL_MS;
     constructor(client: Client);
     /**
-     * Initialise les services à surveiller
+     * Initialise les services a surveiller
      */
     private initializeServices;
     /**
-     * Met à jour le statut d'un service
+     * Met a jour le statut d'un service
      */
     updateServiceStatus(serviceName: string, status: "online" | "warning" | "offline" | "maintenance", metadata?: Partial<ServiceStatus>): void;
     /**
-     * Obtient les métriques système
+     * Obtient les metriques systeme
      */
     private getSystemMetrics;
     /**
-     * Génère l'embed du tableau de bord
+     * Genere l'embed du tableau de bord
      */
     private generateDashboardEmbed;
     /**
@@ -47,15 +51,15 @@ declare class MonitoringDashboard {
      */
     private sendDashboard;
     /**
-     * Démarre le monitoring automatique
+     * Demarre le monitoring automatique
      */
     start(): void;
     /**
-     * Arrête le monitoring
+     * Arrete le monitoring
      */
     stop(): void;
     /**
-     * Envoie un rapport de santé rapide
+     * Envoie un rapport de sante rapide
      */
     sendHealthCheck(): Promise<void>;
     /**
@@ -67,7 +71,7 @@ declare class MonitoringDashboard {
      */
     getAllServices(): ServiceStatus[];
     /**
-     * Réinitialise les compteurs d'erreurs
+     * Reinitialise les compteurs d'erreurs
      */
     resetErrorCounters(): void;
 }

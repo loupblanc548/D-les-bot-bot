@@ -1,12 +1,5 @@
-"use strict";
 // Helpers centralisés pour les images dans les embeds Discord
 // Utilisés par feeds.ts, monitor.ts, patchNotes.ts
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractMediaThumbnail = extractMediaThumbnail;
-exports.getYouTubeThumbnail = getYouTubeThumbnail;
-exports.getOgImage = getOgImage;
-exports.getBlogImage = getBlogImage;
-exports.getTweetImage = getTweetImage;
 // Cache simple (Map) avec TTL de 10 minutes pour éviter de refetch la même URL
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const urlCache = new Map();
@@ -42,7 +35,7 @@ function withCache(key, fetcher) {
  * Dans le flux Atom YouTube, les miniatures sont triées par taille ;
  * la dernière est maxresdefault (la plus grande).
  */
-function extractMediaThumbnail(item) {
+export function extractMediaThumbnail(item) {
     // Format RSS standard : <media:thumbnail url="..." />
     const directThumb = item["media:thumbnail"];
     if (directThumb?.["@_url"])
@@ -60,7 +53,7 @@ function extractMediaThumbnail(item) {
     }
     return undefined;
 }
-async function getYouTubeThumbnail(url) {
+export async function getYouTubeThumbnail(url) {
     return withCache("yt:" + url, async () => {
         try {
             const match = url.match(/(?:youtube\.com\/watch\?(?:.*[?&])?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
@@ -82,7 +75,7 @@ async function getYouTubeThumbnail(url) {
         }
     });
 }
-async function getOgImage(url) {
+export async function getOgImage(url) {
     return withCache("og:" + url, async () => {
         try {
             const res = await fetch(url, { headers: { "User-Agent": "DiscordSurveillanceBot/1.0" }, signal: AbortSignal.timeout(5000) });
@@ -105,7 +98,7 @@ async function getOgImage(url) {
 // 2. Tente d'abord l'Open Graph (og:image) dans le HTML
 // 3. Fallback : scrape les balises <img> du corps de l'article
 // Filtre les images trop petites, icônes, pixels de tracking, etc.
-async function getBlogImage(url) {
+export async function getBlogImage(url) {
     return withCache("blog:" + url, async () => {
         try {
             // Une seule requête HTTP pour toute la logique
@@ -161,7 +154,7 @@ async function getBlogImage(url) {
 }
 // Extraction d'images Twitter : scrape les <img> du contenu du tweet sur xcancel
 // Les images de tweets sont hébergées sur pbs.twimg.com
-async function getTweetImage(url) {
+export async function getTweetImage(url) {
     return withCache("tweet:" + url, async () => {
         try {
             const res = await fetch(url, { headers: { "User-Agent": "DiscordSurveillanceBot/1.0" }, signal: AbortSignal.timeout(5000) });

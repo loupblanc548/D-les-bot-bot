@@ -1,5 +1,4 @@
-import Redis from 'ioredis';
-declare const redis: Redis;
+declare const redis: any;
 /**
  * Connecte Redis. Non-bloquant — si Redis est down, le bot continue sans cache.
  */

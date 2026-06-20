@@ -1,11 +1,16 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.behaviorDetectionService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+// Safe JSON.parse: returns fallback on null/undefined/parse error instead of throwing
+function safeJsonParse(value, fallback) {
+    if (value == null)
+        return fallback;
+    try {
+        return JSON.parse(value);
+    }
+    catch {
+        return fallback;
+    }
+}
 class BehaviorDetectionService {
     patterns;
     alerts;
@@ -14,7 +19,7 @@ class BehaviorDetectionService {
     constructor() {
         this.patterns = new Map();
         this.alerts = [];
-        logger_1.default.info("[BehaviorDetection] Service initialisé");
+        logger.info("[BehaviorDetection] Service initialisé");
     }
     async initializePatterns(client) {
         try {
@@ -33,10 +38,10 @@ class BehaviorDetectionService {
                     lastUpdated: Date.now(),
                 });
             }
-            logger_1.default.info(`[BehaviorDetection] Patterns initialisés pour ${members.size} membres`);
+            logger.info(`[BehaviorDetection] Patterns initialisés pour ${members.size} membres`);
         }
         catch (error) {
-            logger_1.default.error("[BehaviorDetection] Erreur lors de l'initialisation:", error);
+            logger.error("[BehaviorDetection] Erreur lors de l'initialisation:", error);
         }
     }
     async analyzeMessage(message) {
@@ -100,7 +105,7 @@ class BehaviorDetectionService {
         return union.size > 0 ? 1 - (intersection.size / union.size) : 0;
     }
     async getHistoricalPattern(userId) {
-        const stored = await prisma_1.default.behaviorPattern.findUnique({
+        const stored = await prisma.behaviorPattern.findUnique({
             where: { userId },
         });
         if (stored) {
@@ -108,10 +113,10 @@ class BehaviorDetectionService {
                 userId: stored.userId,
                 messageFrequency: stored.messageFrequency,
                 averageMessageLength: stored.averageMessageLength,
-                activeChannels: stored.activeChannels,
-                activeTimeSlots: stored.activeTimeSlots,
+                activeChannels: safeJsonParse(stored.activeChannels, []),
+                activeTimeSlots: safeJsonParse(stored.activeTimeSlots, []),
                 mentionRate: stored.mentionRate,
-                lastUpdated: stored.lastUpdated,
+                lastUpdated: stored.lastUpdated.getTime(),
             };
         }
         return null;
@@ -120,7 +125,7 @@ class BehaviorDetectionService {
         const pattern = this.patterns.get(userId);
         if (!pattern)
             return;
-        await prisma_1.default.behaviorPattern.upsert({
+        await prisma.behaviorPattern.upsert({
             where: { userId },
             create: pattern,
             update: pattern,
@@ -132,7 +137,7 @@ class BehaviorDetectionService {
             timestamp: Date.now(),
         };
         this.alerts.push(alert);
-        logger_1.default.warn(`[BehaviorDetection] Anomalie détectée pour ${userId}: ${description}`);
+        logger.warn(`[BehaviorDetection] Anomalie détectée pour ${userId}: ${description}`);
         this.cleanupOldAlerts();
     }
     cleanupOldAlerts() {
@@ -151,10 +156,10 @@ class BehaviorDetectionService {
     }
     enableMonitoring(intervalMs = 60000) {
         if (this.monitoringInterval) {
-            logger_1.default.warn("[BehaviorDetection] Surveillance déjà active");
+            logger.warn("[BehaviorDetection] Surveillance déjà active");
             return;
         }
-        logger_1.default.info(`[BehaviorDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
+        logger.info(`[BehaviorDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
         this.monitoringInterval = setInterval(() => {
             this.periodicSave();
         }, intervalMs);
@@ -168,9 +173,9 @@ class BehaviorDetectionService {
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
             this.monitoringInterval = null;
-            logger_1.default.info("[BehaviorDetection] Surveillance désactivée");
+            logger.info("[BehaviorDetection] Surveillance désactivée");
         }
     }
 }
-exports.behaviorDetectionService = new BehaviorDetectionService();
+export const behaviorDetectionService = new BehaviorDetectionService();
 //# sourceMappingURL=behavior-detection.js.map

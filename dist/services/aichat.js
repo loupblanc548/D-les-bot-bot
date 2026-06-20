@@ -1,32 +1,20 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.enableAiChat = enableAiChat;
-exports.disableAiChat = disableAiChat;
-exports.isAiChatEnabled = isAiChatEnabled;
-exports.getConversationSize = getConversationSize;
-exports.clearHistory = clearHistory;
-exports.chatWithHistory = chatWithHistory;
-exports.generatePollOptions = generatePollOptions;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
-const ai_1 = require("./ai");
-const config_1 = require("../config");
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 // ── Configuration ────────────────────────────────────────────────
 const MAX_HISTORY = 20; // Max messages chargés depuis la DB
 const MAX_PERSIST_MS = 7 * 24 * 60 * 60 * 1000; // Rétention 7 jours
 /** Récupère le prompt système spécifique à une guilde, ou le défaut global */
 async function getSystemPrompt(guildId) {
     if (!guildId)
-        return config_1.config.aiSystemPrompt;
+        return config.aiSystemPrompt;
     try {
-        const gc = await prisma_1.default.guildConfig.findUnique({ where: { guildId } });
-        return gc?.aiSystemPrompt || config_1.config.aiSystemPrompt;
+        const gc = await prisma.guildConfig.findUnique({ where: { guildId } });
+        return gc?.aiSystemPrompt || config.aiSystemPrompt;
     }
     catch {
-        return config_1.config.aiSystemPrompt;
+        return config.aiSystemPrompt;
     }
 }
 // Map tampon pour éviter de relire la DB à chaque message (optimisation)
@@ -37,7 +25,7 @@ const aichatChannels = new Set();
 /** Charge l'historique d'un salon depuis la DB */
 async function loadHistory(channelId) {
     try {
-        const rows = await prisma_1.default.chatHistory.findMany({
+        const rows = await prisma.chatHistory.findMany({
             where: { channelId },
             orderBy: { createdAt: "asc" },
             take: MAX_HISTORY,
@@ -48,14 +36,14 @@ async function loadHistory(channelId) {
         }));
     }
     catch (err) {
-        logger_1.default.error("[AIChat] Erreur chargement historique:", err);
+        logger.error("[AIChat] Erreur chargement historique:", err);
         return [];
     }
 }
 /** Sauvegarde deux messages (user + assistant) dans la DB */
 async function persistMessages(channelId, userMsg, assistantMsg) {
     try {
-        await prisma_1.default.chatHistory.createMany({
+        await prisma.chatHistory.createMany({
             data: [
                 { channelId, role: "user", content: userMsg },
                 { channelId, role: "assistant", content: assistantMsg },
@@ -63,14 +51,14 @@ async function persistMessages(channelId, userMsg, assistantMsg) {
         });
     }
     catch (err) {
-        logger_1.default.error("[AIChat] Erreur sauvegarde historique:", err);
+        logger.error("[AIChat] Erreur sauvegarde historique:", err);
     }
 }
 /** Purge les messages vieux de +7 jours */
 async function pruneOldMessages(channelId) {
     try {
         const cutoff = new Date(Date.now() - MAX_PERSIST_MS);
-        await prisma_1.default.chatHistory.deleteMany({
+        await prisma.chatHistory.deleteMany({
             where: {
                 channelId,
                 createdAt: { lt: cutoff },
@@ -78,43 +66,43 @@ async function pruneOldMessages(channelId) {
         });
     }
     catch (err) {
-        logger_1.default.error("[AIChat] Erreur purge historique:", err);
+        logger.error("[AIChat] Erreur purge historique:", err);
     }
 }
 // ── API publique ─────────────────────────────────────────────────
-function enableAiChat(channelId) {
+export function enableAiChat(channelId) {
     aichatChannels.add(channelId);
     if (!channelBuffers.has(channelId)) {
         channelBuffers.set(channelId, []);
     }
 }
-function disableAiChat(channelId) {
+export function disableAiChat(channelId) {
     aichatChannels.delete(channelId);
     channelBuffers.delete(channelId);
 }
-function isAiChatEnabled(channelId) {
+export function isAiChatEnabled(channelId) {
     return aichatChannels.has(channelId);
 }
-function getConversationSize(channelId) {
+export function getConversationSize(channelId) {
     return channelBuffers.get(channelId)?.length || 0;
 }
 /** Efface l'historique d'un salon (RAM + DB) */
-async function clearHistory(channelId) {
+export async function clearHistory(channelId) {
     channelBuffers.delete(channelId);
     try {
-        const result = await prisma_1.default.chatHistory.deleteMany({
+        const result = await prisma.chatHistory.deleteMany({
             where: { channelId },
         });
         return result.count;
     }
     catch (err) {
-        logger_1.default.error("[AIChat] Erreur suppression historique:", err);
+        logger.error("[AIChat] Erreur suppression historique:", err);
         return 0;
     }
 }
 // ── Chat avec historique persistant ──────────────────────────────
-async function chatWithHistory(channelId, userMessage, username, guildId) {
-    const client = (0, ai_1.getOpenAIClient)();
+export async function chatWithHistory(channelId, userMessage, username, guildId) {
+    const client = getOpenAIClient();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25_000);
     try {
@@ -128,7 +116,7 @@ async function chatWithHistory(channelId, userMessage, username, guildId) {
         const messages = [
             {
                 role: "system",
-                content: config_1.config.aiSystemPrompt +
+                content: config.aiSystemPrompt +
                     "\n\nTu es dans un chat de groupe sur un serveur Discord. " +
                     "Les utilisateurs te parlent directement. Sois concis, " +
                     "reponds en quelques phrases maximum. " +
@@ -147,7 +135,7 @@ async function chatWithHistory(channelId, userMessage, username, guildId) {
             content: `${displayName}: ${userMessage}`,
         });
         const completion = await client.chat.completions.create({
-            model: config_1.config.openRouterModel,
+            model: config.openRouterModel,
             messages,
             max_tokens: 500,
             temperature: 0.8,
@@ -167,7 +155,7 @@ async function chatWithHistory(channelId, userMessage, username, guildId) {
         if (err?.name === "AbortError" || err?.code === "ETIMEDOUT") {
             return "⏰ L'IA met trop de temps a repondre. Reessaye.";
         }
-        logger_1.default.error("[AIChat] Erreur:", err);
+        logger.error("[AIChat] Erreur:", err);
         return "❌ L'IA est momentanement indisponible.";
     }
     finally {
@@ -175,13 +163,13 @@ async function chatWithHistory(channelId, userMessage, username, guildId) {
     }
 }
 // ── Génération de sondages ───────────────────────────────────────
-async function generatePollOptions(question) {
-    const client = (0, ai_1.getOpenAIClient)();
+export async function generatePollOptions(question) {
+    const client = getOpenAIClient();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20_000);
     try {
         const completion = await client.chat.completions.create({
-            model: config_1.config.openRouterModel,
+            model: config.openRouterModel,
             messages: [
                 {
                     role: "system",
@@ -206,7 +194,7 @@ async function generatePollOptions(question) {
     catch (err) {
         if (err?.name === "AbortError")
             return [];
-        logger_1.default.error("[SmartPoll] Erreur generation:", err);
+        logger.error("[SmartPoll] Erreur generation:", err);
         return [];
     }
     finally {

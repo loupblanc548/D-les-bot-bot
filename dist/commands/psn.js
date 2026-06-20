@@ -1,47 +1,7 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const config_1 = require("../config");
-const psn_1 = require("../services/psn");
+import logger from "../utils/logger.js";
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, } from "discord.js";
+import { config } from "../config.js";
+import { getPsnProfile, getPsnRecentGames, getPsnDeals, isValidPsnId, } from "../services/psn.js";
 const FOOTER = { text: "Système de Surveillance • PSN" };
 const PSN_COLOR = 0x003087; // Bleu PlayStation
 const PLUS_TIERS = {
@@ -50,8 +10,8 @@ const PLUS_TIERS = {
     2: "PlayStation Plus Extra",
     3: "PlayStation Plus Premium",
 };
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("psn")
         .setDescription("Informations PlayStation Network")
         .addSubcommand((sub) => sub
@@ -87,16 +47,16 @@ exports.commands = [
         .setRequired(true)))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     try {
-        if (!config_1.config.psnNpssoToken) {
+        if (!config.psnNpssoToken) {
             await interaction.reply({
                 embeds: [
-                    new discord_js_1.EmbedBuilder()
+                    new EmbedBuilder()
                         .setColor(0xff3344)
                         .setDescription("❌ PSN non configuré. Ajoute `PSN_NPSSO_TOKEN` dans le `.env`."),
                 ],
-                flags: [discord_js_1.MessageFlags.Ephemeral],
+                flags: [MessageFlags.Ephemeral],
             });
             return;
         }
@@ -120,8 +80,8 @@ async function handleCommand(interaction) {
         }
     }
     catch (err) {
-        logger_1.default.error("[PSN] Erreur:", err);
-        const errorEmbed = new discord_js_1.EmbedBuilder()
+        logger.error("[PSN] Erreur:", err);
+        const errorEmbed = new EmbedBuilder()
             .setColor(0xff3344)
             .setDescription("Une erreur est survenue.");
         try {
@@ -131,7 +91,7 @@ async function handleCommand(interaction) {
             else {
                 await interaction.reply({
                     embeds: [errorEmbed],
-                    flags: [discord_js_1.MessageFlags.Ephemeral],
+                    flags: [MessageFlags.Ephemeral],
                 });
             }
         }
@@ -141,23 +101,23 @@ async function handleCommand(interaction) {
 // ===== /psn profile =====
 async function handleProfile(interaction) {
     const username = interaction.options.getString("pseudo", true);
-    if (!(0, psn_1.isValidPsnId)(username)) {
+    if (!isValidPsnId(username)) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription("⚠️ Pseudo PSN invalide (3-16 caractères, lettres/chiffres/tirets)."),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
     await interaction.deferReply();
-    const profile = await (0, psn_1.getPsnProfile)(username);
+    const profile = await getPsnProfile(username);
     if (!profile) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription(`❌ Profil "${username}" introuvable sur le PSN.`),
             ],
@@ -170,23 +130,23 @@ async function handleProfile(interaction) {
 // ===== /psn trophies =====
 async function handleTrophies(interaction) {
     const username = interaction.options.getString("pseudo", true);
-    if (!(0, psn_1.isValidPsnId)(username)) {
+    if (!isValidPsnId(username)) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription("⚠️ Pseudo PSN invalide."),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
     await interaction.deferReply();
-    const profile = await (0, psn_1.getPsnProfile)(username);
+    const profile = await getPsnProfile(username);
     if (!profile) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription(`❌ Profil "${username}" introuvable.`),
             ],
@@ -194,7 +154,7 @@ async function handleTrophies(interaction) {
         return;
     }
     const ts = profile.trophySummary;
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(PSN_COLOR)
         .setTitle(`🏆 Trophées de ${profile.onlineId}`)
         .setThumbnail(profile.avatarUrl)
@@ -211,23 +171,23 @@ async function handleTrophies(interaction) {
 // ===== /psn games =====
 async function handleGames(interaction) {
     const username = interaction.options.getString("pseudo", true);
-    if (!(0, psn_1.isValidPsnId)(username)) {
+    if (!isValidPsnId(username)) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription("⚠️ Pseudo PSN invalide."),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
     await interaction.deferReply();
-    const games = await (0, psn_1.getPsnRecentGames)(username, 10);
+    const games = await getPsnRecentGames(username, 10);
     if (games.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription(`❌ Aucun jeu trouvé pour "${username}" ou profil introuvable.`),
             ],
@@ -240,24 +200,24 @@ async function handleGames(interaction) {
 // ===== /psn connect =====
 async function handleConnect(interaction) {
     const username = interaction.options.getString("pseudo", true);
-    if (!(0, psn_1.isValidPsnId)(username)) {
+    if (!isValidPsnId(username)) {
         await interaction.reply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription("⚠️ Pseudo PSN invalide."),
             ],
-            flags: [discord_js_1.MessageFlags.Ephemeral],
+            flags: [MessageFlags.Ephemeral],
         });
         return;
     }
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     // Vérifier que le profil existe
-    const profile = await (0, psn_1.getPsnProfile)(username);
+    const profile = await getPsnProfile(username);
     if (!profile) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setDescription(`❌ Profil "${username}" introuvable. Vérifie le pseudo.`),
             ],
@@ -265,7 +225,7 @@ async function handleConnect(interaction) {
         return;
     }
     // Stocker le lien dans la DB via le même modèle que Steam
-    const prisma = (await Promise.resolve().then(() => __importStar(require("../prisma")))).default;
+    const prisma = (await import("../prisma.js")).default;
     await prisma.steamProfile.upsert({
         where: { userId: interaction.user.id },
         update: { steamId: `psn:${username}` },
@@ -276,7 +236,7 @@ async function handleConnect(interaction) {
     });
     await interaction.editReply({
         embeds: [
-            new discord_js_1.EmbedBuilder()
+            new EmbedBuilder()
                 .setColor(0x57f287)
                 .setTitle("✅ Compte PSN lié")
                 .setDescription(`Ton compte Discord est lié au PSN **${profile.onlineId}**.\n` +
@@ -289,11 +249,11 @@ async function handleConnect(interaction) {
 // ===== /psn deals =====
 async function handleDeals(interaction) {
     await interaction.deferReply();
-    const deals = await (0, psn_1.getPsnDeals)(8);
+    const deals = await getPsnDeals(8);
     if (deals.length === 0) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xffaa00)
                     .setDescription("❌ Aucune promo trouvee ou service indisponible."),
             ],
@@ -302,10 +262,10 @@ async function handleDeals(interaction) {
     }
     const description = deals
         .map((d, i) => `**${i + 1}. ${d.title}**\n` +
-        `　~~${d.originalPrice}~~ → **${d.discountedPrice}** (-${d.discountPercent}%)\n` +
-        `　📅 Fin: ${d.endDate}\n`)
+        ` ~~${d.originalPrice}~~ → **${d.discountedPrice}** (-${d.discountPercent}%)\n` +
+        ` 📅 Fin: ${d.endDate}\n`)
         .join("\n");
-    const embed = new discord_js_1.EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(PSN_COLOR)
         .setTitle("🛒 Promos PlayStation Store")
         .setDescription(description)
@@ -316,7 +276,7 @@ async function handleDeals(interaction) {
 // ===== Helpers =====
 function buildProfileEmbed(profile) {
     const tier = PLUS_TIERS[profile.plusTier] || "Aucun";
-    return new discord_js_1.EmbedBuilder()
+    return new EmbedBuilder()
         .setColor(PSN_COLOR)
         .setTitle(`🎮 Profil PSN: ${profile.onlineId}`)
         .setThumbnail(profile.avatarUrl)
@@ -335,11 +295,11 @@ function buildGamesEmbed(username, games) {
         const trophyStr = `🪙${g.trophyCount.platinum} 🥇${g.trophyCount.gold} ` +
             `🥈${g.trophyCount.silver} 🥉${g.trophyCount.bronze}`;
         return `**${i + 1}. ${g.titleName}**\n` +
-            `　📱 ${g.platform} | ${trophyStr}\n` +
-            `　📊 Progression: ${g.progress}%\n`;
+            ` 📱 ${g.platform} | ${trophyStr}\n` +
+            ` 📊 Progression: ${g.progress}%\n`;
     })
         .join("\n");
-    return new discord_js_1.EmbedBuilder()
+    return new EmbedBuilder()
         .setColor(PSN_COLOR)
         .setTitle(`🎮 Derniers jeux de ${username}`)
         .setDescription(description || "Aucun jeu récent.")

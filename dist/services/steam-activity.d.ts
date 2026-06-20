@@ -70,8 +70,6 @@ declare class SteamActivityService {
      */
     getGlobalStats(): {
         totalLinks: number;
-        tot: any;
-        totalLinks: number;
         totalGamesTracked: number;
         averagePlaytime: number;
     };

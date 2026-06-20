@@ -1,18 +1,12 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.cachedGet = cachedGet;
-exports.cachedSet = cachedSet;
-exports.cachedDelete = cachedDelete;
-exports.withCache = withCache;
-const redis_1 = require("../utils/redis");
+import { getCache, setCache, deleteCache } from "../utils/redis.js";
 /**
  * Cache avec fallback: utilise Redis si dispo, sinon un Map en mémoire.
  */
 const memoryFallback = new Map();
 const MAX_MEMORY_ENTRIES = 1000;
-async function cachedGet(key) {
+export async function cachedGet(key) {
     try {
-        const result = await (0, redis_1.getCache)(key);
+        const result = await getCache(key);
         if (result !== null)
             return result;
     }
@@ -27,18 +21,18 @@ async function cachedGet(key) {
         memoryFallback.delete(key);
     return null;
 }
-async function cachedSet(key, value, ttlSeconds = 300) {
+export async function cachedSet(key, value, ttlSeconds = 300) {
     try {
-        await (0, redis_1.setCache)(key, value, ttlSeconds);
+        await setCache(key, value, ttlSeconds);
     }
     catch {
         // Redis down, fallback to memory
     }
     memoryFallback.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
-async function cachedDelete(key) {
+export async function cachedDelete(key) {
     try {
-        await (0, redis_1.deleteCache)(key);
+        await deleteCache(key);
     }
     catch { /* ignore */ }
     memoryFallback.delete(key);
@@ -47,7 +41,7 @@ async function cachedDelete(key) {
  * Cache une fonction avec une clé donnée.
  * Usage: const data = await withCache("guild:123:config", 60, () => prisma.guildConfig.findUnique(...))
  */
-async function withCache(key, ttlSeconds, fetcher) {
+export async function withCache(key, ttlSeconds, fetcher) {
     const cached = await cachedGet(key);
     if (cached !== null)
         return cached;

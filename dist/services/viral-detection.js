@@ -1,12 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.viralDetectionService = void 0;
-const logger_1 = __importDefault(require("../utils/logger"));
-const rss_parser_1 = __importDefault(require("rss-parser"));
-const openai_1 = require("openai");
+import logger from "../utils/logger.js";
+import Parser from "rss-parser";
+import { OpenAI } from "openai";
 class ViralDetectionService {
     openai = null;
     contentCache;
@@ -14,14 +8,14 @@ class ViralDetectionService {
     constructor() {
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (apiKey) {
-            this.openai = new openai_1.OpenAI({
+            this.openai = new OpenAI({
                 apiKey,
                 baseURL: "https://openrouter.ai/api/v1",
             });
-            logger_1.default.info("[ViralDetection] Service initialisé avec OpenRouter");
+            logger.info("[ViralDetection] Service initialisé avec OpenRouter");
         }
         else {
-            logger_1.default.warn("[ViralDetection] OPENROUTER_API_KEY non configuré, service limité");
+            logger.warn("[ViralDetection] OPENROUTER_API_KEY non configuré, service limité");
         }
         this.contentCache = new Map();
     }
@@ -102,7 +96,7 @@ Fournis ta réponse au format JSON :
             return viralContent;
         }
         catch (error) {
-            logger_1.default.error("[ViralDetection] Erreur lors de l'analyse IA:", error);
+            logger.error("[ViralDetection] Erreur lors de l'analyse IA:", error);
             // Fallback
             const fallbackContent = {
                 contentId,
@@ -123,7 +117,7 @@ Fournis ta réponse au format JSON :
      * Analyse les flux RSS pour détecter le contenu viral potentiel
      */
     async scanRSSFeeds(feedUrls) {
-        const parser = new rss_parser_1.default();
+        const parser = new Parser();
         const viralContents = [];
         for (const feedUrl of feedUrls) {
             try {
@@ -143,10 +137,10 @@ Fournis ta réponse au format JSON :
                 }
             }
             catch (error) {
-                logger_1.default.error(`[ViralDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
+                logger.error(`[ViralDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
             }
         }
-        logger_1.default.info(`[ViralDetection] ${viralContents.length} contenu(s) viral(aux) détecté(s)`);
+        logger.info(`[ViralDetection] ${viralContents.length} contenu(s) viral(aux) détecté(s)`);
         return viralContents.sort((a, b) => b.viralScore - a.viralScore);
     }
     /**
@@ -186,7 +180,7 @@ Fournis ta réponse au format JSON :
      */
     setViralThreshold(threshold) {
         this.viralThreshold = Math.max(0, Math.min(100, threshold));
-        logger_1.default.info(`[ViralDetection] Seuil de viralité mis à jour: ${this.viralThreshold}`);
+        logger.info(`[ViralDetection] Seuil de viralité mis à jour: ${this.viralThreshold}`);
     }
     /**
      * Obtient les statistiques du cache
@@ -218,7 +212,7 @@ Fournis ta réponse au format JSON :
                 this.contentCache.delete(id);
             }
         }
-        logger_1.default.debug(`[ViralDetection] Cache nettoyé (contenus > ${daysToKeep} jours supprimés)`);
+        logger.debug(`[ViralDetection] Cache nettoyé (contenus > ${daysToKeep} jours supprimés)`);
     }
     /**
      * Active la surveillance automatique
@@ -228,8 +222,8 @@ Fournis ta réponse au format JSON :
             this.scanRSSFeeds(feedUrls);
             this.cleanupOldContent();
         }, intervalMs);
-        logger_1.default.info(`[ViralDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
+        logger.info(`[ViralDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
     }
 }
-exports.viralDetectionService = new ViralDetectionService();
+export const viralDetectionService = new ViralDetectionService();
 //# sourceMappingURL=viral-detection.js.map

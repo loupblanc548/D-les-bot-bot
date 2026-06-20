@@ -1,38 +1,32 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleMemberEvents = handleMemberEvents;
-const logger_1 = __importDefault(require("../utils/logger"));
-const prisma_1 = __importDefault(require("../prisma"));
-const logs_1 = require("../services/logs");
-const security_1 = require("../commands/security");
-function handleMemberEvents(client) {
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import { createLog } from "../services/logs.js";
+import { isAntiRaidActive } from "../commands/security.js";
+export function handleMemberEvents(client) {
     client.on("guildMemberAdd", async (member) => {
         try {
             // Anti-raid : timeout automatique des comptes trop recents (en premier)
-            const antiRaid = await (0, security_1.isAntiRaidActive)(member.guild.id);
+            const antiRaid = await isAntiRaidActive(member.guild.id);
             if (antiRaid?.active) {
                 const accountAgeHeures = (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60);
                 if (accountAgeHeures < antiRaid.seuilHeures) {
                     try {
-                        logger_1.default.info("🛡️ [Anti-Raid]", "Compte de", Math.round(accountAgeHeures) + "h", "detecte |", member.user.tag, "(" + member.user.id + ")", "| Seuil :", antiRaid.seuilHeures + "h");
+                        logger.info("🛡️ [Anti-Raid]", "Compte de", Math.round(accountAgeHeures) + "h", "detecte |", member.user.tag, "(" + member.user.id + ")", "| Seuil :", antiRaid.seuilHeures + "h");
                         await member.timeout(60 * 60 * 1000, `Anti-raid : compte cree il y a ${Math.round(accountAgeHeures)}h (seuil: ${antiRaid.seuilHeures}h)`);
-                        logger_1.default.info("✅ [Anti-Raid]", member.user.tag, "timeout 1h (compte de", Math.round(accountAgeHeures) + "h)");
+                        logger.info("✅ [Anti-Raid]", member.user.tag, "timeout 1h (compte de", Math.round(accountAgeHeures) + "h)");
                         return;
                     }
                     catch (err) {
-                        logger_1.default.error("[Anti-Raid] Erreur timeout:", err);
+                        logger.error("[Anti-Raid] Erreur timeout:", err);
                     }
                 }
             }
-            await (0, logs_1.createLog)({
+            await createLog({
                 type: "member_join",
                 action: `${member.user.tag} a rejoint le serveur`,
                 userId: member.id,
             });
-            const autoRoles = await prisma_1.default.autoRole.findMany({
+            const autoRoles = await prisma.autoRole.findMany({
                 where: { guildId: member.guild.id },
             });
             for (const autoRole of autoRoles) {
@@ -40,7 +34,7 @@ function handleMemberEvents(client) {
                 if (role && role.editable) {
                     try {
                         await member.roles.add(role);
-                        await (0, logs_1.createLog)({
+                        await createLog({
                             type: "role_add",
                             action: `Auto-role ${role.name} attribue a ${member.user.tag}`,
                             userId: member.id,
@@ -48,28 +42,28 @@ function handleMemberEvents(client) {
                         });
                     }
                     catch (error) {
-                        logger_1.default.error("Auto-role error:", String(error));
+                        logger.error("Auto-role error:", String(error));
                     }
                 }
             }
-            logger_1.default.info(`+ ${member.user.tag} a rejoint`);
+            logger.info(`+ ${member.user.tag} a rejoint`);
         }
         catch (error) {
-            logger_1.default.error("[MemberEvents] Erreur lors du traitement guildMemberAdd:", error);
+            logger.error("[MemberEvents] Erreur lors du traitement guildMemberAdd:", error);
         }
     });
     client.on("guildMemberRemove", async (member) => {
         try {
             const tag = member.user?.tag || member.id;
-            await (0, logs_1.createLog)({
+            await createLog({
                 type: "member_leave",
                 action: `${tag} a quitte le serveur`,
                 userId: member.id,
             });
-            logger_1.default.info(`- ${tag} a quitte`);
+            logger.info(`- ${tag} a quitte`);
         }
         catch (error) {
-            logger_1.default.error("[MemberEvents] Erreur lors du traitement guildMemberRemove:", error);
+            logger.error("[MemberEvents] Erreur lors du traitement guildMemberRemove:", error);
         }
     });
     // Historique des changements de pseudo et d'avatar
@@ -78,7 +72,7 @@ function handleMemberEvents(client) {
             // Detection changement de pseudo
             if (oldMember.displayName !== newMember.displayName) {
                 try {
-                    await prisma_1.default.nameHistory.create({
+                    await prisma.nameHistory.create({
                         data: {
                             userId: newMember.id,
                             guildId: newMember.guild.id,
@@ -86,8 +80,8 @@ function handleMemberEvents(client) {
                             newName: newMember.displayName,
                         },
                     });
-                    logger_1.default.info(`[NAME] ${newMember.user.tag} : "${oldMember.displayName}" → "${newMember.displayName}"`);
-                    await (0, logs_1.createLog)({
+                    logger.info(`[NAME] ${newMember.user.tag} : "${oldMember.displayName}" → "${newMember.displayName}"`);
+                    await createLog({
                         type: "name_change",
                         action: `${newMember.user.tag} a change de pseudo : "${oldMember.displayName}" → "${newMember.displayName}"`,
                         userId: newMember.id,
@@ -95,7 +89,7 @@ function handleMemberEvents(client) {
                     });
                 }
                 catch (err) {
-                    logger_1.default.error("[MemberUpdate/Name] Erreur:", err);
+                    logger.error("[MemberUpdate/Name] Erreur:", err);
                 }
             }
             // Detection changement d'avatar
@@ -103,7 +97,7 @@ function handleMemberEvents(client) {
                 try {
                     const oldHash = oldMember.user.avatar || "(aucun)";
                     const newHash = newMember.user.avatar || "(aucun)";
-                    await prisma_1.default.avatarHistory.create({
+                    await prisma.avatarHistory.create({
                         data: {
                             userId: newMember.id,
                             guildId: newMember.guild.id,
@@ -111,8 +105,8 @@ function handleMemberEvents(client) {
                             newHash,
                         },
                     });
-                    logger_1.default.info(`[AVATAR] ${newMember.user.tag} a change d'avatar (${oldHash.slice(0, 8)}... → ${newHash.slice(0, 8)}...)`);
-                    await (0, logs_1.createLog)({
+                    logger.info(`[AVATAR] ${newMember.user.tag} a change d'avatar (${oldHash.slice(0, 8)}... → ${newHash.slice(0, 8)}...)`);
+                    await createLog({
                         type: "avatar_change",
                         action: `${newMember.user.tag} a change d'avatar`,
                         userId: newMember.id,
@@ -120,12 +114,12 @@ function handleMemberEvents(client) {
                     });
                 }
                 catch (err) {
-                    logger_1.default.error("[MemberUpdate/Avatar] Erreur:", err);
+                    logger.error("[MemberUpdate/Avatar] Erreur:", err);
                 }
             }
         }
         catch (error) {
-            logger_1.default.error("[MemberEvents] Erreur lors du traitement guildMemberUpdate:", error);
+            logger.error("[MemberEvents] Erreur lors du traitement guildMemberUpdate:", error);
         }
     });
 }

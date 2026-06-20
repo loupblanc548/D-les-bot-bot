@@ -1,11 +1,8 @@
-"use strict";
 /**
  * Constantes partagées utilisées dans tout le projet
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ERROR_MESSAGES = exports.REGEX_PATTERNS = exports.EMOJIS = exports.DISCORD_COLORS = exports.DISCORD_LIMITS = exports.TIME_CONSTANTS = void 0;
 // Intervals de temps
-exports.TIME_CONSTANTS = {
+export const TIME_CONSTANTS = {
     SECOND: 1000,
     MINUTE: 60 * 1000,
     HOUR: 60 * 60 * 1000,
@@ -13,7 +10,7 @@ exports.TIME_CONSTANTS = {
     WEEK: 7 * 24 * 60 * 60 * 1000,
 };
 // Limites Discord
-exports.DISCORD_LIMITS = {
+export const DISCORD_LIMITS = {
     MAX_MESSAGE_LENGTH: 2000,
     MAX_EMBED_TITLE_LENGTH: 256,
     MAX_EMBED_DESCRIPTION_LENGTH: 4096,
@@ -24,7 +21,7 @@ exports.DISCORD_LIMITS = {
     MAX_EMBED_AUTHOR_NAME_LENGTH: 256,
 };
 // Couleurs Discord
-exports.DISCORD_COLORS = {
+export const DISCORD_COLORS = {
     DEFAULT: 0x000000,
     WHITE: 0xFFFFFF,
     AQUA: 0x1ABC9C,
@@ -56,7 +53,7 @@ exports.DISCORD_COLORS = {
     NOT_QUITE_BLACK: 0x23272A,
 };
 // Emojis communs
-exports.EMOJIS = {
+export const EMOJIS = {
     SUCCESS: '✅',
     ERROR: '❌',
     WARNING: '⚠️',
@@ -76,7 +73,7 @@ exports.EMOJIS = {
     MAGNIFYING_GLASS: '🔍',
 };
 // Patterns regex communs
-exports.REGEX_PATTERNS = {
+export const REGEX_PATTERNS = {
     DISCORD_ID: /^\d{17,20}$/,
     URL: /^https?:\/\/.+/,
     EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -86,7 +83,7 @@ exports.REGEX_PATTERNS = {
     TIMESTAMP: /^<t:(\d+)(?::([tTdDfFR]))?>$/,
 };
 // Messages d'erreur communs
-exports.ERROR_MESSAGES = {
+export const ERROR_MESSAGES = {
     PERMISSION_DENIED: "Vous n'avez pas la permission d'utiliser cette commande.",
     INVALID_ARGUMENT: "Argument invalide.",
     COMMAND_FAILED: "La commande a échoué.",

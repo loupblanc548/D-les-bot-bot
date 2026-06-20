@@ -1,56 +1,47 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PLATFORM_CONFIGS = void 0;
-exports.checkTrackedGames = checkTrackedGames;
-exports.startSteamNewsMonitoring = startSteamNewsMonitoring;
-exports.stopSteamNewsMonitoring = stopSteamNewsMonitoring;
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const logger_1 = __importDefault(require("../utils/logger"));
-const config_1 = require("../config");
-const retry_1 = require("../utils/retry");
-const cache_1 = require("../utils/cache");
-const metrics_1 = require("../utils/metrics");
+import { EmbedBuilder } from "discord.js";
+import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
+import { config } from "../config.js";
+import { retry } from "../utils/retry.js";
+import { dbCache } from "../utils/cache.js";
+import { metricsCollector } from "../utils/metrics.js";
+import { dedupCache } from "../utils/deduplicationCache.js";
 // Constantes
 const RSS_FEED_URL = "https://api.rss2json.com/v1/api.json?rss_url=https://www.reddit.com/r/patchnotes/.rss";
 const FOOTER = { text: "Patch Notes Tracker • Surveillance automatique" };
 // Configuration des plateformes
 const PLATFORM_CONFIGS = {
     epic: {
-        channelId: config_1.config.steamEpicChannel,
+        channelId: config.steamEpicChannel,
         color: 0x2a2a2a,
         iconUrl: "https://store.epicgames.com/favicon.ico",
         label: "Epic Games",
     },
     steam: {
-        channelId: config_1.config.steamEpicChannel,
+        channelId: config.steamEpicChannel,
         color: 0x000080,
         iconUrl: "https://store.steampowered.com/favicon.ico",
         label: "Steam",
     },
     playstation: {
-        channelId: config_1.config.playstationChannel,
+        channelId: config.playstationChannel,
         color: 0x003791,
         iconUrl: "https://www.playstation.com/favicon.ico",
         label: "PlayStation",
     },
     xbox: {
-        channelId: config_1.config.xboxChannel,
+        channelId: config.xboxChannel,
         color: 0x107c10,
         iconUrl: "https://www.xbox.com/favicon.ico",
         label: "Xbox",
     },
     nintendo: {
-        channelId: config_1.config.nintendoChannel,
+        channelId: config.nintendoChannel,
         color: 0xe60012,
         iconUrl: "https://www.nintendo.com/favicon.ico",
         label: "Nintendo Switch",
     },
 };
-exports.PLATFORM_CONFIGS = PLATFORM_CONFIGS;
 // Etat interne
 let intervalId = null;
 let isChecking = false;
@@ -105,17 +96,17 @@ function cleanSummary(content) {
  * @returns true si déjà traité, false sinon
  */
 async function isPatchProcessed(guid) {
-    const cached = cache_1.dbCache.get(guid);
+    const cached = dbCache.get(guid);
     if (cached !== undefined)
         return cached;
     try {
-        const existing = await prisma_1.default.processedPatchNotes.findUnique({ where: { guid } });
+        const existing = await prisma.processedPatchNotes.findUnique({ where: { guid } });
         const result = !!existing;
-        cache_1.dbCache.set(guid, result);
+        dbCache.set(guid, result);
         return result;
     }
     catch (error) {
-        logger_1.default.warn(`[PatchNotesCron] Erreur verification ProcessedPatchNotes: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(`[PatchNotesCron] Erreur verification ProcessedPatchNotes: ${error instanceof Error ? error.message : String(error)}`);
         return false;
     }
 }
@@ -126,11 +117,11 @@ async function isPatchProcessed(guid) {
  */
 async function markPatchProcessed(guid, title) {
     try {
-        await prisma_1.default.processedPatchNotes.create({ data: { guid, title: title.slice(0, 255) } });
-        cache_1.dbCache.set(guid, true);
+        await prisma.processedPatchNotes.create({ data: { guid, title: title.slice(0, 255) } });
+        dbCache.set(guid, true);
     }
     catch {
-        logger_1.default.debug("[PatchNotesCron] Patch note deja persiste, ignore");
+        logger.debug("[PatchNotesCron] Patch note deja persiste, ignore");
     }
 }
 // Resolution des salons
@@ -138,27 +129,29 @@ async function resolveChannel(client, channelId) {
     try {
         const channel = await client.channels.fetch(channelId);
         if (!channel?.isTextBased()) {
-            logger_1.default.error("[PatchNotesCron] Salon " + channelId + " introuvable ou non textuel");
+            logger.error("[PatchNotesCron] Salon " + channelId + " introuvable ou non textuel");
             return null;
         }
         return channel;
     }
     catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        logger_1.default.error("[PatchNotesCron] Erreur fetch salon " + channelId + ": " + msg);
+        logger.error("[PatchNotesCron] Erreur fetch salon " + channelId + ": " + msg);
         return null;
     }
 }
 // Fonction principale de verification
 async function checkTrackedGames(client) {
+    // 🔒 Recharge le cache anti-doublon depuis le disque (persistance inter-cycles)
+    await dedupCache.reloadFromDisk();
     // Securite anti-crash : verification stricte des variables d'environnement
     const activePlatforms = Object.keys(PLATFORM_CONFIGS).filter((p) => PLATFORM_CONFIGS[p].channelId);
     if (activePlatforms.length === 0) {
-        logger_1.default.warn("[PatchNotesCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive");
+        logger.warn("[PatchNotesCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive");
         return;
     }
     if (isChecking) {
-        logger_1.default.info("[PatchNotesCron] Verification deja en cours, ignoree");
+        logger.info("[PatchNotesCron] Verification deja en cours, ignoree");
         return;
     }
     isChecking = true;
@@ -166,11 +159,11 @@ async function checkTrackedGames(client) {
     let patchesSent = 0;
     try {
         checkCount++;
-        logger_1.default.info("[PatchNotesCron] Verification #" + checkCount + " — fetch RSS Reddit r/patchnotes...");
+        logger.info("[PatchNotesCron] Verification #" + checkCount + " — fetch RSS Reddit r/patchnotes...");
         let feed;
         try {
             // Utiliser rss2json avec retry logic
-            feed = await (0, retry_1.retry)(async () => {
+            feed = await retry(async () => {
                 const response = await fetch(RSS_FEED_URL);
                 if (!response.ok)
                     throw new Error(`HTTP ${response.status}`);
@@ -179,34 +172,39 @@ async function checkTrackedGames(client) {
         }
         catch (rssError) {
             const msg = rssError instanceof Error ? rssError.message : String(rssError);
-            logger_1.default.warn("[PatchNotesCron] Flux Reddit inaccessible: " + msg);
+            logger.warn("[PatchNotesCron] Flux Reddit inaccessible: " + msg);
             return;
         }
         if (!feed?.items?.length) {
-            logger_1.default.info("[PatchNotesCron] Aucun article trouve dans le flux");
+            logger.info("[PatchNotesCron] Aucun article trouve dans le flux");
             return;
         }
-        logger_1.default.info("[PatchNotesCron] " + feed.items.length + " article(s) recupere(s) du flux RSS");
+        logger.info("[PatchNotesCron] " + feed.items.length + " article(s) recupere(s) du flux RSS");
         // Deduplication via ProcessedPatchNotes (guid)
         const freshItems = [];
-        for (const item of feed.items) {
+        for (const item of (feed.items || [])) {
             const guid = item.guid || item.link || item.title;
             if (!guid)
                 continue;
             if (!(await isPatchProcessed(guid))) {
+                // VERROU ANTI-SPAM : dedup cache JSON local
+                if (dedupCache.isAlreadyProcessed("patch_notes", guid)) {
+                    logger.debug(`[SPAM BLOQUE] SteamNews doublon cache: ${guid}`);
+                    continue;
+                }
                 freshItems.push(item);
             }
         }
         if (freshItems.length === 0) {
-            logger_1.default.info("[PatchNotesCron] Tous les articles sont deja connus");
+            logger.info("[PatchNotesCron] Tous les articles sont deja connus");
             return;
         }
-        logger_1.default.info("[PatchNotesCron] " + freshItems.length + " nouveau(x) article(s) a router");
+        logger.info("[PatchNotesCron] " + freshItems.length + " nouveau(x) article(s) a router");
         // Routage multi-plateforme
         for (const item of freshItems) {
-            // ⏱️ Barriere temporelle 48h : ignorer les articles trop anciens (evite le re-post massif apres reset BDD)
+            // ⏱️ 🔒 Barriere temporelle 24h (anti-spam strict) : ignorer les articles trop anciens (evite le anti-spam strict))
             const articleDate = new Date(item.pubDate);
-            const limitDate = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            const limitDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
             if (isNaN(articleDate.getTime()) || articleDate < limitDate)
                 continue;
             const title = item.title ?? "Sans titre";
@@ -214,7 +212,7 @@ async function checkTrackedGames(client) {
             const uniquePlatforms = [...new Set(platforms)];
             // Si aucune plateforme détectée, ignorer
             if (uniquePlatforms.length === 0) {
-                logger_1.default.debug(`[PatchNotesCron] Plateforme non detectee pour: ${title.slice(0, 80)}`);
+                logger.debug(`[PatchNotesCron] Plateforme non detectee pour: ${title.slice(0, 80)}`);
                 continue;
             }
             const link = item.link ?? "";
@@ -226,13 +224,13 @@ async function checkTrackedGames(client) {
             for (const platform of uniquePlatforms) {
                 const cfg = PLATFORM_CONFIGS[platform];
                 if (!cfg.channelId) {
-                    logger_1.default.warn(`[PatchNotesCron] CHANNEL_ID manquant pour ${platform}, skip`);
+                    logger.warn(`[PatchNotesCron] CHANNEL_ID manquant pour ${platform}, skip`);
                     continue;
                 }
                 const channel = await resolveChannel(client, cfg.channelId);
                 if (!channel)
                     continue;
-                const embed = new discord_js_1.EmbedBuilder()
+                const embed = new EmbedBuilder()
                     .setTitle("📋 " + title)
                     .setURL(link)
                     .setColor(cfg.color)
@@ -250,52 +248,56 @@ async function checkTrackedGames(client) {
                         embeds: [embed],
                     });
                     sent = true;
-                    logger_1.default.info("[PatchNotesCron] ✓ " + cfg.label + " : \"" + title.slice(0, 80) + "\"");
+                    logger.info("[PatchNotesCron] ✓ " + cfg.label + " : \"" + title.slice(0, 80) + "\"");
                 }
                 catch (sendError) {
                     const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
-                    logger_1.default.error("[PatchNotesCron] ✗ Echec envoi " + cfg.label + ": " + sendMsg);
+                    logger.error("[PatchNotesCron] ✗ Echec envoi " + cfg.label + ": " + sendMsg);
                 }
-                await new Promise((resolve) => setTimeout(resolve, 250));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
             }
             // Persister dans la BDD (une seule fois, meme si multi-plateforme)
             const guid = item.guid || item.link || item.title;
             if (guid) {
+                // Marquer dans le cache JSON anti-doublon
+                await dedupCache.markAsProcessed("patch_notes", guid);
                 await markPatchProcessed(guid, title);
                 if (sent)
                     patchesSent++;
             }
         }
         const elapsed = Date.now() - startTime;
-        logger_1.default.info("[PatchNotesCron] ✓ " + patchesSent + " patch note(s) envoye(s) en " + (elapsed / 1000).toFixed(1) + "s");
+        logger.info("[PatchNotesCron] ✓ " + patchesSent + " patch note(s) envoye(s) en " + (elapsed / 1000).toFixed(1) + "s");
         // Enregistrer les métriques
-        metrics_1.metricsCollector.recordProcessing("patchNotes", true, elapsed);
+        metricsCollector.recordProcessing("patchNotes", true, elapsed);
     }
     catch (error) {
-        logger_1.default.error("[PatchNotesCron] Erreur critique: " + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : undefined });
-        metrics_1.metricsCollector.recordProcessing("patchNotes", false, Date.now() - startTime);
+        logger.error("[PatchNotesCron] Erreur critique: " + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : undefined });
+        metricsCollector.recordProcessing("patchNotes", false, Date.now() - startTime);
     }
     finally {
         isChecking = false;
     }
 }
-function startSteamNewsMonitoring(client) {
+// Demarrage / Arret
+export { checkTrackedGames, PLATFORM_CONFIGS };
+export function startSteamNewsMonitoring(client) {
     if (intervalId) {
-        logger_1.default.warn("[PatchNotesCron] Deja actif — ignore");
+        logger.warn("[PatchNotesCron] Deja actif — ignore");
         return;
     }
     const intervalMs = 600000; // 10 minutes
-    logger_1.default.info("[PatchNotesCron] Demarrage — intervalle " + (intervalMs / 60000).toFixed(1) + " min");
-    checkTrackedGames(client).catch((err) => logger_1.default.error("[PatchNotesCron] Erreur check initial: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
+    logger.info("[PatchNotesCron] Demarrage — intervalle " + (intervalMs / 60000).toFixed(1) + " min");
+    checkTrackedGames(client).catch((err) => logger.error("[PatchNotesCron] Erreur check initial: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
     intervalId = setInterval(() => {
-        checkTrackedGames(client).catch((err) => logger_1.default.error("[PatchNotesCron] Erreur check periodique: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
+        checkTrackedGames(client).catch((err) => logger.error("[PatchNotesCron] Erreur check periodique: " + (err instanceof Error ? err.message : String(err)), { stack: err instanceof Error ? err.stack : undefined }));
     }, intervalMs);
 }
-function stopSteamNewsMonitoring() {
+export function stopSteamNewsMonitoring() {
     if (intervalId) {
         clearInterval(intervalId);
         intervalId = null;
-        logger_1.default.info("[PatchNotesCron] Arrete");
+        logger.info("[PatchNotesCron] Arrete");
     }
 }
 //# sourceMappingURL=steamNewsCron.js.map

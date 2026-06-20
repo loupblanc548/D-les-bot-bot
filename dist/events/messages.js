@@ -1,24 +1,16 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startMapCleanup = startMapCleanup;
-exports.stopMapCleanup = stopMapCleanup;
-exports.handleMessageEvents = handleMessageEvents;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const logs_1 = require("../services/logs");
-const risk_engine_1 = require("../services/risk-engine");
-const security_1 = require("../commands/security");
-const aichat_1 = require("../services/aichat");
-const ai_moderation_1 = require("../services/ai-moderation");
-const prisma_1 = __importDefault(require("../prisma"));
-const redis_enhance_1 = require("../utils/redis-enhance");
-const translator_1 = require("../utils/translator");
-const aiMemory_1 = require("../services/aiMemory");
-const aiCache_1 = require("../services/aiCache");
-const rateLimiter_1 = require("../services/rateLimiter");
+import logger from "../utils/logger.js";
+import { EmbedBuilder, } from "discord.js";
+import { createLog } from "../services/logs.js";
+import { recordSecurityEvent } from "../services/risk-engine.js";
+import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
+import { isAiChatEnabled, chatWithHistory } from "../services/aichat.js";
+import { analyzeToxicity } from "../services/ai-moderation.js";
+import prisma from "../prisma.js";
+import { withCache } from "../utils/redis-enhance.js";
+import { translateAutoToFrench } from "../utils/translator.js";
+import { addMessageToConversation, getConversationHistory } from "../services/aiMemory.js";
+import { getCachedResponse, cacheResponse } from "../services/aiCache.js";
+import { checkRateLimit } from "../services/rateLimiter.js";
 // ─── Constantes ──────────────────────────────────────────────────────────────
 const aichatCooldown = new Map();
 const AICHAT_COOLDOWN_MS = 5_000;
@@ -54,7 +46,7 @@ function getRandomHelldiverReply() {
 }
 // ─── Cleanup périodique ─────────────────────────────────────────────────────
 let mapCleanupInterval = null;
-function startMapCleanup() {
+export function startMapCleanup() {
     if (mapCleanupInterval)
         return;
     mapCleanupInterval = setInterval(() => {
@@ -66,7 +58,7 @@ function startMapCleanup() {
         }
     }, 300000);
 }
-function stopMapCleanup() {
+export function stopMapCleanup() {
     if (mapCleanupInterval) {
         clearInterval(mapCleanupInterval);
         mapCleanupInterval = null;
@@ -75,7 +67,7 @@ function stopMapCleanup() {
 // =============================================================================
 // HANDLER PRINCIPAL
 // =============================================================================
-function handleMessageEvents(client) {
+export function handleMessageEvents(client) {
     // ── messageUpdate: Pin/Unpin logging ──────────────────────────────────
     client.on("messageUpdate", async (oldMessage, newMessage) => {
         try {
@@ -87,7 +79,7 @@ function handleMessageEvents(client) {
             if (!author)
                 return;
             if (!oldMessage.pinned && newMessage.pinned) {
-                await (0, logs_1.createLog)({
+                await createLog({
                     type: "message_pin",
                     action: `Message de ${author.tag} epingle`,
                     userId: author.id,
@@ -95,7 +87,7 @@ function handleMessageEvents(client) {
                 });
             }
             else if (oldMessage.pinned && !newMessage.pinned) {
-                await (0, logs_1.createLog)({
+                await createLog({
                     type: "message_unpin",
                     action: `Message de ${author.tag} desepingle`,
                     userId: author.id,
@@ -104,7 +96,7 @@ function handleMessageEvents(client) {
             }
         }
         catch (error) {
-            logger_1.default.error("[MessageEvents] Erreur messageUpdate:", error);
+            logger.error("[MessageEvents] Erreur messageUpdate:", error);
         }
     });
     // ── Anti-spam tracker ─────────────────────────────────────────────────
@@ -134,7 +126,7 @@ function handleMessageEvents(client) {
             await handleSecurityModules(message, spamTracker);
         }
         catch (error) {
-            logger_1.default.error("[MessageEvents] Erreur messageCreate:", error);
+            logger.error("[MessageEvents] Erreur messageCreate:", error);
         }
     });
 }
@@ -158,9 +150,9 @@ async function handleAiChatMention(message, client) {
         // Déclencher l'indicateur de frappe
         await message.channel.sendTyping();
         // Ajouter le message de l'utilisateur à la mémoire
-        (0, aiMemory_1.addMessageToConversation)(message.author.id, "user", cleanedContent, message.guildId || undefined);
+        addMessageToConversation(message.author.id, "user", cleanedContent, message.guildId || undefined);
         // Vérifier le rate limiting
-        const rateLimitCheck = (0, rateLimiter_1.checkRateLimit)(message.author.id, "ai_chat", message.guildId || undefined);
+        const rateLimitCheck = checkRateLimit(message.author.id, "ai_chat", message.guildId || undefined);
         if (!rateLimitCheck.allowed) {
             const resetTime = new Date(rateLimitCheck.resetTime).toLocaleTimeString("fr-FR");
             await message.reply({
@@ -168,11 +160,11 @@ async function handleAiChatMention(message, client) {
             });
             return;
         }
-        const cachedResponse = (0, aiCache_1.getCachedResponse)(cleanedContent);
+        const cachedResponse = getCachedResponse(cleanedContent);
         if (cachedResponse) {
             await message.reply({ content: cachedResponse, allowedMentions: { repliedUser: false } });
-            (0, aiMemory_1.addMessageToConversation)(message.author.id, "assistant", cachedResponse, message.guildId || undefined);
-            logger_1.default.info(`[AIChat] Cache: ${message.author.tag}`);
+            addMessageToConversation(message.author.id, "assistant", cachedResponse, message.guildId || undefined);
+            logger.info(`[AIChat] Cache: ${message.author.tag}`);
             return;
         }
         const apiKey = process.env.OPENROUTER_API_KEY;
@@ -180,7 +172,7 @@ async function handleAiChatMention(message, client) {
             await message.reply({ content: "\u26a0\ufe0f Circuits non configur\u00e9s ! Configure OPENROUTER_API_KEY. \U0001f985", allowedMentions: { repliedUser: false } });
             return;
         }
-        const conversationHistory = (0, aiMemory_1.getConversationHistory)(message.author.id, message.guildId || undefined);
+        const conversationHistory = getConversationHistory(message.author.id, message.guildId || undefined);
         const messages = [
             { role: "system", content: JOHN_HELLDIVER_SYSTEM_PROMPT },
             ...conversationHistory,
@@ -200,16 +192,16 @@ async function handleAiChatMention(message, client) {
             if (aiResponse.length > 2000)
                 aiResponse = aiResponse.slice(0, 1997) + "...";
             await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
-            (0, aiMemory_1.addMessageToConversation)(message.author.id, "assistant", aiResponse, message.guildId || undefined);
-            (0, aiCache_1.cacheResponse)(cleanedContent, aiResponse);
-            logger_1.default.info(`[AIChat] IA -> ${message.author.tag}`);
+            addMessageToConversation(message.author.id, "assistant", aiResponse, message.guildId || undefined);
+            cacheResponse(cleanedContent, aiResponse);
+            logger.info(`[AIChat] IA -> ${message.author.tag}`);
         }
         else {
             throw new Error("OpenRouter response invalid");
         }
     }
     catch (error) {
-        logger_1.default.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
         await message.reply({ content: "\U0001f985 *Static* - Communications brouill\u00e9es ! R\u00e9essaie.", allowedMentions: { repliedUser: false } });
     }
 }
@@ -222,25 +214,25 @@ async function handleAutoTranslation(message) {
         const hasOnlyUrls = /^https?:\/\/[^\s]+$/u.test(content);
         if (content.length < 15 || wordCount < 3 || hasOnlyEmojis || hasOnlyMentions || hasOnlyUrls)
             return;
-        const translationResult = await (0, translator_1.translateAutoToFrench)(content);
+        const translationResult = await translateAutoToFrench(content);
         if (translationResult && translationResult.detectedLanguage !== "fr" && translationResult.translatedText !== content) {
-            const translationEmbed = new discord_js_1.EmbedBuilder()
+            const translationEmbed = new EmbedBuilder()
                 .setColor(0x3498db)
                 .setAuthor({ name: `Traduction automatique (${translationResult.detectedLanguage})`, iconURL: message.author.displayAvatarURL() })
                 .setDescription(`> ${translationResult.translatedText.slice(0, 1900)}`)
                 .setFooter({ text: `Message original de ${message.author.username}` })
                 .setTimestamp();
             await message.reply({ embeds: [translationEmbed], allowedMentions: { repliedUser: false } });
-            logger_1.default.debug(`[AutoTranslate] ${message.author.tag}: ${translationResult.detectedLanguage}`);
+            logger.debug(`[AutoTranslate] ${message.author.tag}: ${translationResult.detectedLanguage}`);
         }
     }
     catch (error) {
-        logger_1.default.debug(`[AutoTranslate] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+        logger.debug(`[AutoTranslate] Erreur: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 async function handleContextualAiChat(message, client) {
     try {
-        if (!(0, aichat_1.isAiChatEnabled)(message.channel.id))
+        if (!isAiChatEnabled(message.channel.id))
             return;
         if (!message.mentions.has(client.user))
             return;
@@ -260,11 +252,11 @@ async function handleContextualAiChat(message, client) {
         }
         aichatCooldown.set(message.author.id, Date.now());
         await message.channel.sendTyping();
-        const reply = await (0, aichat_1.chatWithHistory)(message.channelId, cleanedContent, message.author.username, message.guildId || undefined);
+        const reply = await chatWithHistory(message.channelId, cleanedContent, message.author.username, message.guildId || undefined);
         await message.reply({ content: reply.slice(0, 2000), allowedMentions: { repliedUser: false } });
     }
     catch (err) {
-        logger_1.default.error("[AIChat] Erreur contextuelle:", err);
+        logger.error("[AIChat] Erreur contextuelle:", err);
     }
 }
 async function handleSecurityModules(message, spamTracker) {
@@ -276,40 +268,40 @@ async function handleSecurityModules(message, spamTracker) {
     if (message.content.length > 10 && message.content.length < 1500) {
         if (!message.guild)
             return;
-        (0, redis_enhance_1.withCache)(`guild:${message.guild.id}:config`, 30, () => prisma_1.default.guildConfig.findUnique({ where: { guildId: message.guild.id } }))
+        withCache(`guild:${message.guild.id}:config`, 30, () => prisma.guildConfig.findUnique({ where: { guildId: message.guild.id } }))
             .then((gc) => {
             if (!gc?.aiModerationEnabled)
                 return;
-            (0, ai_moderation_1.analyzeToxicity)(message.content).then(async (result) => {
+            analyzeToxicity(message.content).then(async (result) => {
                 if (result.isToxic && result.confidence > 0.8) {
                     try {
                         await message.delete();
                         const alert = await message.channel.send({ content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 par IA: **${result.category}** (${Math.round(result.confidence * 100)}%)` });
                         setTimeout(() => alert.delete().catch(() => { }), 8000);
-                        await (0, risk_engine_1.recordSecurityEvent)(message.author.id, message.guild.id, "AI_MODERATION").catch(() => { });
-                        logger_1.default.info(`\U0001f916 [AI-Mod] ${message.author.tag}: ${result.category}`);
+                        await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION").catch(() => { });
+                        logger.info(`\U0001f916 [AI-Mod] ${message.author.tag}: ${result.category}`);
                     }
                     catch (err) {
-                        logger_1.default.error("[AI-Mod] Erreur:", err);
+                        logger.error("[AI-Mod] Erreur:", err);
                     }
                 }
             }).catch(() => { });
         }).catch(() => { });
     }
-    if (await (0, security_1.isAntiPhishingActive)(message.guild.id)) {
-        const suspicious = (0, security_1.checkSuspiciousLinksDetailed)(message.content);
+    if (await isAntiPhishingActive(message.guild.id)) {
+        const suspicious = checkSuspiciousLinksDetailed(message.content);
         if (suspicious.length > 0) {
-            logger_1.default.info(`\U0001f6e1\ufe0f [Anti-Phishing] ${suspicious.length} lien(s) suspect(s) de ${message.author.tag}`);
+            logger.info(`\U0001f6e1\ufe0f [Anti-Phishing] ${suspicious.length} lien(s) suspect(s) de ${message.author.tag}`);
             try {
                 await message.delete();
                 const alert = await message.channel.send({ content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 (lien suspect).` });
                 setTimeout(() => alert.delete().catch(() => { }), 10000);
-                await (0, risk_engine_1.recordSecurityEvent)(message.author.id, message.guild.id, "ANTI_PHISHING").catch(() => { });
-                await (0, logs_1.createLog)({ type: "antiphishing", action: `Lien suspect: ${suspicious[0]} de ${message.author.tag}`, userId: message.author.id, details: message.content.slice(0, 500) });
+                await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_PHISHING").catch(() => { });
+                await createLog({ type: "antiphishing", action: `Lien suspect: ${suspicious[0]} de ${message.author.tag}`, userId: message.author.id, details: message.content.slice(0, 500) });
                 return;
             }
             catch (err) {
-                logger_1.default.error("[Anti-Phishing] Erreur:", err);
+                logger.error("[Anti-Phishing] Erreur:", err);
             }
         }
     }
@@ -324,7 +316,7 @@ async function handleSecurityModules(message, spamTracker) {
         if (entry.count >= SPAM_THRESHOLD && !entry.warned) {
             entry.warned = true;
             try {
-                logger_1.default.info(`\U0001f6ab [Anti-Spam] ${entry.count} msg de ${message.author.tag}`);
+                logger.info(`\U0001f6ab [Anti-Spam] ${entry.count} msg de ${message.author.tag}`);
                 await member.timeout(SPAM_MUTE_MS, "Anti-spam");
                 const recentMessages = await message.channel.messages.fetch({ limit: 20 });
                 const spamMessages = recentMessages.filter((m) => m.author.id === message.author.id);
@@ -334,10 +326,10 @@ async function handleSecurityModules(message, spamTracker) {
                     }
                     catch (_) { }
                 }
-                await (0, risk_engine_1.recordSecurityEvent)(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => { });
+                await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => { });
             }
             catch (err) {
-                logger_1.default.error("[Anti-Spam] Erreur:", err);
+                logger.error("[Anti-Spam] Erreur:", err);
             }
         }
     }

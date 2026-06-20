@@ -1,69 +1,60 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncSteamApps = syncSteamApps;
-exports.findAppIdByName = findAppIdByName;
-exports.getLatestNews = getLatestNews;
-exports.getLatestNewsForApps = getLatestNewsForApps;
-const axios_1 = __importDefault(require("axios"));
-const config_1 = require("../config");
-const logger_1 = __importDefault(require("../utils/logger"));
-const redis_1 = require("../utils/redis");
+import axios from "axios";
+import { config } from "../config.js";
+import logger from "../utils/logger.js";
+import { setCache, getCache } from "../utils/redis.js";
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const STEAM_APP_LIST_KEY = "steam:applist";
 const STEAM_APP_LIST_TTL = 86400; // 24 heures
 // ─── BBCode Cleaner ───────────────────────────────────────────────────────────
 function cleanBBCode(text) {
     return text
-        .replace(/\[\/?list\]/gi, "")
-        .replace(/\[\/?olist\]/gi, "")
-        .replace(/\[\/?table(?:=[^\]]*)?\]/gi, "")
-        .replace(/\[\/?tr\]/gi, "")
-        .replace(/\[\/?td\]/gi, "")
-        .replace(/\[\/?th\]/gi, "")
-        .replace(/\[\/?h[1-6]\]/gi, "")
+        .replace(/\[[/?list]?list\]/gi, "")
+        .replace(/\[[/?list]?olist\]/gi, "")
+        .replace(/\[[/?list]?table(?:=[^\]]*)?\]/gi, "")
+        .replace(/\[[/?list]?tr\]/gi, "")
+        .replace(/\[[/?list]?td\]/gi, "")
+        .replace(/\[[/?list]?th\]/gi, "")
+        .replace(/\[[/?list]?h[1-6]\]/gi, "")
         .replace(/\[\*\]/g, "• ")
-        .replace(/\[b\](.*?)\[\/b\]/gi, "**$1**")
-        .replace(/\[i\](.*?)\[\/i\]/gi, "*$1*")
-        .replace(/\[u\](.*?)\[\/u\]/gi, "__$1__")
-        .replace(/\[s\](.*?)\[\/s\]/gi, "~~$1~~")
-        .replace(/\[url=([^\]]*)\](.*?)\[\/url\]/gi, "$2 ($1)")
-        .replace(/\[url\](.*?)\[\/url\]/gi, "$1")
-        .replace(/\[img\](.*?)\[\/img\]/gi, "[Image: $1]")
-        .replace(/\[quote(?:=[^\]]*)?\](.*?)\[\/quote\]/gis, "> $1")
-        .replace(/\[code\](.*?)\[\/code\]/gis, "```\n$1\n```")
-        .replace(/\[spoiler\](.*?)\[\/spoiler\]/gi, "||$1||")
-        .replace(/\[\/?\w+(?:=[^\]]*)?\]/gi, "") // Nettoyer les balises résiduelles
+        .replace(/\[b\](.*?)\[[/?list]b\]/gi, "**$1**")
+        .replace(/\[i\](.*?)\[[/?list]i\]/gi, "*$1*")
+        .replace(/\[u\](.*?)\[[/?list]u\]/gi, "__$1__")
+        .replace(/\[s\](.*?)\[[/?list]s\]/gi, "~~$1~~")
+        .replace(/\[url=([^\]]*)\](.*?)\[[/?list]url\]/gi, "$2 ($1)")
+        .replace(/\[url\](.*?)\[[/?list]url\]/gi, "$1")
+        .replace(/\[img\](.*?)\[[/?list]img\]/gi, "[Image: $1]")
+        .replace(/\[quote(?:=[^\]]*)?\](.*?)\[[/?list]quote\]/gis, "> $1")
+        .replace(/\[code\](.*?)\[[/?list]code\]/gis, "```\n$1\n```")
+        .replace(/\[spoiler\](.*?)\[[/?list]spoiler\]/gi, "||$1||")
+        .replace(/\[[/?list]?\w+(?:=[^\]]*)?\]/gi, "") // Nettoyer les balises résiduelles
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 }
 // ─── Synchronisation de la liste des apps Steam ───────────────────────────────
-async function syncSteamApps() {
-    const cached = await (0, redis_1.getCache)(STEAM_APP_LIST_KEY);
+export async function syncSteamApps() {
+    const cached = await getCache(STEAM_APP_LIST_KEY);
     if (cached && cached.length > 0) {
         return cached;
     }
     try {
-        logger_1.default.info("[SteamNews] Téléchargement de la liste des apps Steam...");
-        const response = await axios_1.default.get("https://api.steampowered.com/ISteamApps/GetAppList/v2/", { timeout: 30000 });
+        logger.info("[SteamNews] Téléchargement de la liste des apps Steam...");
+        const response = await axios.get("https://api.steampowered.com/ISteamApps/GetAppList/v2/", { timeout: 30000 });
         const apps = response.data?.applist?.apps ?? [];
         if (apps.length === 0) {
-            logger_1.default.warn("[SteamNews] Liste des apps vide, conservation de l'ancien cache");
+            logger.warn("[SteamNews] Liste des apps vide, conservation de l'ancien cache");
             return cached ?? [];
         }
-        await (0, redis_1.setCache)(STEAM_APP_LIST_KEY, apps, STEAM_APP_LIST_TTL);
-        logger_1.default.info(`[SteamNews] ✓ ${apps.length.toLocaleString()} apps Steam indexées en cache`);
+        await setCache(STEAM_APP_LIST_KEY, apps, STEAM_APP_LIST_TTL);
+        logger.info(`[SteamNews] ✓ ${apps.length.toLocaleString()} apps Steam indexées en cache`);
         return apps;
     }
     catch (error) {
-        logger_1.default.error("[SteamNews] Erreur synchronisation apps:", String(error));
+        logger.error("[SteamNews] Erreur synchronisation apps:", String(error));
         return cached ?? [];
     }
 }
 // ─── Recherche d'AppID par nom ────────────────────────────────────────────────
-async function findAppIdByName(gameName) {
+export async function findAppIdByName(gameName) {
     const apps = await syncSteamApps();
     if (apps.length === 0)
         return null;
@@ -87,7 +78,7 @@ async function findAppIdByName(gameName) {
             score = 100;
         // Match fuzzy : chaque mot de la requête présent dans le nom
         else {
-            const queryWords = query.split(/\s+/);
+            const queryWords = query.split(/[/?list]+/);
             const matchCount = queryWords.filter((w) => name.includes(w)).length;
             if (matchCount === queryWords.length)
                 score = 50;
@@ -106,11 +97,11 @@ function escapeRegex(str) {
     return str.replace(ESCAPE_REGEX, '$&');
 }
 // ─── Récupération des dernières news ──────────────────────────────────────────
-async function getLatestNews(appId) {
+export async function getLatestNews(appId) {
     try {
         const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appId}&count=1&maxlength=1500&format=json`;
-        const response = await axios_1.default.get(url, {
-            timeout: config_1.config.steamTimeoutMs,
+        const response = await axios.get(url, {
+            timeout: config.steamTimeoutMs,
         });
         const newsItems = response.data?.appnews?.newsitems ?? [];
         if (newsItems.length === 0)
@@ -128,12 +119,12 @@ async function getLatestNews(appId) {
         };
     }
     catch (error) {
-        logger_1.default.warn(`[SteamNews] Erreur récupération news pour appId ${appId}:`, String(error));
+        logger.warn(`[SteamNews] Erreur récupération news pour appId ${appId}:`, String(error));
         return null;
     }
 }
 // ─── Helper : Récupération multiple (pour le cron) ────────────────────────────
-async function getLatestNewsForApps(appIds) {
+export async function getLatestNewsForApps(appIds) {
     const results = new Map();
     for (const appId of appIds) {
         const news = await getLatestNews(appId);

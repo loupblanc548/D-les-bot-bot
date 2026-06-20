@@ -1,12 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.launchBrowser = launchBrowser;
-exports.closeBrowser = closeBrowser;
-const playwright_1 = require("playwright");
-const logger_1 = __importDefault(require("./logger"));
+import { chromium } from 'playwright';
+import logger from './logger.js';
 let browser = null;
 let context = null;
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
@@ -22,7 +15,7 @@ async function applyAntiDetection(ctx) {
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
     });
 }
-async function launchBrowser() {
+export async function launchBrowser() {
     if (browser?.isConnected()) {
         context = await browser.newContext({
             userAgent: DEFAULT_USER_AGENT,
@@ -31,11 +24,12 @@ async function launchBrowser() {
         });
         await applyAntiDetection(context);
         const page = await context.newPage();
-        logger_1.default.debug('[Scraper] Reusing existing browser instance');
+        logger.debug('[Scraper] Reusing existing browser instance');
         return { browser, context, page };
     }
-    logger_1.default.info('[Scraper] Launching Chromium...');
-    browser = await playwright_1.chromium.launch({
+    logger.info('[Scraper] Launching Chromium...');
+    browser = await chromium.launch({
+        executablePath: process.env.CHROMIUM_PATH || undefined,
         headless: true,
         args: [
             '--no-sandbox',
@@ -58,22 +52,22 @@ async function launchBrowser() {
     page.on('dialog', async (dialog) => {
         await dialog.dismiss();
     });
-    logger_1.default.info('[Scraper] Chromium launched successfully');
+    logger.info('[Scraper] Chromium launched successfully');
     return { browser, context, page };
 }
 /**
  * Ferme proprement le navigateur et le contexte.
  */
-async function closeBrowser() {
+export async function closeBrowser() {
     try {
         await context?.close();
         context = null;
         await browser?.close();
         browser = null;
-        logger_1.default.info('[Scraper] Browser closed');
+        logger.info('[Scraper] Browser closed');
     }
     catch (err) {
-        logger_1.default.warn('[Scraper] Error closing browser: ' + String(err));
+        logger.warn('[Scraper] Error closing browser: ' + String(err));
     }
 }
 //# sourceMappingURL=scraper.js.map

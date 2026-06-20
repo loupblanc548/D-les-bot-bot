@@ -1,17 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const youtube_1 = require("../services/youtube");
-const permissions_1 = require("../services/permissions");
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+import logger from "../utils/logger.js";
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, } from "discord.js";
+import prisma from "../prisma.js";
+import { resolveYouTubeChannelId } from "../services/youtube.js";
+import { requireAdmin } from "../services/permissions.js";
+export const commands = [
+    new SlashCommandBuilder()
         .setName("addsource")
         .setDescription("Ajoute une source à surveiller")
         .addStringOption((opt) => opt
@@ -27,9 +20,9 @@ exports.commands = [
         .setName("salon")
         .setDescription("Salon pour les notifications (défaut: salon actuel)")
         .setRequired(false))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("removesource")
         .setDescription("Supprime une source surveillée")
         .addStringOption((opt) => opt
@@ -37,15 +30,15 @@ exports.commands = [
         .setDescription("Le @handle à supprimer")
         .setRequired(true)
         .setAutocomplete(true))
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("listsources")
         .setDescription("Liste toutes les sources surveillées")
         .toJSON(),
 ];
 async function handleAddSource(interaction) {
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+    if (!(await requireAdmin(interaction)))
         return;
     await interaction.deferReply({ ephemeral: true });
     try {
@@ -57,9 +50,9 @@ async function handleAddSource(interaction) {
         const handle = rawHandle.startsWith("@") ? rawHandle : "@" + rawHandle;
         let urlOrHandle = handle;
         if (type === "YOUTUBE" || type === "YOUTUBE_ONLY") {
-            const resolvedId = await (0, youtube_1.resolveYouTubeChannelId)(handle);
+            const resolvedId = await resolveYouTubeChannelId(handle);
             if (!resolvedId) {
-                const embedErreur = new discord_js_1.EmbedBuilder()
+                const embedErreur = new EmbedBuilder()
                     .setTitle("Chaîne YouTube introuvable")
                     .setDescription("Impossible de résoudre la chaîne **" + handle + "**.\n" +
                     "Vérifie que le handle est correct (ex: `@MrBeast`) ou utilise un ID de chaîne (format `UC...`).")
@@ -73,7 +66,7 @@ async function handleAddSource(interaction) {
                 type = "YOUTUBE";
         }
         try {
-            await prisma_1.default.source.create({
+            await prisma.source.create({
                 data: { guildId, channelId: targetChannelId, type, urlOrHandle, lastProcessedId: null },
             });
         }
@@ -86,7 +79,7 @@ async function handleAddSource(interaction) {
             }
             throw err;
         }
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("Source ajoutée")
             .setDescription("La source [" + type + "] pour **[" + handle + "]** a bien été ajoutée.\n" +
             "Les notifications seront envoyées dans <#" + targetChannelId + ">.")
@@ -94,7 +87,7 @@ async function handleAddSource(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE ADDSOURCE]:", error);
+        logger.error("[CRASH COMMANDE ADDSOURCE]:", error);
         try {
             await interaction.editReply({ content: "Impossible d'ajouter cette source." });
         }
@@ -107,25 +100,25 @@ async function handleAddSource(interaction) {
     }
 }
 async function handleRemoveSource(interaction) {
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+    if (!(await requireAdmin(interaction)))
         return;
     await interaction.deferReply({ ephemeral: true });
     try {
         const rawHandle = interaction.options.getString("handle", true);
         const guildId = interaction.guildId;
         const handle = rawHandle.replace("@", "");
-        const source = await prisma_1.default.source.findFirst({
+        const source = await prisma.source.findFirst({
             where: { guildId, OR: [{ urlOrHandle: handle }, { urlOrHandle: "@" + handle }] },
         });
         if (!source) {
             await interaction.editReply({ content: "@" + handle + " n'est pas dans les sources de ce serveur" });
             return;
         }
-        await prisma_1.default.source.delete({ where: { id: source.id } });
+        await prisma.source.delete({ where: { id: source.id } });
         await interaction.editReply({ content: "@" + handle + " supprimé des sources" });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE REMOVESOURCE]:", error);
+        logger.error("[CRASH COMMANDE REMOVESOURCE]:", error);
         try {
             await interaction.editReply({ content: "Impossible de supprimer cette source." });
         }
@@ -141,11 +134,11 @@ async function handleListSources(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
         const guildId = interaction.guildId;
-        const sources = await prisma_1.default.source.findMany({ where: { guildId } });
+        const sources = await prisma.source.findMany({ where: { guildId } });
         const youtubeSources = sources.filter((s) => s.type === "YOUTUBE");
         const twitterSources = sources.filter((s) => s.type === "TWITTER");
         const otherSources = sources.filter((s) => s.type !== "YOUTUBE" && s.type !== "TWITTER");
-        const embed = new discord_js_1.EmbedBuilder().setTitle("Sources surveillées").setColor(0x2f3136).setTimestamp();
+        const embed = new EmbedBuilder().setTitle("Sources surveillées").setColor(0x2f3136).setTimestamp();
         if (youtubeSources.length > 0) {
             embed.addFields({
                 name: "YouTube",
@@ -175,7 +168,7 @@ async function handleListSources(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE LISTSOURCES]:", error);
+        logger.error("[CRASH COMMANDE LISTSOURCES]:", error);
         try {
             await interaction.editReply({ content: "Impossible de lister les sources." });
         }
@@ -187,7 +180,7 @@ async function handleListSources(interaction) {
         }
     }
 }
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const { commandName } = interaction;
     switch (commandName) {
         case "addsource":

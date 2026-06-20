@@ -1,5 +1,5 @@
-export { commands, handleCommand } from "./core";
-export { handleVerifButton } from "./verifButton";
-export { startAntiRaidCacheSweeper, stopAntiRaidCacheSweeper, stopAntiPhishingCacheSweeper, } from "./cache";
-export { checkSuspiciousLinks, checkSuspiciousLinksDetailed, isAntiPhishingActive, isAntiRaidActive, } from "./utils";
+export { commands, handleCommand } from "./core.js";
+export { handleVerifButton } from "./verifButton.js";
+export { startAntiRaidCacheSweeper, stopAntiRaidCacheSweeper, stopAntiPhishingCacheSweeper, } from "./cache.js";
+export { checkSuspiciousLinks, checkSuspiciousLinksDetailed, isAntiPhishingActive, isAntiRaidActive, } from "./utils.js";
 //# sourceMappingURL=index.d.ts.map

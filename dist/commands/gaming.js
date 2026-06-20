@@ -1,16 +1,9 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const itad_1 = require("../services/itad");
-const discord_js_1 = require("discord.js");
+import logger from "../utils/logger.js";
+import { getDeals, buildDealEmbed } from "../services/itad.js";
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, } from "discord.js";
 const FOOTER = { text: "Système de Surveillance • v1.0.0" };
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+export const commands = [
+    new SlashCommandBuilder()
         .setName("game-status")
         .setDescription("Vérifier le statut d'un serveur de jeu")
         .addStringOption((o) => o
@@ -19,22 +12,22 @@ exports.commands = [
         .setRequired(true)
         .addChoices({ name: "Fortnite", value: "fortnite" }, { name: "Epic Games", value: "epic" }, { name: "Steam", value: "steam" }, { name: "PlayStation", value: "psn" }, { name: "Xbox Live", value: "xbox" }, { name: "Nintendo", value: "nintendo" }, { name: "Roblox", value: "roblox" }, { name: "EA App", value: "ea" }, { name: "Ubisoft Connect", value: "ubisoft" }, { name: "Riot Games", value: "riot" }, { name: "Helldivers 2", value: "helldivers2" }, { name: "GTA Online", value: "gta" }, { name: "Call of Duty", value: "cod" }))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("free-games")
         .setDescription("Affiche les jeux gratuits du moment (Epic Games)")
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
-        .setName("patch-notes")
+    new SlashCommandBuilder()
+        .setName("patch_notes")
         .setDescription("Liens vers les derniers patch notes d'un jeu")
         .addStringOption((o) => o.setName("jeu").setDescription("Le jeu").setRequired(true).addChoices({ name: "Fortnite", value: "fortnite" }, { name: "Helldivers 2", value: "helldivers2" }, { name: "Call of Duty", value: "cod" }, { name: "GTA Online", value: "gta" }))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("deal")
         .setDescription("Comparateur de prix pour un jeu")
         .addStringOption((o) => o.setName("jeu").setDescription("Nom du jeu à rechercher").setRequired(true))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const { commandName } = interaction;
     try {
         switch (commandName) {
@@ -44,7 +37,7 @@ async function handleCommand(interaction) {
             case "free-games":
                 await handleFreeGames(interaction);
                 break;
-            case "patch-notes":
+            case "patch_notes":
                 await handlePatchNotes(interaction);
                 break;
             case "deal":
@@ -53,15 +46,17 @@ async function handleCommand(interaction) {
         }
     }
     catch (err) {
-        logger_1.default.error("[Gaming] Erreur:", err);
-        var embed = new discord_js_1.EmbedBuilder().setDescription("❌ Une erreur est survenue.").setColor(0xff3344).setFooter(FOOTER).setTimestamp();
+        logger.error("[Gaming] Erreur:", err);
+        const embed = new EmbedBuilder().setDescription("❌ Une erreur est survenue.").setColor(0xff3344).setFooter(FOOTER).setTimestamp();
         try {
             if (interaction.replied || interaction.deferred)
                 await interaction.editReply({ embeds: [embed] });
             else
-                await interaction.reply({ embeds: [embed], flags: [discord_js_1.MessageFlags.Ephemeral] });
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
         }
-        catch (e) { }
+        catch (e) {
+            logger.error("[Gaming] Erreur reply:", String(e));
+        }
     }
 }
 async function handleGameStatus(interaction) {
@@ -84,7 +79,7 @@ async function handleGameStatus(interaction) {
     };
     const game = statuses[jeu];
     if (!game) {
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setDescription("❌ Jeu/service non reconnu.").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
+        await interaction.editReply({ embeds: [new EmbedBuilder().setDescription("❌ Jeu/service non reconnu.").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
         return;
     }
     try {
@@ -95,10 +90,10 @@ async function handleGameStatus(interaction) {
         const isUp = res.ok || res.status === 200;
         const color = isUp ? 0x53fc18 : 0xffaa00;
         const desc = isUp ? "• **Opérationnel**\n• Aucun problème signalé" : "• **Perturbations possibles**\n• Le service ne répond pas correctement";
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setTitle(game.emoji + " — " + game.name).setDescription(desc).setColor(color).addFields({ name: "🔗 Page statut", value: game.url, inline: false }).setFooter(FOOTER).setTimestamp()] });
+        await interaction.editReply({ embeds: [new EmbedBuilder().setTitle(game.emoji + " — " + game.name).setDescription(desc).setColor(color).addFields({ name: "🔗 Page statut", value: game.url, inline: false }).setFooter(FOOTER).setTimestamp()] });
     }
     catch {
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setTitle(game.emoji + " — " + game.name).setDescription("• **Statut inconnu**\n• Impossible de contacter le service").setColor(0xffaa00).addFields({ name: "🔗 Page statut", value: game.url, inline: false }).setFooter(FOOTER).setTimestamp()] });
+        await interaction.editReply({ embeds: [new EmbedBuilder().setTitle(game.emoji + " — " + game.name).setDescription("• **Statut inconnu**\n• Impossible de contacter le service").setColor(0xffaa00).addFields({ name: "🔗 Page statut", value: game.url, inline: false }).setFooter(FOOTER).setTimestamp()] });
     }
 }
 async function handleFreeGames(interaction) {
@@ -111,7 +106,7 @@ async function handleFreeGames(interaction) {
         const elements = data?.data?.Catalog?.searchStore?.elements || [];
         const freeGames = elements.filter((e) => { const promos = e?.promotions?.promotionalOffers; return promos && promos.length > 0; });
         if (freeGames.length === 0) {
-            await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setTitle("🎮 Jeux gratuits").setDescription("• Aucun jeu gratuit disponible pour le moment.\n• Consulte le [Epic Games Store](https://store.epicgames.com/fr/free-games) !").setColor(0xffaa00).setFooter(FOOTER).setTimestamp()] });
+            await interaction.editReply({ embeds: [new EmbedBuilder().setTitle("🎮 Jeux gratuits").setDescription("• Aucun jeu gratuit disponible pour le moment.\n• Consulte le [Epic Games Store](https://store.epicgames.com/fr/free-games) !").setColor(0xffaa00).setFooter(FOOTER).setTimestamp()] });
             return;
         }
         const game = freeGames[0];
@@ -119,13 +114,13 @@ async function handleFreeGames(interaction) {
         const desc = game.description || "Fonce le récupérer avant qu'il ne soit trop tard !";
         const originalPrice = game?.price?.totalPrice?.fmtPrice?.originalPrice || "Gratuit";
         const endDate = game?.promotions?.promotionalOffers?.[0]?.promotionalOffers?.[0]?.endDate ? new Date(game.promotions.promotionalOffers[0].promotionalOffers[0].endDate).toLocaleDateString("fr-FR") : "Limite";
-        const embed = new discord_js_1.EmbedBuilder().setAuthor({ name: "JEUX GRATUITS DU MOMENT" }).setTitle("🎮 " + title + " — GRATUIT").setDescription(desc.slice(0, 1024) || "Fonce le récupérer !").setColor(0x00f0ff).addFields({ name: "💰 Prix original", value: originalPrice, inline: true }, { name: "⏰ Fin de l'offre", value: endDate, inline: true }, { name: "🔗 Lien", value: "[Epic Games Store](https://store.epicgames.com/fr/free-games)", inline: true }).setFooter(FOOTER).setTimestamp();
+        const embed = new EmbedBuilder().setAuthor({ name: "JEUX GRATUITS DU MOMENT" }).setTitle("🎮 " + title + " — GRATUIT").setDescription(desc.slice(0, 1024) || "Fonce le récupérer !").setColor(0x00f0ff).addFields({ name: "💰 Prix original", value: originalPrice, inline: true }, { name: "⏰ Fin de l'offre", value: endDate, inline: true }, { name: "🔗 Lien", value: "[Epic Games Store](https://store.epicgames.com/fr/free-games)", inline: true }).setFooter(FOOTER).setTimestamp();
         if (freeGames.length > 1)
             embed.addFields({ name: "📦 Autres", value: (freeGames.length - 1) + " autre(s) jeu(x) gratuit(s)", inline: true });
         await interaction.editReply({ embeds: [embed] });
     }
     catch (err) {
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setTitle("🎮 Jeux gratuits").setDescription("• Impossible de récupérer les jeux gratuits.\n• Consulte [Epic Games Store](https://store.epicgames.com/fr/free-games)").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
+        await interaction.editReply({ embeds: [new EmbedBuilder().setTitle("🎮 Jeux gratuits").setDescription("• Impossible de récupérer les jeux gratuits.\n• Consulte [Epic Games Store](https://store.epicgames.com/fr/free-games)").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
     }
 }
 async function handlePatchNotes(interaction) {
@@ -139,28 +134,28 @@ async function handlePatchNotes(interaction) {
     };
     const game = patchUrls[jeu];
     if (!game) {
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setDescription("❌ Jeu non reconnu.").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
+        await interaction.editReply({ embeds: [new EmbedBuilder().setDescription("❌ Jeu non reconnu.").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
         return;
     }
-    await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setTitle(game.emoji + " Patch Notes — " + game.name).setDescription("• Consulte les derniers patch notes de **" + game.name + "** :\n• " + game.url).setColor(0x2f3136).setFooter(FOOTER).setTimestamp()] });
+    await interaction.editReply({ embeds: [new EmbedBuilder().setTitle(game.emoji + " Patch Notes — " + game.name).setDescription("• Consulte les derniers patch notes de **" + game.name + "** :\n• " + game.url).setColor(0x2f3136).setFooter(FOOTER).setTimestamp()] });
 }
 async function handleDeal(interaction) {
     const gameName = interaction.options.getString("jeu", true);
     await interaction.deferReply();
     try {
-        const result = await (0, itad_1.getDeals)(gameName);
+        const result = await getDeals(gameName);
         if (!result || result.prices.length === 0) {
             const notFound = (!result) ? "• Aucun résultat trouvé pour **" + gameName + "**." : "• Jeu trouvé mais aucun prix disponible pour le moment.";
-            await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setAuthor({ name: "Comparateur de prix" }).setTitle("💰 " + gameName).setDescription(notFound + "\n" + "• Consultez [IsThereAnyDeal](https://isthereanydeal.com/)").setColor(0xffaa00).setFooter(FOOTER).setTimestamp()] });
+            await interaction.editReply({ embeds: [new EmbedBuilder().setAuthor({ name: "Comparateur de prix" }).setTitle("💰 " + gameName).setDescription(notFound + "\n" + "• Consultez [IsThereAnyDeal](https://isthereanydeal.com/)").setColor(0xffaa00).setFooter(FOOTER).setTimestamp()] });
             return;
         }
-        const embed = (0, itad_1.buildDealEmbed)(result);
+        const embed = buildDealEmbed(result);
         embed.setFooter(FOOTER);
         await interaction.editReply({ embeds: [embed] });
     }
     catch (err) {
-        logger_1.default.error("[Gaming] deal error:", err);
-        await interaction.editReply({ embeds: [new discord_js_1.EmbedBuilder().setAuthor({ name: "Comparateur de prix" }).setTitle("💰 " + gameName).setDescription("• Impossible de récupérer les prix pour le moment.\n" + "• Consultez [IsThereAnyDeal](https://isthereanydeal.com/)").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
+        logger.error("[Gaming] deal error:", err);
+        await interaction.editReply({ embeds: [new EmbedBuilder().setAuthor({ name: "Comparateur de prix" }).setTitle("💰 " + gameName).setDescription("• Impossible de récupérer les prix pour le moment.\n" + "• Consultez [IsThereAnyDeal](https://isthereanydeal.com/)").setColor(0xff3344).setFooter(FOOTER).setTimestamp()] });
     }
 }
 //# sourceMappingURL=gaming.js.map

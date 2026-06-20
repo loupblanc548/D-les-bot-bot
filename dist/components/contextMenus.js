@@ -1,14 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.MODERATION_CONTEXT_MENUS = exports.MESSAGE_CONTEXT_MENUS = exports.USER_CONTEXT_MENUS = exports.contextMenuSystem = void 0;
-exports.registerDefaultContextMenus = registerDefaultContextMenus;
-exports.createCustomContextMenu = createCustomContextMenu;
-exports.registerModerationContextMenus = registerModerationContextMenus;
-const discord_js_1 = require("discord.js");
-const logger_1 = __importDefault(require("../utils/logger"));
+import { ContextMenuCommandBuilder, ApplicationCommandType, PermissionFlagsBits, EmbedBuilder } from "discord.js";
+import logger from "../utils/logger.js";
 class ContextMenuSystem {
     menus = new Map();
     /**
@@ -16,7 +7,7 @@ class ContextMenuSystem {
      */
     registerMenu(config) {
         this.menus.set(config.name, config);
-        logger_1.default.info(`[ContextMenu] Menu enregistré: ${config.name} (${config.type})`);
+        logger.info(`[ContextMenu] Menu enregistré: ${config.name} (${config.type})`);
     }
     /**
      * Obtient un menu contextuel par son nom
@@ -42,13 +33,13 @@ class ContextMenuSystem {
     generateBuilders() {
         const builders = [];
         for (const [name, config] of this.menus.entries()) {
-            const builder = new discord_js_1.ContextMenuCommandBuilder()
+            const builder = new ContextMenuCommandBuilder()
                 .setName(name);
             if (config.type === "USER") {
-                builder.setType(discord_js_1.ApplicationCommandType.User);
+                builder.setType(ApplicationCommandType.User);
             }
             else {
-                builder.setType(discord_js_1.ApplicationCommandType.Message);
+                builder.setType(ApplicationCommandType.Message);
             }
             if (config.permissions && config.permissions.length > 0) {
                 builder.setDefaultMemberPermissions(config.permissions[0]);
@@ -63,7 +54,7 @@ class ContextMenuSystem {
     async handleInteraction(interaction) {
         const menu = this.menus.get(interaction.commandName);
         if (!menu) {
-            logger_1.default.error(`[ContextMenu] Menu non trouvé: ${interaction.commandName}`);
+            logger.error(`[ContextMenu] Menu non trouvé: ${interaction.commandName}`);
             await interaction.reply({
                 content: "❌ Menu non trouvé",
                 ephemeral: true
@@ -74,7 +65,7 @@ class ContextMenuSystem {
             await menu.handler(interaction);
         }
         catch (error) {
-            logger_1.default.error(`[ContextMenu] Erreur exécution ${interaction.commandName}: ${error}`);
+            logger.error(`[ContextMenu] Erreur exécution ${interaction.commandName}: ${error}`);
             await interaction.reply({
                 content: "❌ Erreur lors de l'exécution du menu",
                 ephemeral: true
@@ -83,21 +74,21 @@ class ContextMenuSystem {
     }
 }
 // Instance singleton
-exports.contextMenuSystem = new ContextMenuSystem();
+export const contextMenuSystem = new ContextMenuSystem();
 /**
  * Menus contextuels prédéfinis pour les utilisateurs
  */
-exports.USER_CONTEXT_MENUS = [
+export const USER_CONTEXT_MENUS = [
     {
         name: "Voir le profil",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
             const targetUser = interaction.targetUser;
             const member = await interaction.guild?.members.fetch(targetUser.id);
-            const embed = new discord_js_1.EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setTitle(`👤 Profil de ${targetUser.username}`)
                 .setColor(0x0099ff)
                 .addFields({ name: "ID", value: targetUser.id, inline: true }, { name: "Créé le", value: targetUser.createdAt.toDateString(), inline: true }, { name: "Rejoint le", value: member?.joinedAt?.toDateString() || "N/A", inline: true }, { name: "Rôles", value: member?.roles.cache.map(r => r.name).join(", ") || "Aucun", inline: false })
@@ -109,7 +100,7 @@ exports.USER_CONTEXT_MENUS = [
     {
         name: "Historique des commandes",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
@@ -123,7 +114,7 @@ exports.USER_CONTEXT_MENUS = [
     {
         name: "Signaler l'utilisateur",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.ModerateMembers],
+        permissions: [PermissionFlagsBits.ModerateMembers],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
@@ -138,11 +129,11 @@ exports.USER_CONTEXT_MENUS = [
 /**
  * Menus contextuels prédéfinis pour les messages
  */
-exports.MESSAGE_CONTEXT_MENUS = [
+export const MESSAGE_CONTEXT_MENUS = [
     {
         name: "Traduire le message",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -156,7 +147,7 @@ exports.MESSAGE_CONTEXT_MENUS = [
     {
         name: "Citer le message",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -171,7 +162,7 @@ exports.MESSAGE_CONTEXT_MENUS = [
     {
         name: "Signaler le message",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -185,7 +176,7 @@ exports.MESSAGE_CONTEXT_MENUS = [
     {
         name: "Analyser avec l'IA",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -199,7 +190,7 @@ exports.MESSAGE_CONTEXT_MENUS = [
     {
         name: "Sauvegarder dans les notes",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.SendMessages],
+        permissions: [PermissionFlagsBits.SendMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -214,29 +205,29 @@ exports.MESSAGE_CONTEXT_MENUS = [
 /**
  * Enregistre tous les menus contextuels prédéfinis
  */
-function registerDefaultContextMenus() {
-    for (const menu of exports.USER_CONTEXT_MENUS) {
-        exports.contextMenuSystem.registerMenu(menu);
+export function registerDefaultContextMenus() {
+    for (const menu of USER_CONTEXT_MENUS) {
+        contextMenuSystem.registerMenu(menu);
     }
-    for (const menu of exports.MESSAGE_CONTEXT_MENUS) {
-        exports.contextMenuSystem.registerMenu(menu);
+    for (const menu of MESSAGE_CONTEXT_MENUS) {
+        contextMenuSystem.registerMenu(menu);
     }
-    logger_1.default.info(`[ContextMenu] ${exports.USER_CONTEXT_MENUS.length + exports.MESSAGE_CONTEXT_MENUS.length} menus par défaut enregistrés`);
+    logger.info(`[ContextMenu] ${USER_CONTEXT_MENUS.length + MESSAGE_CONTEXT_MENUS.length} menus par défaut enregistrés`);
 }
 /**
  * Crée un menu contextuel personnalisé
  */
-function createCustomContextMenu(config) {
-    exports.contextMenuSystem.registerMenu(config);
+export function createCustomContextMenu(config) {
+    contextMenuSystem.registerMenu(config);
 }
 /**
  * Menus contextuels spécifiques pour la modération
  */
-exports.MODERATION_CONTEXT_MENUS = [
+export const MODERATION_CONTEXT_MENUS = [
     {
         name: "Bannir l'utilisateur",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.BanMembers],
+        permissions: [PermissionFlagsBits.BanMembers],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
@@ -250,7 +241,7 @@ exports.MODERATION_CONTEXT_MENUS = [
     {
         name: "Muter l'utilisateur",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.ModerateMembers],
+        permissions: [PermissionFlagsBits.ModerateMembers],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
@@ -264,7 +255,7 @@ exports.MODERATION_CONTEXT_MENUS = [
     {
         name: "Kick l'utilisateur",
         type: "USER",
-        permissions: [discord_js_1.PermissionFlagsBits.KickMembers],
+        permissions: [PermissionFlagsBits.KickMembers],
         handler: async (interaction) => {
             if (!interaction.isUserContextMenuCommand())
                 return;
@@ -278,7 +269,7 @@ exports.MODERATION_CONTEXT_MENUS = [
     {
         name: "Supprimer le message",
         type: "MESSAGE",
-        permissions: [discord_js_1.PermissionFlagsBits.ManageMessages],
+        permissions: [PermissionFlagsBits.ManageMessages],
         handler: async (interaction) => {
             if (!interaction.isMessageContextMenuCommand())
                 return;
@@ -293,10 +284,10 @@ exports.MODERATION_CONTEXT_MENUS = [
 /**
  * Enregistre les menus contextuels de modération
  */
-function registerModerationContextMenus() {
-    for (const menu of exports.MODERATION_CONTEXT_MENUS) {
-        exports.contextMenuSystem.registerMenu(menu);
+export function registerModerationContextMenus() {
+    for (const menu of MODERATION_CONTEXT_MENUS) {
+        contextMenuSystem.registerMenu(menu);
     }
-    logger_1.default.info(`[ContextMenu] ${exports.MODERATION_CONTEXT_MENUS.length} menus de modération enregistrés`);
+    logger.info(`[ContextMenu] ${MODERATION_CONTEXT_MENUS.length} menus de modération enregistrés`);
 }
 //# sourceMappingURL=contextMenus.js.map

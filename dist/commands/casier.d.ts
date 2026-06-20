@@ -6,9 +6,21 @@ export interface CasierEntry {
     headerLine: string;
     line: string;
 }
-export declare function buildEntries(warnings: Record<string, unknown>[], mutes: Record<string, unknown>[], kicks: Record<string, unknown>[], banSanctions: Record<string, unknown>[], bans: Record<string, unknown>[]): CasierEntry[];
+interface SanctionRow {
+    reason?: string | null;
+    createdAt: Date;
+    moderatorId?: string | null;
+    duration?: number | null;
+}
+interface LogRow {
+    action?: string | null;
+    details?: string | null;
+    createdAt: Date | string;
+}
+export declare function buildEntries(warnings: SanctionRow[], mutes: SanctionRow[], kicks: SanctionRow[], banSanctions: SanctionRow[], bans: LogRow[]): CasierEntry[];
 export declare function chunkEntries(entries: CasierEntry[], maxChars: number): string[];
 export declare function buildNavRow(page: number, total: number): ActionRowBuilder<ButtonBuilder>;
 export declare function handleCasierClear(interaction: ChatInputCommandInteraction): Promise<void>;
 export declare function handleCommand(interaction: ChatInputCommandInteraction): Promise<void>;
+export {};
 //# sourceMappingURL=casier.d.ts.map

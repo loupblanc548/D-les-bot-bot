@@ -1,18 +1,11 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.commands = void 0;
-exports.handleCommand = handleCommand;
-const logger_1 = __importDefault(require("../utils/logger"));
-const discord_js_1 = require("discord.js");
-const prisma_1 = __importDefault(require("../prisma"));
-const permissions_1 = require("../services/permissions");
-const logs_1 = require("../services/logs");
-const confirm_1 = require("../utils/confirm");
-exports.commands = [
-    new discord_js_1.SlashCommandBuilder()
+import logger from "../utils/logger.js";
+import { MessageFlags, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, } from "discord.js";
+import prisma from "../prisma.js";
+import { requireAdmin } from "../services/permissions.js";
+import { getLogs } from "../services/logs.js";
+import { requestConfirmation } from "../utils/confirm.js";
+export const commands = [
+    new SlashCommandBuilder()
         .setName("broadcast")
         .setDescription("Envoie un message a tous les membres (admin)")
         .addStringOption((opt) => opt
@@ -20,7 +13,7 @@ exports.commands = [
         .setDescription("Le message a envoyer")
         .setRequired(true))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("dm")
         .setDescription("Envoie un DM sous l'identite du bot (admin)")
         .addUserOption((opt) => opt
@@ -32,7 +25,7 @@ exports.commands = [
         .setDescription("Le message a envoyer")
         .setRequired(true))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("logs")
         .setDescription("Affiche le resume des logs")
         .addStringOption((opt) => opt
@@ -41,18 +34,28 @@ exports.commands = [
         .setRequired(false)
         .addChoices({ name: "Membres", value: "member" }, { name: "Moderation", value: "moderation" }, { name: "Salons", value: "channel" }, { name: "Roles", value: "role" }, { name: "Emojis", value: "emoji" }, { name: "Messages", value: "message" }))
         .toJSON(),
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("deletehistory")
         .setDescription("Supprime les notifications enregistrees (confirmation requise)")
         .toJSON(),
     // /test-freegames : envoie un message de test dans FREE_GAMES_CHANNEL_ID
-    new discord_js_1.SlashCommandBuilder()
+    new SlashCommandBuilder()
         .setName("test-freegames")
         .setDescription("Envoie un message de test dans le salon FREE_GAMES_CHANNEL_ID pour valider la configuration")
-        .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.Administrator)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .toJSON(),
+    // /status : change le statut du bot (admin only)
+    new SlashCommandBuilder()
+        .setName("status")
+        .setDescription("Change le statut du bot (admin only)")
+        .addStringOption((opt) => opt
+        .setName("statut")
+        .setDescription("Nouveau statut du bot")
+        .setRequired(true)
+        .addChoices({ name: "En ligne", value: "online" }, { name: "Inactif", value: "idle" }, { name: "Ne pas déranger", value: "dnd" }, { name: "Invisible", value: "invisible" }))
         .toJSON(),
 ];
-async function handleCommand(interaction) {
+export async function handleCommand(interaction) {
     const { commandName } = interaction;
     switch (commandName) {
         case "broadcast":
@@ -66,15 +69,18 @@ async function handleCommand(interaction) {
             break;
         case "deletehistory":
             await handleDeleteHistory(interaction);
+            break;
         case "test-freegames":
             await handleTestFreeGames(interaction);
             break;
+        case "status":
+            await handleStatus(interaction);
             break;
     }
 }
 async function handleBroadcast(interaction) {
     // Permissions et confirmation AVANT deferReply (utilisent reply() en interne)
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+    if (!(await requireAdmin(interaction)))
         return;
     const message = interaction.options.get("message", true).value;
     const guild = interaction.guild;
@@ -82,7 +88,7 @@ async function handleBroadcast(interaction) {
         await interaction.reply({ content: "Cette commande doit etre utilisee sur un serveur." });
         return;
     }
-    const confirmed = await (0, confirm_1.requestConfirmation)(interaction, "Envoyer le message suivant a **tous les membres** ?\n\n> " + message);
+    const confirmed = await requestConfirmation(interaction, "Envoyer le message suivant a **tous les membres** ?\n\n> " + message);
     if (!confirmed)
         return;
     // requestConfirmation deja gere l'interaction → utiliser followUp
@@ -108,16 +114,18 @@ async function handleBroadcast(interaction) {
         });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE BROADCAST]:", error);
+        logger.error("[CRASH COMMANDE BROADCAST]:", error);
         try {
             await interaction.followUp({ content: "Impossible de terminer le broadcast.", ephemeral: true });
         }
-        catch { }
+        catch (err) {
+            logger.warn("[Admin] Erreur followUp:", String(err));
+        }
     }
 }
 async function handleDM(interaction) {
     // Permissions AVANT deferReply
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+    if (!(await requireAdmin(interaction)))
         return;
     const user = interaction.options.getUser("utilisateur", true);
     if (!user) {
@@ -131,7 +139,7 @@ async function handleDM(interaction) {
         await interaction.editReply({ content: "DM envoye a **" + user.tag + "**." });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE DM]:", error);
+        logger.error("[CRASH COMMANDE DM]:", error);
         try {
             await interaction.editReply({
                 content: "Impossible d'envoyer un DM a " + user.tag + ". L'utilisateur a peut-etre desactive les DMs.",
@@ -141,7 +149,9 @@ async function handleDM(interaction) {
             try {
                 await interaction.followUp({ content: "Impossible d'envoyer le DM.", ephemeral: true });
             }
-            catch { }
+            catch (err) {
+                logger.warn("[Admin] Erreur followUp:", String(err));
+            }
         }
     }
 }
@@ -151,14 +161,14 @@ async function handleLogs(interaction) {
         const typeFilter = interaction.options.get("type")?.value;
         let logs;
         if (typeFilter) {
-            logs = await prisma_1.default.log.findMany({
+            logs = await prisma.log.findMany({
                 where: { type: { contains: typeFilter } },
                 orderBy: { createdAt: "desc" },
                 take: 25,
             });
         }
         else {
-            logs = await (0, logs_1.getLogs)(25);
+            logs = await getLogs(25);
         }
         if (logs.length === 0) {
             await interaction.editReply({ content: "Aucun log trouve." });
@@ -168,7 +178,7 @@ async function handleLogs(interaction) {
             const time = l.createdAt.toLocaleTimeString("fr-FR");
             return "[ " + time + " ] **" + l.type + "** - " + l.action;
         });
-        const embed = new discord_js_1.EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("Logs" + (typeFilter ? " - " + typeFilter : ""))
             .setColor(0x2f3136)
             .setDescription(logLines.join("\n").slice(0, 4000) || "Aucun log")
@@ -177,7 +187,7 @@ async function handleLogs(interaction) {
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE LOGS]:", error);
+        logger.error("[CRASH COMMANDE LOGS]:", error);
         try {
             await interaction.editReply({ content: "Impossible d'afficher les logs." });
         }
@@ -185,47 +195,86 @@ async function handleLogs(interaction) {
             try {
                 await interaction.followUp({ content: "Impossible d'afficher les logs.", ephemeral: true });
             }
-            catch { }
+            catch (err) {
+                logger.warn("[Admin] Erreur followUp:", String(err));
+            }
         }
     }
 }
 async function handleDeleteHistory(interaction) {
     // Permissions et confirmation AVANT deferReply
-    if (!(await (0, permissions_1.requireAdmin)(interaction)))
+    if (!(await requireAdmin(interaction)))
         return;
-    const notifCount = await prisma_1.default.notification.count();
+    const notifCount = await prisma.notification.count();
     if (notifCount === 0) {
         await interaction.reply({ content: "Aucune notification a supprimer.", ephemeral: true });
         return;
     }
-    const confirmed = await (0, confirm_1.requestConfirmation)(interaction, "Supprimer **" + notifCount + "** notifications enregistrees ? Cette action est irreversible.");
+    const confirmed = await requestConfirmation(interaction, "Supprimer **" + notifCount + "** notifications enregistrees ? Cette action est irreversible.");
     if (!confirmed)
         return;
     // requestConfirmation deja gere l'interaction → utiliser followUp
     try {
-        await prisma_1.default.notification.deleteMany({});
+        await prisma.notification.deleteMany({});
         await interaction.followUp({
             content: "**" + notifCount + "** notifications supprimees.",
             ephemeral: true,
         });
     }
     catch (error) {
-        logger_1.default.error("[CRASH COMMANDE DELETEHISTORY]:", error);
+        logger.error("[CRASH COMMANDE DELETEHISTORY]:", error);
         try {
             await interaction.followUp({ content: "Impossible de supprimer les notifications.", ephemeral: true });
         }
-        catch { }
+        catch (err) {
+            logger.warn("[Admin] Erreur followUp:", String(err));
+        }
+    }
+}
+// ===== /status =====
+async function handleStatus(interaction) {
+    const OWNER_ID = "620589482185457674";
+    if (interaction.user.id !== OWNER_ID) {
+        await interaction.reply({ content: "Accès refusé", ephemeral: true });
+        return;
+    }
+    const newStatus = interaction.options.get("statut", true).value;
+    const statusMap = {
+        online: "En ligne 🟢",
+        idle: "Inactif 🌙",
+        dnd: "Ne pas déranger 🔴",
+        invisible: "Invisible 👻",
+    };
+    try {
+        await interaction.client.user.setPresence({
+            status: newStatus,
+            activities: [{
+                    name: 'Surveille les Helldivers',
+                    type: 3, // Watching
+                }],
+        });
+        await interaction.reply({
+            content: "Statut mis à jour avec succès : " + statusMap[newStatus],
+            ephemeral: true,
+        });
+    }
+    catch (error) {
+        logger.error("[CRASH COMMANDE STATUS]:", error);
+        await interaction.reply({
+            content: "Impossible de mettre à jour le statut.",
+            ephemeral: true,
+        });
     }
 }
 // ===== /test-freegames =====
 async function handleTestFreeGames(interaction) {
-    await interaction.deferReply({ flags: [discord_js_1.MessageFlags.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     // 1. Vérifier que FREE_GAMES_CHANNEL_ID est configuré
     const channelId = process.env.FREE_GAMES_CHANNEL_ID;
     if (!channelId) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setTitle("❌ Configuration manquante")
                     .setDescription("La variable d'environnement **FREE_GAMES_CHANNEL_ID** n'est pas définie.\n\n" +
@@ -240,7 +289,7 @@ async function handleTestFreeGames(interaction) {
     if (!channel || !channel.isTextBased()) {
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setTitle("❌ Salon introuvable")
                     .setDescription("Le salon avec l'ID `" + channelId + "` est introuvable ou n'est pas textuel.\n\n" +
@@ -253,7 +302,7 @@ async function handleTestFreeGames(interaction) {
         return;
     }
     // 3. Envoyer un embed de test (simule une alerte Epic Games)
-    const testEmbed = new discord_js_1.EmbedBuilder()
+    const testEmbed = new EmbedBuilder()
         .setColor(0x2a9d8f) // Vert Epic
         .setTitle("🎮 [Epic Games] ✅ Message de test")
         .setURL("https://store.epicgames.com/fr/free-games")
@@ -273,7 +322,7 @@ async function handleTestFreeGames(interaction) {
         await channel.send({ embeds: [testEmbed] });
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0x53fc18)
                     .setTitle("✅ Message de test envoyé")
                     .setDescription("Un embed de test a été posté dans <#" + channelId + ">.\n\n" +
@@ -283,13 +332,13 @@ async function handleTestFreeGames(interaction) {
                     "✅ Le contenu est correctement formaté"),
             ],
         });
-        logger_1.default.info("[TestFreeGames] Message de test envoyé dans " + channelId + " par " + interaction.user.tag);
+        logger.info("[TestFreeGames] Message de test envoyé dans " + channelId + " par " + interaction.user.tag);
     }
     catch (sendError) {
         const msg = sendError instanceof Error ? sendError.message : String(sendError);
         await interaction.editReply({
             embeds: [
-                new discord_js_1.EmbedBuilder()
+                new EmbedBuilder()
                     .setColor(0xff3344)
                     .setTitle("❌ Erreur d'envoi")
                     .setDescription("Le bot n'a pas pu envoyer le message dans <#" + channelId + ">.\n\n" +
@@ -297,7 +346,7 @@ async function handleTestFreeGames(interaction) {
                     "Vérifie que le bot a bien les permissions `Envoyer des messages` et `Inclure dans les embeds` sur ce salon."),
             ],
         });
-        logger_1.default.error("[TestFreeGames] Erreur envoi:", msg);
+        logger.error("[TestFreeGames] Erreur envoi:", msg);
     }
 }
 //# sourceMappingURL=admin.js.map

@@ -12,10 +12,10 @@ export declare function createLog(entry: LogEntry): Promise<{
     createdAt: Date;
     id: string;
     guildId: string | null;
-    targetId: string | null;
     updatedAt: Date;
     action: string;
     userId: string | null;
+    targetId: string | null;
     details: string | null;
     moderator: string | null;
 }>;
@@ -24,10 +24,10 @@ export declare function getLogs(limit?: number): Promise<{
     createdAt: Date;
     id: string;
     guildId: string | null;
-    targetId: string | null;
     updatedAt: Date;
     action: string;
     userId: string | null;
+    targetId: string | null;
     details: string | null;
     moderator: string | null;
 }[]>;
@@ -36,10 +36,10 @@ export declare function getLogsByType(type: string, limit?: number): Promise<{
     createdAt: Date;
     id: string;
     guildId: string | null;
-    targetId: string | null;
     updatedAt: Date;
     action: string;
     userId: string | null;
+    targetId: string | null;
     details: string | null;
     moderator: string | null;
 }[]>;
@@ -48,10 +48,10 @@ export declare function getLogsByUser(userId: string, limit?: number): Promise<{
     createdAt: Date;
     id: string;
     guildId: string | null;
-    targetId: string | null;
     updatedAt: Date;
     action: string;
     userId: string | null;
+    targetId: string | null;
     details: string | null;
     moderator: string | null;
 }[]>;
