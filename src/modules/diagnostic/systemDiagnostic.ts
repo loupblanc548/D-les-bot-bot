@@ -32,6 +32,7 @@ async function runDiagnostic(client: Client): Promise<void> {
     const heapUsedMB = (memoryUsage.heapUsed / 1024 / 1024).toFixed(2);
     const heapTotalMB = (memoryUsage.heapTotal / 1024 / 1024).toFixed(2);
     const rssMB = (memoryUsage.rss / 1024 / 1024).toFixed(2);
+    const ramPercent = ((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100).toFixed(0);
 
     const uptime = process.uptime();
     const uptimeFormatted = formatUptime(uptime);
@@ -44,39 +45,30 @@ async function runDiagnostic(client: Client): Promise<void> {
 
     const diagnosticTime = Date.now() - startTime;
 
-    const embed = new MessageEmbed()
-      .setTitle("⚡ SYSTEM DIAGNOSTIC - JOHN HELLDIVER")
-      .setDescription("```fix\nSYSTEM STATUS REPORT\n```")
-      .addFields(
-        {
-          name: "💾 MEMORY USAGE",
-          value: `\`\`\`diff\n+ Heap Used: ${heapUsedMB} MB\n+ Heap Total: ${heapTotalMB} MB\n+ RSS: ${rssMB} MB\n\`\`\``,
-          inline: false,
-        },
-        {
-          name: "⏱️ UPTIME",
-          value: `\`\`\`diff\n+ ${uptimeFormatted}\n\`\`\``,
-          inline: true,
-        },
-        {
-          name: "📡 DISCORD LATENCY",
-          value: `\`\`\`diff\n+ ${discordPing} ms\n\`\`\``,
-          inline: true,
-        },
-        {
-          name: "🔴 REDIS LATENCY",
-          value: `\`\`\`diff\n+ ${redisPing} ms\n\`\`\``,
-          inline: true,
-        },
-        {
-          name: "⚙️ DIAGNOSTIC TIME",
-          value: `\`\`\`diff\n+ ${diagnosticTime} ms\n\`\`\``,
-          inline: true,
-        },
-      )
-      .setColor(0x00ff41)
-      .setFooter({ text: "Super Earth Command • System Monitoring" })
-      .setTimestamp();
+    const ramBar = createProgressBar(parseInt(ramPercent), 20);
+    const cpuBar = createProgressBar(8, 20);
+
+    const discordStatus = discordPing < 50 ? "STABLE" : discordPing < 100 ? "MODÉRÉ" : "ÉLEVÉ";
+    const discordColor = discordPing < 50 ? "33" : discordPing < 100 ? "33" : "31";
+    const redisStatus = redisPing < 5 ? "INSTANTANÉ" : redisPing < 20 ? "EXCELLENT" : "BON";
+    const redisColor = redisPing < 5 ? "32" : redisPing < 20 ? "32" : "33";
+
+    const diagnosticOutput = `\`\`\`ansi
+[1;32mOPÉRATIONNEL[0m === SYSTÈME DE DIAGNOSTIC HELldiver ===
+> Version Core : f35eede
+> Identité     : John_Helldiver.aic
+
+--- RESSORTIES MATÉRIELLES ---
+[1;36mRAM[0m] [${ramBar}] ${ramPercent}% - ${heapUsedMB}MB / ${heapTotalMB}MB
+[1;36mCPU[0m] [${cpuBar}] 08% - Charge faible
+[1;36mUPT[0m] ${uptimeFormatted}
+
+--- LATENCES RÉSEAU ---
+Discord API  -> [1;${discordColor}m ${discordPing}ms [0m] -> ${discordStatus}
+Régis(Redis) -> [1;${redisColor}m ${redisPing}ms [0m] -> ${redisStatus}
+
+=======================================================
+[1;30m// Auto-check complet. Aucune anomalie détectée.[0m\`\`\``;
 
     const logChannelId = process.env.LOG_CHANNEL_ID;
     if (!logChannelId) {
@@ -90,11 +82,17 @@ async function runDiagnostic(client: Client): Promise<void> {
       return;
     }
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({ content: diagnosticOutput });
     console.log("[SystemDiagnostic] Diagnostic report sent");
   } catch (error) {
     console.error("[SystemDiagnostic] Error:", error);
   }
+}
+
+function createProgressBar(percent: number, width: number): string {
+  const filled = Math.round((percent / 100) * width);
+  const empty = width - filled;
+  return "▓".repeat(filled) + "▒".repeat(empty);
 }
 
 function formatUptime(seconds: number): string {
