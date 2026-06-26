@@ -103,6 +103,18 @@ async function main(): Promise<void> {
   } catch {
     logger.warn("Metrics server failed to start (port 3005 in use?)");
   }
+  try {
+    const { startBullBoard } = await import("./utils/bull-board.js");
+    startBullBoard();
+  } catch {
+    logger.warn("Bull Board failed to start (port 3006 in use?)");
+  }
+  try {
+    const { sendRestartAlert } = await import("./utils/crash-webhook.js");
+    void sendRestartAlert();
+  } catch {
+    // Ignore if crash webhook not configured
+  }
   startControlServer(config.controlPort, client).catch(() =>
     logger.warn("[Startup] Control server failed to start"),
   );

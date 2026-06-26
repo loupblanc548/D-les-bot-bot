@@ -1,4 +1,5 @@
 import { Redis } from "ioredis";
+import NodeCache from "node-cache";
 import { config } from "../config.js";
 import logger from "./logger.js";
 
@@ -10,6 +11,14 @@ const redis = new Redis(config.redisUrl, {
   },
   lazyConnect: true,
 });
+
+// Cache local de fallback si Redis est down
+const localCache = new NodeCache({
+  stdTTL: 300, // 5 minutes par défaut
+  checkperiod: 120, // nettoyage toutes les 2 minutes
+});
+
+const redisConnected = false;
 
 /**
  * Connecte Redis. Non-bloquant — si Redis est down, le bot continue sans cache.
@@ -32,7 +41,15 @@ export async function connectRedis(): Promise<void> {
  */
 export async function setCache(key: string, value: unknown, ttlInSeconds: number): Promise<void> {
   const serialized = JSON.stringify(value);
-  await redis.setex(key, ttlInSeconds, serialized);
+  try {
+    if (redisConnected) {
+      await redis.setex(key, ttlInSeconds, serialized);
+    } else {
+      localCache.set(key, serialized, ttlInSeconds);
+    }
+  } catch {
+    localCache.set(key, serialized, ttlInSeconds);
+  }
 }
 
 /**
@@ -41,12 +58,17 @@ export async function setCache(key: string, value: unknown, ttlInSeconds: number
  */
 export async function getCache<T = unknown>(key: string): Promise<T | null> {
   try {
-    const raw = await redis.get(key);
-    if (!raw) return null;
-    return JSON.parse(raw) as T;
+    if (redisConnected) {
+      const raw = await redis.get(key);
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    }
   } catch {
-    return null;
+    // Redis error → fallback to local
   }
+  const local = localCache.get<string>(key);
+  if (local) return JSON.parse(local) as T;
+  return null;
 }
 
 /**
