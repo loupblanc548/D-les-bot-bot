@@ -28,20 +28,6 @@ import { createLog } from "../services/logs.js";
 
 export const commands = [
   new SlashCommandBuilder()
-    .setName("reminder")
-    .setDescription("Définit un rappel qui te sera envoyé après le délai spécifié")
-    .addStringOption((opt) =>
-      opt
-        .setName("temps")
-        .setDescription("Délai avant le rappel (ex: 2h, 30m, 1d)")
-        .setRequired(true),
-    )
-    .addStringOption((opt) =>
-      opt.setName("message").setDescription("Le message du rappel").setRequired(true),
-    )
-    .toJSON(),
-
-  new SlashCommandBuilder()
     .setName("ticket-setup")
     .setDescription("Crée le panneau de tickets dans ce salon (Staff)")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
@@ -70,9 +56,6 @@ export const commands = [
 export async function handleCommand(interaction: ChatInputCommandInteraction, _client: Client) {
   try {
     switch (interaction.commandName) {
-      case "reminder":
-        await handleReminder(interaction);
-        break;
       case "ticket-setup":
         await handleTicketSetup(interaction);
         break;

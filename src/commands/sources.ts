@@ -9,54 +9,7 @@ import prisma from "../prisma.js";
 import { resolveYouTubeChannelId } from "../services/youtube.js";
 import { requireAdmin } from "../services/permissions.js";
 
-export const commands = [
-  new SlashCommandBuilder()
-    .setName("addsource")
-    .setDescription("Ajoute une source à surveiller")
-    .addStringOption((opt) =>
-      opt
-        .setName("type")
-        .setDescription("Type de plateforme à surveiller")
-        .setRequired(true)
-        .addChoices(
-          { name: "Twitter/X", value: "TWITTER" },
-          { name: "YouTube", value: "YOUTUBE" },
-          { name: "YouTube uniquement (pas d'autres réseaux)", value: "YOUTUBE_ONLY" },
-        )
-    )
-    .addStringOption((opt) =>
-      opt
-        .setName("handle")
-        .setDescription("@handle du compte (ex: @XboxFR, @JoueurDuGrenier)")
-        .setRequired(true)
-    )
-    .addChannelOption((opt) =>
-      opt
-        .setName("salon")
-        .setDescription("Salon pour les notifications (défaut: salon actuel)")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .toJSON(),
-
-  new SlashCommandBuilder()
-    .setName("removesource")
-    .setDescription("Supprime une source surveillée")
-    .addStringOption((opt) =>
-      opt
-        .setName("handle")
-        .setDescription("Le @handle à supprimer")
-        .setRequired(true)
-        .setAutocomplete(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .toJSON(),
-
-  new SlashCommandBuilder()
-    .setName("listsources")
-    .setDescription("Liste toutes les sources surveillées")
-    .toJSON(),
-];
+export const commands: ReturnType<SlashCommandBuilder["toJSON"]>[] = [];
 
 async function handleAddSource(interaction: ChatInputCommandInteraction) {
   if (!(await requireAdmin(interaction))) return;
@@ -75,8 +28,10 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
         const embedErreur = new EmbedBuilder()
           .setTitle("Chaîne YouTube introuvable")
           .setDescription(
-            "Impossible de résoudre la chaîne **" + handle + "**.\n" +
-            "Vérifie que le handle est correct (ex: `@MrBeast`) ou utilise un ID de chaîne (format `UC...`)."
+            "Impossible de résoudre la chaîne **" +
+              handle +
+              "**.\n" +
+              "Vérifie que le handle est correct (ex: `@MrBeast`) ou utilise un ID de chaîne (format `UC...`).",
           )
           .setColor(0xff3344)
           .setTimestamp();
@@ -93,7 +48,8 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
     } catch (err: unknown) {
       if ((err as any)?.code === "P2002") {
         await interaction.editReply({
-          content: "**" + handle + "** est déjà enregistré comme source (" + type + ") dans ce salon.",
+          content:
+            "**" + handle + "** est déjà enregistré comme source (" + type + ") dans ce salon.",
         });
         return;
       }
@@ -102,15 +58,30 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
       .setTitle("Source ajoutée")
       .setDescription(
-        "La source [" + type + "] pour **[" + handle + "]** a bien été ajoutée.\n" +
-        "Les notifications seront envoyées dans <#" + targetChannelId + ">."
+        "La source [" +
+          type +
+          "] pour **[" +
+          handle +
+          "]** a bien été ajoutée.\n" +
+          "Les notifications seront envoyées dans <#" +
+          targetChannelId +
+          ">.",
       )
-      .setColor(0x53fc18).setTimestamp();
+      .setColor(0x53fc18)
+      .setTimestamp();
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE ADDSOURCE]:", error);
-    try { await interaction.editReply({ content: "Impossible d'ajouter cette source." }); }
-    catch { try { await interaction.followUp({ content: "Impossible d'ajouter cette source.", ephemeral: true }); } catch {} }
+    try {
+      await interaction.editReply({ content: "Impossible d'ajouter cette source." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "Impossible d'ajouter cette source.",
+          ephemeral: true,
+        });
+      } catch {}
+    }
   }
 }
 
@@ -125,15 +96,25 @@ async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
       where: { guildId, OR: [{ urlOrHandle: handle }, { urlOrHandle: "@" + handle }] },
     });
     if (!source) {
-      await interaction.editReply({ content: "@" + handle + " n'est pas dans les sources de ce serveur" });
+      await interaction.editReply({
+        content: "@" + handle + " n'est pas dans les sources de ce serveur",
+      });
       return;
     }
     await prisma.source.delete({ where: { id: source.id } });
     await interaction.editReply({ content: "@" + handle + " supprimé des sources" });
   } catch (error) {
     logger.error("[CRASH COMMANDE REMOVESOURCE]:", error);
-    try { await interaction.editReply({ content: "Impossible de supprimer cette source." }); }
-    catch { try { await interaction.followUp({ content: "Impossible de supprimer cette source.", ephemeral: true }); } catch {} }
+    try {
+      await interaction.editReply({ content: "Impossible de supprimer cette source." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "Impossible de supprimer cette source.",
+          ephemeral: true,
+        });
+      } catch {}
+    }
   }
 }
 
@@ -145,12 +126,15 @@ async function handleListSources(interaction: ChatInputCommandInteraction) {
     const youtubeSources = sources.filter((s) => s.type === "YOUTUBE");
     const twitterSources = sources.filter((s) => s.type === "TWITTER");
     const otherSources = sources.filter((s) => s.type !== "YOUTUBE" && s.type !== "TWITTER");
-    const embed = new EmbedBuilder().setTitle("Sources surveillées").setColor(0x2f3136).setTimestamp();
+    const embed = new EmbedBuilder()
+      .setTitle("Sources surveillées")
+      .setColor(0x2f3136)
+      .setTimestamp();
     if (youtubeSources.length > 0) {
       embed.addFields({
         name: "YouTube",
         value: youtubeSources
-          .map((s) => s.urlOrHandle.startsWith("UC") ? "`" + s.urlOrHandle + "`" : s.urlOrHandle)
+          .map((s) => (s.urlOrHandle.startsWith("UC") ? "`" + s.urlOrHandle + "`" : s.urlOrHandle))
           .join("\n"),
         inline: true,
       });
@@ -175,24 +159,19 @@ async function handleListSources(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE LISTSOURCES]:", error);
-    try { await interaction.editReply({ content: "Impossible de lister les sources." }); }
-    catch { try { await interaction.followUp({ content: "Impossible de lister les sources.", ephemeral: true }); } catch {} }
+    try {
+      await interaction.editReply({ content: "Impossible de lister les sources." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "Impossible de lister les sources.",
+          ephemeral: true,
+        });
+      } catch {}
+    }
   }
 }
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction
-) {
-  const { commandName } = interaction;
-  switch (commandName) {
-    case "addsource":
-      await handleAddSource(interaction);
-      break;
-    case "removesource":
-      await handleRemoveSource(interaction);
-      break;
-    case "listsources":
-      await handleListSources(interaction);
-      break;
-  }
+export async function handleCommand(_interaction: ChatInputCommandInteraction): Promise<void> {
+  // Commandes migrées vers admin.ts (add-source, remove-source, list-sources)
 }

@@ -94,7 +94,7 @@ describe("commandRouter", () => {
       buildCommandRouter();
       expect(commandRouter["start"]).toBeDefined();
       expect(commandRouter["help"]).toBeDefined();
-      expect(commandRouter["addsource"]).toBeDefined();
+      expect(commandRouter["add-source"]).toBeDefined();
       expect(commandRouter["broadcast"]).toBeDefined();
       expect(commandRouter["chat"]).toBeDefined();
     });

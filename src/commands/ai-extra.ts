@@ -10,25 +10,12 @@ import { translateText, getSupportedLanguages, summarizeMessages } from "../serv
 
 const FOOTER = { text: "Système de Surveillance • IA" };
 
-const langChoices = Object.entries(getSupportedLanguages()).map(
-  ([code, name]) => ({ name: `${name} (${code})`, value: code })
-);
+const langChoices = Object.entries(getSupportedLanguages()).map(([code, name]) => ({
+  name: `${name} (${code})`,
+  value: code,
+}));
 
 export const commands = [
-  new SlashCommandBuilder()
-    .setName("ai-translate")
-    .setDescription("Traduit un texte dans une autre langue via IA")
-    .addStringOption((o) =>
-      o.setName("texte").setDescription("Le texte à traduire").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o
-        .setName("langue")
-        .setDescription("Langue cible (défaut: français)")
-        .setRequired(false)
-        .addChoices(...langChoices.slice(0, 25))
-    )
-    .toJSON(),
   new SlashCommandBuilder()
     .setName("summarize")
     .setDescription("Résume les messages récents d'un salon via IA")
@@ -38,7 +25,7 @@ export const commands = [
         .setDescription("Nombre de messages à analyser (10-100, défaut: 25)")
         .setMinValue(10)
         .setMaxValue(100)
-        .setRequired(false)
+        .setRequired(false),
     )
     .toJSON(),
 ];
@@ -46,9 +33,6 @@ export const commands = [
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
   try {
     switch (interaction.commandName) {
-      case "ai-translate":
-        await handleTranslate(interaction);
-        break;
       case "summarize":
         if (!(await requireAdmin(interaction))) return;
         await handleSummarize(interaction);
@@ -65,7 +49,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -75,7 +61,11 @@ async function handleTranslate(interaction: ChatInputCommandInteraction) {
 
   if (text.length > 2000) {
     await interaction.reply({
-      embeds: [new EmbedBuilder().setColor(0xffaa00).setDescription("⚠️ Le texte est trop long (max 2000 caractères).")],
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffaa00)
+          .setDescription("⚠️ Le texte est trop long (max 2000 caractères)."),
+      ],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -89,7 +79,10 @@ async function handleTranslate(interaction: ChatInputCommandInteraction) {
     .setTitle("🌐 Traduction")
     .addFields(
       { name: "📥 Source", value: `\`\`\`${text.slice(0, 1000)}\`\`\`` },
-      { name: `📤 ${result.targetLanguage}`, value: `\`\`\`${result.translation.slice(0, 1000)}\`\`\`` }
+      {
+        name: `📤 ${result.targetLanguage}`,
+        value: `\`\`\`${result.translation.slice(0, 1000)}\`\`\``,
+      },
     )
     .setFooter(FOOTER)
     .setTimestamp();
@@ -118,18 +111,18 @@ async function handleSummarize(interaction: ChatInputCommandInteraction) {
         embeds: [
           new EmbedBuilder()
             .setColor(0xffaa00)
-            .setDescription("⚠️ Pas assez de messages dans ce salon pour faire un résumé (minimum 5)."),
+            .setDescription(
+              "⚠️ Pas assez de messages dans ce salon pour faire un résumé (minimum 5).",
+            ),
         ],
       });
       return;
     }
 
-    const messages = [...fetched.values()]
-      .reverse()
-      .map((msg) => ({
-        author: msg.author.displayName,
-        content: msg.content || "[contenu non textuel]",
-      }));
+    const messages = [...fetched.values()].reverse().map((msg) => ({
+      author: msg.author.displayName,
+      content: msg.content || "[contenu non textuel]",
+    }));
 
     const summary = await summarizeMessages(messages);
 
