@@ -8,7 +8,11 @@
 import { REST, Routes, Interaction, ChatInputCommandInteraction, Client } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
-import { createLoggingMiddleware, createRateLimitMiddleware, withMiddleware } from "./middleware/index.js";
+import {
+  createLoggingMiddleware,
+  createRateLimitMiddleware,
+  withMiddleware,
+} from "./middleware/index.js";
 
 import {
   commands as mainCommands,
@@ -18,7 +22,10 @@ import {
 import { commands as sourceCommands, handleCommand as handleSource } from "./commands/sources.js";
 import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin.js";
 import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai.js";
-import { commands as modCommands, handleCommand as handleModeration } from "./commands/moderation.js";
+import {
+  commands as modCommands,
+  handleCommand as handleModeration,
+} from "./commands/moderation.js";
 import { commands as casierCommands, handleCommand as handleCasier } from "./commands/casier.js";
 import {
   commands as securityCommands,
@@ -46,7 +53,10 @@ import {
   commands as echoTdsCommands,
   handleCommand as handleEchoTds,
 } from "./commands/fun/echoTds.js";
-import { commands as askBotCommands, handleCommand as handleAskBot } from "./commands/fun/askBot.js";
+import {
+  commands as askBotCommands,
+  handleCommand as handleAskBot,
+} from "./commands/fun/askBot.js";
 import {
   commands as wishlistCommands,
   handleCommand as handleWishlist,
@@ -62,15 +72,24 @@ import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
 } from "./commands/clean-duplicates.js";
-import { commands as aiExtraCommands, handleCommand as handleAIExtra } from "./commands/ai-extra.js";
+import {
+  commands as aiExtraCommands,
+  handleCommand as handleAIExtra,
+} from "./commands/ai-extra.js";
 import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
 import { commands as uptimeCommands, handleCommand as handleUptime } from "./commands/uptime.js";
 import { commands as healthzCommands, handleCommand as handleHealthz } from "./commands/healthz.js";
-import { commands as securityAuditCommands, handleCommand as handleSecurityAudit } from "./commands/security-audit.js";
-import { commands as userinfoCommands, handleCommand as handleUserinfo } from "./commands/userinfo.js";
+import {
+  commands as securityAuditCommands,
+  handleCommand as handleSecurityAudit,
+} from "./commands/security-audit.js";
+import {
+  commands as userinfoCommands,
+  handleCommand as handleUserinfo,
+} from "./commands/userinfo.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -129,10 +148,28 @@ function registerGroup(
 
 export function buildCommandRouter(): void {
   registerGroup(["start", "help", "status", "restart", "retro"], handleMain);
-  registerGroup(["addsource", "removesource", "listsources"], handleSource);
-  registerGroup(["broadcast", "dm", "logs", "deletehistory", "test-freegames"], handleAdmin);
+  registerGroup(
+    [
+      "broadcast",
+      "dm",
+      "logs",
+      "deletehistory",
+      "test-freegames",
+      "add-source",
+      "remove-source",
+      "list-sources",
+      "pause-source",
+      "backup",
+      "create-workflow",
+      "list-workflows",
+      "toggle-workflow",
+      "search-notifications",
+      "guild-config",
+    ],
+    handleAdmin,
+  );
   registerGroup(["chat", "mention", "aichat", "smartpoll"], handleAI);
-  registerGroup(["translate", "summarize"], handleAIExtra);
+  registerGroup(["summarize"], handleAIExtra);
   registerGroup(
     [
       "ban",
@@ -171,8 +208,11 @@ export function buildCommandRouter(): void {
     handleSecurity,
   );
   registerGroup(["free-games", "game-status", "patch_notes", "deal"], handleGaming);
-  registerGroup(["reminder", "ticket-setup", "wishlist-notify"], handleCommunity);
-  registerGroup(["embed-builder", "say"], handleUtility);
+  registerGroup(["ticket-setup", "wishlist-notify"], handleCommunity);
+  registerGroup(
+    ["translate", "embed-builder", "say", "poll", "ask-gaming", "ask-tech"],
+    handleUtility,
+  );
   registerGroup(["vocal"], handleVocal);
   registerGroup(["retrospective"], handleRetrospective);
   registerGroup(["twitch"], handleTwitch);
