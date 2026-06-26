@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { Client } from "discord.js";
 interface GraphNode {
   id: string;
@@ -272,9 +273,7 @@ class SocialGraphService {
     }
 
     logger.info(`[SocialGraph] Auto-update activé (intervalle: ${intervalMs}ms)`);
-    this.updateInterval = setInterval(() => {
-      this.cleanupOldEdges();
-    }, intervalMs);
+    this.updateInterval = safeInterval("SocialGraph", () => this.cleanupOldEdges(), intervalMs);
   }
 
   /**

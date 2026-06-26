@@ -1,11 +1,38 @@
+"""Regenerate Vitest suites for FreeGameFetcher and ChannelRouter.
+
+Wraps every disk-write through scripts/_safe_write so that running this script
+cannot silently clobber a manually-edited test file: the unified diff is
+printed before any change, an atomic temp-file swap is used, and a .bak
+snapshot is taken. Re-running on the patched file is a no-op.
+
+Usage
+    python scripts/write_test.py                # write both suites (with backup)
+    python scripts/write_test.py --dry-run      # show diffs, write nothing
+    python scripts/write_test.py --no-backup    # write both, skip .bak
+    python scripts/write_test.py --only=fgf     # only FreeGameFetcher.test.ts
+
+Design note: the generated ChannelRouter.test.ts template is intentionally kept
+verbatim from the original version (it is truncated mid-suite). Wrapping, not
+fixing, was the explicit scope. Replace the ChannelRouter template here when
+the truncation is addressed.
+"""
+
+import argparse
 import os
+import sys
+
+# Ensure the helper module is importable when this script is invoked directly
+# (e.g. `python scripts/write_test.py` from the repo root).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from _safe_write import safe_write  # noqa: E402
 
 BASE = "D:/les bot/bot/src"
 
-def write_fgf():
+
+def write_fgf(*, dry_run: bool = False, no_backup: bool = False) -> bool:
     path = f"{BASE}/services/FreeGameFetcher.test.ts"
-    with open(path, "w", encoding="utf-8") as f:
-        f.write('''/**
+    content = '''/**
  * FreeGameFetcher.test.ts - Tests unitaires du Strategy Pattern
  */
 
@@ -192,13 +219,17 @@ describe("EpicApiStrategy", () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("EpicApiStrategy failed"));
   });
 });
-''')
-    print(f"Written {path}")
+'''
+    changed = safe_write(path, content, dry_run=dry_run, no_backup=no_backup)
+    verb = "would write" if dry_run else "wrote"
+    suffix = "" if changed else " (no-op: file already matches)"
+    print(f"{verb} {path}{suffix}")
+    return changed
 
-def write_cr():
+
+def write_cr(*, dry_run: bool = False, no_backup: bool = False) -> bool:
     path = f"{BASE}/managers/ChannelRouter.test.ts"
-    with open(path, "w", encoding="utf-8") as f:
-        f.write('''/**
+    content = '''/**
  * ChannelRouter.test.ts - Tests unitaires du routeur multi-plateforme
  */
 
@@ -211,4 +242,41 @@ import { detectPlatforms, resolveChannelIds, buildPlatformEmbed, dispatchToChann
 
 describe("detectPlatforms", () => {
   it("detects Steam/PC", () => {
-    const p = detectPlat
+    const p = detectPlat'''
+    changed = safe_write(path, content, dry_run=dry_run, no_backup=no_backup)
+    verb = "would write" if dry_run else "wrote"
+    suffix = "" if changed else " (no-op: file already matches)"
+    print(f"{verb} {path}{suffix}")
+    return changed
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Regenerate Vitest suites via diff-first atomic writes."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print unified diff but do not write any file.",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Skip the .bak snapshot before each write.",
+    )
+    parser.add_argument(
+        "--only",
+        choices=("fgf", "cr", "all"),
+        default="all",
+        help="Which suite(s) to regenerate. Default: all.",
+    )
+    args = parser.parse_args()
+
+    if args.only in ("fgf", "all"):
+        write_fgf(dry_run=args.dry_run, no_backup=args.no_backup)
+    if args.only in ("cr", "all"):
+        write_cr(dry_run=args.dry_run, no_backup=args.no_backup)
+
+
+if __name__ == "__main__":
+    main()

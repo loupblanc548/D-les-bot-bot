@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { config } from "../config.js";
 import { socialGraphService } from "./social-graph.js";
@@ -21,7 +22,6 @@ interface ReportData {
   topTrends: Array<{ keyword: string; mentions: number }>;
   recommendations: string[];
 }
-
 
 interface BehaviorAlert {
   severity: string;
@@ -83,9 +83,11 @@ class ReportGeneratorService {
     client: Client,
     period: "daily" | "weekly" | "monthly",
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<ReportData> {
-    logger.info(`[ReportGenerator] Génération rapport ${period} du ${startDate.toISOString()} au ${endDate.toISOString()}`);
+    logger.info(
+      `[ReportGenerator] Génération rapport ${period} du ${startDate.toISOString()} au ${endDate.toISOString()}`,
+    );
 
     // Collecter les données
     const graphReport = socialGraphService.generateGraphReport();
@@ -104,11 +106,11 @@ class ReportGeneratorService {
         alertsTriggered: behaviorAlerts.length,
         dealsDetected: sourceStats.totalDeals,
       },
-      topUsers: graphReport.mostConnectedUsers.map(u => ({
+      topUsers: graphReport.mostConnectedUsers.map((u) => ({
         userId: u.id,
         activity: u.connections,
       })),
-      topTrends: trends.map(t => ({
+      topTrends: trends.map((t) => ({
         keyword: t.keyword,
         mentions: t.mentions,
       })),
@@ -128,25 +130,31 @@ class ReportGeneratorService {
   private generateRecommendations(
     graphReport: Record<string, unknown>,
     behaviorAlerts: BehaviorAlert[],
-    trends: TrendData[]
+    trends: TrendData[],
   ): string[] {
     const recommendations: string[] = [];
 
     // Recommandations basées sur les alertes
-    const criticalAlerts = behaviorAlerts.filter(a => a.severity === "critical");
+    const criticalAlerts = behaviorAlerts.filter((a) => a.severity === "critical");
     if (criticalAlerts.length > 0) {
-      recommendations.push(`${criticalAlerts.length} alerte(s) critique(s) nécessitent une attention immédiate`);
+      recommendations.push(
+        `${criticalAlerts.length} alerte(s) critique(s) nécessitent une attention immédiate`,
+      );
     }
 
     // Recommandations basées sur les tendances
-    const fastGrowingTrends = trends.filter(t => t.growthRate > 100);
+    const fastGrowingTrends = trends.filter((t) => t.growthRate > 100);
     if (fastGrowingTrends.length > 0) {
-      recommendations.push(`Surveiller les tendances en croissance rapide: ${fastGrowingTrends.map(t => t.keyword).join(", ")}`);
+      recommendations.push(
+        `Surveiller les tendances en croissance rapide: ${fastGrowingTrends.map((t) => t.keyword).join(", ")}`,
+      );
     }
 
     // Recommandations basées sur le graphe
     if ((graphReport as Record<string, any>).totalNodes > 100) {
-      recommendations.push("Considérer la création de sous-communautés pour mieux gérer la croissance");
+      recommendations.push(
+        "Considérer la création de sous-communautés pour mieux gérer la croissance",
+      );
     }
 
     return recommendations;
@@ -168,8 +176,12 @@ class ReportGeneratorService {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(`📊 Rapport ${reportData.period === "daily" ? "Quotidien" : reportData.period === "weekly" ? "Hebdomadaire" : "Mensuel"}`)
-      .setDescription(`Période: ${reportData.startDate.toLocaleDateString()} - ${reportData.endDate.toLocaleDateString()}`)
+      .setTitle(
+        `📊 Rapport ${reportData.period === "daily" ? "Quotidien" : reportData.period === "weekly" ? "Hebdomadaire" : "Mensuel"}`,
+      )
+      .setDescription(
+        `Période: ${reportData.startDate.toLocaleDateString()} - ${reportData.endDate.toLocaleDateString()}`,
+      )
       .setColor(0x00ff00)
       .addFields(
         {
@@ -183,18 +195,22 @@ class ReportGeneratorService {
         },
         {
           name: "👥 Top Utilisateurs",
-          value: reportData.topUsers.slice(0, 5)
-            .map(u => `<@${u.userId}>: ${u.activity} connexions`)
-            .join("\n") || "Aucune donnée",
+          value:
+            reportData.topUsers
+              .slice(0, 5)
+              .map((u) => `<@${u.userId}>: ${u.activity} connexions`)
+              .join("\n") || "Aucune donnée",
           inline: true,
         },
         {
           name: "🔥 Top Tendances",
-          value: reportData.topTrends.slice(0, 5)
-            .map(t => `${t.keyword}: ${t.mentions} mentions`)
-            .join("\n") || "Aucune donnée",
+          value:
+            reportData.topTrends
+              .slice(0, 5)
+              .map((t) => `${t.keyword}: ${t.mentions} mentions`)
+              .join("\n") || "Aucune donnée",
           inline: true,
-        }
+        },
       )
       .setTimestamp()
       .setFooter({ text: "Rapport généré automatiquement" });
@@ -234,11 +250,11 @@ Offres détectées: ${reportData.metrics.dealsDetected}
 
 TOP UTILISATEURS
 ----------------
-${reportData.topUsers.map(u => `- ${u.userId}: ${u.activity} connexions`).join("\n")}
+${reportData.topUsers.map((u) => `- ${u.userId}: ${u.activity} connexions`).join("\n")}
 
 TOP TENDANCES
 -------------
-${reportData.topTrends.map(t => `- ${t.keyword}: ${t.mentions} mentions`).join("\n")}
+${reportData.topTrends.map((t) => `- ${t.keyword}: ${t.mentions} mentions`).join("\n")}
 
 RECOMMANDATIONS
 ---------------
@@ -267,23 +283,27 @@ ${reportData.recommendations.join("\n")}
         break;
     }
 
-    setInterval(async () => {
-      let reportData: ReportData;
+    safeInterval(
+      "ReportGenerator",
+      async () => {
+        let reportData: ReportData;
 
-      switch (period) {
-        case "daily":
-          reportData = await this.generateDailyReport(client);
-          break;
-        case "weekly":
-          reportData = await this.generateWeeklyReport(client);
-          break;
-        case "monthly":
-          reportData = await this.generateMonthlyReport(client);
-          break;
-      }
+        switch (period) {
+          case "daily":
+            reportData = await this.generateDailyReport(client);
+            break;
+          case "weekly":
+            reportData = await this.generateWeeklyReport(client);
+            break;
+          case "monthly":
+            reportData = await this.generateMonthlyReport(client);
+            break;
+        }
 
-      await this.sendReport(client, reportData);
-    }, intervalMs);
+        await this.sendReport(client, reportData);
+      },
+      intervalMs,
+    );
 
     logger.info(`[ReportGenerator] Auto-reporting activé (période: ${period})`);
   }

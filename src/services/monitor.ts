@@ -909,14 +909,9 @@ let inactivityIntervalId: NodeJS.Timeout | null = null;
 export function startInactivityCheck(client: Client) {
   if (inactivityIntervalId) return;
   logger.info("[Monitor] Vérification d'inactivité activée (intervalle: 7 jours)");
-  inactivityIntervalId = setInterval(
-    async () => {
-      try {
-        await checkSourceInactivity(client);
-      } catch (err) {
-        logger.error("[Monitor] Erreur vérification inactivité:", String(err));
-      }
-    },
+  inactivityIntervalId = safeInterval(
+    "InactivityCheck",
+    () => checkSourceInactivity(client),
     7 * 24 * 60 * 60 * 1000,
   );
 }

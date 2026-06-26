@@ -7,7 +7,7 @@
  * Usage: npx tsx scripts/migrate-cache-to-neon.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Platform } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -16,6 +16,8 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 const CACHE_FILE = path.join(process.cwd(), "notification_cache.json");
+
+const VALID_PLATFORMS = new Set<string>(Object.values(Platform));
 
 interface CacheData {
   [platform: string]: string[] | string | undefined;
@@ -44,13 +46,18 @@ async function main(): Promise<void> {
 
   // 3. Migrer chaque plateforme
   const platforms = Object.keys(data).filter(
-    (k) => k !== "_lastMaintenance" && Array.isArray(data[k])
+    (k) => k !== "_lastMaintenance" && Array.isArray(data[k]),
   );
 
   let totalMigrated = 0;
   const stats: Record<string, number> = {};
 
   for (const platform of platforms) {
+    if (!VALID_PLATFORMS.has(platform)) {
+      console.warn(`  ⚠️  Cle inconnue dans le cache, ignoree: "${platform}"`);
+      stats[platform] = 0;
+      continue;
+    }
     const ids = data[platform] as string[];
     if (ids.length === 0) {
       stats[platform] = 0;
@@ -59,12 +66,14 @@ async function main(): Promise<void> {
 
     try {
       const result = await prisma.processedCache.createMany({
-        data: ids.map((uniqueId) => ({ platform, uniqueId })),
+        data: ids.map((uniqueId) => ({ platform: platform as Platform, uniqueId })),
         skipDuplicates: true,
       });
       stats[platform] = result.count;
       totalMigrated += result.count;
-      console.log(`  ✓ ${platform}: ${result.count} IDs migres (${ids.length - result.count} doublons ignores)`);
+      console.log(
+        `  ✓ ${platform}: ${result.count} IDs migres (${ids.length - result.count} doublons ignores)`,
+      );
     } catch (error: any) {
       console.error(`  ❌ ${platform}: erreur — ${error?.message || String(error)}`);
       stats[platform] = 0;

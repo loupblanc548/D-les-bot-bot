@@ -43,10 +43,16 @@ const client = new Client({
   // gardent leur comportement par defaut.
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
-    MessageManager: 50,
-    PresenceManager: 0,
-    GuildInviteManager: 0,
-    ThreadManager: 50,
+    // --- Caches volumineux : plafonnés pour un bot 24/7 ---
+    MessageManager: 50, // 50 messages max par salon en cache
+    ThreadManager: 50, // 50 threads max en cache
+    GuildMemberManager: 200, // 200 membres max par serveur (évite la croissance infinie)
+    // --- Caches inutiles pour ce bot : désactivés (0 = pas de cache) ---
+    PresenceManager: 0, // Pas de tracking de présence
+    GuildInviteManager: 0, // Pas de cache d'invitations
+    StageInstanceManager: 0, // Pas de cache de stages
+    GuildBanManager: 0, // Bans gérés par événements, pas de cache
+    AutoModerationRuleManager: 0, // Pas d'auto-mod sur ce bot
   }),
   // Purge periodique des entrees obsoletes pour eviter les fuites memoire.
   sweepers: {

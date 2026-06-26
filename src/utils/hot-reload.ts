@@ -1,5 +1,6 @@
 import { Client, REST, Routes } from "discord.js";
 import logger from "./logger.js";
+import { safeInterval } from "./safe-interval.js";
 import { config } from "../config.js";
 
 let isReloading = false;
@@ -102,10 +103,14 @@ export function enableAutoReload(client: Client, intervalMs: number = 300000) {
   }
 
   logger.info(`[HotReload] Auto-reload activé (intervalle: ${intervalMs}ms)`);
-  reloadInterval = setInterval(async () => {
-    logger.info("[HotReload] Rechargement automatique...");
-    await reloadCommands(client);
-  }, intervalMs);
+  reloadInterval = safeInterval(
+    "HotReload",
+    async () => {
+      logger.info("[HotReload] Rechargement automatique...");
+      await reloadCommands(client);
+    },
+    intervalMs,
+  );
 }
 
 /**

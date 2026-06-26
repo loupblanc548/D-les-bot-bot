@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import Parser from "rss-parser";
 import { OpenAI } from "openai";
 
@@ -48,7 +49,7 @@ class TrendDetectionService {
     for (const feedUrl of feedUrls) {
       try {
         const feed = await parser.parseURL(feedUrl);
-        
+
         if (!feed.items) continue;
 
         for (const item of feed.items) {
@@ -59,7 +60,6 @@ class TrendDetectionService {
             keywordCounts.set(keyword, (keywordCounts.get(keyword) || 0) + 1);
           }
         }
-
       } catch (error) {
         logger.error(`[TrendDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
       }
@@ -69,8 +69,8 @@ class TrendDetectionService {
     const now = Date.now();
     for (const [keyword, mentions] of keywordCounts) {
       const previousData = this.currentTrends.get(keyword);
-      
-      const growthRate = previousData 
+
+      const growthRate = previousData
         ? ((mentions - previousData.mentions) / previousData.mentions) * 100
         : 0;
 
@@ -90,14 +90,29 @@ class TrendDetectionService {
    * Extrait les mots-clés d'un texte
    */
   private extractKeywords(text: string): string[] {
-    const words = text.toLowerCase()
+    const words = text
+      .toLowerCase()
       .replace(/[^\w\s]/g, "")
       .split(/\s+/)
-      .filter(word => word.length > 3);
+      .filter((word) => word.length > 3);
 
-    const stopWords = new Set(["le", "la", "les", "un", "une", "des", "et", "ou", "mais", "pour", "avec", "sur", "dans"]);
-    
-    return words.filter(word => !stopWords.has(word));
+    const stopWords = new Set([
+      "le",
+      "la",
+      "les",
+      "un",
+      "une",
+      "des",
+      "et",
+      "ou",
+      "mais",
+      "pour",
+      "avec",
+      "sur",
+      "dans",
+    ]);
+
+    return words.filter((word) => !stopWords.has(word));
   }
 
   /**
@@ -109,7 +124,7 @@ class TrendDetectionService {
     }
 
     const trends = Array.from(this.currentTrends.values())
-      .filter(t => t.growthRate > 50) // Taux de croissance > 50%
+      .filter((t) => t.growthRate > 50) // Taux de croissance > 50%
       .slice(0, 10);
 
     if (trends.length === 0) {
@@ -117,7 +132,7 @@ class TrendDetectionService {
     }
 
     try {
-      const trendsData = trends.map(t => ({
+      const trendsData = trends.map((t) => ({
         keyword: t.keyword,
         mentions: t.mentions,
         growthRate: t.growthRate,
@@ -164,7 +179,6 @@ Fournis ta réponse au format JSON :
       const parsed = JSON.parse(content);
 
       return parsed.emergingTrends || [];
-
     } catch (error) {
       logger.error("[TrendDetection] Erreur lors de la détection IA:", error);
       return [];
@@ -185,7 +199,7 @@ Fournis ta réponse au format JSON :
    */
   getFastGrowingTrends(threshold: number = 50): TrendData[] {
     return Array.from(this.currentTrends.values())
-      .filter(t => t.growthRate > threshold)
+      .filter((t) => t.growthRate > threshold)
       .sort((a, b) => b.growthRate - a.growthRate);
   }
 
@@ -213,7 +227,7 @@ Fournis ta réponse au format JSON :
     const history: TrendData[] = [];
 
     for (const snapshot of this.trendHistory.values()) {
-      const data = snapshot.find(t => t.keyword === keyword);
+      const data = snapshot.find((t) => t.keyword === keyword);
       if (data) {
         history.push(data);
       }
@@ -226,13 +240,17 @@ Fournis ta réponse au format JSON :
    * Active la surveillance automatique
    */
   enableMonitoring(intervalMs: number = 3600000): void {
-    setInterval(() => {
-      this.analyzeRSSFeeds([
-        "https://www.reddit.com/r/gaming/new/.rss",
-        "https://www.reddit.com/r/Games/new/.rss",
-      ]);
-      this.saveTrendHistory();
-    }, intervalMs);
+    safeInterval(
+      "TrendDetection",
+      () => {
+        this.analyzeRSSFeeds([
+          "https://www.reddit.com/r/gaming/new/.rss",
+          "https://www.reddit.com/r/Games/new/.rss",
+        ]);
+        this.saveTrendHistory();
+      },
+      intervalMs,
+    );
 
     logger.info(`[TrendDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
   }
@@ -246,15 +264,14 @@ Fournis ta réponse au format JSON :
     topKeywords: string[];
   } {
     const trends = Array.from(this.currentTrends.values());
-    
-    const averageGrowthRate = trends.length > 0
-      ? trends.reduce((sum, t) => sum + t.growthRate, 0) / trends.length
-      : 0;
+
+    const averageGrowthRate =
+      trends.length > 0 ? trends.reduce((sum, t) => sum + t.growthRate, 0) / trends.length : 0;
 
     const topKeywords = trends
       .sort((a, b) => b.mentions - a.mentions)
       .slice(0, 10)
-      .map(t => t.keyword);
+      .map((t) => t.keyword);
 
     return {
       totalTrends: trends.length,

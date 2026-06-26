@@ -1,4 +1,5 @@
 import logger from "./logger.js";
+import { safeInterval } from "./safe-interval.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { config } from "../config.js";
 interface GroupedAlert {
@@ -157,9 +158,7 @@ export function enableSmartAlerts(client: Client, intervalMs: number = 10000): v
   }
 
   logger.info(`[SmartAlerts] Traitement automatique activé (intervalle: ${intervalMs}ms)`);
-  processingInterval = setInterval(() => {
-    processGroupedAlerts(client);
-  }, intervalMs);
+  processingInterval = safeInterval("SmartAlerts", () => processGroupedAlerts(client), intervalMs);
 }
 
 /**

@@ -1,0 +1,134 @@
+  19:30  warning  'stopControlServer' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  250:11  warning  'poll' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   70:37  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   74:40  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   78:40  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   82:40  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  3:3  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   21:10   warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   75:3  warning  'client' is defined but never used. Allowed unused args must match /^_/u               @typescript-eslint/no-unused-vars
+  109:3  warning  'client' is defined but never used. Allowed unused args must match /^_/u               @typescript-eslint/no-unused-vars
+  298:9  warning  'reminderId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  326:9  warning  'timeout' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  400:3  warning  'client' is defined but never used. Allowed unused args must match /^_/u               @typescript-eslint/no-unused-vars
+    2:8   warning  'logger' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  112:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  126:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+   50:39  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   13:10   warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  124:12  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+    5:3   warning  'SlashCommandBuilder' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   10:3   warning  'ComponentType' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  12:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  13:47  warning  'GuildMember' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  262:10  warning  'successEmbed' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  502:11  warning  'jours' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  823:3   warning  'client' is defined but never used. Allowed unused args must match /^_/u          @typescript-eslint/no-unused-vars
+  19:10  warning  'SoundFile' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  10:3  warning  'ComponentType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:8  warning  'prisma' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  171:3  warning  'client' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  4:3  warning  'Client' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  5:3  warning  'EmbedBuilder' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  7:8  warning  'logger' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   12:3   warning  'getOwnedGames' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  120:11  warning  'tracked' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   50:39  warning  'required' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+    4:3   warning  'ApplicationCommandOptionType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  213:13  warning  'targetMessage' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  228:13  warning  'targetMessage' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  243:13  warning  'targetMessage' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  331:13  warning  'targetMessage' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  1:24  warning  'EmbedAuthorOptions' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:44  warning  'EmbedFooterOptions' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:64  warning  'EmbedField' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  1:8   warning  'http' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  2:10  warning  'WebSocketServer' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:27  warning  'WebSocket' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  4:10  warning  'config' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  5:10  warning  'dedupCache' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   2:18  warning  'EmbedBuilder' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    6:10  warning  'randomUUID' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+    8:17  warning  'isRetryableError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  154:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u    @typescript-eslint/no-unused-vars
+    1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  16:10  warning  'config' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    6:10  warning  'randomUUID' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  211:49  warning  'i' is defined but never used. Allowed unused args must match /^_/u                   @typescript-eslint/no-unused-vars
+  217:18  warning  'directErr' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  51:11  warning  'statsAfter' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    2:18  warning  'EmbedBuilder' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    6:10  warning  'validateRssItem' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    6:27  warning  'sanitizeString' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   86:3   warning  'fetchTweetsForAccount' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  107:10  warning  'rssItem' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+  362:11  warning  'spy' is assigned a value but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  1:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   7:3   warning  'TextChannel' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  13:31  warning  'SanctionType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    3:3    warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   20:60   warning  'clearConversation' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  206:13   warning  'resetTime' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  44:7   warning  'interactionHandler' is defined but never used. Allowed unused vars must match /^_/u                                     @typescript-eslint/no-unused-vars
+  50:15  warning  'ScraperOptions' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   5:7   warning  'mockFindUnique' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   6:7   warning  'mockCreate' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   30:10   warning  'Prisma' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:15  warning  'Interaction' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:28  warning  'Client' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   6:8  warning  'Client' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:8   warning  'prisma' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  6:17  warning  'writeFile' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  8:8   warning  'logger' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  36:11  warning  'rssMB' is assigned a value but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  52:11  warning  'diagnosticTime' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  2:67  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    3:27  warning  'RawgClientInternals' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  87:13  warning  'totalErrors' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   11:16  warning  'getSystemPrompt' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  127:3   warning  'guildId' is defined but never used. Allowed unused args must match /^_/u          @typescript-eslint/no-unused-vars
+    2:18  warning  'GuildMember' is defined but never used. Allowed unused vars must match /^_/u                                 @typescript-eslint/no-unused-vars
+   55:23  warning  'member' is assigned a value but never used. Allowed unused elements of array destructuring must match /^_/u  @typescript-eslint/no-unused-vars
+   49:9   warning  'inputSampleRate' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  156:20  warning  'dmErr' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+    2:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    3:31  warning  'getOgImage' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  437:12  warning  'makeShopEntry' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   10:10  warning  'getCosmeticsMap' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    7:7   warning  'startTime' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  106:12  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u        @typescript-eslint/no-unused-vars
+  155:12  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u        @typescript-eslint/no-unused-vars
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    3:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  4:47  warning  'Summary' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  261:22  warning  'logger' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  523:9   warning  'callCount' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:45  warning  'GatewayIntentBits' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  4:32  warning  'PLATFORM_THEMES' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  138:11  warning  'prisma' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    2:10  warning  'Client' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    2:18  warning  'User' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+    5:10  warning  'aiPredictionService' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  222:37  warning  'redditUrl' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+   2:18  warning  'GuildMember' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   2:31  warning  'User' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   3:8   warning  'prisma' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+    2:10   warning  'Client' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    2:18   warning  'User' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  2:10  warning  'sendEscalatedAlert' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  6:11  warning  'TelegramMessage' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  19:7   warning  'MAX_HISTORY_PER_USER' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    2:8   warning  'prisma' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  11:10  warning  'MessageFlags' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  11:45  warning  'client' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  70:33  warning  'client' is defined but never used. Allowed unused args must match /^_/u                 @typescript-eslint/no-unused-vars
+  71:9   warning  'commandsPath' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  277:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  1:8  warning  'logger' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  4:10  warning  'sendEscalatedAlert' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   88:10  warning  'mockFetchBothFail' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  144:11  warning  'before' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  146:11  warning  'after' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars

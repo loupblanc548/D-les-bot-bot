@@ -34,6 +34,7 @@ import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js
 import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
 import { registerInterval } from "./shutdown.js";
+import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
 import { startAutoCleanup } from "./services/auto-cleanup.js";
@@ -154,8 +155,9 @@ export function attachStartupLogic(
         { stack: e instanceof Error ? e.stack : undefined },
       );
     }
-    const wishlistInterval = setInterval(
-      () => {
+    const wishlistInterval = safeInterval(
+      "WishlistMatcher",
+      () =>
         checkWishlistMatches(client)
           .then((matches) => {
             if (matches > 0)
@@ -166,8 +168,7 @@ export function attachStartupLogic(
               `[FortniteAPI/Wishlist] Erreur cyclique: ${e instanceof Error ? e.message : String(e)}`,
               { stack: e instanceof Error ? e.stack : undefined },
             ),
-          );
-      },
+          ),
       24 * 60 * 60 * 1000,
     );
     registerInterval(wishlistInterval);
