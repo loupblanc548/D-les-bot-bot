@@ -2,8 +2,8 @@
 module.exports = {
   apps: [{
     name: 'john-helldiver',
-    script: 'pm2-start.sh',
-    interpreter: 'bash',
+    script: 'node',
+    args: '--import tsx src/index.ts',
     cwd: __dirname,
     env: {
       NODE_ENV: 'production',
