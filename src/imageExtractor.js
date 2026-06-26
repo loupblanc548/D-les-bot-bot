@@ -74,6 +74,7 @@ export async function extractImage(item, rule, ctx) {
   return null;
 }
 
+/** @param {string} url */
 function looksLikeImageUrl(url) {
   if (!isHttpUrl(url)) return false;
   if (IMG_EXT_RE.test(url)) return true;

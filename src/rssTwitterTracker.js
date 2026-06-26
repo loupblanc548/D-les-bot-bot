@@ -4,14 +4,14 @@
  * rssTwitterTracker.js — Surveillance de flux RSS Twitter / X vers Discord.
  *
  * Architecture:
- *   - Cron via node-cron (expression configurable : RSS_TWITTER_CRON, defaut */15 * * * *).
+ *   - Cron via node-cron (expression configurable : RSS_TWITTER_CRON, defaut *\/15 * * * *).
  *   - Regles externalisees dans config/rssTwitterTracker.config.json (zod).
  *   - Hot-reload du fichier JSON par mtime au debut de chaque tick.
  *   - Anti-doublon Postgres (`rss_twitter_posts`).
  *   - Image d'illustration chainee via src/imageExtractor.js (5 tiers, RAWG fallback).
  *
  * Variables d'environnement :
- *   RSS_TWITTER_CRON   defaut "*/15 * * * *"
+ *   RSS_TWITTER_CRON   defaut "*\/15 * * * *"
  *   TZ                 defaut UTC
  *   RSS_TWITTER_FEEDS  liste CSV
  *   DATABASE_URL       Postgres (Neon)

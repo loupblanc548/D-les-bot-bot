@@ -19,11 +19,13 @@ const DEFAULT_MAX_ENTRIES = 500;
 const DEFAULT_COOLDOWN_MS = 60000;
 
 class LruMap {
+  /** @param {number} max */
   constructor(max) {
     if (!Number.isFinite(max) || max < 1) throw new Error('LruMap: max must be >= 1');
     this.max = max;
     this.map = new Map();
   }
+  /** @param {string} key */
   get(key) {
     if (!this.map.has(key)) return undefined;
     const v = this.map.get(key);
@@ -31,7 +33,12 @@ class LruMap {
     this.map.set(key, v);
     return v;
   }
+  /** @param {string} key */
   has(key) { return this.map.has(key); }
+  /**
+   * @param {string} key
+   * @param {*} value
+   */
   set(key, value) {
     if (this.map.has(key)) this.map.delete(key);
     this.map.set(key, value);
@@ -46,6 +53,7 @@ class LruMap {
 }
 
 export class RawgClient {
+  /** @param {Record<string, any>} [options] */
   constructor(options = {}) {
     this.apiKey = options.apiKey !== undefined ? options.apiKey : process.env.RAWG_API_KEY;
     this.timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
@@ -69,6 +77,10 @@ export class RawgClient {
   cooldownUntil() { return this._cooldownUntil; }
   inFlightCount() { return this._inFlight.size; }
 
+  /**
+   * @param {string} title
+   * @param {{ signal?: AbortSignal }} [options]
+   */
   searchByTitle(title, options) {
     if (this.disabled) return Promise.resolve(null);
     options = options || {};
@@ -162,12 +174,18 @@ export class RawgClient {
     return job;
   }
 
+  /** @param {string} title */
   cacheKey(title) {
     return title.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 120);
   }
+  /** @param {string} title */
   short(title) { return title.slice(0, 60); }
 }
 
+/**
+ * @param {AbortSignal} a
+ * @param {AbortSignal} b
+ */
 function composeAbortSignal(a, b) {
   if (a.aborted) return a;
   if (b.aborted) return b;
