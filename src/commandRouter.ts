@@ -90,6 +90,10 @@ import {
   commands as userinfoCommands,
   handleCommand as handleUserinfo,
 } from "./commands/userinfo.js";
+import {
+  commands as advancedCommands,
+  handleCommand as handleAdvanced,
+} from "./commands/advanced.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -127,6 +131,7 @@ export const allCommands = [
   ...healthzCommands,
   ...securityAuditCommands,
   ...userinfoCommands,
+  ...advancedCommands,
 ];
 
 function registerGroup(
@@ -228,6 +233,23 @@ export function buildCommandRouter(): void {
   registerGroup(["healthz"], handleHealthz);
   registerGroup(["security-audit"], handleSecurityAudit);
   registerGroup(["userinfo"], handleUserinfo);
+  registerGroup(
+    [
+      "deals-history",
+      "price-track",
+      "scraper-status",
+      "source-stats",
+      "trend-report",
+      "viral-alert",
+      "social-graph",
+      "auto-report",
+      "cooldown-config",
+      "smart-alerts",
+      "fortnite-wishlist",
+      "retro-config",
+    ],
+    handleAdvanced,
+  );
 
   // Commandes fun dispatchées via le handler main
   for (const name of ["echo-tds", "ask-bot", "wishlist", "shop"]) {

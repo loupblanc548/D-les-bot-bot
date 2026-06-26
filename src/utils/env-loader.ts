@@ -108,6 +108,10 @@ const envSchema = z.object({
   INSTANT_GAMING_CHANNEL_ID: z.string().optional(),
   GAMING_BLOG_CHANNEL_ID: z.string().optional(),
   DEDICATED_CHANNEL_ID: z.string().optional(),
+  DEALS_CHANNEL_ID: z.string().optional(),
+  PRICE_TRACK_CHANNEL_ID: z.string().optional(),
+  TRENDS_CHANNEL_ID: z.string().optional(),
+  VIRAL_CHANNEL_ID: z.string().optional(),
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_SECONDS: z.string().default("5"),

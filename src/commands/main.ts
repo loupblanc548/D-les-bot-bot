@@ -47,9 +47,12 @@ export const CATEGORIES: Category[] = [
     emoji: "📡",
     description: "Gestion des sources de surveillance",
     commands:
-      "`/addsource [@handle] [plateforme] - Ajoute une source (YouTube/Twitter/Bluesky)`\n" +
-      "`/removesource [@handle] - Supprime une source`\n" +
-      "`/listsources - Liste les sources`\n" +
+      "`/add-source [type] [handle] [salon] - Ajoute une source (admin)`\n" +
+      "`/remove-source [handle] - Supprime une source (admin)`\n" +
+      "`/list-sources - Liste les sources (admin)`\n" +
+      "`/pause-source [handle] - Met en pause une source (admin)`\n" +
+      "`/source-stats - Statistiques par source (admin)`\n" +
+      "`/scraper-status - Statut des scrapers Playwright (admin)`\n" +
       "`/twitch - Gère les streamers suivis (add/list/remove)`\n" +
       "`/psn - Profil, trophées et jeux PlayStation`",
   },
@@ -63,7 +66,17 @@ export const CATEGORIES: Category[] = [
       "`/dm [@user] [message] - DM (admin)`\n" +
       "`/logs [type] - Affiche les logs`\n" +
       "`/deletehistory - Supprime l'historique`\n" +
-      "`/maintenance - Active/désactive le mode maintenance`",
+      "`/maintenance - Active/désactive le mode maintenance`\n" +
+      "`/uptime - Statistiques d'exécution`\n" +
+      "`/healthz - Health check`\n" +
+      "`/clean-duplicates - Nettoie les doublons DB`\n" +
+      "`/backup - Backup manuel de la DB`\n" +
+      "`/guild-config - Configure la guilde`\n" +
+      "`/search-notifications - Recherche dans les notifications`\n" +
+      "`/create-workflow - Crée un workflow`\n" +
+      "`/list-workflows - Liste les workflows`\n" +
+      "`/toggle-workflow - Active/désactive un workflow`\n" +
+      "`/userinfo [utilisateur] - Infos enregistrées sur un utilisateur`",
   },
   {
     id: "ai",
@@ -76,7 +89,7 @@ export const CATEGORIES: Category[] = [
       "`/aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
       "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
       "`/translate [texte] [langue] - Traduit un texte`\n" +
-      "`/summarize [texte] - Résume un texte long`\n" +
+      "`/summarize [nombre] - Résume les messages d'un salon`\n" +
       "`/ask-gaming [question] - L'IA experte gaming`\n" +
       "`/ask-tech [question] - L'IA experte tech`",
   },
@@ -90,7 +103,10 @@ export const CATEGORIES: Category[] = [
       "`/riskscore [@user] - Score de risque d'un membre`\n" +
       "`/riskyusers [niveau] - Liste les membres à risque`\n" +
       "`/alertconfig - Configure les alertes`\n" +
-      "`/alertcenter reset [@user] - Réinitialise le profil de risque`",
+      "`/alertcenter reset [@user] - Réinitialise le profil de risque`\n" +
+      "`/security-audit - Audit sécurité des sanctions`\n" +
+      "`/smart-alerts [action] - Alertes groupées intelligentes (salon logs)`\n" +
+      "`/viral-alert [action] - Alerte quand un sujet devient viral`",
   },
   {
     id: "moderation",
@@ -131,7 +147,8 @@ export const CATEGORIES: Category[] = [
       "`/namehistory [@user] - Historique des pseudos`\n" +
       "`/avatarhistory [@user] - Historique des avatars`\n" +
       "`/linkcheck [url] - Vérifie un lien suspect`\n" +
-      "`/antiphishing - Active/désactive l'anti-phishing`",
+      "`/antiphishing - Active/désactive l'anti-phishing`\n" +
+      "`/guildconfig - Configure la sécurité de la guilde`",
   },
   {
     id: "gaming",
@@ -141,12 +158,16 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/game-status [jeu] - Statut des serveurs de jeu`\n" +
       "`/free-games - Jeux gratuits (Epic Games)`\n" +
-      "`/patch-notes [jeu] - Patch notes de jeux`\n" +
+      "`/patch_notes [jeu] - Patch notes de jeux`\n" +
       "`/deal [jeu] - Comparateur de prix`\n" +
       "`/track-game [jeu] - Surveille les actus Steam d'un jeu`\n" +
       "`/untrack-game [jeu] - Arrête la surveillance d'un jeu`\n" +
       "`/list-tracked - Liste les jeux surveillés`\n" +
-      "`/steam - Profil Steam, wishlist, nowplaying`",
+      "`/steam - Profil Steam, wishlist, nowplaying`\n" +
+      "`/deals-history [plateforme] [jours] - Historique des deals`\n" +
+      "`/price-track [jeu] [prix_max] - Suit le prix d'un jeu`\n" +
+      "`/trend-report - Rapport de tendances gaming`\n" +
+      "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`",
   },
   {
     id: "community",
@@ -154,10 +175,13 @@ export const CATEGORIES: Category[] = [
     emoji: "👥",
     description: "Fonctionnalités communautaires",
     commands:
-      "`/reminder [temps] [message] - Définit un rappel`\n" +
       "`/ticket-setup - Configure le système de tickets`\n" +
       "`/wishlist-notify - Active/désactive les DMs wishlist`\n" +
-      "`/poll [question] [options] - Crée un sondage`",
+      "`/poll [question] [options] - Crée un sondage`\n" +
+      "`/social-graph [action] - Visualise les interactions (salon logs)`\n" +
+      "`/auto-report [action] - Rapports automatiques (salon logs)`\n" +
+      "`/cooldown-config [commande] [secondes] - Cooldown par commande (salon logs)`\n" +
+      "`/retro-config [action] [valeur] - Config rétrospective (salon logs)`",
   },
   {
     id: "utility",

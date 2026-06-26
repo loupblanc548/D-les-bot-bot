@@ -54,6 +54,7 @@ vi.mock("./commands/uptime", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/healthz", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/security-audit", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/userinfo", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/advanced", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/echoTds", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/askBot", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/wishlist", () => ({ commands: [], handleCommand: vi.fn() }));
@@ -72,6 +73,19 @@ vi.mock("discord.js", () => ({
       setDescription: vi.fn().mockReturnThis(),
       setDefaultMemberPermissions: vi.fn().mockReturnThis(),
       addSubcommand: vi.fn().mockReturnThis(),
+      addStringOption: vi.fn().mockReturnThis(),
+      addIntegerOption: vi.fn().mockReturnThis(),
+      addNumberOption: vi.fn().mockReturnThis(),
+      addBooleanOption: vi.fn().mockReturnThis(),
+      addUserOption: vi.fn().mockReturnThis(),
+      addChannelOption: vi.fn().mockReturnThis(),
+      addRoleOption: vi.fn().mockReturnThis(),
+      setMinValue: vi.fn().mockReturnThis(),
+      setMaxValue: vi.fn().mockReturnThis(),
+      setMinLength: vi.fn().mockReturnThis(),
+      setAutocomplete: vi.fn().mockReturnThis(),
+      addChoices: vi.fn().mockReturnThis(),
+      addChannelTypes: vi.fn().mockReturnThis(),
       toJSON: vi.fn().mockReturnValue({}),
     };
   }),

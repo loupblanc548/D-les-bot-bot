@@ -102,6 +102,10 @@ export const config = {
   gamingBlogChannel: env.GAMING_BLOG_CHANNEL_ID || "",
   logChannel: env.LOG_CHANNEL_ID || null,
   dedicatedChannel: env.DEDICATED_CHANNEL_ID || "",
+  dealsChannel: env.DEALS_CHANNEL_ID || "",
+  priceTrackChannel: env.PRICE_TRACK_CHANNEL_ID || "",
+  trendsChannel: env.TRENDS_CHANNEL_ID || "",
+  viralChannel: env.VIRAL_CHANNEL_ID || "",
 
   // ─── Rate Limiting ────────────────────────────────────────────────────────
   rateLimit: {
