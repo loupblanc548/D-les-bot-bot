@@ -485,6 +485,9 @@ async function checkAndNotify(client: Client) {
               } else if (source.type === "TWITTER" && result.content.url) {
                 const og = await getTweetImage(result.content.url);
                 if (og) embed.setImage(og);
+              } else if (source.type === "TWITCH" && result.content.url) {
+                const twContent = result.content as YouTubeRSSContent;
+                if (twContent.thumbnail) embed.setImage(twContent.thumbnail);
               } else if (source.type === "BLUESKY" && result.content.url) {
                 const og = await getOgImage(result.content.url);
                 if (og) embed.setImage(og);
@@ -724,6 +727,8 @@ export async function runDbSourcesRetrospective(client: Client) {
             } else if (source.type === "TWITTER") {
               const og = await getTweetImage(item.url);
               if (og) embed.setImage(og);
+            } else if (source.type === "TWITCH") {
+              if (item.thumbnail) embed.setImage(item.thumbnail);
             } else if (source.type === "BLUESKY") {
               const og = await getOgImage(item.url);
               if (og) embed.setImage(og);
