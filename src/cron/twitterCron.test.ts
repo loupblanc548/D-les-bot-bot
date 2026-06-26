@@ -151,7 +151,7 @@ describe("checkTwitterAccounts", () => {
       data: `<rss><channel><item>
         <title>Tweet 1</title>
         <link>https://x.com/fortnitegame/status/111</link>
-        <pubDate>2026-06-15</pubDate>
+        <pubDate>${new Date().toISOString()}</pubDate>
         <description>New season!</description>
       </item></channel></rss>`,
     });
@@ -161,7 +161,7 @@ describe("checkTwitterAccounts", () => {
       data: `<rss><channel><item>
         <title>Tweet 2</title>
         <link>https://x.com/helldivers2/status/222</link>
-        <pubDate>2026-06-15</pubDate>
+        <pubDate>${new Date().toISOString()}</pubDate>
         <description>For democracy!</description>
       </item></channel></rss>`,
     });
@@ -258,7 +258,7 @@ describe("checkTwitterAccounts", () => {
       data: `<rss><channel><item>
         <title>OK</title>
         <link>https://x.com/compte1/status/1</link>
-        <pubDate>2026-06-15</pubDate>
+        <pubDate>${new Date().toISOString()}</pubDate>
         <description>Works</description>
       </item></channel></rss>`,
     });
@@ -269,7 +269,7 @@ describe("checkTwitterAccounts", () => {
       data: `<rss><channel><item>
         <title>OK3</title>
         <link>https://x.com/compte3/status/3</link>
-        <pubDate>2026-06-15</pubDate>
+        <pubDate>${new Date().toISOString()}</pubDate>
         <description>Also works</description>
       </item></channel></rss>`,
     });
@@ -302,7 +302,7 @@ describe("checkTwitterAccounts", () => {
       data: `<rss><channel><item>
         <title>Tweet with image</title>
         <link>https://x.com/test/status/555</link>
-        <pubDate>2026-06-15</pubDate>
+        <pubDate>${new Date().toISOString()}</pubDate>
         <description>&lt;img src="https://pbs.twimg.com/media/abc.jpg" /&gt; Tweet text</description>
       </item></channel></rss>`,
     });

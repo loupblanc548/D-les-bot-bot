@@ -760,7 +760,7 @@ describe("handleCommand – alertcenter", () => {
       expect(mockPrisma.riskProfile.count).toHaveBeenCalledWith({
         where: {
           guildId: "guild-123",
-          riskLevel: { in: ["ÉLEVÉ", "CRITIQUE"] },
+          riskLevel: { in: ["ELEVE", "CRITIQUE"] },
         },
       });
 

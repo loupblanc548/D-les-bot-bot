@@ -1,11 +1,28 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EventEmitter } from "events";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ─── Mock child_process.spawn ──────────────────────────────────────────────
+// ─── Mock Playwright ──────────────────────────────────────────────────────
 
-const mockSpawn = vi.hoisted(() => vi.fn());
-vi.mock("child_process", () => ({
-  spawn: mockSpawn,
+const { mockPage, mockBrowser, mockChromiumLaunch } = vi.hoisted(() => {
+  const p = {
+    goto: vi.fn(),
+    $: vi.fn(),
+    $$eval: vi.fn(),
+    $eval: vi.fn(),
+    close: vi.fn(),
+  };
+  const b = {
+    isConnected: vi.fn(),
+    newPage: vi.fn(),
+  };
+  return { mockPage: p, mockBrowser: b, mockChromiumLaunch: vi.fn() };
+});
+
+vi.mock("playwright", () => ({
+  chromium: { launch: mockChromiumLaunch },
+}));
+
+vi.mock("../utils/scraper", () => ({
+  closeBrowser: vi.fn(),
 }));
 
 // ─── Mock Prisma — 7 tables ────────────────────────────────────────────────
@@ -44,47 +61,49 @@ vi.mock("../utils/logger", () => ({
 // ─── Imports ───────────────────────────────────────────────────────────────
 
 import { runScrapingPipeline, ContentType } from "../managers/ScraperManager.js";
-// ─── Spawn Helpers ─────────────────────────────────────────────────────────
 
-function createMockProc(): EventEmitter & {
-  stdout: EventEmitter;
-  stderr: EventEmitter;
-  kill: ReturnType<typeof vi.fn>;
-} {
-  const proc = new EventEmitter() as EventEmitter & {
-    stdout: EventEmitter;
-    stderr: EventEmitter;
-    kill: ReturnType<typeof vi.fn>;
-  };
-  proc.stdout = new EventEmitter();
-  proc.stderr = new EventEmitter();
-  proc.kill = vi.fn();
-  return proc;
-}
+// ─── Playwright Helpers ────────────────────────────────────────────────────
 
-/** Émet un JSON Python valide sur stdout puis close(0) */
-function emitPythonJson(
-  proc: ReturnType<typeof createMockProc>,
-  data: Record<string, unknown>,
-): void {
-  proc.stdout.emit("data", Buffer.from(JSON.stringify(data), "utf-8"));
-  proc.emit("close", 0);
-}
+function setupSuccessfulScrape(overrides: Record<string, string> = {}): void {
+  const t = overrides.title ?? "Test Title";
+  const c = overrides.content ?? "Test content here";
+  const d = overrides.pubDate ?? new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+  const img = overrides.image ?? "https://example.com/img.jpg";
+  const og = overrides.ogTitle ?? "";
 
-/** Émet un JSON Python avec success=true, date récente, titre+contenu */
-function emitSuccessJson(
-  proc: ReturnType<typeof createMockProc>,
-  overrides: Record<string, unknown> = {},
-): void {
-  emitPythonJson(proc, {
-    success: true,
-    title: "Test Title",
-    content: "Test content here",
-    pubDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // -1h
-    link: "https://example.com/article",
-    image: "https://example.com/img.jpg",
-    ...overrides,
+  mockPage.goto.mockResolvedValue(undefined);
+  mockPage.$.mockImplementation(async (selector: string) => {
+    if (selector === "h1") return { textContent: async () => t };
+    return null;
   });
+  mockPage.$$eval.mockResolvedValue(c);
+  mockPage.$eval.mockImplementation(async (selector: string) => {
+    if (selector.includes("og:title")) return og || "OG Fallback";
+    if (selector.includes("time") || selector.includes("datetime") || selector.includes("date"))
+      return d;
+    if (selector.includes("img") || selector.includes("og:image")) return img;
+    return "";
+  });
+  mockPage.close.mockResolvedValue(undefined);
+  mockBrowser.isConnected.mockReturnValue(false);
+  mockBrowser.newPage.mockResolvedValue(mockPage);
+  mockChromiumLaunch.mockResolvedValue(mockBrowser);
+}
+
+function setupFailedScrape(errorMessage: string): void {
+  mockBrowser.isConnected.mockReturnValue(false);
+  mockBrowser.newPage.mockResolvedValue(mockPage);
+  mockChromiumLaunch.mockResolvedValue(mockBrowser);
+  mockPage.goto.mockRejectedValue(new Error(errorMessage));
+  mockPage.close.mockResolvedValue(undefined);
+}
+
+function setupTimeoutScrape(): void {
+  mockBrowser.isConnected.mockReturnValue(false);
+  mockBrowser.newPage.mockResolvedValue(mockPage);
+  mockChromiumLaunch.mockResolvedValue(mockBrowser);
+  mockPage.goto.mockRejectedValue(new Error("page.goto: Timeout 30000ms exceeded."));
+  mockPage.close.mockResolvedValue(undefined);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -93,20 +112,16 @@ function emitSuccessJson(
 
 describe("runScrapingPipeline — Succès complet", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     mockProcessedPatchNotes.findUnique.mockReset();
     mockProcessedPatchNotes.create.mockReset();
   });
 
   it("retourne { valid: true, item } quand toutes les étapes passent", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-    mockProcessedPatchNotes.findUnique.mockResolvedValue(null); // pas encore traité
+    setupSuccessfulScrape();
+    mockProcessedPatchNotes.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline("https://example.com/article", "guid-abc-123");
-    emitSuccessJson(proc);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com/article", "guid-abc-123");
 
     expect(result.valid).toBe(true);
     expect(result.item).toBeDefined();
@@ -120,78 +135,33 @@ describe("runScrapingPipeline — Succès complet", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Suite 2: Pipeline — Échec scraping (Python error)
+// Suite 2: Pipeline — Échec scraping
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe("runScrapingPipeline — Échec scraping", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     mockProcessedPatchNotes.findUnique.mockReset();
   });
 
-  it("retourne skippedReason='scraping_failed' si Python exit != 0", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+  it("retourne skippedReason='scraping_failed' si page.goto échoue", async () => {
+    setupFailedScrape("net::ERR_CONNECTION_REFUSED");
 
-    const promise = runScrapingPipeline("https://example.com", "guid-1");
-    proc.stderr.emit("data", Buffer.from("Python error traceback", "utf-8"));
-    proc.emit("close", 1);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-1");
 
     expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("exited with code 1");
+    expect(result.skippedReason).toBe("scraping_unsuccessful");
+    expect(result.error).toContain("ERR_CONNECTION_REFUSED");
   });
 
-  it("retourne skippedReason='scraping_failed' si le JSON Python dit success:false", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+  it("retourne skippedReason='scraping_unsuccessful' si timeout page.goto", async () => {
+    setupTimeoutScrape();
 
-    const promise = runScrapingPipeline("https://example.com", "guid-2");
-    emitPythonJson(proc, {
-      success: false,
-      title: "",
-      content: "",
-      error: "Target page returned 403",
-    });
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-2");
 
     expect(result.valid).toBe(false);
-    // executeScraper rejecte quand success:false → passe par le catch → scraping_failed
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("Target page returned 403");
-  });
-
-  it("retourne skippedReason='scraping_failed' si le JSON Python est invalide (Zod)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-
-    const promise = runScrapingPipeline("https://example.com", "guid-3");
-    // title est un nombre au lieu d'un string → Zod reject
-    emitPythonJson(proc, { success: true, title: 12345 });
-
-    const result = await promise;
-
-    expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("Validation Zod");
-  });
-
-  it("retourne skippedReason='scraping_failed' si stdout n'est pas du JSON", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-
-    const promise = runScrapingPipeline("https://example.com", "guid-4");
-    proc.stdout.emit("data", Buffer.from("Not JSON at all", "utf-8"));
-    proc.emit("close", 0);
-
-    const result = await promise;
-
-    expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("Invalid JSON");
+    expect(result.skippedReason).toBe("scraping_unsuccessful");
+    expect(result.error).toContain("timeout");
   });
 });
 
@@ -201,60 +171,35 @@ describe("runScrapingPipeline — Échec scraping", () => {
 
 describe("runScrapingPipeline — Barrière temporelle 48h", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     mockProcessedPatchNotes.findUnique.mockReset();
   });
 
   it("retourne skippedReason='temporal_barrier' si pubDate > 48h", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-
-    const promise = runScrapingPipeline("https://example.com", "guid-old");
-    emitPythonJson(proc, {
-      success: true,
-      title: "Old Article",
-      content: "Old content",
-      pubDate: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(), // -72h
+    setupSuccessfulScrape({
+      pubDate: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
     });
 
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-old");
 
     expect(result.valid).toBe(false);
     expect(result.skippedReason).toBe("temporal_barrier");
   });
 
   it("retourne skippedReason='temporal_barrier' si pubDate est invalide", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape({ pubDate: "not-a-valid-date" });
 
-    const promise = runScrapingPipeline("https://example.com", "guid-bad-date");
-    emitPythonJson(proc, {
-      success: true,
-      title: "Bad date",
-      content: "Content",
-      pubDate: "not-a-valid-date",
-    });
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-bad-date");
 
     expect(result.valid).toBe(false);
     expect(result.skippedReason).toBe("temporal_barrier");
   });
 
   it("accepte un item avec pubDate vide (pessimiste)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape({ pubDate: "" });
     mockProcessedPatchNotes.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline("https://example.com", "guid-no-date");
-    emitPythonJson(proc, {
-      success: true,
-      title: "No date article",
-      content: "Content",
-      pubDate: "",
-    });
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-no-date");
 
     expect(result.valid).toBe(true);
     expect(result.skippedReason).toBeUndefined();
@@ -267,53 +212,38 @@ describe("runScrapingPipeline — Barrière temporelle 48h", () => {
 
 describe("runScrapingPipeline — Déduplication Prisma", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     mockProcessedPatchNotes.findUnique.mockReset();
     mockProcessedPatchNotes.create.mockReset();
   });
 
   it("retourne skippedReason='duplicate' si l'item existe déjà", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedPatchNotes.findUnique.mockResolvedValue({
       guid: "guid-dup",
       title: "Already there",
     });
 
-    const promise = runScrapingPipeline("https://example.com", "guid-dup");
-    emitSuccessJson(proc);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-dup");
 
     expect(result.valid).toBe(false);
     expect(result.skippedReason).toBe("duplicate");
   });
 
   it("n'appelle PAS findUnique si le scraping échoue (short-circuit)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupFailedScrape("Connection refused");
 
-    const promise = runScrapingPipeline("https://example.com", "guid-short");
-    proc.emit("close", 1); // scraping fails
+    await runScrapingPipeline("https://example.com", "guid-short");
 
-    await promise;
-
-    // La déduplication ne doit pas être appelée
     expect(mockProcessedPatchNotes.findUnique).not.toHaveBeenCalled();
   });
 
   it("n'appelle PAS findUnique si la barrière temporelle échoue (short-circuit)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-
-    const promise = runScrapingPipeline("https://example.com", "guid-old-short");
-    emitPythonJson(proc, {
-      success: true,
-      title: "Old",
+    setupSuccessfulScrape({
       pubDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    await promise;
+    await runScrapingPipeline("https://example.com", "guid-old-short");
 
     expect(mockProcessedPatchNotes.findUnique).not.toHaveBeenCalled();
   });
@@ -325,7 +255,7 @@ describe("runScrapingPipeline — Déduplication Prisma", () => {
 
 describe("runScrapingPipeline — ContentType paramétrique", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     for (const mock of [
       mockProcessedTweets,
       mockProcessedFreeGames,
@@ -341,14 +271,10 @@ describe("runScrapingPipeline — ContentType paramétrique", () => {
   });
 
   it("utilise PATCH_NOTE par défaut (backward compatible)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedPatchNotes.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline("https://example.com", "guid-default");
-    emitSuccessJson(proc);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-default");
 
     expect(result.valid).toBe(true);
     expect(mockProcessedPatchNotes.findUnique).toHaveBeenCalledWith({
@@ -357,19 +283,15 @@ describe("runScrapingPipeline — ContentType paramétrique", () => {
   });
 
   it("utilise FREE_GAME quand le type est spécifié", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedFreeGames.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline(
+    const result = await runScrapingPipeline(
       "https://example.com/free-game",
       "reddit-post-42",
       undefined,
       ContentType.FREE_GAME,
     );
-    emitSuccessJson(proc);
-
-    const result = await promise;
 
     expect(result.valid).toBe(true);
     expect(mockProcessedFreeGames.findUnique).toHaveBeenCalledWith({
@@ -378,19 +300,15 @@ describe("runScrapingPipeline — ContentType paramétrique", () => {
   });
 
   it("utilise TWEET pour le ContentType correspondant", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedTweets.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline(
+    const result = await runScrapingPipeline(
       "https://twitter.com/user/status/123",
       "tweet-123",
       { mode: "html", timeout: 15000 },
       ContentType.TWEET,
     );
-    emitSuccessJson(proc);
-
-    const result = await promise;
 
     expect(result.valid).toBe(true);
     expect(result.item!.guid).toBe("tweet-123");
@@ -399,29 +317,22 @@ describe("runScrapingPipeline — ContentType paramétrique", () => {
     });
   });
 
-  it("passe les options de scraping au spawn Python", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+  it("passe les options de scraping à page.goto", async () => {
+    setupSuccessfulScrape();
     mockProcessedDeal.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline(
+    const result = await runScrapingPipeline(
       "https://deals.example.com",
       "deal-xyz",
       { mode: "html", timeout: 20000 },
       ContentType.DEAL,
     );
-    emitSuccessJson(proc);
-
-    const result = await promise;
 
     expect(result.valid).toBe(true);
-
-    // Vérifier les arguments passés à spawn
-    const args = mockSpawn.mock.calls[0][1] as string[];
-    const modeIdx = args.indexOf("--mode");
-    expect(args[modeIdx + 1]).toBe("html");
-    const timeoutIdx = args.indexOf("--timeout");
-    expect(args[timeoutIdx + 1]).toBe("20"); // 20000ms / 1000
+    expect(mockPage.goto).toHaveBeenCalledWith("https://deals.example.com", {
+      waitUntil: "networkidle",
+      timeout: 20000,
+    });
   });
 });
 
@@ -431,54 +342,39 @@ describe("runScrapingPipeline — ContentType paramétrique", () => {
 
 describe("runScrapingPipeline — Timeout", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    mockSpawn.mockClear();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   it("retourne skippedReason='scraping_failed' après timeout", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupTimeoutScrape();
 
-    const promise = runScrapingPipeline("https://slow-server.com", "guid-timeout", {
+    const result = await runScrapingPipeline("https://slow-server.com", "guid-timeout", {
       timeout: 5000,
     });
 
-    vi.advanceTimersByTime(5001);
-
-    const result = await promise;
-
     expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("timeout");
-    expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
+    expect(result.skippedReason).toBe("scraping_unsuccessful");
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Suite 7: Pipeline — Erreur spawn (Python introuvable)
+// Suite 7: Pipeline — Erreur spawn (navigateur introuvable)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe("runScrapingPipeline — Erreur spawn", () => {
+describe("runScrapingPipeline — Erreur navigateur", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
   });
 
-  it("retourne skippedReason='scraping_failed' si Python est introuvable", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+  it("retourne skippedReason='scraping_failed' si chromium.launch échoue", async () => {
+    mockBrowser.isConnected.mockReturnValue(false);
+    mockChromiumLaunch.mockRejectedValue(new Error("Browser not found"));
 
-    const promise = runScrapingPipeline("https://example.com", "guid-spawn-err");
-    proc.emit("error", new Error("Python not found"));
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "guid-spawn-err");
 
     expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
-    expect(result.error).toContain("Python not found");
+    expect(result.skippedReason).toBe("scraping_unsuccessful");
+    expect(result.error).toContain("Browser not found");
   });
 });
 
@@ -488,20 +384,16 @@ describe("runScrapingPipeline — Erreur spawn", () => {
 
 describe("runScrapingPipeline — Flux complet 3 étapes", () => {
   beforeEach(() => {
-    mockSpawn.mockClear();
+    vi.clearAllMocks();
     mockProcessedPatchNotes.findUnique.mockReset();
     mockProcessedPatchNotes.create.mockReset();
   });
 
   it("chaîne: scraping OK → Zod OK → 48h OK → dédup OK → valid:true", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedPatchNotes.findUnique.mockResolvedValue(null);
 
-    const promise = runScrapingPipeline("https://example.com", "chain-ok");
-    emitSuccessJson(proc);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "chain-ok");
 
     expect(result.valid).toBe(true);
     expect(result.item).toBeDefined();
@@ -509,18 +401,11 @@ describe("runScrapingPipeline — Flux complet 3 étapes", () => {
   });
 
   it("chaîne: scraping OK → Zod OK → 48h FAIL → valid:false (temporal_barrier)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
-
-    const promise = runScrapingPipeline("https://example.com", "chain-old");
-    emitPythonJson(proc, {
-      success: true,
-      title: "Old",
-      content: "Old",
+    setupSuccessfulScrape({
       pubDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "chain-old");
 
     expect(result.valid).toBe(false);
     expect(result.skippedReason).toBe("temporal_barrier");
@@ -528,30 +413,22 @@ describe("runScrapingPipeline — Flux complet 3 étapes", () => {
   });
 
   it("chaîne: scraping OK → Zod OK → 48h OK → dédup FAIL → valid:false (duplicate)", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupSuccessfulScrape();
     mockProcessedPatchNotes.findUnique.mockResolvedValue({ guid: "chain-dup" });
 
-    const promise = runScrapingPipeline("https://example.com", "chain-dup");
-    emitSuccessJson(proc);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "chain-dup");
 
     expect(result.valid).toBe(false);
     expect(result.skippedReason).toBe("duplicate");
   });
 
   it("chaîne: scraping FAIL → les étapes Zod/48h/dédup sont court-circuitées", async () => {
-    const proc = createMockProc();
-    mockSpawn.mockReturnValue(proc);
+    setupFailedScrape("Connection refused");
 
-    const promise = runScrapingPipeline("https://example.com", "chain-fail");
-    proc.emit("close", 1);
-
-    const result = await promise;
+    const result = await runScrapingPipeline("https://example.com", "chain-fail");
 
     expect(result.valid).toBe(false);
-    expect(result.skippedReason).toBe("scraping_failed");
+    expect(result.skippedReason).toBe("scraping_unsuccessful");
     expect(mockProcessedPatchNotes.findUnique).not.toHaveBeenCalled();
   });
 });

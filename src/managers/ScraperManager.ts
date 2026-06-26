@@ -112,7 +112,7 @@ export function getContentTypeConfig(type: ContentType): ContentTypeConfig {
  * Verifie si la date de publication est dans la barriere temporelle (24h).
  */
 export function isWithinTemporalBarrier(pubDate: string): boolean {
-  if (!pubDate) return false;
+  if (!pubDate) return true;
   const date = new Date(pubDate);
   if (isNaN(date.getTime())) return false;
   const now = Date.now();
