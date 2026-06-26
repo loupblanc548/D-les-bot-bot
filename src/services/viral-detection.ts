@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import Parser from "rss-parser";
 import { OpenAI } from "openai";
 
@@ -265,10 +266,14 @@ Fournis ta réponse au format JSON :
    * Active la surveillance automatique
    */
   enableMonitoring(feedUrls: string[], intervalMs: number = 3600000): void {
-    setInterval(() => {
-      this.scanRSSFeeds(feedUrls);
-      this.cleanupOldContent();
-    }, intervalMs);
+    safeInterval(
+      "ViralDetection",
+      () => {
+        this.scanRSSFeeds(feedUrls);
+        this.cleanupOldContent();
+      },
+      intervalMs,
+    );
 
     logger.info(`[ViralDetection] Surveillance activée (intervalle: ${intervalMs}ms)`);
   }

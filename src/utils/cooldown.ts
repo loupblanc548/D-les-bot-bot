@@ -1,4 +1,5 @@
 import logger from "./logger.js";
+import { safeInterval } from "./safe-interval.js";
 
 interface CooldownEntry {
   lastAlert: number;
@@ -9,9 +10,9 @@ interface CooldownEntry {
 const cooldownMap = new Map<string, CooldownEntry>();
 
 const COOLDOWN_CONFIG = {
-  low: { duration: 60000, maxAlerts: 5 },      // 1 minute, 5 alertes
-  medium: { duration: 300000, maxAlerts: 3 },   // 5 minutes, 3 alertes
-  high: { duration: 900000, maxAlerts: 2 },     // 15 minutes, 2 alertes
+  low: { duration: 60000, maxAlerts: 5 }, // 1 minute, 5 alertes
+  medium: { duration: 300000, maxAlerts: 3 }, // 5 minutes, 3 alertes
+  high: { duration: 900000, maxAlerts: 2 }, // 15 minutes, 2 alertes
   critical: { duration: 1800000, maxAlerts: 1 }, // 30 minutes, 1 alerte
 };
 
@@ -21,7 +22,10 @@ const COOLDOWN_CONFIG = {
  * @param severity Sévérité de l'alerte
  * @returns true si l'alerte peut être envoyée, false sinon
  */
-export function canSendAlert(key: string, severity: "low" | "medium" | "high" | "critical" = "medium"): boolean {
+export function canSendAlert(
+  key: string,
+  severity: "low" | "medium" | "high" | "critical" = "medium",
+): boolean {
   const now = Date.now();
   const entry = cooldownMap.get(key);
   const config = COOLDOWN_CONFIG[severity];
@@ -52,7 +56,9 @@ export function canSendAlert(key: string, severity: "low" | "medium" | "high" | 
 
   // Vérifier si le nombre maximum d'alertes est atteint
   if (entry.alertCount >= config.maxAlerts) {
-    logger.debug(`[Cooldown] Maximum d'alertes atteint pour ${key} (${entry.alertCount}/${config.maxAlerts})`);
+    logger.debug(
+      `[Cooldown] Maximum d'alertes atteint pour ${key} (${entry.alertCount}/${config.maxAlerts})`,
+    );
     return false;
   }
 
@@ -114,7 +120,8 @@ export function cleanupExpiredCooldowns(): void {
 
   for (const [key, entry] of cooldownMap.entries()) {
     const config = COOLDOWN_CONFIG[entry.severity];
-    if (now - entry.lastAlert > config.duration * 2) { // Double du cooldown pour être sûr
+    if (now - entry.lastAlert > config.duration * 2) {
+      // Double du cooldown pour être sûr
       cooldownMap.delete(key);
       cleaned++;
     }
@@ -137,9 +144,7 @@ export function enableCooldownCleanup(intervalMs: number = 300000): void {
   }
 
   logger.info(`[Cooldown] Nettoyage automatique activé (intervalle: ${intervalMs}ms)`);
-  cleanupInterval = setInterval(() => {
-    cleanupExpiredCooldowns();
-  }, intervalMs);
+  cleanupInterval = safeInterval("CooldownCleanup", () => cleanupExpiredCooldowns(), intervalMs);
 }
 
 /**

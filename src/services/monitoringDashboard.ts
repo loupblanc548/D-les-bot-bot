@@ -1,5 +1,6 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import { AdvancedEmbedBuilder } from "../components/embedBuilder.js";
 import { metricsCollector } from "../utils/metrics.js";
@@ -280,11 +281,14 @@ class MonitoringDashboard {
     );
 
     // Mettre a jour regulierement
-    this.updateInterval = setInterval(() => {
-      this.sendDashboard().catch((error) =>
-        logger.error(`[MonitoringDashboard] Erreur mise a jour: ${error}`),
-      );
-    }, this.UPDATE_INTERVAL_MS);
+    this.updateInterval = safeInterval(
+      "MonitoringDashboard",
+      () =>
+        this.sendDashboard().catch((error) =>
+          logger.error(`[MonitoringDashboard] Erreur mise a jour: ${error}`),
+        ),
+      this.UPDATE_INTERVAL_MS,
+    );
 
     logger.info(
       `[MonitoringDashboard] Demarre - Mise a jour toutes les ${this.UPDATE_INTERVAL_MS / 1000} secondes`,

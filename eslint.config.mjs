@@ -41,6 +41,8 @@ export default tseslint.config(
       "src/managers/_fix_scraper.js",
       "src/rawgClient.js",
       "src/rssTwitterTracker.js",
+      "scripts/migrate-cache-to-neon.ts",
+      "vitest.config.ts",
     ],
   },
 );
