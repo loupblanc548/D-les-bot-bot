@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import prisma from "../prisma.js";
 
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000; // Tous les jours
@@ -31,7 +32,7 @@ export async function pruneOldData(): Promise<{
 
   if (logsDeleted > 0 || notificationsDeleted > 0 || chatHistoryDeleted > 0) {
     logger.info(
-      `[DataPruning] Nettoyage terminé : ${logsDeleted} logs, ${notificationsDeleted} notifications, ${chatHistoryDeleted} messages IA`
+      `[DataPruning] Nettoyage terminé : ${logsDeleted} logs, ${notificationsDeleted} notifications, ${chatHistoryDeleted} messages IA`,
     );
   }
 
@@ -43,9 +44,7 @@ let pruneInterval: ReturnType<typeof setInterval> | null = null;
 export function startDataPruning(): void {
   if (pruneInterval) return;
   logger.info("[DataPruning] Nettoyage automatique activé (intervalle: 24h)");
-  pruneInterval = setInterval(() => {
-    pruneOldData().catch((err) => logger.error("[DataPruning] Erreur:", err));
-  }, PRUNE_INTERVAL_MS);
+  pruneInterval = safeInterval("DataPruning", () => pruneOldData(), PRUNE_INTERVAL_MS);
 }
 
 export function stopDataPruning(): void {

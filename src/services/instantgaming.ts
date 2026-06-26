@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import {
@@ -20,12 +21,11 @@ const IG_ORANGE = 0xef7f1a;
 const HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-  "Accept":
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
   "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
   "Accept-Encoding": "gzip, deflate, br",
-  "DNT": "1",
-  "Connection": "keep-alive",
+  DNT: "1",
+  Connection: "keep-alive",
   "Upgrade-Insecure-Requests": "1",
   "Sec-Fetch-Dest": "document",
   "Sec-Fetch-Mode": "navigate",
@@ -66,8 +66,8 @@ async function scrapeGiveawayPage(): Promise<GiveawayData | null> {
     let title =
       $('[class*="giveaway"] h2').first().text() ||
       $('[class*="giveaway"] h3').first().text() ||
-      $('.giveaway-container h2').first().text() ||
-      $('.giveaway-container h3').first().text() ||
+      $(".giveaway-container h2").first().text() ||
+      $(".giveaway-container h3").first().text() ||
       $('[class*="prize"]').first().text() ||
       $('meta[property="og:title"]').attr("content") ||
       $("h1").first().text() ||
@@ -83,7 +83,7 @@ async function scrapeGiveawayPage(): Promise<GiveawayData | null> {
 
     const image =
       $('meta[property="og:image"]').attr("content") ||
-      $('.giveaway-container img').first().attr("src") ||
+      $(".giveaway-container img").first().attr("src") ||
       $('[class*="giveaway"] img').first().attr("src") ||
       null;
 
@@ -106,16 +106,13 @@ async function scrapeGiveawayPage(): Promise<GiveawayData | null> {
   } catch (error) {
     logger.error(
       "[InstantGaming] Erreur lors du scraping:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     return null;
   }
 }
 
-async function sendGiveawayEmbed(
-  client: Client,
-  data: GiveawayData
-): Promise<void> {
+async function sendGiveawayEmbed(client: Client, data: GiveawayData): Promise<void> {
   const channelId = config.instantGamingChannel;
   if (!channelId) {
     logger.warn("[InstantGaming] INSTANT_GAMING_CHANNEL_ID non configure.");
@@ -131,9 +128,13 @@ async function sendGiveawayEmbed(
   const embed = new EmbedBuilder()
     .setTitle("🎁 NOUVEAU CONCOURS INSTANT GAMING !")
     .setDescription(
-      "## **" + data.title + "**\n\n" +
-      "🔗 [Voir le concours](" + data.url + ")\n\n" +
-      "📅 *Participez avant la fin du tirage au sort !*"
+      "## **" +
+        data.title +
+        "**\n\n" +
+        "🔗 [Voir le concours](" +
+        data.url +
+        ")\n\n" +
+        "📅 *Participez avant la fin du tirage au sort !*",
     )
     .setColor(IG_ORANGE)
     .setFooter({
@@ -147,10 +148,7 @@ async function sendGiveawayEmbed(
   }
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setLabel("🎮 Participer")
-      .setStyle(ButtonStyle.Link)
-      .setURL(data.url)
+    new ButtonBuilder().setLabel("🎮 Participer").setStyle(ButtonStyle.Link).setURL(data.url),
   );
 
   await (channel as TextChannel).send({
@@ -163,9 +161,7 @@ async function sendGiveawayEmbed(
 
 let isChecking = false;
 
-export async function checkInstantGamingGiveaway(
-  client: Client
-): Promise<void> {
+export async function checkInstantGamingGiveaway(client: Client): Promise<void> {
   if (isChecking) return;
   isChecking = true;
 
@@ -227,14 +223,14 @@ export function startInstantGamingCheck(client: Client): void {
   logger.info("[InstantGaming] Surveillance activee (intervalle: 12h)");
 
   checkInstantGamingGiveaway(client).catch((err) =>
-    logger.error("[InstantGaming] Erreur check initial:", err)
+    logger.error("[InstantGaming] Erreur check initial:", err),
   );
 
-  intervalId = setInterval(() => {
-    checkInstantGamingGiveaway(client).catch((err) =>
-      logger.error("[InstantGaming] Erreur check cyclique:", err)
-    );
-  }, CHECK_INTERVAL_MS);
+  intervalId = safeInterval(
+    "InstantGaming",
+    () => checkInstantGamingGiveaway(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopInstantGamingCheck(): void {

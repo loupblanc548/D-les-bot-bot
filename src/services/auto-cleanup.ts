@@ -1,6 +1,7 @@
 import { Client, TextChannel, Message } from "discord.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { registerInterval } from "../shutdown.js";
 
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
@@ -204,13 +205,7 @@ export function startAutoCleanup(client: Client): void {
       ),
     );
   }, 30_000);
-  cleanupInterval = setInterval(() => {
-    runAutoCleanup(client).catch((err) =>
-      logger.error(
-        `[Menage Auto] Erreur cycle: ${err instanceof Error ? err.message : String(err)}`,
-      ),
-    );
-  }, CLEANUP_INTERVAL_MS);
+  cleanupInterval = safeInterval("MenageAuto", () => runAutoCleanup(client), CLEANUP_INTERVAL_MS);
 
   // Enregistrer pour nettoyage au shutdown
   registerInterval(cleanupInterval);

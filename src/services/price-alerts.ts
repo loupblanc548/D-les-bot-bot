@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
@@ -35,14 +36,14 @@ const MIN_DISCOUNT_PERCENT = 50; // Alertes uniquement pour -50% ou plus
 async function checkSteamPrices(): Promise<PriceAlert[]> {
   const alerts: PriceAlert[] = [];
 
-  for (const game of TRACKED_GAMES.filter(g => g.platform === "steam")) {
+  for (const game of TRACKED_GAMES.filter((g) => g.platform === "steam")) {
     try {
       const response = await fetch(`${PRICE_SOURCES.steam}?appids=${game.id}&cc=FR`);
-      const data = await response.json() as Record<string, unknown>;
-      
+      const data = (await response.json()) as Record<string, unknown>;
+
       if (data[game.id] && (data[game.id] as Record<string, unknown>).success) {
         const appData = (data[game.id] as Record<string, unknown>).data as Record<string, unknown>;
-        
+
         if (appData.price_overview) {
           const priceOverview = appData.price_overview as Record<string, unknown>;
           const currentPrice = (priceOverview.final as number) / 100;
@@ -65,7 +66,10 @@ async function checkSteamPrices(): Promise<PriceAlert[]> {
         }
       }
     } catch (error) {
-      logger.error(`[PriceAlerts] Erreur lors de la vérification des prix Steam pour ${game.name}:`, error);
+      logger.error(
+        `[PriceAlerts] Erreur lors de la vérification des prix Steam pour ${game.name}:`,
+        error,
+      );
     }
   }
 
@@ -156,7 +160,7 @@ export async function checkPriceAlerts(client: Client): Promise<void> {
 
   for (const alert of alerts) {
     const alertId = `${alert.gameId}-${alert.currentPrice}-${alert.discount}`;
-    
+
     if (!(await isPriceAlertSent(alertId))) {
       await sendPriceAlertNotification(client, alert);
       await markPriceAlertSent(alertId);
@@ -176,14 +180,16 @@ export function startPriceAlertsMonitoring(client: Client): void {
   }
 
   logger.info("[PriceAlerts] Démarrage de la surveillance des prix");
-  
+
   // Vérification immédiate
   checkPriceAlerts(client);
 
   // Vérification périodique
-  priceCheckInterval = setInterval(() => {
-    checkPriceAlerts(client);
-  }, CHECK_INTERVAL_MS);
+  priceCheckInterval = safeInterval(
+    "PriceAlerts",
+    () => checkPriceAlerts(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 /**

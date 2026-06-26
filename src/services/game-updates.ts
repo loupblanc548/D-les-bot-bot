@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
@@ -41,10 +42,10 @@ async function checkSteamUpdates(): Promise<GameUpdate[]> {
   const updates: GameUpdate[] = [];
   const parser = new Parser();
 
-  for (const game of TRACKED_GAMES.filter(g => g.platform === "steam")) {
+  for (const game of TRACKED_GAMES.filter((g) => g.platform === "steam")) {
     try {
       const feed = await parser.parseURL(`${UPDATE_SOURCES.steam}${game.id}`);
-      
+
       for (const item of feed.items.slice(0, 3)) {
         const title = item.title || "";
         const description = item.contentSnippet || item.content || "";
@@ -52,10 +53,11 @@ async function checkSteamUpdates(): Promise<GameUpdate[]> {
         const pubDate = item.pubDate || "";
 
         // Vérifier si c'est une mise à jour
-        if (title.toLowerCase().includes("update") || 
-            title.toLowerCase().includes("patch") ||
-            title.toLowerCase().includes("hotfix")) {
-          
+        if (
+          title.toLowerCase().includes("update") ||
+          title.toLowerCase().includes("patch") ||
+          title.toLowerCase().includes("hotfix")
+        ) {
           const update: GameUpdate = {
             gameId: game.id,
             gameName: game.name,
@@ -71,7 +73,10 @@ async function checkSteamUpdates(): Promise<GameUpdate[]> {
         }
       }
     } catch (error) {
-      logger.error(`[GameUpdates] Erreur lors de la vérification des mises à jour Steam pour ${game.name}:`, error);
+      logger.error(
+        `[GameUpdates] Erreur lors de la vérification des mises à jour Steam pour ${game.name}:`,
+        error,
+      );
     }
   }
 
@@ -127,7 +132,9 @@ async function sendUpdateNotification(client: Client, update: GameUpdate): Promi
   };
 
   const embed = new EmbedBuilder()
-    .setTitle(`${emojis[update.updateType]} ${update.gameName} - ${update.updateType.toUpperCase()}`)
+    .setTitle(
+      `${emojis[update.updateType]} ${update.gameName} - ${update.updateType.toUpperCase()}`,
+    )
     .setDescription(update.title)
     .setColor(colors[update.updateType])
     .addFields(
@@ -176,7 +183,7 @@ export async function checkGameUpdates(client: Client): Promise<void> {
 
   for (const update of updates) {
     const updateId = `${update.gameId}-${update.publishedAt.getTime()}`;
-    
+
     if (!(await isUpdateProcessed(updateId))) {
       // VERROU ANTI-SPAM : dedup cache JSON local
       if (dedupCache.isAlreadyProcessed("game_updates", updateId)) {
@@ -202,14 +209,16 @@ export function startGameUpdatesMonitoring(client: Client): void {
   }
 
   logger.info("[GameUpdates] Démarrage de la surveillance des mises à jour");
-  
+
   // Vérification immédiate
   checkGameUpdates(client);
 
   // Vérification périodique
-  updateCheckInterval = setInterval(() => {
-    checkGameUpdates(client);
-  }, CHECK_INTERVAL_MS);
+  updateCheckInterval = safeInterval(
+    "GameUpdates",
+    () => checkGameUpdates(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 /**

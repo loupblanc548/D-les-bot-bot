@@ -7,7 +7,7 @@
  */
 
 import * as Sentry from "@sentry/node";
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, Options } from "discord.js";
 import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
 import logger from "./utils/logger.js";
@@ -39,6 +39,27 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
   ],
+  // Limite la croissance memoire des caches (bot 24/7). Les managers non listes
+  // gardent leur comportement par defaut.
+  makeCache: Options.cacheWithLimits({
+    ...Options.DefaultMakeCacheSettings,
+    MessageManager: 50,
+    PresenceManager: 0,
+    GuildInviteManager: 0,
+    ThreadManager: 50,
+  }),
+  // Purge periodique des entrees obsoletes pour eviter les fuites memoire.
+  sweepers: {
+    ...Options.DefaultSweeperSettings,
+    messages: {
+      interval: 3600, // toutes les heures
+      lifetime: 1800, // supprime les messages caches inactifs depuis 30 min
+    },
+    threads: {
+      interval: 3600,
+      lifetime: 1800,
+    },
+  },
   presence: {
     status: "online",
     activities: [

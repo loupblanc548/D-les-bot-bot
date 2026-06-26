@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
@@ -889,13 +890,7 @@ export function startMonitoring(client: Client) {
   } catch (err) {
     logger.error("[Monitor] Crash au premier check:", String(err));
   }
-  intervalId = setInterval(function () {
-    try {
-      checkAndNotify(client);
-    } catch (err) {
-      logger.error("[Monitor] Crash dans le setInterval:", String(err));
-    }
-  }, CHECK_INTERVAL_MS);
+  intervalId = safeInterval("Monitor", () => checkAndNotify(client), CHECK_INTERVAL_MS);
 }
 
 export function stopMonitoring() {
