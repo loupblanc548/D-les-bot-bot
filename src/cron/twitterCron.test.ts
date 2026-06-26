@@ -60,6 +60,10 @@ vi.mock("../utils/translator", () => ({
   translateToFrench: vi.fn().mockImplementation((text: string) => Promise.resolve(text)),
 }));
 
+vi.mock("../utils/image-helpers", () => ({
+  getTweetImage: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("discord.js", async () => {
   const actual = await vi.importActual("discord.js");
   return {

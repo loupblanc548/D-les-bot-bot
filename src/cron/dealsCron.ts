@@ -10,6 +10,7 @@ import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { getOgImage } from "../utils/image-helpers.js";
 
 interface DealItem {
   title: string;
@@ -214,8 +215,23 @@ async function sendDealEmbed(
 
     const finalDescription = translatedDescription.substring(0, 1000);
 
-    // Extract image from item or use default platform image
-    const imageUrl = item.thumbnail || item.enclosure?.url || platform.defaultImage;
+    // Extract image from item, fallback to OG image from the page, then platform default
+    let imageUrl = item.thumbnail || item.enclosure?.url || null;
+
+    // Si pas d'image dans le RSS, scraper l'Open Graph de la page du deal
+    if (!imageUrl) {
+      try {
+        const ogImage = await getOgImage(item.link);
+        if (ogImage) imageUrl = ogImage;
+      } catch {
+        // Ignore OG fetch errors
+      }
+    }
+
+    // Fallback final: image par défaut de la plateforme
+    if (!imageUrl) {
+      imageUrl = platform.defaultImage;
+    }
 
     const embed = new EmbedBuilder()
       .setTitle(translatedTitle)
