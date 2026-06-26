@@ -1,7 +1,6 @@
 import logger from "../utils/logger.js";
-import { Client, GuildMember, Message } from "discord.js";
+import { Client, Message } from "discord.js";
 import prisma from "../prisma.js";
-
 
 // Safe JSON.parse: returns fallback on null/undefined/parse error instead of throwing
 function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
@@ -12,7 +11,6 @@ function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
     return fallback;
   }
 }
-
 
 interface BehaviorPattern {
   userId: string;
@@ -26,7 +24,12 @@ interface BehaviorPattern {
 
 interface AnomalyAlert {
   userId: string;
-  type: "sudden_activity_spike" | "unusual_channels" | "mention_spam" | "time_pattern_change" | "content_change";
+  type:
+    | "sudden_activity_spike"
+    | "unusual_channels"
+    | "mention_spam"
+    | "time_pattern_change"
+    | "content_change";
   severity: "low" | "medium" | "high" | "critical";
   description: string;
   confidence: number;
@@ -51,8 +54,8 @@ class BehaviorDetectionService {
       if (!guild) return;
 
       const members = await guild.members.fetch();
-      
-      for (const [id, member] of members) {
+
+      for (const [id, _member] of members) {
         this.patterns.set(id, {
           userId: id,
           messageFrequency: 0,
@@ -89,7 +92,8 @@ class BehaviorDetectionService {
 
     const alpha = 0.1;
     pattern.messageFrequency = pattern.messageFrequency * (1 - alpha) + 1 * alpha;
-    pattern.averageMessageLength = pattern.averageMessageLength * (1 - alpha) + message.content.length * alpha;
+    pattern.averageMessageLength =
+      pattern.averageMessageLength * (1 - alpha) + message.content.length * alpha;
     pattern.mentionRate = pattern.mentionRate * (1 - alpha) + message.mentions.users.size * alpha;
 
     if (!pattern.activeChannels.includes(message.channelId)) {
@@ -117,31 +121,47 @@ class BehaviorDetectionService {
 
     const frequencyRatio = pattern.messageFrequency / (historicalPattern.messageFrequency || 1);
     if (frequencyRatio > 5) {
-      this.createAlert(userId, "sudden_activity_spike", "high", 
-        `Spike d'activité détecté: ${frequencyRatio.toFixed(1)}x la normale`, 
-        Math.min(frequencyRatio / 10, 1));
+      this.createAlert(
+        userId,
+        "sudden_activity_spike",
+        "high",
+        `Spike d'activité détecté: ${frequencyRatio.toFixed(1)}x la normale`,
+        Math.min(frequencyRatio / 10, 1),
+      );
     }
 
     const newChannels = pattern.activeChannels.filter(
-      c => !historicalPattern.activeChannels.includes(c)
+      (c) => !historicalPattern.activeChannels.includes(c),
     );
     if (newChannels.length > 3) {
-      this.createAlert(userId, "unusual_channels", "medium",
+      this.createAlert(
+        userId,
+        "unusual_channels",
+        "medium",
         `Activité dans ${newChannels.length} nouveaux channels inhabituels`,
-        newChannels.length / 10);
+        newChannels.length / 10,
+      );
     }
 
     if (pattern.mentionRate > 5 && historicalPattern.mentionRate < 2) {
-      this.createAlert(userId, "mention_spam", "high",
+      this.createAlert(
+        userId,
+        "mention_spam",
+        "high",
         `Taux de mentions anormal: ${pattern.mentionRate.toFixed(1)}/message`,
-        pattern.mentionRate / 10);
+        pattern.mentionRate / 10,
+      );
     }
 
     const timeSlotChange = this.calculateTimeSlotChange(pattern, historicalPattern);
     if (timeSlotChange > 0.8) {
-      this.createAlert(userId, "time_pattern_change", "medium",
+      this.createAlert(
+        userId,
+        "time_pattern_change",
+        "medium",
         "Changement significatif du pattern d'activité temporelle",
-        timeSlotChange);
+        timeSlotChange,
+      );
     }
   }
 
@@ -149,10 +169,10 @@ class BehaviorDetectionService {
     const currentSlots = new Set(current.activeTimeSlots);
     const historicalSlots = new Set(historical.activeTimeSlots);
 
-    const intersection = new Set([...currentSlots].filter(x => historicalSlots.has(x)));
+    const intersection = new Set([...currentSlots].filter((x) => historicalSlots.has(x)));
     const union = new Set([...currentSlots, ...historicalSlots]);
 
-    return union.size > 0 ? 1 - (intersection.size / union.size) : 0;
+    return union.size > 0 ? 1 - intersection.size / union.size : 0;
   }
 
   private async getHistoricalPattern(userId: string): Promise<BehaviorPattern | null> {
@@ -191,10 +211,14 @@ class BehaviorDetectionService {
     type: AnomalyAlert["type"],
     severity: AnomalyAlert["severity"],
     description: string,
-    confidence: number
+    confidence: number,
   ): void {
     const alert: AnomalyAlert = {
-      userId, type, severity, description, confidence,
+      userId,
+      type,
+      severity,
+      description,
+      confidence,
       timestamp: Date.now(),
     };
 
@@ -205,16 +229,16 @@ class BehaviorDetectionService {
 
   private cleanupOldAlerts(): void {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    this.alerts = this.alerts.filter(alert => alert.timestamp > oneDayAgo);
+    this.alerts = this.alerts.filter((alert) => alert.timestamp > oneDayAgo);
   }
 
   getRecentAlerts(hours: number = 24): AnomalyAlert[] {
     const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    return this.alerts.filter(alert => alert.timestamp > cutoff);
+    return this.alerts.filter((alert) => alert.timestamp > cutoff);
   }
 
   getUserAlerts(userId: string): AnomalyAlert[] {
-    return this.alerts.filter(alert => alert.userId === userId);
+    return this.alerts.filter((alert) => alert.userId === userId);
   }
 
   getUserStats(userId: string): BehaviorPattern | null {

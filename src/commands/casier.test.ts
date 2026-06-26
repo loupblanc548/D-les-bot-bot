@@ -13,15 +13,28 @@ const { mockPrisma } = vi.hoisted(() => ({
 }));
 
 vi.mock("../prisma", () => ({ default: mockPrisma }));
-vi.mock("../services/permissions", () => ({ requireMod: vi.fn().mockResolvedValue(true), requireAdmin: vi.fn().mockResolvedValue(true) }));
+vi.mock("../services/permissions", () => ({
+  requireMod: vi.fn().mockResolvedValue(true),
+  requireAdmin: vi.fn().mockResolvedValue(true),
+}));
 
-import { buildEntries, chunkEntries, buildNavRow, handleCommand, handleCasierClear } from "./casier.js";
+import {
+  buildEntries,
+  chunkEntries,
+  buildNavRow,
+  handleCommand,
+  handleCasierClear,
+} from "./casier.js";
 import type { CasierEntry } from "./casier.js";
 import type { ChatInputCommandInteraction } from "discord.js";
-import { MessageFlags } from "discord.js";
-
 function mockUser(id: string, tag: string) {
-  return { id, tag, username: tag.split("#")[0], displayName: tag, toString: () => "<@" + id + ">" } as any;
+  return {
+    id,
+    tag,
+    username: tag.split("#")[0],
+    displayName: tag,
+    toString: () => "<@" + id + ">",
+  } as any;
 }
 function mockInteraction(overrides: any = {}) {
   return {
@@ -46,7 +59,15 @@ describe("buildEntries", () => {
   });
 
   it("should group warnings under a WARN header", () => {
-    const warns = [{ id: 1, type: "WARN", reason: "Spam en chat", moderatorId: "mod-1", createdAt: new Date("2025-01-15") }];
+    const warns = [
+      {
+        id: 1,
+        type: "WARN",
+        reason: "Spam en chat",
+        moderatorId: "mod-1",
+        createdAt: new Date("2025-01-15"),
+      },
+    ];
     const entries = buildEntries(warns, [], [], [], []);
     expect(entries.length).toBeGreaterThan(0);
     expect(entries.find((e: any) => e.isHeader)?.headerLine).toContain("Avertissements");
@@ -55,46 +76,98 @@ describe("buildEntries", () => {
 
   it("should group mutes under a TIMEOUT header", () => {
     const createdAt = new Date("2025-02-20");
-    const mutes = [{ id: 2, type: "TIMEOUT", reason: "Flood", moderatorId: "mod-2", createdAt, duration: 3600, endTime: new Date(createdAt.getTime() + 3600 * 1000) }];
+    const mutes = [
+      {
+        id: 2,
+        type: "TIMEOUT",
+        reason: "Flood",
+        moderatorId: "mod-2",
+        createdAt,
+        duration: 3600,
+        endTime: new Date(createdAt.getTime() + 3600 * 1000),
+      },
+    ];
     const entries = buildEntries([], mutes, [], [], []);
     expect(entries.find((e: any) => e.isHeader)?.headerLine).toContain("Exclusions temporaires");
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("60 min"))).toBe(true);
   });
 
   it("should group kicks under a KICK header", () => {
-    const kicks = [{ id: 3, type: "KICK", reason: "Insultes", moderatorId: "mod-3", createdAt: new Date("2025-03-10"), duration: null }];
+    const kicks = [
+      {
+        id: 3,
+        type: "KICK",
+        reason: "Insultes",
+        moderatorId: "mod-3",
+        createdAt: new Date("2025-03-10"),
+        duration: null,
+      },
+    ];
     const entries = buildEntries([], [], kicks, [], []);
     expect(entries.find((e: any) => e.isHeader)?.headerLine).toContain("Expulsions");
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("Insultes"))).toBe(true);
   });
 
   it("should include ban sanctions under a BAN header", () => {
-    const bans = [{ id: 4, type: "BAN", reason: "Raid", moderatorId: "mod-4", createdAt: new Date("2025-04-01"), duration: null }];
+    const bans = [
+      {
+        id: 4,
+        type: "BAN",
+        reason: "Raid",
+        moderatorId: "mod-4",
+        createdAt: new Date("2025-04-01"),
+        duration: null,
+      },
+    ];
     const entries = buildEntries([], [], [], bans, []);
     expect(entries.find((e: any) => e.isHeader)?.headerLine).toContain("Bannissements");
   });
 
   it("should include log-based bans", () => {
-    const logs = [{ id: "log-1", type: "BAN", action: "BAN", targetId: "target-1", details: "Banni pour comportement toxique", moderator: "mod-5", createdAt: new Date("2025-05-01") }];
+    const logs = [
+      {
+        id: "log-1",
+        type: "BAN",
+        action: "BAN",
+        targetId: "target-1",
+        details: "Banni pour comportement toxique",
+        moderator: "mod-5",
+        createdAt: new Date("2025-05-01"),
+      },
+    ];
     const entries = buildEntries([], [], [], [], logs);
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("BAN"))).toBe(true);
   });
 
   it("should include the sanction ID in entries", () => {
-    const warns = [{ id: 42, type: "WARN", reason: "Test", moderatorId: "mod-1", createdAt: new Date() }];
+    const warns = [
+      { id: 42, type: "WARN", reason: "Test", moderatorId: "mod-1", createdAt: new Date() },
+    ];
     const entries = buildEntries(warns, [], [], [], []);
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("#1"))).toBe(true);
   });
 
   it("should include moderator mention in entries", () => {
-    const warns = [{ id: 1, type: "WARN", reason: "Test", moderatorId: "mod-99", createdAt: new Date() }];
+    const warns = [
+      { id: 1, type: "WARN", reason: "Test", moderatorId: "mod-99", createdAt: new Date() },
+    ];
     const entries = buildEntries(warns, [], [], [], []);
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("mod-99"))).toBe(true);
   });
 
   it("should format duration in minutes", () => {
     const now = new Date();
-    const mutes = [{ id: 5, type: "TIMEOUT", reason: "Spam", moderatorId: "mod-1", createdAt: now, duration: 7200, endTime: new Date(now.getTime() + 7200 * 1000) }];
+    const mutes = [
+      {
+        id: 5,
+        type: "TIMEOUT",
+        reason: "Spam",
+        moderatorId: "mod-1",
+        createdAt: now,
+        duration: 7200,
+        endTime: new Date(now.getTime() + 7200 * 1000),
+      },
+    ];
     const entries = buildEntries([], mutes, [], [], []);
     expect(entries.some((e: any) => !e.isHeader && e.line.includes("120 min"))).toBe(true);
   });
@@ -102,9 +175,23 @@ describe("buildEntries", () => {
   it("should handle multiple sections in order", () => {
     const now = new Date();
     const warns = [{ id: 1, type: "WARN", reason: "W1", moderatorId: "m1", createdAt: now }];
-    const mutes = [{ id: 2, type: "TIMEOUT", reason: "M1", moderatorId: "m2", createdAt: now, duration: 600, endTime: new Date(now.getTime() + 600 * 1000) }];
-    const kicks = [{ id: 3, type: "KICK", reason: "K1", moderatorId: "m3", createdAt: now, duration: null }];
-    const bans = [{ id: 4, type: "BAN", reason: "B1", moderatorId: "m4", createdAt: now, duration: null }];
+    const mutes = [
+      {
+        id: 2,
+        type: "TIMEOUT",
+        reason: "M1",
+        moderatorId: "m2",
+        createdAt: now,
+        duration: 600,
+        endTime: new Date(now.getTime() + 600 * 1000),
+      },
+    ];
+    const kicks = [
+      { id: 3, type: "KICK", reason: "K1", moderatorId: "m3", createdAt: now, duration: null },
+    ];
+    const bans = [
+      { id: 4, type: "BAN", reason: "B1", moderatorId: "m4", createdAt: now, duration: null },
+    ];
     const entries = buildEntries(warns, mutes, kicks, bans, []);
     const headers = entries.filter((e: any) => e.isHeader);
     expect(headers.length).toBeGreaterThanOrEqual(4);
@@ -119,17 +206,44 @@ describe("buildEntries", () => {
 describe("chunkEntries", () => {
   it("should return a single page for small content", () => {
     const entries: CasierEntry[] = [
-      { section: "warn", isHeader: true, headerLine: "AVERTISSEMENTS (1)", line: "AVERTISSEMENTS (1)" },
-      { section: "warn", isHeader: false, headerLine: "AVERTISSEMENTS (1)", line: ".. #1 .. Spam .. <@mod-1> .. 15/01/2025" },
+      {
+        section: "warn",
+        isHeader: true,
+        headerLine: "AVERTISSEMENTS (1)",
+        line: "AVERTISSEMENTS (1)",
+      },
+      {
+        section: "warn",
+        isHeader: false,
+        headerLine: "AVERTISSEMENTS (1)",
+        line: ".. #1 .. Spam .. <@mod-1> .. 15/01/2025",
+      },
     ];
     expect(chunkEntries(entries, 3800).length).toBe(1);
   });
 
   it("should split large content into multiple pages", () => {
     const entries: CasierEntry[] = [];
-    entries.push({ section: "warn", isHeader: true, headerLine: "AVERTISSEMENTS (200)", line: "AVERTISSEMENTS (200)" });
+    entries.push({
+      section: "warn",
+      isHeader: true,
+      headerLine: "AVERTISSEMENTS (200)",
+      line: "AVERTISSEMENTS (200)",
+    });
     for (let i = 0; i < 200; i++) {
-      entries.push({ section: "warn", isHeader: false, headerLine: "AVERTISSEMENTS (200)", line: ".. #" + i + " .. Reason number " + i + " for testing pagination .. <@mod-" + i + "> .. 01/01/2025" });
+      entries.push({
+        section: "warn",
+        isHeader: false,
+        headerLine: "AVERTISSEMENTS (200)",
+        line:
+          ".. #" +
+          i +
+          " .. Reason number " +
+          i +
+          " for testing pagination .. <@mod-" +
+          i +
+          "> .. 01/01/2025",
+      });
     }
     const pages = chunkEntries(entries, 3800);
     expect(pages.length).toBeGreaterThan(1);
@@ -183,7 +297,7 @@ describe("handleCasierClear", () => {
     (interaction.options.getUser as any).mockReturnValue(null);
     await handleCasierClear(interaction);
     expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining("Fournis un ID de sanction") })
+      expect.objectContaining({ content: expect.stringContaining("Fournis un ID de sanction") }),
     );
   });
 
@@ -195,7 +309,7 @@ describe("handleCasierClear", () => {
     expect(mockPrisma.sanction.findUnique).toHaveBeenCalledWith({ where: { id: 5 } });
     expect(mockPrisma.sanction.delete).toHaveBeenCalledWith({ where: { id: 5 } });
     expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining("Sanction #5") })
+      expect.objectContaining({ content: expect.stringContaining("Sanction #5") }),
     );
   });
 
@@ -206,7 +320,7 @@ describe("handleCasierClear", () => {
     expect(mockPrisma.sanction.findUnique).toHaveBeenCalledWith({ where: { id: 999 } });
     expect(mockPrisma.sanction.delete).not.toHaveBeenCalled();
     expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining("introuvable") })
+      expect.objectContaining({ content: expect.stringContaining("introuvable") }),
     );
   });
 
@@ -217,10 +331,10 @@ describe("handleCasierClear", () => {
     (interaction.options.getInteger as any).mockReturnValue(null);
     await handleCasierClear(interaction);
     expect(mockPrisma.sanction.deleteMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: "user-99" }) })
+      expect.objectContaining({ where: expect.objectContaining({ userId: "user-99" }) }),
     );
     expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining("3 sanction(s)") })
+      expect.objectContaining({ content: expect.stringContaining("3 sanction(s)") }),
     );
   });
 });
@@ -254,7 +368,9 @@ describe("handleCommand", () => {
   });
 
   it("should show sanctions in embeds when they exist", async () => {
-    const warns = [{ id: 1, type: "WARN", reason: "Test warn", moderatorId: "mod-1", createdAt: new Date() }];
+    const warns = [
+      { id: 1, type: "WARN", reason: "Test warn", moderatorId: "mod-1", createdAt: new Date() },
+    ];
     mockPrisma.sanction.findMany.mockResolvedValueOnce(warns);
     mockPrisma.sanction.findMany.mockResolvedValueOnce([]);
     mockPrisma.sanction.findMany.mockResolvedValueOnce([]);
@@ -272,7 +388,7 @@ describe("handleCommand", () => {
             }),
           }),
         ]),
-      })
+      }),
     );
   });
 
@@ -281,7 +397,7 @@ describe("handleCommand", () => {
     interaction.commandName = "casier";
     await handleCommand(interaction);
     expect(interaction.reply).toHaveBeenCalledWith(
-      expect.objectContaining({ content: expect.stringContaining("serveur") })
+      expect.objectContaining({ content: expect.stringContaining("serveur") }),
     );
   });
 });

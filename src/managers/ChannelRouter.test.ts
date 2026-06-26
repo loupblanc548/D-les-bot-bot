@@ -4,12 +4,16 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockLogger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+const mockLogger = vi.hoisted(() => globalThis.__createMockLogger());
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
 import {
-  detectPlatforms, resolveChannelIds, buildPlatformEmbed,
-  dispatchToChannels, routeArticle, RoutedArticle,
+  detectPlatforms,
+  resolveChannelIds,
+  buildPlatformEmbed,
+  dispatchToChannels,
+  routeArticle,
+  RoutedArticle,
 } from "./ChannelRouter.js";
 import { PLATFORM_CONFIGS } from "./ChannelRouter.js";
 import { EmbedBuilder, Client } from "discord.js";
@@ -103,7 +107,9 @@ describe("resolveChannelIds", () => {
     setEnv("STEAM_EPIC_CHANNEL_ID", "111");
     setEnv("PLAYSTATION_CHANNEL_ID", "222");
 
-    const platforms = PLATFORM_CONFIGS.filter(p => p.name === "Steam/PC" || p.name === "PlayStation");
+    const platforms = PLATFORM_CONFIGS.filter(
+      (p) => p.name === "Steam/PC" || p.name === "PlayStation",
+    );
     const result = resolveChannelIds(platforms);
 
     expect(result).toContain("111");
@@ -111,7 +117,7 @@ describe("resolveChannelIds", () => {
   });
 
   it("returns empty array when no env vars are set", () => {
-    const platforms = PLATFORM_CONFIGS.filter(p => p.name === "Steam/PC");
+    const platforms = PLATFORM_CONFIGS.filter((p) => p.name === "Steam/PC");
     const result = resolveChannelIds(platforms);
 
     expect(result).toEqual([]);
@@ -121,7 +127,9 @@ describe("resolveChannelIds", () => {
     setEnv("STEAM_EPIC_CHANNEL_ID", "111");
     setEnv("PLAYSTATION_CHANNEL_ID", "111");
 
-    const platforms = PLATFORM_CONFIGS.filter(p => p.name === "Steam/PC" || p.name === "PlayStation");
+    const platforms = PLATFORM_CONFIGS.filter(
+      (p) => p.name === "Steam/PC" || p.name === "PlayStation",
+    );
     const result = resolveChannelIds(platforms);
 
     expect(result).toEqual(["111"]);
@@ -130,7 +138,7 @@ describe("resolveChannelIds", () => {
   it("ignores empty env vars", () => {
     setEnv("STEAM_EPIC_CHANNEL_ID", "");
 
-    const platforms = PLATFORM_CONFIGS.filter(p => p.name === "Steam/PC");
+    const platforms = PLATFORM_CONFIGS.filter((p) => p.name === "Steam/PC");
     const result = resolveChannelIds(platforms);
 
     expect(result).toEqual([]);
@@ -172,9 +180,12 @@ describe("dispatchToChannels", () => {
     setEnv("STEAM_EPIC_CHANNEL_ID", "channel-1");
 
     const article: RoutedArticle = {
-      title: "Steam Sale", content: "Big discounts!",
-      url: "https://store.steampowered.com", pubDate: "2026-01-01",
-      platforms: ["Steam/PC"], channelIds: ["channel-1"],
+      title: "Steam Sale",
+      content: "Big discounts!",
+      url: "https://store.steampowered.com",
+      pubDate: "2026-01-01",
+      platforms: ["Steam/PC"],
+      channelIds: ["channel-1"],
     };
 
     const client = makeClientMock();
@@ -195,8 +206,12 @@ describe("dispatchToChannels", () => {
     } as unknown as Client;
 
     const article: RoutedArticle = {
-      title: "Test", content: "", url: "", pubDate: "2026-01-01",
-      platforms: ["Steam/PC"], channelIds: ["channel-1"],
+      title: "Test",
+      content: "",
+      url: "",
+      pubDate: "2026-01-01",
+      platforms: ["Steam/PC"],
+      channelIds: ["channel-1"],
     };
 
     const result = await dispatchToChannels(client, article);
@@ -208,8 +223,12 @@ describe("dispatchToChannels", () => {
 
   it("returns early when channelIds is empty", async () => {
     const article: RoutedArticle = {
-      title: "Test", content: "", url: "", pubDate: "2026-01-01",
-      platforms: [], channelIds: [],
+      title: "Test",
+      content: "",
+      url: "",
+      pubDate: "2026-01-01",
+      platforms: [],
+      channelIds: [],
     };
 
     const client = makeClientMock();
@@ -225,15 +244,25 @@ describe("dispatchToChannels", () => {
 
     const client = {
       channels: {
-        fetch: vi.fn()
-          .mockResolvedValueOnce({ id: "channel-1", isTextBased: () => true, name: "steam", send: vi.fn().mockResolvedValue(undefined) })
+        fetch: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: "channel-1",
+            isTextBased: () => true,
+            name: "steam",
+            send: vi.fn().mockResolvedValue(undefined),
+          })
           .mockRejectedValueOnce(new Error("Network error")),
       },
     } as unknown as Client;
 
     const article: RoutedArticle = {
-      title: "Multi-platform", content: "", url: "", pubDate: "2026-01-01",
-      platforms: ["Steam/PC", "PlayStation"], channelIds: ["channel-1", "channel-2"],
+      title: "Multi-platform",
+      content: "",
+      url: "",
+      pubDate: "2026-01-01",
+      platforms: ["Steam/PC", "PlayStation"],
+      channelIds: ["channel-1", "channel-2"],
     };
 
     const result = await dispatchToChannels(client, article);

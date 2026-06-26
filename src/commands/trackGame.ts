@@ -24,7 +24,7 @@ export const commands = [
         .setDescription("Nom du jeu à suivre")
         .setRequired(true)
         .setMinLength(2)
-        .setMaxLength(200)
+        .setMaxLength(200),
     )
     .toJSON(),
   new SlashCommandBuilder()
@@ -35,7 +35,7 @@ export const commands = [
         .setName("jeu")
         .setDescription("Nom du jeu à retirer")
         .setRequired(true)
-        .setAutocomplete(true)
+        .setAutocomplete(true),
     )
     .toJSON(),
   new SlashCommandBuilder()
@@ -46,9 +46,7 @@ export const commands = [
 
 // ─── Autocomplete pour /untrack-game ─────────────────────────────────────────
 
-export async function handleAutocomplete(
-  interaction: AutocompleteInteraction
-): Promise<void> {
+export async function handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
   if (interaction.commandName !== "untrack-game") return;
 
   const focused = interaction.options.getFocused(true);
@@ -61,13 +59,11 @@ export async function handleAutocomplete(
   });
 
   const filtered = focusedValue
-    ? games
-        .filter((g) => g.gameName.toLowerCase().includes(focusedValue))
-        .slice(0, 25)
+    ? games.filter((g) => g.gameName.toLowerCase().includes(focusedValue)).slice(0, 25)
     : games.slice(0, 25);
 
   await interaction.respond(
-    filtered.map((g) => ({ name: g.gameName.slice(0, 100), value: g.gameName }))
+    filtered.map((g) => ({ name: g.gameName.slice(0, 100), value: g.gameName })),
   );
 }
 
@@ -117,7 +113,7 @@ async function handleTrackGame(interaction: ChatInputCommandInteraction) {
     const latestNews = await getLatestNews(match.appid);
     const lastNewsDate = latestNews?.date ?? new Date();
 
-    const tracked = await prisma.trackedGame.create({
+    const _tracked = await prisma.trackedGame.create({
       data: { appId: match.appid, gameName: match.name, lastNewsDate },
     });
 
@@ -125,7 +121,7 @@ async function handleTrackGame(interaction: ChatInputCommandInteraction) {
       .setTitle("🎮 Jeu ajouté à la surveillance")
       .setColor(0x2a475e)
       .setDescription(
-        `Les actualités de **${match.name}** seront désormais surveillées automatiquement.`
+        `Les actualités de **${match.name}** seront désormais surveillées automatiquement.`,
       )
       .addFields(
         { name: "AppID", value: `${match.appid}`, inline: true },
@@ -137,7 +133,11 @@ async function handleTrackGame(interaction: ChatInputCommandInteraction) {
             : "Aucune news détectée",
           inline: false,
         },
-        { name: "Salon de publication", value: `<#${config.steamChannel || "non configuré"}>`, inline: true }
+        {
+          name: "Salon de publication",
+          value: `<#${config.steamChannel || "non configuré"}>`,
+          inline: true,
+        },
       )
       .setFooter(FOOTER)
       .setTimestamp();
@@ -147,7 +147,9 @@ async function handleTrackGame(interaction: ChatInputCommandInteraction) {
   } catch (error) {
     logger.error("[TrackGame] Erreur:", String(error));
     try {
-      await interaction.editReply({ content: "❌ Une erreur est survenue lors de l'ajout du jeu." });
+      await interaction.editReply({
+        content: "❌ Une erreur est survenue lors de l'ajout du jeu.",
+      });
     } catch {}
   }
 }
@@ -189,7 +191,9 @@ async function handleUntrackGame(interaction: ChatInputCommandInteraction) {
   } catch (error) {
     logger.error("[TrackGame] Erreur untrack:", String(error));
     try {
-      await interaction.editReply({ content: "❌ Une erreur est survenue lors de la suppression." });
+      await interaction.editReply({
+        content: "❌ Une erreur est survenue lors de la suppression.",
+      });
     } catch {}
   }
 }
@@ -206,7 +210,8 @@ async function handleListTracked(interaction: ChatInputCommandInteraction) {
 
     if (games.length === 0) {
       await interaction.editReply({
-        content: "📭 Aucun jeu n'est actuellement surveillé.\nUtilise `/track-game [jeu]` pour commencer !",
+        content:
+          "📭 Aucun jeu n'est actuellement surveillé.\nUtilise `/track-game [jeu]` pour commencer !",
       });
       return;
     }
@@ -214,16 +219,14 @@ async function handleListTracked(interaction: ChatInputCommandInteraction) {
     const description = games
       .map(
         (g) =>
-          `• **${g.gameName}** (AppID ${g.appId}) — Dernière news : ${g.lastNewsDate.toLocaleDateString()}`
+          `• **${g.gameName}** (AppID ${g.appId}) — Dernière news : ${g.lastNewsDate.toLocaleDateString()}`,
       )
       .join("\n");
 
     const embed = new EmbedBuilder()
       .setTitle(`📋 Jeux surveillés (${games.length})`)
       .setColor(0x2a475e)
-      .setDescription(
-        description.length > 4096 ? description.slice(0, 4093) + "..." : description
-      )
+      .setDescription(description.length > 4096 ? description.slice(0, 4093) + "..." : description)
       .addFields({
         name: "Salon de publication",
         value: `<#${config.steamChannel || "non configuré"}>`,

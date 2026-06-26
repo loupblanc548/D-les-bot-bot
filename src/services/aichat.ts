@@ -4,11 +4,11 @@ import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
 
 // ── Configuration ────────────────────────────────────────────────
-const MAX_HISTORY = 20;       // Max messages chargés depuis la DB
+const MAX_HISTORY = 20; // Max messages chargés depuis la DB
 const MAX_PERSIST_MS = 7 * 24 * 60 * 60 * 1000; // Rétention 7 jours
 
 /** Récupère le prompt système spécifique à une guilde, ou le défaut global */
-async function getSystemPrompt(guildId?: string): Promise<string> {
+async function _getSystemPrompt(guildId?: string): Promise<string> {
   if (!guildId) return config.aiSystemPrompt;
   try {
     const gc = await prisma.guildConfig.findUnique({ where: { guildId } });
@@ -19,10 +19,7 @@ async function getSystemPrompt(guildId?: string): Promise<string> {
 }
 
 // Map tampon pour éviter de relire la DB à chaque message (optimisation)
-const channelBuffers = new Map<
-  string,
-  Array<{ role: "user" | "assistant"; content: string }>
->();
+const channelBuffers = new Map<string, Array<{ role: "user" | "assistant"; content: string }>>();
 
 // Salons avec aichat activé
 const aichatChannels = new Set<string>();
@@ -124,8 +121,7 @@ export async function chatWithHistory(
   channelId: string,
   userMessage: string,
   username?: string,
-  guildId?: string,
-
+  _guildId?: string,
 ): Promise<string> {
   const client = getOpenAIClient();
   const controller = new AbortController();
@@ -179,8 +175,7 @@ export async function chatWithHistory(
       { signal: controller.signal },
     );
 
-    const reply =
-      completion.choices[0]?.message?.content || "(pas de reponse)";
+    const reply = completion.choices[0]?.message?.content || "(pas de reponse)";
 
     // Sauvegarder dans le buffer
     buffer.push({ role: "user", content: userMessage });
@@ -206,9 +201,7 @@ export async function chatWithHistory(
 
 // ── Génération de sondages ───────────────────────────────────────
 
-export async function generatePollOptions(
-  question: string,
-): Promise<string[]> {
+export async function generatePollOptions(question: string): Promise<string[]> {
   const client = getOpenAIClient();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);

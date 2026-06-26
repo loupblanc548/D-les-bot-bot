@@ -1,5 +1,5 @@
 import logger from "../utils/logger.js";
-import { MessageFlags, Client, GuildMember, PartialGuildMember } from "discord.js";
+import { Client, GuildMember, PartialGuildMember } from "discord.js";
 import prisma from "../prisma.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
@@ -10,8 +10,7 @@ export function handleMemberEvents(client: Client) {
       // Anti-raid : timeout automatique des comptes trop recents (en premier)
       const antiRaid = await isAntiRaidActive(member.guild.id);
       if (antiRaid?.active) {
-        const accountAgeHeures =
-          (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60);
+        const accountAgeHeures = (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60);
         if (accountAgeHeures < antiRaid.seuilHeures) {
           try {
             logger.info(
@@ -22,17 +21,17 @@ export function handleMemberEvents(client: Client) {
               member.user.tag,
               "(" + member.user.id + ")",
               "| Seuil :",
-              antiRaid.seuilHeures + "h"
+              antiRaid.seuilHeures + "h",
             );
             await member.timeout(
               60 * 60 * 1000,
-              `Anti-raid : compte cree il y a ${Math.round(accountAgeHeures)}h (seuil: ${antiRaid.seuilHeures}h)`
+              `Anti-raid : compte cree il y a ${Math.round(accountAgeHeures)}h (seuil: ${antiRaid.seuilHeures}h)`,
             );
             logger.info(
               "✅ [Anti-Raid]",
               member.user.tag,
               "timeout 1h (compte de",
-              Math.round(accountAgeHeures) + "h)"
+              Math.round(accountAgeHeures) + "h)",
             );
             return;
           } catch (err) {
@@ -88,61 +87,67 @@ export function handleMemberEvents(client: Client) {
   });
 
   // Historique des changements de pseudo et d'avatar
-  client.on("guildMemberUpdate", async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember | PartialGuildMember) => {
-    try {
-      // Detection changement de pseudo
-      if (oldMember.displayName !== newMember.displayName) {
-        try {
-          await prisma.nameHistory.create({
-            data: {
+  client.on(
+    "guildMemberUpdate",
+    async (
+      oldMember: GuildMember | PartialGuildMember,
+      newMember: GuildMember | PartialGuildMember,
+    ) => {
+      try {
+        // Detection changement de pseudo
+        if (oldMember.displayName !== newMember.displayName) {
+          try {
+            await prisma.nameHistory.create({
+              data: {
+                userId: newMember.id,
+                guildId: newMember.guild.id,
+                oldName: oldMember.displayName,
+                newName: newMember.displayName,
+              },
+            });
+            logger.info(
+              `[NAME] ${newMember.user.tag} : "${oldMember.displayName}" → "${newMember.displayName}"`,
+            );
+            await createLog({
+              type: "name_change",
+              action: `${newMember.user.tag} a change de pseudo : "${oldMember.displayName}" → "${newMember.displayName}"`,
               userId: newMember.id,
-              guildId: newMember.guild.id,
-              oldName: oldMember.displayName,
-              newName: newMember.displayName,
-            },
-          });
-          logger.info(
-            `[NAME] ${newMember.user.tag} : "${oldMember.displayName}" → "${newMember.displayName}"`
-          );
-          await createLog({
-            type: "name_change",
-            action: `${newMember.user.tag} a change de pseudo : "${oldMember.displayName}" → "${newMember.displayName}"`,
-            userId: newMember.id,
-            details: `Ancien: ${oldMember.displayName} | Nouveau: ${newMember.displayName}`,
-          });
-        } catch (err) {
-          logger.error("[MemberUpdate/Name] Erreur:", err);
+              details: `Ancien: ${oldMember.displayName} | Nouveau: ${newMember.displayName}`,
+            });
+          } catch (err) {
+            logger.error("[MemberUpdate/Name] Erreur:", err);
+          }
         }
-      }
 
-      // Detection changement d'avatar
-      if (oldMember.user.avatar !== newMember.user.avatar) {
-        try {
-          const oldHash = oldMember.user.avatar || "(aucun)";
-          const newHash = newMember.user.avatar || "(aucun)";
-          await prisma.avatarHistory.create({
-            data: {
+        // Detection changement d'avatar
+        if (oldMember.user.avatar !== newMember.user.avatar) {
+          try {
+            const oldHash = oldMember.user.avatar || "(aucun)";
+            const newHash = newMember.user.avatar || "(aucun)";
+            await prisma.avatarHistory.create({
+              data: {
+                userId: newMember.id,
+                guildId: newMember.guild.id,
+                oldHash,
+                newHash,
+              },
+            });
+            logger.info(
+              `[AVATAR] ${newMember.user.tag} a change d'avatar (${oldHash.slice(0, 8)}... → ${newHash.slice(0, 8)}...)`,
+            );
+            await createLog({
+              type: "avatar_change",
+              action: `${newMember.user.tag} a change d'avatar`,
               userId: newMember.id,
-              guildId: newMember.guild.id,
-              oldHash,
-              newHash,
-            },
-          });
-          logger.info(
-            `[AVATAR] ${newMember.user.tag} a change d'avatar (${oldHash.slice(0, 8)}... → ${newHash.slice(0, 8)}...)`
-          );
-          await createLog({
-            type: "avatar_change",
-            action: `${newMember.user.tag} a change d'avatar`,
-            userId: newMember.id,
-            details: `Ancien hash: ${oldHash} | Nouveau hash: ${newHash}`,
-          });
-        } catch (err) {
-          logger.error("[MemberUpdate/Avatar] Erreur:", err);
+              details: `Ancien hash: ${oldHash} | Nouveau hash: ${newHash}`,
+            });
+          } catch (err) {
+            logger.error("[MemberUpdate/Avatar] Erreur:", err);
+          }
         }
+      } catch (error) {
+        logger.error("[MemberEvents] Erreur lors du traitement guildMemberUpdate:", error);
       }
-    } catch (error) {
-      logger.error("[MemberEvents] Erreur lors du traitement guildMemberUpdate:", error);
-    }
-  });
+    },
+  );
 }

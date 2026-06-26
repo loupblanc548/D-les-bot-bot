@@ -4,7 +4,7 @@ import prisma from "../prisma.js";
 import { runHealthCheck } from "./healthcheck.js";
 
 let server: http.Server | null = null;
-const startTime = Date.now();
+const _startTime = Date.now();
 
 interface HealthResponse {
   status: "ok" | "degraded" | "unhealthy";
@@ -103,7 +103,7 @@ async function handleBasicHealth(res: http.ServerResponse): Promise<void> {
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(response));
-  } catch (err) {
+  } catch (_err) {
     const response: HealthResponse = {
       status: "degraded",
       uptime: process.uptime(),
@@ -152,7 +152,7 @@ async function handleReadinessProbe(res: http.ServerResponse): Promise<void> {
 
     res.writeHead(isReady ? 200 : 503, { "Content-Type": "application/json" });
     res.end(JSON.stringify(response));
-  } catch (err) {
+  } catch (_err) {
     const response: HealthResponse = {
       status: "unhealthy",
       uptime: process.uptime(),

@@ -34,13 +34,10 @@ export const commands = [
       opt
         .setName("temps")
         .setDescription("Délai avant le rappel (ex: 2h, 30m, 1d)")
-        .setRequired(true)
+        .setRequired(true),
     )
     .addStringOption((opt) =>
-      opt
-        .setName("message")
-        .setDescription("Le message du rappel")
-        .setRequired(true)
+      opt.setName("message").setDescription("Le message du rappel").setRequired(true),
     )
     .toJSON(),
 
@@ -57,23 +54,20 @@ export const commands = [
       opt
         .setName("activer")
         .setDescription("Activer (true) ou désactiver (false) les DMs wishlist")
-        .setRequired(true)
+        .setRequired(true),
     )
     .addUserOption((option) =>
       option
         .setName("membre")
         .setDescription("Le membre à notifier (via @mention)")
-        .setRequired(true)
+        .setRequired(true),
     )
     .toJSON(),
 ];
 
 // ===== Handler principal =====
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-  client: Client
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, _client: Client) {
   try {
     switch (interaction.commandName) {
       case "reminder":
@@ -98,16 +92,15 @@ export async function handleCommand(
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch (err) { logger.warn("[Community] Erreur reply:", String(err)) }
+    } catch (err) {
+      logger.warn("[Community] Erreur reply:", String(err));
+    }
   }
 }
 
 // ===== Gestion des boutons de ticket (exporté pour index.ts) =====
 
-export async function handleTicketButton(
-  interaction: ButtonInteraction,
-  client: Client
-) {
+export async function handleTicketButton(interaction: ButtonInteraction, _client: Client) {
   if (interaction.customId !== "ticket_create") return;
 
   try {
@@ -119,7 +112,7 @@ export async function handleTicketButton(
 
     // Vérifier si un ticket existe déjà
     const existing = guild.channels.cache.find(
-      (ch) => ch.name === channelName && ch.type === ChannelType.GuildText
+      (ch) => ch.name === channelName && ch.type === ChannelType.GuildText,
     );
     if (existing) {
       await interaction.reply({
@@ -131,7 +124,7 @@ export async function handleTicketButton(
 
     // Trouver ou créer une catégorie "Tickets"
     let ticketCategory = guild.channels.cache.find(
-      (ch) => ch.type === ChannelType.GuildCategory && ch.name.toLowerCase() === "tickets"
+      (ch) => ch.type === ChannelType.GuildCategory && ch.name.toLowerCase() === "tickets",
     ) as CategoryChannel | undefined;
 
     if (!ticketCategory) {
@@ -201,9 +194,11 @@ export async function handleTicketButton(
       .setColor(0x00f0ff)
       .setTitle("🎫 Ticket créé")
       .setDescription(
-        "Bienvenue " + member.toString() + " !\n\n" +
-        "Le staff va prendre en charge ta demande rapidement.\n" +
-        "Décris ton problème ou ta question en attendant."
+        "Bienvenue " +
+          member.toString() +
+          " !\n\n" +
+          "Le staff va prendre en charge ta demande rapidement.\n" +
+          "Décris ton problème ou ta question en attendant.",
       )
       .setFooter({ text: "Systeme de Surveillance • v1.0.0" })
       .setTimestamp();
@@ -212,7 +207,7 @@ export async function handleTicketButton(
       new ButtonBuilder()
         .setCustomId("ticket_close")
         .setLabel("Fermer le ticket")
-        .setStyle(ButtonStyle.Danger)
+        .setStyle(ButtonStyle.Danger),
     );
 
     await ticketChannel.send({
@@ -241,7 +236,9 @@ export async function handleTicketButton(
         content: "Impossible de créer le ticket.",
         flags: [MessageFlags.Ephemeral],
       });
-    } catch (err) { logger.warn("[Community] Erreur reply:", String(err)) }
+    } catch (err) {
+      logger.warn("[Community] Erreur reply:", String(err));
+    }
   }
 }
 
@@ -262,8 +259,8 @@ async function handleReminder(interaction: ChatInputCommandInteraction) {
           .setColor(0xff3344)
           .setDescription(
             "Format de temps invalide.\n" +
-            "Utilise : `30m`, `2h`, `1d`, `90s`\n" +
-            "Exemple : `/reminder 30m Verifier les logs`"
+              "Utilise : `30m`, `2h`, `1d`, `90s`\n" +
+              "Exemple : `/reminder 30m Verifier les logs`",
           ),
       ],
       flags: [MessageFlags.Ephemeral],
@@ -276,35 +273,48 @@ async function handleReminder(interaction: ChatInputCommandInteraction) {
   let ms = 0;
 
   switch (unit) {
-    case "s": ms = value * 1000; break;
-    case "m": ms = value * 60 * 1000; break;
-    case "h": ms = value * 60 * 60 * 1000; break;
-    case "d": ms = value * 24 * 60 * 60 * 1000; break;
+    case "s":
+      ms = value * 1000;
+      break;
+    case "m":
+      ms = value * 60 * 1000;
+      break;
+    case "h":
+      ms = value * 60 * 60 * 1000;
+      break;
+    case "d":
+      ms = value * 24 * 60 * 60 * 1000;
+      break;
   }
 
   // Limite max : 30 jours
   if (ms > 30 * 24 * 60 * 60 * 1000) {
     await interaction.reply({
       embeds: [
-        new EmbedBuilder()
-          .setColor(0xff3344)
-          .setDescription("Le delai maximum est de 30 jours."),
+        new EmbedBuilder().setColor(0xff3344).setDescription("Le delai maximum est de 30 jours."),
       ],
       flags: [MessageFlags.Ephemeral],
     });
     return;
   }
 
-  const reminderId = interaction.user.id + "-" + Date.now();
+  const _reminderId = interaction.user.id + "-" + Date.now();
   const endTime = new Date(Date.now() + ms);
 
   const embed = new EmbedBuilder()
     .setColor(0x00f0ff)
     .setTitle("⏰ Rappel programmé")
     .setDescription(
-      "Je te rappellerai dans **" + value + unit + "**\n" +
-      "Le " + endTime.toLocaleString("fr-FR") + "\n\n" +
-      '"' + message + '"'
+      "Je te rappellerai dans **" +
+        value +
+        unit +
+        "**\n" +
+        "Le " +
+        endTime.toLocaleString("fr-FR") +
+        "\n\n" +
+        '"' +
+        message +
+        '"',
     )
     .setFooter({ text: "Tu recevras une notification a l'echeance" });
 
@@ -323,7 +333,7 @@ async function handleReminder(interaction: ChatInputCommandInteraction) {
   });
 
   // Programmer l'envoi
-  const timeout = setTimeout(async () => {
+  const _timeout = setTimeout(async () => {
     try {
       const channel = await interaction.client.channels.fetch(interaction.channelId);
       if (channel?.isTextBased()) {
@@ -340,7 +350,9 @@ async function handleReminder(interaction: ChatInputCommandInteraction) {
         });
       }
       // Nettoyer le rappel de la base apres envoi (avec l'UUID Prisma)
-      await prisma.reminder.delete({ where: { id: savedReminder.id } }).catch((err) => { logger.error("[Community] Erreur suppression rappel:", String(err)) });
+      await prisma.reminder.delete({ where: { id: savedReminder.id } }).catch((err) => {
+        logger.error("[Community] Erreur suppression rappel:", String(err));
+      });
     } catch (err) {
       logger.error("[Community] Erreur envoi rappel:", err);
     }
@@ -363,7 +375,7 @@ async function handleTicketSetup(interaction: ChatInputCommandInteraction) {
     .setTitle("🎫 Support - Tickets")
     .setDescription(
       "Besoin d'aide ? Clique sur le bouton ci-dessous pour creer un ticket.\n" +
-      "Le staff te repondra dans un salon prive des que possible."
+        "Le staff te repondra dans un salon prive des que possible.",
     )
     .addFields({
       name: "📋 Regles",
@@ -379,7 +391,7 @@ async function handleTicketSetup(interaction: ChatInputCommandInteraction) {
       .setCustomId("ticket_create")
       .setLabel("🎫 Créer un ticket")
       .setEmoji("🎫")
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Primary),
   );
 
   await (interaction.channel as TextChannel).send({
@@ -395,10 +407,7 @@ async function handleTicketSetup(interaction: ChatInputCommandInteraction) {
 
 // ===== Gestion de la fermeture des tickets (exporté pour index.ts) =====
 
-export async function handleTicketClose(
-  interaction: ButtonInteraction,
-  client: Client
-) {
+export async function handleTicketClose(interaction: ButtonInteraction, _client: Client) {
   if (interaction.customId !== "ticket_close") return;
 
   try {
@@ -437,7 +446,9 @@ export async function handleTicketClose(
         content: "Erreur lors de la fermeture du ticket.",
         flags: [MessageFlags.Ephemeral],
       });
-    } catch (err) { logger.warn("[Community] Erreur reply:", String(err)) }
+    } catch (err) {
+      logger.warn("[Community] Erreur reply:", String(err));
+    }
   }
 }
 
@@ -466,17 +477,17 @@ async function handleWishlistNotify(interaction: ChatInputCommandInteraction) {
       "(" + targetUserId + ")",
       "par",
       interaction.user.displayName,
-      "(" + interaction.user.id + ")"
+      "(" + interaction.user.id + ")",
     );
 
     const isSelf = targetUserId === interaction.user.id;
     const description = isSelf
-      ? (activer
-          ? "Vous recevrez désormais des DMs pour les notifications wishlist."
-          : "Vous ne recevrez plus de DMs pour les notifications wishlist.")
-      : (activer
-          ? "Les DMs wishlist ont été activés pour **" + targetDisplayName + "**."
-          : "Les DMs wishlist ont été désactivés pour **" + targetDisplayName + "**.");
+      ? activer
+        ? "Vous recevrez désormais des DMs pour les notifications wishlist."
+        : "Vous ne recevrez plus de DMs pour les notifications wishlist."
+      : activer
+        ? "Les DMs wishlist ont été activés pour **" + targetDisplayName + "**."
+        : "Les DMs wishlist ont été désactivés pour **" + targetDisplayName + "**.";
 
     const embed = new EmbedBuilder()
       .setTitle(activer ? "✅ DMs wishlist activés" : "🚫 DMs wishlist désactivés")
@@ -488,7 +499,8 @@ async function handleWishlistNotify(interaction: ChatInputCommandInteraction) {
   } catch (err) {
     logger.error("💥 [CRASH WishlistNotify] Erreur Prisma :", err);
     await interaction.editReply({
-      content: "❌ Une erreur interne est survenue lors de la modification des préférences. L'erreur a été logguée dans la console.",
+      content:
+        "❌ Une erreur interne est survenue lors de la modification des préférences. L'erreur a été logguée dans la console.",
     });
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Client, EmbedBuilder, TextChannel } from "discord.js";
+import { Client, TextChannel } from "discord.js";
 
 // ─── vi.hoisted() - s'execute AVANT les imports ───────────────────────────
 
@@ -58,7 +58,6 @@ vi.mock("../utils/metrics", () => ({
   },
 }));
 
-
 vi.mock("node-cron", () => ({
   default: {
     schedule: vi.fn().mockReturnValue({
@@ -78,14 +77,38 @@ vi.mock("discord.js", () => ({
     this.fields = [];
     this.footer = null;
     this.timestamp = null;
-    this.setTitle = vi.fn(function (this: any, t: string) { this.title = t; return this; });
-    this.setURL = vi.fn(function (this: any, u: string) { this.url = u; return this; });
-    this.setColor = vi.fn(function (this: any, c: number) { this.color = c; return this; });
-    this.setDescription = vi.fn(function (this: any, d: string) { this.description = d; return this; });
-    this.addFields = vi.fn(function (this: any, ...f: any[]) { this.fields.push(...f); return this; });
-    this.setFooter = vi.fn(function (this: any, f: any) { this.footer = f; return this; });
-    this.setImage = vi.fn(function (this: any, img: string) { this.image = img; return this; });
-    this.setTimestamp = vi.fn(function (this: any) { this.timestamp = new Date(); return this; });
+    this.setTitle = vi.fn(function (this: any, t: string) {
+      this.title = t;
+      return this;
+    });
+    this.setURL = vi.fn(function (this: any, u: string) {
+      this.url = u;
+      return this;
+    });
+    this.setColor = vi.fn(function (this: any, c: number) {
+      this.color = c;
+      return this;
+    });
+    this.setDescription = vi.fn(function (this: any, d: string) {
+      this.description = d;
+      return this;
+    });
+    this.addFields = vi.fn(function (this: any, ...f: any[]) {
+      this.fields.push(...f);
+      return this;
+    });
+    this.setFooter = vi.fn(function (this: any, f: any) {
+      this.footer = f;
+      return this;
+    });
+    this.setImage = vi.fn(function (this: any, img: string) {
+      this.image = img;
+      return this;
+    });
+    this.setTimestamp = vi.fn(function (this: any) {
+      this.timestamp = new Date();
+      return this;
+    });
     return this;
   }),
 }));
@@ -186,7 +209,7 @@ describe("detectPlatforms", () => {
 
   it("detecte plusieurs plateformes dans un titre multi-plateforme", () => {
     const result = detectPlatforms("[Steam] [PS5] Multi-platform Game");
-    const names = result.map(p => p.name);
+    const names = result.map((p) => p.name);
     expect(names).toContain("Steam");
     expect(names).toContain("PlayStation");
     expect(result.length).toBeGreaterThanOrEqual(2);
@@ -194,7 +217,7 @@ describe("detectPlatforms", () => {
 
   it("detecte Xbox et Nintendo dans un titre double", () => {
     const result = detectPlatforms("[Xbox Series] [Switch] Crossplay Game");
-    const names = result.map(p => p.name);
+    const names = result.map((p) => p.name);
     expect(names).toContain("Xbox");
     expect(names).toContain("Nintendo");
   });
@@ -204,7 +227,6 @@ describe("detectPlatforms", () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Steam");
   });
-
 
   it("detecte un deal Epic Games via [Epic Games]", () => {
     const result = detectPlatforms("[Epic Games] Free Game");
@@ -258,7 +280,7 @@ describe("detectPlatforms", () => {
 
   it("detecte plusieurs plateformes dans un titre multi-plateforme", () => {
     const result = detectPlatforms("[Steam] [PS5] Multi-platform Game");
-    const names = result.map(p => p.name);
+    const names = result.map((p) => p.name);
     expect(names).toContain("Steam");
     expect(names).toContain("PlayStation");
     expect(result.length).toBeGreaterThanOrEqual(2);
@@ -266,7 +288,7 @@ describe("detectPlatforms", () => {
 
   it("detecte Xbox et Nintendo dans un titre double", () => {
     const result = detectPlatforms("[Xbox Series] [Switch] Crossplay Game");
-    const names = result.map(p => p.name);
+    const names = result.map((p) => p.name);
     expect(names).toContain("Xbox");
     expect(names).toContain("Nintendo");
   });
@@ -276,7 +298,6 @@ describe("detectPlatforms", () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("Steam");
   });
-
 });
 
 // ─── Tests: checkDeals ─────────────────────────────────────────────────────
@@ -297,9 +318,7 @@ describe("checkDeals", () => {
       const client = makeMockClient();
       await checkDeals(client);
 
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("CHANNEL_ID")
-      );
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("CHANNEL_ID"));
       expect(mockAxiosGet).not.toHaveBeenCalled();
     });
 
@@ -333,7 +352,7 @@ describe("checkDeals", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         expect.stringContaining("Erreur analyse du flux"),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -344,7 +363,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [] }})
+        .mockResolvedValueOnce({ data: { items: [] } })
         .mockResolvedValueOnce({ data: { items: [] } });
 
       await checkDeals(client);
@@ -360,7 +379,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] Already Seen Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
 
       mockProcessedDealFindUnique.mockResolvedValue({ id: 1 }); // deja traite
@@ -376,7 +395,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] New Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
 
       mockProcessedDealFindUnique.mockResolvedValue(null);
@@ -393,7 +412,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] DB Error Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
 
       mockProcessedDealFindUnique.mockRejectedValue(new Error("DB error"));
@@ -403,7 +422,7 @@ describe("checkDeals", () => {
 
       // Prisma error in findUnique -> should log warning and continue as if not processed
       expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Erreur verification ProcessedDeal")
+        expect.stringContaining("Erreur verification ProcessedDeal"),
       );
       expect(channel.send).toHaveBeenCalledTimes(1);
     });
@@ -420,7 +439,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] PC Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -441,7 +460,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[PS5] PS Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -460,7 +479,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "Generic Gaming Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -468,7 +487,7 @@ describe("checkDeals", () => {
       await checkDeals(client);
 
       expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Plateforme non detectee")
+        expect.stringContaining("Plateforme non detectee"),
       );
       expect(pcChannel.send).toHaveBeenCalledTimes(1);
     });
@@ -480,16 +499,14 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Xbox] Xbox Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
       await checkDeals(client);
 
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Channel")
-      );
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Channel"));
     });
 
     it("ignore un deal si le salon n'est pas textuel", async () => {
@@ -501,7 +518,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -522,7 +539,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] Error Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -531,7 +548,7 @@ describe("checkDeals", () => {
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         expect.stringContaining("Erreur envoi deal"),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -543,7 +560,7 @@ describe("checkDeals", () => {
 
       const item = makeFeedItem({ title: "[Steam] Duplicate DB Deal" });
       mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] }})
+        .mockResolvedValueOnce({ data: { items: [item] } })
         .mockResolvedValueOnce({ data: { items: [] } });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       // create echoue (doublon)
@@ -554,9 +571,7 @@ describe("checkDeals", () => {
       // Le send reussit quand meme
       expect(channel.send).toHaveBeenCalledTimes(1);
       // Le catch de markDealProcessed log en debug
-      expect(mockLoggerDebug).toHaveBeenCalledWith(
-        expect.stringContaining("Deal deja persiste")
-      );
+      expect(mockLoggerDebug).toHaveBeenCalledWith(expect.stringContaining("Deal deja persiste"));
     });
   });
 
@@ -566,7 +581,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const items = Array.from({ length: 15 }, (_, i) =>
-        makeFeedItem({ title: "[Steam] Deal #" + i, link: "https://reddit.com/" + i })
+        makeFeedItem({ title: "[Steam] Deal #" + i, link: "https://reddit.com/" + i }),
       );
       mockAxiosGet
         .mockResolvedValueOnce({ data: { items } })
@@ -592,14 +607,12 @@ describe("startDealsMonitoring / stopDealsMonitoring", () => {
     startDealsMonitoring(client);
 
     expect(mockLoggerInfo).toHaveBeenCalledWith(
-      expect.stringContaining("Demarrage de la surveillance")
+      expect.stringContaining("Demarrage de la surveillance"),
     );
 
     stopDealsMonitoring();
 
-    expect(mockLoggerInfo).toHaveBeenCalledWith(
-      expect.stringContaining("Surveillance arretee")
-    );
+    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Surveillance arretee"));
   });
 
   it("empeche le double demarrage", () => {
@@ -609,7 +622,7 @@ describe("startDealsMonitoring / stopDealsMonitoring", () => {
     startDealsMonitoring(client);
 
     expect(mockLoggerWarn).toHaveBeenCalledWith(
-      expect.stringContaining("Surveillance deja active")
+      expect.stringContaining("Surveillance deja active"),
     );
   });
 
@@ -625,9 +638,7 @@ describe("startDealsMonitoring / stopDealsMonitoring", () => {
     const client = makeMockClient();
     startDealsMonitoring(client);
 
-    expect(mockLoggerWarn).toHaveBeenCalledWith(
-      expect.stringContaining("CHANNEL_ID")
-    );
+    expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("CHANNEL_ID"));
   });
 
   it("execute un check immediat au demarrage", async () => {
@@ -635,7 +646,7 @@ describe("startDealsMonitoring / stopDealsMonitoring", () => {
     const client = makeMockClient({ "steam-epic-chan": channel });
 
     mockAxiosGet
-      .mockResolvedValueOnce({ data: { items: [] }})
+      .mockResolvedValueOnce({ data: { items: [] } })
       .mockResolvedValueOnce({ data: { items: [] } });
 
     startDealsMonitoring(client);

@@ -14,11 +14,33 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
       "no-console": "off",
+      // Intentional silence (e.g. graceful per-field scraper fallbacks) is allowed.
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      // Cosmetic / zero-impact rules — keep as warnings so devs see them but don't fail builds.
+      "no-useless-escape": "warn",
+      "no-irregular-whitespace": "warn",
+      "no-useless-assignment": "warn",
     },
   },
   {
-    ignores: ["dist", "node_modules"],
+    // .js files kept outside the type-aware parser (they are JS-only and not in tsconfig).
+    ignores: [
+      "dist",
+      "node_modules",
+      "src/imageExtractor.js",
+      "src/managers/_fix_scraper.js",
+      "src/rawgClient.js",
+      "src/rssTwitterTracker.js",
+    ],
   },
 );

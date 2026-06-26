@@ -1,5 +1,4 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
-import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import { requireAdmin } from "../services/permissions.js";
@@ -7,25 +6,17 @@ import { requireAdmin } from "../services/permissions.js";
 export const data = new SlashCommandBuilder()
   .setName("debug")
   .setDescription("Outil de diagnostic du bot (admin only)")
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("status")
-      .setDescription("Affiche le statut complet du bot")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("status").setDescription("Affiche le statut complet du bot"),
   )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("services")
-      .setDescription("Vérifie l'état des services externes")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("services").setDescription("Vérifie l'état des services externes"),
   )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("database")
-      .setDescription("Teste la connexion à la base de données")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("database").setDescription("Teste la connexion à la base de données"),
   )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("memory")
-      .setDescription("Affiche l'utilisation mémoire")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("memory").setDescription("Affiche l'utilisation mémoire"),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client) {
@@ -109,7 +100,7 @@ async function debugServices(interaction: ChatInputCommandInteraction) {
     await prisma.$queryRaw`SELECT 1`;
     const latency = Date.now() - start;
     results.push({ name: "Prisma (SQLite)", status: "✅ OK", latency });
-  } catch (error) {
+  } catch (_error) {
     results.push({ name: "Prisma (SQLite)", status: "❌ Erreur" });
   }
 
@@ -123,14 +114,14 @@ async function debugServices(interaction: ChatInputCommandInteraction) {
     } else {
       results.push({ name: "OpenRouter API", status: "⚠️ Non configuré" });
     }
-  } catch (error) {
+  } catch (_error) {
     results.push({ name: "OpenRouter API", status: "❌ Erreur" });
   }
 
   // Affichage des résultats
-  const statusText = results.map(r => 
-    `**${r.name}**: ${r.status}${r.latency ? ` (${r.latency}ms)` : ""}`
-  ).join("\n");
+  const statusText = results
+    .map((r) => `**${r.name}**: ${r.status}${r.latency ? ` (${r.latency}ms)` : ""}`)
+    .join("\n");
 
   embed.addFields({
     name: "📡 Services",
@@ -175,7 +166,6 @@ async function debugDatabase(interaction: ChatInputCommandInteraction) {
       `.trim(),
       inline: false,
     });
-
   } catch (error) {
     embed.setColor(0xff0000);
     embed.addFields({

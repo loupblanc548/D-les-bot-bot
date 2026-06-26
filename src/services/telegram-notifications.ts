@@ -1,9 +1,7 @@
 import logger from "../utils/logger.js";
-import { sendEscalatedAlert } from "../utils/alert-escalation.js";
-
 const TELEGRAM_API_URL = "https://api.telegram.org/bot";
 
-interface TelegramMessage {
+interface _TelegramMessage {
   chatId: string;
   text: string;
   parseMode?: "Markdown" | "HTML";
@@ -16,25 +14,22 @@ export async function sendTelegramMessage(
   botToken: string,
   chatId: string,
   text: string,
-  parseMode: "Markdown" | "HTML" = "Markdown"
+  parseMode: "Markdown" | "HTML" = "Markdown",
 ): Promise<boolean> {
   try {
-    const response = await fetch(
-      `${TELEGRAM_API_URL}${botToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: parseMode,
-        }),
-      }
-    );
+    const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: parseMode,
+      }),
+    });
 
-    const data = await response.json() as Record<string, unknown>;
+    const data = (await response.json()) as Record<string, unknown>;
 
     if (data.ok) {
       logger.info(`[Telegram] Message envoyé à ${chatId}`);
@@ -54,7 +49,7 @@ export async function sendTelegramMessage(
  */
 export async function sendCriticalAlert(
   message: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): Promise<void> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -84,7 +79,7 @@ export async function sendHealthReport(
   uptime: number,
   memoryUsage: NodeJS.MemoryUsage,
   guildCount: number,
-  userCount: number
+  userCount: number,
 ): Promise<void> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -109,7 +104,7 @@ export async function sendHealthReport(
  */
 export async function sendDeploymentNotification(
   version: string,
-  environment: string
+  environment: string,
 ): Promise<void> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;

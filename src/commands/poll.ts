@@ -7,7 +7,6 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  ComponentType,
   ButtonInteraction,
 } from "discord.js";
 import prisma from "../prisma.js";

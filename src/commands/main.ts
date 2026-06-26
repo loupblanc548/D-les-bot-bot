@@ -2,12 +2,10 @@ import logger from "../utils/logger.js";
 import {
   MessageFlags,
   ChatInputCommandInteraction,
-  SlashCommandBuilder,
   EmbedBuilder,
   Client,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ComponentType,
   StringSelectMenuInteraction,
 } from "discord.js";
 import prisma from "../prisma.js";
@@ -196,8 +194,6 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
-
-
 async function handleStart(interaction: ChatInputCommandInteraction, client: Client) {
   await interaction.deferReply({ ephemeral: true });
   try {
@@ -206,16 +202,25 @@ async function handleStart(interaction: ChatInputCommandInteraction, client: Cli
       content:
         "🟢 **Bot opérationnel**\n" +
         "• Version : **1.0.0**\n" +
-        "• Latence : **" + client.ws.ping + "ms**\n" +
-        "• Sources : **" + sourcesCount + "** surveillée(s)\n" +
+        "• Latence : **" +
+        client.ws.ping +
+        "ms**\n" +
+        "• Sources : **" +
+        sourcesCount +
+        "** surveillée(s)\n" +
         "• Services : Discord.js + Prisma + OpenRouter IA\n" +
-        "• " + (config.adminRoles.length > 0 ? "🟢 Rôles admin configurés" : "🟡 Rôles admin non configurés"),
+        "• " +
+        (config.adminRoles.length > 0
+          ? "🟢 Rôles admin configurés"
+          : "🟡 Rôles admin non configurés"),
     });
   } catch (error) {
     logger.error("[CRASH COMMANDE START]:", error);
     try {
       await interaction.editReply({ content: "❌ Erreur lors de l'initialisation." });
-    } catch (err) { logger.warn("[Main] Erreur followUp:", String(err)) }
+    } catch (err) {
+      logger.warn("[Main] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -239,13 +244,11 @@ async function handleHelp(interaction: ChatInputCommandInteraction) {
       .setTitle("📚 Commandes du Bot")
       .setColor(0x5865f2)
       .setDescription("Sélectionnez une catégorie ci-dessous pour voir les commandes disponibles.")
-      .addFields(
-        {
-          name: "📊 Statistiques",
-          value: `**${CATEGORIES.length} catégories** • **${CATEGORIES.reduce((acc, cat) => acc + cat.commands.split("\n").length, 0)} commandes**`,
-          inline: false,
-        }
-      )
+      .addFields({
+        name: "📊 Statistiques",
+        value: `**${CATEGORIES.length} catégories** • **${CATEGORIES.reduce((acc, cat) => acc + cat.commands.split("\n").length, 0)} commandes**`,
+        inline: false,
+      })
       .setFooter(FOOTER)
       .setTimestamp();
 
@@ -254,7 +257,9 @@ async function handleHelp(interaction: ChatInputCommandInteraction) {
     logger.error("[CRASH COMMANDE HELP]:", error);
     try {
       await interaction.editReply({ content: "❌ Erreur lors de l'affichage de l'aide." });
-    } catch (err) { logger.warn("[Main] Erreur followUp:", String(err)) }
+    } catch (err) {
+      logger.warn("[Main] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -282,11 +287,13 @@ async function handleCategorySelect(interaction: StringSelectMenuInteraction) {
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId("help_category_select")
     .setPlaceholder("Sélectionnez une catégorie...")
-    .addOptions(CATEGORIES.map((cat) => ({
-      label: `${cat.emoji} ${cat.name}`,
-      description: cat.description,
-      value: cat.id,
-    })));
+    .addOptions(
+      CATEGORIES.map((cat) => ({
+        label: `${cat.emoji} ${cat.name}`,
+        description: cat.description,
+        value: cat.id,
+      })),
+    );
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
@@ -300,9 +307,13 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
     const logsCount = await prisma.log.count();
     const warningsCount = await prisma.sanction.count({ where: { type: "WARN" } });
     const lastLogs = await getLogs(5);
-    const lastScans = lastLogs.map((l) => "• " + l.type + " — " + l.action).join("\n") || "Aucune activité récente";
+    const lastScans =
+      lastLogs.map((l) => "• " + l.type + " — " + l.action).join("\n") || "Aucune activité récente";
     const uptimeMin = Math.floor(process.uptime() / 60);
-    const uptimeStr = uptimeMin < 60 ? uptimeMin + " min" : Math.floor(uptimeMin / 60) + "h " + (uptimeMin % 60) + "min";
+    const uptimeStr =
+      uptimeMin < 60
+        ? uptimeMin + " min"
+        : Math.floor(uptimeMin / 60) + "h " + (uptimeMin % 60) + "min";
 
     const embed = new EmbedBuilder()
       .setTitle("📡 Statut Système")
@@ -314,7 +325,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
         { name: "📅 Sources", value: sourcesCount.toString(), inline: true },
         { name: "📋 Logs", value: logsCount.toString(), inline: true },
         { name: "⚠️ Warns", value: warningsCount.toString(), inline: true },
-        { name: "📝 Dernières actions", value: lastScans, inline: false }
+        { name: "📝 Dernières actions", value: lastScans, inline: false },
       )
       .setFooter(FOOTER)
       .setTimestamp();
@@ -324,7 +335,9 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
     logger.error("[CRASH COMMANDE STATUS]:", error);
     try {
       await interaction.editReply({ content: "❌ Erreur lors de l'affichage du statut." });
-    } catch (err) { logger.warn("[Main] Erreur followUp:", String(err)) }
+    } catch (err) {
+      logger.warn("[Main] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -334,12 +347,16 @@ async function handleRestart(interaction: ChatInputCommandInteraction, _client: 
   try {
     logger.info("Redémarrage demandé par", interaction.user.tag);
     await interaction.editReply({ content: "🔄 Redémarrage du bot en cours..." });
-    setTimeout(() => { process.exit(0); }, 1000);
+    setTimeout(() => {
+      process.exit(0);
+    }, 1000);
   } catch (error) {
     logger.error("[CRASH COMMANDE RESTART]:", error);
     try {
       await interaction.editReply({ content: "❌ Erreur lors du redémarrage." });
-    } catch (err) { logger.warn("[Main] Erreur followUp:", String(err)) }
+    } catch (err) {
+      logger.warn("[Main] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -372,19 +389,23 @@ async function handleRetro(interaction: ChatInputCommandInteraction, client: Cli
       { name: "🔨 Bans", value: bans.toString(), inline: true },
       { name: "🗑️ Msg supprimés", value: messagesDeleted.toString(), inline: true },
       { name: "📡 Sources", value: sources + " (" + notifications + " notifs)", inline: true },
-      { name: "📋 Actions", value: recentLogs.length.toString(), inline: true }
+      { name: "📋 Actions", value: recentLogs.length.toString(), inline: true },
     )
     .setFooter(FOOTER)
     .setTimestamp();
 
   await interaction.editReply({ embeds: [embed] });
-  await interaction.followUp({ content: "🔄 Rattrapage des actualités en cours... Patientez.", flags: [MessageFlags.Ephemeral] });
+  await interaction.followUp({
+    content: "🔄 Rattrapage des actualités en cours... Patientez.",
+    flags: [MessageFlags.Ephemeral],
+  });
 
   try {
     await runStartupRetrospective(client);
     await runDbSourcesRetrospective(client);
     await interaction.followUp({
-      content: "✅ Rétrospective de contenu terminée ! Les actualités manquées ont été publiées dans les salons dédiés.",
+      content:
+        "✅ Rétrospective de contenu terminée ! Les actualités manquées ont été publiées dans les salons dédiés.",
       flags: [MessageFlags.Ephemeral],
     });
   } catch (err) {
@@ -398,7 +419,7 @@ async function handleRetro(interaction: ChatInputCommandInteraction, client: Cli
 
 // ─── Exports pour le routeur de commandes ───
 
-export const commands: any[] = [];
+export const commands: unknown[] = [];
 
 export async function handleCommand(
   interaction: ChatInputCommandInteraction,

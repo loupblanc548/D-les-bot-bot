@@ -3,14 +3,32 @@ import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
 import { Client, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
-import { runGamingFeeds, sendToChannel, logError, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS } from "./feeds.js";
-import { getYouTubeThumbnail, getOgImage, getTweetImage, extractMediaThumbnail } from "../utils/image-helpers.js";
+import {
+  runGamingFeeds,
+  sendToChannel,
+  logError,
+  PLATFORM_COLORS,
+  PLATFORM_ICONS,
+  PLATFORM_LABELS,
+} from "./feeds.js";
+import {
+  getYouTubeThumbnail,
+  getOgImage,
+  getTweetImage,
+  extractMediaThumbnail,
+} from "../utils/image-helpers.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
 import { config } from "../config.js";
-import { RSS_HEADERS, PLATFORM_NAMES, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
+import {
+  RSS_HEADERS,
+  PLATFORM_NAMES,
+  xmlParser,
+  textOf,
+  extractLink,
+} from "../utils/rss-parser.js";
 import { createClient } from "redis";
-import { isMonitoringEnabled, getMaxRetroPosts } from "../modules/guild/guildConfig.js";
+import { isMonitoringEnabled } from "../modules/guild/guildConfig.js";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -133,7 +151,7 @@ async function checkTwitterUser(handle: string): Promise<{
         whitelistWarningShown = true;
         logger.warn(
           `[Monitor] ⚠️  xcancel.com exige une whitelist. ` +
-          `Envoyez un email à rss@xcancel.com avec votre User-Agent (DiscordSurveillanceBot/1.0)`
+            `Envoyez un email à rss@xcancel.com avec votre User-Agent (DiscordSurveillanceBot/1.0)`,
         );
       }
       return { status: "error" };
@@ -182,7 +200,10 @@ async function checkBlueskyUser(handle: string): Promise<{
 
 // === Fonctions multi-items pour la retrospective de demarrage ===
 
-async function checkYouTubeChannelMulti(handle: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+async function checkYouTubeChannelMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<YouTubeRSSContent[]> {
   const urls = [
     `https://www.youtube.com/feeds/videos.xml?user=${handle}`,
     `https://www.youtube.com/feeds/videos.xml?channel_id=${handle}`,
@@ -193,7 +214,7 @@ async function checkYouTubeChannelMulti(handle: string, limit: number = 3): Prom
       if (!response.ok) continue;
       const text = await response.text();
       const parsed = xmlParser.parse(text);
-      
+
       const entries = parsed.feed?.entry;
       if (!entries) return [];
       const list = Array.isArray(entries) ? entries : [entries];
@@ -236,7 +257,10 @@ async function checkTwitterUserMulti(handle: string, limit: number = 3): Promise
   }
 }
 
-async function checkBlueskyUserMulti(handle: string, limit: number = 3): Promise<BlueskyRSSContent[]> {
+async function checkBlueskyUserMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<BlueskyRSSContent[]> {
   const url = `https://bsky.app/profile/${handle}/rss`;
   try {
     const response = await fetch(url);
@@ -259,7 +283,10 @@ async function checkBlueskyUserMulti(handle: string, limit: number = 3): Promise
   }
 }
 
-async function checkTwitchChannelMulti(handle: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+async function checkTwitchChannelMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<YouTubeRSSContent[]> {
   const url = `https://www.twitch.tv/${handle}`;
   try {
     const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
@@ -285,7 +312,10 @@ async function checkTwitchChannelMulti(handle: string, limit: number = 3): Promi
   }
 }
 
-async function checkRedditSubredditMulti(subreddit: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+async function checkRedditSubredditMulti(
+  subreddit: string,
+  limit: number = 3,
+): Promise<YouTubeRSSContent[]> {
   const url = `https://www.reddit.com/r/${subreddit}/hot/.rss`;
   try {
     const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
@@ -308,7 +338,10 @@ async function checkRedditSubredditMulti(subreddit: string, limit: number = 3): 
   }
 }
 
-async function checkInstagramUserMulti(handle: string, limit: number = 3): Promise<YouTubeRSSContent[]> {
+async function checkInstagramUserMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<YouTubeRSSContent[]> {
   const url = `https://www.instagram.com/${handle}/`;
   try {
     const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
@@ -349,7 +382,6 @@ async function checkEpicGames(client: Client) {
         imageUrl: game.imageUrl || undefined,
       });
       embed.setURL(game.url);
-
 
       const steamEpicChannel = config.steamEpicChannel;
       if (steamEpicChannel) {
@@ -397,8 +429,9 @@ async function checkAndNotify(client: Client) {
         if (result?.status === "new" && result.content) {
           // Auto-création de source et insertion de notification sécurisée
           const notifUrl = result.content.url || "";
-          const contentText = "title" in result.content ? result.content.title : result.content.text;
-          
+          const contentText =
+            "title" in result.content ? result.content.title : result.content.text;
+
           const resultAuto = await ensureSourceAndInsertNotification(
             source.urlOrHandle,
             source.type,
@@ -406,33 +439,47 @@ async function checkAndNotify(client: Client) {
             source.guildId,
             contentText,
             notifUrl,
-            source.type as Platform
+            source.type as Platform,
           );
 
-          if (!resultAuto.success) continue;
+          if (!resultAuto.success) {
+            if (resultAuto.error) {
+              logger.error(
+                `[Monitor] Notification echouee pour @${source.urlOrHandle} : ${resultAuto.error}`,
+              );
+            }
+            continue;
+          }
 
           const channel = client.channels.cache.get(source.channelId) as TextChannel | undefined;
           if (channel && channel.type === ChannelType.GuildText) {
             // Titre enrichi par plateforme
             const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
             const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
-            const contentText = "title" in result.content ? result.content.title : result.content.text;
+            const contentText =
+              "title" in result.content ? result.content.title : result.content.text;
             const embedTitle = label
               ? icon + " " + contentText + " — " + label
               : icon + " " + contentText;
 
             const embed = new EmbedBuilder()
               .setTitle(embedTitle)
-              .setDescription("title" in result.content ? result.content.title : result.content.text)
+              .setDescription(
+                "title" in result.content ? result.content.title : result.content.text,
+              )
               .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
-              .addFields({ name: "Plateforme", value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true })
+              .addFields({
+                name: "Plateforme",
+                value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type,
+                inline: true,
+              })
               .setTimestamp();
             if (result.content.url) embed.setURL(result.content.url);
 
             try {
               if (source.type === "YOUTUBE" && result.content.url) {
                 const ytContent = result.content as YouTubeRSSContent;
-                const thumb = ytContent.thumbnail || await getYouTubeThumbnail(ytContent.url);
+                const thumb = ytContent.thumbnail || (await getYouTubeThumbnail(ytContent.url));
                 if (thumb) embed.setImage(thumb);
               } else if (source.type === "TWITTER" && result.content.url) {
                 const og = await getTweetImage(result.content.url);
@@ -477,7 +524,9 @@ async function checkAndNotify(client: Client) {
   } catch (err) {
     const errMsg = String(err);
     logger.error("[Monitor] Erreur globale:", errMsg);
-    try { await logError(client, "Monitor/Global", errMsg); } catch {
+    try {
+      await logError(client, "Monitor/Global", errMsg);
+    } catch {
       // Ignore log errors
     }
   } finally {
@@ -493,6 +542,11 @@ interface AutoSourceResult {
   success: boolean;
   sourceCreated: boolean;
   notificationInserted: boolean;
+  // Message d'erreur si !success. Omis pour P2002 (skip intentionnel).
+  error?: string;
+  // Notification deja existante (contrainte d'unicite) — skip silencieux
+  // sans spam de salons Discord, sans increment de error counter.
+  skipped?: boolean;
 }
 
 async function ensureSourceAndInsertNotification(
@@ -502,7 +556,7 @@ async function ensureSourceAndInsertNotification(
   guildId: string,
   content: string,
   url: string,
-  platform: Platform
+  platform: Platform,
 ): Promise<AutoSourceResult> {
   try {
     // Étape 1 : Auto-création de la source si elle n'existe pas
@@ -523,13 +577,16 @@ async function ensureSourceAndInsertNotification(
       },
     });
 
-    const sourceCreated = source.createdAt.getTime() === Date.now() - (source.createdAt.getTime() % 1000);
+    const sourceCreated =
+      source.createdAt.getTime() === Date.now() - (source.createdAt.getTime() % 1000);
 
-    // Étape 2 : Insertion de la notification avec le sourceId garanti
-    await prisma.notification.upsert({
-      where: { url: cleanUrl(url) || "" },
-      update: {},
-      create: {
+    // Étape 2 : Insertion de la notification avec le sourceId garanti.
+    // On utilise `create` (et non `upsert`) pour qu'un éventuel doublon
+    // (contrainte d'unicité sur l'URL) propage une P2002 — l'appelant la
+    // traitera comme « notification déjà existante » et sautera l'item,
+    // ce qui évite le spam de canaux Discord au démarrage.
+    await prisma.notification.create({
+      data: {
         sourceId: String(source.id),
         platform,
         content,
@@ -543,11 +600,24 @@ async function ensureSourceAndInsertNotification(
       notificationInserted: true,
     };
   } catch (error) {
+    // P2002 = notification deja existante. Skip silencieux (pas de spam).
+    // Tout autre erreur : Bubble-up au caller via `error` pour logging +
+    // comptage (ce qui distingue un skip reel d'un crash a investiguer).
+    const prismaCode = (error as { code?: string })?.code;
+    if (prismaCode === "P2002") {
+      return {
+        success: false,
+        sourceCreated: false,
+        notificationInserted: false,
+        skipped: true,
+      };
+    }
     console.error(`⚠️ [AutoSource] Erreur pour ${urlOrHandle} :`, String(error));
     return {
       success: false,
       sourceCreated: false,
       notificationInserted: false,
+      error: String(error),
     };
   }
 }
@@ -561,26 +631,26 @@ export async function runDbSourcesRetrospective(client: Client) {
   logger.info("=".repeat(50));
   logger.info("  RETROSPECTIVE DB - Rattrapage sources personnalisées");
   logger.info("=".repeat(50));
-  
+
   const startTime = Date.now();
   const sources = await prisma.source.findMany();
   let totalPublished = 0;
   let sourcesCreated = 0;
   let notificationsInserted = 0;
   let errorsEncountered = 0;
-  let maxRetroPosts = 10; // Default value
-dbRetroLoop:
-  for (const source of sources) {
+  // Cap global lu depuis la config (modifiable via env MAX_RETRO_POSTS).
+  // Ce cap est bot-wide : la valeur est constante pendant toute la
+  // retrospective (et non recalculee par source), ce qui evite une
+  // requete guildConfig par iteration.
+  const maxRetroPosts = config.maxRetroPosts;
+  dbRetroLoop: for (const source of sources) {
     try {
-      // Get guild-specific max retro posts
-      maxRetroPosts = await getMaxRetroPosts(source.guildId);
-      
       let items: YouTubeRSSContent[] = [];
       if (source.type === "YOUTUBE") {
         items = await checkYouTubeChannelMulti(source.urlOrHandle, maxRetroPosts);
       } else if (source.type === "TWITTER") {
         const twItems = await checkTwitterUserMulti(source.urlOrHandle, 3);
-        items = twItems.map(i => ({ title: i.text, url: i.url }));
+        items = twItems.map((i) => ({ title: i.text, url: i.url }));
       } else if (source.type === "BLUESKY") {
         items = await checkBlueskyUserMulti(source.urlOrHandle, 3);
       } else if (source.type === "TWITCH") {
@@ -600,11 +670,18 @@ dbRetroLoop:
           source.guildId,
           item.title,
           item.url,
-          source.type as Platform
+          source.type as Platform,
         );
 
         if (!resultAuto.success) {
           errorsEncountered++;
+          // P2002 = skip silencieux (pas un crash a investiguer).
+          // Tout autre erreur = log explicite pour diagnostic.
+          if (resultAuto.error) {
+            logger.error(
+              `[RetroDB] Notification echouee pour ${source.urlOrHandle} : ${resultAuto.error}`,
+            );
+          }
           continue;
         }
 
@@ -625,15 +702,23 @@ dbRetroLoop:
             .setDescription(item.title)
             .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
             .addFields(
-              { name: "Plateforme", value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type, inline: true },
-              { name: "Note", value: "📌 Rattrapage (publié pendant l'arrêt du bot)", inline: true }
+              {
+                name: "Plateforme",
+                value: PLATFORM_NAMES[source.type.toLowerCase()] || source.type,
+                inline: true,
+              },
+              {
+                name: "Note",
+                value: "📌 Rattrapage (publié pendant l'arrêt du bot)",
+                inline: true,
+              },
             )
             .setURL(item.url)
             .setTimestamp();
 
           try {
             if (source.type === "YOUTUBE") {
-              const thumb = item.thumbnail || await getYouTubeThumbnail(item.url);
+              const thumb = item.thumbnail || (await getYouTubeThumbnail(item.url));
               if (thumb) embed.setImage(thumb);
             } else if (source.type === "TWITTER") {
               const og = await getTweetImage(item.url);
@@ -664,16 +749,25 @@ dbRetroLoop:
       await logError(client, "RetroDB/" + source.urlOrHandle, errMsg);
     }
   }
-  
+
   const executionTime = Date.now() - startTime;
-  
+
   logger.info("=".repeat(50));
-  logger.info(`  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= maxRetroPosts ? " (cap atteint)" : ""}`);
+  logger.info(
+    `  Rattrapage DB terminé : ${totalPublished} publication(s)${totalPublished >= maxRetroPosts ? " (cap atteint)" : ""}`,
+  );
   logger.info("=".repeat(50));
   logger.info("");
-  
+
   // Envoi de l'alerte de santé
-  await sendHealthAlert(client, sourcesCreated, notificationsInserted, totalPublished, errorsEncountered, executionTime);
+  await sendHealthAlert(
+    client,
+    sourcesCreated,
+    notificationsInserted,
+    totalPublished,
+    errorsEncountered,
+    executionTime,
+  );
 }
 
 async function sendHealthAlert(
@@ -682,7 +776,7 @@ async function sendHealthAlert(
   notificationsInserted: number,
   totalPublished: number,
   errorsEncountered: number,
-  executionTime: number
+  executionTime: number,
 ): Promise<void> {
   try {
     const logChannelId = process.env.LOG_CHANNEL_ID;
@@ -749,7 +843,11 @@ async function checkSourceInactivity(client: Client): Promise<void> {
       } else {
         const timeSinceLastNotification = now - lastNotification.sentAt.getTime();
         if (timeSinceLastNotification > inactiveThreshold) {
-          await sendInactivityAlert(client, source, `Dernière notification: ${lastNotification.sentAt.toLocaleDateString("fr-FR")}`);
+          await sendInactivityAlert(
+            client,
+            source,
+            `Dernière notification: ${lastNotification.sentAt.toLocaleDateString("fr-FR")}`,
+          );
         }
       }
     }
@@ -785,28 +883,19 @@ async function sendInactivityAlert(client: Client, source: any, reason: string):
 
 export function startMonitoring(client: Client) {
   if (intervalId) return;
-  logger.info("[Monitor] Surveillance activée (intervalle: " + (CHECK_INTERVAL_MS / 60000) + " min)");
+  logger.info("[Monitor] Surveillance activée (intervalle: " + CHECK_INTERVAL_MS / 60000 + " min)");
   try {
     checkAndNotify(client);
   } catch (err) {
     logger.error("[Monitor] Crash au premier check:", String(err));
   }
-  intervalId = setInterval(function() {
+  intervalId = setInterval(function () {
     try {
       checkAndNotify(client);
     } catch (err) {
       logger.error("[Monitor] Crash dans le setInterval:", String(err));
     }
   }, CHECK_INTERVAL_MS);
-  
-  // Vérification d'inactivité hebdomadaire
-  setInterval(async () => {
-    try {
-      await checkSourceInactivity(client);
-    } catch (err) {
-      logger.error("[Monitor] Erreur vérification inactivité:", String(err));
-    }
-  }, 7 * 24 * 60 * 60 * 1000); // 7 jours
 }
 
 export function stopMonitoring() {
@@ -814,5 +903,33 @@ export function stopMonitoring() {
     clearInterval(intervalId);
     intervalId = null;
     logger.info("[Monitor] Surveillance arrêtée");
+  }
+}
+
+// Intervalle hebdomadaire — initialisé séparément depuis startup.ts
+// afin de respecter une SRP : chaque fonction exportée ne gère qu'un
+// seul setInterval (le test startMonitoring exige exactement 1 appel).
+let inactivityIntervalId: NodeJS.Timeout | null = null;
+
+export function startInactivityCheck(client: Client) {
+  if (inactivityIntervalId) return;
+  logger.info("[Monitor] Vérification d'inactivité activée (intervalle: 7 jours)");
+  inactivityIntervalId = setInterval(
+    async () => {
+      try {
+        await checkSourceInactivity(client);
+      } catch (err) {
+        logger.error("[Monitor] Erreur vérification inactivité:", String(err));
+      }
+    },
+    7 * 24 * 60 * 60 * 1000,
+  );
+}
+
+export function stopInactivityCheck() {
+  if (inactivityIntervalId) {
+    clearInterval(inactivityIntervalId);
+    inactivityIntervalId = null;
+    logger.info("[Monitor] Vérification d'inactivité arrêtée");
   }
 }

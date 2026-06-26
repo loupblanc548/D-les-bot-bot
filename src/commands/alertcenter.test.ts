@@ -1,36 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Hoisted mocks ──────────────────────────────────────────────
-const { mockLogger, mockPrisma, mockRequireAdmin, mockAlertService, mockRiskEngine, mockLogs } = vi.hoisted(() => ({
-  mockLogger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-  mockPrisma: {
-    guildConfig: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
+const { mockLogger, mockPrisma, mockRequireAdmin, mockAlertService, mockRiskEngine, mockLogs } =
+  vi.hoisted(() => ({
+    mockLogger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     },
-    riskProfile: {
-      count: vi.fn(),
+    mockPrisma: {
+      guildConfig: {
+        findUnique: vi.fn(),
+        upsert: vi.fn(),
+      },
+      riskProfile: {
+        count: vi.fn(),
+      },
     },
-  },
-  mockRequireAdmin: vi.fn(),
-  mockAlertService: {
-    getPendingAlerts: vi.fn(),
-    getAlertHistory: vi.fn(),
-    getAlertsByUser: vi.fn(),
-  },
-  mockRiskEngine: {
-    getRiskReport: vi.fn(),
-    getAllRiskyUsers: vi.fn(),
-    resetRiskProfile: vi.fn(),
-  },
-  mockLogs: {
-    createLog: vi.fn(),
-  },
-}));
+    mockRequireAdmin: vi.fn(),
+    mockAlertService: {
+      getPendingAlerts: vi.fn(),
+      getAlertHistory: vi.fn(),
+      getAlertsByUser: vi.fn(),
+    },
+    mockRiskEngine: {
+      getRiskReport: vi.fn(),
+      getAllRiskyUsers: vi.fn(),
+      resetRiskProfile: vi.fn(),
+    },
+    mockLogs: {
+      createLog: vi.fn(),
+    },
+  }));
 
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 vi.mock("../prisma", () => ({ default: mockPrisma }));
@@ -67,19 +68,19 @@ function mi(opts: MIOptions = {}): ChatInputCommandInteraction {
     } as User,
     options: {
       getSubcommand: vi.fn(() => opts.subcommand ?? "pending"),
-      getUser: vi.fn((name: string, required?: boolean) => {
+      getUser: vi.fn((name: string, _required?: boolean) => {
         if (name === "cible") return opts.targetUser ?? { id: "user-789", tag: "BadUser#5678" };
         return null;
       }),
-      getChannel: vi.fn((name: string, required?: boolean) => {
+      getChannel: vi.fn((name: string, _required?: boolean) => {
         if (name === "salon") return opts.channel ?? { id: "ch-111", name: "alertes" };
         return null;
       }),
-      getInteger: vi.fn((name: string, required?: boolean) => {
+      getInteger: vi.fn((name: string, _required?: boolean) => {
         if (name === "score") return opts.score ?? 50;
         return null;
       }),
-      getBoolean: vi.fn((name: string, required?: boolean) => {
+      getBoolean: vi.fn((name: string, _required?: boolean) => {
         if (name === "actif") return opts.actif ?? true;
         return null;
       }),
@@ -250,7 +251,7 @@ describe("handleCommand – alertcenter", () => {
 
     it("limite l'affichage à 10 alertes", async () => {
       const manyAlerts = Array.from({ length: 15 }, (_, i) =>
-        sampleAlert({ userId: `user-${i}`, riskScore: 30 + i })
+        sampleAlert({ userId: `user-${i}`, riskScore: 30 + i }),
       );
       mockAlertService.getPendingAlerts.mockResolvedValue(manyAlerts);
 
@@ -307,7 +308,11 @@ describe("handleCommand – alertcenter", () => {
     });
 
     it("appelle getAlertHistory avec guildId et limite 25", async () => {
-      const interaction = mi({ commandName: "alertcenter", subcommand: "history", guildId: "guild-xyz" });
+      const interaction = mi({
+        commandName: "alertcenter",
+        subcommand: "history",
+        guildId: "guild-xyz",
+      });
       await handleCommand(interaction);
 
       expect(mockAlertService.getAlertHistory).toHaveBeenCalledWith("guild-xyz", 25);
@@ -354,7 +359,12 @@ describe("handleCommand – alertcenter", () => {
     it("affiche les alertes d'un utilisateur", async () => {
       mockAlertService.getAlertsByUser.mockResolvedValue([
         sampleAlert({ riskLevel: "MOYEN", riskScore: 30, status: "RESOLVED" }),
-        sampleAlert({ riskLevel: "ÉLEVÉ", riskScore: 70, status: "PENDING", details: "Raid suspect" }),
+        sampleAlert({
+          riskLevel: "ÉLEVÉ",
+          riskScore: 70,
+          status: "PENDING",
+          details: "Raid suspect",
+        }),
       ]);
 
       const interaction = mi({ commandName: "alertcenter", subcommand: "user" });
@@ -386,10 +396,16 @@ describe("handleCommand – alertcenter", () => {
     it("affiche le profil de risque complet", async () => {
       mockRiskEngine.getRiskReport.mockResolvedValue({
         profile: sampleRiskProfile({ riskLevel: "CRITIQUE", riskScore: 85, warnCount: 5 }),
-        recentSanctions: [sampleSanction(), sampleSanction({ type: "TIMEOUT", reason: "Spam vocal" })],
+        recentSanctions: [
+          sampleSanction(),
+          sampleSanction({ type: "TIMEOUT", reason: "Spam vocal" }),
+        ],
       });
 
-      const interaction = mi({ commandName: "riskscore", targetUser: { id: "u-999", tag: "Troll#0001" } });
+      const interaction = mi({
+        commandName: "riskscore",
+        targetUser: { id: "u-999", tag: "Troll#0001" },
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -408,7 +424,10 @@ describe("handleCommand – alertcenter", () => {
         recentSanctions: [],
       });
 
-      const interaction = mi({ commandName: "riskscore", targetUser: { id: "u-111", tag: "Newbie#0001" } });
+      const interaction = mi({
+        commandName: "riskscore",
+        targetUser: { id: "u-111", tag: "Newbie#0001" },
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -422,7 +441,10 @@ describe("handleCommand – alertcenter", () => {
         recentSanctions: [],
       });
 
-      const interaction = mi({ commandName: "riskscore", targetUser: { id: "u-000", tag: "Gentil#0001" } });
+      const interaction = mi({
+        commandName: "riskscore",
+        targetUser: { id: "u-000", tag: "Gentil#0001" },
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -432,7 +454,10 @@ describe("handleCommand – alertcenter", () => {
     it("affiche une erreur si getRiskReport échoue", async () => {
       mockRiskEngine.getRiskReport.mockRejectedValue(new Error("Engine failure"));
 
-      const interaction = mi({ commandName: "riskscore", targetUser: { id: "u-err", tag: "Error#0001" } });
+      const interaction = mi({
+        commandName: "riskscore",
+        targetUser: { id: "u-err", tag: "Error#0001" },
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -442,14 +467,17 @@ describe("handleCommand – alertcenter", () => {
 
     it("limite les sanctions affichées à 5", async () => {
       const manySanctions = Array.from({ length: 10 }, (_, i) =>
-        sampleSanction({ type: "WARN", reason: `Infraction #${i + 1}` })
+        sampleSanction({ type: "WARN", reason: `Infraction #${i + 1}` }),
       );
       mockRiskEngine.getRiskReport.mockResolvedValue({
         profile: sampleRiskProfile({ riskLevel: "ÉLEVÉ" }),
         recentSanctions: manySanctions,
       });
 
-      const interaction = mi({ commandName: "riskscore", targetUser: { id: "u-bad", tag: "Recidive#9999" } });
+      const interaction = mi({
+        commandName: "riskscore",
+        targetUser: { id: "u-bad", tag: "Recidive#9999" },
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -493,7 +521,12 @@ describe("handleCommand – alertcenter", () => {
       mockRiskEngine.getAllRiskyUsers.mockResolvedValue([
         sampleRiskyUser({ riskLevel: "ÉLEVÉ", riskScore: 55 }),
         sampleRiskyUser({ userId: "user-222", riskLevel: "CRITIQUE", riskScore: 95, warnCount: 8 }),
-        sampleRiskyUser({ userId: "user-333", riskLevel: "MOYEN", riskScore: 35, totalSanctions: 1 }),
+        sampleRiskyUser({
+          userId: "user-333",
+          riskLevel: "MOYEN",
+          riskScore: 35,
+          totalSanctions: 1,
+        }),
       ]);
 
       const interaction = mi({ commandName: "riskyusers", niveau: "MOYEN" });
@@ -510,7 +543,7 @@ describe("handleCommand – alertcenter", () => {
 
     it("limite l'affichage à 15 utilisateurs", async () => {
       const many = Array.from({ length: 20 }, (_, i) =>
-        sampleRiskyUser({ userId: `user-${i}`, riskScore: 30 + i })
+        sampleRiskyUser({ userId: `user-${i}`, riskScore: 30 + i }),
       );
       mockRiskEngine.getAllRiskyUsers.mockResolvedValue(many);
 
@@ -556,7 +589,7 @@ describe("handleCommand – alertcenter", () => {
           action: "Salon d'alertes défini: #mod-logs",
           moderator: "mod-456",
           details: "Channel ID: ch-999",
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);
@@ -589,7 +622,7 @@ describe("handleCommand – alertcenter", () => {
           type: "CONFIG",
           action: "Seuil d'alerte modifié: 75",
           moderator: "mod-456",
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);
@@ -613,14 +646,18 @@ describe("handleCommand – alertcenter", () => {
 
   describe("/alertconfig owner_notify", () => {
     it("active les notifications propriétaires", async () => {
-      const interaction = mi({ commandName: "alertconfig", subcommand: "owner_notify", actif: true });
+      const interaction = mi({
+        commandName: "alertconfig",
+        subcommand: "owner_notify",
+        actif: true,
+      });
       await handleCommand(interaction);
 
       expect(interaction.options.getBoolean).toHaveBeenCalledWith("actif", true);
       expect(mockLogs.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "Notifications propriétaires: ON",
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);
@@ -629,13 +666,17 @@ describe("handleCommand – alertcenter", () => {
     });
 
     it("désactive les notifications propriétaires", async () => {
-      const interaction = mi({ commandName: "alertconfig", subcommand: "owner_notify", actif: false });
+      const interaction = mi({
+        commandName: "alertconfig",
+        subcommand: "owner_notify",
+        actif: false,
+      });
       await handleCommand(interaction);
 
       expect(mockLogs.createLog).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "Notifications propriétaires: OFF",
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);
@@ -645,7 +686,11 @@ describe("handleCommand – alertcenter", () => {
     it("affiche une erreur si createLog échoue", async () => {
       mockLogs.createLog.mockRejectedValue(new Error("DB error"));
 
-      const interaction = mi({ commandName: "alertconfig", subcommand: "owner_notify", actif: true });
+      const interaction = mi({
+        commandName: "alertconfig",
+        subcommand: "owner_notify",
+        actif: true,
+      });
       await handleCommand(interaction);
 
       const embed = getFirstEmbed(interaction);
@@ -673,7 +718,7 @@ describe("handleCommand – alertcenter", () => {
           action: "Profil de risque réinitialisé: ResetMe#0001",
           moderator: "mod-456",
           userId: "u-reset",
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);

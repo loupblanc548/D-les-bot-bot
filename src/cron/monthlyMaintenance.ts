@@ -33,7 +33,7 @@ async function shouldRunMaintenance(): Promise<boolean> {
 async function sendMaintenanceNotification(
   client: Client,
   statsBefore: Record<string, number>,
-  totalBefore: number
+  totalBefore: number,
 ): Promise<void> {
   const logChannelId = config.logChannel;
   if (!logChannelId) {
@@ -48,20 +48,20 @@ async function sendMaintenanceNotification(
       return;
     }
 
-    const statsAfter = dedupCache.getStats();
+    const _statsAfter = dedupCache.getStats();
     const totalAfter = dedupCache.getTotalCount();
 
     const embed = new EmbedBuilder()
       .setTitle("Menage Mensuel")
       .setDescription(
         `Le cache anti-doublon Neon (ProcessedCache) a ete nettoye avec succes (15 du mois) !\n` +
-        `IDs avant: **${totalBefore}** → apres: **${totalAfter}**`
+          `IDs avant: **${totalBefore}** → apres: **${totalAfter}**`,
       )
       .setColor(0x9b59b6)
       .addFields(
         { name: "Cache", value: "ProcessedCache (Neon) - trim a 100/plateforme", inline: true },
         { name: "Date", value: new Date().toLocaleDateString("fr-FR"), inline: true },
-        { name: "Etat", value: "Nettoye avec succes", inline: true }
+        { name: "Etat", value: "Nettoye avec succes", inline: true },
       )
       .setTimestamp()
       .setFooter({ text: "Maintenance automatique - Tous les 15 du mois" });
@@ -69,8 +69,10 @@ async function sendMaintenanceNotification(
     await (channel as TextChannel).send({ embeds: [embed] });
     logger.info("[MonthlyMaintenance] Notification de maintenance envoyee");
   } catch (error) {
-    logger.error("[MonthlyMaintenance] Erreur envoi notification: " +
-      (error instanceof Error ? error.message : String(error)));
+    logger.error(
+      "[MonthlyMaintenance] Erreur envoi notification: " +
+        (error instanceof Error ? error.message : String(error)),
+    );
   }
 }
 
@@ -88,13 +90,14 @@ async function runMonthlyMaintenance(client: Client): Promise<void> {
     const statsBefore = dedupCache.getStats();
     const totalBefore = dedupCache.getTotalCount();
     logger.info(
-      "[MonthlyMaintenance] Cache avant nettoyage: " + totalBefore +
-      " IDs (" +
-      Object.entries(statsBefore)
-        .filter(([, v]) => v > 0)
-        .map(([k, v]) => k + ":" + v)
-        .join(", ") +
-      ")"
+      "[MonthlyMaintenance] Cache avant nettoyage: " +
+        totalBefore +
+        " IDs (" +
+        Object.entries(statsBefore)
+          .filter(([, v]) => v > 0)
+          .map(([k, v]) => k + ":" + v)
+          .join(", ") +
+        ")",
     );
 
     // Utilise clean() au lieu de reset() — trim à 100 IDs par plateforme
@@ -107,15 +110,18 @@ async function runMonthlyMaintenance(client: Client): Promise<void> {
     try {
       await sendMaintenanceNotification(client, statsBefore, totalBefore);
     } catch (notifError) {
-      logger.error("[MonthlyMaintenance] Erreur notification: " +
-        (notifError instanceof Error ? notifError.message : String(notifError)));
+      logger.error(
+        "[MonthlyMaintenance] Erreur notification: " +
+          (notifError instanceof Error ? notifError.message : String(notifError)),
+      );
     }
 
     logger.info("[MonthlyMaintenance] Maintenance mensuelle terminee avec succes");
   } catch (error) {
-    logger.error("[MonthlyMaintenance] Erreur maintenance: " +
-      (error instanceof Error ? error.message : String(error)),
-      { stack: error instanceof Error ? error.stack : undefined }
+    logger.error(
+      "[MonthlyMaintenance] Erreur maintenance: " +
+        (error instanceof Error ? error.message : String(error)),
+      { stack: error instanceof Error ? error.stack : undefined },
     );
   }
 }
@@ -133,21 +139,25 @@ export function startMonthlyMaintenance(client: Client): void {
   logger.info(
     "[MonthlyMaintenance] Planification: tous les jours a " +
       CLEANUP_HOUR.toString().padStart(2, "0") +
-      ":" + CLEANUP_MINUTE.toString().padStart(2, "0") +
-      " (verification si 15 du mois)"
+      ":" +
+      CLEANUP_MINUTE.toString().padStart(2, "0") +
+      " (verification si 15 du mois)",
   );
 
   cronJob = cron.schedule(cronExpression, () => {
     runMonthlyMaintenance(client).catch((err) =>
-      logger.error("[MonthlyMaintenance] Erreur cron: " +
-        (err instanceof Error ? err.message : String(err)))
+      logger.error(
+        "[MonthlyMaintenance] Erreur cron: " + (err instanceof Error ? err.message : String(err)),
+      ),
     );
   });
 
   // Verifier au demarrage (au cas ou le bot eteint le 15)
   runMonthlyMaintenance(client).catch((err) =>
-    logger.error("[MonthlyMaintenance] Erreur check initial: " +
-      (err instanceof Error ? err.message : String(err)))
+    logger.error(
+      "[MonthlyMaintenance] Erreur check initial: " +
+        (err instanceof Error ? err.message : String(err)),
+    ),
   );
 }
 

@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Client, EmbedBuilder, TextChannel } from "discord.js";
+import { Client, TextChannel } from "discord.js";
 
 // ─── vi.hoisted() - s'execute AVANT les imports, evite le hoisting classique ─
 
-const {
-  mockProcessedPatchNotesFindUnique,
-  mockProcessedPatchNotesCreate,
-} = vi.hoisted(() => ({
+const { mockProcessedPatchNotesFindUnique, mockProcessedPatchNotesCreate } = vi.hoisted(() => ({
   mockProcessedPatchNotesFindUnique: vi.fn(),
   mockProcessedPatchNotesCreate: vi.fn(),
 }));
@@ -71,15 +68,42 @@ vi.mock("discord.js", () => ({
     this.footer = null;
     this.timestamp = null;
     this.image = null;
-    this.setTitle = vi.fn(function (this: any, t: string) { this.title = t; return this; });
-    this.setURL = vi.fn(function (this: any, u: string) { this.url = u; return this; });
-    this.setColor = vi.fn(function (this: any, c: number) { this.color = c; return this; });
-    this.setAuthor = vi.fn(function (this: any, a: any) { this.author = a; return this; });
-    this.setDescription = vi.fn(function (this: any, d: string) { this.description = d; return this; });
-    this.addFields = vi.fn(function (this: any, ...f: any[]) { this.fields.push(...f); return this; });
-    this.setFooter = vi.fn(function (this: any, f: any) { this.footer = f; return this; });
-    this.setTimestamp = vi.fn(function (this: any) { this.timestamp = new Date(); return this; });
-    this.setImage = vi.fn(function (this: any, img: string) { this.image = img; return this; });
+    this.setTitle = vi.fn(function (this: any, t: string) {
+      this.title = t;
+      return this;
+    });
+    this.setURL = vi.fn(function (this: any, u: string) {
+      this.url = u;
+      return this;
+    });
+    this.setColor = vi.fn(function (this: any, c: number) {
+      this.color = c;
+      return this;
+    });
+    this.setAuthor = vi.fn(function (this: any, a: any) {
+      this.author = a;
+      return this;
+    });
+    this.setDescription = vi.fn(function (this: any, d: string) {
+      this.description = d;
+      return this;
+    });
+    this.addFields = vi.fn(function (this: any, ...f: any[]) {
+      this.fields.push(...f);
+      return this;
+    });
+    this.setFooter = vi.fn(function (this: any, f: any) {
+      this.footer = f;
+      return this;
+    });
+    this.setTimestamp = vi.fn(function (this: any) {
+      this.timestamp = new Date();
+      return this;
+    });
+    this.setImage = vi.fn(function (this: any, img: string) {
+      this.image = img;
+      return this;
+    });
     return this;
   }),
 }));
@@ -108,7 +132,6 @@ vi.mock("../utils/metrics", () => ({
     recordProcessing: vi.fn(),
   },
 }));
-
 
 import {
   checkTrackedGames,
@@ -184,9 +207,7 @@ describe("checkTrackedGames", () => {
       const client = makeMockClient();
       await checkTrackedGames(client);
 
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Aucun CHANNEL_ID")
-      );
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Aucun CHANNEL_ID"));
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -215,7 +236,9 @@ describe("checkTrackedGames", () => {
 
       // Premier appel : le RSS met du temps
       let resolveRss: (value: any) => void;
-      const rssPromise = new Promise<any>((resolve) => { resolveRss = resolve; });
+      const rssPromise = new Promise<any>((resolve) => {
+        resolveRss = resolve;
+      });
       mockFetch.mockReturnValue(Promise.resolve({ ok: true, json: () => rssPromise }));
 
       const firstCall = checkTrackedGames(client);
@@ -226,7 +249,7 @@ describe("checkTrackedGames", () => {
       await Promise.all([firstCall, secondCall]);
 
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining("Verification deja en cours")
+        expect.stringContaining("Verification deja en cours"),
       );
     });
   });
@@ -241,7 +264,7 @@ describe("checkTrackedGames", () => {
       await checkTrackedGames(client);
 
       expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Flux Reddit inaccessible")
+        expect.stringContaining("Flux Reddit inaccessible"),
       );
       expect(channel.send).not.toHaveBeenCalled();
     });
@@ -256,9 +279,7 @@ describe("checkTrackedGames", () => {
 
       await checkTrackedGames(client);
 
-      expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining("Aucun article trouve")
-      );
+      expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Aucun article trouve"));
       expect(channel.send).not.toHaveBeenCalled();
     });
   });
@@ -276,7 +297,7 @@ describe("checkTrackedGames", () => {
 
       expect(channel.send).not.toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining("Tous les articles sont deja connus")
+        expect.stringContaining("Tous les articles sont deja connus"),
       );
     });
 
@@ -316,7 +337,7 @@ describe("checkTrackedGames", () => {
       expect(pcChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.stringContaining("Steam"),
-        })
+        }),
       );
     });
 
@@ -480,9 +501,7 @@ describe("checkTrackedGames", () => {
 
       await checkTrackedGames(client);
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("Salon")
-      );
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Salon"));
     });
 
     it("ignore un salon qui n'est pas textuel", async () => {
@@ -518,9 +537,7 @@ describe("checkTrackedGames", () => {
 
       await checkTrackedGames(client);
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        expect.stringContaining("Echec envoi")
-      );
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Echec envoi"));
       // Persiste quand meme
       expect(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
         data: { guid: item.guid, title: item.title.slice(0, 255) },
@@ -541,9 +558,7 @@ describe("checkTrackedGames", () => {
       await checkTrackedGames(client);
 
       // isPatchProcessed catches DB errors internally and logs a warning
-      expect(mockLoggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Erreur verification")
-      );
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Erreur verification"));
     });
   });
 
@@ -556,13 +571,16 @@ describe("checkTrackedGames", () => {
       const item2 = makeFeedItem({ guid: "guid-2", title: "[Steam] Patch B" });
       const item3 = makeFeedItem({ guid: "guid-3", title: "[Steam] Patch C" });
 
-      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item1, item2, item3] }) });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ items: [item1, item2, item3] }),
+      });
 
       // item1 connu, item2 et item3 nouveaux
       mockProcessedPatchNotesFindUnique
         .mockResolvedValueOnce({ id: 1 }) // item1 deja traite
-        .mockResolvedValueOnce(null)       // item2 nouveau
-        .mockResolvedValueOnce(null);      // item3 nouveau
+        .mockResolvedValueOnce(null) // item2 nouveau
+        .mockResolvedValueOnce(null); // item3 nouveau
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
       await checkTrackedGames(client);
@@ -580,15 +598,11 @@ describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
 
     startSteamNewsMonitoring(client);
 
-    expect(mockLoggerInfo).toHaveBeenCalledWith(
-      expect.stringContaining("Demarrage")
-    );
+    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Demarrage"));
 
     stopSteamNewsMonitoring();
 
-    expect(mockLoggerInfo).toHaveBeenCalledWith(
-      expect.stringContaining("Arrete")
-    );
+    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Arrete"));
   });
 
   it("empeche le double demarrage", () => {
@@ -597,9 +611,7 @@ describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
     startSteamNewsMonitoring(client);
     startSteamNewsMonitoring(client);
 
-    expect(mockLoggerWarn).toHaveBeenCalledWith(
-      expect.stringContaining("Deja actif")
-    );
+    expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Deja actif"));
   });
 
   it("execute une premiere verification immediate au demarrage", async () => {

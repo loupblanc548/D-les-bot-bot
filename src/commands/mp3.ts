@@ -16,7 +16,16 @@ import {
   NoSubscriberBehavior,
 } from "@discordjs/voice";
 import { config } from "../config.js";
-import { SoundFile, SOUNDS_DIR, AUTOCOMPLETE_LIMIT, DISCONNECT_DELAY_MS, activeConnections, activePlayers, listSoundFiles, findSoundFile, cleanupConnection } from "../services/audioPlayer.js";
+import {
+  SOUNDS_DIR,
+  AUTOCOMPLETE_LIMIT,
+  DISCONNECT_DELAY_MS,
+  activeConnections,
+  activePlayers,
+  listSoundFiles,
+  findSoundFile,
+  cleanupConnection,
+} from "../services/audioPlayer.js";
 import logger from "../utils/logger.js";
 import { existsSync } from "fs";
 
@@ -33,16 +42,14 @@ export const commands = [
         .setName("nom_du_son")
         .setDescription("Nom du fichier MP3 à jouer")
         .setRequired(true)
-        .setAutocomplete(true)
+        .setAutocomplete(true),
     )
     .toJSON(),
 ];
 
 // Autocomplete
 
-export async function handleAutocomplete(
-  interaction: AutocompleteInteraction
-): Promise<void> {
+export async function handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
   if (interaction.commandName !== "mp3") return;
 
   const focused = interaction.options.getFocused(true);
@@ -58,15 +65,13 @@ export async function handleAutocomplete(
     : files.slice(0, AUTOCOMPLETE_LIMIT);
 
   await interaction.respond(
-    filtered.map((f) => ({ name: f.displayName.slice(0, 100), value: f.name }))
+    filtered.map((f) => ({ name: f.displayName.slice(0, 100), value: f.name })),
   );
 }
 
 // Command Handler
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction
-): Promise<void> {
+export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   // Sécurité : Owner Only
   if (!config.ownerId || interaction.user.id !== config.ownerId) {
     if (!config.ownerId) {
@@ -98,8 +103,7 @@ export async function handleCommand(
 
     if (!voiceChannel || !voiceChannel.joinable) {
       await interaction.editReply({
-        content:
-          "❌ Vous devez être dans un salon vocal accessible pour utiliser cette commande.",
+        content: "❌ Vous devez être dans un salon vocal accessible pour utiliser cette commande.",
       });
       return;
     }
@@ -160,9 +164,7 @@ export async function handleCommand(
     connection.subscribe(player);
     player.play(resource);
 
-    logger.info(
-      `[MP3] ▶ ${interaction.user.tag} joue "${sound.displayName}" (${sound.name})`
-    );
+    logger.info(`[MP3] ▶ ${interaction.user.tag} joue "${sound.displayName}" (${sound.name})`);
 
     // Gérer la fin de lecture
     player.once(AudioPlayerStatus.Idle, () => {
@@ -173,9 +175,7 @@ export async function handleCommand(
           player.state.status === AudioPlayerStatus.Idle
         ) {
           cleanupConnection(guildId);
-          logger.info(
-            `[MP3] 🔌 Déconnexion après ${DISCONNECT_DELAY_MS / 1000}s d'inactivité`
-          );
+          logger.info(`[MP3] 🔌 Déconnexion après ${DISCONNECT_DELAY_MS / 1000}s d'inactivité`);
         }
       }, DISCONNECT_DELAY_MS);
     });
@@ -199,7 +199,7 @@ export async function handleCommand(
       .setDescription(`▶ Lecture de **${sound.displayName}** en cours...`)
       .addFields(
         { name: "Fichier", value: `\`${sound.name}\``, inline: true },
-        { name: "Salon", value: `${voiceChannel.name}`, inline: true }
+        { name: "Salon", value: `${voiceChannel.name}`, inline: true },
       )
       .setFooter(FOOTER)
       .setTimestamp();

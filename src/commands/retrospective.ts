@@ -16,7 +16,9 @@ const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 export const commands = [
   new SlashCommandBuilder()
     .setName("retrospective")
-    .setDescription("Analyse les comptes surveillés et met à jour les salons de notifications (admin)")
+    .setDescription(
+      "Analyse les comptes surveillés et met à jour les salons de notifications (admin)",
+    )
     .addStringOption((opt) =>
       opt
         .setName("type")
@@ -25,8 +27,8 @@ export const commands = [
         .addChoices(
           { name: "Tout (Feeds Gaming + Sources DB)", value: "all" },
           { name: "Feeds Gaming uniquement", value: "gaming" },
-          { name: "Sources DB uniquement", value: "db" }
-        )
+          { name: "Sources DB uniquement", value: "db" },
+        ),
     )
     .addIntegerOption((opt) =>
       opt
@@ -34,15 +36,12 @@ export const commands = [
         .setDescription("Nombre maximum de publications à rattraper (défaut: 25)")
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(100)
+        .setMaxValue(100),
     )
     .toJSON(),
 ];
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-  client: Client
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client) {
   if (!(await requireAdmin(interaction))) return;
 
   const type = interaction.options.getString("type") || "all";
@@ -51,7 +50,7 @@ export async function handleCommand(
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
   const startTime = Date.now();
-  let totalPublished = 0;
+  const _totalPublished = 0;
   let errors = 0;
 
   const embed = new EmbedBuilder()
@@ -59,9 +58,13 @@ export async function handleCommand(
     .setColor(0xffaa00)
     .setDescription("Analyse des comptes surveillés et rattrapage des actualités manquées...")
     .addFields(
-      { name: "Type", value: type === "all" ? "Tout" : type === "gaming" ? "Feeds Gaming" : "Sources DB", inline: true },
+      {
+        name: "Type",
+        value: type === "all" ? "Tout" : type === "gaming" ? "Feeds Gaming" : "Sources DB",
+        inline: true,
+      },
       { name: "Limite", value: limit.toString(), inline: true },
-      { name: "Statut", value: "⏳ En cours...", inline: true }
+      { name: "Statut", value: "⏳ En cours...", inline: true },
     )
     .setFooter(FOOTER)
     .setTimestamp();
@@ -104,11 +107,15 @@ export async function handleCommand(
       .setColor(0x53fc18)
       .setDescription("L'analyse des comptes surveillés est terminée.")
       .addFields(
-        { name: "Type", value: type === "all" ? "Tout" : type === "gaming" ? "Feeds Gaming" : "Sources DB", inline: true },
+        {
+          name: "Type",
+          value: type === "all" ? "Tout" : type === "gaming" ? "Feeds Gaming" : "Sources DB",
+          inline: true,
+        },
         { name: "Durée", value: `${duration}s`, inline: true },
         { name: "Sources analysées", value: sourcesCount.toString(), inline: true },
         { name: "Nouvelles notifications", value: newNotifications.toString(), inline: true },
-        { name: "Erreurs", value: errors.toString(), inline: true }
+        { name: "Erreurs", value: errors.toString(), inline: true },
       )
       .setFooter(FOOTER)
       .setTimestamp();
@@ -116,8 +123,9 @@ export async function handleCommand(
     await interaction.editReply({ embeds: [resultEmbed] });
 
     // Log de l'action
-    logger.info(`[Retrospective] Terminée en ${duration}s - ${newNotifications} nouvelles notifications, ${errors} erreurs`);
-
+    logger.info(
+      `[Retrospective] Terminée en ${duration}s - ${newNotifications} nouvelles notifications, ${errors} erreurs`,
+    );
   } catch (error) {
     logger.error("[Retrospective] Erreur globale:", error);
     const errorEmbed = new EmbedBuilder()

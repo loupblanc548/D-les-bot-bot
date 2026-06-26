@@ -1,6 +1,4 @@
-import {
-  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags,
-} from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import ms from "ms";
 import { Queue } from "bullmq";
 
@@ -39,7 +37,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
 
     if (delay > 30 * 24 * 60 * 60 * 1000) {
-      await interaction.reply({ content: "❌ Le rappel ne peut pas dépasser 30 jours", ephemeral: true });
+      await interaction.reply({
+        content: "❌ Le rappel ne peut pas dépasser 30 jours",
+        ephemeral: true,
+      });
       return;
     }
 
@@ -57,9 +58,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setFooter({ text: "John Helldiver • Super Earth Command" })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed]});
+    await interaction.reply({ embeds: [embed] });
   } catch (error) {
     console.error("[RemindMe] Error:", error);
-    await interaction.reply({ content: "❌ Erreur lors de la programmation du rappel", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Erreur lors de la programmation du rappel",
+      ephemeral: true,
+    });
   }
 }

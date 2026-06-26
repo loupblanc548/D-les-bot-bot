@@ -48,9 +48,7 @@ describe("extractLink (internal helper)", () => {
   });
 
   it("should fall back to first link if no alternate", () => {
-    const links = [
-      { "@_rel": "self", "@_href": "https://first.example.com" },
-    ];
+    const links = [{ "@_rel": "self", "@_href": "https://first.example.com" }];
     expect(extractLink(links)).toBe("https://first.example.com");
   });
 
@@ -59,7 +57,9 @@ describe("extractLink (internal helper)", () => {
   });
 
   it("should extract @_href from single object", () => {
-    expect(extractLink({ "@_href": "https://single.example.com" })).toBe("https://single.example.com");
+    expect(extractLink({ "@_href": "https://single.example.com" })).toBe(
+      "https://single.example.com",
+    );
   });
 
   it("should extract #text if no @_href", () => {
@@ -75,7 +75,10 @@ describe("extractLink (internal helper)", () => {
 
 vi.mock("../prisma", () => ({
   default: {
-    source: { findMany: vi.fn().mockResolvedValue([]) },
+    source: {
+      findMany: vi.fn().mockResolvedValue([]),
+      upsert: vi.fn().mockResolvedValue({ id: 1, createdAt: new Date() }),
+    },
     notification: {
       findFirst: vi.fn(),
       create: vi.fn(),
@@ -89,7 +92,7 @@ vi.mock("../config", () => ({
   config: {
     maxRetroPosts: 25,
     steamEpicChannel: null,
-    monitoringIntervalMs: 900000,  // 15 minutes
+    monitoringIntervalMs: 900000, // 15 minutes
     steamTimeoutMs: 5000,
     youtubeTimeoutMs: 5000,
   },
@@ -142,7 +145,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
 import { startMonitoring, stopMonitoring, runDbSourcesRetrospective } from "./monitor.js";
-import { Client } from "discord.js";
+import { Client, ChannelType } from "discord.js";
 
 function mockClient(): Client {
   return {
@@ -172,10 +175,7 @@ describe("startMonitoring", () => {
     const client = mockClient();
     startMonitoring(client);
     expect(setIntervalSpy).toHaveBeenCalledTimes(1);
-    expect(setIntervalSpy).toHaveBeenCalledWith(
-      expect.any(Function),
-      15 * 60 * 1000
-    );
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15 * 60 * 1000);
     setIntervalSpy.mockRestore();
   });
 
@@ -202,7 +202,6 @@ describe("startMonitoring", () => {
     const infoCalls = (logger.info as any).mock.calls.map((c: any[]) => String(c[0]));
     expect(infoCalls.some((l: string) => l.includes("Surveillance activée"))).toBe(true);
     expect(infoCalls.some((l: string) => l.includes("15 min"))).toBe(true);
-
   });
 
   it("should NOT create a second interval if already running", () => {
@@ -258,7 +257,7 @@ describe("startMonitoring", () => {
       throw new Error("Simulated crash");
     });
 
-    const { default: logger } = await import("../utils/logger.js");
+    const { default: _logger } = await import("../utils/logger.js");
     const client = mockClient();
     startMonitoring(client);
 
@@ -321,7 +320,6 @@ describe("stopMonitoring", () => {
     expect(logger.info).toHaveBeenCalled();
     const infoCalls = (logger.info as any).mock.calls.map((c: any[]) => String(c[0]));
     expect(infoCalls.some((l: string) => l.includes("Surveillance arrêtée"))).toBe(true);
-
   });
 
   it("should NOT call clearInterval if not monitoring", () => {
@@ -380,7 +378,6 @@ describe("runDbSourcesRetrospective", () => {
     const infoCalls = (logger.info as any).mock.calls.map((c: any[]) => String(c[0]));
     expect(infoCalls.some((l: string) => l.includes("RETROSPECTIVE DB"))).toBe(true);
     expect(infoCalls.some((l: string) => l.includes("Rattrapage DB terminé"))).toBe(true);
-
   });
   it("should process multiple items from a single source", async () => {
     // Using static prisma import (vi.hoisted)
@@ -394,7 +391,9 @@ describe("runDbSourcesRetrospective", () => {
     ]);
 
     // Mock fetch to return RSS with 3 videos
-    mockFetch.mockImplementation(async () => new Response(`<?xml version="1.0"?>
+    mockFetch.mockImplementation(
+      async () =>
+        new Response(`<?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
             <title>Video 1</title>
@@ -408,7 +407,8 @@ describe("runDbSourcesRetrospective", () => {
             <title>Video 3</title>
             <link rel="alternate" href="https://youtube.com/watch?v=ccc"/>
           </entry>
-        </feed>`) as any);
+        </feed>`) as any,
+    );
 
     // No existing notifications → all 3 should be created
     (prisma.notification.findFirst as any).mockResolvedValue(null);
@@ -419,14 +419,13 @@ describe("runDbSourcesRetrospective", () => {
     const client = {
       channels: {
         cache: new Map([
-          ["channel-1", { isTextBased: () => true, send: mockSend }],
+          ["channel-1", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
         ]),
       },
       guilds: { cache: new Map() },
     } as any;
 
     await runDbSourcesRetrospective(client);
-
 
     // All 3 notifications should be created
     expect(prisma.notification.create).toHaveBeenCalledTimes(3);
@@ -455,7 +454,9 @@ describe("runDbSourcesRetrospective", () => {
     ]);
 
     // Each source returns 2 items (enough to exceed cap)
-    mockFetch.mockImplementation(async () => new Response(`<?xml version="1.0"?>
+    mockFetch.mockImplementation(
+      async () =>
+        new Response(`<?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
             <title>Video A</title>
@@ -465,7 +466,8 @@ describe("runDbSourcesRetrospective", () => {
             <title>Video B</title>
             <link rel="alternate" href="https://youtube.com/watch?v=bbb"/>
           </entry>
-        </feed>`) as any);
+        </feed>`) as any,
+    );
 
     (prisma.notification.findFirst as any).mockResolvedValue(null);
     (prisma.notification.create as any).mockResolvedValue({});
@@ -474,9 +476,9 @@ describe("runDbSourcesRetrospective", () => {
     const client = {
       channels: {
         cache: new Map([
-          ["ch-1", { isTextBased: () => true, send: mockSend }],
-          ["ch-2", { isTextBased: () => true, send: mockSend }],
-          ["ch-3", { isTextBased: () => true, send: mockSend }],
+          ["ch-1", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
+          ["ch-2", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
+          ["ch-3", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
         ]),
       },
       guilds: { cache: new Map() },
@@ -498,7 +500,6 @@ describe("runDbSourcesRetrospective", () => {
     // The 3rd source should NOT have been processed (cap reached)
     // We can verify by checking that only 2 creates happened
     expect(mockSend).toHaveBeenCalledTimes(2);
-
   });
 
   it("should skip items that already have notifications", async () => {
@@ -511,18 +512,21 @@ describe("runDbSourcesRetrospective", () => {
       { id: 1, type: "YOUTUBE", urlOrHandle: "TestChannel", channelId: "ch-1" },
     ]);
 
-    mockFetch.mockImplementation(async () => new Response(`<?xml version="1.0"?>
+    mockFetch.mockImplementation(
+      async () =>
+        new Response(`<?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
             <title>Already Notified</title>
             <link rel="alternate" href="https://youtube.com/watch?v=existing"/>
           </entry>
-        </feed>`) as any);
+        </feed>`) as any,
+    );
 
     // Item already has a notification (simulate P2002 unique constraint violation)
-    let callCount = 0;
+    let _callCount = 0;
     (prisma.notification.create as any).mockImplementation(() => {
-      callCount++;
+      _callCount++;
       const err = new Error("Unique constraint failed");
       (err as any).code = "P2002";
       throw err;
@@ -532,7 +536,7 @@ describe("runDbSourcesRetrospective", () => {
     const client = {
       channels: {
         cache: new Map([
-          ["ch-1", { isTextBased: () => true, send: mockSend }],
+          ["ch-1", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
         ]),
       },
       guilds: { cache: new Map() },
@@ -560,13 +564,16 @@ describe("runDbSourcesRetrospective", () => {
     ]);
 
     // Both sources get valid RSS, but BadChannel's notification.create throws
-    mockFetch.mockImplementation(async () => new Response(`<?xml version="1.0"?>
+    mockFetch.mockImplementation(
+      async () =>
+        new Response(`<?xml version="1.0"?>
         <feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
             <title>A Video</title>
             <link rel="alternate" href="https://youtube.com/watch?v=vid"/>
           </entry>
-        </feed>`) as any);
+        </feed>`) as any,
+    );
 
     // No existing notifications
     (prisma.notification.findFirst as any).mockResolvedValue(null);
@@ -585,8 +592,8 @@ describe("runDbSourcesRetrospective", () => {
     const client = {
       channels: {
         cache: new Map([
-          ["ch-1", { isTextBased: () => true, send: mockSend }],
-          ["ch-2", { isTextBased: () => true, send: mockSend }],
+          ["ch-1", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
+          ["ch-2", { isTextBased: () => true, type: ChannelType.GuildText, send: mockSend }],
         ]),
       },
       guilds: { cache: new Map() },

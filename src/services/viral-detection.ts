@@ -11,7 +11,7 @@ interface ViralContent {
   predictedReach: number;
   engagementRate: number;
   timestamp: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 class ViralDetectionService {
@@ -89,7 +89,8 @@ Fournis ta réponse au format JSON :
         messages: [
           {
             role: "system",
-            content: "Tu es un expert en analyse de contenu viral. Réponds uniquement en JSON valide.",
+            content:
+              "Tu es un expert en analyse de contenu viral. Réponds uniquement en JSON valide.",
           },
           {
             role: "user",
@@ -119,10 +120,9 @@ Fournis ta réponse au format JSON :
 
       this.contentCache.set(contentId, viralContent);
       return viralContent;
-
     } catch (error) {
       logger.error("[ViralDetection] Erreur lors de l'analyse IA:", error);
-      
+
       // Fallback
       const fallbackContent: ViralContent = {
         contentId,
@@ -151,7 +151,7 @@ Fournis ta réponse au format JSON :
     for (const feedUrl of feedUrls) {
       try {
         const feed = await parser.parseURL(feedUrl);
-        
+
         if (!feed.items) continue;
 
         for (const item of feed.items.slice(0, 5)) {
@@ -166,7 +166,6 @@ Fournis ta réponse au format JSON :
             viralContents.push(content);
           }
         }
-
       } catch (error) {
         logger.error(`[ViralDetection] Erreur lors de l'analyse de ${feedUrl}:`, error);
       }
@@ -205,7 +204,7 @@ Fournis ta réponse au format JSON :
    */
   getAllViralContent(threshold: number = 70): ViralContent[] {
     return Array.from(this.contentCache.values())
-      .filter(c => c.viralScore >= threshold)
+      .filter((c) => c.viralScore >= threshold)
       .sort((a, b) => b.viralScore - a.viralScore);
   }
 
@@ -227,11 +226,12 @@ Fournis ta réponse au format JSON :
     topPlatforms: Record<string, number>;
   } {
     const contents = Array.from(this.contentCache.values());
-    
-    const viralContent = contents.filter(c => c.viralScore >= this.viralThreshold);
-    const averageViralScore = contents.length > 0
-      ? contents.reduce((sum, c) => sum + c.viralScore, 0) / contents.length
-      : 0;
+
+    const viralContent = contents.filter((c) => c.viralScore >= this.viralThreshold);
+    const averageViralScore =
+      contents.length > 0
+        ? contents.reduce((sum, c) => sum + c.viralScore, 0) / contents.length
+        : 0;
 
     const topPlatforms: Record<string, number> = {};
     for (const content of contents) {

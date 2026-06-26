@@ -1,6 +1,11 @@
 import logger from "../utils/logger.js";
-import { MessageFlags, Client, EmbedBuilder, TextChannel } from "discord.js";
-import { getYouTubeThumbnail, getOgImage, getTweetImage, getBlogImage, extractMediaThumbnail } from "../utils/image-helpers.js";
+import { Client, EmbedBuilder, TextChannel } from "discord.js";
+import {
+  getYouTubeThumbnail,
+  getTweetImage,
+  getBlogImage,
+  extractMediaThumbnail,
+} from "../utils/image-helpers.js";
 import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
@@ -8,7 +13,15 @@ import { config } from "../config.js";
 import { getYouTubeRssUrl } from "./youtube.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
-import { RSS_HEADERS, PLATFORM_COLORS, PLATFORM_ICONS, PLATFORM_LABELS, xmlParser, textOf, extractLink } from "../utils/rss-parser.js";
+import {
+  RSS_HEADERS,
+  PLATFORM_COLORS,
+  PLATFORM_ICONS,
+  PLATFORM_LABELS,
+  xmlParser,
+  textOf,
+  extractLink,
+} from "../utils/rss-parser.js";
 
 interface SourceConfig {
   platform: "youtube" | "twitter" | "blogs";
@@ -49,7 +62,11 @@ const FEEDS: ChannelFeed[] = [
     sources: [
       { platform: "twitter", handle: "PlayStationFR" },
       { platform: "youtube", handle: "PlayStationFrance" },
-      { platform: "blogs", handle: "PlayStationBlog", blogUrl: "https://blog.fr.playstation.com/feed/" },
+      {
+        platform: "blogs",
+        handle: "PlayStationBlog",
+        blogUrl: "https://blog.fr.playstation.com/feed/",
+      },
     ],
   },
   {
@@ -119,18 +136,22 @@ export function parseRssItems(xml: string): { title: string; url: string; thumbn
     const rawItems = parsed.rss?.channel?.item || parsed.feed?.entry;
     if (!rawItems) return [];
     const list = Array.isArray(rawItems) ? rawItems : [rawItems];
-    return list.map((item: any) => ({
-      title: textOf(item.title).trim(),
-      url: extractLink(item.link).trim(),
-      thumbnail: extractMediaThumbnail(item),
-    })).filter(i => i.title && i.url);
+    return list
+      .map((item: any) => ({
+        title: textOf(item.title).trim(),
+        url: extractLink(item.link).trim(),
+        thumbnail: extractMediaThumbnail(item),
+      }))
+      .filter((i) => i.title && i.url);
   } catch (error) {
-    logger.error('[Feeds] Erreur lors du parsing RSS:', error);
+    logger.error("[Feeds] Erreur lors du parsing RSS:", error);
     return [];
   }
 }
 
-async function checkTwitterSource(handle: string): Promise<{ title: string; url: string; thumbnail?: string } | null> {
+async function checkTwitterSource(
+  handle: string,
+): Promise<{ title: string; url: string; thumbnail?: string } | null> {
   const url = `https://${new URL(config.xcancelBaseUrl).hostname}/` + handle + "/rss";
   const xml = await fetchRss(url, true);
   if (!xml || xml.includes("RSS reader not yet whitelisted")) return null;
@@ -138,7 +159,9 @@ async function checkTwitterSource(handle: string): Promise<{ title: string; url:
   return items[0] || null;
 }
 
-async function checkYouTubeSource(handle: string): Promise<{ title: string; url: string; thumbnail?: string } | null> {
+async function checkYouTubeSource(
+  handle: string,
+): Promise<{ title: string; url: string; thumbnail?: string } | null> {
   const rssUrl = await getYouTubeRssUrl(handle);
   if (!rssUrl) {
     const fallbackXml = await fetchRss("https://www.youtube.com/feeds/videos.xml?user=" + handle);
@@ -154,14 +177,19 @@ async function checkYouTubeSource(handle: string): Promise<{ title: string; url:
   return items[0] || null;
 }
 
-async function checkBlogSource(blogUrl: string): Promise<{ title: string; url: string; thumbnail?: string } | null> {
+async function checkBlogSource(
+  blogUrl: string,
+): Promise<{ title: string; url: string; thumbnail?: string } | null> {
   const xml = await fetchRss(blogUrl);
   if (!xml) return null;
   const items = parseRssItems(xml);
   return items[0] || null;
 }
 
-async function checkTwitterSourceMulti(handle: string, limit: number = 3): Promise<{ title: string; url: string; thumbnail?: string }[]> {
+async function checkTwitterSourceMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<{ title: string; url: string; thumbnail?: string }[]> {
   const url = `https://${new URL(config.xcancelBaseUrl).hostname}/` + handle + "/rss";
   const xml = await fetchRss(url, true);
   if (!xml || xml.includes("RSS reader not yet whitelisted")) return [];
@@ -169,7 +197,10 @@ async function checkTwitterSourceMulti(handle: string, limit: number = 3): Promi
   return items.slice(0, limit);
 }
 
-async function checkYouTubeSourceMulti(handle: string, limit: number = 3): Promise<{ title: string; url: string; thumbnail?: string }[]> {
+async function checkYouTubeSourceMulti(
+  handle: string,
+  limit: number = 3,
+): Promise<{ title: string; url: string; thumbnail?: string }[]> {
   const rssUrl = await getYouTubeRssUrl(handle);
   let xml: string | null = null;
   if (rssUrl) {
@@ -183,7 +214,10 @@ async function checkYouTubeSourceMulti(handle: string, limit: number = 3): Promi
   return items.slice(0, limit);
 }
 
-async function checkBlogSourceMulti(blogUrl: string, limit: number = 3): Promise<{ title: string; url: string; thumbnail?: string }[]> {
+async function checkBlogSourceMulti(
+  blogUrl: string,
+  limit: number = 3,
+): Promise<{ title: string; url: string; thumbnail?: string }[]> {
   const xml = await fetchRss(blogUrl);
   if (!xml) return [];
   const items = parseRssItems(xml);
@@ -201,7 +235,7 @@ async function tryInsertNotification(
   sourceId: string,
   platform: Platform,
   content: string,
-  url: string
+  url: string,
 ): Promise<boolean> {
   const cleanedUrl = cleanUrl(url);
   if (!cleanedUrl) return false;
@@ -220,14 +254,19 @@ async function tryInsertNotification(
     return true; // Nouveau contenu, insertion réussie
   } catch (err: unknown) {
     // Autre erreur : on laisse passer pour ne pas bloquer le flux
-    logger.error(`[Feeds] Erreur insertion notification: ${err instanceof Error ? err.message : String(err)}`, { stack: err instanceof Error ? err.stack : undefined });
+    logger.error(
+      `[Feeds] Erreur insertion notification: ${err instanceof Error ? err.message : String(err)}`,
+      { stack: err instanceof Error ? err.stack : undefined },
+    );
     return false;
   }
 }
 
-
-
-export async function sendToChannel(client: Client, channelId: string, embed: EmbedBuilder): Promise<boolean> {
+export async function sendToChannel(
+  client: Client,
+  channelId: string,
+  embed: EmbedBuilder,
+): Promise<boolean> {
   try {
     const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
     if (channel?.isTextBased()) {
@@ -249,7 +288,7 @@ export async function logError(client: Client, module: string, error: string) {
       .addFields(
         { name: "Module", value: module, inline: true },
         { name: "Timestamp", value: new Date().toISOString(), inline: true },
-        { name: "Message", value: error.slice(0, 1024) }
+        { name: "Message", value: error.slice(0, 1024) },
       )
       .setTimestamp();
     await sendToChannel(client, config.logChannel, embed);
@@ -273,7 +312,12 @@ export async function runGamingFeeds(client: Client) {
           result = await checkBlogSource(source.blogUrl);
         }
         if (!result || !result.url) continue;
-        const isNewNotif = await tryInsertNotification("gaming-feed", source.platform, result.title, result.url);
+        const isNewNotif = await tryInsertNotification(
+          "gaming-feed",
+          source.platform,
+          result.title,
+          result.url,
+        );
         if (!isNewNotif) continue;
 
         const icon = PLATFORM_ICONS[source.platform] || "📡";
@@ -287,14 +331,18 @@ export async function runGamingFeeds(client: Client) {
           .setURL(result.url)
           .setColor(PLATFORM_COLORS[source.platform] || 0x5865f2)
           .addFields(
-            { name: "Source", value: "@" + source.handle + " (" + source.platform + ")", inline: true },
-            { name: "Salon", value: feed.channelName, inline: true }
+            {
+              name: "Source",
+              value: "@" + source.handle + " (" + source.platform + ")",
+              inline: true,
+            },
+            { name: "Salon", value: feed.channelName, inline: true },
           )
           .setTimestamp();
 
         try {
           if (source.platform === "youtube") {
-            const thumb = result.thumbnail || await getYouTubeThumbnail(result.url);
+            const thumb = result.thumbnail || (await getYouTubeThumbnail(result.url));
             if (thumb) embed.setImage(thumb);
           } else if (source.platform === "twitter") {
             const og = await getTweetImage(result.url);
@@ -326,8 +374,7 @@ export async function runStartupRetrospective(client: Client) {
   logger.info("=".repeat(50));
   let totalPublished = 0;
   const MAX_RETRO_POSTS = config.maxRetroPosts;
-feedLoop:
-  for (const feed of FEEDS) {
+  feedLoop: for (const feed of FEEDS) {
     if (!feed.channelId) continue;
     for (const source of feed.sources) {
       try {
@@ -342,7 +389,12 @@ feedLoop:
         let publishedForSource = 0;
         for (const item of items) {
           if (!item.url) continue;
-          const isNewRetroNotif = await tryInsertNotification("gaming-feed", source.platform, item.title, item.url);
+          const isNewRetroNotif = await tryInsertNotification(
+            "gaming-feed",
+            source.platform,
+            item.title,
+            item.url,
+          );
           if (!isNewRetroNotif) continue;
 
           const icon = PLATFORM_ICONS[source.platform] || "📡";
@@ -356,15 +408,23 @@ feedLoop:
             .setURL(item.url)
             .setColor(PLATFORM_COLORS[source.platform] || 0x5865f2)
             .addFields(
-              { name: "Source", value: "@" + source.handle + " (" + source.platform + ")", inline: true },
+              {
+                name: "Source",
+                value: "@" + source.handle + " (" + source.platform + ")",
+                inline: true,
+              },
               { name: "Salon", value: feed.channelName, inline: true },
-              { name: "Note", value: "📌 Rattrapage (publié pendant l'arrêt du bot)", inline: false }
+              {
+                name: "Note",
+                value: "📌 Rattrapage (publié pendant l'arrêt du bot)",
+                inline: false,
+              },
             )
             .setTimestamp();
 
           try {
             if (source.platform === "youtube") {
-              const thumb = item.thumbnail || await getYouTubeThumbnail(item.url);
+              const thumb = item.thumbnail || (await getYouTubeThumbnail(item.url));
               if (thumb) embed.setImage(thumb);
             } else if (source.platform === "twitter") {
               const og = await getTweetImage(item.url);
@@ -374,7 +434,7 @@ feedLoop:
               if (img) embed.setImage(img);
             }
           } catch (error) {
-            logger.error('[Feeds] Erreur lors de la récupération de l\'image:', error);
+            logger.error("[Feeds] Erreur lors de la récupération de l'image:", error);
           }
 
           const sent = await sendToChannel(client, feed.channelId, embed);
@@ -388,7 +448,9 @@ feedLoop:
           }
         }
         if (publishedForSource > 0) {
-          logger.info(`[Retro] ${feed.channelName}/@${source.handle}: ${publishedForSource} rattrapage(s)`);
+          logger.info(
+            `[Retro] ${feed.channelName}/@${source.handle}: ${publishedForSource} rattrapage(s)`,
+          );
         }
       } catch (err) {
         const errMsg = String(err);
@@ -428,7 +490,9 @@ feedLoop:
   }
 
   logger.info("=".repeat(50));
-  logger.info(`  Rattrapage terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`);
+  logger.info(
+    `  Rattrapage terminé : ${totalPublished} publication(s)${totalPublished >= MAX_RETRO_POSTS ? " (cap atteint)" : ""}`,
+  );
   logger.info("=".repeat(50));
   logger.info("");
 }

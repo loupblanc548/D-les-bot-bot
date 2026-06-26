@@ -1,8 +1,6 @@
 import logger from "./logger.js";
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { config } from "../config.js";
-import { sendEscalatedAlert } from "./alert-escalation.js";
-
 interface GroupedAlert {
   key: string;
   severity: "low" | "medium" | "high" | "critical";
@@ -25,7 +23,7 @@ let processingInterval: NodeJS.Timeout | null = null;
 export function addAlertToBuffer(
   key: string,
   message: string,
-  severity: "low" | "medium" | "high" | "critical" = "medium"
+  severity: "low" | "medium" | "high" | "critical" = "medium",
 ): void {
   const now = Date.now();
   const existing = alertBuffer.get(key);
@@ -122,7 +120,7 @@ async function sendGroupedAlert(client: Client, grouped: GroupedAlert): Promise<
         name: "Première alerte",
         value: new Date(grouped.firstTimestamp).toLocaleString(),
         inline: true,
-      }
+      },
     )
     .setTimestamp();
 

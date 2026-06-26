@@ -6,7 +6,7 @@ const { mockLogger, mockConfig, mockMiddleware } = vi.hoisted(() => ({
   mockMiddleware: {
     createLoggingMiddleware: vi.fn(() => vi.fn()),
     createRateLimitMiddleware: vi.fn(() => vi.fn()),
-    withMiddleware: vi.fn((h: any) => h),
+    withMiddleware: vi.fn((h: unknown) => h),
   },
 }));
 
@@ -15,10 +15,23 @@ vi.mock("./config", () => ({ config: mockConfig }));
 vi.mock("./middleware", () => mockMiddleware);
 
 // Mocker TOUS les modules de commandes pour éviter de charger leurs imports discord.js
-vi.mock("./commands/main", () => ({ commands: [{ name: "start", description: "Start" }], handleCommand: vi.fn(), handleSelectMenu: vi.fn() }));
-vi.mock("./commands/sources", () => ({ commands: [{ name: "addsource", description: "Source" }], handleCommand: vi.fn() }));
-vi.mock("./commands/admin", () => ({ commands: [{ name: "broadcast", description: "Broadcast" }], handleCommand: vi.fn() }));
-vi.mock("./commands/ai", () => ({ commands: [{ name: "chat", description: "Chat" }], handleCommand: vi.fn() }));
+vi.mock("./commands/main", () => ({
+  commands: [{ name: "start", description: "Start" }],
+  handleCommand: vi.fn(),
+  handleSelectMenu: vi.fn(),
+}));
+vi.mock("./commands/sources", () => ({
+  commands: [{ name: "addsource", description: "Source" }],
+  handleCommand: vi.fn(),
+}));
+vi.mock("./commands/admin", () => ({
+  commands: [{ name: "broadcast", description: "Broadcast" }],
+  handleCommand: vi.fn(),
+}));
+vi.mock("./commands/ai", () => ({
+  commands: [{ name: "chat", description: "Chat" }],
+  handleCommand: vi.fn(),
+}));
 vi.mock("./commands/moderation", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/casier", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/gaming", () => ({ commands: [], handleCommand: vi.fn() }));
@@ -42,12 +55,12 @@ vi.mock("./commands/fun/shop", () => ({ commands: [], handleCommand: vi.fn() }))
 
 // IMPORTANT: mockReturnValue pour éviter le probleme "new" avec les arrow functions
 vi.mock("discord.js", () => ({
-  REST: vi.fn(function() { 
-    return { setToken: vi.fn().mockReturnThis(), put: vi.fn().mockResolvedValue(undefined) }; 
+  REST: vi.fn(function () {
+    return { setToken: vi.fn().mockReturnThis(), put: vi.fn().mockResolvedValue(undefined) };
   }),
   Routes: { applicationGuildCommands: vi.fn(), applicationCommands: vi.fn() },
   PermissionFlagsBits: { Administrator: 8n },
-  SlashCommandBuilder: vi.fn().mockImplementation(function() {
+  SlashCommandBuilder: vi.fn().mockImplementation(function () {
     return {
       setName: vi.fn().mockReturnThis(),
       setDescription: vi.fn().mockReturnThis(),
@@ -58,10 +71,17 @@ vi.mock("discord.js", () => ({
   }),
 }));
 
-import { commandRouter, buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter.js";
+import {
+  commandRouter,
+  buildCommandRouter,
+  applyCommandMiddleware,
+  registerCommands,
+} from "./commandRouter.js";
 
 describe("commandRouter", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe("buildCommandRouter", () => {
     it("enregistre les commandes dans le router", () => {

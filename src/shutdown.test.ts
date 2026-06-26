@@ -23,25 +23,41 @@ const { mockLogger, mockPrisma, mockSentry, mockServices } = vi.hoisted(() => ({
 
 vi.mock("./utils/logger", () => ({ default: mockLogger }));
 vi.mock("./prisma", () => ({ default: mockPrisma }));
-vi.mock("@sentry/node", () => ({ default: mockSentry, close: mockSentry.close, captureException: mockSentry.captureException }));
+vi.mock("@sentry/node", () => ({
+  default: mockSentry,
+  close: mockSentry.close,
+  captureException: mockSentry.captureException,
+}));
 vi.mock("./services/monitor", () => ({ stopMonitoring: mockServices.stopMonitoring }));
 vi.mock("./services/twitch", () => ({ stopTwitchMonitoring: mockServices.stopTwitchMonitoring }));
-vi.mock("./services/patchNotes", () => ({ stopPatchNotesService: mockServices.stopPatchNotesService }));
-vi.mock("./services/instantgaming", () => ({ stopInstantGamingCheck: mockServices.stopInstantGamingCheck }));
-vi.mock("./services/instantgaming-news", () => ({ stopInstantGamingNewsCheck: mockServices.stopInstantGamingNewsCheck }));
-vi.mock("./cron/steamNewsCron", () => ({ stopSteamNewsMonitoring: mockServices.stopSteamNewsMonitoring }));
-vi.mock("./cron/freeGamesCron", () => ({ stopFreeGamesMonitoring: mockServices.stopFreeGamesMonitoring }));
+vi.mock("./services/patchNotes", () => ({
+  stopPatchNotesService: mockServices.stopPatchNotesService,
+}));
+vi.mock("./services/instantgaming", () => ({
+  stopInstantGamingCheck: mockServices.stopInstantGamingCheck,
+}));
+vi.mock("./services/instantgaming-news", () => ({
+  stopInstantGamingNewsCheck: mockServices.stopInstantGamingNewsCheck,
+}));
+vi.mock("./cron/steamNewsCron", () => ({
+  stopSteamNewsMonitoring: mockServices.stopSteamNewsMonitoring,
+}));
+vi.mock("./cron/freeGamesCron", () => ({
+  stopFreeGamesMonitoring: mockServices.stopFreeGamesMonitoring,
+}));
 vi.mock("./cron/dealsCron", () => ({ stopDealsMonitoring: mockServices.stopDealsMonitoring }));
-vi.mock("./cron/globalPatchNotesCron", () => ({ stopGlobalPatchNotesMonitoring: mockServices.stopGlobalPatchNotesMonitoring }));
-vi.mock("./cron/monthlyMaintenance", () => ({ stopMonthlyMaintenance: mockServices.stopMonthlyMaintenance }));
-vi.mock("./cron/twitterCron", () => ({ stopTwitterMonitoring: mockServices.stopTwitterMonitoring }));
+vi.mock("./cron/globalPatchNotesCron", () => ({
+  stopGlobalPatchNotesMonitoring: mockServices.stopGlobalPatchNotesMonitoring,
+}));
+vi.mock("./cron/monthlyMaintenance", () => ({
+  stopMonthlyMaintenance: mockServices.stopMonthlyMaintenance,
+}));
+vi.mock("./cron/twitterCron", () => ({
+  stopTwitterMonitoring: mockServices.stopTwitterMonitoring,
+}));
 vi.mock("./events/messages", () => ({ stopMapCleanup: mockServices.stopMapCleanup }));
 
-import {
-  attachShutdownHandlers,
-  registerDestroyClient,
-  registerInterval,
-} from "./shutdown.js";
+import { attachShutdownHandlers, registerDestroyClient, registerInterval } from "./shutdown.js";
 
 describe("shutdown", () => {
   beforeEach(() => {
@@ -99,9 +115,11 @@ describe("shutdown", () => {
 
     it("arrête tous les services monitoring lors du signal SIGINT", async () => {
       attachShutdownHandlers();
-      
+
       // Récupérer le handler SIGINT
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
       expect(handler).toBeDefined();
 
       await handler();
@@ -123,7 +141,9 @@ describe("shutdown", () => {
 
     it("déconnecte Prisma et ferme Sentry lors du shutdown", async () => {
       attachShutdownHandlers();
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
 
       await handler();
 
@@ -133,7 +153,9 @@ describe("shutdown", () => {
 
     it("appelle process.exit(0) après le shutdown", async () => {
       attachShutdownHandlers();
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
 
       await handler();
 
@@ -142,14 +164,16 @@ describe("shutdown", () => {
 
     it("nettoie les intervalles enregistrés", async () => {
       const { registerInterval } = await import("./shutdown.js");
-      
+
       const interval = setInterval(() => {}, 100000);
       registerInterval(interval);
-      
+
       const clearSpy = vi.spyOn(global, "clearInterval");
-      
+
       attachShutdownHandlers();
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
       await handler();
 
       expect(clearSpy).toHaveBeenCalledWith(interval);
@@ -161,17 +185,23 @@ describe("shutdown", () => {
       registerDestroyClient(destroyFn);
 
       attachShutdownHandlers();
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
       await handler();
 
       expect(destroyFn).toHaveBeenCalled();
     });
 
     it("continue même si un service d'arrêt lance une erreur", async () => {
-      mockServices.stopMonitoring.mockImplementationOnce(() => { throw new Error("Stop failed"); });
+      mockServices.stopMonitoring.mockImplementationOnce(() => {
+        throw new Error("Stop failed");
+      });
 
       attachShutdownHandlers();
-      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as Function;
+      const handler = processOnSpy.mock.calls.find((c: any[]) => c[0] === "SIGINT")?.[1] as (
+        ...args: unknown[]
+      ) => unknown;
 
       await expect(handler()).resolves.not.toThrow();
       // Les autres services doivent quand même être arrêtés

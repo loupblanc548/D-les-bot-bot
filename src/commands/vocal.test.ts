@@ -30,11 +30,17 @@ interface MIOpts {
   userTag?: string;
   guildId?: string;
   voiceChannel?: { id: string; name: string; joinable?: boolean } | null;
-  existingConnection?: { joinConfig: { channelId: string }; destroy: ReturnType<typeof vi.fn> } | null;
+  existingConnection?: {
+    joinConfig: { channelId: string };
+    destroy: ReturnType<typeof vi.fn>;
+  } | null;
 }
 
 function mi(opts: MIOpts = {}): ChatInputCommandInteraction {
-  const voiceChannel = ("voiceChannel" in opts) ? opts.voiceChannel : { id: "vc-111", name: "Salon Vocal", joinable: true };
+  const voiceChannel =
+    "voiceChannel" in opts
+      ? opts.voiceChannel
+      : { id: "vc-111", name: "Salon Vocal", joinable: true };
   return {
     commandName: "vocal",
     user: {
@@ -47,12 +53,15 @@ function mi(opts: MIOpts = {}): ChatInputCommandInteraction {
       voice: { channel: voiceChannel },
     } as any,
     options: {
-      getString: vi.fn((name: string, required?: boolean) => {
+      getString: vi.fn((name: string, _required?: boolean) => {
         if (name === "action") return opts.action ?? "rejoindre";
         return null;
       }),
     },
-    deferReply: vi.fn().mockImplementation(function(this: any) { this.deferred = true; return Promise.resolve(); }),
+    deferReply: vi.fn().mockImplementation(function (this: any) {
+      this.deferred = true;
+      return Promise.resolve();
+    }),
     editReply: vi.fn().mockResolvedValue(undefined),
     reply: vi.fn().mockResolvedValue(undefined),
     deferred: false,
@@ -139,7 +148,7 @@ describe("handleCommand – vocal", () => {
           guildId: "guild-789",
           selfDeaf: false,
           selfMute: false,
-        })
+        }),
       );
 
       const embed = getFirstEmbed(interaction);
@@ -161,10 +170,10 @@ describe("handleCommand – vocal", () => {
 
       expect(oldConn.destroy).toHaveBeenCalled();
       expect(mockVoice.joinVoiceChannel).toHaveBeenCalledWith(
-        expect.objectContaining({ channelId: "vc-222" })
+        expect.objectContaining({ channelId: "vc-222" }),
       );
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Connexion précédente détruite")
+        expect.stringContaining("Connexion précédente détruite"),
       );
     });
 
@@ -187,9 +196,7 @@ describe("handleCommand – vocal", () => {
       const interaction = mi({ action: "rejoindre" });
       await handleCommand(interaction);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("TestUser#1234")
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("TestUser#1234"));
     });
   });
 
@@ -228,9 +235,7 @@ describe("handleCommand – vocal", () => {
       const interaction = mi({ action: "quitter" });
       await handleCommand(interaction);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("quitté")
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("quitté"));
     });
   });
 

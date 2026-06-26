@@ -19,11 +19,13 @@ vi.mock("../config", () => ({
 import { getPermissionLevel, requireAdmin, requireMod, PermissionLevel } from "./permissions.js";
 import type { GuildMember, CommandInteraction, Guild } from "discord.js";
 
-function mockMember(overrides: {
-  admin?: boolean;
-  roleIds?: string[];
-  guildId?: string;
-} = {}): GuildMember {
+function mockMember(
+  overrides: {
+    admin?: boolean;
+    roleIds?: string[];
+    guildId?: string;
+  } = {},
+): GuildMember {
   return {
     permissions: {
       has: vi.fn().mockReturnValue(overrides.admin ?? false),
@@ -135,7 +137,7 @@ describe("getPermissionLevel", () => {
   });
 
   it("should prioritize admin over mod when member has both", async () => {
-    const prisma = await import("../prisma.js");
+    const _prisma = await import("../prisma.js");
     const { config } = await import("../config.js");
 
     config.adminRoles = ["role-a"];
@@ -159,7 +161,7 @@ describe("requireAdmin", () => {
     expect(interaction.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining("serveur"),
-      })
+      }),
     );
   });
 
@@ -185,7 +187,7 @@ describe("requireAdmin", () => {
     expect(interaction.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining("administrateurs"),
-      })
+      }),
     );
   });
 });
@@ -202,7 +204,7 @@ describe("requireMod", () => {
     expect(interaction.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining("serveur"),
-      })
+      }),
     );
   });
 
@@ -228,7 +230,7 @@ describe("requireMod", () => {
     expect(interaction.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining("moderateurs"),
-      })
+      }),
     );
   });
 });

@@ -20,7 +20,7 @@ const { mockOpenAI, mockConfig, mockLogger } = vi.hoisted(() => ({
 }));
 
 vi.mock("./ai", () => ({
-  getOpenAIClient: () => mockOpenAI as any,
+  getOpenAIClient: () => mockOpenAI as unknown,
 }));
 
 vi.mock("../config", () => ({
@@ -92,7 +92,7 @@ describe("ai-extra", () => {
 
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalledWith(
         expect.objectContaining({ model: "openai/gpt-4o" }),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -127,9 +127,7 @@ describe("ai-extra", () => {
     it("should throw on API error", async () => {
       mockOpenAI.chat.completions.create.mockRejectedValueOnce(new Error("API down"));
 
-      await expect(translateText("test", "fr")).rejects.toThrow(
-        "Erreur lors de la traduction"
-      );
+      await expect(translateText("test", "fr")).rejects.toThrow("Erreur lors de la traduction");
     });
 
     it("should throw on AbortError (timeout)", async () => {
@@ -138,7 +136,7 @@ describe("ai-extra", () => {
       mockOpenAI.chat.completions.create.mockRejectedValueOnce(abortError);
 
       await expect(translateText("test", "fr")).rejects.toThrow(
-        "La traduction a pris trop de temps"
+        "La traduction a pris trop de temps",
       );
     });
   });
@@ -158,7 +156,7 @@ describe("ai-extra", () => {
       expect(result).toBe("📋 Résumé : discussion sur le projet");
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalledWith(
         expect.objectContaining({ model: "openai/gpt-4o" }),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -184,9 +182,7 @@ describe("ai-extra", () => {
         choices: [{ message: { content: "" } }],
       });
 
-      const result = await summarizeMessages([
-        { author: "Alice", content: "Hello" },
-      ]);
+      const result = await summarizeMessages([{ author: "Alice", content: "Hello" }]);
 
       expect(result).toBe("Impossible de générer un résumé.");
     });
@@ -194,9 +190,9 @@ describe("ai-extra", () => {
     it("should throw on API error", async () => {
       mockOpenAI.chat.completions.create.mockRejectedValueOnce(new Error("API down"));
 
-      await expect(
-        summarizeMessages([{ author: "A", content: "test" }])
-      ).rejects.toThrow("Erreur lors du résumé");
+      await expect(summarizeMessages([{ author: "A", content: "test" }])).rejects.toThrow(
+        "Erreur lors du résumé",
+      );
     });
 
     it("should throw on AbortError (timeout)", async () => {
@@ -204,9 +200,9 @@ describe("ai-extra", () => {
       abortError.name = "AbortError";
       mockOpenAI.chat.completions.create.mockRejectedValueOnce(abortError);
 
-      await expect(
-        summarizeMessages([{ author: "A", content: "test" }])
-      ).rejects.toThrow("Le résumé a pris trop de temps");
+      await expect(summarizeMessages([{ author: "A", content: "test" }])).rejects.toThrow(
+        "Le résumé a pris trop de temps",
+      );
     });
   });
 });

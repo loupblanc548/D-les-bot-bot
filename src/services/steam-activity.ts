@@ -1,5 +1,4 @@
 import logger from "../utils/logger.js";
-import { Client, User } from "discord.js";
 import prisma from "../prisma.js";
 
 interface SteamProfile {
@@ -88,9 +87,13 @@ class SteamActivityService {
     try {
       const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${this.apiKey}&steamids=${steamId}`;
       const response = await fetch(url);
-      const data = await response.json() as Record<string, unknown>;
+      const data = (await response.json()) as Record<string, unknown>;
 
-      if (!data.response || !(data.response as Record<string, unknown>).players || !((data.response as Record<string, unknown>).players as any[])[0]) {
+      if (
+        !data.response ||
+        !(data.response as Record<string, unknown>).players ||
+        !((data.response as Record<string, unknown>).players as any[])[0]
+      ) {
         return null;
       }
 
@@ -121,19 +124,21 @@ class SteamActivityService {
     try {
       const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${this.apiKey}&steamid=${steamId}&format=json`;
       const response = await fetch(url);
-      const data = await response.json() as Record<string, unknown>;
+      const data = (await response.json()) as Record<string, unknown>;
 
       if (!data.response || !(data.response as Record<string, unknown>).games) {
         return [];
       }
 
-      const games: GameActivity[] = ((data.response as Record<string, unknown>).games as any[]).map((game: any) => ({
-        appId: game.appid,
-        name: game.name,
-        playtimeForever: game.playtime_forever,
-        playtime2weeks: game.playtime_2weeks,
-        lastPlayed: game.rtime_last_played || 0,
-      }));
+      const games: GameActivity[] = ((data.response as Record<string, unknown>).games as any[]).map(
+        (game: any) => ({
+          appId: game.appid,
+          name: game.name,
+          playtimeForever: game.playtime_forever,
+          playtime2weeks: game.playtime_2weeks,
+          lastPlayed: game.rtime_last_played || 0,
+        }),
+      );
 
       // Mettre en cache
       this.activityCache.set(steamId, games);
@@ -168,7 +173,7 @@ class SteamActivityService {
 
     // Filtrer les jeux joués récemment (2 dernières semaines)
     const recentGames = games
-      .filter(game => game.playtime2weeks > 0)
+      .filter((game) => game.playtime2weeks > 0)
       .sort((a, b) => b.playtime2weeks - a.playtime2weeks)
       .slice(0, 10);
 
@@ -184,11 +189,14 @@ class SteamActivityService {
   /**
    * Corrèle l'activité Steam avec l'activité Discord
    */
-  async correlateActivity(discordId: string, discordActivity: {
-    messageCount: number;
-    activeChannels: string[];
-    lastActive: number;
-  }): Promise<{
+  async correlateActivity(
+    discordId: string,
+    discordActivity: {
+      messageCount: number;
+      activeChannels: string[];
+      lastActive: number;
+    },
+  ): Promise<{
     correlation: number;
     insights: string[];
   }> {
@@ -214,11 +222,11 @@ class SteamActivityService {
     }
 
     // Vérifier si les channels Discord correspondent aux jeux joués
-    const gameNames = steamActivity.recentGames.map(g => g.name.toLowerCase());
-    const channelNames = discordActivity.activeChannels.map(c => c.toLowerCase());
+    const gameNames = steamActivity.recentGames.map((g) => g.name.toLowerCase());
+    const channelNames = discordActivity.activeChannels.map((c) => c.toLowerCase());
 
-    const matchingChannels = channelNames.filter(channel =>
-      gameNames.some(game => channel.includes(game) || game.includes(channel))
+    const matchingChannels = channelNames.filter((channel) =>
+      gameNames.some((game) => channel.includes(game) || game.includes(channel)),
     );
 
     if (matchingChannels.length > 0) {
@@ -243,7 +251,7 @@ class SteamActivityService {
    */
   async loadLinksFromPrisma(): Promise<void> {
     const links = await (prisma as any).steamLink.findMany();
-    
+
     for (const link of links) {
       this.userLinks.set(link.discordId, link as unknown as UserSteamLink);
     }
@@ -264,7 +272,7 @@ class SteamActivityService {
   async unlinkSteamAccount(discordId: string): Promise<boolean> {
     try {
       this.userLinks.delete(discordId);
-      
+
       await (prisma as any).steamLink.delete({
         where: { discordId },
       });
@@ -288,9 +296,10 @@ class SteamActivityService {
     const links = Array.from(this.userLinks.values());
     const allGames = Array.from(this.activityCache.values()).flat();
 
-    const averagePlaytime = allGames.length > 0
-      ? allGames.reduce((sum, game) => sum + game.playtimeForever, 0) / allGames.length
-      : 0;
+    const averagePlaytime =
+      allGames.length > 0
+        ? allGames.reduce((sum, game) => sum + game.playtimeForever, 0) / allGames.length
+        : 0;
 
     return {
       totalLinks: links.length,

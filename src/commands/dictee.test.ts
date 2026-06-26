@@ -33,7 +33,8 @@ interface MIOpts {
 }
 
 function mi(opts: MIOpts = {}): ChatInputCommandInteraction {
-  const voiceChannel = ("voiceChannel" in opts) ? opts.voiceChannel : { id: "vc-123", name: "Général" };
+  const voiceChannel =
+    "voiceChannel" in opts ? opts.voiceChannel : { id: "vc-123", name: "Général" };
   return {
     commandName: "dictee",
     user: {
@@ -47,12 +48,15 @@ function mi(opts: MIOpts = {}): ChatInputCommandInteraction {
       voice: { channel: voiceChannel },
     } as any,
     options: {
-      getString: vi.fn((name: string, required?: boolean) => {
+      getString: vi.fn((name: string, _required?: boolean) => {
         if (name === "action") return opts.action ?? "start";
         return null;
       }),
       getChannel: vi.fn((name: string) => {
-        if (name === "salon") return ("targetChannel" in opts) ? opts.targetChannel : { id: "ch-999", name: "dictée", type: 0 };
+        if (name === "salon")
+          return "targetChannel" in opts
+            ? opts.targetChannel
+            : { id: "ch-999", name: "dictée", type: 0 };
         return null;
       }),
     },
@@ -133,7 +137,10 @@ describe("handleCommand – dictee", () => {
     });
 
     it("démarre la dictée et confirme", async () => {
-      const interaction = mi({ action: "start", targetChannel: { id: "ch-999", name: "dictée", type: 0 } });
+      const interaction = mi({
+        action: "start",
+        targetChannel: { id: "ch-999", name: "dictée", type: 0 },
+      });
 
       await handleCommand(interaction, mockClient);
 
@@ -144,7 +151,7 @@ describe("handleCommand – dictee", () => {
         expect.anything(),
         "user-456",
         "TestUser",
-        "ch-999"
+        "ch-999",
       );
       expect(getEditReplyContent(interaction)).toContain("Dictée démarrée");
       expect(getEditReplyContent(interaction)).toContain("<#ch-999>");
@@ -193,7 +200,10 @@ describe("handleCommand – dictee", () => {
       mockDictation.hasActiveSession.mockReturnValue(true);
       mockDictation.stopDictation.mockResolvedValue(result);
 
-      const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
+      const mockTextChannel = {
+        isTextBased: () => true,
+        send: vi.fn().mockResolvedValue(undefined),
+      };
       (mockClient.channels.fetch as any).mockResolvedValue(mockTextChannel);
 
       const interaction = mi({ action: "stop" });
@@ -203,7 +213,7 @@ describe("handleCommand – dictee", () => {
       expect(mockTextChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.stringContaining("Bonjour, ceci est un test de dictée vocale"),
-        })
+        }),
       );
       expect(getEditReplyContent(interaction)).toContain("Dictée terminée");
       expect(getEditReplyContent(interaction)).toContain("<#ch-999>");
@@ -232,7 +242,10 @@ describe("handleCommand – dictee", () => {
       mockDictation.hasActiveSession.mockReturnValue(true);
       mockDictation.stopDictation.mockResolvedValue(result);
 
-      const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
+      const mockTextChannel = {
+        isTextBased: () => true,
+        send: vi.fn().mockResolvedValue(undefined),
+      };
       (mockClient.channels.fetch as any).mockResolvedValue(mockTextChannel);
 
       const interaction = mi({ action: "stop" });
@@ -248,7 +261,10 @@ describe("handleCommand – dictee", () => {
       mockDictation.hasActiveSession.mockReturnValue(true);
       mockDictation.stopDictation.mockResolvedValue(result);
 
-      const mockTextChannel = { isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) };
+      const mockTextChannel = {
+        isTextBased: () => true,
+        send: vi.fn().mockResolvedValue(undefined),
+      };
       (mockClient.channels.fetch as any).mockResolvedValue(mockTextChannel);
 
       const interaction = mi({ action: "stop" });
@@ -256,7 +272,7 @@ describe("handleCommand – dictee", () => {
 
       expect(getEditReplyContent(interaction)).toContain("aucun texte");
       expect(mockTextChannel.send).toHaveBeenCalledWith(
-        expect.objectContaining({ content: expect.stringContaining("aucun texte détecté") })
+        expect.objectContaining({ content: expect.stringContaining("aucun texte détecté") }),
       );
     });
   });

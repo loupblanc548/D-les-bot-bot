@@ -1,12 +1,9 @@
 import { Client, TextChannel } from "discord.js";
-import prisma from "../../prisma.js";
 import { createClient } from "redis";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { mkdir, writeFile, unlink, readdir } from "fs/promises";
+import { mkdir, unlink, readdir } from "fs/promises";
 import { join } from "path";
-import logger from "../../utils/logger.js";
-
 const execAsync = promisify(exec);
 
 const redis = createClient({
@@ -74,7 +71,7 @@ async function performBackup(client: Client): Promise<void> {
     await execAsync(`gzip "${backupFile}"`);
 
     // Obtenir la taille du fichier compressé
-    const { size } = await import("fs").then(fs => fs.promises.stat(compressedFile));
+    const { size } = await import("fs").then((fs) => fs.promises.stat(compressedFile));
 
     // Nettoyer les vieux backups (rotation)
     await cleanupOldBackups();
@@ -86,7 +83,9 @@ async function performBackup(client: Client): Promise<void> {
     backupStats.lastError = null;
 
     const executionTime = Date.now() - startTime;
-    console.log(`[DatabaseBackup] Backup completed in ${executionTime}ms, size: ${(size / 1024 / 1024).toFixed(2)}MB`);
+    console.log(
+      `[DatabaseBackup] Backup completed in ${executionTime}ms, size: ${(size / 1024 / 1024).toFixed(2)}MB`,
+    );
 
     // Envoyer une alerte de succès
     await sendBackupAlert(client, true, executionTime, size);
@@ -101,7 +100,7 @@ async function performBackup(client: Client): Promise<void> {
 async function cleanupOldBackups(): Promise<void> {
   try {
     const files = await readdir(BACKUP_DIR);
-    const backupFiles = files.filter(f => f.startsWith("backup-") && f.endsWith(".sql.gz"));
+    const backupFiles = files.filter((f) => f.startsWith("backup-") && f.endsWith(".sql.gz"));
 
     // Trier par date (les plus vieux en premier)
     backupFiles.sort();
@@ -125,7 +124,7 @@ async function sendBackupAlert(
   success: boolean,
   executionTime: number,
   size: number,
-  error?: string
+  error?: string,
 ): Promise<void> {
   try {
     const logChannelId = process.env.LOG_CHANNEL_ID;

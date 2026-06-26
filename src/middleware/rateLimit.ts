@@ -1,10 +1,4 @@
-import {
-  MessageFlags,
-  PermissionsBitField,
-  type GuildMember,
-  type Interaction,
-  type Client,
-} from "discord.js";
+import { MessageFlags, PermissionsBitField, type GuildMember, type Interaction } from "discord.js";
 import { incrementCache, setCacheExpire, getCacheTTL } from "../utils/redis.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
@@ -31,9 +25,7 @@ export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
  * - Bypass configurable pour les admins et le propriétaire du serveur.
  * - Tolère l'indisponibilité de Redis (log warn + laisse passer la requête).
  */
-export function createRateLimitMiddleware(
-  override: Partial<RateLimitConfig> = {}
-): Middleware {
+export function createRateLimitMiddleware(override: Partial<RateLimitConfig> = {}): Middleware {
   const cfg: RateLimitConfig = {
     ...DEFAULT_RATE_LIMIT,
     ...config.rateLimit,
@@ -53,7 +45,7 @@ export function createRateLimitMiddleware(
     const scope = interaction.guildId ?? "dm";
     const key = `rl:${scope}:${interaction.user.id}:${interaction.commandName}`;
 
-    let count: number | null = null;
+    let count: number | null;
     try {
       count = await incrementCache(key);
       if (count === 1 || count === null) {
@@ -86,7 +78,7 @@ export function createRateLimitMiddleware(
       }
 
       logger.info(
-        `[RateLimit] ⛔ ${interaction.user.tag} (${interaction.user.id}) bloqué sur /${interaction.commandName} (${count}/${cfg.maxRequests})`
+        `[RateLimit] ⛔ ${interaction.user.tag} (${interaction.user.id}) bloqué sur /${interaction.commandName} (${count}/${cfg.maxRequests})`,
       );
       return;
     }

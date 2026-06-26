@@ -25,10 +25,10 @@ export const commands = [
     .setName("warn")
     .setDescription("Avertir un membre")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a avertir").setRequired(true)
+      o.setName("cible").setDescription("Le membre a avertir").setRequired(true),
     )
     .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison de l'avertissement").setRequired(false)
+      o.setName("raison").setDescription("Raison de l'avertissement").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .toJSON(),
@@ -36,29 +36,23 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("mute")
     .setDescription("Rendre muet un membre (timeout Discord, longue duree)")
-    .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a mute").setRequired(true)
-    )
+    .addUserOption((o) => o.setName("cible").setDescription("Le membre a mute").setRequired(true))
     .addIntegerOption((o) =>
       o
         .setName("duree")
         .setDescription("Duree en minutes (max 40320 = 28 jours)")
         .setRequired(true)
         .setMinValue(1)
-        .setMaxValue(40320)
+        .setMaxValue(40320),
     )
-    .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison du mute").setRequired(false)
-    )
+    .addStringOption((o) => o.setName("raison").setDescription("Raison du mute").setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .toJSON(),
 
   new SlashCommandBuilder()
     .setName("unmute")
     .setDescription("Retirer le timeout d'un membre")
-    .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a unmute").setRequired(true)
-    )
+    .addUserOption((o) => o.setName("cible").setDescription("Le membre a unmute").setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .toJSON(),
 
@@ -66,10 +60,10 @@ export const commands = [
     .setName("kick")
     .setDescription("Expulser un membre du serveur")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a expulser").setRequired(true)
+      o.setName("cible").setDescription("Le membre a expulser").setRequired(true),
     )
     .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison de l'expulsion").setRequired(false)
+      o.setName("raison").setDescription("Raison de l'expulsion").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
     .toJSON(),
@@ -77,19 +71,17 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("ban")
     .setDescription("Bannir un membre du serveur")
-    .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a bannir").setRequired(true)
-    )
+    .addUserOption((o) => o.setName("cible").setDescription("Le membre a bannir").setRequired(true))
     .addIntegerOption((o) =>
       o
         .setName("jours")
         .setDescription("Jours de messages a supprimer (1-7, defaut: 7)")
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(7)
+        .setMaxValue(7),
     )
     .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison du bannissement").setRequired(false)
+      o.setName("raison").setDescription("Raison du bannissement").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .toJSON(),
@@ -98,7 +90,7 @@ export const commands = [
     .setName("timeout")
     .setDescription("Mettre un membre en timeout (court terme, secondes)")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a timeout").setRequired(true)
+      o.setName("cible").setDescription("Le membre a timeout").setRequired(true),
     )
     .addIntegerOption((o) =>
       o
@@ -106,7 +98,7 @@ export const commands = [
         .setDescription("Duree en secondes (max 3600 = 1h)")
         .setRequired(true)
         .setMinValue(1)
-        .setMaxValue(3600)
+        .setMaxValue(3600),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .toJSON(),
@@ -120,7 +112,7 @@ export const commands = [
         .setDescription("Nombre de messages a supprimer (1-100)")
         .setRequired(true)
         .setMinValue(1)
-        .setMaxValue(100)
+        .setMaxValue(100),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
@@ -141,7 +133,7 @@ export const commands = [
     .setName("softban")
     .setDescription("Banne et debanne instantanement (nettoie les messages)")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a softban").setRequired(true)
+      o.setName("cible").setDescription("Le membre a softban").setRequired(true),
     )
     .addIntegerOption((o) =>
       o
@@ -149,10 +141,10 @@ export const commands = [
         .setDescription("Jours de messages a supprimer (1-7, defaut: 7)")
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(7)
+        .setMaxValue(7),
     )
     .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison du softban").setRequired(false)
+      o.setName("raison").setDescription("Raison du softban").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .toJSON(),
@@ -161,7 +153,7 @@ export const commands = [
     .setName("purge")
     .setDescription("Supprime les messages d'un utilisateur")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("L'utilisateur cible").setRequired(true)
+      o.setName("cible").setDescription("L'utilisateur cible").setRequired(true),
     )
     .addIntegerOption((o) =>
       o
@@ -169,7 +161,7 @@ export const commands = [
         .setDescription("Nombre de messages a supprimer (1-100)")
         .setRequired(true)
         .setMinValue(1)
-        .setMaxValue(100)
+        .setMaxValue(100),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
@@ -183,7 +175,7 @@ export const commands = [
         .setDescription("Delai entre chaque message en secondes (0 pour desactiver)")
         .setRequired(true)
         .setMinValue(0)
-        .setMaxValue(21600)
+        .setMaxValue(21600),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
     .toJSON(),
@@ -198,7 +190,7 @@ export const commands = [
     .setName("history")
     .setDescription("Affiche l'historique des messages recents d'un utilisateur")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("L'utilisateur cible").setRequired(true)
+      o.setName("cible").setDescription("L'utilisateur cible").setRequired(true),
     )
     .addIntegerOption((o) =>
       o
@@ -206,7 +198,7 @@ export const commands = [
         .setDescription("Nombre de messages a afficher (1-50)")
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(50)
+        .setMaxValue(50),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
@@ -215,11 +207,18 @@ export const commands = [
     .setName("purgeuser")
     .setDescription("Purger les messages d'un utilisateur dans tous les salons sans le bannir")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Utilisateur dont les messages seront supprimes").setRequired(true)
+      o
+        .setName("cible")
+        .setDescription("Utilisateur dont les messages seront supprimes")
+        .setRequired(true),
     )
     .addIntegerOption((o) =>
-      o.setName("jours").setDescription("Jours de messages a supprimer (1-7, defaut: 1)").setRequired(false)
-        .setMinValue(1).setMaxValue(7)
+      o
+        .setName("jours")
+        .setDescription("Jours de messages a supprimer (1-7, defaut: 1)")
+        .setRequired(false)
+        .setMinValue(1)
+        .setMaxValue(7),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
@@ -228,17 +227,21 @@ export const commands = [
     .setName("tempban")
     .setDescription("Bannir temporairement un membre (deban automatique)")
     .addUserOption((o) =>
-      o.setName("cible").setDescription("Le membre a bannir temporairement").setRequired(true)
+      o.setName("cible").setDescription("Le membre a bannir temporairement").setRequired(true),
     )
     .addStringOption((o) =>
-      o.setName("duree").setDescription("Duree (ex: 1h, 30m, 2j, 7d)").setRequired(true)
+      o.setName("duree").setDescription("Duree (ex: 1h, 30m, 2j, 7d)").setRequired(true),
     )
     .addIntegerOption((o) =>
-      o.setName("jours").setDescription("Jours de messages a supprimer (1-7, defaut: 1)").setRequired(false)
-        .setMinValue(1).setMaxValue(7)
+      o
+        .setName("jours")
+        .setDescription("Jours de messages a supprimer (1-7, defaut: 1)")
+        .setRequired(false)
+        .setMinValue(1)
+        .setMaxValue(7),
     )
     .addStringOption((o) =>
-      o.setName("raison").setDescription("Raison du bannissement temporaire").setRequired(false)
+      o.setName("raison").setDescription("Raison du bannissement temporaire").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .toJSON(),
@@ -248,18 +251,14 @@ export const commands = [
 // Fonctions helper pour les embeds
 // ============================================================
 function baseEmbed(title: string, color: number): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setColor(color)
-    .setFooter(FOOTER)
-    .setTimestamp();
+  return new EmbedBuilder().setTitle(title).setColor(color).setFooter(FOOTER).setTimestamp();
 }
 
 function errorEmbed(message: string): EmbedBuilder {
   return baseEmbed("Erreur", 0xff3344).setDescription(message);
 }
 
-function successEmbed(message: string): EmbedBuilder {
+function _successEmbed(message: string): EmbedBuilder {
   return baseEmbed("Succes", 0x53fc18).setDescription(message);
 }
 
@@ -286,14 +285,33 @@ async function handleWarn(interaction: ChatInputCommandInteraction) {
     await recordSanction(cible.id, interaction.guildId!, "WARN");
 
     const embed = baseEmbed("Avertissement", 0xffaa00)
-      .setDescription("- **Membre** : " + cible.tag + " (" + cible.id + ")\n- **Moderateur** : " + interaction.user.tag + "\n- **Raison** : " + raison)
+      .setDescription(
+        "- **Membre** : " +
+          cible.tag +
+          " (" +
+          cible.id +
+          ")\n- **Moderateur** : " +
+          interaction.user.tag +
+          "\n- **Raison** : " +
+          raison,
+      )
       .addFields({ name: "Action", value: "Avertissement enregistre", inline: true });
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE WARN]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible d'avertir ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible d'avertir ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible d'avertir ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible d'avertir ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -315,14 +333,32 @@ async function handleMute(interaction: ChatInputCommandInteraction) {
     // Enregistrer dans le risk-engine
     await recordSanction(cible.user.id, interaction.guildId!, "TIMEOUT");
 
-    const embed = baseEmbed("Mute", 0xff3344)
-      .setDescription("- **Membre** : " + cible.user.tag + "\n- **Moderateur** : " + interaction.user.tag + "\n- **Duree** : " + dureeMin + " minute(s)\n- **Raison** : " + raison);
+    const embed = baseEmbed("Mute", 0xff3344).setDescription(
+      "- **Membre** : " +
+        cible.user.tag +
+        "\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Duree** : " +
+        dureeMin +
+        " minute(s)\n- **Raison** : " +
+        raison,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE MUTE]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de mute ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de mute ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de mute ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de mute ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -338,14 +374,25 @@ async function handleUnmute(interaction: ChatInputCommandInteraction) {
 
     await cible.timeout(null);
 
-    const embed = baseEmbed("Unmute", 0x53fc18)
-      .setDescription("- **Membre** : " + cible.user.tag + "\n- **Moderateur** : " + interaction.user.tag);
+    const embed = baseEmbed("Unmute", 0x53fc18).setDescription(
+      "- **Membre** : " + cible.user.tag + "\n- **Moderateur** : " + interaction.user.tag,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE UNMUTE]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible d'unmute ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible d'unmute ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible d'unmute ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible d'unmute ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -365,14 +412,32 @@ async function handleKick(interaction: ChatInputCommandInteraction) {
     // Enregistrer dans le risk-engine
     await recordSanction(cible.user.id, interaction.guildId!, "KICK");
 
-    const embed = baseEmbed("Expulsion", 0xffaa00)
-      .setDescription("- **Membre** : " + cible.user.tag + " (" + cible.id + ")\n- **Moderateur** : " + interaction.user.tag + "\n- **Raison** : " + raison);
+    const embed = baseEmbed("Expulsion", 0xffaa00).setDescription(
+      "- **Membre** : " +
+        cible.user.tag +
+        " (" +
+        cible.id +
+        ")\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Raison** : " +
+        raison,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE KICK]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible d'expulser ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible d'expulser ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible d'expulser ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible d'expulser ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -389,14 +454,36 @@ async function handleBan(interaction: ChatInputCommandInteraction) {
     // Enregistrer dans le risk-engine
     await recordSanction(cible.id, interaction.guildId!, "BAN");
 
-    const embed = baseEmbed("Bannissement", 0xff3344)
-      .setDescription("- **Membre** : " + cible.tag + " (" + cible.id + ")\n- **Moderateur** : " + interaction.user.tag + "\n- **Raison** : " + raison + "\n- **Messages supprimes** : " + jours + " jour" + (jours > 1 ? "s" : ""));
+    const embed = baseEmbed("Bannissement", 0xff3344).setDescription(
+      "- **Membre** : " +
+        cible.tag +
+        " (" +
+        cible.id +
+        ")\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Raison** : " +
+        raison +
+        "\n- **Messages supprimes** : " +
+        jours +
+        " jour" +
+        (jours > 1 ? "s" : ""),
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE BAN]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de bannir ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de bannir ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de bannir ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de bannir ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -414,14 +501,31 @@ async function handleTimeout(interaction: ChatInputCommandInteraction) {
     const dureeMs = dureeSec * 1000;
     await cible.timeout(dureeMs, "Timeout par " + interaction.user.tag);
 
-    const embed = baseEmbed("Timeout", 0xffaa00)
-      .setDescription("- **Membre** : " + cible.user.tag + "\n- **Moderateur** : " + interaction.user.tag + "\n- **Duree** : " + dureeSec + " seconde(s)");
+    const embed = baseEmbed("Timeout", 0xffaa00).setDescription(
+      "- **Membre** : " +
+        cible.user.tag +
+        "\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Duree** : " +
+        dureeSec +
+        " seconde(s)",
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE TIMEOUT]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de timeout ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de timeout ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de timeout ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de timeout ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -431,15 +535,19 @@ async function handleClear(interaction: ChatInputCommandInteraction) {
   const channel = interaction.channel as TextChannel;
 
   if (!channel) {
-    await interaction.reply({ embeds: [errorEmbed("Salon introuvable.")], flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      embeds: [errorEmbed("Salon introuvable.")],
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
   const deleted = await channel.bulkDelete(nombre, true);
 
-  const embed = baseEmbed("Nettoyage", 0x2f3136)
-    .setDescription("- **Salon** : " + channel.name + "\n- **Messages supprimes** : " + deleted.size + "/" + nombre);
+  const embed = baseEmbed("Nettoyage", 0x2f3136).setDescription(
+    "- **Salon** : " + channel.name + "\n- **Messages supprimes** : " + deleted.size + "/" + nombre,
+  );
 
   await interaction.editReply({ embeds: [embed] });
 }
@@ -458,14 +566,25 @@ async function handleLock(interaction: ChatInputCommandInteraction) {
       SendMessages: false,
     });
 
-    const embed = baseEmbed("Salon verrouille", 0xff3344)
-      .setDescription("- **Salon** : " + channel.name + "\n- **Moderateur** : " + interaction.user.tag);
+    const embed = baseEmbed("Salon verrouille", 0xff3344).setDescription(
+      "- **Salon** : " + channel.name + "\n- **Moderateur** : " + interaction.user.tag,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE LOCK]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de verrouiller le salon.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de verrouiller le salon.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de verrouiller le salon.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de verrouiller le salon.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -483,14 +602,27 @@ async function handleUnlock(interaction: ChatInputCommandInteraction) {
       SendMessages: null,
     });
 
-    const embed = baseEmbed("Salon deverrouille", 0x53fc18)
-      .setDescription("- **Salon** : " + channel.name + "\n- **Moderateur** : " + interaction.user.tag);
+    const embed = baseEmbed("Salon deverrouille", 0x53fc18).setDescription(
+      "- **Salon** : " + channel.name + "\n- **Moderateur** : " + interaction.user.tag,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE UNLOCK]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de deverrouiller le salon.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de deverrouiller le salon.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({
+        embeds: [errorEmbed("Impossible de deverrouiller le salon.")],
+      });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de deverrouiller le salon.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -499,7 +631,7 @@ async function handleSoftban(interaction: ChatInputCommandInteraction) {
   try {
     const cible = interaction.options.getUser("cible", true);
     const raison = interaction.options.getString("raison") || "Aucune raison fournie";
-    const jours = interaction.options.getInteger("jours") || 7;
+    const _jours = interaction.options.getInteger("jours") || 7;
 
     if (!cible) {
       await interaction.editReply({ embeds: [errorEmbed("Utilisateur introuvable.")] });
@@ -509,14 +641,33 @@ async function handleSoftban(interaction: ChatInputCommandInteraction) {
     await interaction.guild!.members.ban(cible, { reason: raison, deleteMessageSeconds: 604800 });
     await interaction.guild!.members.unban(cible, "Softban automatique");
 
-    const embed = baseEmbed("Softban", 0xffaa00)
-      .setDescription("- **Membre** : " + cible.tag + " (" + cible.id + ")\n- **Moderateur** : " + interaction.user.tag + "\n- **Raison** : " + raison + "\n- **Messages supprimes** : 7 jours");
+    const embed = baseEmbed("Softban", 0xffaa00).setDescription(
+      "- **Membre** : " +
+        cible.tag +
+        " (" +
+        cible.id +
+        ")\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Raison** : " +
+        raison +
+        "\n- **Messages supprimes** : 7 jours",
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE SOFTBAN]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de softban ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de softban ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de softban ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de softban ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -527,7 +678,10 @@ async function handlePurge(interaction: ChatInputCommandInteraction) {
   const channel = interaction.channel as TextChannel;
 
   if (!channel) {
-    await interaction.reply({ embeds: [errorEmbed("Salon introuvable.")], flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      embeds: [errorEmbed("Salon introuvable.")],
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -539,14 +693,22 @@ async function handlePurge(interaction: ChatInputCommandInteraction) {
     const toDelete = userMessages.first(nombre);
 
     if (!toDelete || toDelete.length === 0) {
-      await interaction.editReply({ embeds: [errorEmbed("Aucun message de cet utilisateur trouve.")] });
+      await interaction.editReply({
+        embeds: [errorEmbed("Aucun message de cet utilisateur trouve.")],
+      });
       return;
     }
 
     await channel.bulkDelete(toDelete);
 
-    const embed = baseEmbed("Purge", 0x2f3136)
-      .setDescription("- **Salon** : " + channel.name + "\n- **Utilisateur** : " + cible.tag + "\n- **Messages supprimes** : " + toDelete.length);
+    const embed = baseEmbed("Purge", 0x2f3136).setDescription(
+      "- **Salon** : " +
+        channel.name +
+        "\n- **Utilisateur** : " +
+        cible.tag +
+        "\n- **Messages supprimes** : " +
+        toDelete.length,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
@@ -570,15 +732,31 @@ async function handleSlowmode(interaction: ChatInputCommandInteraction) {
 
     const embed = baseEmbed(
       duree === 0 ? "Slowmode desactive" : "Slowmode active",
-      duree === 0 ? 0x53fc18 : 0xffaa00
-    )
-      .setDescription("- **Salon** : " + channel.name + "\n- **Delai** : " + (duree === 0 ? "Aucun" : duree + " secondes") + "\n- **Moderateur** : " + interaction.user.tag);
+      duree === 0 ? 0x53fc18 : 0xffaa00,
+    ).setDescription(
+      "- **Salon** : " +
+        channel.name +
+        "\n- **Delai** : " +
+        (duree === 0 ? "Aucun" : duree + " secondes") +
+        "\n- **Moderateur** : " +
+        interaction.user.tag,
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE SLOWMODE]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de modifier le slowmode.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de modifier le slowmode.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de modifier le slowmode.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de modifier le slowmode.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -587,7 +765,10 @@ async function handleSnipe(interaction: ChatInputCommandInteraction) {
   const channel = interaction.channel as TextChannel;
 
   if (!channel) {
-    await interaction.reply({ embeds: [errorEmbed("Salon introuvable.")], flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      embeds: [errorEmbed("Salon introuvable.")],
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -598,7 +779,9 @@ async function handleSnipe(interaction: ChatInputCommandInteraction) {
     const deletedMessages = messages.filter((m) => m.author.bot);
 
     if (deletedMessages.size === 0) {
-      await interaction.editReply({ embeds: [errorEmbed("Aucun message supprime recent trouve.")] });
+      await interaction.editReply({
+        embeds: [errorEmbed("Aucun message supprime recent trouve.")],
+      });
       return;
     }
 
@@ -608,7 +791,11 @@ async function handleSnipe(interaction: ChatInputCommandInteraction) {
       .setDescription(lastDeleted?.content || "Contenu vide")
       .addFields(
         { name: "Auteur", value: lastDeleted?.author.tag || "Inconnu", inline: true },
-        { name: "Date", value: lastDeleted?.createdAt.toLocaleString("fr-FR") || "Inconnue", inline: true }
+        {
+          name: "Date",
+          value: lastDeleted?.createdAt.toLocaleString("fr-FR") || "Inconnue",
+          inline: true,
+        },
       );
 
     await interaction.editReply({ embeds: [embed] });
@@ -625,7 +812,10 @@ async function handleHistory(interaction: ChatInputCommandInteraction) {
   const channel = interaction.channel as TextChannel;
 
   if (!channel) {
-    await interaction.reply({ embeds: [errorEmbed("Salon introuvable.")], flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      embeds: [errorEmbed("Salon introuvable.")],
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -637,16 +827,35 @@ async function handleHistory(interaction: ChatInputCommandInteraction) {
     const recentMessages = userMessages.first(nombre);
 
     if (!recentMessages || recentMessages.length === 0) {
-      await interaction.editReply({ embeds: [errorEmbed("Aucun message de cet utilisateur trouve.")] });
+      await interaction.editReply({
+        embeds: [errorEmbed("Aucun message de cet utilisateur trouve.")],
+      });
       return;
     }
 
     const messageList = recentMessages
-      .map((m, i) => "**" + (i + 1) + ".** " + m.createdAt.toLocaleString("fr-FR") + "\n" + m.content.slice(0, 100))
+      .map(
+        (m, i) =>
+          "**" +
+          (i + 1) +
+          ".** " +
+          m.createdAt.toLocaleString("fr-FR") +
+          "\n" +
+          m.content.slice(0, 100),
+      )
       .join("\n\n");
 
     const embed = baseEmbed("Historique des messages", 0x2f3136)
-      .setDescription("- **Utilisateur** : " + cible.tag + "\n- **Messages** : " + recentMessages.length + "/" + nombre + "\n\n" + messageList.slice(0, 4000))
+      .setDescription(
+        "- **Utilisateur** : " +
+          cible.tag +
+          "\n- **Messages** : " +
+          recentMessages.length +
+          "/" +
+          nombre +
+          "\n\n" +
+          messageList.slice(0, 4000),
+      )
       .setFooter({ text: "Salon : " + channel.name + " - " + FOOTER.text });
 
     await interaction.editReply({ embeds: [embed] });
@@ -729,16 +938,39 @@ async function handleTempban(interaction: ChatInputCommandInteraction) {
       }
     }, dureeMs);
 
-    const embed = baseEmbed("Bannissement Temporaire", 0xff6600)
-      .setDescription(
-        "- **Membre** : " + cible.tag + " (" + cible.id + ")\n- **Moderateur** : " + interaction.user.tag + "\n- **Duree** : " + dureeHumaine + "\n- **Deban automatique** : <t:" + Math.floor(dateFin.getTime() / 1000) + ":F>\n- **Raison** : " + raison + "\n- **Messages supprimes** : " + jours + " jour(s)"
-      );
+    const embed = baseEmbed("Bannissement Temporaire", 0xff6600).setDescription(
+      "- **Membre** : " +
+        cible.tag +
+        " (" +
+        cible.id +
+        ")\n- **Moderateur** : " +
+        interaction.user.tag +
+        "\n- **Duree** : " +
+        dureeHumaine +
+        "\n- **Deban automatique** : <t:" +
+        Math.floor(dateFin.getTime() / 1000) +
+        ":F>\n- **Raison** : " +
+        raison +
+        "\n- **Messages supprimes** : " +
+        jours +
+        " jour(s)",
+    );
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE TEMPBAN]:", error);
-    try { await interaction.editReply({ embeds: [errorEmbed("Impossible de bannir ce membre.")] }); }
-    catch { try { await interaction.followUp({ embeds: [errorEmbed("Impossible de bannir ce membre.")], ephemeral: true }); } catch (err) { logger.warn("[Moderation] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ embeds: [errorEmbed("Impossible de bannir ce membre.")] });
+    } catch {
+      try {
+        await interaction.followUp({
+          embeds: [errorEmbed("Impossible de bannir ce membre.")],
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Moderation] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -750,8 +982,15 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
   const jours = interaction.options.getInteger("jours") || 1;
 
   // Reponse immediate pour eviter le timeout
-  const embedProgress = baseEmbed("Purge en cours", 0xffaa00)
-    .setDescription("Scan des salons pour supprimer les messages de **" + cible.tag + "** (" + jours + " jour" + (jours > 1 ? "s" : "") + ")...");
+  const embedProgress = baseEmbed("Purge en cours", 0xffaa00).setDescription(
+    "Scan des salons pour supprimer les messages de **" +
+      cible.tag +
+      "** (" +
+      jours +
+      " jour" +
+      (jours > 1 ? "s" : "") +
+      ")...",
+  );
   await interaction.deferReply();
   await interaction.editReply({ embeds: [embedProgress] });
 
@@ -759,9 +998,7 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
   let channelsScanned = 0;
 
   try {
-    const textChannels = interaction.guild!.channels.cache.filter(
-      (ch) => ch.isTextBased()
-    );
+    const textChannels = interaction.guild!.channels.cache.filter((ch) => ch.isTextBased());
 
     for (const [, channel] of textChannels) {
       const botMember = interaction.guild!.members.me;
@@ -777,9 +1014,7 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
         channelsScanned++;
         const chan = channel as GuildTextBasedChannel;
         const messages = await chan.messages.fetch({ limit: 100 });
-        const userMessages = messages.filter(
-          (msg: Message) => msg.author.id === cible.id
-        );
+        const userMessages = messages.filter((msg: Message) => msg.author.id === cible.id);
 
         if (userMessages.size > 0) {
           try {
@@ -788,14 +1023,14 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
           } catch (bulkErr: unknown) {
             logger.warn(
               "[PurgeUser] BulkDelete impossible dans #" + chan.name + " :",
-              (bulkErr as Error).message
+              (bulkErr as Error).message,
             );
           }
         }
       } catch (fetchErr: unknown) {
         logger.warn(
           "[PurgeUser] Fetch impossible dans #" + (channel as GuildTextBasedChannel).name + " :",
-          (fetchErr as Error).message
+          (fetchErr as Error).message,
         );
         continue;
       }
@@ -809,7 +1044,7 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
     .addFields(
       { name: "Messages supprimes", value: "" + totalDeleted, inline: true },
       { name: "Salons scannes", value: "" + channelsScanned, inline: true },
-      { name: "Periode", value: jours + " jour" + (jours > 1 ? "s" : ""), inline: true }
+      { name: "Periode", value: jours + " jour" + (jours > 1 ? "s" : ""), inline: true },
     );
 
   await interaction.editReply({ embeds: [embedFinal] });
@@ -818,10 +1053,7 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
 // ============================================================
 // Routeur principal
 // ============================================================
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-  client: Client
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, _client: Client) {
   try {
     await requireMod(interaction);
 

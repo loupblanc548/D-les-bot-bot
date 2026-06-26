@@ -4,13 +4,12 @@ import {
   GuildMember,
   EmbedBuilder,
   PermissionFlagsBits,
-  TextChannel,
 } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { createLog } from "../services/logs.js";
 import { resolveAlert, type AlertAction } from "../services/alert-service.js";
-import { recordSanction, type SanctionType } from "../services/risk-engine.js";
+import { recordSanction } from "../services/risk-engine.js";
 
 // ============================================================
 // Gestionnaire des boutons interactifs d'alerte
@@ -35,7 +34,9 @@ export function handleAlertInteractions(client: Client): void {
       // Vérifier les permissions du modérateur
       const member = interaction.member as GuildMember | null;
       if (!member) {
-        await interaction.editReply({ content: "\u274C Impossible de v\u00E9rifier vos permissions." });
+        await interaction.editReply({
+          content: "\u274C Impossible de v\u00E9rifier vos permissions.",
+        });
         return;
       }
 
@@ -51,12 +52,20 @@ export function handleAlertInteractions(client: Client): void {
       const alert = await resolveAlert(alertId, action, interaction.user.id);
 
       if (!alert) {
-        await interaction.editReply({ content: "\u274C Cette alerte n'est plus en attente ou n'existe pas." });
+        await interaction.editReply({
+          content: "\u274C Cette alerte n'est plus en attente ou n'existe pas.",
+        });
         return;
       }
 
       // Exécuter l'action correspondante
-      const actionResult = await executeAlertAction(action, alert.userId, alert.guildId, interaction, client);
+      const actionResult = await executeAlertAction(
+        action,
+        alert.userId,
+        alert.guildId,
+        interaction,
+        client,
+      );
 
       // Mettre à jour l'embed original pour montrer la résolution
       try {
@@ -83,7 +92,9 @@ export function handleAlertInteractions(client: Client): void {
     } catch (error) {
       logger.error(`[AlertInteraction] Erreur traitement alerte ${alertId}:`, error);
       try {
-        await interaction.editReply({ content: "\u274C Une erreur est survenue lors du traitement de l'alerte." });
+        await interaction.editReply({
+          content: "\u274C Une erreur est survenue lors du traitement de l'alerte.",
+        });
       } catch {}
     }
   });
@@ -117,7 +128,7 @@ async function executeAlertAction(
   userId: string,
   guildId: string,
   interaction: ButtonInteraction,
-  client: Client
+  client: Client,
 ): Promise<string | null> {
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return null;

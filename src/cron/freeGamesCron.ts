@@ -13,7 +13,6 @@
 
 import { Client } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
-import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import {
@@ -35,7 +34,7 @@ function generateSummary(content: string): string {
   if (!content) return "Aucune description disponible";
 
   let cleanText = content.replace(/<[^>]*>/g, "");
-  cleanText = cleanText.replace(new RegExp("\[?/[a-z]+\]", "gi"), "");
+  cleanText = cleanText.replace(/\[\/?[a-z]+\]/gi, "");
   cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, "");
   cleanText = cleanText.replace(/\s+/g, " ").trim();
 
@@ -96,7 +95,9 @@ async function processFreeGame(client: Client, item: FreeGameItem): Promise<void
       translatedContent = contentResult.translatedText;
     }
   } catch (error) {
-    logger.debug(`[FreeGamesCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[FreeGamesCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   if (translatedContent.length > 1800) {
@@ -117,13 +118,11 @@ async function processFreeGame(client: Client, item: FreeGameItem): Promise<void
     );
 
     logger.info(
-      `[FreeGamesCron] Route: "${translatedTitle.slice(0, 60)}" -> ${routingResult.sentTo.length} salon(s), ${routingResult.errors.length} erreur(s)`
+      `[FreeGamesCron] Route: "${translatedTitle.slice(0, 60)}" -> ${routingResult.sentTo.length} salon(s), ${routingResult.errors.length} erreur(s)`,
     );
 
     if (routingResult.errors.length > 0) {
-      logger.warn(
-        `[FreeGamesCron] Erreurs routage: ${routingResult.errors.join("; ")}`
-      );
+      logger.warn(`[FreeGamesCron] Erreurs routage: ${routingResult.errors.join("; ")}`);
     }
 
     // Etape 4: Marquage — seulement si route
@@ -135,7 +134,7 @@ async function processFreeGame(client: Client, item: FreeGameItem): Promise<void
   } catch (error) {
     logger.error(
       `[FreeGamesCron] Echec routage: ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined }
+      { stack: error instanceof Error ? error.stack : undefined },
     );
   }
 }
@@ -167,13 +166,17 @@ async function checkFreeGames(client: Client): Promise<void> {
         processedCount++;
       } catch (err) {
         failedCount++;
-        logger.error(`[FreeGamesCron] Erreur traitement jeu: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(
+          `[FreeGamesCron] Erreur traitement jeu: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
     logger.info(`[FreeGamesCron] ${processedCount} traite(s), ${failedCount} echec(s)`);
   } catch (error) {
-    logger.error(`[FreeGamesCron] Erreur critique: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `[FreeGamesCron] Erreur critique: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -200,7 +203,11 @@ export function startFreeGamesMonitoring(client: Client): void {
     logger.info("[FreeGamesCron] Verification des jeux gratuits");
 
     checkFreeGames(client)
-      .catch((err) => logger.error(`[FreeGamesCron] Erreur cron: ${err instanceof Error ? err.message : String(err)}`))
+      .catch((err) =>
+        logger.error(
+          `[FreeGamesCron] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      )
       .finally(() => {
         isChecking = false;
       });

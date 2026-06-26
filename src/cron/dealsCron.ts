@@ -3,9 +3,8 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import cron from "node-cron";
 import axios from "axios";
-import { randomUUID } from "crypto";
 import { config } from "../config.js";
-import { retry, isRetryableError } from "../utils/retry.js";
+import { retry } from "../utils/retry.js";
 import { dbCache } from "../utils/cache.js";
 import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { metricsCollector } from "../utils/metrics.js";
@@ -93,7 +92,7 @@ let dealsCronJob: ReturnType<typeof cron.schedule> | null = null;
 function detectPlatforms(title: string): PlatformConfig[] {
   const lowerTitle = title.toLowerCase();
   const detectedPlatforms: PlatformConfig[] = [];
-  
+
   for (const platform of PLATFORM_CONFIGS) {
     for (const keyword of platform.keywords) {
       const kw = keyword.toLowerCase();
@@ -108,7 +107,7 @@ function detectPlatforms(title: string): PlatformConfig[] {
       }
     }
   }
-  
+
   return detectedPlatforms;
 }
 
@@ -145,13 +144,13 @@ async function isDealProcessed(guid: string): Promise<boolean> {
 async function markDealProcessed(guid: string): Promise<void> {
   try {
     await prisma.processedDeal.upsert({
-        where: { guid },
-        update: { guid },
+      where: { guid },
+      update: { guid },
       create: { guid },
     });
     // Update cache
     dbCache.set(guid, true);
-  } catch (error) {
+  } catch (_error) {
     logger.debug("[DealsCron] Deal deja persiste, ignore");
   }
 }
@@ -168,7 +167,7 @@ function generateDealGuid(item: DealItem): string {
 async function sendDealEmbed(
   client: Client,
   item: DealItem,
-  platform: PlatformConfig
+  platform: PlatformConfig,
 ): Promise<void> {
   if (!platform.channelId) {
     logger.warn(`[DealsCron] Salon non configure pour ${platform.name}`);
@@ -178,39 +177,39 @@ async function sendDealEmbed(
   try {
     const channel = await client.channels.fetch(platform.channelId);
     if (!channel?.isTextBased()) {
-      logger.warn(
-        `[DealsCron] Channel ${platform.channelId} non disponible pour ${platform.name}`
-      );
-    return;
-  }
+      logger.warn(`[DealsCron] Channel ${platform.channelId} non disponible pour ${platform.name}`);
+      return;
+    }
 
     // Nettoyer le HTML de la description avant traduction
     const cleanHtmlContent = (item.contentSnippet || item.content || "")
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
-      .replace(/\s+/g, ' ')
+      .replace(/\s+/g, " ")
       .trim();
 
     // Traduire le titre si nécessaire
     let translatedTitle = item.title;
     let translatedDescription = cleanHtmlContent;
-    
+
     try {
       const titleResult = await translateAutoToFrench(item.title);
       if (titleResult && titleResult.detectedLanguage !== "fr") {
         translatedTitle = titleResult.translatedText;
       }
-      
+
       const descResult = await translateAutoToFrench(cleanHtmlContent);
       if (descResult && descResult.detectedLanguage !== "fr") {
         translatedDescription = descResult.translatedText;
       }
     } catch (error) {
-      logger.debug(`[DealsCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`);
+      logger.debug(
+        `[DealsCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     const finalDescription = translatedDescription.substring(0, 1000);
@@ -226,7 +225,7 @@ async function sendDealEmbed(
       .setImage(imageUrl)
       .addFields(
         { name: "Plateforme", value: platform.name, inline: true },
-        { name: "Publie le", value: new Date(item.pubDate).toLocaleString("fr-FR"), inline: true }
+        { name: "Publie le", value: new Date(item.pubDate).toLocaleString("fr-FR"), inline: true },
       )
       .setTimestamp()
       .setFooter({ text: "🎮 Surveillance des offres • " + platform.name });
@@ -236,7 +235,7 @@ async function sendDealEmbed(
   } catch (error) {
     logger.error(
       `[DealsCron] Erreur envoi deal ${platform.name}: ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined }
+      { stack: error instanceof Error ? error.stack : undefined },
     );
   }
 }
@@ -250,7 +249,7 @@ async function processDealItem(client: Client, item: DealItem): Promise<void> {
   try {
     // Validate RSS item
     if (!validateRssItem(item as unknown as Record<string, unknown>)) {
-      logger.warn(`[DealsCron] Item RSS invalide ignore: ${item.title || 'sans titre'}`);
+      logger.warn(`[DealsCron] Item RSS invalide ignore: ${item.title || "sans titre"}`);
       return;
     }
 
@@ -283,29 +282,29 @@ async function processDealItem(client: Client, item: DealItem): Promise<void> {
         await sendDealEmbed(client, item, defaultPlatform);
       }
       // Marquer dans le cache JSON anti-doublon
-    await dedupCache.markAsProcessed("deals", guid);
-    await markDealProcessed(guid);
-    return;
-  }
+      await dedupCache.markAsProcessed("deals", guid);
+      await markDealProcessed(guid);
+      return;
+    }
 
     // Send to all detected platforms (multi-platform routing)
     for (const platform of platforms) {
       if (!platform.channelId) {
         logger.warn(
-          `[DealsCron] Salon non configure pour ${platform.name}, deal ignore: ${item.title}`
+          `[DealsCron] Salon non configure pour ${platform.name}, deal ignore: ${item.title}`,
         );
         continue;
       }
       await sendDealEmbed(client, item, platform);
       // 🔒 Delai anti rate-limit Discord (1s entre chaque envoi)
       await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
+    }
 
     await markDealProcessed(guid);
   } catch (error) {
     logger.error(
       `[DealsCron] Erreur traitement deal "${item.title}": ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined }
+      { stack: error instanceof Error ? error.stack : undefined },
     );
   }
 }
@@ -320,7 +319,7 @@ async function checkDeals(client: Client): Promise<void> {
   const hasAnyChannel = PLATFORM_CONFIGS.some((p) => p.channelId);
   if (!hasAnyChannel) {
     logger.warn(
-      "[DealsCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive"
+      "[DealsCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive",
     );
     metricsCollector.recordProcessing(jobName, false, Date.now() - startTime);
     return;
@@ -332,14 +331,10 @@ async function checkDeals(client: Client): Promise<void> {
     for (const feedUrl of RSS_FEEDS) {
       try {
         logger.debug(`[DealsCron] Analyse du flux: ${feedUrl}`);
-        
+
         // Fetch via rss2json API (JSON direct, pas besoin de parser XML) with retry logic
-        const response = await retry(
-          () => axios.get(feedUrl, { timeout: 10000 }),
-          3,
-          1000
-        );
-        
+        const response = await retry(() => axios.get(feedUrl, { timeout: 10000 }), 3, 1000);
+
         const feed = response.data;
         const items = feed.items || [];
 
@@ -351,26 +346,22 @@ async function checkDeals(client: Client): Promise<void> {
         const recentItems = items.slice(0, 10) as DealItem[];
 
         // Process items in parallel for better performance
-        await Promise.all(
-          recentItems.map(item => processDealItem(client, item))
-        );
+        await Promise.all(recentItems.map((item) => processDealItem(client, item)));
 
-        logger.info(
-          `[DealsCron] ${recentItems.length} item(s) traite(s) depuis ${feedUrl}`
-        );
+        logger.info(`[DealsCron] ${recentItems.length} item(s) traite(s) depuis ${feedUrl}`);
       } catch (error) {
         logger.error(
           `[DealsCron] Erreur analyse du flux ${feedUrl}: ${error instanceof Error ? error.message : String(error)}`,
-          { stack: error instanceof Error ? error.stack : undefined }
+          { stack: error instanceof Error ? error.stack : undefined },
         );
       }
-  }
+    }
 
     metricsCollector.recordProcessing(jobName, true, Date.now() - startTime);
   } catch (error) {
     logger.error(
       `[DealsCron] Erreur globale du cron: ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined }
+      { stack: error instanceof Error ? error.stack : undefined },
     );
     metricsCollector.recordProcessing(jobName, false, Date.now() - startTime);
   }
@@ -385,29 +376,25 @@ export function startDealsMonitoring(client: Client): void {
   // Securite anti-crash : garde au demarrage
   const hasAnyChannel = PLATFORM_CONFIGS.some((p) => p.channelId);
   if (!hasAnyChannel) {
-    logger.warn(
-      "[DealsCron] Aucun CHANNEL_ID configure — surveillance desactivee"
-    );
+    logger.warn("[DealsCron] Aucun CHANNEL_ID configure — surveillance desactivee");
     return;
   }
 
-  logger.info(
-    "[DealsCron] Demarrage de la surveillance des deals (toutes les 30 minutes)"
-  );
+  logger.info("[DealsCron] Demarrage de la surveillance des deals (toutes les 30 minutes)");
 
   checkDeals(client).catch((err) =>
     logger.error(
       `[DealsCron] Erreur check initial: ${err instanceof Error ? err.message : String(err)}`,
-      { stack: err instanceof Error ? err.stack : undefined }
-    )
+      { stack: err instanceof Error ? err.stack : undefined },
+    ),
   );
 
   dealsCronJob = cron.schedule("*/30 * * * *", () => {
     checkDeals(client).catch((err) =>
       logger.error(
         `[DealsCron] Erreur check periodique: ${err instanceof Error ? err.message : String(err)}`,
-        { stack: err instanceof Error ? err.stack : undefined }
-      )
+        { stack: err instanceof Error ? err.stack : undefined },
+      ),
     );
   });
 }

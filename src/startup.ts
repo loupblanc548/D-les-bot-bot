@@ -5,21 +5,25 @@
  * Contient : initSchedulers, sendStatusReport, attachStartupLogic
  */
 
-import {
-  Client,
-  Events,
-} from "discord.js";
+import { Client, Events } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
 import { runStartupRetrospective } from "./services/feeds.js";
-import { startMonitoring, runDbSourcesRetrospective } from "./services/monitor.js";
+import {
+  startMonitoring,
+  startInactivityCheck,
+  runDbSourcesRetrospective,
+} from "./services/monitor.js";
 import { sendHealthReport } from "./services/healthcheck.js";
 import { validateChannels } from "./services/channel-validator.js";
 import { startPatchNotesService } from "./services/patchNotes.js";
 import { startBackupService } from "./services/backup.js";
-import { startInstantGamingNewsCheck, checkInstantGamingNews } from "./services/instantgaming-news.js";
+import {
+  startInstantGamingNewsCheck,
+  checkInstantGamingNews,
+} from "./services/instantgaming-news.js";
 import { startInstantGamingCheck } from "./services/instantgaming.js";
 import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron.js";
 import { checkFreeGames } from "./cron/freeGamesCron.js";
@@ -33,7 +37,6 @@ import { registerInterval } from "./shutdown.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
 import { startAutoCleanup } from "./services/auto-cleanup.js";
-
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -54,7 +57,7 @@ async function initSchedulers(client: Client): Promise<void> {
         orderBy: { createdAt: "desc" },
         take: 100,
       });
-      return entries.map(e => e.uniqueId);
+      return entries.map((e) => e.uniqueId);
     });
     logger.info("🔒 Cache prime depuis Neon (ProcessedCache) : OK");
   } catch (err) {
@@ -77,7 +80,9 @@ async function initSchedulers(client: Client): Promise<void> {
     ]);
     logger.info("🔒 [PHASE 0] Scan silencieux termine (cache prime, 0 message envoye)");
   } catch (err) {
-    logger.error(`🔒 [PHASE 0] Erreur scan silencieux: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `🔒 [PHASE 0] Erreur scan silencieux: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // 0d. Desactive le mode silencieux
@@ -98,8 +103,8 @@ async function initSchedulers(client: Client): Promise<void> {
     checkPatchNotes(client),
   ]);
 
-  const succeeded = results.filter(r => r.status === "fulfilled").length;
-  const failed = results.filter(r => r.status === "rejected").length;
+  const succeeded = results.filter((r) => r.status === "fulfilled").length;
+  const failed = results.filter((r) => r.status === "rejected").length;
   logger.info(`♻️ [PHASE 1] Scan reel termine (${succeeded} OK, ${failed} echec(s))`);
 
   logger.info("⏱️ Planification Cron...");
@@ -116,7 +121,10 @@ async function initSchedulers(client: Client): Promise<void> {
 
 // ─── Helper : Embed de statut (actuellement désactivé) ─────────────────────
 
-export function attachStartupLogic(client: Client, healthResults: import("./services/healthcheck.js").CheckResult[]): void {
+export function attachStartupLogic(
+  client: Client,
+  healthResults: import("./services/healthcheck.js").CheckResult[],
+): void {
   client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
@@ -126,22 +134,42 @@ export function attachStartupLogic(client: Client, healthResults: import("./serv
       client.users
         .fetch(config.ownerId)
         .then((owner) => owner.send(`🚀 **${readyClient.user.username}** vient de demarrer !`))
-        .catch((error) => logger.error(`[Startup] Impossible d'envoyer le MP au proprietaire: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined }));
+        .catch((error) =>
+          logger.error(
+            `[Startup] Impossible d'envoyer le MP au proprietaire: ${error instanceof Error ? error.message : String(error)}`,
+            { stack: error instanceof Error ? error.stack : undefined },
+          ),
+        );
     }
 
     // Wishlist Fortnite (startup + interval)
     logger.info("[Startup] Verification wishlist Fortnite...");
     try {
       const matches = await checkWishlistMatches(client);
-      if (matches > 0) logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) au demarrage`);
+      if (matches > 0)
+        logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) au demarrage`);
     } catch (e) {
-      logger.error(`[Startup] Erreur wishlist check: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+      logger.error(
+        `[Startup] Erreur wishlist check: ${e instanceof Error ? e.message : String(e)}`,
+        { stack: e instanceof Error ? e.stack : undefined },
+      );
     }
-    const wishlistInterval = setInterval(() => {
-      checkWishlistMatches(client).then((matches) => {
-        if (matches > 0) logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) (check cyclique)`);
-      }).catch((e) => logger.error(`[FortniteAPI/Wishlist] Erreur cyclique: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined }));
-    }, 24 * 60 * 60 * 1000);
+    const wishlistInterval = setInterval(
+      () => {
+        checkWishlistMatches(client)
+          .then((matches) => {
+            if (matches > 0)
+              logger.info(`[FortniteAPI/Wishlist] ${matches} DM(s) envoye(s) (check cyclique)`);
+          })
+          .catch((e) =>
+            logger.error(
+              `[FortniteAPI/Wishlist] Erreur cyclique: ${e instanceof Error ? e.message : String(e)}`,
+              { stack: e instanceof Error ? e.stack : undefined },
+            ),
+          );
+      },
+      24 * 60 * 60 * 1000,
+    );
     registerInterval(wishlistInterval);
 
     // Rattrapage startup
@@ -151,7 +179,10 @@ export function attachStartupLogic(client: Client, healthResults: import("./serv
       await runDbSourcesRetrospective(client);
       await runWishlistRetrospective(client);
     } catch (e) {
-      logger.error(`[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+      logger.error(
+        `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
+        { stack: e instanceof Error ? e.stack : undefined },
+      );
     }
 
     // Validation des salons
@@ -165,6 +196,7 @@ export function attachStartupLogic(client: Client, healthResults: import("./serv
     logger.info("[Startup] Demarrage des services...");
     const services = [
       () => startMonitoring(client),
+      () => startInactivityCheck(client),
       () => startTwitchMonitoring(client),
       () => startPatchNotesService(client),
       () => startBackupService(client),
@@ -176,19 +208,21 @@ export function attachStartupLogic(client: Client, healthResults: import("./serv
       () => startAutoCleanup(client),
     ];
     for (const start of services) {
-      try { start(); } catch (e) { logger.error(`[Startup] Erreur démarrage service: ${e}`); }
+      try {
+        start();
+      } catch (e) {
+        logger.error(`[Startup] Erreur démarrage service: ${e}`);
+      }
     }
 
     await initSchedulers(client);
     await sendHealthReport(client, healthResults);
 
-    logger
-.info("");
+    logger.info("");
     logger.info("=".repeat(55));
     logger.info("  ✅ BOT DEMARRE AVEC SUCCES");
     logger.info(`  📡 Surveillance active (${client.guilds.cache.size} serveurs)`);
     logger.info("  🟢 Tous les modules sont operationnels");
     logger.info("=".repeat(55));
-  
   });
 }

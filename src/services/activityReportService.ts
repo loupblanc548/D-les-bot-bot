@@ -45,17 +45,20 @@ class ActivityReportService {
    */
   async generateReport(hours: number): Promise<ActivityReport> {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-    const period = hours >= 168 ? "7 derniers jours" : 
-                  hours >= 24 ? "24 dernières heures" : 
-                  `${hours} dernières heures`;
+    const period =
+      hours >= 168
+        ? "7 derniers jours"
+        : hours >= 24
+          ? "24 dernières heures"
+          : `${hours} dernières heures`;
 
     try {
       // Récupérer les logs de commandes depuis la base de données
       const commandLogs = await prisma.commandLog.findMany({
-        where: { 
-          timestamp: { gte: since }
+        where: {
+          timestamp: { gte: since },
         },
-        orderBy: { timestamp: 'desc' }
+        orderBy: { timestamp: "desc" },
       });
 
       // Analyser les logs pour extraire les statistiques
@@ -72,7 +75,10 @@ class ActivityReportService {
 
         // Statistiques utilisateurs
         if (log.userId) {
-          const userStatsData = userStats.get(log.userId) || { count: 0, lastActive: log.timestamp };
+          const userStatsData = userStats.get(log.userId) || {
+            count: 0,
+            lastActive: log.timestamp,
+          };
           userStatsData.count++;
           if (log.timestamp > userStatsData.lastActive) {
             userStatsData.lastActive = log.timestamp;
@@ -84,7 +90,7 @@ class ActivityReportService {
       // Calculer les statistiques finales
       const totalCommands = commandLogs.length;
       const uniqueUsers = userStats.size;
-      const totalErrors = 0; // Pas de champ d'erreur dans CommandLog
+      const _totalErrors = 0; // Pas de champ d'erreur dans CommandLog
       const errorRate = 0;
 
       // Top commandes
@@ -93,7 +99,7 @@ class ActivityReportService {
           name,
           uses: stats.uses,
           successRate: stats.uses > 0 ? ((stats.uses - stats.errors) / stats.uses) * 100 : 100,
-          avgResponseTime: stats.uses > 0 ? stats.totalTime / stats.uses : 0
+          avgResponseTime: stats.uses > 0 ? stats.totalTime / stats.uses : 0,
         }))
         .sort((a, b) => b.uses - a.uses)
         .slice(0, 10);
@@ -104,7 +110,7 @@ class ActivityReportService {
           userId,
           username: this.getUsername(userId),
           commandCount: stats.count,
-          lastActive: stats.lastActive
+          lastActive: stats.lastActive,
         }))
         .sort((a, b) => b.commandCount - a.commandCount)
         .slice(0, 10);
@@ -116,7 +122,7 @@ class ActivityReportService {
         topCommands,
         topUsers,
         errorRate,
-        avgResponseTime: 0 // Calculer si des temps de réponse sont disponibles
+        avgResponseTime: 0, // Calculer si des temps de réponse sont disponibles
       };
     } catch (error) {
       logger.error(`[ActivityReport] Erreur génération rapport: ${error}`);
@@ -147,7 +153,7 @@ class ActivityReportService {
       topCommands: [],
       topUsers: [],
       errorRate: 0,
-      avgResponseTime: 0
+      avgResponseTime: 0,
     };
   }
 
@@ -164,19 +170,22 @@ class ActivityReportService {
     embed.addFields(
       { name: "🎮 Commandes totales", value: report.totalCommands.toString(), inline: true },
       { name: "👥 Utilisateurs uniques", value: report.uniqueUsers.toString(), inline: true },
-      { name: "❌ Taux d'erreur", value: `${report.errorRate.toFixed(1)}%`, inline: true }
+      { name: "❌ Taux d'erreur", value: `${report.errorRate.toFixed(1)}%`, inline: true },
     );
 
     // Top commandes
     if (report.topCommands.length > 0) {
       const topCommandsText = report.topCommands
-        .map((cmd, i) => `${i + 1}. \`/${cmd.name}\`: ${cmd.uses} utilisations (${cmd.successRate.toFixed(1)}% succès)`)
+        .map(
+          (cmd, i) =>
+            `${i + 1}. \`/${cmd.name}\`: ${cmd.uses} utilisations (${cmd.successRate.toFixed(1)}% succès)`,
+        )
         .join("\n");
-      
+
       embed.addFields({
         name: "🏆 Top commandes",
         value: topCommandsText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -185,11 +194,11 @@ class ActivityReportService {
       const topUsersText = report.topUsers
         .map((user, i) => `${i + 1}. ${user.username}: ${user.commandCount} commandes`)
         .join("\n");
-      
+
       embed.addFields({
         name: "👥 Top utilisateurs",
         value: topUsersText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -199,7 +208,7 @@ class ActivityReportService {
       embed.addFields({
         name: "📈 Répartition des commandes",
         value: "```" + chart + "```",
-        inline: false
+        inline: false,
       });
     }
 
@@ -210,15 +219,15 @@ class ActivityReportService {
    * Génère un graphique ASCII simple pour les commandes
    */
   private generateCommandChart(commands: CommandUsage[]): string {
-    const maxUses = Math.max(...commands.map(c => c.uses));
-    
+    const maxUses = Math.max(...commands.map((c) => c.uses));
+
     let chart = "";
     for (const cmd of commands) {
       const barLength = Math.round((cmd.uses / maxUses) * 20);
       const bar = "█".repeat(barLength) + "░".repeat(20 - barLength);
       chart += `${cmd.name.padEnd(15)} ${bar} ${cmd.uses}\n`;
     }
-    
+
     return chart;
   }
 
@@ -243,7 +252,7 @@ class ActivityReportService {
 
       await (channel as TextChannel).send({
         content: "📊 **Rapport d'activité automatique**",
-        embeds: [embed]
+        embeds: [embed],
       });
 
       logger.info(`[ActivityReport] Rapport envoyé pour ${report.period}`);
@@ -264,7 +273,7 @@ class ActivityReportService {
     try {
       const [report1, report2] = await Promise.all([
         this.generateReport(hours1),
-        this.generateReport(hours2)
+        this.generateReport(hours2),
       ]);
 
       const embed = new AdvancedEmbedBuilder()
@@ -274,26 +283,26 @@ class ActivityReportService {
 
       // Comparaison des commandes
       const commandGrowth = report2.totalCommands - report1.totalCommands;
-      const commandGrowthPercent = report1.totalCommands > 0 
-        ? ((commandGrowth / report1.totalCommands) * 100).toFixed(1)
-        : "0";
+      const commandGrowthPercent =
+        report1.totalCommands > 0
+          ? ((commandGrowth / report1.totalCommands) * 100).toFixed(1)
+          : "0";
 
       const userGrowth = report2.uniqueUsers - report1.uniqueUsers;
-      const userGrowthPercent = report1.uniqueUsers > 0
-        ? ((userGrowth / report1.uniqueUsers) * 100).toFixed(1)
-        : "0";
+      const userGrowthPercent =
+        report1.uniqueUsers > 0 ? ((userGrowth / report1.uniqueUsers) * 100).toFixed(1) : "0";
 
       embed.addFields(
-        { 
-          name: "📈 Croissance des commandes", 
+        {
+          name: "📈 Croissance des commandes",
           value: `${commandGrowth > 0 ? "+" : ""}${commandGrowth} (${commandGrowthPercent}%)`,
-          inline: true 
+          inline: true,
         },
-        { 
-          name: "👥 Croissance des utilisateurs", 
+        {
+          name: "👥 Croissance des utilisateurs",
           value: `${userGrowth > 0 ? "+" : ""}${userGrowth} (${userGrowthPercent}%)`,
-          inline: true 
-        }
+          inline: true,
+        },
       );
 
       const channel = await this.client.channels.fetch(config.logChannel);
@@ -304,7 +313,7 @@ class ActivityReportService {
 
       await (channel as TextChannel).send({
         content: "📊 **Rapport comparatif**",
-        embeds: [embed]
+        embeds: [embed],
       });
 
       logger.info("[ActivityReport] Rapport comparatif envoyé");
@@ -329,20 +338,20 @@ class ActivityReportService {
           where: {
             timestamp: {
               gte: dayStart,
-              lte: dayEnd
-            }
-          }
+              lte: dayEnd,
+            },
+          },
         });
 
         trends.push({
-          date: dayStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
-          commands: count
+          date: dayStart.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+          commands: count,
         });
       } catch (error) {
         logger.error(`[ActivityReport] Erreur récupération tendance: ${error}`);
         trends.push({
-          date: dayStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
-          commands: 0
+          date: dayStart.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+          commands: 0,
         });
       }
     }

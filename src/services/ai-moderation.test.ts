@@ -11,7 +11,7 @@ const { mockOpenAI, mockConfig, mockLogger } = vi.hoisted(() => ({
   mockLogger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
-vi.mock("./ai", () => ({ getOpenAIClient: () => mockOpenAI as any }));
+vi.mock("./ai", () => ({ getOpenAIClient: () => mockOpenAI as unknown }));
 vi.mock("../config", () => ({ config: mockConfig }));
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
@@ -31,7 +31,12 @@ describe("ai-moderation", () => {
 
   describe("analyzeToxicity", () => {
     it("should detect toxic content (hate_speech)", async () => {
-      mockAIResponse({ isToxic: true, category: "hate_speech", confidence: 0.95, explanation: "Contenu haineux" });
+      mockAIResponse({
+        isToxic: true,
+        category: "hate_speech",
+        confidence: 0.95,
+        explanation: "Contenu haineux",
+      });
       const result = await analyzeToxicity("message haineux unique");
       expect(result.isToxic).toBe(true);
       expect(result.category).toBe("hate_speech");
@@ -51,7 +56,7 @@ describe("ai-moderation", () => {
       await analyzeToxicity("test model");
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalledWith(
         expect.objectContaining({ model: "openai/gpt-4o-mini" }),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
