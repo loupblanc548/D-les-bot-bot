@@ -14,6 +14,7 @@ import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import { translateToFrench, isLikelyEnglish } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { getTweetImage } from "../utils/image-helpers.js";
 import { pushFortniteDetection } from "../services/fortnite-broadcast.js";
 
 // Constantes
@@ -423,6 +424,14 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
 
         if (tweet.imageUrl) {
           embed.setImage(tweet.imageUrl);
+        } else {
+          // Fallback: scraper l'image du tweet sur xcancel
+          try {
+            const tweetImg = await getTweetImage(tweet.link);
+            if (tweetImg) embed.setImage(tweetImg);
+          } catch {
+            // Ignore image fetch errors
+          }
         }
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

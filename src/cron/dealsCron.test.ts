@@ -179,6 +179,10 @@ vi.mock("../utils/deduplicationCache", () => ({
   },
 }));
 
+vi.mock("../utils/image-helpers", () => ({
+  getOgImage: vi.fn().mockResolvedValue(null),
+}));
+
 afterEach(() => {
   vi.useRealTimers();
 });
