@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 import { EmbedBuilder, TextChannel, Client } from "discord.js";
 import { XMLParser } from "fast-xml-parser";
 import { getOpenAIClient } from "./ai.js";
@@ -130,7 +131,11 @@ export function startPatchNotesService(client: Client) {
     return;
   }
   logger.info("[PatchNotes] Surveillance de " + RSS_FEEDS.length + " flux RSS");
-  patchCheckInterval = setInterval(() => checkAllFeeds(client), config.patchNotesIntervalMs);
+  patchCheckInterval = safeInterval(
+    "PatchNotes",
+    () => checkAllFeeds(client),
+    config.patchNotesIntervalMs,
+  );
   checkAllFeeds(client);
 }
 

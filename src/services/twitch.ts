@@ -1,5 +1,11 @@
-import { TwitchTokenResponse, TwitchUsersResponse, TwitchStreamsResponse, TwitchStream } from "../types/api.js";
+import {
+  TwitchTokenResponse,
+  TwitchUsersResponse,
+  TwitchStreamsResponse,
+  TwitchStream,
+} from "../types/api.js";
 import logger from "../utils/logger.js";
+import { safeInterval } from "../utils/safe-interval.js";
 // Service de surveillance Twitch — notifie quand un streamer passe en live
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import prisma from "../prisma.js";
@@ -29,14 +35,16 @@ async function getTwitchToken(): Promise<string> {
     throw new Error(`Twitch OAuth error: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json() as TwitchTokenResponse;
+  const data = (await res.json()) as TwitchTokenResponse;
   twitchAccessToken = data.access_token;
   tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
   return twitchAccessToken!;
 }
 
 // Récupère les infos d'un streamer via son login
-export async function getStreamerByLogin(login: string): Promise<{ id: string; login: string; displayName: string; profileImageUrl: string } | null> {
+export async function getStreamerByLogin(
+  login: string,
+): Promise<{ id: string; login: string; displayName: string; profileImageUrl: string } | null> {
   const token = await getTwitchToken();
   const res = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`, {
     headers: {
@@ -46,7 +54,7 @@ export async function getStreamerByLogin(login: string): Promise<{ id: string; l
   });
 
   if (!res.ok) return null;
-  const data = await res.json() as TwitchUsersResponse;
+  const data = (await res.json()) as TwitchUsersResponse;
   return (data.data?.[0] as any) || null;
 }
 
@@ -68,7 +76,7 @@ async function getLiveStreams(logins: string[]): Promise<TwitchStream[]> {
     return [];
   }
 
-  const data = await res.json() as TwitchStreamsResponse;
+  const data = (await res.json()) as TwitchStreamsResponse;
   return data.data || [];
 }
 
@@ -86,7 +94,7 @@ async function checkTwitchStreams(client: Client) {
     for (const follow of follows) {
       const isNowLive = liveLogins.has(follow.streamerName.toLowerCase());
       const stream = liveStreams.find(
-        (s: TwitchStream) => s.user_login.toLowerCase() === follow.streamerName.toLowerCase()
+        (s: TwitchStream) => s.user_login.toLowerCase() === follow.streamerName.toLowerCase(),
       );
       if (!stream) continue;
       if (!stream) continue;
@@ -107,19 +115,19 @@ async function checkTwitchStreams(client: Client) {
           .setURL(`https://twitch.tv/${follow.streamerName}`)
           .setDescription(
             `**Jeu :** ${stream.game_name || "Inconnu"}\n` +
-            `**Titre :** ${stream.title}\n` +
-            `**Spectateurs :** ${stream.viewer_count.toLocaleString()}`
+              `**Titre :** ${stream.title}\n` +
+              `**Spectateurs :** ${stream.viewer_count.toLocaleString()}`,
           )
           .setImage(
-            stream.thumbnail_url
-              ?.replace("{width}", "1280")
-              .replace("{height}", "720") || ""
+            stream.thumbnail_url?.replace("{width}", "1280").replace("{height}", "720") || "",
           )
           .setFooter({ text: "Surveillance System • Twitch" })
           .setTimestamp();
 
         await (channel as TextChannel).send({ embeds: [embed] }).catch(() => {});
-        logger.info(`[TWITCH] ${follow.streamerName} est en live → notifié dans #${(channel as TextChannel).name}`);
+        logger.info(
+          `[TWITCH] ${follow.streamerName} est en live → notifié dans #${(channel as TextChannel).name}`,
+        );
       } else if (!isNowLive && follow.isLive) {
         // Fin du live
         await prisma.twitchFollow.update({
@@ -144,7 +152,7 @@ export function startTwitchMonitoring(client: Client, intervalMs: number = 120_0
 
   logger.info("[TWITCH] Surveillance démarrée (vérification toutes les 2 min)");
   checkTwitchStreams(client); // Premier check immédiat
-  twitchInterval = setInterval(() => checkTwitchStreams(client), intervalMs);
+  twitchInterval = safeInterval("Twitch", () => checkTwitchStreams(client), intervalMs);
 }
 
 // Arrête la surveillance
