@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   extractArticleImage,
   extractImageFromHtml,
@@ -43,8 +43,7 @@ describe("extractImageFromHtml", () => {
   });
 
   it("extrait la première image parmi plusieurs", () => {
-    const html =
-      '<img src="https://a.com/1.jpg" /><img src="https://a.com/2.jpg" />';
+    const html = '<img src="https://a.com/1.jpg" /><img src="https://a.com/2.jpg" />';
     expect(extractImageFromHtml(html)).toBe("https://a.com/1.jpg");
   });
 });

@@ -9,7 +9,12 @@ import {
   TextChannel,
 } from "discord.js";
 import { requireAdmin } from "../services/permissions.js";
-import { startDictation, stopDictation, hasActiveSession, cancelDictation } from "../services/dictation.js";
+import {
+  startDictation,
+  stopDictation,
+  hasActiveSession,
+  cancelDictation,
+} from "../services/dictation.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -20,25 +25,19 @@ export const commands = [
         .setName("action")
         .setDescription("Démarrer ou arrêter la dictée")
         .setRequired(true)
-        .addChoices(
-          { name: "▶️ Démarrer", value: "start" },
-          { name: "⏹️ Arrêter", value: "stop" }
-        )
+        .addChoices({ name: "▶️ Démarrer", value: "start" }, { name: "⏹️ Arrêter", value: "stop" }),
     )
     .addChannelOption((option) =>
       option
         .setName("salon")
         .setDescription("Salon où le texte sera envoyé (requis pour start)")
         .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText)
+        .addChannelTypes(ChannelType.GuildText),
     )
     .toJSON(),
 ];
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-  client: Client
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client) {
   if (!(await requireAdmin(interaction))) return;
 
   const action = interaction.options.getString("action", true);
@@ -68,7 +67,8 @@ export async function handleCommand(
       const targetChannel = interaction.options.getChannel("salon");
       if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
         await interaction.reply({
-          content: "❌ Tu dois spécifier un salon textuel (option «salon») où le texte sera envoyé.",
+          content:
+            "❌ Tu dois spécifier un salon textuel (option «salon») où le texte sera envoyé.",
           flags: [MessageFlags.Ephemeral],
         });
         return;
@@ -80,10 +80,10 @@ export async function handleCommand(
         await startDictation(
           voiceChannel.id,
           interaction.guildId!,
-          interaction.guild!.voiceAdapterCreator as any,
+          interaction.guild!.voiceAdapterCreator as unknown,
           userId,
           interaction.user.displayName,
-          targetChannel.id
+          targetChannel.id,
         );
 
         await interaction.editReply({
@@ -99,12 +99,11 @@ export async function handleCommand(
         });
       }
 
-    // ─── STOP ───────────────────────────────────────────
+      // ─── STOP ───────────────────────────────────────────
     } else if (action === "stop") {
       if (!hasActiveSession(userId)) {
         await interaction.reply({
-          content:
-            "❌ Tu n'as pas de dictée en cours. Utilise `/dictee start` d'abord.",
+          content: "❌ Tu n'as pas de dictée en cours. Utilise `/dictee start` d'abord.",
           flags: [MessageFlags.Ephemeral],
         });
         return;
@@ -143,10 +142,7 @@ export async function handleCommand(
           result.targetChannelId +
           ">.\n📊 **Transcription :** " +
           (result.text
-            ? '"' +
-              result.text.substring(0, 300) +
-              (result.text.length > 300 ? "..." : "") +
-              '"'
+            ? '"' + result.text.substring(0, 300) + (result.text.length > 300 ? "..." : "") + '"'
             : "*(aucun texte)*"),
       });
     }
@@ -165,7 +161,9 @@ export async function handleCommand(
         await interaction.reply({ content: msg, flags: [MessageFlags.Ephemeral] });
       }
     } catch {
-      await interaction.followUp({ content: msg, flags: [MessageFlags.Ephemeral] }).catch((err) => { logger.error("[Dictee] Erreur followUp:", String(err)) });
+      await interaction.followUp({ content: msg, flags: [MessageFlags.Ephemeral] }).catch((err) => {
+        logger.error("[Dictee] Erreur followUp:", String(err));
+      });
     }
   }
 }

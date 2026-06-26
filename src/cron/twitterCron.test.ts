@@ -83,7 +83,6 @@ import {
   checkTwitterAccounts,
   startTwitterMonitoring,
   stopTwitterMonitoring,
-  fetchTweetsForAccount,
   extractTweetId,
 } from "./twitterCron.js";
 
@@ -104,7 +103,7 @@ function createMockClient(channel: any) {
   } as any;
 }
 
-function rssItem(overrides: any = {}) {
+function _rssItem(overrides: any = {}) {
   return {
     title: overrides.title ?? "Tweet from @test",
     link: overrides.link ?? "https://x.com/test/status/12345",
@@ -182,12 +181,12 @@ describe("checkTwitterAccounts", () => {
     expect(mockPrisma.processedTweets.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ tweetId: "111", account: "fortnitegame" }),
-      })
+      }),
     );
     expect(mockPrisma.processedTweets.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ tweetId: "222", account: "helldivers2" }),
-      })
+      }),
     );
   });
 
@@ -234,9 +233,7 @@ describe("checkTwitterAccounts", () => {
     await p;
 
     expect(mockAxiosGet).not.toHaveBeenCalled();
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Aucun CHANNEL_ID"),
-    );
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("Aucun CHANNEL_ID"));
   });
 
   it("ne fait rien quand aucun compte configur\u00E9", async () => {
@@ -289,7 +286,7 @@ describe("checkTwitterAccounts", () => {
 
     // L'erreur est logg\u00E9e
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Flux RSS inaccessible pour @compte2: Network error")
+      expect.stringContaining("Flux RSS inaccessible pour @compte2: Network error"),
     );
 
     // 2 tweets post\u00E9s (compte1 + compte3)
@@ -351,15 +348,13 @@ describe("startTwitterMonitoring / stopTwitterMonitoring", () => {
     startTwitterMonitoring(cl);
     startTwitterMonitoring(cl);
 
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      "[TwitterCron] Déjà actif — ignoré",
-    );
+    expect(mockLogger.warn).toHaveBeenCalledWith("[TwitterCron] Déjà actif — ignoré");
   });
 
   it("stop supprime l'intervalle proprement", () => {
     const mockStop = vi.fn();
     vi.spyOn(cron, "schedule").mockReturnValue({ stop: mockStop } as any);
-    const spy = vi.spyOn(cron, "schedule");
+    const _spy = vi.spyOn(cron, "schedule");
     const ch = createMockTextChannel();
     const cl = createMockClient(ch);
 

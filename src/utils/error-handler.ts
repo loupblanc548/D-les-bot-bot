@@ -5,18 +5,21 @@ import logger from "./logger.js";
  * Fournit des fonctions helpers pour logger les erreurs de manière cohérente
  */
 
-export function logError(context: string, error: unknown, metadata?: Record<string, any>) {
+export function logError(context: string, error: unknown, metadata?: Record<string, unknown>) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
 
-  logger.error(`[${context}] ${errorMessage}`, metadata ? { ...metadata, stack: errorStack } : errorStack);
+  logger.error(
+    `[${context}] ${errorMessage}`,
+    metadata ? { ...metadata, stack: errorStack } : errorStack,
+  );
 }
 
-export function logWarn(context: string, message: string, metadata?: Record<string, any>) {
+export function logWarn(context: string, message: string, metadata?: Record<string, unknown>) {
   logger.warn(`[${context}] ${message}`, metadata);
 }
 
-export function logInfo(context: string, message: string, metadata?: Record<string, any>) {
+export function logInfo(context: string, message: string, metadata?: Record<string, unknown>) {
   logger.info(`[${context}] ${message}`, metadata);
 }
 
@@ -26,7 +29,7 @@ export function logInfo(context: string, message: string, metadata?: Record<stri
 export async function safeAsync<T>(
   fn: () => Promise<T>,
   context: string,
-  fallback?: T
+  fallback?: T,
 ): Promise<T | undefined> {
   try {
     return await fn();
@@ -39,11 +42,7 @@ export async function safeAsync<T>(
 /**
  * Wrapper pour les fonctions sync avec gestion d'erreur automatique
  */
-export function safeSync<T>(
-  fn: () => T,
-  context: string,
-  fallback?: T
-): T | undefined {
+export function safeSync<T>(fn: () => T, context: string, fallback?: T): T | undefined {
   try {
     return fn();
   } catch (error) {

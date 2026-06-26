@@ -18,16 +18,11 @@
 
  */
 
-
-
-import { chromium, Browser } from 'playwright';
-
+import { chromium, Browser } from "playwright";
 
 import { z } from "zod";
 
 import logger from "../utils/logger.js";
-
-import { Prisma } from "@prisma/client";
 
 import prisma from "../prisma.js";
 
@@ -38,11 +33,7 @@ export async function closeBrowser(): Promise<void> {
   await closeScraperBrowser();
 }
 
-
-
 // ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Content Type System ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
-
-
 
 /**
 
@@ -53,7 +44,6 @@ export async function closeBrowser(): Promise<void> {
  */
 
 export enum ContentType {
-
   TWEET = "tweet",
 
   FREE_GAME = "free_game",
@@ -67,10 +57,7 @@ export enum ContentType {
   GAME_UPDATE = "game_update",
 
   PRICE_ALERT = "price_alert",
-
 }
-
-
 
 /**
 
@@ -79,7 +66,6 @@ export enum ContentType {
  */
 
 interface ContentTypeConfig {
-
   /** Nom de la table Prisma (ex: "processedPatchNotes") */
 
   tableName: string;
@@ -87,10 +73,7 @@ interface ContentTypeConfig {
   /** Nom du champ unique utilisÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ© pour la dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©duplication (ex: "guid") */
 
   uniqueField: string;
-
 }
-
-
 
 /**
 
@@ -99,28 +82,22 @@ interface ContentTypeConfig {
  */
 
 const CONTENT_TYPE_CONFIGS: Record<ContentType, ContentTypeConfig> = {
+  [ContentType.TWEET]: { tableName: "processedTweets", uniqueField: "tweetId" },
 
-  [ContentType.TWEET]:          { tableName: "processedTweets",      uniqueField: "tweetId" },
+  [ContentType.FREE_GAME]: { tableName: "processedFreeGames", uniqueField: "redditPostId" },
 
-  [ContentType.FREE_GAME]:      { tableName: "processedFreeGames",   uniqueField: "redditPostId" },
+  [ContentType.PATCH_NOTE]: { tableName: "processedPatchNotes", uniqueField: "guid" },
 
-  [ContentType.PATCH_NOTE]:     { tableName: "processedPatchNotes",  uniqueField: "guid" },
+  [ContentType.DEAL]: { tableName: "processedDeal", uniqueField: "guid" },
 
-  [ContentType.DEAL]:           { tableName: "processedDeal",        uniqueField: "guid" },
+  [ContentType.VIDEO]: { tableName: "processedVideos", uniqueField: "videoId" },
 
-  [ContentType.VIDEO]:          { tableName: "processedVideos",      uniqueField: "videoId" },
+  [ContentType.GAME_UPDATE]: { tableName: "processedGameUpdate", uniqueField: "updateId" },
 
-  [ContentType.GAME_UPDATE]:    { tableName: "processedGameUpdate",  uniqueField: "updateId" },
-
-  [ContentType.PRICE_ALERT]:    { tableName: "processedPriceAlert",  uniqueField: "alertId" },
-
+  [ContentType.PRICE_ALERT]: { tableName: "processedPriceAlert", uniqueField: "alertId" },
 };
 
-
-
 // ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Zod Schema ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Validation Stricte du JSON reÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§u de Python ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
-
-
 
 /**
  * Retourne la configuration Prisma pour un type de contenu donne.
@@ -144,7 +121,6 @@ export function isWithinTemporalBarrier(pubDate: string): boolean {
 }
 
 export const ScrapedDataSchema = z.object({
-
   success: z.boolean(),
 
   title: z.string().optional().default(""),
@@ -160,17 +136,11 @@ export const ScrapedDataSchema = z.object({
   raw: z.string().optional(),
 
   error: z.string().optional(),
-
 });
-
-
 
 export type ScrapedData = z.infer<typeof ScrapedDataSchema>;
 
-
-
 export const ScrapedItemSchema = z.object({
-
   guid: z.string().min(1, "GUID requis pour dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©duplication"),
 
   title: z.string().min(1, "Titre requis"),
@@ -182,17 +152,11 @@ export const ScrapedItemSchema = z.object({
   link: z.string().optional().default(""),
 
   image: z.string().optional().default(""),
-
 });
-
-
 
 export type ScrapedItem = z.infer<typeof ScrapedItemSchema>;
 
-
-
 export interface ScraperSelectors {
-
   title?: string;
 
   content?: string;
@@ -200,13 +164,9 @@ export interface ScraperSelectors {
   date?: string;
 
   image?: string;
-
 }
 
-
-
 export interface ScraperOptions {
-
   url: string;
 
   selectors?: ScraperSelectors;
@@ -214,13 +174,9 @@ export interface ScraperOptions {
   mode?: "html" | "rss";
 
   timeout?: number;
-
 }
 
-
-
 export interface PipelineResult {
-
   valid: boolean;
 
   item?: ScrapedItem;
@@ -228,15 +184,9 @@ export interface PipelineResult {
   skippedReason?: string;
 
   error?: string;
-
 }
 
-
-
 // ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Constantes ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
-
-
-
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 let browserInstance: Browser | null = null;
@@ -254,21 +204,15 @@ async function getBrowser(): Promise<Browser> {
 }
 
 const DEFAULT_HTML_SELECTORS = {
-  title: 'h1',
+  title: "h1",
   content: 'article, .content, main, [role="main"]',
-  date: 'time, [datetime], .date, .published',
+  date: "time, [datetime], .date, .published",
   image: 'meta[property="og:image"], img',
 };
 
-
-
 const TEMPORAL_BARRIER_MS = 24 * 60 * 60 * 1000; // 24 heures (anti-spam strict)
 
-
-
 // ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Core: ExÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©cution du script Python ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
-
-
 
 /**
 
@@ -288,9 +232,25 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
       const rawText = await response.text();
-      return { success: true, title: "", content: rawText, pubDate: "", link: url, image: "", raw: rawText };
+      return {
+        success: true,
+        title: "",
+        content: rawText,
+        pubDate: "",
+        link: url,
+        image: "",
+        raw: rawText,
+      };
     } catch (error) {
-      return { success: false, error: "RSS fetch failed: " + (error as Error).message, title: "", content: "", pubDate: "", link: url, image: "" };
+      return {
+        success: false,
+        error: "RSS fetch failed: " + (error as Error).message,
+        title: "",
+        content: "",
+        pubDate: "",
+        link: url,
+        image: "",
+      };
     }
   }
   let page: any = null;
@@ -301,25 +261,51 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
     const sel = selectors || DEFAULT_HTML_SELECTORS;
     let title = "";
     if (sel.title) {
-      try { const el = await page.$(sel.title); if (el) title = (await el.textContent())?.trim() || ""; } catch {}
+      try {
+        const el = await page.$(sel.title);
+        if (el) title = (await el.textContent())?.trim() || "";
+      } catch {}
     }
     if (!title) {
-      try { title = await page.$eval("meta[property=\"og:title\"]", (el: any) => el.getAttribute("content") || ""); } catch {}
+      try {
+        title = await page.$eval(
+          'meta[property="og:title"]',
+          (el: any) => el.getAttribute("content") || "",
+        );
+      } catch {}
     }
     title = title.replace(/\n\n/g, " ").replace(/\n/g, " ").trim();
     let content = "";
     if (sel.content) {
-      try { content = await page.$$eval(sel.content, (els: any[]) => els.map((el: any) => el.textContent?.trim() || "").join(" ")); } catch {}
+      try {
+        content = await page.$$eval(sel.content, (els: any[]) =>
+          els.map((el: any) => el.textContent?.trim() || "").join(" "),
+        );
+      } catch {}
     }
     content = content.replace(/\n\n/g, " ").replace(/\n/g, " ").trim().slice(0, 5000);
     let pubDate = "";
     if (sel.date) {
-      try { pubDate = await page.$eval(sel.date, (el: any) => el.getAttribute("datetime") || el.getAttribute("content") || el.textContent?.trim() || ""); } catch {}
+      try {
+        pubDate = await page.$eval(
+          sel.date,
+          (el: any) =>
+            el.getAttribute("datetime") ||
+            el.getAttribute("content") ||
+            el.textContent?.trim() ||
+            "",
+        );
+      } catch {}
     }
     pubDate = pubDate.trim();
     let image = "";
     if (sel.image) {
-      try { image = await page.$eval(sel.image, (el: any) => el.getAttribute("src") || el.getAttribute("content") || ""); } catch {}
+      try {
+        image = await page.$eval(
+          sel.image,
+          (el: any) => el.getAttribute("src") || el.getAttribute("content") || "",
+        );
+      } catch {}
     }
     image = image.trim();
     return { success: true, title, content, pubDate, link: url, image };
@@ -327,69 +313,65 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
     const errMsg = (error as Error).message;
     if (errMsg.includes("timeout") || errMsg.includes("Timeout")) {
       logger.error("[ScraperManager] Timeout apres " + timeout + "ms: " + url);
-      return { success: false, error: "Scraper timeout after " + timeout + "ms", title: "", content: "", pubDate: "", link: url, image: "" };
+      return {
+        success: false,
+        error: "Scraper timeout after " + timeout + "ms",
+        title: "",
+        content: "",
+        pubDate: "",
+        link: url,
+        image: "",
+      };
     }
     logger.error("[ScraperManager] Scraping echoue: " + errMsg);
-    return { success: false, error: "Scraping failed: " + errMsg, title: "", content: "", pubDate: "", link: url, image: "" };
+    return {
+      success: false,
+      error: "Scraping failed: " + errMsg,
+      title: "",
+      content: "",
+      pubDate: "",
+      link: url,
+      image: "",
+    };
   } finally {
     if (page) await page.close().catch(() => {});
   }
 }
 
-
 export async function isNewItem(
-
   type: ContentType,
 
   uniqueId: string,
-
 ): Promise<boolean> {
-
   const config = getContentTypeConfig(type);
 
-
-
   try {
-
-    const prismaAny = prisma as unknown as Record<string, { findUnique: (args: Record<string, unknown>) => Promise<unknown> }>;
+    const prismaAny = prisma as unknown as Record<
+      string,
+      { findUnique: (args: Record<string, unknown>) => Promise<unknown> }
+    >;
 
     const model = prismaAny[config.tableName];
 
-
-
     if (!model) {
-
-      throw new Error(`[ScraperManager] ModÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨le Prisma introuvable: ${config.tableName}`);
-
+      throw new Error(
+        `[ScraperManager] ModÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨le Prisma introuvable: ${config.tableName}`,
+      );
     }
 
-
-
     const existing = await model.findUnique({
-
       where: { [config.uniqueField]: uniqueId },
-
     });
 
-
-
     return existing === null;
-
   } catch (error) {
-
     logger.error(
-
-      `[ScraperManager] Erreur dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©duplication ${config.tableName}[${config.uniqueField}=${uniqueId}]: ${error}`
-
+      `[ScraperManager] Erreur dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©duplication ${config.tableName}[${config.uniqueField}=${uniqueId}]: ${error}`,
     );
 
     return false; // En cas d'erreur, on skip pour ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©viter les doublons
-
   }
-
 }
-
-
 
 /**
 
@@ -404,77 +386,51 @@ export async function isNewItem(
  */
 
 export async function markAsProcessed(
-
   type: ContentType,
 
   uniqueId: string,
-
 ): Promise<void> {
-
   const config = getContentTypeConfig(type);
 
-
-
   try {
-
-    const prismaAny = prisma as unknown as Record<string, { create: (args: Record<string, unknown>) => Promise<unknown> }>;
+    const prismaAny = prisma as unknown as Record<
+      string,
+      { create: (args: Record<string, unknown>) => Promise<unknown> }
+    >;
 
     const model = prismaAny[config.tableName];
 
-
-
     if (!model) {
-
-      throw new Error(`[ScraperManager] ModÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨le Prisma introuvable: ${config.tableName}`);
-
+      throw new Error(
+        `[ScraperManager] ModÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨le Prisma introuvable: ${config.tableName}`,
+      );
     }
 
-
-
     await model.create({
-
       data: { [config.uniqueField]: uniqueId },
-
     });
 
-
-
     logger.debug(
-
-      `[ScraperManager] ${config.tableName}[${config.uniqueField}=${uniqueId}] marquÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ© comme traitÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©`
-
+      `[ScraperManager] ${config.tableName}[${config.uniqueField}=${uniqueId}] marquÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ© comme traitÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©`,
     );
-
   } catch (error) {
-
     // Ignorer uniquement les doublons (contrainte unique P2002)
 
     if ((error as any)?.code === "P2002") {
-
       logger.debug(
-
-        `[ScraperManager] ${config.tableName}[${config.uniqueField}=${uniqueId}] dÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂ  existant (P2002)`
-
+        `[ScraperManager] ${config.tableName}[${config.uniqueField}=${uniqueId}] dÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂ  existant (P2002)`,
       );
 
       return;
-
     }
 
     logger.error(
-
-      `[ScraperManager] Erreur critique markAsProcessed ${config.tableName}: ${error instanceof Error ? error.message : String(error)}`
-
+      `[ScraperManager] Erreur critique markAsProcessed ${config.tableName}: ${error instanceof Error ? error.message : String(error)}`,
     );
 
     // Non critique - on ne bloque pas le pipeline
   }
-
 }
-
-
-
-
 
 /**
 
@@ -495,7 +451,6 @@ export async function markAsProcessed(
  */
 
 export async function runScrapingPipeline(
-
   url: string,
 
   guid: string,
@@ -503,81 +458,58 @@ export async function runScrapingPipeline(
   options?: Partial<ScraperOptions>,
 
   type: ContentType = ContentType.PATCH_NOTE,
-
 ): Promise<PipelineResult> {
-
   const config = getContentTypeConfig(type);
 
-
-
   logger.info(
-
-    `[ScraperManager] Pipeline [${type}] dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©marrÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: GUID=${guid} URL=${url}`
-
+    `[ScraperManager] Pipeline [${type}] dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©marrÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: GUID=${guid} URL=${url}`,
   );
-
-
 
   // ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂtape 1: Scraping
 
   let scraped: ScrapedData;
 
   try {
-
     scraped = await executeScraper({ url, ...options });
-
   } catch (error) {
-
     const errMsg = `Scraping ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©chouÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: ${(error as Error).message}`;
 
     logger.error(`[ScraperManager] ${errMsg}`);
 
     return { valid: false, skippedReason: "scraping_failed", error: errMsg };
-
   }
-
-
 
   // ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂtape 2: Validation Zod (dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ  faite dans executeScraper)
 
   if (!scraped.success) {
-
     return { valid: false, skippedReason: "scraping_unsuccessful", error: scraped.error };
-
   }
-
-
 
   // ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂtape 3: BarriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨re temporelle 48h
 
   if (!isWithinTemporalBarrier(scraped.pubDate)) {
-
-    logger.info(`[ScraperManager] Item ignorÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ© (barriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨re 48h): ${scraped.pubDate}`);
+    logger.info(
+      `[ScraperManager] Item ignorÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ© (barriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¨re 48h): ${scraped.pubDate}`,
+    );
 
     return { valid: false, skippedReason: "temporal_barrier" };
-
   }
-
-
 
   // ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂtape 4: DÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©duplication Prisma (gÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©nÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©rique par ContentType)
 
   const isNew = await isNewItem(type, guid);
 
   if (!isNew) {
-
-    logger.debug(`[ScraperManager] Item dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ  traitÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: [${type}] ${config.uniqueField}=${guid}`);
+    logger.debug(
+      `[ScraperManager] Item dÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ  traitÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: [${type}] ${config.uniqueField}=${guid}`,
+    );
 
     return { valid: false, skippedReason: "duplicate" };
-
   }
-
-
 
   // Construire l'item validÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©
 
   const item: ScrapedItem = {
-
     guid,
 
     title: scraped.title,
@@ -589,18 +521,14 @@ export async function runScrapingPipeline(
     link: scraped.link,
 
     image: scraped.image,
-
   };
 
-
-
-  logger.info(`[ScraperManager] ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ [${type}] Item validÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: "${item.title.slice(0, 80)}"`);
+  logger.info(
+    `[ScraperManager] ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ [${type}] Item validÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©: "${item.title.slice(0, 80)}"`,
+  );
 
   return { valid: true, item };
-
 }
-
-
 
 /**
 
@@ -609,18 +537,9 @@ export async function runScrapingPipeline(
  */
 
 export async function scrapeRssFeed(url: string, timeout?: number): Promise<ScrapedData> {
-
   return executeScraper({ url, mode: "rss", timeout });
-
 }
-
-
-
-
 
 export const scrapeWithScrapling = executeScraper;
 
-
-
 export default executeScraper;
-

@@ -14,7 +14,7 @@ export interface AlertOptions {
   priority: AlertPriority;
   category?: "system" | "gaming" | "moderation" | "security" | "performance";
   source?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   mentionRoles?: string[];
   mentionUsers?: string[];
 }
@@ -32,10 +32,11 @@ export class AlertService {
    * Envoie une alerte avec le niveau de priorité spécifié
    */
   async sendAlert(options: AlertOptions): Promise<void> {
-    const { title, message, priority, category, source, metadata, mentionRoles, mentionUsers } = options;
+    const { title, message, priority, category, source, metadata, mentionRoles, mentionUsers } =
+      options;
 
     // Vérifier le cooldown pour éviter le spam
-    const alertKey = `${category || 'default'}:${title}`;
+    const alertKey = `${category || "default"}:${title}`;
     const lastAlert = this.alertHistory.get(alertKey);
     if (lastAlert && Date.now() - lastAlert < this.COOLDOWN_MS) {
       logger.debug(`[AlertService] Alert cooldown pour: ${title}`);
@@ -71,10 +72,10 @@ export class AlertService {
     // Construire le contenu avec les mentions
     let content = "";
     if (mentionRoles && mentionRoles.length > 0) {
-      content += mentionRoles.map(role => `<@&${role}>`).join(" ") + " ";
+      content += mentionRoles.map((role) => `<@&${role}>`).join(" ") + " ";
     }
     if (mentionUsers && mentionUsers.length > 0) {
-      content += mentionUsers.map(user => `<@${user}>`).join(" ") + " ";
+      content += mentionUsers.map((user) => `<@${user}>`).join(" ") + " ";
     }
 
     // Envoyer l'alerte
@@ -84,60 +85,80 @@ export class AlertService {
   /**
    * Envoie une alerte critique
    */
-  async sendCriticalAlert(title: string, message: string, options?: Partial<AlertOptions>): Promise<void> {
+  async sendCriticalAlert(
+    title: string,
+    message: string,
+    options?: Partial<AlertOptions>,
+  ): Promise<void> {
     await this.sendAlert({
       title,
       message,
       priority: AlertPriority.CRITICAL,
-      ...options
+      ...options,
     });
   }
 
   /**
    * Envoie une alerte haute priorité
    */
-  async sendHighAlert(title: string, message: string, options?: Partial<AlertOptions>): Promise<void> {
+  async sendHighAlert(
+    title: string,
+    message: string,
+    options?: Partial<AlertOptions>,
+  ): Promise<void> {
     await this.sendAlert({
       title,
       message,
       priority: AlertPriority.HIGH,
-      ...options
+      ...options,
     });
   }
 
   /**
    * Envoie une alerte moyenne priorité
    */
-  async sendMediumAlert(title: string, message: string, options?: Partial<AlertOptions>): Promise<void> {
+  async sendMediumAlert(
+    title: string,
+    message: string,
+    options?: Partial<AlertOptions>,
+  ): Promise<void> {
     await this.sendAlert({
       title,
       message,
       priority: AlertPriority.MEDIUM,
-      ...options
+      ...options,
     });
   }
 
   /**
    * Envoie une alerte basse priorité
    */
-  async sendLowAlert(title: string, message: string, options?: Partial<AlertOptions>): Promise<void> {
+  async sendLowAlert(
+    title: string,
+    message: string,
+    options?: Partial<AlertOptions>,
+  ): Promise<void> {
     await this.sendAlert({
       title,
       message,
       priority: AlertPriority.LOW,
-      ...options
+      ...options,
     });
   }
 
   /**
    * Envoie une alerte information
    */
-  async sendInfoAlert(title: string, message: string, options?: Partial<AlertOptions>): Promise<void> {
+  async sendInfoAlert(
+    title: string,
+    message: string,
+    options?: Partial<AlertOptions>,
+  ): Promise<void> {
     await this.sendAlert({
       title,
       message,
       priority: AlertPriority.INFO,
-      ...options
+      ...options,
     });
   }
 
@@ -158,15 +179,17 @@ export class AlertService {
       .setColor(0x0099ff)
       .setTimestamp();
 
-    const alertList = recentAlerts.map(([key, timestamp]) => {
-      const timeAgo = Math.floor((Date.now() - timestamp) / 1000);
-      return `• ${key} (${timeAgo}s)`;
-    }).join("\n");
+    const alertList = recentAlerts
+      .map(([key, timestamp]) => {
+        const timeAgo = Math.floor((Date.now() - timestamp) / 1000);
+        return `• ${key} (${timeAgo}s)`;
+      })
+      .join("\n");
 
     embed.addFields({
       name: "Alertes récentes",
       value: alertList,
-      inline: false
+      inline: false,
     });
 
     await this.sendToLogChannel("📊 **Dashboard des alertes**", embed);
@@ -193,11 +216,16 @@ export class AlertService {
    */
   private getPriorityEmoji(priority: AlertPriority): string {
     switch (priority) {
-      case AlertPriority.CRITICAL: return "🚨";
-      case AlertPriority.HIGH: return "⚠️";
-      case AlertPriority.MEDIUM: return "🔶";
-      case AlertPriority.LOW: return "🔵";
-      case AlertPriority.INFO: return "ℹ️";
+      case AlertPriority.CRITICAL:
+        return "🚨";
+      case AlertPriority.HIGH:
+        return "⚠️";
+      case AlertPriority.MEDIUM:
+        return "🔶";
+      case AlertPriority.LOW:
+        return "🔵";
+      case AlertPriority.INFO:
+        return "ℹ️";
     }
   }
 
@@ -206,12 +234,18 @@ export class AlertService {
    */
   private getCategoryEmoji(category: string): string {
     switch (category) {
-      case "system": return "⚙️";
-      case "gaming": return "🎮";
-      case "moderation": return "🛡️";
-      case "security": return "🔒";
-      case "performance": return "📈";
-      default: return "📌";
+      case "system":
+        return "⚙️";
+      case "gaming":
+        return "🎮";
+      case "moderation":
+        return "🛡️";
+      case "security":
+        return "🔒";
+      case "performance":
+        return "📈";
+      default:
+        return "📌";
     }
   }
 
@@ -233,7 +267,7 @@ export class AlertService {
 
       await (channel as TextChannel).send({
         content: content || undefined,
-        embeds: [embed]
+        embeds: [embed],
       });
 
       logger.info(`[AlertService] Alert envoyée: ${embed.data.title}`);
@@ -246,9 +280,12 @@ export class AlertService {
    * Démarre le nettoyage automatique des alertes anciennes
    */
   startAutoCleanup(): void {
-    setInterval(() => {
-      this.cleanupOldAlerts();
-    }, 60 * 60 * 1000); // Toutes les heures
+    setInterval(
+      () => {
+        this.cleanupOldAlerts();
+      },
+      60 * 60 * 1000,
+    ); // Toutes les heures
 
     logger.info("[AlertService] Nettoyage automatique démarré");
   }

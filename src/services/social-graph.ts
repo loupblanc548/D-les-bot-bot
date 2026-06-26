@@ -1,13 +1,11 @@
 import logger from "../utils/logger.js";
-import { Client, GuildMember, User } from "discord.js";
-import prisma from "../prisma.js";
-
+import { Client } from "discord.js";
 interface GraphNode {
   id: string;
   name: string;
   type: "user" | "channel" | "role";
   connections: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 interface GraphEdge {
@@ -53,7 +51,7 @@ class SocialGraphService {
       for (const [id, member] of members) {
         this.addNode(id, member.user.username, "user", {
           joinedAt: member.joinedAt?.toISOString(),
-          roles: member.roles.cache.map(r => r.name),
+          roles: member.roles.cache.map((r) => r.name),
         });
       }
 
@@ -74,7 +72,6 @@ class SocialGraphService {
       }
 
       logger.info(`[SocialGraph] Graphe initialisé avec ${this.graph.nodes.size} noeuds`);
-
     } catch (error) {
       logger.error("[SocialGraph] Erreur lors de l'initialisation:", error);
     }
@@ -83,7 +80,12 @@ class SocialGraphService {
   /**
    * Ajoute un noeud au graphe
    */
-  addNode(id: string, name: string, type: "user" | "channel" | "role", metadata: Record<string, any> = {}): void {
+  addNode(
+    id: string,
+    name: string,
+    type: "user" | "channel" | "role",
+    metadata: Record<string, unknown> = {},
+  ): void {
     this.graph.nodes.set(id, {
       id,
       name,
@@ -96,7 +98,12 @@ class SocialGraphService {
   /**
    * Ajoute une connexion (edge) au graphe
    */
-  addEdge(source: string, target: string, type: "mention" | "message" | "reaction" | "voice", weight: number = 1): void {
+  addEdge(
+    source: string,
+    target: string,
+    type: "mention" | "message" | "reaction" | "voice",
+    weight: number = 1,
+  ): void {
     const edge: GraphEdge = {
       source,
       target,
@@ -154,17 +161,15 @@ class SocialGraphService {
    * Calcule le score d'influence d'un utilisateur
    */
   private calculateInfluenceScore(userId: string): number {
-    const userEdges = this.graph.edges.filter(
-      e => e.source === userId || e.target === userId
-    );
+    const userEdges = this.graph.edges.filter((e) => e.source === userId || e.target === userId);
 
     // Score basé sur le nombre de connexions et leur poids
     const connectionScore = userEdges.reduce((sum, edge) => sum + edge.weight, 0);
-    
+
     // Bonus pour les connexions avec des utilisateurs influents
-    const influentialBonus = userEdges
-      .filter(e => this.isInfluential(e.source === userId ? e.target : e.source))
-      .length * 5;
+    const influentialBonus =
+      userEdges.filter((e) => this.isInfluential(e.source === userId ? e.target : e.source))
+        .length * 5;
 
     return connectionScore + influentialBonus;
   }
@@ -188,15 +193,15 @@ class SocialGraphService {
     if (!node) return [];
 
     const communities: string[] = [];
-    
+
     // Regrouper par rôles communs
     const userNode = this.graph.nodes.get(userId);
     if (userNode?.metadata.roles) {
-      communities.push(...userNode.metadata.roles as string[]);
+      communities.push(...(userNode.metadata.roles as string[]));
     }
 
     // Regrouper par salons communs
-    const connectedChannels = node.connections.filter(id => {
+    const connectedChannels = node.connections.filter((id) => {
       const connectedNode = this.graph.nodes.get(id);
       return connectedNode?.type === "channel";
     });
@@ -246,11 +251,15 @@ class SocialGraphService {
    * Exporte le graphe au format JSON
    */
   exportGraph(): string {
-    return JSON.stringify({
-      nodes: Array.from(this.graph.nodes.values()),
-      edges: this.graph.edges,
-      lastUpdated: this.graph.lastUpdated,
-    }, null, 2);
+    return JSON.stringify(
+      {
+        nodes: Array.from(this.graph.nodes.values()),
+        edges: this.graph.edges,
+        lastUpdated: this.graph.lastUpdated,
+      },
+      null,
+      2,
+    );
   }
 
   /**
@@ -286,7 +295,7 @@ class SocialGraphService {
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const beforeCount = this.graph.edges.length;
 
-    this.graph.edges = this.graph.edges.filter(edge => edge.timestamp > thirtyDaysAgo);
+    this.graph.edges = this.graph.edges.filter((edge) => edge.timestamp > thirtyDaysAgo);
 
     const afterCount = this.graph.edges.length;
     logger.debug(`[SocialGraph] ${beforeCount - afterCount} anciennes connexions nettoyées`);

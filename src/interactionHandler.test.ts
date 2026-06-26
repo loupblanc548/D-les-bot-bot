@@ -25,7 +25,10 @@ const { mockLogger, mockPrisma, mockSentry, mockCommandRouter, mockHandlers } = 
 
 vi.mock("./utils/logger", () => ({ default: mockLogger }));
 vi.mock("./prisma", () => ({ default: mockPrisma }));
-vi.mock("@sentry/node", () => ({ default: mockSentry, captureException: mockSentry.captureException }));
+vi.mock("@sentry/node", () => ({
+  default: mockSentry,
+  captureException: mockSentry.captureException,
+}));
 vi.mock("./commandRouter", () => ({
   commandRouter: mockCommandRouter,
   handleMainSelectMenu: mockHandlers.handleMainSelectMenu,
@@ -33,15 +36,19 @@ vi.mock("./commandRouter", () => ({
 vi.mock("./commands/security", () => ({ handleVerifButton: mockHandlers.handleVerifButton }));
 vi.mock("./commands/trackGame", () => ({ handleAutocomplete: mockHandlers.handleAutocomplete }));
 vi.mock("./commands/mp3", () => ({ handleAutocomplete: mockHandlers.handleMp3Autocomplete }));
-vi.mock("./commands/fun/wishlist", () => ({ handleAutocomplete: mockHandlers.handleWishlistAutocomplete }));
-vi.mock("./commands/utility", () => ({ handleTranslateAutocomplete: mockHandlers.handleTranslateAutocomplete }));
+vi.mock("./commands/fun/wishlist", () => ({
+  handleAutocomplete: mockHandlers.handleWishlistAutocomplete,
+}));
+vi.mock("./commands/utility", () => ({
+  handleTranslateAutocomplete: mockHandlers.handleTranslateAutocomplete,
+}));
 
 import { Events } from "discord.js";
 import { attachInteractionHandlers } from "./interactionHandler.js";
 
 describe("interactionHandler", () => {
   let mockClient: any;
-  let interactionHandler: Function;
+  let _interactionHandler: (...args: unknown[]) => unknown;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,9 +57,9 @@ describe("interactionHandler", () => {
     };
   });
 
-  function extractHandler(eventName: string, index: number = 0): Function {
+  function extractHandler(eventName: string, index: number = 0): (...args: unknown[]) => unknown {
     const calls = mockClient.on.mock.calls.filter((c: any[]) => c[0] === eventName);
-    return calls[index] ? calls[index][1] : null as any;
+    return calls[index] ? calls[index][1] : (null as any);
   }
 
   describe("attachInteractionHandlers", () => {
@@ -116,7 +123,7 @@ describe("interactionHandler", () => {
       expect(interaction.reply).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.stringContaining("erreur"),
-        })
+        }),
       );
     });
   });
@@ -182,7 +189,7 @@ describe("interactionHandler", () => {
       expect(interaction.respond).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ name: expect.stringContaining("@testuser") }),
-        ])
+        ]),
       );
     });
 

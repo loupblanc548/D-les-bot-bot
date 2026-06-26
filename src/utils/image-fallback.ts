@@ -274,7 +274,7 @@ async function tryRawgSearch(
     if (game?.background_image && isValidImageUrl(game.background_image)) {
       return game.background_image;
     }
-  } catch (error) {
+  } catch (_error) {
     logger.debug(`[ImageFallback] RAWG search failed for ${title}`);
   }
 

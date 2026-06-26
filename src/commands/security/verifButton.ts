@@ -1,12 +1,4 @@
-import {
-  GuildMember,
-  MessageFlags,
-  ButtonInteraction,
-  EmbedBuilder,
-} from "discord.js";
-import logger from "../../utils/logger.js";
-
-
+import { GuildMember, MessageFlags, ButtonInteraction } from "discord.js";
 export function handleVerifButton(interaction: ButtonInteraction) {
   if (!interaction.customId.startsWith("verif_")) return false;
   const roleId = interaction.customId.split("_")[1];
@@ -49,6 +41,3 @@ export function handleVerifButton(interaction: ButtonInteraction) {
     });
   return true;
 }
-
-
-

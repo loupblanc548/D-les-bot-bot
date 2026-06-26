@@ -8,7 +8,7 @@
  * Usage : import { embedEpicGames, embedSteam, ... } from "../utils/gaming-embeds.js";
  */
 
-import { MessageFlags, EmbedBuilder } from "discord.js";
+import { EmbedBuilder } from "discord.js";
 
 // ── Footer commun ─────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ export function embedEpicGames(game: EpicGameDeal): EmbedBuilder {
       name: "⏰ Date limite",
       value: game.endDate,
       inline: true,
-    }
+    },
   );
 
   if (game.imageUrl) {
@@ -155,7 +155,7 @@ export function embedPlayStation(game: PlayStationDeal): EmbedBuilder {
       name: "🏷️ Offre",
       value: tierLabels[game.tier],
       inline: true,
-    }
+    },
   );
 
   if (game.imageUrl) {
@@ -251,7 +251,7 @@ export function embedInstantGaming(game: InstantGamingDeal): EmbedBuilder {
       name: "📉 Réduction",
       value: game.reduction + (game.storePrice ? " vs " + game.storePrice : ""),
       inline: true,
-    }
+    },
   );
 
   if (game.buyUrl) {
@@ -284,13 +284,19 @@ export type GamingDealData =
 // Overloads : chaque paire (plateforme, donnees) est verifiee a la compilation
 export function embedGamingNotification(platform: "epic", data: EpicGameDeal): EmbedBuilder;
 export function embedGamingNotification(platform: "steam", data: SteamDeal): EmbedBuilder;
-export function embedGamingNotification(platform: "playstation", data: PlayStationDeal): EmbedBuilder;
+export function embedGamingNotification(
+  platform: "playstation",
+  data: PlayStationDeal,
+): EmbedBuilder;
 export function embedGamingNotification(platform: "xbox", data: XboxDeal): EmbedBuilder;
-export function embedGamingNotification(platform: "instantgaming", data: InstantGamingDeal): EmbedBuilder;
+export function embedGamingNotification(
+  platform: "instantgaming",
+  data: InstantGamingDeal,
+): EmbedBuilder;
 // Implementation
 export function embedGamingNotification(
   platform: GamingPlatform,
-  data: GamingDealData
+  data: GamingDealData,
 ): EmbedBuilder {
   switch (platform) {
     case "epic":

@@ -1,9 +1,6 @@
 import logger from "../utils/logger.js";
-import { Client, User } from "discord.js";
 import prisma from "../prisma.js";
 import { sentimentAnalysisService } from "./sentiment-analysis.js";
-import { aiPredictionService } from "./ai-prediction.js";
-
 interface UserProfile {
   userId: string;
   preferences: {
@@ -69,7 +66,11 @@ class RecommendationSystem {
     this.userProfiles.set(userId, profile);
   }
 
-  addInteraction(userId: string, gameId: string, interactionType: "view" | "like" | "dislike"): void {
+  addInteraction(
+    userId: string,
+    gameId: string,
+    interactionType: "view" | "like" | "dislike",
+  ): void {
     const profile = this.userProfiles.get(userId);
     if (!profile) return;
 
@@ -127,8 +128,8 @@ class RecommendationSystem {
   private calculateMatchScore(profile: UserProfile, game: Record<string, unknown>): number {
     let score = 0;
 
-    const genreMatches = (game.genres as string[]).filter((g: string) => 
-      profile.preferences.genres.includes(g)
+    const genreMatches = (game.genres as string[]).filter((g: string) =>
+      profile.preferences.genres.includes(g),
     ).length;
     score += genreMatches * 20;
 
@@ -136,8 +137,10 @@ class RecommendationSystem {
       score += 30;
     }
 
-    if ((game.price as number) >= profile.preferences.priceRange.min && 
-        (game.price as number) <= profile.preferences.priceRange.max) {
+    if (
+      (game.price as number) >= profile.preferences.priceRange.min &&
+      (game.price as number) <= profile.preferences.priceRange.max
+    ) {
       score += 15;
     }
 
@@ -151,8 +154,8 @@ class RecommendationSystem {
   private generateReasons(profile: UserProfile, game: Record<string, unknown>): string[] {
     const reasons: string[] = [];
 
-    const genreMatches = (game.genres as string[]).filter((g: string) => 
-      profile.preferences.genres.includes(g)
+    const genreMatches = (game.genres as string[]).filter((g: string) =>
+      profile.preferences.genres.includes(g),
     );
 
     if (genreMatches.length > 0) {
@@ -177,16 +180,28 @@ class RecommendationSystem {
   private async getAvailableGames(): Promise<any[]> {
     return [
       {
-        id: "game1", name: "Cyberpunk 2077", platform: "Steam", price: 59.99,
-        genres: ["RPG", "Action"], popularity: 85,
+        id: "game1",
+        name: "Cyberpunk 2077",
+        platform: "Steam",
+        price: 59.99,
+        genres: ["RPG", "Action"],
+        popularity: 85,
       },
       {
-        id: "game2", name: "Elden Ring", platform: "Steam", price: 59.99,
-        genres: ["RPG", "Action"], popularity: 95,
+        id: "game2",
+        name: "Elden Ring",
+        platform: "Steam",
+        price: 59.99,
+        genres: ["RPG", "Action"],
+        popularity: 95,
       },
       {
-        id: "game3", name: "Hades", platform: "Epic Games", price: 24.99,
-        genres: ["Roguelike", "Action"], popularity: 90,
+        id: "game3",
+        name: "Hades",
+        platform: "Epic Games",
+        price: 24.99,
+        genres: ["Roguelike", "Action"],
+        popularity: 90,
       },
     ];
   }
@@ -200,7 +215,7 @@ class RecommendationSystem {
 
     for (const interaction of profile.history.interactions) {
       const [type, gameId] = interaction.split(":");
-      
+
       if (type === "like") {
         const game = this.gameDatabase.get(gameId);
         if (game) {
@@ -239,7 +254,7 @@ class RecommendationSystem {
 
   async loadProfilesFromPrisma(): Promise<void> {
     const profiles = await prisma.userProfile.findMany();
-    
+
     for (const profile of profiles) {
       this.userProfiles.set(profile.userId, profile as unknown as UserProfile);
     }

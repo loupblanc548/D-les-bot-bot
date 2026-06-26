@@ -6,7 +6,7 @@ import { extractImage } from "./imageExtractor.js";
 
 const NOOP_LOG = { info: () => {}, warn: () => {}, error: () => {} };
 
-function makeRawgClient(opts: any) {
+function makeRawgClient(opts: unknown) {
   return {
     cacheSize: () => 0,
     isEnabled: () => true,
@@ -88,7 +88,7 @@ describe("extractImage", () => {
 
   it("Tier 5: skipped when rawgClient disabled", async () => {
     const item = { title: "Halo" };
-    const rc = { isEnabled: () => false, logger: NOOP_LOG, searchByTitle: vi.fn() } as any;
+    const rc = { isEnabled: () => false, logger: NOOP_LOG, searchByTitle: vi.fn() } as unknown;
     const r = await extractImage(item, undefined, { rawgClient: rc });
     expect(r).toBeNull();
   });

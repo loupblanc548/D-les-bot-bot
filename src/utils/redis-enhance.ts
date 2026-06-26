@@ -1,4 +1,3 @@
-import logger from "../utils/logger.js";
 import { getCache, setCache, deleteCache } from "../utils/redis.js";
 
 /**
@@ -26,16 +25,20 @@ export async function cachedGet<T>(key: string): Promise<T | null> {
 export async function cachedSet(key: string, value: unknown, ttlSeconds = 300): Promise<void> {
   try {
     await setCache(key, value, ttlSeconds);
+    return; // Redis a accepté : pas de double-storage dans le fallback mémoire.
   } catch {
     // Redis down, fallback to memory
   }
+
   memoryFallback.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 
 export async function cachedDelete(key: string): Promise<void> {
   try {
     await deleteCache(key);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   memoryFallback.delete(key);
 }
 

@@ -1,1 +1,0 @@
-{"version":3,"file":"trackGame.d.ts","sourceRoot":"","sources":["../../src/commands/trackGame.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,2BAA2B,EAI3B,uBAAuB,EACxB,MAAM,YAAY,CAAC;AAUpB,eAAO,MAAM,QAAQ,wEA4BpB,CAAC;AAIF,wBAAsB,kBAAkB,CACtC,WAAW,EAAE,uBAAuB,GACnC,OAAO,CAAC,IAAI,CAAC,CAqBf;AAID,wBAAsB,aAAa,CAAC,WAAW,EAAE,2BAA2B,iBAc3E"}

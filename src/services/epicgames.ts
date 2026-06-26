@@ -1,4 +1,10 @@
-import { EpicGamesApiResponse, EpicGamesElement, EpicGamesPromotion, EpicGamesOffer, EpicGamesImage } from "../types/api.js";
+import {
+  EpicGamesApiResponse,
+  EpicGamesElement,
+  EpicGamesPromotion,
+  EpicGamesOffer,
+  EpicGamesImage,
+} from "../types/api.js";
 import logger from "../utils/logger.js";
 // API Epic Games - Jeux gratuits et promos
 // Dedup via Prisma (pas de Set memoire)
@@ -8,8 +14,7 @@ import { Platform } from "@prisma/client";
 import { config } from "../config.js";
 import { Client } from "discord.js";
 
-const EPIC_FREE_GAMES_URL =
-  `${config.epicGamesApiUrl}/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR`;
+const EPIC_FREE_GAMES_URL = `${config.epicGamesApiUrl}/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR`;
 
 export interface EpicGame {
   title: string;
@@ -25,7 +30,7 @@ function matchesWishlist(wishlistName: string, shopName: string): boolean {
   const w = wishlistName.toLowerCase().trim();
   const s = shopName.toLowerCase().trim();
 
-  const wWords = new Set(w.split(/\W+/).filter(x => x.length > 2));
+  const wWords = new Set(w.split(/\W+/).filter((x) => x.length > 2));
   for (const sw of s.split(/\W+/)) {
     if (wWords.has(sw)) return true;
   }
@@ -47,9 +52,8 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
       return [];
     }
 
-    const json = await response.json() as EpicGamesApiResponse;
-    const elements: EpicGamesElement[] =
-      json?.data?.Catalog?.searchStore?.elements || [];
+    const json = (await response.json()) as EpicGamesApiResponse;
+    const elements: EpicGamesElement[] = json?.data?.Catalog?.searchStore?.elements || [];
 
     const games: EpicGame[] = [];
 
@@ -61,7 +65,7 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
       const hasFreePromo = allPromos.some((po: EpicGamesPromotion) =>
         po.promotionalOffers?.some((offer: EpicGamesOffer) => {
           return offer.discountSetting?.discountPercentage === 0;
-        })
+        }),
       );
 
       if (!hasFreePromo) continue;
@@ -120,21 +124,34 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
     }
 
     if (newGames.length > 0) {
-      logger.info(
-        `[EpicGames] ${newGames.length} nouveau(x) jeu(x) gratuit(s)`
-      );
+      logger.info(`[EpicGames] ${newGames.length} nouveau(x) jeu(x) gratuit(s)`);
     }
 
     // Scan wishlist et notification DM
     if (newGames.length > 0) {
       const wishlistItems = await prisma.wishlist.findMany();
-      const matchMap = new Map<string, { userId: string; itemName: string; gameTitle: string; gameUrl: string; guildIds: Set<string> }>();
+      const matchMap = new Map<
+        string,
+        {
+          userId: string;
+          itemName: string;
+          gameTitle: string;
+          gameUrl: string;
+          guildIds: Set<string>;
+        }
+      >();
       for (const game of newGames) {
         for (const item of wishlistItems) {
           if (!item.itemName || !matchesWishlist(item.itemName, game.title)) continue;
           const key = item.userId + "|" + (item.itemName || "");
           if (!matchMap.has(key)) {
-            matchMap.set(key, { userId: item.userId, itemName: item.itemName || "", gameTitle: game.title, gameUrl: game.url, guildIds: new Set() });
+            matchMap.set(key, {
+              userId: item.userId,
+              itemName: item.itemName || "",
+              gameTitle: game.title,
+              gameUrl: game.url,
+              guildIds: new Set(),
+            });
           }
           if (item.guildId) matchMap.get(key)!.guildIds.add(item.guildId);
         }
@@ -150,10 +167,18 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
                 const guild = client.guilds.cache.get(gid);
                 if (guild) guildNames.push(guild.name);
               }
-              const guildSuffix = guildNames.length > 0 ? "\nServeur(s) : " + guildNames.join(", ") : "";
-              await user.send("ð **Bonne nouvelle !**\n\nL'objet **" + match.itemName + "** que tu surveillais est disponible aujourd'hui dans la boutique Fortnite !" + guildSuffix + "\n" + match.gameUrl);
+              const guildSuffix =
+                guildNames.length > 0 ? "\nServeur(s) : " + guildNames.join(", ") : "";
+              await user.send(
+                "ð **Bonne nouvelle !**\n\nL'objet **" +
+                  match.itemName +
+                  "** que tu surveillais est disponible aujourd'hui dans la boutique Fortnite !" +
+                  guildSuffix +
+                  "\n" +
+                  match.gameUrl,
+              );
             }
-          } catch (dmErr) {
+          } catch (_dmErr) {
             // Silencieux : DMs fermés ou utilisateur introuvable
           }
         }

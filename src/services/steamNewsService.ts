@@ -94,7 +94,7 @@ export async function syncSteamApps(): Promise<SteamAppEntry[]> {
     logger.info("[SteamNews] Téléchargement de la liste des apps Steam...");
     const response = await axios.get<SteamAppListResponse>(
       "https://api.steampowered.com/ISteamApps/GetAppList/v2/",
-      { timeout: 30000 }
+      { timeout: 30000 },
     );
     const apps = response.data?.applist?.apps ?? [];
     if (apps.length === 0) {
@@ -153,9 +153,7 @@ export async function findAppIdByName(gameName: string): Promise<{
 }
 
 function escapeRegex(str: string): string {
-  // Utilise le constructeur RegExp pour éviter les problèmes de parsing TypeScript avec ${} dans les regex
-  const ESCAPE_REGEX = new RegExp('[.*+?^\${}()|[\]\]', 'g');
-  return str.replace(ESCAPE_REGEX, '$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // ─── Récupération des dernières news ──────────────────────────────────────────
@@ -189,9 +187,7 @@ export async function getLatestNews(appId: number): Promise<GameNews | null> {
 
 // ─── Helper : Récupération multiple (pour le cron) ────────────────────────────
 
-export async function getLatestNewsForApps(
-  appIds: number[]
-): Promise<Map<number, GameNews>> {
+export async function getLatestNewsForApps(appIds: number[]): Promise<Map<number, GameNews>> {
   const results = new Map<number, GameNews>();
   for (const appId of appIds) {
     const news = await getLatestNews(appId);

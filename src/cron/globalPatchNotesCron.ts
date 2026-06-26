@@ -3,7 +3,6 @@ import cron, { ScheduledTask } from "node-cron";
 import axios from "axios";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
-import { randomUUID } from "crypto";
 import { translateAutoToFrench } from "../utils/translator.js";
 import {
   isNewItem,
@@ -54,19 +53,19 @@ function generatePatchGuid(item: PatchNoteItem): string {
 
 function generateSummary(content: string): string {
   if (!content) return "Aucune description disponible";
-  
+
   // Remove HTML tags
   let cleanText = content.replace(/<[^>]*>/g, "");
-  
+
   // Remove BBCode tags
   cleanText = cleanText.replace(/\[\/?[a-z]+\]/gi, "");
-  
+
   // Remove URLs
   cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, "");
-  
+
   // Remove excessive whitespace
   cleanText = cleanText.replace(/\s+/g, " ").trim();
-  
+
   // Limit to 400-500 characters
   if (cleanText.length > 500) {
     cleanText = cleanText.substring(0, 500);
@@ -77,11 +76,11 @@ function generateSummary(content: string): string {
     }
     cleanText += "...";
   }
-  
+
   return cleanText;
 }
 
-// createPatchEmbed() dÃ©lÃ©guÃ©e Ã  ChannelRouter.buildPlatformEmbed()
+// createPatchEmbed() dÃ©lÃ©guÃ©e Ã  ChannelRouter.buildPlatformEmbed()
 // La traduction est dÃ©sormais gÃ©rÃ©e dans processPatchNote (avant routage)
 // âââ Main Processing ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -121,7 +120,9 @@ async function processPatchNote(client: Client, item: PatchNoteItem): Promise<vo
       translatedContent = contentResult.translatedText;
     }
   } catch (error) {
-    logger.debug(`[GlobalPatchNotes] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[GlobalPatchNotes] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   // Tronquer le contenu pour respecter les limites Discord (4096 chars max)
@@ -143,13 +144,11 @@ async function processPatchNote(client: Client, item: PatchNoteItem): Promise<vo
     );
 
     logger.info(
-      `[GlobalPatchNotes] RoutÃ©: "${translatedTitle.slice(0, 60)}" â ${routingResult.sentTo.length} salon(s), ${routingResult.errors.length} erreur(s)`
+      `[GlobalPatchNotes] RoutÃ©: "${translatedTitle.slice(0, 60)}" â ${routingResult.sentTo.length} salon(s), ${routingResult.errors.length} erreur(s)`,
     );
 
     if (routingResult.errors.length > 0) {
-      logger.warn(
-        `[GlobalPatchNotes] Erreurs routage: ${routingResult.errors.join("; ")}`
-      );
+      logger.warn(`[GlobalPatchNotes] Erreurs routage: ${routingResult.errors.join("; ")}`);
     }
 
     // âââ Ãtape 5: Marquage comme traitÃ© (ScraperManager) âââââââââââââââ
@@ -162,7 +161,7 @@ async function processPatchNote(client: Client, item: PatchNoteItem): Promise<vo
   } catch (error) {
     logger.error(
       `[GlobalPatchNotes] Ãchec routage: ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined }
+      { stack: error instanceof Error ? error.stack : undefined },
     );
     // Ne pas marquer comme traitÃ© si le routage Ã©choue â sera rÃ©essayÃ©
   }
@@ -187,35 +186,48 @@ async function checkPatchNotes(client: Client): Promise<void> {
             const parsed = JSON.parse(scraped.raw);
             items = (parsed.items || parsed.entries || []) as PatchNoteItem[];
           } catch (error) {
-            logger.warn('[GlobalPatchNotes] Failed to parse RSS XML: ' + (error instanceof Error ? error.message : String(error)));
+            logger.warn(
+              "[GlobalPatchNotes] Failed to parse RSS XML: " +
+                (error instanceof Error ? error.message : String(error)),
+            );
             logger.warn("[GlobalPatchNotes] Unable to parse scraped raw content");
           }
         }
-      } else if ((scraped as Record<string, any>).items) {
+      } else if ((scraped as Record<string, unknown>).items) {
         // Items pre-parses par scraper-bridge (deja valides)
-        items = (scraped as Record<string, any>).items as PatchNoteItem[];
+        items = (scraped as Record<string, unknown>).items as PatchNoteItem[];
       }
     } catch (scraperErr) {
-      logger.warn('[GlobalPatchNotes] Scrapling failed on direct Reddit RSS, falling back to rss2json: ' + (scraperErr instanceof Error ? scraperErr.message : String(scraperErr)));
+      logger.warn(
+        "[GlobalPatchNotes] Scrapling failed on direct Reddit RSS, falling back to rss2json: " +
+          (scraperErr instanceof Error ? scraperErr.message : String(scraperErr)),
+      );
       // Fallback to original axios method
       try {
         const response = await axios.get(RSS2JSON_FALLBACK_URL, { timeout: 10000 });
         const feed = response.data;
         items = (feed.items || []) as PatchNoteItem[];
       } catch (axiosErr) {
-        logger.warn('[GlobalPatchNotes] rss2json also failed, trying direct Reddit RSS with axios: ' + (axiosErr instanceof Error ? axiosErr.message : String(axiosErr)));
+        logger.warn(
+          "[GlobalPatchNotes] rss2json also failed, trying direct Reddit RSS with axios: " +
+            (axiosErr instanceof Error ? axiosErr.message : String(axiosErr)),
+        );
         try {
           const directResponse = await axios.get(DIRECT_REDDIT_RSS_URL, { timeout: 15000 });
           const rawXml = directResponse.data;
-          const titleMatches = (typeof rawXml == 'string' ? rawXml.match(/<title[^>]*>([^<]+)<\/title>/gi) : null) || [];
-          items = titleMatches.slice(1).map((t, i) => ({
-            title: t.replace(/<[^>]+>/g, ''),
-            link: '',
+          const titleMatches =
+            (typeof rawXml == "string" ? rawXml.match(/<title[^>]*>([^<]+)<\/title>/gi) : null) ||
+            [];
+          items = titleMatches.slice(1).map((t, _i) => ({
+            title: t.replace(/<[^>]+>/g, ""),
+            link: "",
             pubDate: new Date().toISOString(),
-            content: '',
+            content: "",
           })) as PatchNoteItem[];
-        } catch (directErr) {
-          logger.error('[GlobalPatchNotes] All 3 attempts failed (Scrapling, rss2json, direct axios)');
+        } catch (_directErr) {
+          logger.error(
+            "[GlobalPatchNotes] All 3 attempts failed (Scrapling, rss2json, direct axios)",
+          );
           return;
         }
       }
@@ -234,7 +246,10 @@ async function checkPatchNotes(client: Client): Promise<void> {
         await processPatchNote(client, item as PatchNoteItem);
         processedCount++;
       } catch (error) {
-        logger.error(`[GlobalPatchNotes] Erreur traitement patch: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined });
+        logger.error(
+          `[GlobalPatchNotes] Erreur traitement patch: ${error instanceof Error ? error.message : String(error)}`,
+          { stack: error instanceof Error ? error.stack : undefined },
+        );
       }
     }
 
@@ -244,10 +259,15 @@ async function checkPatchNotes(client: Client): Promise<void> {
       if (error.response?.status === 429) {
         logger.warn("[GlobalPatchNotes] Rate limit Reddit (429) - rÃ©essayer plus tard");
       } else {
-        logger.error(`[GlobalPatchNotes] Erreur HTTP: ${error.response?.status || error.message}`, { stack: error.stack });
+        logger.error(`[GlobalPatchNotes] Erreur HTTP: ${error.response?.status || error.message}`, {
+          stack: error.stack,
+        });
       }
     } else {
-      logger.error(`[GlobalPatchNotes] Erreur critique: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined });
+      logger.error(
+        `[GlobalPatchNotes] Erreur critique: ${error instanceof Error ? error.message : String(error)}`,
+        { stack: error instanceof Error ? error.stack : undefined },
+      );
     }
   }
 }
@@ -259,15 +279,17 @@ let isChecking = false;
 
 export function startGlobalPatchNotesMonitoring(client: Client): void {
   if (cronJob) {
-    logger.warn("[GlobalPatchNotes] DÃ©jÃ  actif â ignorÃ©");
+    logger.warn("[GlobalPatchNotes] DÃ©jÃ  actif â ignorÃ©");
     return;
   }
 
-  logger.info("[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes â toutes les 10 minutes");
+  logger.info(
+    "[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes â toutes les 10 minutes",
+  );
 
   cronJob = cron.schedule("*/10 * * * *", () => {
     if (isChecking) {
-      logger.info("[GlobalPatchNotes] VÃ©rification dÃ©jÃ  en cours, ignorÃ©e");
+      logger.info("[GlobalPatchNotes] VÃ©rification dÃ©jÃ  en cours, ignorÃ©e");
       return;
     }
 
@@ -275,7 +297,12 @@ export function startGlobalPatchNotesMonitoring(client: Client): void {
     logger.info("[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes");
 
     checkPatchNotes(client)
-      .catch((err) => logger.error(`[GlobalPatchNotes] Erreur cron: ${err instanceof Error ? err.message : String(err)}`, { stack: err instanceof Error ? err.stack : undefined }))
+      .catch((err) =>
+        logger.error(
+          `[GlobalPatchNotes] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
+          { stack: err instanceof Error ? err.stack : undefined },
+        ),
+      )
       .finally(() => {
         isChecking = false;
       });

@@ -1,6 +1,6 @@
-import { Redis } from 'ioredis';
-import { config } from '../config.js';
-import logger from './logger.js';
+import { Redis } from "ioredis";
+import { config } from "../config.js";
+import logger from "./logger.js";
 
 const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 3,
@@ -17,22 +17,22 @@ const redis = new Redis(config.redisUrl, {
 export async function connectRedis(): Promise<void> {
   try {
     await redis.connect();
-    logger.info('[Redis] Connected to ' + config.redisUrl);
+    logger.info("[Redis] Connected to " + config.redisUrl);
   } catch (err) {
-    logger.warn('[Redis] Connection failed — cache disabled: ' + String(err));
+    logger.warn("[Redis] Connection failed — cache disabled: " + String(err));
   }
 }
 
 /**
  * Stocke une valeur en cache avec TTL.
+ * Propage les erreurs Redis aux appelants (qui peuvent alors décider
+ * d'un fallback local). Ne pas avaler l'erreur ici : cela masquait le bug
+ * où `cachedSet` continuait d'écrire dans le fallback mémoire même quand
+ * Redis avait accepté l'écriture (double-storage).
  */
 export async function setCache(key: string, value: unknown, ttlInSeconds: number): Promise<void> {
-  try {
-    const serialized = JSON.stringify(value);
-    await redis.setex(key, ttlInSeconds, serialized);
-  } catch {
-    // Silently ignore — cache is optional
-  }
+  const serialized = JSON.stringify(value);
+  await redis.setex(key, ttlInSeconds, serialized);
 }
 
 /**
@@ -137,7 +137,7 @@ export async function getCacheTTL(key: string): Promise<number> {
 export async function disconnectRedis(): Promise<void> {
   try {
     await redis.quit();
-    logger.info('[Redis] Disconnected');
+    logger.info("[Redis] Disconnected");
   } catch {
     // Ignore
   }

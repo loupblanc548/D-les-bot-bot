@@ -1,4 +1,4 @@
-import { MessageFlags, Client, GuildChannel, NonThreadGuildBasedChannel, DMChannel } from "discord.js";
+import { Client, GuildChannel, NonThreadGuildBasedChannel, DMChannel } from "discord.js";
 import { createLog } from "../services/logs.js";
 
 export function handleChannelEvents(client: Client) {

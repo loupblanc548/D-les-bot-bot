@@ -83,7 +83,8 @@ Fournis ta réponse au format JSON :
         messages: [
           {
             role: "system",
-            content: "Tu es un expert en analyse de sentiment et d'émotions. Réponds uniquement en JSON valide.",
+            content:
+              "Tu es un expert en analyse de sentiment et d'émotions. Réponds uniquement en JSON valide.",
           },
           {
             role: "user",
@@ -104,7 +105,6 @@ Fournis ta réponse au format JSON :
         keywords: parsed.keywords || [],
         summary: parsed.summary || "Pas de résumé disponible",
       };
-
     } catch (error) {
       logger.error("[SentimentAnalysis] Erreur lors de l'analyse:", error);
       return {
@@ -124,7 +124,7 @@ Fournis ta réponse au format JSON :
     gameId: string,
     gameName: string,
     platform: string,
-    comments: string[]
+    comments: string[],
   ): Promise<GameReview> {
     logger.info(`[SentimentAnalysis] Analyse de ${comments.length} commentaires pour ${gameName}`);
 
@@ -136,13 +136,14 @@ Fournis ta réponse au format JSON :
     }
 
     // Calculer le sentiment moyen
-    const sentimentScores: number[] = reviews.map(r => {
+    const sentimentScores: number[] = reviews.map((r) => {
       if (r.sentiment === "positive") return 1;
       if (r.sentiment === "negative") return -1;
       return 0;
     });
 
-    const averageSentiment = sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length;
+    const averageSentiment =
+      sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length;
 
     // Déterminer la recommandation
     let recommendation: "buy" | "wait" | "avoid";
@@ -194,13 +195,7 @@ Fournis ta réponse au format JSON :
         return null;
       }
 
-      return await this.analyzeGameReviews(
-        gameId,
-        "Jeu Reddit",
-        "Reddit",
-        comments
-      );
-
+      return await this.analyzeGameReviews(gameId, "Jeu Reddit", "Reddit", comments);
     } catch (error) {
       logger.error("[SentimentAnalysis] Erreur lors de l'analyse Reddit:", error);
       return null;
@@ -219,7 +214,7 @@ Fournis ta réponse au format JSON :
   /**
    * Récupère les commentaires Reddit (simulé)
    */
-  private async fetchRedditComments(redditUrl: string): Promise<string[]> {
+  private async fetchRedditComments(_redditUrl: string): Promise<string[]> {
     // À remplacer par vraie intégration Reddit API
     // Pour l'instant, retourne des commentaires simulés
     return [
@@ -233,8 +228,10 @@ Fournis ta réponse au format JSON :
   /**
    * Compare les sentiments de plusieurs jeux
    */
-  compareGames(gameIds: string[]): Array<{ gameId: string; sentiment: number; recommendation: string }> {
-    return gameIds.map(id => {
+  compareGames(
+    gameIds: string[],
+  ): Array<{ gameId: string; sentiment: number; recommendation: string }> {
+    return gameIds.map((id) => {
       const review = this.reviewCache.get(id);
       if (!review) {
         return { gameId: id, sentiment: 0, recommendation: "wait" };
@@ -264,11 +261,12 @@ Fournis ta réponse au format JSON :
     sentimentDistribution: Record<string, number>;
   } {
     const reviews = Array.from(this.reviewCache.values());
-    
-    const averageConfidence = reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.reviews.reduce((s, rev) => s + rev.confidence, 0), 0) / 
+
+    const averageConfidence =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.reviews.reduce((s, rev) => s + rev.confidence, 0), 0) /
           reviews.reduce((sum, r) => sum + r.reviews.length, 0)
-      : 0;
+        : 0;
 
     const sentimentDistribution: Record<string, number> = {
       positive: 0,

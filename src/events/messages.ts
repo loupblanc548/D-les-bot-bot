@@ -1,6 +1,5 @@
 import logger from "../utils/logger.js";
 import {
-  MessageFlags,
   Client,
   Message,
   PartialMessage,
@@ -17,7 +16,7 @@ import { analyzeToxicity } from "../services/ai-moderation.js";
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
-import { addMessageToConversation, getConversationHistory, clearConversation } from "../services/aiMemory.js";
+import { addMessageToConversation, getConversationHistory } from "../services/aiMemory.js";
 import { getCachedResponse, cacheResponse } from "../services/aiCache.js";
 import { checkRateLimit } from "../services/rateLimiter.js";
 
@@ -59,7 +58,9 @@ const HELPDIVER_EMPTY_MENTION_REPLIES = [
 ];
 
 function getRandomHelldiverReply(): string {
-  return HELPDIVER_EMPTY_MENTION_REPLIES[Math.floor(Math.random() * HELPDIVER_EMPTY_MENTION_REPLIES.length)];
+  return HELPDIVER_EMPTY_MENTION_REPLIES[
+    Math.floor(Math.random() * HELPDIVER_EMPTY_MENTION_REPLIES.length)
+  ];
 }
 
 // ─── Cleanup périodique ─────────────────────────────────────────────────────
@@ -155,7 +156,6 @@ export function handleMessageEvents(client: Client) {
 
       await handleContextualAiChat(message, client);
       await handleSecurityModules(message, spamTracker);
-
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
     }
@@ -168,11 +168,11 @@ export function handleMessageEvents(client: Client) {
 
 async function handleAiChatMention(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
-  client: Client
+  client: Client,
 ): Promise<void> {
   try {
     // Nettoyer le message : retirer la mention du bot
-    let cleanedContent = message.content
+    const cleanedContent = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
 
@@ -193,17 +193,17 @@ async function handleAiChatMention(
       message.author.id,
       "user",
       cleanedContent,
-      message.guildId || undefined
+      message.guildId || undefined,
     );
 
     // Vérifier le rate limiting
     const rateLimitCheck = checkRateLimit(
       message.author.id,
       "ai_chat",
-      message.guildId || undefined
+      message.guildId || undefined,
     );
     if (!rateLimitCheck.allowed) {
-      const resetTime = new Date(rateLimitCheck.resetTime).toLocaleTimeString("fr-FR");
+      const _resetTime = new Date(rateLimitCheck.resetTime).toLocaleTimeString("fr-FR");
       await message.reply({
         allowedMentions: { repliedUser: false },
       });
@@ -213,18 +213,30 @@ async function handleAiChatMention(
     const cachedResponse = getCachedResponse(cleanedContent);
     if (cachedResponse) {
       await message.reply({ content: cachedResponse, allowedMentions: { repliedUser: false } });
-      addMessageToConversation(message.author.id, "assistant", cachedResponse, message.guildId || undefined);
+      addMessageToConversation(
+        message.author.id,
+        "assistant",
+        cachedResponse,
+        message.guildId || undefined,
+      );
       logger.info(`[AIChat] Cache: ${message.author.tag}`);
       return;
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      await message.reply({ content: "\u26a0\ufe0f Circuits non configur\u00e9s ! Configure OPENROUTER_API_KEY. \U0001f985", allowedMentions: { repliedUser: false } });
+      await message.reply({
+        content:
+          "\u26a0\ufe0f Circuits non configur\u00e9s ! Configure OPENROUTER_API_KEY. \u{1f985}",
+        allowedMentions: { repliedUser: false },
+      });
       return;
     }
 
-    const conversationHistory = await getConversationHistory(message.author.id, message.guildId || undefined);
+    const conversationHistory = await getConversationHistory(
+      message.author.id,
+      message.guildId || undefined,
+    );
     const messages = [
       { role: "system", content: JOHN_HELLDIVER_SYSTEM_PROMPT },
       ...conversationHistory,
@@ -233,19 +245,34 @@ async function handleAiChatMention(
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://discord-bot.com", "X-Title": "John Helldiver - Discord Bot" },
-      body: JSON.stringify({ model: "meta-llama/llama-3-8b-instruct:free", messages, max_tokens: 500, temperature: 0.7 }),
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://discord-bot.com",
+        "X-Title": "John Helldiver - Discord Bot",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-3-8b-instruct:free",
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
       signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) throw new Error(`OpenRouter HTTP error: ${response.status}`);
-    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+    const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
 
     if (data.choices?.[0]?.message?.content) {
       let aiResponse = data.choices[0].message.content.trim();
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
       await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
-      addMessageToConversation(message.author.id, "assistant", aiResponse, message.guildId || undefined);
+      addMessageToConversation(
+        message.author.id,
+        "assistant",
+        aiResponse,
+        message.guildId || undefined,
+      );
       cacheResponse(cleanedContent, aiResponse);
       logger.info(`[AIChat] IA -> ${message.author.tag}`);
     } else {
@@ -253,12 +280,15 @@ async function handleAiChatMention(
     }
   } catch (error) {
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
-    await message.reply({ content: "\U0001f985 *Static* - Communications brouill\u00e9es ! R\u00e9essaie.", allowedMentions: { repliedUser: false } });
+    await message.reply({
+      content: "\u{1f985} *Static* - Communications brouill\u00e9es ! R\u00e9essaie.",
+      allowedMentions: { repliedUser: false },
+    });
   }
 }
 
 async function handleAutoTranslation(
-  message: OmitPartialGroupDMChannel<Message<boolean>>
+  message: OmitPartialGroupDMChannel<Message<boolean>>,
 ): Promise<void> {
   try {
     const content = message.content.trim();
@@ -267,14 +297,22 @@ async function handleAutoTranslation(
     const hasOnlyMentions = /^<@!?[\d]+>(\s*<@!?[\d]+>)*$/u.test(content);
     const hasOnlyUrls = /^https?:\/\/[^\s]+$/u.test(content);
 
-    if (content.length < 15 || wordCount < 3 || hasOnlyEmojis || hasOnlyMentions || hasOnlyUrls) return;
+    if (content.length < 15 || wordCount < 3 || hasOnlyEmojis || hasOnlyMentions || hasOnlyUrls)
+      return;
 
     const translationResult = await translateAutoToFrench(content);
 
-    if (translationResult && translationResult.detectedLanguage !== "fr" && translationResult.translatedText !== content) {
+    if (
+      translationResult &&
+      translationResult.detectedLanguage !== "fr" &&
+      translationResult.translatedText !== content
+    ) {
       const translationEmbed = new EmbedBuilder()
         .setColor(0x3498db)
-        .setAuthor({ name: `Traduction automatique (${translationResult.detectedLanguage})`, iconURL: message.author.displayAvatarURL() })
+        .setAuthor({
+          name: `Traduction automatique (${translationResult.detectedLanguage})`,
+          iconURL: message.author.displayAvatarURL(),
+        })
         .setDescription(`> ${translationResult.translatedText.slice(0, 1900)}`)
         .setFooter({ text: `Message original de ${message.author.username}` })
         .setTimestamp();
@@ -282,13 +320,15 @@ async function handleAutoTranslation(
       logger.debug(`[AutoTranslate] ${message.author.tag}: ${translationResult.detectedLanguage}`);
     }
   } catch (error) {
-    logger.debug(`[AutoTranslate] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[AutoTranslate] Erreur: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
 async function handleContextualAiChat(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
-  client: Client
+  client: Client,
 ): Promise<void> {
   try {
     if (!isAiChatEnabled(message.channel.id)) return;
@@ -297,7 +337,10 @@ async function handleContextualAiChat(
     let cleanedContent = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "");
     message.mentions.users.forEach((user) => {
       if (user.id !== client.user!.id) {
-        cleanedContent = cleanedContent.replace(new RegExp(`<@!?${user.id}>`, "g"), `@${user.username}`);
+        cleanedContent = cleanedContent.replace(
+          new RegExp(`<@!?${user.id}>`, "g"),
+          `@${user.username}`,
+        );
       }
     });
 
@@ -312,14 +355,21 @@ async function handleContextualAiChat(
     aichatCooldown.set(message.author.id, Date.now());
 
     await message.channel.sendTyping();
-    const reply = await chatWithHistory(message.channelId, cleanedContent, message.author.username, message.guildId || undefined);
+    const reply = await chatWithHistory(
+      message.channelId,
+      cleanedContent,
+      message.author.username,
+      message.guildId || undefined,
+    );
     await message.reply({ content: reply.slice(0, 2000), allowedMentions: { repliedUser: false } });
-  } catch (err) { logger.error("[AIChat] Erreur contextuelle:", err); }
+  } catch (err) {
+    logger.error("[AIChat] Erreur contextuelle:", err);
+  }
 }
 
 async function handleSecurityModules(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
-  spamTracker: Map<string, { count: number; firstSeen: number; warned: boolean }>
+  spamTracker: Map<string, { count: number; firstSeen: number; warned: boolean }>,
 ): Promise<void> {
   if (!("member" in message) || !message.member) return;
   const member = message.member as GuildMember;
@@ -327,35 +377,61 @@ async function handleSecurityModules(
 
   if (message.content.length > 10 && message.content.length < 1500) {
     if (!message.guild) return;
-    withCache(`guild:${message.guild.id}:config`, 30, () => prisma.guildConfig.findUnique({ where: { guildId: message.guild!.id } }))
+    withCache(`guild:${message.guild.id}:config`, 30, () =>
+      prisma.guildConfig.findUnique({ where: { guildId: message.guild!.id } }),
+    )
       .then((gc) => {
         if (!gc?.aiModerationEnabled) return;
-        analyzeToxicity(message.content).then(async (result) => {
-          if (result.isToxic && result.confidence > 0.8) {
-            try {
-              await message.delete();
-              const alert = await message.channel.send({ content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 par IA: **${result.category}** (${Math.round(result.confidence * 100)}%)` });
-              setTimeout(() => alert.delete().catch(() => {}), 8000);
-              await recordSecurityEvent(message.author.id, message.guild!.id, "AI_MODERATION").catch(() => {});
-              logger.info(`\U0001f916 [AI-Mod] ${message.author.tag}: ${result.category}`);
-            } catch (err) { logger.error("[AI-Mod] Erreur:", err); }
-          }
-        }).catch(() => {});
-      }).catch(() => {});
+        analyzeToxicity(message.content)
+          .then(async (result) => {
+            if (result.isToxic && result.confidence > 0.8) {
+              try {
+                await message.delete();
+                const alert = await message.channel.send({
+                  content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 par IA: **${result.category}** (${Math.round(result.confidence * 100)}%)`,
+                });
+                setTimeout(() => alert.delete().catch(() => {}), 8000);
+                await recordSecurityEvent(
+                  message.author.id,
+                  message.guild!.id,
+                  "AI_MODERATION",
+                ).catch(() => {});
+                logger.info(`\u{1f916} [AI-Mod] ${message.author.tag}: ${result.category}`);
+              } catch (err) {
+                logger.error("[AI-Mod] Erreur:", err);
+              }
+            }
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }
 
   if (await isAntiPhishingActive(message.guild!.id)) {
     const suspicious = checkSuspiciousLinksDetailed(message.content);
     if (suspicious.length > 0) {
-      logger.info(`\U0001f6e1\ufe0f [Anti-Phishing] ${suspicious.length} lien(s) suspect(s) de ${message.author.tag}`);
+      logger.info(
+        `\u{1f6e1}\ufe0f [Anti-Phishing] ${suspicious.length} lien(s) suspect(s) de ${message.author.tag}`,
+      );
       try {
         await message.delete();
-        const alert = await message.channel.send({ content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 (lien suspect).` });
+        const alert = await message.channel.send({
+          content: `\u26a0\ufe0f ${message.author} message supprim\u00e9 (lien suspect).`,
+        });
         setTimeout(() => alert.delete().catch(() => {}), 10000);
-        await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_PHISHING").catch(() => {});
-        await createLog({ type: "antiphishing", action: `Lien suspect: ${suspicious[0]} de ${message.author.tag}`, userId: message.author.id, details: message.content.slice(0, 500) });
+        await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_PHISHING").catch(
+          () => {},
+        );
+        await createLog({
+          type: "antiphishing",
+          action: `Lien suspect: ${suspicious[0]} de ${message.author.tag}`,
+          userId: message.author.id,
+          details: message.content.slice(0, 500),
+        });
         return;
-      } catch (err) { logger.error("[Anti-Phishing] Erreur:", err); }
+      } catch (err) {
+        logger.error("[Anti-Phishing] Erreur:", err);
+      }
     }
   }
 
@@ -369,16 +445,26 @@ async function handleSecurityModules(
     if (entry.count >= SPAM_THRESHOLD && !entry.warned) {
       entry.warned = true;
       try {
-        logger.info(`\U0001f6ab [Anti-Spam] ${entry.count} msg de ${message.author.tag}`);
+        logger.info(`\u{1f6ab} [Anti-Spam] ${entry.count} msg de ${message.author.tag}`);
         await member.timeout(SPAM_MUTE_MS, "Anti-spam");
         const recentMessages = await message.channel.messages.fetch({ limit: 20 });
         const spamMessages = recentMessages.filter((m) => m.author.id === message.author.id);
-        if (spamMessages.size > 0) { try { await (message.channel as TextChannel).bulkDelete(spamMessages, true); } catch (_) {} }
-        await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_SPAM").catch(() => {});
-      } catch (err) { logger.error("[Anti-Spam] Erreur:", err); }
+        if (spamMessages.size > 0) {
+          try {
+            await (message.channel as TextChannel).bulkDelete(spamMessages, true);
+          } catch (_) {}
+        }
+        await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_SPAM").catch(
+          () => {},
+        );
+      } catch (err) {
+        logger.error("[Anti-Spam] Erreur:", err);
+      }
     }
   }
   if (Math.random() < 0.01) {
-    for (const [k, v] of spamTracker) { if (now - v.firstSeen > SPAM_WINDOW_MS * 2) spamTracker.delete(k); }
+    for (const [k, v] of spamTracker) {
+      if (now - v.firstSeen > SPAM_WINDOW_MS * 2) spamTracker.delete(k);
+    }
   }
 }

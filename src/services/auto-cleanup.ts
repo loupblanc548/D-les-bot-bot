@@ -1,6 +1,7 @@
 import { Client, TextChannel, Message } from "discord.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import { registerInterval } from "../shutdown.js";
 
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const FETCH_LIMIT = 100;
@@ -25,9 +26,22 @@ function extractMessageKey(message: Message): string {
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
-    const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref", "ref_src", "source", "fbclid", "gclid", "s", "t"];
+    const trackingParams = [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_content",
+      "utm_term",
+      "ref",
+      "ref_src",
+      "source",
+      "fbclid",
+      "gclid",
+      "s",
+      "t",
+    ];
     for (const p of trackingParams) u.searchParams.delete(p);
-    return (u.origin + u.pathname.replace(/\/$/, "") + u.search + u.hash);
+    return u.origin + u.pathname.replace(/\/$/, "") + u.search + u.hash;
   } catch {
     return url.trim().replace(/\/$/, "");
   }
@@ -101,7 +115,9 @@ async function deduplicateChannel(channel: TextChannel): Promise<DedupResult> {
           try {
             const fetched = await channel.messages.fetch(msg.id);
             if (fetched) stillThere.push(fetched);
-          } catch { /* deja supprime */ }
+          } catch {
+            /* deja supprime */
+          }
         }
         toIndividualDelete.push(...stillThere);
       }
@@ -118,7 +134,9 @@ async function deduplicateChannel(channel: TextChannel): Promise<DedupResult> {
       }
     }
   } catch (err) {
-    logger.warn(`[Menage Auto] Erreur scan #${channel.name}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[Menage Auto] Erreur scan #${channel.name}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return result;
 }
@@ -126,10 +144,17 @@ async function deduplicateChannel(channel: TextChannel): Promise<DedupResult> {
 async function runAutoCleanup(client: Client): Promise<void> {
   const channelIds: string[] = [];
   const configChannels: (string | undefined | null)[] = [
-    config.steamEpicChannel, config.steamChannel, config.freeGamesChannel,
-    config.playstationChannel, config.fortniteChannel, config.xboxChannel,
-    config.nintendoChannel, config.robloxChannel, config.instantGamingChannel,
-    config.gamingBlogChannel, config.twitterChannel,
+    config.steamEpicChannel,
+    config.steamChannel,
+    config.freeGamesChannel,
+    config.playstationChannel,
+    config.fortniteChannel,
+    config.xboxChannel,
+    config.nintendoChannel,
+    config.robloxChannel,
+    config.instantGamingChannel,
+    config.gamingBlogChannel,
+    config.twitterChannel,
   ];
   for (const id of configChannels) {
     if (id && !channelIds.includes(id)) channelIds.push(id);
@@ -149,14 +174,20 @@ async function runAutoCleanup(client: Client): Promise<void> {
       totalRemoved += result.removed;
       totalErrors += result.errors;
       if (result.removed > 0) {
-        console.log(`[Menage Auto] ${result.removed} doublons supprimes dans le salon #${result.channelName}`);
+        console.log(
+          `[Menage Auto] ${result.removed} doublons supprimes dans le salon #${result.channelName}`,
+        );
       }
     } catch (err) {
-      logger.debug(`[Menage Auto] Salon ${channelId} inaccessible: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[Menage Auto] Salon ${channelId} inaccessible: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
   if (totalRemoved > 0) {
-    console.log(`[Menage Auto] Total: ${totalRemoved} doublons supprimes sur ${channelIds.length} salons (${totalErrors} echecs)`);
+    console.log(
+      `[Menage Auto] Total: ${totalRemoved} doublons supprimes sur ${channelIds.length} salons (${totalErrors} echecs)`,
+    );
   }
 }
 
@@ -168,25 +199,32 @@ export function startAutoCleanup(client: Client): void {
   logger.info(`[Menage Auto] Tache programmee toutes les ${CLEANUP_INTERVAL_MS / 60000} minutes`);
   initialTimeout = setTimeout(() => {
     runAutoCleanup(client).catch((err) =>
-      logger.error(`[Menage Auto] Erreur premier cycle: ${err instanceof Error ? err.message : String(err)}`)
+      logger.error(
+        `[Menage Auto] Erreur premier cycle: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   }, 30_000);
   cleanupInterval = setInterval(() => {
     runAutoCleanup(client).catch((err) =>
-      logger.error(`[Menage Auto] Erreur cycle: ${err instanceof Error ? err.message : String(err)}`)
+      logger.error(
+        `[Menage Auto] Erreur cycle: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   }, CLEANUP_INTERVAL_MS);
 
   // Enregistrer pour nettoyage au shutdown
-  try {
-    const { registerInterval } = require("../shutdown");
-    registerInterval(cleanupInterval);
-  } catch { /* shutdown module pas encore charge */ }
+  registerInterval(cleanupInterval);
 }
 
 export function stopAutoCleanup(): void {
-  if (cleanupInterval) { clearInterval(cleanupInterval); cleanupInterval = null; }
-  if (initialTimeout) { clearTimeout(initialTimeout); initialTimeout = null; }
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+  }
+  if (initialTimeout) {
+    clearTimeout(initialTimeout);
+    initialTimeout = null;
+  }
   logger.info("[Menage Auto] Tache arretee");
 }
 

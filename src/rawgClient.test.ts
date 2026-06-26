@@ -1,6 +1,6 @@
 // src/rawgClient.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { RawgClient, type RawgClientInternals } from "./rawgClient.js";
+import { RawgClient } from "./rawgClient.js";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {} };
 

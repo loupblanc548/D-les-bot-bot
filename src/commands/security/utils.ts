@@ -2,8 +2,22 @@ import prisma from "../../prisma.js";
 
 // ===== Constantes de détection de liens suspects =====
 const SUSPICIOUS_TLDS = new Set([
-  "tk", "ml", "ga", "cf", "gq", "xyz", "top", "click", "download",
-  "work", "review", "country", "science", "party", "gdn", "stream",
+  "tk",
+  "ml",
+  "ga",
+  "cf",
+  "gq",
+  "xyz",
+  "top",
+  "click",
+  "download",
+  "work",
+  "review",
+  "country",
+  "science",
+  "party",
+  "gdn",
+  "stream",
 ]);
 
 const SUSPICIOUS_PATTERNS: RegExp[] = [
@@ -18,8 +32,17 @@ const SUSPICIOUS_PATTERNS: RegExp[] = [
 ];
 
 const URL_SHORTENERS = new Set([
-  "bit.ly", "tinyurl.com", "goo.gl", "t.co", "ow.ly", "is.gd",
-  "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy",
+  "bit.ly",
+  "tinyurl.com",
+  "goo.gl",
+  "t.co",
+  "ow.ly",
+  "is.gd",
+  "buff.ly",
+  "rebrand.ly",
+  "cutt.ly",
+  "shorturl.at",
+  "rb.gy",
 ]);
 
 /**
@@ -40,7 +63,7 @@ export function checkSuspiciousLinksDetailed(content: string): string[] {
   const urls = content.match(urlRegex) || [];
 
   for (const url of urls) {
-    let host = "";
+    let host: string;
     try {
       host = new URL(url).hostname.toLowerCase();
     } catch {
@@ -93,7 +116,9 @@ export async function isAntiPhishingActive(guildId: string): Promise<boolean> {
 }
 
 /** Vérifie si l'anti-raid est activé pour une guilde (avec cache). */
-export async function isAntiRaidActive(guildId: string): Promise<{ active: boolean; seuilHeures: number }> {
+export async function isAntiRaidActive(
+  guildId: string,
+): Promise<{ active: boolean; seuilHeures: number }> {
   const cached = antiRaidCache.get(guildId);
   if (cached && Date.now() - cached.cachedAt < ANTI_RAID_CACHE_TTL_MS) {
     return { active: cached.active, seuilHeures: cached.seuilHeures };

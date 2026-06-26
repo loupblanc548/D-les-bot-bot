@@ -1,5 +1,4 @@
 import { Client, User, GuildMember } from "discord.js";
-import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -51,8 +50,8 @@ class UserPersonalizationService {
    * Obtient les préférences d'un utilisateur
    */
   async getUserPreferences(userId: string, guildId?: string): Promise<UserPreferences> {
-    const cacheKey = `${userId}-${guildId || 'global'}`;
-    
+    const cacheKey = `${userId}-${guildId || "global"}`;
+
     // Vérifier le cache
     if (this.preferencesCache.has(cacheKey)) {
       return this.preferencesCache.get(cacheKey)!;
@@ -71,14 +70,14 @@ class UserPersonalizationService {
           mentions: true,
           updates: true,
           alerts: true,
-          digest: false
+          digest: false,
         },
         privacy: {
           showActivity: true,
           showStats: true,
-          allowDataCollection: false
+          allowDataCollection: false,
         },
-        customSettings: {}
+        customSettings: {},
       };
 
       this.preferencesCache.set(cacheKey, defaultPreferences);
@@ -92,11 +91,15 @@ class UserPersonalizationService {
   /**
    * Met à jour les préférences d'un utilisateur
    */
-  async updateUserPreferences(userId: string, preferences: Partial<UserPreferences>, guildId?: string): Promise<void> {
+  async updateUserPreferences(
+    userId: string,
+    preferences: Partial<UserPreferences>,
+    guildId?: string,
+  ): Promise<void> {
     const current = await this.getUserPreferences(userId, guildId);
     const updated = { ...current, ...preferences };
-    
-    const cacheKey = `${userId}-${guildId || 'global'}`;
+
+    const cacheKey = `${userId}-${guildId || "global"}`;
     this.preferencesCache.set(cacheKey, updated);
 
     // Sauvegarder dans la base de données
@@ -115,18 +118,21 @@ class UserPersonalizationService {
 
     try {
       const user = await this.client.users.fetch(userId);
-      const member = await this.client.guilds.cache.first()?.members.fetch(userId).catch(() => null);
+      const member = await this.client.guilds.cache
+        .first()
+        ?.members.fetch(userId)
+        .catch(() => null);
 
       const profile: UserProfile = {
         userId,
         username: user.username,
         avatar: user.displayAvatarURL(),
-        banner: member?.banner ? (member.bannerURL() || undefined) : undefined,
+        banner: member?.banner ? member.bannerURL() || undefined : undefined,
         bio: undefined, // À implémenter avec une base de données
         badges: this.calculateBadges(user, member || null),
         level: this.calculateLevel(member || null),
         xp: this.calculateXP(member || null),
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
       };
 
       this.profileCache.set(userId, profile);
@@ -143,7 +149,7 @@ class UserPersonalizationService {
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
     const current = await this.getUserProfile(userId);
     const updated = { ...current, ...updates };
-    
+
     this.profileCache.set(userId, updated);
     logger.info(`[UserPersonalization] Profil mis à jour pour ${userId}`);
   }
@@ -173,7 +179,7 @@ class UserPersonalizationService {
     // Badges basés sur l'activité (à implémenter avec des données réelles)
     const joinDate = member?.joinedAt || user.createdAt;
     const daysSinceJoin = Math.floor((Date.now() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysSinceJoin > 365) {
       badges.push("🎂 Ancien");
     }
@@ -189,10 +195,10 @@ class UserPersonalizationService {
    */
   private calculateLevel(member: GuildMember | null): number {
     if (!member) return 1;
-    
+
     const joinDate = member.joinedAt || member.user.createdAt;
     const daysSinceJoin = Math.floor((Date.now() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     // Formule simple: 1 niveau tous les 30 jours
     return Math.floor(daysSinceJoin / 30) + 1;
   }
@@ -202,7 +208,7 @@ class UserPersonalizationService {
    */
   private calculateXP(member: GuildMember | null): number {
     if (!member) return 0;
-    
+
     const level = this.calculateLevel(member);
     // XP basé sur le niveau
     return level * 100;
@@ -221,14 +227,14 @@ class UserPersonalizationService {
         mentions: true,
         updates: true,
         alerts: true,
-        digest: false
+        digest: false,
       },
       privacy: {
         showActivity: true,
         showStats: true,
-        allowDataCollection: false
+        allowDataCollection: false,
       },
-      customSettings: {}
+      customSettings: {},
     };
   }
 
@@ -242,7 +248,7 @@ class UserPersonalizationService {
       badges: [],
       level: 1,
       xp: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
   }
 
@@ -251,9 +257,9 @@ class UserPersonalizationService {
    */
   async resetUserPreferences(userId: string, guildId?: string): Promise<void> {
     const defaultPrefs = this.getDefaultPreferences(userId, guildId);
-    const cacheKey = `${userId}-${guildId || 'global'}`;
+    const cacheKey = `${userId}-${guildId || "global"}`;
     this.preferencesCache.set(cacheKey, defaultPrefs);
-    
+
     logger.info(`[UserPersonalization] Préférences réinitialisées pour ${userId}`);
   }
 
@@ -268,7 +274,11 @@ class UserPersonalizationService {
   /**
    * Importe les préférences d'un utilisateur
    */
-  async importPreferences(userId: string, preferencesJson: string, guildId?: string): Promise<void> {
+  async importPreferences(
+    userId: string,
+    preferencesJson: string,
+    guildId?: string,
+  ): Promise<void> {
     try {
       const preferences = JSON.parse(preferencesJson) as Partial<UserPreferences>;
       await this.updateUserPreferences(userId, preferences, guildId);
@@ -289,8 +299,8 @@ class UserPersonalizationService {
     languageDistribution: Record<string, number>;
   }> {
     const totalUsers = this.preferencesCache.size;
-    const activeUsers = Array.from(this.preferencesCache.values()).filter(p => 
-      p.notifications.mentions || p.notifications.updates
+    const activeUsers = Array.from(this.preferencesCache.values()).filter(
+      (p) => p.notifications.mentions || p.notifications.updates,
     ).length;
 
     const themeDistribution: Record<string, number> = { light: 0, dark: 0, auto: 0 };
@@ -305,7 +315,7 @@ class UserPersonalizationService {
       totalUsers,
       activeUsers,
       themeDistribution,
-      languageDistribution
+      languageDistribution,
     };
   }
 
@@ -322,9 +332,9 @@ class UserPersonalizationService {
    * Obtient les utilisateurs avec des préférences spécifiques
    */
   async getUsersWithPreference(key: string, value: unknown): Promise<UserPreferences[]> {
-    return Array.from(this.preferencesCache.values()).filter(p => {
-      if (key.includes('.')) {
-        const keys = key.split('.');
+    return Array.from(this.preferencesCache.values()).filter((p) => {
+      if (key.includes(".")) {
+        const keys = key.split(".");
         let current: any = p;
         for (const k of keys) {
           current = current?.[k];
@@ -359,7 +369,7 @@ export const PERSONALIZATION_COMMANDS = {
   resetPrefs: "Réinitialise vos préférences",
   viewProfile: "Affiche votre profil",
   editProfile: "Modifie votre profil",
-  viewBadges: "Affiche vos badges"
+  viewBadges: "Affiche vos badges",
 };
 
 /**
@@ -373,8 +383,8 @@ export const AVAILABLE_THEMES = {
       primary: 0x0099ff,
       secondary: 0x00ccff,
       background: 0xffffff,
-      text: 0x000000
-    }
+      text: 0x000000,
+    },
   },
   dark: {
     name: "Sombre",
@@ -383,8 +393,8 @@ export const AVAILABLE_THEMES = {
       primary: 0x0099ff,
       secondary: 0x0066cc,
       background: 0x1a1a1a,
-      text: 0xffffff
-    }
+      text: 0xffffff,
+    },
   },
   auto: {
     name: "Automatique",
@@ -393,9 +403,9 @@ export const AVAILABLE_THEMES = {
       primary: 0x0099ff,
       secondary: 0x00ccff,
       background: 0x2a2a2a,
-      text: 0xffffff
-    }
-  }
+      text: 0xffffff,
+    },
+  },
 };
 
 /**
@@ -405,5 +415,5 @@ export const AVAILABLE_LANGUAGES = {
   fr: { name: "Français", flag: "🇫🇷" },
   en: { name: "English", flag: "🇬🇧" },
   es: { name: "Español", flag: "🇪🇸" },
-  de: { name: "Deutsch", flag: "🇩🇪" }
+  de: { name: "Deutsch", flag: "🇩🇪" },
 };

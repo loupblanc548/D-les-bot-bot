@@ -46,3 +46,35 @@ dist/
 /test-results/
 /coverage/
 *.tsbuildinfo
+
+# AI tooling task dumps
+.kilocode/
+.agent-cache/
+
+# Python caches / one-shot debug scripts
+__pycache__/
+*.pyc
+debug_fix_b.py
+verify_fix_b.py
+_write_test.py
+_dump/
+
+# Lint / diagnostic dumps (one-shot, not source)
+erreur.txt
+errors-list.txt
+unused-*.txt
+tsc_head.txt
+tsc_now.txt
+parse.js
+eslint.json
+eslint.before.json
+eslint-after-fix.json
+eslint.err
+eslint-fix.stdout
+eslint-fix.stderr
+diag.cjs
+fix-bytes.cjs
+fix-errors.cjs
+fix-twitter-cron.cjs
+inspect-bytes.cjs
+inv-errors.cjs

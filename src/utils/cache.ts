@@ -19,7 +19,8 @@ class SimpleCache<T> {
   private cache: Map<string, CacheNode<T>> = new Map();
   private defaultTtlMs: number;
 
-  constructor(defaultTtlMs: number = 300000) { // 5 minutes default
+  constructor(defaultTtlMs: number = 300000) {
+    // 5 minutes default
     this.defaultTtlMs = defaultTtlMs;
   }
 
@@ -31,12 +32,12 @@ class SimpleCache<T> {
   get(key: string): T | undefined {
     const node = this.cache.get(key);
     if (!node) return undefined;
-    
+
     if (node.isExpired()) {
       this.cache.delete(key);
       return undefined;
     }
-    
+
     return node.value;
   }
 
@@ -71,8 +72,8 @@ class SimpleCache<T> {
 
 // Singleton instances for different cache types
 export const dbCache = new SimpleCache<boolean>(60000); // 1 minute for DB queries
-export const rssCache = new SimpleCache<any>(300000); // 5 minutes for RSS feeds
-export const apiCache = new SimpleCache<any>(120000); // 2 minutes for API responses
+export const rssCache = new SimpleCache<unknown>(300000); // 5 minutes for RSS feeds
+export const apiCache = new SimpleCache<unknown>(120000); // 2 minutes for API responses
 
 // Cleanup expired entries every 5 minutes
 setInterval(() => {

@@ -17,11 +17,10 @@ import { config } from "../../config.js";
 import { createLog } from "../../services/logs.js";
 import { checkSuspiciousLinksDetailed } from "./utils.js";
 import logger from "../../utils/logger.js";
-import { antiPhishingCache, ANTI_PHISHING_CACHE_TTL_MS } from "./cache.js";
+import { antiPhishingCache } from "./cache.js";
 import { isAntiPhishingActive } from "./utils.js";
 
 const FOOTER = { text: "Surveillance System • Securite" };
-
 
 export async function handleLockdown(interaction: ChatInputCommandInteraction) {
   const action = interaction.options.getString("action", true);
@@ -33,7 +32,7 @@ export async function handleLockdown(interaction: ChatInputCommandInteraction) {
   const textChannels = guild.channels.cache.filter(
     (ch): ch is TextChannel =>
       ch.type === ChannelType.GuildText &&
-      ch.permissionsFor(interaction.client.user?.id)?.has(PermissionFlagsBits.ViewChannel) === true
+      ch.permissionsFor(interaction.client.user?.id)?.has(PermissionFlagsBits.ViewChannel) === true,
   );
 
   let modified = 0;
@@ -56,14 +55,17 @@ export async function handleLockdown(interaction: ChatInputCommandInteraction) {
     .setDescription(
       isLocking
         ? "Les membres ne peuvent plus envoyer de messages dans **" + modified + "** salons."
-        : "Les permissions ont été rétablies sur **" + modified + "** salons."
+        : "Les permissions ont été rétablies sur **" + modified + "** salons.",
     )
     .setTimestamp();
 
   if (failed.length > 0) {
     embed.addFields({
       name: "⚠️ Échecs",
-      value: failed.map((n) => "#" + n).join(", ").slice(0, 1024),
+      value: failed
+        .map((n) => "#" + n)
+        .join(", ")
+        .slice(0, 1024),
     });
   }
 
@@ -109,7 +111,7 @@ export async function handleNuke(interaction: ChatInputCommandInteraction) {
     .setColor(0xffaa00)
     .setTitle("☢️ Salon nuké")
     .setDescription(
-      "Ce salon a été régénéré par **" + interaction.user.tag + "**.\nL'historique a été effacé."
+      "Ce salon a été régénéré par **" + interaction.user.tag + "**.\nL'historique a été effacé.",
     )
     .setTimestamp();
 
@@ -161,14 +163,25 @@ export async function handleCheckAlt(interaction: ChatInputCommandInteraction) {
       .setColor(0xff3344)
       .setTitle("🚨 Comptes suspects (< " + hours + "h)")
       .setDescription(
-        "**" + suspicious.length + "** membres ont un compte créé il y a moins de **" + hours + " heures**.\n\n" +
+        "**" +
+          suspicious.length +
+          "** membres ont un compte créé il y a moins de **" +
+          hours +
+          " heures**.\n\n" +
           pageItems
             .map(
               (m, idx) =>
-                "**" + (i + idx + 1) + ".** " + m.user.tag + " (`" + m.user.id + "`)\n" +
-                "    Compte créé le " + m.user.createdAt.toLocaleDateString("fr-FR")
-           )
-            .join("\n")
+                "**" +
+                (i + idx + 1) +
+                ".** " +
+                m.user.tag +
+                " (`" +
+                m.user.id +
+                "`)\n" +
+                "    Compte créé le " +
+                m.user.createdAt.toLocaleDateString("fr-FR"),
+            )
+            .join("\n"),
       )
       .setFooter({ text: "Page " + (Math.floor(i / itemsPerPage) + 1) + "/" + totalPages })
       .setTimestamp();
@@ -181,10 +194,7 @@ export async function handleCheckAlt(interaction: ChatInputCommandInteraction) {
 
 // ===== /blacklist =====
 
-export async function handleBlacklist(
-  interaction: ChatInputCommandInteraction,
-  _client: Client
-) {
+export async function handleBlacklist(interaction: ChatInputCommandInteraction, _client: Client) {
   await interaction.deferReply({ ephemeral: true });
 
   try {
@@ -213,7 +223,7 @@ export async function handleBlacklist(
       "| Cible :",
       cible,
       "| ID :",
-      id
+      id,
     );
 
     const isAdd = action === "add";
@@ -247,9 +257,13 @@ export async function handleBlacklist(
             .setColor(0xff3344)
             .setTitle("🚫 Ajouté à la liste noire")
             .setDescription(
-              "**Type :** " + (cible === "user" ? "Utilisateur" : "Serveur") + "\n" +
-              "**ID :** `" + id + "`\n" +
-              "Le bot ignorera désormais les commandes de cette entité."
+              "**Type :** " +
+                (cible === "user" ? "Utilisateur" : "Serveur") +
+                "\n" +
+                "**ID :** `" +
+                id +
+                "`\n" +
+                "Le bot ignorera désormais les commandes de cette entité.",
             ),
         ],
       });
@@ -288,9 +302,12 @@ export async function handleBlacklist(
     });
   } catch (error) {
     logger.error("[CRASH CRITIQUE BLACKLIST]:", error);
-    await interaction.editReply({
-      content: "❌ Impossible d'exécuter la commande blacklist. Une erreur a été logguée dans la console.",
-    }).catch(() => {});
+    await interaction
+      .editReply({
+        content:
+          "❌ Impossible d'exécuter la commande blacklist. Une erreur a été logguée dans la console.",
+      })
+      .catch(() => {});
   }
 }
 export async function handleRoleMass(interaction: ChatInputCommandInteraction) {
@@ -308,7 +325,7 @@ export async function handleRoleMass(interaction: ChatInputCommandInteraction) {
         new EmbedBuilder()
           .setColor(0xff3344)
           .setDescription(
-            "Je ne peux pas gérer ce rôle (il est peut-être au-dessus du mien dans la hiérarchie)."
+            "Je ne peux pas gérer ce rôle (il est peut-être au-dessus du mien dans la hiérarchie).",
           ),
       ],
     });
@@ -328,7 +345,12 @@ export async function handleRoleMass(interaction: ChatInputCommandInteraction) {
       new EmbedBuilder()
         .setColor(0x2f3136)
         .setDescription(
-          (isAdding ? "➕ Ajout" : "➖ Retrait") + " du rôle " + role.toString() + " en cours... (0/" + members.length + ")"
+          (isAdding ? "➕ Ajout" : "➖ Retrait") +
+            " du rôle " +
+            role.toString() +
+            " en cours... (0/" +
+            members.length +
+            ")",
         ),
     ],
   });
@@ -355,7 +377,14 @@ export async function handleRoleMass(interaction: ChatInputCommandInteraction) {
             new EmbedBuilder()
               .setColor(0x2f3136)
               .setDescription(
-                (isAdding ? "➕ Ajout" : "➖ Retrait") + " du rôle " + role.toString() + " en cours... (" + (i + 1) + "/" + members.length + ")"
+                (isAdding ? "➕ Ajout" : "➖ Retrait") +
+                  " du rôle " +
+                  role.toString() +
+                  " en cours... (" +
+                  (i + 1) +
+                  "/" +
+                  members.length +
+                  ")",
               ),
           ],
         });
@@ -372,17 +401,28 @@ export async function handleRoleMass(interaction: ChatInputCommandInteraction) {
     .setColor(isAdding ? 0x53fc18 : 0xffaa00)
     .setTitle(isAdding ? "✅ Rôle ajouté en masse" : "✅ Rôle retiré en masse")
     .setDescription(
-      "**Rôle :** " + role.toString() + "\n" +
-      "**Succès :** " + success + " membres\n" +
-      "**Ignorés :** " + skipped + " (déjà " + (isAdding ? "eu" : "sans") + " le rôle)\n" +
-      (failed.length > 0 ? "**Échecs :** " + failed.length : "")
+      "**Rôle :** " +
+        role.toString() +
+        "\n" +
+        "**Succès :** " +
+        success +
+        " membres\n" +
+        "**Ignorés :** " +
+        skipped +
+        " (déjà " +
+        (isAdding ? "eu" : "sans") +
+        " le rôle)\n" +
+        (failed.length > 0 ? "**Échecs :** " + failed.length : ""),
     )
     .setTimestamp();
 
   if (failed.length > 0 && failed.length <= 20) {
     embed.addFields({
       name: "⚠️ Membres en échec",
-      value: failed.map((t) => "- " + t).join("\n").slice(0, 1024),
+      value: failed
+        .map((t) => "- " + t)
+        .join("\n")
+        .slice(0, 1024),
     });
   }
 
@@ -407,7 +447,9 @@ export async function handleAntiraid(interaction: ChatInputCommandInteraction) {
     const seuilHeures = interaction.options.getInteger("seuil_heures") || 24;
     const guildId = interaction.guildId;
     if (!guildId) {
-      await interaction.editReply({ content: "\u274C Cette commande doit etre executee dans un serveur." });
+      await interaction.editReply({
+        content: "\u274C Cette commande doit etre executee dans un serveur.",
+      });
       return;
     }
 
@@ -419,7 +461,7 @@ export async function handleAntiraid(interaction: ChatInputCommandInteraction) {
       "| Action :",
       action,
       "| Seuil :",
-      seuilHeures + "h"
+      seuilHeures + "h",
     );
 
     // 4. Execution (persistee dans GuildConfig via Prisma)
@@ -436,8 +478,8 @@ export async function handleAntiraid(interaction: ChatInputCommandInteraction) {
         .setDescription(
           "Tout nouveau membre avec un compte de **moins de " +
             seuilHeures +
-            "h** sera automatiquement timeout 1h."
-       )
+            "h** sera automatiquement timeout 1h.",
+        )
         .setFooter(FOOTER);
       await interaction.editReply({ embeds: [embed] });
       logger.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
@@ -451,9 +493,7 @@ export async function handleAntiraid(interaction: ChatInputCommandInteraction) {
       const embed = new EmbedBuilder()
         .setTitle("\u2705 Mode Anti-Raid Desactive")
         .setColor(0x00ff66)
-        .setDescription(
-          "Les nouveaux membres ne seront plus filtres automatiquement."
-       )
+        .setDescription("Les nouveaux membres ne seront plus filtres automatiquement.")
         .setFooter(FOOTER);
       await interaction.editReply({ embeds: [embed] });
       logger.info("\u2705 [Anti-Raid] Systeme configure avec succes et persiste en base.");
@@ -465,19 +505,19 @@ export async function handleAntiraid(interaction: ChatInputCommandInteraction) {
         .setTitle("\u{1F6E1}\uFE0F Statut Anti-Raid")
         .setColor(active ? 0xff3344 : 0x666666)
         .setDescription(
-          active
-            ? "**ACTIF** \u2014 Seuil : " + seuil + "h de creation de compte"
-            : "**INACTIF**"
-       )
+          active ? "**ACTIF** \u2014 Seuil : " + seuil + "h de creation de compte" : "**INACTIF**",
+        )
         .setFooter(FOOTER);
       await interaction.editReply({ embeds: [embed] });
     }
   } catch (error) {
     logger.error("[CRASH CRITIQUE ANTIRAID]:", error);
-    await interaction.editReply({
-      content:
-        "\u274C Impossible d'executer la commande anti-raid. Une erreur a ete logguee dans la console.",
-    }).catch(() => {});
+    await interaction
+      .editReply({
+        content:
+          "\u274C Impossible d'executer la commande anti-raid. Une erreur a ete logguee dans la console.",
+      })
+      .catch(() => {});
   }
 }
 export async function handleVerif(interaction: ChatInputCommandInteraction) {
@@ -486,7 +526,9 @@ export async function handleVerif(interaction: ChatInputCommandInteraction) {
   try {
     const guildId = interaction.guildId;
     if (!guildId) {
-      await interaction.editReply({ content: "❌ Cette commande doit être exécutée dans un serveur." });
+      await interaction.editReply({
+        content: "❌ Cette commande doit être exécutée dans un serveur.",
+      });
       return;
     }
 
@@ -497,7 +539,7 @@ export async function handleVerif(interaction: ChatInputCommandInteraction) {
       interaction.user.displayName,
       "(" + interaction.user.id + ")",
       "| Role :",
-      role.name
+      role.name,
     );
 
     const embed = new EmbedBuilder()
@@ -506,7 +548,7 @@ export async function handleVerif(interaction: ChatInputCommandInteraction) {
       .setDescription(
         "Cliquez sur le bouton ci-dessous pour obtenir le rôle **" +
           role.name +
-          "** et accéder au serveur."
+          "** et accéder au serveur.",
       )
       .setFooter(FOOTER);
 
@@ -520,9 +562,12 @@ export async function handleVerif(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ embeds: [embed], components: [row] });
   } catch (error) {
     logger.error("[CRASH CRITIQUE VERIF]:", error);
-    await interaction.editReply({
-      content: "❌ Impossible d'executer la commande de verification. Une erreur a ete logguee dans la console.",
-    }).catch(() => {});
+    await interaction
+      .editReply({
+        content:
+          "❌ Impossible d'executer la commande de verification. Une erreur a ete logguee dans la console.",
+      })
+      .catch(() => {});
   }
 }
 
@@ -544,9 +589,7 @@ export async function handleNameHistory(interaction: ChatInputCommandInteraction
       embeds: [
         new EmbedBuilder()
           .setColor(0x2f3136)
-          .setDescription(
-            "Aucun changement de pseudo enregistré pour **" + user.tag + "**."
-          ),
+          .setDescription("Aucun changement de pseudo enregistré pour **" + user.tag + "**."),
       ],
     });
     return;
@@ -558,11 +601,11 @@ export async function handleNameHistory(interaction: ChatInputCommandInteraction
       h.changedAt.toLocaleDateString("fr-FR") +
       " " +
       h.changedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) +
-      "**\n> \"" +
+      '**\n> "' +
       h.oldName +
-      "\" → **\"" +
+      '" → **"' +
       h.newName +
-      "\"**"
+      '"**',
   );
 
   const embed = new EmbedBuilder()
@@ -594,16 +637,14 @@ export async function handleAvatarHistory(interaction: ChatInputCommandInteracti
       embeds: [
         new EmbedBuilder()
           .setColor(0x2f3136)
-          .setDescription(
-            "Aucun changement d'avatar enregistré pour **" + user.tag + "**."
-          ),
+          .setDescription("Aucun changement d'avatar enregistré pour **" + user.tag + "**."),
       ],
     });
     return;
   }
 
   const items = history.map(
-    (h, i) =>
+    (h, _i) =>
       "**" +
       h.changedAt.toLocaleDateString("fr-FR") +
       " " +
@@ -612,7 +653,7 @@ export async function handleAvatarHistory(interaction: ChatInputCommandInteracti
       h.oldHash.slice(0, 12) +
       "...` → `" +
       h.newHash.slice(0, 12) +
-      "...`"
+      "...`",
   );
 
   const embed = new EmbedBuilder()
@@ -660,9 +701,8 @@ export async function handleLinkCheck(interaction: ChatInputCommandInteraction) 
         "\n**Niveau de risque :** " +
         riskLevel +
         (allFlags.length > 0
-          ? "\n\n**Drapeaux détectés :**\n" +
-            allFlags.map((f) => "• " + f).join("\n")
-          : "")
+          ? "\n\n**Drapeaux détectés :**\n" + allFlags.map((f) => "• " + f).join("\n")
+          : ""),
     )
     .setFooter({ text: "Surveillance System • LinkCheck" })
     .setTimestamp();
@@ -678,7 +718,9 @@ export async function handleAntiphishing(interaction: ChatInputCommandInteractio
     const action = interaction.options.getString("action", true);
     const guildId = interaction.guildId;
     if (!guildId) {
-      await interaction.editReply({ content: "❌ Cette commande doit être exécutée dans un serveur." });
+      await interaction.editReply({
+        content: "❌ Cette commande doit être exécutée dans un serveur.",
+      });
       return;
     }
 
@@ -687,33 +729,39 @@ export async function handleAntiphishing(interaction: ChatInputCommandInteractio
       interaction.user.displayName,
       "(" + interaction.user.id + ")",
       "| Action :",
-      action
+      action,
     );
 
     if (action === "on") {
       logger.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
-      await prisma.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: true }, update: { antiPhishing: true } });
+      await prisma.guildConfig.upsert({
+        where: { guildId },
+        create: { guildId, antiPhishing: true },
+        update: { antiPhishing: true },
+      });
       antiPhishingCache.set(guildId, { active: true, cachedAt: Date.now() });
       const embed = new EmbedBuilder()
         .setTitle("🛡️ Anti-Phishing Activé")
         .setColor(0xff3344)
         .setDescription(
           "Les messages contenant des liens suspects seront automatiquement supprimés.\n" +
-            "**Types détectés :** phishing Discord, IP directes, TLDs suspects, raccourcisseurs d'URL"
-       )
+            "**Types détectés :** phishing Discord, IP directes, TLDs suspects, raccourcisseurs d'URL",
+        )
         .setFooter(FOOTER);
       await interaction.editReply({ embeds: [embed] });
       logger.info("✅ [Anti-Phishing] Système configuré avec succès.");
     } else if (action === "off") {
       logger.info("⚙️ [Anti-Phishing] Mise à jour de la configuration en cours...");
-      await prisma.guildConfig.upsert({ where: { guildId }, create: { guildId, antiPhishing: false }, update: { antiPhishing: false } });
+      await prisma.guildConfig.upsert({
+        where: { guildId },
+        create: { guildId, antiPhishing: false },
+        update: { antiPhishing: false },
+      });
       antiPhishingCache.set(guildId, { active: false, cachedAt: Date.now() });
       const embed = new EmbedBuilder()
         .setTitle("✅ Anti-Phishing Désactivé")
         .setColor(0x53fc18)
-        .setDescription(
-          "Les liens suspects ne seront plus filtrés automatiquement."
-       )
+        .setDescription("Les liens suspects ne seront plus filtrés automatiquement.")
         .setFooter(FOOTER);
       await interaction.editReply({ embeds: [embed] });
       logger.info("✅ [Anti-Phishing] Système configuré avec succès.");
@@ -728,12 +776,17 @@ export async function handleAntiphishing(interaction: ChatInputCommandInteractio
     }
   } catch (error) {
     logger.error("[CRASH CRITIQUE ANTIPHISHING]:", error);
-    await interaction.editReply({ content: "❌ Impossible d'exécuter la commande anti-phishing. Une erreur a été logguée dans la console." }).catch(() => {});
+    await interaction
+      .editReply({
+        content:
+          "❌ Impossible d'exécuter la commande anti-phishing. Une erreur a été logguée dans la console.",
+      })
+      .catch(() => {});
   }
 }
 // ===== Fonctions anti-phishing =====
 
-const SUSPICIOUS_TLDS = [
+const _SUSPICIOUS_TLDS = [
   ".tk",
   ".ml",
   ".ga",
@@ -750,7 +803,7 @@ const SUSPICIOUS_TLDS = [
   ".click",
 ];
 
-const SUSPICIOUS_PATTERNS = [
+const _SUSPICIOUS_PATTERNS = [
   "discord-nitro",
   "discord-gift",
   "steam-community",
@@ -767,7 +820,7 @@ const SUSPICIOUS_PATTERNS = [
   "steamcomunity",
 ];
 
-const URL_SHORTENERS = [
+const _URL_SHORTENERS = [
   "bit.ly",
   "tinyurl.com",
   "shorturl.at",

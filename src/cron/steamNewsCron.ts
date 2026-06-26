@@ -3,7 +3,6 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { retry } from "../utils/retry.js";
-import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { dbCache } from "../utils/cache.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
@@ -31,7 +30,8 @@ interface PlatformConfig {
 
 // Constantes
 
-const RSS_FEED_URL = "https://api.rss2json.com/v1/api.json?rss_url=https://www.reddit.com/r/patchnotes/.rss";
+const RSS_FEED_URL =
+  "https://api.rss2json.com/v1/api.json?rss_url=https://www.reddit.com/r/patchnotes/.rss";
 const FOOTER = { text: "Patch Notes Tracker • Surveillance automatique" };
 
 // Configuration des plateformes
@@ -112,17 +112,17 @@ function detectPlatforms(title: string): Platform[] {
 function cleanSummary(content: string): string {
   // Supprimer les balises HTML
   const cleanText = content
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/g, " ")
     .trim();
-  
+
   // Limiter à 400-500 caractères
-  return cleanText.length > 500 ? cleanText.slice(0, 497) + '...' : cleanText;
+  return cleanText.length > 500 ? cleanText.slice(0, 497) + "..." : cleanText;
 }
 
 /**
@@ -133,14 +133,16 @@ function cleanSummary(content: string): string {
 async function isPatchProcessed(guid: string): Promise<boolean> {
   const cached = dbCache.get(guid);
   if (cached !== undefined) return cached;
-  
+
   try {
     const existing = await prisma.processedPatchNotes.findUnique({ where: { guid } });
     const result = !!existing;
     dbCache.set(guid, result);
     return result;
   } catch (error) {
-    logger.warn(`[PatchNotesCron] Erreur verification ProcessedPatchNotes: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `[PatchNotesCron] Erreur verification ProcessedPatchNotes: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return false;
   }
 }
@@ -161,24 +163,17 @@ async function markPatchProcessed(guid: string, title: string): Promise<void> {
 
 // Resolution des salons
 
-async function resolveChannel(
-  client: Client,
-  channelId: string
-): Promise<TextChannel | null> {
+async function resolveChannel(client: Client, channelId: string): Promise<TextChannel | null> {
   try {
     const channel = await client.channels.fetch(channelId);
     if (!channel?.isTextBased()) {
-      logger.error(
-        "[PatchNotesCron] Salon " + channelId + " introuvable ou non textuel"
-      );
+      logger.error("[PatchNotesCron] Salon " + channelId + " introuvable ou non textuel");
       return null;
     }
     return channel as TextChannel;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error(
-      "[PatchNotesCron] Erreur fetch salon " + channelId + ": " + msg
-    );
+    logger.error("[PatchNotesCron] Erreur fetch salon " + channelId + ": " + msg);
     return null;
   }
 }
@@ -190,12 +185,12 @@ async function checkTrackedGames(client: Client): Promise<void> {
   await dedupCache.reloadFromDisk();
   // Securite anti-crash : verification stricte des variables d'environnement
   const activePlatforms = (Object.keys(PLATFORM_CONFIGS) as Platform[]).filter(
-    (p) => PLATFORM_CONFIGS[p].channelId
+    (p) => PLATFORM_CONFIGS[p].channelId,
   );
 
   if (activePlatforms.length === 0) {
     logger.warn(
-      "[PatchNotesCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive"
+      "[PatchNotesCron] Aucun CHANNEL_ID configure (STEAM_EPIC_CHANNEL_ID, PLAYSTATION_CHANNEL_ID, XBOX_CHANNEL_ID, NINTENDO_CHANNEL_ID) — cron desactive",
     );
     return;
   }
@@ -212,24 +207,23 @@ async function checkTrackedGames(client: Client): Promise<void> {
   try {
     checkCount++;
     logger.info(
-      "[PatchNotesCron] Verification #" + checkCount + " — fetch RSS Reddit r/patchnotes..."
+      "[PatchNotesCron] Verification #" + checkCount + " — fetch RSS Reddit r/patchnotes...",
     );
 
     let feed: Record<string, unknown>;
     try {
       // Utiliser rss2json avec retry logic
-      feed = await retry(
+      feed = (await retry(
         async () => {
           const response = await fetch(RSS_FEED_URL);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.json();
         },
         3,
-        1000
-      ) as Record<string, unknown>;
+        1000,
+      )) as Record<string, unknown>;
     } catch (rssError) {
-      const msg =
-        rssError instanceof Error ? rssError.message : String(rssError);
+      const msg = rssError instanceof Error ? rssError.message : String(rssError);
       logger.warn("[PatchNotesCron] Flux Reddit inaccessible: " + msg);
       return;
     }
@@ -240,15 +234,17 @@ async function checkTrackedGames(client: Client): Promise<void> {
     }
 
     logger.info(
-      "[PatchNotesCron] " + (feed as Record<string, any>).items.length + " article(s) recupere(s) du flux RSS"
+      "[PatchNotesCron] " +
+        (feed as Record<string, any>).items.length +
+        " article(s) recupere(s) du flux RSS",
     );
 
     // Deduplication via ProcessedPatchNotes (guid)
     const freshItems: RedditFeedItem[] = [];
-    for (const item of ((feed as Record<string, any>).items || [])) {
+    for (const item of (feed as Record<string, any>).items || []) {
       const guid = item.guid || item.link || item.title;
       if (!guid) continue;
-      
+
       if (!(await isPatchProcessed(guid))) {
         // VERROU ANTI-SPAM : dedup cache JSON local
         if (dedupCache.isAlreadyProcessed("patch_notes", guid)) {
@@ -264,9 +260,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
       return;
     }
 
-    logger.info(
-      "[PatchNotesCron] " + freshItems.length + " nouveau(x) article(s) a router"
-    );
+    logger.info("[PatchNotesCron] " + freshItems.length + " nouveau(x) article(s) a router");
 
     // Routage multi-plateforme
     for (const item of freshItems) {
@@ -287,7 +281,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
 
       const link = item.link ?? "";
       const description = cleanSummary(
-        item.contentSnippet || item.content || "Nouveau patch note disponible !"
+        item.contentSnippet || item.content || "Nouveau patch note disponible !",
       );
       const pubDateStr = item.pubDate
         ? "<t:" + Math.floor(new Date(item.pubDate).getTime() / 1000) + ":D>"
@@ -316,8 +310,12 @@ async function checkTrackedGames(client: Client): Promise<void> {
           .setDescription(description)
           .addFields(
             { name: "📅 Publie le", value: pubDateStr, inline: true },
-            { name: "🔗 Lien", value: link ? "[Voir le patch note](" + link + ")" : "Lien indisponible", inline: true },
-            { name: "🖥️ Plateforme", value: cfg.label, inline: true }
+            {
+              name: "🔗 Lien",
+              value: link ? "[Voir le patch note](" + link + ")" : "Lien indisponible",
+              inline: true,
+            },
+            { name: "🖥️ Plateforme", value: cfg.label, inline: true },
           )
           .setFooter(FOOTER)
           .setTimestamp();
@@ -328,15 +326,10 @@ async function checkTrackedGames(client: Client): Promise<void> {
             embeds: [embed],
           });
           sent = true;
-          logger.info(
-            "[PatchNotesCron] ✓ " + cfg.label + " : \"" + title.slice(0, 80) + "\""
-          );
+          logger.info("[PatchNotesCron] ✓ " + cfg.label + ' : "' + title.slice(0, 80) + '"');
         } catch (sendError) {
-          const sendMsg =
-            sendError instanceof Error ? sendError.message : String(sendError);
-          logger.error(
-            "[PatchNotesCron] ✗ Echec envoi " + cfg.label + ": " + sendMsg
-          );
+          const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
+          logger.error("[PatchNotesCron] ✗ Echec envoi " + cfg.label + ": " + sendMsg);
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -354,15 +347,20 @@ async function checkTrackedGames(client: Client): Promise<void> {
 
     const elapsed = Date.now() - startTime;
     logger.info(
-      "[PatchNotesCron] ✓ " + patchesSent + " patch note(s) envoye(s) en " + (elapsed / 1000).toFixed(1) + "s"
+      "[PatchNotesCron] ✓ " +
+        patchesSent +
+        " patch note(s) envoye(s) en " +
+        (elapsed / 1000).toFixed(1) +
+        "s",
     );
-    
+
     // Enregistrer les métriques
     metricsCollector.recordProcessing("patchNotes", true, elapsed);
   } catch (error) {
     logger.error(
-      "[PatchNotesCron] Erreur critique: " + (error instanceof Error ? error.message : String(error)),
-      { stack: error instanceof Error ? error.stack : undefined }
+      "[PatchNotesCron] Erreur critique: " +
+        (error instanceof Error ? error.message : String(error)),
+      { stack: error instanceof Error ? error.stack : undefined },
     );
     metricsCollector.recordProcessing("patchNotes", false, Date.now() - startTime);
   } finally {
@@ -383,22 +381,24 @@ export function startSteamNewsMonitoring(client: Client): void {
   const intervalMs = 600000; // 10 minutes
 
   logger.info(
-    "[PatchNotesCron] Demarrage — intervalle " + (intervalMs / 60000).toFixed(1) + " min"
+    "[PatchNotesCron] Demarrage — intervalle " + (intervalMs / 60000).toFixed(1) + " min",
   );
 
   checkTrackedGames(client).catch((err) =>
     logger.error(
-      "[PatchNotesCron] Erreur check initial: " + (err instanceof Error ? err.message : String(err)),
-      { stack: err instanceof Error ? err.stack : undefined }
-    )
+      "[PatchNotesCron] Erreur check initial: " +
+        (err instanceof Error ? err.message : String(err)),
+      { stack: err instanceof Error ? err.stack : undefined },
+    ),
   );
 
   intervalId = setInterval(() => {
     checkTrackedGames(client).catch((err) =>
       logger.error(
-        "[PatchNotesCron] Erreur check periodique: " + (err instanceof Error ? err.message : String(err)),
-        { stack: err instanceof Error ? err.stack : undefined }
-      )
+        "[PatchNotesCron] Erreur check periodique: " +
+          (err instanceof Error ? err.message : String(err)),
+        { stack: err instanceof Error ? err.stack : undefined },
+      ),
     );
   }, intervalMs);
 }

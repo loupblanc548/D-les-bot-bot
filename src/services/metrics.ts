@@ -1,7 +1,7 @@
 import http from "http";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
-import { register, Counter, Gauge, Histogram, Summary } from "prom-client";
+import { register, Counter, Gauge, Histogram } from "prom-client";
 
 let metricsServer: http.Server | null = null;
 

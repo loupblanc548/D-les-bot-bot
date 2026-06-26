@@ -1,22 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
-  mockPrisma: { wishlist: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() }, userPreference: { findUnique: vi.fn(), upsert: vi.fn() } },
+  mockPrisma: {
+    wishlist: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    userPreference: { findUnique: vi.fn(), upsert: vi.fn() },
+  },
 }));
 vi.mock("../../prisma", () => ({ default: mockPrisma }));
-vi.mock("../../services/fortnite-cosmetics", () => ({ validateCosmeticName: vi.fn(), searchCosmetics: vi.fn() }));
+vi.mock("../../services/fortnite-cosmetics", () => ({
+  validateCosmeticName: vi.fn(),
+  searchCosmetics: vi.fn(),
+}));
 vi.mock("../../services/fortnite-api", () => ({ fetchShop: vi.fn() }));
 
 import { handleCommand, handleAutocomplete } from "./wishlist.js";
 import { fetchShop } from "../../services/fortnite-api.js";
 import { validateCosmeticName, searchCosmetics } from "../../services/fortnite-cosmetics.js";
-import { MessageFlags } from "discord.js";
-
 function mi(o: any = {}) {
   return {
-    options: { getString: vi.fn((n: string) => n === "action" ? (o.action ?? "add") : (o.nom ?? null)) },
+    options: {
+      getString: vi.fn((n: string) => (n === "action" ? (o.action ?? "add") : (o.nom ?? null))),
+    },
     user: o.user ?? { id: "u1", tag: "Test#1234", username: "Test", displayName: "Test" },
-    guildId: "g1", reply: vi.fn().mockResolvedValue(undefined), followUp: vi.fn().mockResolvedValue(undefined), deferReply: vi.fn().mockResolvedValue(undefined), editReply: vi.fn().mockResolvedValue(undefined),
+    guildId: "g1",
+    reply: vi.fn().mockResolvedValue(undefined),
+    followUp: vi.fn().mockResolvedValue(undefined),
+    deferReply: vi.fn().mockResolvedValue(undefined),
+    editReply: vi.fn().mockResolvedValue(undefined),
   } as any;
 }
 
@@ -28,7 +38,9 @@ describe("add", () => {
     mockPrisma.wishlist.findUnique.mockResolvedValue(null);
     mockPrisma.wishlist.create.mockResolvedValue({});
     await handleCommand(mi({ nom: "  Renegade Raider  " }));
-    expect(mockPrisma.wishlist.create).toHaveBeenCalledWith({ data: { userId: "u1", itemName: "renegade raider" } });
+    expect(mockPrisma.wishlist.create).toHaveBeenCalledWith({
+      data: { userId: "u1", itemName: "renegade raider" },
+    });
   });
 
   it("refuse nom vide", async () => {
@@ -61,7 +73,9 @@ describe("remove", () => {
   it("supprime un item", async () => {
     mockPrisma.wishlist.deleteMany.mockResolvedValue({ count: 1 });
     await handleCommand(mi({ action: "remove", nom: "Test" }));
-    expect(mockPrisma.wishlist.deleteMany).toHaveBeenCalledWith({ where: { userId: "u1", itemName: "test" } });
+    expect(mockPrisma.wishlist.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "u1", itemName: "test" },
+    });
   });
 
   it("signale item non trouve", async () => {
@@ -84,7 +98,9 @@ describe("list", () => {
   });
 
   it("affiche items dans embed", async () => {
-    mockPrisma.wishlist.findMany.mockResolvedValue([{ id: 1, itemName: "skin1", createdAt: new Date() }]);
+    mockPrisma.wishlist.findMany.mockResolvedValue([
+      { id: 1, itemName: "skin1", createdAt: new Date() },
+    ]);
     await handleCommand(mi({ action: "list" }));
     expect(mockPrisma.wishlist.findMany).toHaveBeenCalled();
   });
@@ -115,9 +131,16 @@ describe("autocomplete", () => {
   it("retourne suggestions (fallback searchCosmetics)", async () => {
     (fetchShop as any).mockResolvedValue(null); // shop down, fallback actif
     (searchCosmetics as any).mockResolvedValue(["A", "B"]);
-    const ai = { commandName: "wishlist", options: { getFocused: vi.fn().mockReturnValue({ name: "nom", value: "x" }) }, respond: vi.fn() } as any;
+    const ai = {
+      commandName: "wishlist",
+      options: { getFocused: vi.fn().mockReturnValue({ name: "nom", value: "x" }) },
+      respond: vi.fn(),
+    } as any;
     await handleAutocomplete(ai);
-    expect(ai.respond).toHaveBeenCalledWith([{ name: "A", value: "A" }, { name: "B", value: "B" }]);
+    expect(ai.respond).toHaveBeenCalledWith([
+      { name: "A", value: "A" },
+      { name: "B", value: "B" },
+    ]);
   });
 
   it("ignore autre commande", async () => {
@@ -129,47 +152,61 @@ describe("autocomplete", () => {
   it("retourne vide si erreur", async () => {
     (fetchShop as any).mockResolvedValue(null);
     (searchCosmetics as any).mockRejectedValue(new Error("x"));
-    const ai = { commandName: "wishlist", options: { getFocused: vi.fn().mockReturnValue({ name: "nom", value: "x" }) }, respond: vi.fn() } as any;
+    const ai = {
+      commandName: "wishlist",
+      options: { getFocused: vi.fn().mockReturnValue({ name: "nom", value: "x" }) },
+      respond: vi.fn(),
+    } as any;
     await handleAutocomplete(ai);
     expect(ai.respond).toHaveBeenCalledWith([]);
   });
 
-describe("notify", () => {
-  beforeEach(() => vi.clearAllMocks());
+  describe("notify", () => {
+    beforeEach(() => vi.clearAllMocks());
 
-  it("active les DM si actuellement desactives", async () => {
-    mockPrisma.userPreference.findUnique.mockResolvedValue({ userId: "u1", wishlistDm: false });
-    mockPrisma.userPreference.upsert.mockResolvedValue({});
-    const m = mi({ action: "notify" });
-    await handleCommand(m);
-    expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({ wishlistDm: true }),
-      update: expect.objectContaining({ wishlistDm: true }),
-    }));
-    expect(m.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("activées") }));
-  });
+    it("active les DM si actuellement desactives", async () => {
+      mockPrisma.userPreference.findUnique.mockResolvedValue({ userId: "u1", wishlistDm: false });
+      mockPrisma.userPreference.upsert.mockResolvedValue({});
+      const m = mi({ action: "notify" });
+      await handleCommand(m);
+      expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ wishlistDm: true }),
+          update: expect.objectContaining({ wishlistDm: true }),
+        }),
+      );
+      expect(m.reply).toHaveBeenCalledWith(
+        expect.objectContaining({ content: expect.stringContaining("activées") }),
+      );
+    });
 
-  it("desactive les DM si actuellement actifs", async () => {
-    mockPrisma.userPreference.findUnique.mockResolvedValue({ userId: "u1", wishlistDm: true });
-    mockPrisma.userPreference.upsert.mockResolvedValue({});
-    const m = mi({ action: "notify" });
-    await handleCommand(m);
-    expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({ wishlistDm: false }),
-      update: expect.objectContaining({ wishlistDm: false }),
-    }));
-    expect(m.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining("désactivées") }));
-  });
+    it("desactive les DM si actuellement actifs", async () => {
+      mockPrisma.userPreference.findUnique.mockResolvedValue({ userId: "u1", wishlistDm: true });
+      mockPrisma.userPreference.upsert.mockResolvedValue({});
+      const m = mi({ action: "notify" });
+      await handleCommand(m);
+      expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ wishlistDm: false }),
+          update: expect.objectContaining({ wishlistDm: false }),
+        }),
+      );
+      expect(m.reply).toHaveBeenCalledWith(
+        expect.objectContaining({ content: expect.stringContaining("désactivées") }),
+      );
+    });
 
-  it("active les DM par defaut si pas de preference existante", async () => {
-    mockPrisma.userPreference.findUnique.mockResolvedValue(null);
-    mockPrisma.userPreference.upsert.mockResolvedValue({});
-    const m = mi({ action: "notify" });
-    await handleCommand(m);
-    // Par défaut wishlistDm = true → toggle → false
-    expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({ wishlistDm: false }),
-    }));
+    it("active les DM par defaut si pas de preference existante", async () => {
+      mockPrisma.userPreference.findUnique.mockResolvedValue(null);
+      mockPrisma.userPreference.upsert.mockResolvedValue({});
+      const m = mi({ action: "notify" });
+      await handleCommand(m);
+      // Par défaut wishlistDm = true → toggle → false
+      expect(mockPrisma.userPreference.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ wishlistDm: false }),
+        }),
+      );
+    });
   });
-});
 });

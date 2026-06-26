@@ -4,7 +4,7 @@ import {
   VoiceConnection,
   VoiceConnectionStatus,
   EndBehaviorType,
-  AudioReceiveStream
+  AudioReceiveStream,
 } from "@discordjs/voice";
 import prism from "prism-media";
 import { Readable } from "stream";
@@ -44,9 +44,14 @@ function getOpenAIClient(): OpenAI {
 
 // \u2500\u2500\u2500 Conversion PCM \u2192 WAV \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-function pcmToWavBuffer(pcmBuffer: Buffer, sampleRate = 16000, channels = 1, bitDepth = 16): Buffer {
+function pcmToWavBuffer(
+  pcmBuffer: Buffer,
+  sampleRate = 16000,
+  channels = 1,
+  bitDepth = 16,
+): Buffer {
   // Downmix stéréo 48kHz → mono 16kHz pour Whisper (meilleure qualité de transcription)
-  const inputSampleRate = 48000;
+  const _inputSampleRate = 48000;
   const inputChannels = 2;
   const mono = Buffer.alloc(pcmBuffer.length / inputChannels);
   for (let i = 0; i < mono.length; i += 2) {
@@ -123,10 +128,12 @@ export async function startDictation(
   adapterCreator: any,
   userId: string,
   username: string,
-  targetChannelId: string
+  targetChannelId: string,
 ): Promise<void> {
   if (activeSessions.has(userId)) {
-    throw new Error("Tu as d\u00e9j\u00e0 une dict\u00e9e en cours. Utilise `/dictee stop` d'abord.");
+    throw new Error(
+      "Tu as d\u00e9j\u00e0 une dict\u00e9e en cours. Utilise `/dictee stop` d'abord.",
+    );
   }
 
   logger.info("\ud83c\udf99\ufe0f [Dictation] Connexion au salon vocal pour", username);
@@ -241,7 +248,7 @@ export async function stopDictation(userId: string): Promise<{
     "\ud83d\udcca [Dictation] Audio captur\u00e9 :",
     (pcmBuffer.length / 1024).toFixed(1),
     "Ko PCM",
-    pcmBuffer.length === 0 ? "(silence)" : ""
+    pcmBuffer.length === 0 ? "(silence)" : "",
   );
 
   // Audio vide ?

@@ -24,9 +24,7 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("chat")
     .setDescription("Pose une question a l'IA")
-    .addStringOption((o) =>
-      o.setName("message").setDescription("Ton message").setRequired(true)
-    )
+    .addStringOption((o) => o.setName("message").setDescription("Ton message").setRequired(true))
     .toJSON(),
 
   // /mention
@@ -37,7 +35,7 @@ export const commands = [
       o
         .setName("message")
         .setDescription("Message au format @utilisateur ton message")
-        .setRequired(true)
+        .setRequired(true),
     )
     .toJSON(),
 
@@ -54,8 +52,8 @@ export const commands = [
           { name: "Activer", value: "on" },
           { name: "Desactiver", value: "off" },
           { name: "Statut", value: "status" },
-          { name: "Effacer l'historique", value: "clear" }
-        )
+          { name: "Effacer l'historique", value: "clear" },
+        ),
     )
     .toJSON(),
 
@@ -64,17 +62,12 @@ export const commands = [
     .setName("smartpoll")
     .setDescription("Genere un sondage intelligent avec des options creees par l'IA")
     .addStringOption((o) =>
-      o
-        .setName("question")
-        .setDescription("Le sujet du sondage")
-        .setRequired(true)
+      o.setName("question").setDescription("Le sujet du sondage").setRequired(true),
     )
     .toJSON(),
 ];
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction) {
   try {
     switch (interaction.commandName) {
       case "chat":
@@ -103,7 +96,9 @@ export async function handleCommand(
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -158,8 +153,8 @@ async function handleAiChat(interaction: ChatInputCommandInteraction) {
           .setTitle("Chat IA Active")
           .setDescription(
             "Le bot repondra a **tous les messages** dans ce salon avec de l'IA.\n" +
-            "La memoire de conversation est conservee (20 derniers messages max).\n" +
-            "Utilise `/aichat off` pour desactiver."
+              "La memoire de conversation est conservee (20 derniers messages max).\n" +
+              "Utilise `/aichat off` pour desactiver.",
           )
           .setFooter(FOOTER),
       ],
@@ -186,7 +181,7 @@ async function handleAiChat(interaction: ChatInputCommandInteraction) {
           .setDescription(
             deleted > 0
               ? `✅ ${deleted} message(s) supprime(s). L'IA repart de zero dans ce salon.`
-              : "Aucun message a supprimer (historique deja vide)."
+              : "Aucun message a supprimer (historique deja vide).",
           )
           .setFooter(FOOTER),
       ],
@@ -199,11 +194,7 @@ async function handleAiChat(interaction: ChatInputCommandInteraction) {
         new EmbedBuilder()
           .setColor(enabled ? 0x53fc18 : 0x666666)
           .setTitle("Statut Chat IA")
-          .setDescription(
-            enabled
-              ? `**ACTIF** — ${size} messages en memoire`
-              : "**INACTIF**"
-          )
+          .setDescription(enabled ? `**ACTIF** — ${size} messages en memoire` : "**INACTIF**")
           .setFooter(FOOTER),
       ],
     });
@@ -223,7 +214,9 @@ async function handleSmartPoll(interaction: ChatInputCommandInteraction) {
       embeds: [
         new EmbedBuilder()
           .setColor(0xff3344)
-          .setDescription("L'IA n'a pas pu generer d'options pour ce sondage. Reformule ta question.")
+          .setDescription(
+            "L'IA n'a pas pu generer d'options pour ce sondage. Reformule ta question.",
+          )
           .setFooter(FOOTER),
       ],
     });
@@ -238,7 +231,9 @@ async function handleSmartPoll(interaction: ChatInputCommandInteraction) {
       embeds: [
         new EmbedBuilder()
           .setColor(0xff3344)
-          .setDescription("L'IA n'a pas genere assez d'options. Reessaye avec une question plus ouverte.")
+          .setDescription(
+            "L'IA n'a pas genere assez d'options. Reessaye avec une question plus ouverte.",
+          )
           .setFooter(FOOTER),
       ],
     });
@@ -247,7 +242,7 @@ async function handleSmartPoll(interaction: ChatInputCommandInteraction) {
 
   // Creer un sondage natif Discord
   try {
-    const poll = await interaction.editReply({
+    const _poll = await interaction.editReply({
       content: `**Sondage:** ${reformulated}`,
       poll: {
         question: { text: reformulated },
@@ -261,9 +256,7 @@ async function handleSmartPoll(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
       .setTitle(reformulated)
-      .setDescription(
-        options.map((o, i) => `${["🇦", "🇧", "🇨", "🇩", "🇪"][i]} ${o}`).join("\n\n")
-      )
+      .setDescription(options.map((o, i) => `${["🇦", "🇧", "🇨", "🇩", "🇪"][i]} ${o}`).join("\n\n"))
       .setFooter({ text: "Sondage genere par IA • Votez avec les reactions !" })
       .setTimestamp();
 
@@ -272,7 +265,9 @@ async function handleSmartPoll(interaction: ChatInputCommandInteraction) {
     for (let i = 0; i < Math.min(options.length, 5); i++) {
       try {
         await msg.react(emojis[i]);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

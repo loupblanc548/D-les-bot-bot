@@ -17,9 +17,24 @@ interface PatchNote {
 const RSS_FEEDS: { game: string; url: string; channelId: string }[] = [];
 
 function initFeeds() {
-  if (config.fortniteChannel) RSS_FEEDS.push({ game: "Fortnite", url: "https://www.fortnite.com/news/rss", channelId: config.fortniteChannel });
-  if (config.dedicatedChannel) RSS_FEEDS.push({ game: "Helldivers 2", url: "https://store.steampowered.com/feeds/news/app/553850/?l=french", channelId: config.dedicatedChannel });
-  if (config.dedicatedChannel) RSS_FEEDS.push({ game: "Call of Duty Warzone", url: "https://www.callofduty.com/blog/rss", channelId: config.dedicatedChannel });
+  if (config.fortniteChannel)
+    RSS_FEEDS.push({
+      game: "Fortnite",
+      url: "https://www.fortnite.com/news/rss",
+      channelId: config.fortniteChannel,
+    });
+  if (config.dedicatedChannel)
+    RSS_FEEDS.push({
+      game: "Helldivers 2",
+      url: "https://store.steampowered.com/feeds/news/app/553850/?l=french",
+      channelId: config.dedicatedChannel,
+    });
+  if (config.dedicatedChannel)
+    RSS_FEEDS.push({
+      game: "Call of Duty Warzone",
+      url: "https://www.callofduty.com/blog/rss",
+      channelId: config.dedicatedChannel,
+    });
 }
 
 const xmlParser = new XMLParser({
@@ -50,9 +65,7 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
         : parsed.rss.channel.item;
     }
     if (!firstItem && parsed.feed?.entry) {
-      firstItem = Array.isArray(parsed.feed.entry)
-        ? parsed.feed.entry[0]
-        : parsed.feed.entry;
+      firstItem = Array.isArray(parsed.feed.entry) ? parsed.feed.entry[0] : parsed.feed.entry;
     }
     if (!firstItem) return null;
 
@@ -81,7 +94,9 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
 
     if (!rawContent) return null;
     return { game: feed.game, title, url, rawContent };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function summarizeWithAI(rawContent: string): Promise<string> {
@@ -90,28 +105,40 @@ async function summarizeWithAI(rawContent: string): Promise<string> {
     const completion = await client.chat.completions.create({
       model: "openai/gpt-4o-mini",
       messages: [
-        { role: "system", content: "Tu es un assistant gaming d elite. Prends ce patch note brut et resume-le sous forme de 5 points cles indispensables pour les joueurs. Style direct, punchy, sans fioritures. Reponds en francais." },
+        {
+          role: "system",
+          content:
+            "Tu es un assistant gaming d elite. Prends ce patch note brut et resume-le sous forme de 5 points cles indispensables pour les joueurs. Style direct, punchy, sans fioritures. Reponds en francais.",
+        },
         { role: "user", content: rawContent },
       ],
       max_tokens: 500,
       temperature: 0.7,
     });
     return completion.choices[0]?.message?.content || "Resume indisponible.";
-  } catch { return "Resume indisponible (erreur IA)."; }
+  } catch {
+    return "Resume indisponible (erreur IA).";
+  }
 }
 
 let patchCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startPatchNotesService(client: Client) {
   initFeeds();
-  if (RSS_FEEDS.length === 0) { logger.info("[PatchNotes] Aucun flux RSS configure"); return; }
+  if (RSS_FEEDS.length === 0) {
+    logger.info("[PatchNotes] Aucun flux RSS configure");
+    return;
+  }
   logger.info("[PatchNotes] Surveillance de " + RSS_FEEDS.length + " flux RSS");
   patchCheckInterval = setInterval(() => checkAllFeeds(client), config.patchNotesIntervalMs);
   checkAllFeeds(client);
 }
 
 export function stopPatchNotesService() {
-  if (patchCheckInterval) { clearInterval(patchCheckInterval); patchCheckInterval = null; }
+  if (patchCheckInterval) {
+    clearInterval(patchCheckInterval);
+    patchCheckInterval = null;
+  }
 }
 
 async function checkAllFeeds(client: Client) {
@@ -119,15 +146,24 @@ async function checkAllFeeds(client: Client) {
     try {
       const patchNote = await fetchPatchNotes(feed);
       if (!patchNote) continue;
-      const alreadyNotified = await prisma.notification.findFirst({ where: { sourceId: "patch-" + feed.game, content: patchNote.title } });
+      const alreadyNotified = await prisma.notification.findFirst({
+        where: { sourceId: "patch-" + feed.game, content: patchNote.title },
+      });
       if (alreadyNotified) continue;
       const summary = await summarizeWithAI(patchNote.rawContent);
-      const lines = summary.split(/\n\s*\n|\n(?=\d+\.|\-|\*)/).filter(Boolean).slice(0, 5);
+      const lines = summary
+        .split(/\n\s*\n|\n(?=\d+\.|-|\*)/)
+        .filter(Boolean)
+        .slice(0, 5);
       const embed = new EmbedBuilder()
         .setTitle(PLATFORM_LABELS["patch_notes"] + " — " + feed.game)
         .setColor(PLATFORM_COLORS["patch_notes"])
-        .setDescription(lines.map((p, i) => "**" + (i + 1) + ".** " + p.trim()).join("\n") || summary)
-        .setFooter({ text: "Resume genere automatiquement par IA • " + new Date().toLocaleDateString("fr-FR") })
+        .setDescription(
+          lines.map((p, i) => "**" + (i + 1) + ".** " + p.trim()).join("\n") || summary,
+        )
+        .setFooter({
+          text: "Resume genere automatiquement par IA • " + new Date().toLocaleDateString("fr-FR"),
+        })
         .setTimestamp();
       if (patchNote.url) embed.setURL(patchNote.url);
       // Ajout automatique d'image de l'article (og:image)
@@ -141,9 +177,20 @@ async function checkAllFeeds(client: Client) {
         const channel = await client.channels.fetch(feed.channelId);
         if (channel?.isTextBased()) {
           await (channel as TextChannel).send({ embeds: [embed] });
-          await prisma.notification.create({ data: { sourceId: "patch-" + feed.game, platform: "patch_notes", content: patchNote.title, url: patchNote.url } });
+          await prisma.notification.create({
+            data: {
+              sourceId: "patch-" + feed.game,
+              platform: "patch_notes",
+              content: patchNote.title,
+              url: patchNote.url,
+            },
+          });
         }
-      } catch (err) { logger.error("[PatchNotes] Erreur envoi Discord:", String(err)); }
-    } catch (err) { logger.error("[PatchNotes] Erreur flux " + feed.game + ":", String(err)); }
+      } catch (err) {
+        logger.error("[PatchNotes] Erreur envoi Discord:", String(err));
+      }
+    } catch (err) {
+      logger.error("[PatchNotes] Erreur flux " + feed.game + ":", String(err));
+    }
   }
 }

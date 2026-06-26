@@ -1,36 +1,50 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import cron from "node-cron";
 
 const mockIsWithinTemporalBarrier = vi.hoisted(() => vi.fn().mockReturnValue(true));
 const mockIsNewItem = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 const mockMarkAsProcessed = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockTranslateAutoToFrench = vi.hoisted(() => vi.fn().mockResolvedValue({
-  translatedText: "Jeu gratuit traduit",
-  detectedLanguage: "en",
-}));
-const mockRouteArticle = vi.hoisted(() => vi.fn().mockResolvedValue({
-  routed: true,
-  sentTo: ["channel-1"],
-  errors: [],
-}));
+const mockTranslateAutoToFrench = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    translatedText: "Jeu gratuit traduit",
+    detectedLanguage: "en",
+  }),
+);
+const mockRouteArticle = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    routed: true,
+    sentTo: ["channel-1"],
+    errors: [],
+  }),
+);
 
 const mockLogger = vi.hoisted(() => ({
-  info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
 }));
 
 vi.mock("discord.js", async () => {
   const a = await vi.importActual("discord.js");
-  return { ...a, EmbedBuilder: vi.fn().mockImplementation(function(this:any) {
-    this.setTitle=vi.fn().mockReturnThis(); this.setURL=vi.fn().mockReturnThis();
-    this.setColor=vi.fn().mockReturnThis(); this.setAuthor=vi.fn().mockReturnThis();
-    this.setDescription=vi.fn().mockReturnThis(); this.addFields=vi.fn().mockReturnThis();
-    this.setFooter=vi.fn().mockReturnThis(); this.setTimestamp=vi.fn().mockReturnThis();
-    return this;
-  }) };
+  return {
+    ...a,
+    EmbedBuilder: vi.fn().mockImplementation(function (this: any) {
+      this.setTitle = vi.fn().mockReturnThis();
+      this.setURL = vi.fn().mockReturnThis();
+      this.setColor = vi.fn().mockReturnThis();
+      this.setAuthor = vi.fn().mockReturnThis();
+      this.setDescription = vi.fn().mockReturnThis();
+      this.addFields = vi.fn().mockReturnThis();
+      this.setFooter = vi.fn().mockReturnThis();
+      this.setTimestamp = vi.fn().mockReturnThis();
+      return this;
+    }),
+  };
 });
 
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
-vi.mock("../config", () => ({ config: { freeGamesMention: null as string|null } }));
+vi.mock("../config", () => ({ config: { freeGamesMention: null as string | null } }));
 vi.mock("../managers/ScraperManager", () => ({
   ContentType: { FREE_GAME: "free_game" },
   isWithinTemporalBarrier: mockIsWithinTemporalBarrier,
@@ -49,19 +63,45 @@ vi.mock("../managers/ChannelRouter", () => ({ routeArticle: mockRouteArticle }))
 
 const mockFetchGames = vi.hoisted(() => vi.fn());
 vi.mock("../services/FreeGameFetcher", () => ({
-  FreeGameFetcher: vi.fn().mockImplementation(function() { return { fetchGames: mockFetchGames }; }),
+  FreeGameFetcher: vi.fn().mockImplementation(function () {
+    return { fetchGames: mockFetchGames };
+  }),
 }));
 
-import { checkFreeGames, startFreeGamesMonitoring, stopFreeGamesMonitoring } from "./freeGamesCron.js";
+import {
+  checkFreeGames,
+  startFreeGamesMonitoring,
+  stopFreeGamesMonitoring,
+} from "./freeGamesCron.js";
 
 function createMockClient(): any {
-  return { channels: { fetch: vi.fn().mockResolvedValue({ isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) }) } };
+  return {
+    channels: {
+      fetch: vi
+        .fn()
+        .mockResolvedValue({ isTextBased: () => true, send: vi.fn().mockResolvedValue(undefined) }),
+    },
+  };
 }
 function makeItem(o: any = {}) {
-  return { title: o.title ?? "Epic Game", link: o.link ?? "https://reddit.com/r/test/abc", pubDate: o.pubDate ?? new Date().toISOString(), content: "content", contentSnippet: "snippet", guid: o.guid ?? "g1", thumbnail: undefined };
+  return {
+    title: o.title ?? "Epic Game",
+    link: o.link ?? "https://reddit.com/r/test/abc",
+    pubDate: o.pubDate ?? new Date().toISOString(),
+    content: "content",
+    contentSnippet: "snippet",
+    guid: o.guid ?? "g1",
+    thumbnail: undefined,
+  };
 }
 
-beforeEach(() => { vi.clearAllMocks(); stopFreeGamesMonitoring(); mockIsWithinTemporalBarrier.mockReturnValue(true); mockIsNewItem.mockResolvedValue(true); mockFetchGames.mockResolvedValue([]); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  stopFreeGamesMonitoring();
+  mockIsWithinTemporalBarrier.mockReturnValue(true);
+  mockIsNewItem.mockResolvedValue(true);
+  mockFetchGames.mockResolvedValue([]);
+});
 
 describe("checkFreeGames", () => {
   it("fetches and processes items", async () => {
@@ -111,19 +151,29 @@ describe("checkFreeGames", () => {
     mockFetchGames.mockResolvedValue([makeItem()]);
     await checkFreeGames(createMockClient());
     expect(mockMarkAsProcessed).not.toHaveBeenCalled();
-    expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("Echec routage"), expect.any(Object));
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining("Echec routage"),
+      expect.any(Object),
+    );
   });
 
   it("limits to 10 items per cycle", async () => {
-    const items = Array.from({length:20}, (_,i) => makeItem({guid:`p${i}`}));
+    const items = Array.from({ length: 20 }, (_, i) => makeItem({ guid: `p${i}` }));
     mockFetchGames.mockResolvedValue(items);
     await checkFreeGames(createMockClient());
     expect(mockIsWithinTemporalBarrier).toHaveBeenCalledTimes(10);
   });
 
   it("continues if individual item fails (allSettled)", async () => {
-    mockIsNewItem.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error("DB")).mockResolvedValueOnce(true);
-    mockFetchGames.mockResolvedValue([makeItem({guid:"o1"}),makeItem({guid:"fail"}),makeItem({guid:"o2"})]);
+    mockIsNewItem
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(new Error("DB"))
+      .mockResolvedValueOnce(true);
+    mockFetchGames.mockResolvedValue([
+      makeItem({ guid: "o1" }),
+      makeItem({ guid: "fail" }),
+      makeItem({ guid: "o2" }),
+    ]);
     await checkFreeGames(createMockClient());
     expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("Erreur traitement jeu"));
   });
@@ -131,13 +181,13 @@ describe("checkFreeGames", () => {
 
 describe("start/stop", () => {
   it("starts cron with 10min interval", () => {
-    const spy = vi.spyOn(cron,"schedule").mockReturnValue({stop:vi.fn()}as any);
+    const spy = vi.spyOn(cron, "schedule").mockReturnValue({ stop: vi.fn() } as any);
     startFreeGamesMonitoring(createMockClient());
     expect(spy).toHaveBeenCalledWith("*/10 * * * *", expect.any(Function));
   });
 
   it("does not start twice", () => {
-    vi.spyOn(cron,"schedule").mockReturnValue({stop:vi.fn()}as any);
+    vi.spyOn(cron, "schedule").mockReturnValue({ stop: vi.fn() } as any);
     startFreeGamesMonitoring(createMockClient());
     startFreeGamesMonitoring(createMockClient());
     expect(mockLogger.warn).toHaveBeenCalledWith("[FreeGamesCron] Deja actif — ignore");
@@ -145,7 +195,7 @@ describe("start/stop", () => {
 
   it("stops cron", () => {
     const ms = vi.fn();
-    vi.spyOn(cron,"schedule").mockReturnValue({stop:ms}as any);
+    vi.spyOn(cron, "schedule").mockReturnValue({ stop: ms } as any);
     startFreeGamesMonitoring(createMockClient());
     stopFreeGamesMonitoring();
     expect(ms).toHaveBeenCalledTimes(1);

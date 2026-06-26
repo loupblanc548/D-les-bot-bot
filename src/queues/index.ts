@@ -64,10 +64,10 @@ reminderWorker.on("failed", (job, err) => {
   logger.error(`[ReminderWorker] Job ${job?.id} failed:`, err);
 });
 
-export async function addDealJob(type: string, data: any = {}): Promise<void> {
+export async function addDealJob(type: string, data: unknown = {}): Promise<void> {
   await dealQueue.add(type, data);
 }
 
-export async function addReminderJob(data: any): Promise<void> {
+export async function addReminderJob(data: unknown): Promise<void> {
   await reminderQueue.add("send_reminder", data);
 }

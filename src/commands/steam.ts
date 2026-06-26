@@ -7,14 +7,8 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import prisma from "../prisma.js";
-import {
-  getPlayerSummaries,
-  getOwnedGames,
-  resolveVanityUrl,
-  isValidSteamId,
-} from "../services/steam.js";
+import { getPlayerSummaries, resolveVanityUrl, isValidSteamId } from "../services/steam.js";
 import { config } from "../config.js";
-
 
 // Cache TTL pour handleNowPlaying (evite de fetch tous les membres a chaque appel)
 const nowPlayingCache = new Map<string, { data: Record<string, unknown>; expiry: number }>();
@@ -34,27 +28,30 @@ export const commands = [
           o
             .setName("steam_id")
             .setDescription("Ton SteamID64 (17 chiffres) ou ton identifiant personnalise")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
-      sub.setName("nowplaying").setDescription("Affiche a quoi jouent les membres du serveur")
+      sub.setName("nowplaying").setDescription("Affiche a quoi jouent les membres du serveur"),
     )
     .addSubcommand((sub) =>
       sub
         .setName("wishlist")
         .setDescription("Affiche le lien vers la wishlist Steam d'un membre")
         .addUserOption((o) =>
-          o.setName("utilisateur").setDescription("Membre dont voir la wishlist").setRequired(false)
-        )
+          o
+            .setName("utilisateur")
+            .setDescription("Membre dont voir la wishlist")
+            .setRequired(false),
+        ),
     )
     .addSubcommand((sub) =>
       sub
         .setName("profile")
         .setDescription("Affiche le profil Steam d'un membre")
         .addUserOption((o) =>
-          o.setName("utilisateur").setDescription("Membre (defaut: toi)").setRequired(false)
-        )
+          o.setName("utilisateur").setDescription("Membre (defaut: toi)").setRequired(false),
+        ),
     )
     .toJSON(),
 ];
@@ -66,15 +63,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   if (!config.steamApiKey) {
     await interaction.reply({
       embeds: [
-        new EmbedBuilder()
-          .setTitle(`Cle API Steam manquante`)
-          .setDescription(
-            `La cle API Steam n'est pas configuree.
+        new EmbedBuilder().setTitle(`Cle API Steam manquante`).setDescription(
+          `La cle API Steam n'est pas configuree.
 ` +
             `Ajoute **STEAM_API_KEY** dans ton fichier **.env**.
 ` +
-            `Obtenez-la sur : https://steamcommunity.com/dev/apikey`
-          )
+            `Obtenez-la sur : https://steamcommunity.com/dev/apikey`,
+        ),
       ],
       flags: [MessageFlags.Ephemeral],
     });
@@ -107,7 +102,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -117,7 +114,7 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
 
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-  let steamId: string | null = null;
+  let steamId: string | null;
 
   // Vérifier si c'est un SteamID64 valide
   if (isValidSteamId(input)) {
@@ -132,8 +129,8 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
             .setColor(0xffaa00)
             .setDescription(
               `Impossible de resoudre **${input}**.\n` +
-              `Verifie que ton profil Steam est public et que l'identifiant est correct.\n` +
-              `Tu peux aussi utiliser ton SteamID64 (17 chiffres).`
+                `Verifie que ton profil Steam est public et que l'identifiant est correct.\n` +
+                `Tu peux aussi utiliser ton SteamID64 (17 chiffres).`,
             ),
         ],
       });
@@ -174,12 +171,12 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
     .setURL(`https://steamcommunity.com/profiles/${steamId}`)
     .setDescription(
       `Ton compte Discord est maintenant lie a **${player.personaname}** sur Steam.\n` +
-      `Tu peux utiliser /steam profile, /steam nowplaying et /steam wishlist.`
+        `Tu peux utiliser /steam profile, /steam nowplaying et /steam wishlist.`,
     )
     .setThumbnail(player.avatarfull || "")
     .addFields(
       { name: "Steam ID", value: steamId, inline: true },
-      { name: "Profil", value: player.personaname, inline: true }
+      { name: "Profil", value: player.personaname, inline: true },
     )
     .setFooter(FOOTER);
 
@@ -207,7 +204,10 @@ async function handleNowPlaying(interaction: ChatInputCommandInteraction) {
     const fetchedProfiles = await prisma.steamProfile.findMany({
       where: { userId: { in: memberIds } },
     });
-    nowPlayingCache.set(cacheKey, { data: { members: fetchedMembers, profiles: fetchedProfiles }, expiry: cacheNow + CACHE_TTL_MS });
+    nowPlayingCache.set(cacheKey, {
+      data: { members: fetchedMembers, profiles: fetchedProfiles },
+      expiry: cacheNow + CACHE_TTL_MS,
+    });
     members = fetchedMembers;
     profiles = fetchedProfiles;
   }
@@ -217,9 +217,7 @@ async function handleNowPlaying(interaction: ChatInputCommandInteraction) {
       embeds: [
         new EmbedBuilder()
           .setColor(0x2f3136)
-          .setDescription(
-            "Aucun membre n'a lie son compte Steam. Utilise `/steam connect` !"
-          ),
+          .setDescription("Aucun membre n'a lie son compte Steam. Utilise `/steam connect` !"),
       ],
     });
     return;
@@ -248,17 +246,10 @@ async function handleNowPlaying(interaction: ChatInputCommandInteraction) {
     }
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(0x1b2838)
-    .setTitle("En jeu sur Steam")
-    .setTimestamp();
+  const embed = new EmbedBuilder().setColor(0x1b2838).setTitle("En jeu sur Steam").setTimestamp();
 
   if (playingNow.length > 0) {
-    embed.setDescription(
-      playingNow
-        .map((p) => `**${p.member}** joue a **${p.game}**`)
-        .join("\n")
-    );
+    embed.setDescription(playingNow.map((p) => `**${p.member}** joue a **${p.game}**`).join("\n"));
   } else {
     embed.setDescription("Personne n'est en jeu actuellement.");
   }
@@ -298,7 +289,7 @@ async function handleWishlist(interaction: ChatInputCommandInteraction) {
           .setDescription(
             isSelf
               ? "Tu n'as pas lie ton compte Steam. Utilise `/steam connect` d'abord !"
-              : `**${user.tag}** n'a pas lie son compte Steam.`
+              : `**${user.tag}** n'a pas lie son compte Steam.`,
           ),
       ],
     });
@@ -313,7 +304,7 @@ async function handleWishlist(interaction: ChatInputCommandInteraction) {
     .setURL(wishlistUrl)
     .setDescription(
       `[Clique ici pour voir la wishlist Steam](${wishlistUrl})\n` +
-      `⚠️ Le profil Steam doit etre **public** pour voir la wishlist.`
+        `⚠️ Le profil Steam doit etre **public** pour voir la wishlist.`,
     )
     .setThumbnail(profile.avatarUrl || user.displayAvatarURL())
     .setFooter(FOOTER);
@@ -339,7 +330,7 @@ async function handleProfile(interaction: ChatInputCommandInteraction) {
           .setDescription(
             isSelf
               ? "Tu n'as pas lie ton compte Steam. Utilise `/steam connect` d'abord !"
-              : `**${user.tag}** n'a pas lie son compte Steam.`
+              : `**${user.tag}** n'a pas lie son compte Steam.`,
           ),
       ],
     });
@@ -364,11 +355,11 @@ async function handleProfile(interaction: ChatInputCommandInteraction) {
         value: player?.gameextrainfo
           ? `En jeu : **${player.gameextrainfo}**`
           : player?.personastate === 1
-          ? "En ligne"
-          : "Hors-ligne / Invisible",
+            ? "En ligne"
+            : "Hors-ligne / Invisible",
         inline: true,
       },
-      { name: "Profil", value: `[Lien](${profileUrl})`, inline: true }
+      { name: "Profil", value: `[Lien](${profileUrl})`, inline: true },
     )
     .setFooter(FOOTER);
 

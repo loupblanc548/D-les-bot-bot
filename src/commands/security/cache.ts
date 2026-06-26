@@ -1,5 +1,3 @@
-import prisma from "../../prisma.js";
-
 // ── Cache anti-raid (evite un appel DB par membre qui rejoint) ──────────────
 type AntiRaidCacheEntry = { seuilHeures: number; active: boolean; cachedAt: number };
 export const antiRaidCache = new Map<string, AntiRaidCacheEntry>();
@@ -10,7 +8,7 @@ let antiRaidInterval: NodeJS.Timeout | null = null;
 
 export function startAntiRaidCacheSweeper() {
   if (antiRaidInterval) return;
-  if (process.env.NODE_ENV !== 'test') {
+  if (process.env.NODE_ENV !== "test") {
     antiRaidInterval = setInterval(() => {
       const now = Date.now();
       for (const [guildId, entry] of antiRaidCache) {

@@ -14,23 +14,31 @@ vi.mock("../managers/ScraperManager", () => ({ scrapeRssFeed: mockScrapeRssFeed 
 const mockParseRssXmlItems = vi.hoisted(() => vi.fn());
 vi.mock("../utils/rss", () => ({ parseRssXmlItems: mockParseRssXmlItems }));
 
-const mockLogger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+const mockLogger = vi.hoisted(() => globalThis.__createMockLogger());
 vi.mock("../utils/logger", () => ({ default: mockLogger }));
 
 import {
-  FreeGameFetcher, FreeGameItem, FetchStrategy,
-  RedditScraperStrategy, Rss2JsonStrategy,
-  DirectRssStrategy, EpicApiStrategy,
+  FreeGameFetcher,
+  FreeGameItem,
+  FetchStrategy,
+  RedditScraperStrategy,
+  Rss2JsonStrategy,
+  DirectRssStrategy,
+  EpicApiStrategy,
 } from "./FreeGameFetcher.js";
 
 // --- Helpers ---
 
 function createMockItem(overrides: Partial<FreeGameItem> = {}): FreeGameItem {
   return {
-    title: "Test Free Game", link: "https://example.com/game",
-    pubDate: "2026-06-15T12:00:00Z", content: "A great free game",
-    contentSnippet: "A great free game", author: "TestAuthor",
-    guid: "test-guid-123", thumbnail: "https://example.com/thumb.jpg",
+    title: "Test Free Game",
+    link: "https://example.com/game",
+    pubDate: "2026-06-15T12:00:00Z",
+    content: "A great free game",
+    contentSnippet: "A great free game",
+    author: "TestAuthor",
+    guid: "test-guid-123",
+    thumbnail: "https://example.com/thumb.jpg",
     ...overrides,
   };
 }
@@ -40,13 +48,18 @@ function createMockStrategy(name: string, items: FreeGameItem[] | null): FetchSt
 }
 
 describe("FreeGameFetcher", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe("constructor", () => {
     it("uses default strategies when none provided", () => {
       const fetcher = new FreeGameFetcher();
       expect(fetcher.getStrategyNames()).toEqual([
-        "RedditScraper", "Rss2Json", "DirectRss", "EpicApi",
+        "RedditScraper",
+        "Rss2Json",
+        "DirectRss",
+        "EpicApi",
       ]);
     });
 
@@ -102,7 +115,7 @@ describe("FreeGameFetcher", () => {
 
       expect(result).toEqual([]);
       expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining("All strategies failed")
+        expect.stringContaining("All strategies failed"),
       );
     });
 
@@ -112,9 +125,7 @@ describe("FreeGameFetcher", () => {
 
       await fetcher.fetchGames();
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Success")
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("Success"));
     });
   });
 
@@ -130,11 +141,17 @@ describe("FreeGameFetcher", () => {
 });
 
 describe("RedditScraperStrategy", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("returns items when parseRssXmlItems succeeds", async () => {
-    mockScrapeRssFeed.mockResolvedValue({ raw: "<rss><channel><item><title>Game</title></item></channel></rss>" });
-    mockParseRssXmlItems.mockReturnValue([{ title: "Game", link: "https://reddit.com/r/test/1", pubDate: "2026-01-01" }]);
+    mockScrapeRssFeed.mockResolvedValue({
+      raw: "<rss><channel><item><title>Game</title></item></channel></rss>",
+    });
+    mockParseRssXmlItems.mockReturnValue([
+      { title: "Game", link: "https://reddit.com/r/test/1", pubDate: "2026-01-01" },
+    ]);
 
     const strategy = new RedditScraperStrategy();
     const result = await strategy.fetch();
@@ -151,7 +168,7 @@ describe("RedditScraperStrategy", () => {
 
     expect(result).toBeNull();
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("RedditScraperStrategy failed")
+      expect.stringContaining("RedditScraperStrategy failed"),
     );
   });
 
@@ -181,11 +198,15 @@ describe("RedditScraperStrategy", () => {
 });
 
 describe("Rss2JsonStrategy", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("returns items from RSS2JSON API", async () => {
     mockAxiosGet.mockResolvedValue({
-      data: { items: [{ title: "RSS2JSON Game", link: "https://example.com", pubDate: "2026-01-01" }] },
+      data: {
+        items: [{ title: "RSS2JSON Game", link: "https://example.com", pubDate: "2026-01-01" }],
+      },
     });
 
     const strategy = new Rss2JsonStrategy();
@@ -195,7 +216,7 @@ describe("Rss2JsonStrategy", () => {
     expect(result![0].title).toBe("RSS2JSON Game");
     expect(mockAxiosGet).toHaveBeenCalledWith(
       expect.stringContaining("rss2json.com"),
-      expect.objectContaining({ timeout: 10000 })
+      expect.objectContaining({ timeout: 10000 }),
     );
   });
 
@@ -216,17 +237,23 @@ describe("Rss2JsonStrategy", () => {
 
     expect(result).toBeNull();
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Rss2JsonStrategy failed")
+      expect.stringContaining("Rss2JsonStrategy failed"),
     );
   });
 });
 
 describe("DirectRssStrategy", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("returns parsed RSS items", async () => {
-    mockAxiosGet.mockResolvedValue({ data: "<rss><channel><item><title>Direct RSS</title></item></channel></rss>" });
-    mockParseRssXmlItems.mockReturnValue([{ title: "Direct RSS", link: "https://example.com", pubDate: "2026-01-01" }]);
+    mockAxiosGet.mockResolvedValue({
+      data: "<rss><channel><item><title>Direct RSS</title></item></channel></rss>",
+    });
+    mockParseRssXmlItems.mockReturnValue([
+      { title: "Direct RSS", link: "https://example.com", pubDate: "2026-01-01" },
+    ]);
 
     const strategy = new DirectRssStrategy();
     const result = await strategy.fetch();
@@ -243,7 +270,7 @@ describe("DirectRssStrategy", () => {
 
     expect(result).toBeNull();
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("DirectRssStrategy failed")
+      expect.stringContaining("DirectRssStrategy failed"),
     );
   });
 
@@ -259,7 +286,9 @@ describe("DirectRssStrategy", () => {
 });
 
 describe("EpicApiStrategy", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("returns filtered free game promotions", async () => {
     mockAxiosGet.mockResolvedValue({
@@ -269,7 +298,9 @@ describe("EpicApiStrategy", () => {
             searchStore: {
               elements: [
                 {
-                  title: "Game A", id: "game-a", productSlug: "game-a",
+                  title: "Game A",
+                  id: "game-a",
+                  productSlug: "game-a",
                   description: "Free game this week",
                   keyImages: [{ url: "https://example.com/thumb.jpg" }],
                   promotions: {
@@ -277,7 +308,9 @@ describe("EpicApiStrategy", () => {
                   },
                 },
                 {
-                  title: "Game B (no promo)", id: "game-b", productSlug: "game-b",
+                  title: "Game B (no promo)",
+                  id: "game-b",
+                  productSlug: "game-b",
                   promotions: null,
                 },
               ],
@@ -296,7 +329,9 @@ describe("EpicApiStrategy", () => {
   });
 
   it("returns null when API has no elements", async () => {
-    mockAxiosGet.mockResolvedValue({ data: { data: { Catalog: { searchStore: { elements: [] } } } } });
+    mockAxiosGet.mockResolvedValue({
+      data: { data: { Catalog: { searchStore: { elements: [] } } } },
+    });
 
     const strategy = new EpicApiStrategy();
     const result = await strategy.fetch();
@@ -311,9 +346,7 @@ describe("EpicApiStrategy", () => {
     const result = await strategy.fetch();
 
     expect(result).toBeNull();
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("EpicApiStrategy failed")
-    );
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("EpicApiStrategy failed"));
   });
 
   it("falls back to catalogNs mappings when productSlug is missing", async () => {
@@ -322,15 +355,18 @@ describe("EpicApiStrategy", () => {
         data: {
           Catalog: {
             searchStore: {
-              elements: [{
-                title: "Game C", id: "game-c",
-                catalogNs: { mappings: [{ pageSlug: "game-c-page" }] },
-                description: "Another free game",
-                keyImages: [{ url: "https://example.com/thumb.jpg" }],
-                promotions: {
-                  promotionalOffers: [{ promotionalOffers: [{ startDate: "2026-01-01" }] }],
+              elements: [
+                {
+                  title: "Game C",
+                  id: "game-c",
+                  catalogNs: { mappings: [{ pageSlug: "game-c-page" }] },
+                  description: "Another free game",
+                  keyImages: [{ url: "https://example.com/thumb.jpg" }],
+                  promotions: {
+                    promotionalOffers: [{ promotionalOffers: [{ startDate: "2026-01-01" }] }],
+                  },
                 },
-              }],
+              ],
             },
           },
         },

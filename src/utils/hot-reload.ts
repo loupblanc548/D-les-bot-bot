@@ -8,15 +8,12 @@ let reloadInterval: NodeJS.Timeout | null = null;
 /**
  * Active le mode maintenance (désactive les commandes)
  */
-export async function enableMaintenanceMode(client: Client) {
+export async function enableMaintenanceMode(_client: Client) {
   logger.warn("[HotReload] Mode maintenance activé");
   // Supprimer toutes les commandes
   const rest = new REST().setToken(config.token);
   try {
-    await rest.put(
-      Routes.applicationGuildCommands(config.clientId, config.guildId),
-      { body: [] }
-    );
+    await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), { body: [] });
     logger.info("[HotReload] Commandes supprimées (mode maintenance)");
   } catch (error) {
     logger.error("[HotReload] Erreur lors de la suppression des commandes:", error);
@@ -67,18 +64,10 @@ export async function reloadCommands(client: Client) {
 /**
  * Enregistre les commandes Discord
  */
-async function registerCommands(client: Client) {
-  const commandsPath = "./src/commands";
+async function registerCommands(_client: Client) {
+  const _commandsPath = "./src/commands";
   // Importer dynamiquement toutes les commandes
-  const commandFiles = [
-    "main",
-    "moderation",
-    "admin",
-    "security",
-    "community",
-    "gaming",
-    "debug",
-  ];
+  const commandFiles = ["main", "moderation", "admin", "security", "community", "gaming", "debug"];
 
   const commands = [];
   for (const file of commandFiles) {
@@ -94,10 +83,9 @@ async function registerCommands(client: Client) {
 
   const rest = new REST().setToken(config.token);
   try {
-    await rest.put(
-      Routes.applicationGuildCommands(config.clientId, config.guildId),
-      { body: commands }
-    );
+    await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
+      body: commands,
+    });
     logger.info(`[HotReload] ${commands.length} commandes enregistrées`);
   } catch (error) {
     logger.error("[HotReload] Erreur lors de l'enregistrement des commandes:", error);

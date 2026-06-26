@@ -1,9 +1,7 @@
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
-import { MessageFlags, EmbedBuilder, Client, TextChannel } from 'discord.js';
-import { config } from '../config.js';
-
-
+import { EmbedBuilder, Client, TextChannel } from "discord.js";
+import { config } from "../config.js";
 
 export interface LogEntry {
   type: string;
@@ -50,19 +48,18 @@ export async function getLogsByUser(userId: string, limit: number = 50) {
   });
 }
 
-
 export async function sendErrorLog(contexte: string, erreur: Error, client?: Client) {
   logger.error(`[${contexte}]`, erreur);
   if (!config.logChannel) return;
   try {
     const embed = new EmbedBuilder()
-      .setTitle('🚨 Erreur Critique')
+      .setTitle("🚨 Erreur Critique")
       .setColor(0xff3344)
       .addFields(
-        { name: 'Module', value: contexte, inline: true },
-        { name: 'Timestamp', value: new Date().toISOString(), inline: true },
-        { name: 'Message', value: erreur.message.slice(0, 1024) },
-        { name: 'Stack Trace', value: (erreur.stack || 'Aucune').slice(0, 1024) }
+        { name: "Module", value: contexte, inline: true },
+        { name: "Timestamp", value: new Date().toISOString(), inline: true },
+        { name: "Message", value: erreur.message.slice(0, 1024) },
+        { name: "Stack Trace", value: (erreur.stack || "Aucune").slice(0, 1024) },
       )
       .setTimestamp();
     if (client) {
@@ -72,10 +69,9 @@ export async function sendErrorLog(contexte: string, erreur: Error, client?: Cli
       }
     }
   } catch (e) {
-    logger.error('[sendErrorLog] Impossible d envoyer dans le salon de logs:', String(e));
+    logger.error("[sendErrorLog] Impossible d envoyer dans le salon de logs:", String(e));
   }
 }
-
 
 // ─────────────────────────────────────────────
 // Log de purge après bannissement
@@ -84,7 +80,7 @@ export async function sendBanPurgeLog(
   userId: string,
   totalDeleted: number,
   channelsScanned: number,
-  client: Client
+  client: Client,
 ) {
   if (!config.logChannel) return;
   try {
@@ -96,7 +92,7 @@ export async function sendBanPurgeLog(
       .setTitle("🔨 Bannissement & Purge Automatique")
       .setColor(0xff0033)
       .setDescription(
-        `L'historique de messages de l'utilisateur banni a été automatiquement nettoyé.`
+        `L'historique de messages de l'utilisateur banni a été automatiquement nettoyé.`,
       )
       .addFields(
         {
@@ -118,7 +114,7 @@ export async function sendBanPurgeLog(
           name: "🕒 Horodatage",
           value: new Date().toLocaleString("fr-FR"),
           inline: false,
-        }
+        },
       )
       .setFooter({ text: "Purge automatique • Discord Surveillance Bot" })
       .setTimestamp();
@@ -150,10 +146,10 @@ export async function logSensitiveAction(
   action: string,
   executorId: string,
   targetId: string,
-  details?: string
+  details?: string,
 ): Promise<void> {
   await createLog({
-    type: 'SENSITIVE_ACTION',
+    type: "SENSITIVE_ACTION",
     action,
     userId: executorId,
     targetId,
@@ -170,10 +166,10 @@ export async function logConfigChange(
   action: string,
   executorId: string,
   guildId: string,
-  details?: string
+  details?: string,
 ): Promise<void> {
   await createLog({
-    type: 'CONFIG_CHANGE',
+    type: "CONFIG_CHANGE",
     action,
     userId: executorId,
     targetId: guildId,
@@ -189,10 +185,10 @@ export async function logConfigChange(
 export async function logUnauthorizedAccess(
   action: string,
   userId: string,
-  details?: string
+  details?: string,
 ): Promise<void> {
   await createLog({
-    type: 'UNAUTHORIZED_ACCESS',
+    type: "UNAUTHORIZED_ACCESS",
     action,
     userId,
     details,
@@ -206,12 +202,12 @@ export async function logUnauthorizedAccess(
 export async function logSystemError(
   action: string,
   error: Error,
-  context?: string
+  context?: string,
 ): Promise<void> {
   await createLog({
-    type: 'SYSTEM_ERROR',
+    type: "SYSTEM_ERROR",
     action,
-    details: `${error.message}${context ? ` | Context: ${context}` : ''}`,
+    details: `${error.message}${context ? ` | Context: ${context}` : ""}`,
   });
   logger.error(`[AUDIT] SYSTEM_ERROR: ${action} - ${error.message}`);
 }
@@ -226,11 +222,11 @@ export async function getAuditLogs(filters: {
   moderator?: string;
   limit?: number;
   offset?: number;
-}): Promise<any[]> {
+}): Promise<unknown[]> {
   try {
     const { type, userId, targetId, moderator, limit = 100, offset = 0 } = filters;
 
-  const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {};
     if (type) where.type = type;
     if (userId) where.userId = userId;
     if (targetId) where.targetId = targetId;
@@ -238,14 +234,14 @@ export async function getAuditLogs(filters: {
 
     const logs = await prisma.log.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
     });
 
     return logs;
   } catch (error) {
-    logger.error('Erreur lors de la récupération des logs:', String(error));
+    logger.error("Erreur lors de la récupération des logs:", String(error));
     return [];
   }
 }

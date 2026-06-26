@@ -176,10 +176,7 @@ describe("extractAllNamesFromEntry", () => {
   it("utilise item.displayName comme fallback si item.name est absent", () => {
     const entry = {
       bundle: { name: "Starter Pack" },
-      items: [
-        { displayName: "Casual Outfit" },
-        { name: "Pickaxe Pro" },
-      ],
+      items: [{ displayName: "Casual Outfit" }, { name: "Pickaxe Pro" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -192,10 +189,7 @@ describe("extractAllNamesFromEntry", () => {
   it("gère un bundle avec brItems au lieu de items", () => {
     const entry = {
       bundle: { name: "BR Exclusive Pack" },
-      brItems: [
-        { name: "Battle Royale Skin" },
-        { displayName: "Glider Storm" },
-      ],
+      brItems: [{ name: "Battle Royale Skin" }, { displayName: "Glider Storm" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -210,9 +204,7 @@ describe("extractAllNamesFromEntry", () => {
 
   it("extrait uniquement les items pour une entrée sans bundle", () => {
     const entry = {
-      items: [
-        { name: "Renegade Raider" },
-      ],
+      items: [{ name: "Renegade Raider" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -249,11 +241,7 @@ describe("extractAllNamesFromEntry", () => {
 
   it("extrait tous les items même sans bundle (entrée multi-variantes)", () => {
     const entry = {
-      items: [
-        { name: "Style 1" },
-        { displayName: "Style 2" },
-        { name: "Style 3" },
-      ],
+      items: [{ name: "Style 1" }, { displayName: "Style 2" }, { name: "Style 3" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -269,10 +257,7 @@ describe("extractAllNamesFromEntry", () => {
   it("normalise tout en minuscules et trim", () => {
     const entry = {
       bundle: { name: "  PACK   ÉTÉ  " },
-      items: [
-        { name: "  Skin Blanc  " },
-        { displayName: "ACCESSOIRE NOIR" },
-      ],
+      items: [{ name: "  Skin Blanc  " }, { displayName: "ACCESSOIRE NOIR" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -285,18 +270,14 @@ describe("extractAllNamesFromEntry", () => {
   it("élimine les doublons (même nom en minuscule après trim)", () => {
     const entry = {
       bundle: { name: "Mega Pack" },
-      items: [
-        { name: "MEGA PACK" },
-        { name: "Unique Skin" },
-        { displayName: "unique skin" },
-      ],
+      items: [{ name: "MEGA PACK" }, { name: "Unique Skin" }, { displayName: "unique skin" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
 
     // "mega pack" présent une seule fois, "unique skin" aussi
-    expect(result.filter(n => n === "mega pack")).toHaveLength(1);
-    expect(result.filter(n => n === "unique skin")).toHaveLength(1);
+    expect(result.filter((n) => n === "mega pack")).toHaveLength(1);
+    expect(result.filter((n) => n === "unique skin")).toHaveLength(1);
   });
 
   // ─── EDGE CASES ─────────────────────────────────────────
@@ -323,7 +304,7 @@ describe("extractAllNamesFromEntry", () => {
       items: [
         { name: "Valid Skin" },
         { rarity: "legendary" }, // pas de name/displayName
-        { type: "outfit" },       // pas de name/displayName
+        { type: "outfit" }, // pas de name/displayName
       ],
     };
 
@@ -362,11 +343,7 @@ describe("extractAllNamesFromEntry", () => {
   it("préserve l'ordre : nom du bundle en premier, puis les sous-articles", () => {
     const entry = {
       bundle: { name: "ZZZ Pack" },
-      items: [
-        { name: "AAA Skin" },
-        { name: "BBB Skin" },
-        { name: "CCC Skin" },
-      ],
+      items: [{ name: "AAA Skin" }, { name: "BBB Skin" }, { name: "CCC Skin" }],
     };
 
     const result = extractAllNamesFromEntry(entry);
@@ -434,15 +411,17 @@ describe("checkWishlistMatches", () => {
   }
 
   // Helper : construire un ShopEntry (simule ce que fetchShop produit)
-  function makeShopEntry(overrides: Partial<{
-    displayName: string;
-    allNames: string[];
-    rarity: string;
-    price: number;
-    type: string;
-    featuredImage: string | null;
-    icon: string;
-  }> = {}): any {
+  function _makeShopEntry(
+    overrides: Partial<{
+      displayName: string;
+      allNames: string[];
+      rarity: string;
+      price: number;
+      type: string;
+      featuredImage: string | null;
+      icon: string;
+    }> = {},
+  ): any {
     return {
       displayName: overrides.displayName || "Default Skin",
       allNames: overrides.allNames || [overrides.displayName?.toLowerCase() || "default skin"],
@@ -482,7 +461,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Some Skin", displayName: "Some Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([]);
 
@@ -500,7 +479,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Renegade Raider", displayName: "Renegade Raider" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Renegade Raider" },
@@ -524,12 +503,9 @@ describe("checkWishlistMatches", () => {
         {
           bundle: { name: "Pack Légendes Estivales" },
           section: { id: "featured" },
-          items: [
-            { name: "Peau Estivale Pro" },
-            { name: "Danseur Solaire" },
-          ],
+          items: [{ name: "Peau Estivale Pro" }, { name: "Danseur Solaire" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "danseur solaire" },
@@ -551,11 +527,9 @@ describe("checkWishlistMatches", () => {
         {
           bundle: { name: "Pack Légendes Estivales" },
           section: { id: "featured" },
-          items: [
-            { name: "Peau Estivale Pro" },
-          ],
+          items: [{ name: "Peau Estivale Pro" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "pack légendes estivales" },
@@ -577,7 +551,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Unrelated Outfit XYZ" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Completely Different Item ABC" },
@@ -598,7 +572,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Cool Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Cool Skin" },
@@ -624,7 +598,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Ghost Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "999999999999999999", itemName: "Ghost Skin" },
@@ -648,7 +622,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Blocked Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Blocked Skin" },
@@ -676,7 +650,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "daily" },
           items: [{ name: "Duplicate Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Duplicate Skin" },
@@ -699,7 +673,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Popular Skin" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Popular Skin" },
@@ -712,9 +686,7 @@ describe("checkWishlistMatches", () => {
       username: "TestUser2",
       send: vi.fn().mockResolvedValue(undefined),
     };
-    mockClient.users.fetch
-      .mockResolvedValueOnce(fakeUser)
-      .mockResolvedValueOnce(fakeUser2);
+    mockClient.users.fetch.mockResolvedValueOnce(fakeUser).mockResolvedValueOnce(fakeUser2);
 
     const result = await checkWishlistMatches(mockClient);
 
@@ -730,13 +702,9 @@ describe("checkWishlistMatches", () => {
       mockFortniteApiResponse([
         {
           section: { id: "featured" },
-          items: [
-            { name: "Skin One" },
-            { name: "Skin Two" },
-            { name: "Skin Three" },
-          ],
+          items: [{ name: "Skin One" }, { name: "Skin Two" }, { name: "Skin Three" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "Skin One" },
@@ -778,7 +746,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "daily" },
           items: [{ name: "rEnEgAdE rAiDeR" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "RENEGADE RAIDER" },
@@ -797,7 +765,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "featured" },
           items: [{ name: "Renegade Raider" }],
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "renegade" },
@@ -820,7 +788,7 @@ describe("checkWishlistMatches", () => {
           name: "Cosmétique Offert Spécial",
           // Pas de items → le fallback doit créer une ShopEntry
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "cosmétique offert" },
@@ -842,7 +810,7 @@ describe("checkWishlistMatches", () => {
           section: { id: "daily" },
           displayName: "Skin Gratuit Quotidien",
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "skin gratuit" },
@@ -869,7 +837,7 @@ describe("checkWishlistMatches", () => {
           name: "Skin Valide",
           // Celle-ci a un nom → doit matcher
         },
-      ])
+      ]),
     );
     mockPrisma.wishlist.findMany.mockResolvedValue([
       { userId: "111111111111111111", itemName: "skin valide" },
@@ -882,5 +850,4 @@ describe("checkWishlistMatches", () => {
     expect(result).toBe(1);
     expect(fakeUser.send).toHaveBeenCalledTimes(1);
   });
-
 });

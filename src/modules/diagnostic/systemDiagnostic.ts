@@ -1,8 +1,4 @@
-import {
-  Client,
-  EmbedBuilder,
-  TextChannel,
-} from "discord.js";
+import { Client, TextChannel } from "discord.js";
 import { createClient } from "redis";
 import prisma from "../../prisma.js";
 
@@ -34,7 +30,7 @@ async function runDiagnostic(client: Client): Promise<void> {
     const memoryUsage = process.memoryUsage();
     const heapUsedMB = (memoryUsage.heapUsed / 1024 / 1024).toFixed(2);
     const heapTotalMB = (memoryUsage.heapTotal / 1024 / 1024).toFixed(2);
-    const rssMB = (memoryUsage.rss / 1024 / 1024).toFixed(2);
+    const _rssMB = (memoryUsage.rss / 1024 / 1024).toFixed(2);
     const ramPercent = ((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100).toFixed(0);
 
     const uptime = process.uptime();
@@ -50,7 +46,7 @@ async function runDiagnostic(client: Client): Promise<void> {
     await prisma.$queryRaw`SELECT 1`;
     const postgresPing = Date.now() - postgresPingStart;
 
-    const diagnosticTime = Date.now() - startTime;
+    const _diagnosticTime = Date.now() - startTime;
 
     const ramBar = createProgressBar(parseInt(ramPercent), 20);
     const cpuBar = createProgressBar(8, 20);
