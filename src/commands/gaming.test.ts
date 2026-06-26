@@ -81,18 +81,18 @@ describe("handleGameStatus (via handleCommand)", () => {
 
   describe("operational services", () => {
     it.each([
-      { game: "fortnite",    url: "https://status.epicgames.com/api/v2/status.json" },
-      { game: "epic",        url: "https://status.epicgames.com/api/v2/status.json" },
-      { game: "roblox",      url: "https://status.roblox.com/api/v2/status.json" },
-      { game: "steam",       url: "https://crowbar.steamstat.us/" },
-      { game: "psn",         url: "https://status.playstation.com/" },
-      { game: "xbox",        url: "https://support.xbox.com/fr-FR/xbox-live-status" },
-      { game: "ea",          url: "https://www.ea.com/fr-fr/ea-app" },
-      { game: "ubisoft",     url: "https://www.ubisoft.com/fr-fr/" },
-      { game: "riot",        url: "https://status.riotgames.com/" },
+      { game: "fortnite", url: "https://status.epicgames.com/api/v2/status.json" },
+      { game: "epic", url: "https://status.epicgames.com/api/v2/status.json" },
+      { game: "roblox", url: "https://status.roblox.com/api/v2/status.json" },
+      { game: "steam", url: "https://crowbar.steamstat.us/" },
+      { game: "psn", url: "https://status.playstation.com/" },
+      { game: "xbox", url: "https://support.xbox.com/fr-FR/xbox-live-status" },
+      { game: "ea", url: "https://www.ea.com/fr-fr/ea-app" },
+      { game: "ubisoft", url: "https://www.ubisoft.com/fr-fr/" },
+      { game: "riot", url: "https://status.riotgames.com/" },
       { game: "helldivers2", url: "https://www.playstation.com/fr-fr/games/helldivers-2/" },
-      { game: "gta",         url: "https://support.rockstargames.com/fr/" },
-      { game: "cod",         url: "https://support.activision.com/fr/call-of-duty" },
+      { game: "gta", url: "https://support.rockstargames.com/fr/" },
+      { game: "cod", url: "https://support.activision.com/fr/call-of-duty" },
     ])("affiche 'Opérationnel' pour $game", async ({ game, url }) => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
@@ -106,7 +106,7 @@ describe("handleGameStatus (via handleCommand)", () => {
       expect(interaction.deferReply).toHaveBeenCalled();
       expect(fetchMock).toHaveBeenCalledWith(
         url,
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
       const embeds = getEditReplyEmbeds(interaction);
       expect(embeds).toHaveLength(1);
@@ -114,17 +114,20 @@ describe("handleGameStatus (via handleCommand)", () => {
       expect(embeds[0].data.description).toContain("Aucun problème signalé");
       expect(embeds[0].data.color).toBe(0x53fc18);
       expect(embeds[0].data.fields).toContainEqual(
-        expect.objectContaining({ name: expect.stringContaining("Page statut") })
+        expect.objectContaining({ name: expect.stringContaining("Page statut") }),
       );
     });
   });
 
   describe("degraded services", () => {
     it("affiche 'Perturbations possibles' quand 503", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        ok: false,
-        status: 503,
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 503,
+        }),
+      );
 
       const interaction = mi({ game: "steam" });
       await handleCommand(interaction);
@@ -135,10 +138,13 @@ describe("handleGameStatus (via handleCommand)", () => {
     });
 
     it("affiche 'Perturbations possibles' sur un 404", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+        }),
+      );
 
       const interaction = mi({ game: "fortnite" });
       await handleCommand(interaction);
@@ -175,9 +181,12 @@ describe("handleGameStatus (via handleCommand)", () => {
     });
 
     it("survit quand fetch renvoie un objet sans ok", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        status: 200,
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          status: 200,
+        }),
+      );
 
       const interaction = mi({ game: "xbox" });
       await handleCommand(interaction);
@@ -211,7 +220,7 @@ describe("handleGameStatus (via handleCommand)", () => {
         expect.objectContaining({
           name: expect.stringContaining("Page statut"),
           value: "https://status.roblox.com/",
-        })
+        }),
       );
     });
   });
@@ -228,7 +237,7 @@ describe("handleGameStatus (via handleCommand)", () => {
       expect(embeds[0].data.title).toContain("Nintendo");
       expect(fetchMock).toHaveBeenCalledWith(
         "https://www.nintendo.com/fr-fr/",
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
     });
   });
@@ -257,11 +266,15 @@ describe("handleFreeGames (via handleCommand)", () => {
                 description: g.description ?? "A great free game!",
                 price: { totalPrice: { fmtPrice: { originalPrice: g.originalPrice ?? "29,99€" } } },
                 promotions: {
-                  promotionalOffers: [{
-                    promotionalOffers: [{
-                      endDate: g.endDate ?? "2026-06-20T00:00:00.000Z",
-                    }],
-                  }],
+                  promotionalOffers: [
+                    {
+                      promotionalOffers: [
+                        {
+                          endDate: g.endDate ?? "2026-06-20T00:00:00.000Z",
+                        },
+                      ],
+                    },
+                  ],
                 },
               })),
             },
@@ -272,9 +285,16 @@ describe("handleFreeGames (via handleCommand)", () => {
   }
 
   it("affiche un jeu gratuit avec tous les champs", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      epicResponse([{ title: "Among Us", originalPrice: "3,99€", endDate: "2026-06-20T00:00:00.000Z" }])
-    ));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          epicResponse([
+            { title: "Among Us", originalPrice: "3,99€", endDate: "2026-06-20T00:00:00.000Z" },
+          ]),
+        ),
+    );
 
     const interaction = mi({ commandName: "free-games" });
     await handleCommand(interaction);
@@ -286,37 +306,36 @@ describe("handleFreeGames (via handleCommand)", () => {
     expect(embeds[0].data.title).toContain("GRATUIT");
     expect(embeds[0].data.color).toBe(0x00f0ff);
     expect(embeds[0].data.fields).toContainEqual(
-      expect.objectContaining({ name: "💰 Prix original", value: "3,99€" })
+      expect.objectContaining({ name: "💰 Prix original", value: "3,99€" }),
     );
     expect(embeds[0].data.fields).toContainEqual(
-      expect.objectContaining({ name: "⏰ Fin de l'offre" })
+      expect.objectContaining({ name: "⏰ Fin de l'offre" }),
     );
     expect(embeds[0].data.footer).toBeDefined();
     expect(embeds[0].data.timestamp).toBeDefined();
   });
 
   it("ajoute un champ 'Autres' quand plusieurs jeux gratuits", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      epicResponse([
-        { title: "Game A" },
-        { title: "Game B" },
-        { title: "Game C" },
-      ])
-    ));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          epicResponse([{ title: "Game A" }, { title: "Game B" }, { title: "Game C" }]),
+        ),
+    );
 
     const interaction = mi({ commandName: "free-games" });
     await handleCommand(interaction);
 
     const embeds = getEditReplyEmbeds(interaction);
     expect(embeds[0].data.fields).toContainEqual(
-      expect.objectContaining({ name: "📦 Autres", value: "2 autre(s) jeu(x) gratuit(s)" })
+      expect.objectContaining({ name: "📦 Autres", value: "2 autre(s) jeu(x) gratuit(s)" }),
     );
   });
 
   it("n'ajoute pas le champ 'Autres' pour un seul jeu", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      epicResponse([{ title: "Only Game" }])
-    ));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(epicResponse([{ title: "Only Game" }])));
 
     const interaction = mi({ commandName: "free-games" });
     await handleCommand(interaction);
@@ -360,22 +379,27 @@ describe("handleFreeGames (via handleCommand)", () => {
   });
 
   it("gère les données partielles (pas de description, pas de prix)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue({
-        data: {
-          Catalog: {
-            searchStore: {
-              elements: [{
-                title: "Bare Game",
-                promotions: { promotionalOffers: [{}] },
-              }],
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({
+          data: {
+            Catalog: {
+              searchStore: {
+                elements: [
+                  {
+                    title: "Bare Game",
+                    promotions: { promotionalOffers: [{}] },
+                  },
+                ],
+              },
             },
           },
-        },
+        }),
       }),
-    }));
+    );
 
     const interaction = mi({ commandName: "free-games" });
     await handleCommand(interaction);
@@ -395,12 +419,20 @@ describe("handlePatchNotes (via handleCommand)", () => {
   });
 
   it.each([
-    { game: "fortnite",    name: "Fortnite",    url: "https://www.fortnite.com/news" },
-    { game: "helldivers2", name: "Helldivers 2", url: "https://store.steampowered.com/news/app/553850" },
-    { game: "cod",         name: "Call of Duty", url: "https://www.callofduty.com/fr/patchnotes" },
-    { game: "gta",         name: "GTA Online",   url: "https://support.rockstargames.com/fr/categories/200013106" },
+    { game: "fortnite", name: "Fortnite", url: "https://www.fortnite.com/news" },
+    {
+      game: "helldivers2",
+      name: "Helldivers 2",
+      url: "https://store.steampowered.com/news/app/553850",
+    },
+    { game: "cod", name: "Call of Duty", url: "https://www.callofduty.com/fr/patchnotes" },
+    {
+      game: "gta",
+      name: "GTA Online",
+      url: "https://support.rockstargames.com/fr/categories/200013106",
+    },
   ])("affiche les patch notes de $game", async ({ game, name, url }) => {
-    const interaction = mi({ commandName: "patch-notes", game });
+    const interaction = mi({ commandName: "patch_notes", game });
     await handleCommand(interaction);
 
     expect(interaction.deferReply).toHaveBeenCalled();
@@ -412,7 +444,7 @@ describe("handlePatchNotes (via handleCommand)", () => {
   });
 
   it("affiche une erreur pour un jeu non supporté", async () => {
-    const interaction = mi({ commandName: "patch-notes", game: "minecraft" });
+    const interaction = mi({ commandName: "patch_notes", game: "minecraft" });
     await handleCommand(interaction);
 
     expect(interaction.deferReply).toHaveBeenCalled();
@@ -422,7 +454,7 @@ describe("handlePatchNotes (via handleCommand)", () => {
   });
 
   it("affiche une erreur pour une option jeu null", async () => {
-    const interaction = mi({ commandName: "patch-notes", game: null });
+    const interaction = mi({ commandName: "patch_notes", game: null });
     await handleCommand(interaction);
 
     const embeds = getEditReplyEmbeds(interaction);
@@ -449,7 +481,10 @@ describe("handleDeal (via handleCommand)", () => {
         { shop: "Steam", price: "14,99€", url: "https://store.steampowered.com/app/367520" },
       ],
     };
-    const mockEmbed = { data: { title: "💰 Hollow Knight", color: 0x3498db }, setFooter: vi.fn().mockReturnThis() };
+    const mockEmbed = {
+      data: { title: "💰 Hollow Knight", color: 0x3498db },
+      setFooter: vi.fn().mockReturnThis(),
+    };
     mockItad.getDeals.mockResolvedValue(dealResult);
     mockItad.buildDealEmbed.mockReturnValue(mockEmbed);
 
@@ -498,8 +533,13 @@ describe("handleDeal (via handleCommand)", () => {
   });
 
   it("affiche une erreur quand buildDealEmbed lève une exception", async () => {
-    mockItad.getDeals.mockResolvedValue({ title: "CrashGame", prices: [{ shop: "Steam", price: "0€", url: "#" }] });
-    mockItad.buildDealEmbed.mockImplementation(() => { throw new Error("Embed build failed"); });
+    mockItad.getDeals.mockResolvedValue({
+      title: "CrashGame",
+      prices: [{ shop: "Steam", price: "0€", url: "#" }],
+    });
+    mockItad.buildDealEmbed.mockImplementation(() => {
+      throw new Error("Embed build failed");
+    });
 
     const interaction = mi({ commandName: "deal", game: "CrashGame" });
     await handleCommand(interaction);

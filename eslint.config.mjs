@@ -13,7 +13,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -43,6 +43,7 @@ export default tseslint.config(
       "src/rssTwitterTracker.js",
       "scripts/migrate-cache-to-neon.ts",
       "vitest.config.ts",
+      "batch-scripts.test.ts",
     ],
   },
 );

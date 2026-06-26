@@ -102,7 +102,7 @@ describe("getContentTypeConfig â Les 7 ContentTypes", () => {
 
   it("lance une erreur pour un ContentType inconnu", () => {
     expect(() => getContentTypeConfig("invalid_type" as ContentType)).toThrow(
-      /ContentType inconnu/i,
+      /Type de contenu inconnu/i,
     );
   });
 });

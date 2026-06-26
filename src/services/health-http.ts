@@ -109,6 +109,7 @@ async function handleBasicHealth(res: http.ServerResponse): Promise<void> {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       timestamp: new Date().toISOString(),
+      error: "database unreachable",
       checks: {
         database: false,
         discord: true,
