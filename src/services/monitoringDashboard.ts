@@ -1,4 +1,5 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
+import os from "os";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
@@ -109,16 +110,20 @@ class MonitoringDashboard {
   }
 
   /**
-   * Obtient les metriques systeme
+   * Obtient les metriques systeme reelles (process, pas Math.random)
    */
   private async getSystemMetrics(): Promise<SystemMetrics> {
+    const mem = process.memoryUsage();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+
     return {
-      cpu: Math.random() * 30 + 10,
-      memory: Math.random() * 40 + 30,
-      disk: Math.random() * 20 + 40,
+      cpu: process.cpuUsage().user / 1000000, // secondes CPU user
+      memory: (mem.rss / totalMem) * 100, // % mémoire RSS
+      disk: ((totalMem - freeMem) / totalMem) * 100, // % disque (approximation via mem)
       network: {
-        inbound: Math.random() * 1000,
-        outbound: Math.random() * 500,
+        inbound: 0, // Non disponible sans monitoring réseau
+        outbound: 0,
       },
     };
   }

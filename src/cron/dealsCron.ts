@@ -1,4 +1,4 @@
-import { Client, TextChannel, EmbedBuilder } from "discord.js";
+import { Client, TextChannel, EmbedBuilder, AttachmentBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import cron from "node-cron";
@@ -11,6 +11,7 @@ import { metricsCollector } from "../utils/metrics.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { getOgImage } from "../utils/image-helpers.js";
+import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
 
 interface DealItem {
   title: string;
@@ -238,7 +239,6 @@ async function sendDealEmbed(
       .setDescription(finalDescription || "Aucune description disponible")
       .setColor(platform.color)
       .setURL(item.link)
-      .setImage(imageUrl)
       .addFields(
         { name: "Plateforme", value: platform.name, inline: true },
         { name: "Publie le", value: new Date(item.pubDate).toLocaleString("fr-FR"), inline: true },
@@ -246,7 +246,26 @@ async function sendDealEmbed(
       .setTimestamp()
       .setFooter({ text: "🎮 Surveillance des offres • " + platform.name });
 
-    await (channel as TextChannel).send({ embeds: [embed] });
+    // Optimiser l'image avec Sharp si c'est une URL d'image valide
+    let sendOptions: { embeds: EmbedBuilder[]; files?: AttachmentBuilder[] } = { embeds: [embed] };
+    if (imageUrl && isOptimizableImageUrl(imageUrl) && imageUrl !== platform.defaultImage) {
+      try {
+        const optimized = await fetchAndOptimizeImage(imageUrl);
+        if (optimized) {
+          const attachment = new AttachmentBuilder(optimized.buffer, { name: "deal.jpg" });
+          embed.setImage("attachment://deal.jpg");
+          sendOptions = { embeds: [embed], files: [attachment] };
+        } else {
+          embed.setImage(imageUrl);
+        }
+      } catch {
+        embed.setImage(imageUrl);
+      }
+    } else {
+      embed.setImage(imageUrl);
+    }
+
+    await (channel as TextChannel).send(sendOptions);
     logger.info(`[DealsCron] Deal envoye dans ${platform.name}: ${translatedTitle}`);
   } catch (error) {
     logger.error(

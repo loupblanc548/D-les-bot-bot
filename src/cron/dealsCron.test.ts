@@ -183,6 +183,11 @@ vi.mock("../utils/image-helpers", () => ({
   getOgImage: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("../utils/image-optimizer", () => ({
+  fetchAndOptimizeImage: vi.fn().mockResolvedValue(null),
+  isOptimizableImageUrl: vi.fn().mockReturnValue(true),
+}));
+
 afterEach(() => {
   vi.useRealTimers();
 });

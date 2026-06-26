@@ -1,6 +1,8 @@
 // Helpers centralisés pour les images dans les embeds Discord
 // Utilisés par feeds.ts, monitor.ts, patchNotes.ts
 
+import * as cheerio from "cheerio";
+
 // Cache simple (Map) avec TTL de 10 minutes pour éviter de refetch la même URL
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const urlCache = new Map<string, { data: string | null; ts: number }>();
@@ -60,7 +62,9 @@ export function extractMediaThumbnail(item: Record<string, unknown>): string | u
 export async function getYouTubeThumbnail(url: string): Promise<string | null> {
   return withCache("yt:" + url, async () => {
     try {
-      const match = url.match(/(?:youtube\.com\/watch\?(?:.*[?&])?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+      const match = url.match(
+        /(?:youtube\.com\/watch\?(?:.*[?&])?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      );
       if (!match) return null;
       const videoId = match[1];
       const maxresUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -70,21 +74,32 @@ export async function getYouTubeThumbnail(url: string): Promise<string | null> {
         if (head.ok) return maxresUrl;
       } catch {}
       return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   });
 }
 
 export async function getOgImage(url: string): Promise<string | null> {
   return withCache("og:" + url, async () => {
     try {
-      const res = await fetch(url, { headers: { "User-Agent": "DiscordSurveillanceBot/1.0" }, signal: AbortSignal.timeout(5000) });
+      const res = await fetch(url, {
+        headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
+        signal: AbortSignal.timeout(5000),
+      });
       if (!res.ok) return null;
       const html = await res.text();
-      const match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                 || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-      if (match) return match[1];
+      const $ = cheerio.load(html);
+      // og:image
+      const ogImage = $('meta[property="og:image"]').attr("content");
+      if (ogImage) return ogImage;
+      // twitter:image fallback
+      const twitterImage = $('meta[name="twitter:image"]').attr("content");
+      if (twitterImage) return twitterImage;
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   });
 }
 
@@ -96,49 +111,42 @@ export async function getOgImage(url: string): Promise<string | null> {
 export async function getBlogImage(url: string): Promise<string | null> {
   return withCache("blog:" + url, async () => {
     try {
-      // Une seule requête HTTP pour toute la logique
       const res = await fetch(url, {
         headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return null;
       const html = await res.text();
+      const $ = cheerio.load(html);
 
-      // Étape 1 : tenter l'Open Graph (og:image) dans le HTML déjà récupéré
-      const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                   || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-      if (ogMatch) return ogMatch[1];
+      // Étape 1 : og:image
+      const ogImage = $('meta[property="og:image"]').attr("content");
+      if (ogImage) return ogImage;
 
-      // Étape 2 : fallback <img> scraping
-      const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-      const candidates: string[] = [];
-      let m;
-      while ((m = imgRegex.exec(html)) !== null) {
-        const src = m[1];
-        // Ignorer les images manifestement non pertinentes
-        if (
-          src.includes("data:image") ||       // data URIs (souvent icons inline)
-          src.includes("avatar") ||            // avatars
-          src.includes("/icon") ||             // icônes
-          src.includes("gravatar.com") ||      // gravatars
-          src.includes("pixel") ||             // pixels de tracking
-          src.includes("1x1") ||               // images 1x1
-          /\/\d+x\d+\.(png|jpg|gif|webp)$/i.test(src) // noms de fichier dimensionnés (ex: /150x150.png)
-        ) {
-          continue;
-        }
-        // Garder les URLs qui ressemblent à de vraies images de contenu
+      // Étape 2 : twitter:image
+      const twitterImage = $('meta[name="twitter:image"]').attr("content");
+      if (twitterImage) return twitterImage;
+
+      // Étape 3 : fallback <img> scraping avec filtres
+      const excludePatterns = ["data:image", "avatar", "/icon", "gravatar.com", "pixel", "1x1"];
+      let found: string | null = null;
+
+      $("img").each((_, el) => {
+        if (found) return;
+        const src = $(el).attr("src");
+        if (!src) return;
+        if (excludePatterns.some((p) => src.includes(p))) return;
+        if (/\d+x\d+\.(png|jpg|gif|webp)$/i.test(src)) return;
         if (src.match(/\.(png|jpg|jpeg|webp|gif)(\?|$)/i)) {
-          candidates.push(src);
+          found = src;
         }
-      }
+      });
 
-      if (candidates.length > 0) {
-        // Résoudre les URLs relatives avec new URL() (gère /absolu, relatif, //protocol-relatif)
+      if (found) {
         try {
-          return new URL(candidates[0], url).href;
+          return new URL(found, url).href;
         } catch {
-          return candidates[0];
+          return found;
         }
       }
 
@@ -154,35 +162,33 @@ export async function getBlogImage(url: string): Promise<string | null> {
 export async function getTweetImage(url: string): Promise<string | null> {
   return withCache("tweet:" + url, async () => {
     try {
-      const res = await fetch(url, { headers: { "User-Agent": "DiscordSurveillanceBot/1.0" }, signal: AbortSignal.timeout(5000) });
+      const res = await fetch(url, {
+        headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
+        signal: AbortSignal.timeout(5000),
+      });
       if (!res.ok) return null;
       const html = await res.text();
+      const $ = cheerio.load(html);
 
-      // Chercher les balises <img> pointant vers pbs.twimg.com (images de tweets)
-      const imgRegex = /<img[^>]+src=["']([^"']*pbs\.twimg\.com[^"']*)["']/gi;
-      const tweetImages: string[] = [];
-      let imgMatch;
-      while ((imgMatch = imgRegex.exec(html)) !== null) {
-        tweetImages.push(imgMatch[1]);
-      }
-
-      if (tweetImages.length > 0) {
-        return tweetImages[0]; // Première image du tweet
-      }
+      // Chercher les images pbs.twimg.com (images de tweets)
+      let tweetImage: string | null = null;
+      $('img[src*="pbs.twimg.com"]').each((_, el) => {
+        if (tweetImage) return;
+        tweetImage = $(el).attr("src") || null;
+      });
+      if (tweetImage) return tweetImage;
 
       // Fallback : miniature vidéo Twitter (video.twimg.com)
-      const videoRegex = /<img[^>]+src=["']([^"']*video\.twimg\.com[^"']*)["']/gi;
-      const videoThumbs: string[] = [];
-      while ((imgMatch = videoRegex.exec(html)) !== null) {
-        videoThumbs.push(imgMatch[1]);
-      }
+      let videoThumb: string | null = null;
+      $('img[src*="video.twimg.com"]').each((_, el) => {
+        if (videoThumb) return;
+        videoThumb = $(el).attr("src") || null;
+      });
+      if (videoThumb) return videoThumb;
 
-      if (videoThumbs.length > 0) {
-        return videoThumbs[0];
-      }
-
-      // Aucune image de tweet trouvée → ne rien modifier
       return null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   });
 }
