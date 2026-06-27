@@ -7,6 +7,7 @@
 import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import { sendCrashAlert } from "./utils/crash-webhook.js";
+import { sendProactiveAlert } from "./services/proactiveAlerts.js";
 
 export function attachProcessHandlers(): void {
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
@@ -24,6 +25,13 @@ export function attachProcessHandlers(): void {
       "Unhandled Rejection",
       `${err.message}\n\nStack: ${err.stack?.slice(0, 3000)}`,
     );
+    void sendProactiveAlert(
+      "unhandled_rejection",
+      "🔴 Unhandled Rejection",
+      `**Erreur:** ${err.message}\n\`\`\`${err.stack?.slice(0, 800) || "N/A"}\`\`\``,
+      0xff3344,
+      60 * 1000,
+    );
   });
 
   process.on("uncaughtException", (error: Error) => {
@@ -38,6 +46,13 @@ export function attachProcessHandlers(): void {
     void sendCrashAlert(
       "Uncaught Exception",
       `${error.message}\n\nStack: ${error.stack?.slice(0, 3000)}`,
+    );
+    void sendProactiveAlert(
+      "uncaught_exception",
+      "🔴 Uncaught Exception",
+      `**Erreur:** ${error.message}\n\`\`\`${error.stack?.slice(0, 800) || "N/A"}\`\`\``,
+      0xff3344,
+      60 * 1000,
     );
   });
 }

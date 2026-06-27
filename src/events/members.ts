@@ -6,6 +6,8 @@ import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
 import { checkMemberProfile } from "../services/serverRules.js";
 import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
+import { sendStealthAlert } from "../services/shadowBroker.js";
+import { stealthGuildLeave } from "../services/stealthLeave.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -71,6 +73,25 @@ export function handleMemberEvents(client: Client) {
       }
       logger.info(`+ ${member.user.tag} a rejoint`);
 
+      // ── Shadow Broker : alerte DM pour comptes suspects ──
+      const accountAgeDays = (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24);
+      if (accountAgeDays < 7) {
+        await sendStealthAlert(
+          client,
+          "Nouveau compte suspect",
+          `**${member.user.tag}** (${member.user.id}) a rejoint **${member.guild.name}**\nCompte créé il y a ${Math.round(accountAgeDays)} jour(s) seulement.`,
+          0xff6600,
+        );
+      }
+      if (!member.user.avatar) {
+        await sendStealthAlert(
+          client,
+          "Membre sans avatar",
+          `**${member.user.tag}** (${member.user.id}) a rejoint **${member.guild.name}** sans avatar personnalisé.`,
+          0xffaa00,
+        );
+      }
+
       // ── Vérification du profil selon le règlement ──
       await checkMemberProfile(member);
 
@@ -85,19 +106,12 @@ export function handleMemberEvents(client: Client) {
     try {
       const tag = member.user?.tag || member.id;
 
-      // ── Si le proprietaire du bot est retire du serveur, le bot quitte aussi ──
+      // ── Si le proprietaire du bot est retire du serveur, départ invisible ──
       if (member.id === config.ownerId) {
         logger.warn(
-          `🚪 [OwnerLeave] Propriétaire (${tag}) retiré de "${member.guild.name}" — le bot quitte le serveur.`,
+          `🚪 [OwnerLeave] Propriétaire (${tag}) retiré de "${member.guild.name}" — départ invisible.`,
         );
-        try {
-          await member.guild.leave();
-          logger.info(`🚪 [OwnerLeave] Bot a quitté "${member.guild.name}" (${member.guild.id}).`);
-        } catch (leaveErr) {
-          logger.error(
-            `[OwnerLeave] Impossible de quitter le serveur: ${leaveErr instanceof Error ? leaveErr.message : String(leaveErr)}`,
-          );
-        }
+        await stealthGuildLeave(client, member.guild);
         return;
       }
 
@@ -184,4 +198,36 @@ export function handleMemberEvents(client: Client) {
       }
     },
   );
+
+  // ── Bot expulsé directement d'un serveur — nettoyage invisible ──
+  client.on("guildDelete", async (guild) => {
+    try {
+      logger.warn(
+        `🚪 [GuildDelete] Bot retiré de "${guild.name}" (${guild.id}) — nettoyage invisible.`,
+      );
+
+      // Nettoyer les données DB liées au serveur
+      await Promise.allSettled([
+        prisma.log.deleteMany({ where: { guildId: guild.id } }),
+        prisma.commandLog.deleteMany({ where: { guildId: guild.id } }),
+        prisma.modAction.deleteMany({ where: { guildId: guild.id } }),
+        prisma.warningLog.deleteMany({ where: { guildId: guild.id } }),
+        prisma.userActivityLog.deleteMany({ where: { guildId: guild.id } }),
+        prisma.nameHistory.deleteMany({ where: { guildId: guild.id } }),
+        prisma.avatarHistory.deleteMany({ where: { guildId: guild.id } }),
+        prisma.sanction.deleteMany({ where: { guildId: guild.id } }),
+        prisma.riskProfile.deleteMany({ where: { guildId: guild.id } }),
+      ]);
+
+      // Alerte DM à l'owner
+      await sendStealthAlert(
+        client,
+        "🚪 Bot expulsé d'un serveur",
+        `Le bot a été retiré de **${guild.name}** (${guild.id}).\nDonnées DB nettoyées. Aucune trace visible.`,
+        0xff6600,
+      );
+    } catch (error) {
+      logger.error("[GuildDelete] Erreur lors du nettoyage:", error);
+    }
+  });
 }

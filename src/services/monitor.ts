@@ -7,6 +7,7 @@ import { Client, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
 import {
   runGamingFeeds,
   sendToChannel,
+  sendToChannelWithAttachment,
   logError,
   PLATFORM_COLORS,
   PLATFORM_ICONS,
@@ -20,6 +21,12 @@ import {
 } from "../utils/image-helpers.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
+import {
+  generateCardAttachment,
+  getPlatformColor,
+  getPlatformLabel,
+} from "../utils/notificationCards.js";
+import { alertApiFailure, alertCronFailure, alertCritical } from "../services/proactiveAlerts.js";
 import { config } from "../config.js";
 import {
   RSS_HEADERS,
@@ -386,13 +393,37 @@ async function checkEpicGames(client: Client) {
 
       const steamEpicChannel = config.steamEpicChannel;
       if (steamEpicChannel) {
-        await sendToChannel(client, steamEpicChannel, embed);
+        // Générer la carte visuelle
+        const cardAttachment = await generateCardAttachment(
+          {
+            type: "freegame",
+            title: game.title,
+            subtitle: "Epic Games Store",
+            imageUrl: game.imageUrl || undefined,
+            originalPrice: game.originalPrice || "Gratuit",
+            endDate: game.freeEndDate
+              ? new Date(game.freeEndDate).toLocaleDateString("fr-FR")
+              : "Limitée",
+            platformName: "EPIC GAMES",
+            platformColor: getPlatformColor("epic"),
+            url: game.url,
+          },
+          `epic-free-${game.title.slice(0, 20).replace(/[^a-zA-Z0-9]/g, "-")}`,
+        );
+
+        if (cardAttachment) {
+          embed.setImage(`attachment://${cardAttachment.name}`);
+          await sendToChannelWithAttachment(client, steamEpicChannel, embed, cardAttachment);
+        } else {
+          await sendToChannel(client, steamEpicChannel, embed);
+        }
         logger.info(`[EpicGames] Notification: ${game.title}`);
       }
     }
   } catch (err) {
     const errMsg = String(err);
     logger.error("[EpicGames] Erreur:", errMsg);
+    void alertApiFailure("Epic Games", errMsg);
     await logError(client, "EpicGames", errMsg);
   }
 }
@@ -495,7 +526,30 @@ async function checkAndNotify(client: Client) {
             } catch {
               // Ignore image fetch errors
             }
-            await channel.send({ embeds: [embed] });
+            // Générer la carte visuelle
+            const cardType = source.type === "YOUTUBE" ? "youtube" : "blog";
+            const cardAttachment = await generateCardAttachment(
+              {
+                type: cardType,
+                title: contentText,
+                subtitle: `@${source.urlOrHandle}`,
+                imageUrl:
+                  source.type === "YOUTUBE"
+                    ? (result.content as YouTubeRSSContent).thumbnail
+                    : undefined,
+                platformName: getPlatformLabel(source.type.toLowerCase()),
+                platformColor: getPlatformColor(source.type.toLowerCase()),
+                url: result.content.url,
+              },
+              `notif-${source.type.toLowerCase()}-${Date.now()}`,
+            );
+
+            if (cardAttachment) {
+              embed.setImage(`attachment://${cardAttachment.name}`);
+              await channel.send({ embeds: [embed], files: [cardAttachment] });
+            } else {
+              await channel.send({ embeds: [embed] });
+            }
             logger.info(`[Monitor] Notification envoyée pour @${source.urlOrHandle}`);
           }
         }
@@ -528,6 +582,7 @@ async function checkAndNotify(client: Client) {
   } catch (err) {
     const errMsg = String(err);
     logger.error("[Monitor] Erreur globale:", errMsg);
+    void alertCritical("Erreur monitor globale", errMsg.slice(0, 500));
     try {
       await logError(client, "Monitor/Global", errMsg);
     } catch {

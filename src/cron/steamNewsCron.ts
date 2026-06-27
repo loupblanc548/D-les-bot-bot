@@ -6,6 +6,12 @@ import { retry } from "../utils/retry.js";
 import { dbCache } from "../utils/cache.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import {
+  generateCardAttachment,
+  getPlatformColor,
+  getPlatformLabel,
+} from "../utils/notificationCards.js";
+import { alertCronFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
 
 // Types
 
@@ -321,15 +327,38 @@ async function checkTrackedGames(client: Client): Promise<void> {
           .setTimestamp();
 
         try {
-          await channel.send({
-            content: "📋 **Nouveau patch note detecte sur " + cfg.label + " !**",
-            embeds: [embed],
-          });
+          // Générer la carte visuelle
+          const cardAttachment = await generateCardAttachment(
+            {
+              type: "patchnote",
+              title,
+              description,
+              platformName: cfg.label.toUpperCase(),
+              platformColor: `#${cfg.color.toString(16).padStart(6, "0")}`,
+              url: link,
+            },
+            `patch-${platform}-${Date.now()}`,
+          );
+
+          if (cardAttachment) {
+            embed.setImage(`attachment://${cardAttachment.name}`);
+            await channel.send({
+              content: "📋 **Nouveau patch note detecte sur " + cfg.label + " !**",
+              embeds: [embed],
+              files: [cardAttachment],
+            });
+          } else {
+            await channel.send({
+              content: "📋 **Nouveau patch note detecte sur " + cfg.label + " !**",
+              embeds: [embed],
+            });
+          }
           sent = true;
           logger.info("[PatchNotesCron] ✓ " + cfg.label + ' : "' + title.slice(0, 80) + '"');
         } catch (sendError) {
           const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
           logger.error("[PatchNotesCron] ✗ Echec envoi " + cfg.label + ": " + sendMsg);
+          void alertNotificationFailure(cfg.label, sendMsg);
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));

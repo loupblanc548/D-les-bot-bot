@@ -12,6 +12,11 @@
 
 import { EmbedBuilder, TextChannel, Client, MessageCreateOptions } from "discord.js";
 import logger from "../utils/logger.js";
+import {
+  generateCardAttachment,
+  getPlatformColor,
+  getPlatformLabel,
+} from "../utils/notificationCards.js";
 
 // ─── Configuration des plateformes ─────────────────────────────────────────
 
@@ -214,9 +219,29 @@ export async function dispatchToChannels(
       const platform = platformMap.get(channelId) || PLATFORM_CONFIGS[0];
       const embed = buildPlatformEmbed(article, platform);
 
+      // Générer la carte visuelle
+      const cardAttachment = await generateCardAttachment(
+        {
+          type: "gaming",
+          title: article.title,
+          subtitle: platform.name,
+          description: article.content?.slice(0, 120),
+          imageUrl: article.image,
+          platformName: platform.name.toUpperCase(),
+          platformColor: `#${platform.color.toString(16).padStart(6, "0")}`,
+          url: article.url,
+        },
+        `route-${channelId}-${Date.now()}`,
+      );
+
       const messagePayload: MessageCreateOptions = {
         embeds: [embed],
       };
+
+      if (cardAttachment) {
+        embed.setImage(`attachment://${cardAttachment.name}`);
+        messagePayload.files = [cardAttachment];
+      }
 
       // Ajouter le lien URL en contenu si présent
       if (article.url) {
