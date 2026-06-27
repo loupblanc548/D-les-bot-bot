@@ -171,7 +171,8 @@ export const CATEGORIES: Category[] = [
       "`/embed-builder - Crée un embed personnalisé`\n" +
       "`/say [salon] [message] - Fait parler le bot`\n" +
       "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
-      "`/mp3 [nom] - Joue un son en vocal`",
+      "`/mp3 [nom] - Joue un son en vocal`\n" +
+      "`/tts [texte] [langue] - Lit du texte à voix haute en vocal`",
   },
   {
     id: "casier",

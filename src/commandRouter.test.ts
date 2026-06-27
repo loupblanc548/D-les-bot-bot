@@ -46,6 +46,7 @@ vi.mock("./commands/psn", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/dictee", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/alertcenter", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/mp3", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/tts", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/ai-extra", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/security/core", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/clean-duplicates", () => ({ commands: [], handleCommand: vi.fn() }));
