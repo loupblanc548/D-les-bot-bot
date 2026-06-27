@@ -46,6 +46,8 @@ import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
 import { handleAutoEvents } from "./events/autoEvents.js";
+import { startAutoEscalation } from "./cron/autoEscalation.js";
+import { startMiscCrons } from "./cron/miscCrons.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -223,6 +225,8 @@ export function attachStartupLogic(
       () => handleInviteTracker(client),
       () => handleServerCloneDetect(client),
       () => handleAutoEvents(client),
+      () => startAutoEscalation(client),
+      () => startMiscCrons(client),
     ];
     for (const start of services) {
       try {
