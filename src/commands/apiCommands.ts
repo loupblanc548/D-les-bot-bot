@@ -9,7 +9,6 @@
  * /gaming-news    — Actus gaming (NewsAPI)
  * /screenshot     — Capture d'écran d'une URL
  * /lastfm         — Top tracks Last.fm
- * /gif            — Recherche GIF (GIPHY)
  * /api-status     — Statut des APIs externes
  */
 
@@ -30,7 +29,6 @@ import {
   getGamingNews,
   takeScreenshot,
   getLastfmTopTracks,
-  searchGifs,
   getApiStatus,
 } from "../services/externalApis.js";
 
@@ -104,14 +102,6 @@ export const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
-    .setName("gif")
-    .setDescription("Recherche un GIF (GIPHY)")
-    .addStringOption((o) =>
-      o.setName("requete").setDescription("Termes de recherche").setRequired(true),
-    )
-    .toJSON(),
-
-  new SlashCommandBuilder()
     .setName("api-status")
     .setDescription("Affiche le statut des APIs externes configurées")
     .toJSON(),
@@ -145,9 +135,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
         break;
       case "lastfm":
         await handleLastfm(interaction);
-        break;
-      case "gif":
-        await handleGif(interaction);
         break;
       case "api-status":
         await handleApiStatus(interaction);
@@ -415,27 +402,6 @@ async function handleLastfm(interaction: ChatInputCommandInteraction): Promise<v
     .join("\n");
 
   embed.setDescription(trackText.slice(0, 4096));
-  await interaction.editReply({ embeds: [embed] });
-}
-
-async function handleGif(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply();
-  const query = interaction.options.getString("requete", true);
-  const gifs = await searchGifs(query, 5);
-
-  if (gifs.length === 0) {
-    await interaction.editReply({ content: "❌ Aucun GIF trouvé. (GIPHY API non configurée)" });
-    return;
-  }
-
-  const gif = gifs[0];
-  const embed = new EmbedBuilder()
-    .setTitle(`🎬 GIF: ${query}`)
-    .setColor(0x5865f2)
-    .setImage(gif.url)
-    .setFooter(FOOTER)
-    .setTimestamp();
-
   await interaction.editReply({ embeds: [embed] });
 }
 
