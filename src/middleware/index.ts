@@ -5,3 +5,4 @@ export {
   type RateLimitConfig,
 } from "./rateLimit.js";
 export { createLoggingMiddleware } from "./logging.js";
+export { createPermissionGuardMiddleware } from "./permissionGuard.js";

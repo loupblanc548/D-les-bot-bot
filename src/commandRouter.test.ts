@@ -6,6 +6,7 @@ const { mockLogger, mockConfig, mockMiddleware } = vi.hoisted(() => ({
   mockMiddleware: {
     createLoggingMiddleware: vi.fn(() => vi.fn()),
     createRateLimitMiddleware: vi.fn(() => vi.fn()),
+    createPermissionGuardMiddleware: vi.fn(() => vi.fn()),
     withMiddleware: vi.fn((h: unknown) => h),
   },
 }));
