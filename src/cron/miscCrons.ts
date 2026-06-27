@@ -28,23 +28,19 @@ export async function checkMemberMilestone(client: Client): Promise<void> {
         if (count >= ms && lastMilestone < ms) {
           milestoneTracker.set(guild.id, ms);
 
-          const logChannelId = config.logChannel;
-          if (logChannelId) {
-            const channel = await client.channels.fetch(logChannelId).catch(() => null);
-            if (channel?.isTextBased()) {
-              const embed = new EmbedBuilder()
-                .setTitle(`🎉 Milestone atteint !`)
-                .setColor(0x57f287)
-                .setDescription(
-                  `Le serveur **${guild.name}** vient d'atteindre **${ms}** membres ! 🥳`,
-                )
-                .setTimestamp();
-              await (channel as TextChannel).send({
-                content: "@everyone",
-                embeds: [embed],
-                allowedMentions: { parse: ["everyone"] },
-              });
-            }
+          const generalChannelId = "1134242473334554774";
+          const channel = await client.channels.fetch(generalChannelId).catch(() => null);
+          if (channel?.isTextBased()) {
+            const embed = new EmbedBuilder()
+              .setTitle(`🎉 Milestone atteint !`)
+              .setColor(0x57f287)
+              .setDescription(
+                `Le serveur **${guild.name}** vient d'atteindre **${ms}** membres ! 🥳`,
+              )
+              .setTimestamp();
+            await (channel as TextChannel).send({
+              embeds: [embed],
+            });
           }
           logger.info(`[Milestone] ${guild.name}: ${ms} membres atteints`);
           break;
@@ -80,17 +76,15 @@ export async function checkBirthdays(client: Client): Promise<void> {
       const member = await guild.members.fetch(userId).catch(() => null);
       if (!member) continue;
 
-      const logChannelId = config.logChannel;
-      if (logChannelId) {
-        const channel = await client.channels.fetch(logChannelId).catch(() => null);
-        if (channel?.isTextBased()) {
-          const embed = new EmbedBuilder()
-            .setTitle("🎂 Joyeux Anniversaire !")
-            .setColor(0xe91e63)
-            .setDescription(`C'est l'anniversaire de ${member} aujourd'hui ! 🎉`)
-            .setTimestamp();
-          await (channel as TextChannel).send({ embeds: [embed] });
-        }
+      const generalChannelId = "1134242473334554774";
+      const channel = await client.channels.fetch(generalChannelId).catch(() => null);
+      if (channel?.isTextBased()) {
+        const embed = new EmbedBuilder()
+          .setTitle("🎂 Joyeux Anniversaire !")
+          .setColor(0xe91e63)
+          .setDescription(`C'est l'anniversaire de ${member} aujourd'hui ! 🎉`)
+          .setTimestamp();
+        await (channel as TextChannel).send({ embeds: [embed] });
       }
       logger.info(`[Birthday] ${member.user.tag} a son anniversaire aujourd'hui`);
     }
