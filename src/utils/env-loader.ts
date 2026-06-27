@@ -84,6 +84,23 @@ const envSchema = z.object({
   // Steam (optional)
   STEAM_API_KEY: z.string().optional(),
 
+  // ─── Nouvelles APIs externes (optionnelles) ──────────────────────────────
+  PERSPECTIVE_API_KEY: z.string().optional(),
+  TENOR_API_KEY: z.string().optional(),
+  YOUTUBE_API_KEY: z.string().optional(),
+  SPOTIFY_CLIENT_ID: z.string().optional(),
+  SPOTIFY_CLIENT_SECRET: z.string().optional(),
+  RAWG_API_KEY: z.string().optional(),
+  NEWS_API_KEY: z.string().optional(),
+  SCREENSHOT_API_KEY: z.string().optional(),
+  HF_API_KEY: z.string().optional(),
+  LASTFM_API_KEY: z.string().optional(),
+  PHISHERMAN_API_KEY: z.string().optional(),
+  IMGUR_CLIENT_ID: z.string().optional(),
+  REDDIT_CLIENT_ID: z.string().optional(),
+  REDDIT_CLIENT_SECRET: z.string().optional(),
+  REDDIT_USER_AGENT: z.string().optional(),
+
   // API Base URLs (with defaults)
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
   TWITTER_API_BASE_URL: z.string().default("https://api.twitch.tv/helix"),

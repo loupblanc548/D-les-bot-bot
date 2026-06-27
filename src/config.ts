@@ -24,6 +24,23 @@ export const config = {
   twitchClientId: env.TWITCH_CLIENT_ID || "",
   twitchClientSecret: env.TWITCH_CLIENT_SECRET || "",
 
+  // ─── Nouvelles APIs externes (fallback gracieux si vide) ──────────────────
+  perspectiveApiKey: env.PERSPECTIVE_API_KEY || "",
+  tenorApiKey: env.TENOR_API_KEY || "",
+  youtubeApiKey: env.YOUTUBE_API_KEY || "",
+  spotifyClientId: env.SPOTIFY_CLIENT_ID || "",
+  spotifyClientSecret: env.SPOTIFY_CLIENT_SECRET || "",
+  rawgApiKey: env.RAWG_API_KEY || "",
+  newsApiKey: env.NEWS_API_KEY || "",
+  screenshotApiKey: env.SCREENSHOT_API_KEY || "",
+  hfApiKey: env.HF_API_KEY || "",
+  lastfmApiKey: env.LASTFM_API_KEY || "",
+  phishermanApiKey: env.PHISHERMAN_API_KEY || "",
+  imgurClientId: env.IMGUR_CLIENT_ID || "",
+  redditClientId: env.REDDIT_CLIENT_ID || "",
+  redditClientSecret: env.REDDIT_CLIENT_SECRET || "",
+  redditUserAgent: env.REDDIT_USER_AGENT || "",
+
   // Twitter multi-platform routing (account → channel)
   twitterPlatformRouting: [
     {

@@ -141,6 +141,10 @@ import {
   handleCommand as handleMemoryProfile,
 } from "./commands/memoryProfile.js";
 import { commands as aiFunCommands, handleCommand as handleAiFun } from "./commands/aiFun.js";
+import {
+  commands as apiCmdCommands,
+  handleCommand as handleApiCmd,
+} from "./commands/apiCommands.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -308,6 +312,7 @@ export const allCommands = [
   ...utilityGamingCommands,
   ...memoryProfileCommands,
   ...aiFunCommands,
+  ...apiCmdCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -440,6 +445,21 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["memory-profile"], handleMemoryProfile);
   registerGroup(["ai-fun"], handleAiFun);
+  registerGroup(
+    [
+      "steam-deals",
+      "price-history",
+      "game-info",
+      "yt-search",
+      "spotify-search",
+      "gaming-news",
+      "screenshot",
+      "lastfm",
+      "gif",
+      "api-status",
+    ],
+    handleApiCmd,
+  );
 }
 
 export function applyCommandMiddleware(): void {
