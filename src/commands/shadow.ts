@@ -44,6 +44,12 @@ import {
   runInstaloader,
   runPhoton,
   runDnsLookup,
+  runSocialScan,
+  runHarvester,
+  runWhatsMyName,
+  runExifExtract,
+  runCmseek,
+  runOsintgram,
 } from "../services/osint.js";
 
 export const commands = [
@@ -186,6 +192,57 @@ export const commands = [
             .setDescription("L'URL à crawler (ex: https://example.com)")
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("social")
+        .setDescription("Scan username/email sur plateformes sociales (socialscan)")
+        .addStringOption((opt) =>
+          opt.setName("query").setDescription("Username ou email à scanner").setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("harvester")
+        .setDescription("Recon domaine — emails, hosts, sous-domaines (theHarvester)")
+        .addStringOption((opt) =>
+          opt.setName("domaine").setDescription("Le domaine (ex: example.com)").setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("wmn")
+        .setDescription("Username search complémentaire (WhatsMyName 600+ sites)")
+        .addStringOption((opt) =>
+          opt.setName("pseudo").setDescription("Le pseudo à rechercher").setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("exif")
+        .setDescription("Extrait les métadonnées EXIF d'une image (GPS, appareil, date)")
+        .addStringOption((opt) =>
+          opt.setName("url").setDescription("URL de l'image à analyser").setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("cms")
+        .setDescription("Détecte le CMS et technologies d'un site web (CMSeeK)")
+        .addStringOption((opt) =>
+          opt
+            .setName("url")
+            .setDescription("L'URL du site (ex: https://example.com)")
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("insta-deep")
+        .setDescription("Instagram deep intel — email, tags, URLs externes (Osintgram)")
+        .addStringOption((opt) =>
+          opt.setName("pseudo").setDescription("Le pseudo Instagram").setRequired(true),
+        ),
     ),
 ];
 
@@ -236,6 +293,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       return handleInstagram(interaction);
     case "crawl":
       return handleCrawl(interaction);
+    case "social":
+      return handleSocial(interaction);
+    case "harvester":
+      return handleHarvester(interaction);
+    case "wmn":
+      return handleWmn(interaction);
+    case "exif":
+      return handleExif(interaction);
+    case "cms":
+      return handleCms(interaction);
+    case "insta-deep":
+      return handleInstaDeep(interaction);
     default:
       await interaction.reply({
         content: "Sous-commande inconnue.",
@@ -1123,5 +1192,294 @@ async function handleCrawl(interaction: ChatInputCommandInteraction) {
   } catch (error) {
     logger.error("[Shadow/crawl] Erreur:", error);
     await interaction.editReply({ content: "Erreur lors du crawl." });
+  }
+}
+
+// ─── /shadow social (socialscan) ─────────────────────────────────────────────
+
+async function handleSocial(interaction: ChatInputCommandInteraction) {
+  const query = interaction.options.getString("query", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    const result = await runSocialScan(query);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📱 SocialScan — ${query}`)
+      .setColor(0x1a1a2e)
+      .setTimestamp();
+
+    const found = result.results.filter((r) => r.found);
+    const notFound = result.results.filter((r) => !r.found && r.valid);
+
+    if (found.length > 0) {
+      embed.addFields({
+        name: `🟢 Trouvé (${found.length})`,
+        value: found
+          .map((r) => `✅ **${r.platform}**${r.url ? ` — [lien](${r.url})` : ""}`)
+          .join("\n"),
+        inline: false,
+      });
+    }
+    if (notFound.length > 0) {
+      embed.addFields({
+        name: `🔴 Non trouvé (${notFound.length})`,
+        value: notFound
+          .map((r) => `❌ ${r.platform}`)
+          .join("\n")
+          .slice(0, 1024),
+        inline: false,
+      });
+    }
+    if (found.length === 0 && notFound.length === 0) {
+      embed.setDescription("Aucun résultat.");
+    }
+
+    embed.setFooter({ text: `${found.length}/${result.results.length} plateformes` });
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/social] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors du scan." });
+  }
+}
+
+// ─── /shadow harvester (theHarvester) ────────────────────────────────────────
+
+async function handleHarvester(interaction: ChatInputCommandInteraction) {
+  const domain = interaction.options.getString("domaine", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    await interaction.editReply({
+      content: `🌾 theHarvester en cours sur **${domain}** (emails, hosts, sous-domaines, ~1-2 min)...`,
+    });
+
+    const result = await runHarvester(domain);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🌾 theHarvester — ${domain}`)
+      .setColor(0x1a1a2e)
+      .setTimestamp();
+
+    embed.addFields({ name: "📊 Total", value: String(result.total), inline: true });
+
+    if (result.emails.length > 0) {
+      embed.addFields({
+        name: `📧 Emails (${result.emails.length})`,
+        value: result.emails.slice(0, 15).join("\n"),
+        inline: false,
+      });
+    }
+    if (result.hosts.length > 0) {
+      embed.addFields({
+        name: `🖥️ Hosts (${result.hosts.length})`,
+        value: result.hosts.slice(0, 15).join("\n").slice(0, 1024),
+        inline: false,
+      });
+    }
+    if (result.subdomains.length > 0) {
+      embed.addFields({
+        name: `🔍 Sous-domaines (${result.subdomains.length})`,
+        value: result.subdomains.slice(0, 10).join("\n"),
+        inline: false,
+      });
+    }
+
+    if (result.total === 0) {
+      embed.setDescription("Aucune donnée trouvée pour ce domaine.");
+    }
+
+    await interaction.editReply({ content: "", embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/harvester] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors de la recon." });
+  }
+}
+
+// ─── /shadow wmn (WhatsMyName) ───────────────────────────────────────────────
+
+async function handleWmn(interaction: ChatInputCommandInteraction) {
+  const username = interaction.options.getString("pseudo", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    await interaction.editReply({
+      content: `🔍 WhatsMyName en cours sur **${username}** (600+ sites, ~1-2 min)...`,
+    });
+
+    const result = await runWhatsMyName(username);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🔍 WhatsMyName — ${username} (${result.totalFound} trouvés)`)
+      .setColor(0x1a1a2e)
+      .setTimestamp();
+
+    if (result.found.length > 0) {
+      const foundText = result.found
+        .slice(0, 25)
+        .map(
+          (r) => `✅ **${r.platform}**${r.category ? ` \`${r.category}\`` : ""} — [lien](${r.url})`,
+        )
+        .join("\n");
+      embed.addFields({
+        name: `🟢 Trouvé (${result.totalFound})`,
+        value: foundText,
+        inline: false,
+      });
+      if (result.totalFound > 25) {
+        embed.setFooter({ text: `Affichage des 25 premiers sur ${result.totalFound}` });
+      }
+    } else {
+      embed.setDescription("Aucun profil trouvé sur les 600+ sites scannés.");
+    }
+
+    await interaction.editReply({ content: "", embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/wmn] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors du scan." });
+  }
+}
+
+// ─── /shadow exif (EXIF metadata extraction) ─────────────────────────────────
+
+async function handleExif(interaction: ChatInputCommandInteraction) {
+  const imageUrl = interaction.options.getString("url", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    const result = await runExifExtract(imageUrl);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📷 EXIF — ${imageUrl.slice(0, 50)}...`)
+      .setColor(result.hasExif ? 0x43b581 : 0xff4444)
+      .setTimestamp();
+
+    if (result.hasExif) {
+      embed.addFields({
+        name: "📊 Métadonnées",
+        value: result.metadata
+          .slice(0, 15)
+          .map((m) => `• **${m.tag}**: \`${m.value.slice(0, 80)}\``)
+          .join("\n"),
+        inline: false,
+      });
+
+      if (result.gpsCoordinates) {
+        embed.addFields({
+          name: "📍 GPS détecté",
+          value: `Lat: ${result.gpsCoordinates.latitude}\nLon: ${result.gpsCoordinates.longitude}`,
+          inline: false,
+        });
+        embed.setColor(0xff3344);
+      }
+    } else {
+      embed.setDescription("❌ Aucune métadonnée EXIF trouvée dans cette image.");
+    }
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/exif] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors de l'extraction EXIF." });
+  }
+}
+
+// ─── /shadow cms (CMSeeK) ────────────────────────────────────────────────────
+
+async function handleCms(interaction: ChatInputCommandInteraction) {
+  const url = interaction.options.getString("url", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    const result = await runCmseek(url);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🔧 CMS Detection — ${url}`)
+      .setColor(0x1a1a2e)
+      .setTimestamp();
+
+    embed.addFields(
+      { name: "📦 CMS", value: result.cms, inline: true },
+      { name: "🔢 Version", value: result.version || "N/A", inline: true },
+      { name: "🖥️ Server", value: result.server || "N/A", inline: true },
+    );
+
+    if (result.technologies.length > 0) {
+      embed.addFields({
+        name: "⚙️ Technologies",
+        value: result.technologies.map((t) => `• ${t}`).join("\n"),
+        inline: false,
+      });
+    }
+
+    if (result.poweredBy) {
+      embed.addFields({ name: "⚡ Powered By", value: result.poweredBy, inline: true });
+    }
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/cms] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors de la détection CMS." });
+  }
+}
+
+// ─── /shadow insta-deep (Osintgram) ──────────────────────────────────────────
+
+async function handleInstaDeep(interaction: ChatInputCommandInteraction) {
+  const username = interaction.options.getString("pseudo", true);
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    const result = await runOsintgram(username);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📸 Instagram Deep — @${username}`)
+      .setColor(0x1a1a2e)
+      .setTimestamp();
+
+    if (result.found) {
+      embed.setColor(0xc13584);
+      embed.addFields(
+        { name: "👤 Nom", value: result.fullName || username, inline: true },
+        { name: "👥 Followers", value: result.followers || "N/A", inline: true },
+        { name: "➡️ Following", value: result.following || "N/A", inline: true },
+        { name: "📷 Posts", value: result.posts || "N/A", inline: true },
+        { name: "🔒 Privé", value: result.isPrivate ? "Oui" : "Non", inline: true },
+        { name: "✅ Vérifié", value: result.isVerified ? "Oui" : "Non", inline: true },
+      );
+      if (result.bio) {
+        embed.addFields({ name: "📝 Bio", value: result.bio.slice(0, 1024), inline: false });
+      }
+      if (result.email) {
+        embed.addFields({ name: "📧 Email", value: result.email, inline: true });
+      }
+      if (result.externalUrls?.length) {
+        embed.addFields({
+          name: "🔗 URLs externes",
+          value: result.externalUrls.filter(Boolean).join("\n"),
+          inline: false,
+        });
+      }
+      if (result.tags?.length) {
+        embed.addFields({
+          name: `🏷️ Tags (${result.tags.length})`,
+          value: result.tags
+            .slice(0, 15)
+            .map((t) => `#${t}`)
+            .join(" "),
+          inline: false,
+        });
+      }
+      if (result.profilePicUrl) {
+        embed.setThumbnail(result.profilePicUrl);
+      }
+    } else {
+      embed.setColor(0xff4444);
+      embed.setDescription(`❌ Profil @${username} introuvable ou privé.`);
+    }
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[Shadow/insta-deep] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors de la recherche Instagram." });
   }
 }

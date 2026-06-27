@@ -891,3 +891,272 @@ export async function runDnsLookup(domain: string): Promise<DnsResult> {
     return { domain, aRecords: [], mxRecords: [], txtRecords: [], nsRecords: [], cnameRecords: [] };
   }
 }
+
+// ─── SocialScan (Python — username/email multi-plateformes) ──────────────────
+
+export interface SocialScanResult {
+  query: string;
+  results: { platform: string; found: boolean; url?: string; valid: boolean }[];
+  totalFound: number;
+}
+
+export async function runSocialScan(query: string): Promise<SocialScanResult> {
+  try {
+    const { stdout } = await execAsync(
+      `python -c "import socialscan; import json; r=socialscan.execute(['${query.replace(/'/g, "")}'], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))"`,
+      { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
+    );
+
+    try {
+      const data = JSON.parse(stdout);
+      const results = data.map((r: any) => ({
+        platform: r.platform,
+        found: r.found,
+        valid: r.valid,
+        url: r.url,
+      }));
+      return {
+        query,
+        results,
+        totalFound: results.filter((r: any) => r.found).length,
+      };
+    } catch {
+      return { query, results: [], totalFound: 0 };
+    }
+  } catch (error) {
+    logger.error("[OSINT/socialscan] Erreur:", error);
+    return { query, results: [], totalFound: 0 };
+  }
+}
+
+// ─── theHarvester (Python — recon domaine: emails, hosts, subdomains) ────────
+
+export interface HarvesterResult {
+  domain: string;
+  emails: string[];
+  hosts: string[];
+  subdomains: string[];
+  total: number;
+}
+
+export async function runHarvester(domain: string): Promise<HarvesterResult> {
+  try {
+    const { stdout } = await execAsync(
+      `python "D:\\osint-tools\\theharvester\\theHarvester\\__main__.py" -d "${domain.replace(/"/g, "")}" -b all -f "D:\\osint-tools\\harvester_output.json"`,
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+    );
+
+    // Lire le fichier JSON de sortie
+    try {
+      const fs = await import("fs/promises");
+      const data = JSON.parse(await fs.readFile("D:\\osint-tools\\harvester_output.json", "utf-8"));
+      const emails = data.emails || [];
+      const hosts = data.hosts || [];
+      const subdomains = hosts.filter((h: string) => h.includes(domain));
+      return {
+        domain,
+        emails,
+        hosts,
+        subdomains,
+        total: emails.length + hosts.length,
+      };
+    } catch {
+      // Fallback: parser stdout
+      const lines = stdout.split("\n").filter((l) => l.trim());
+      const emails = lines.filter((l) => l.includes("@")).map((l) => l.trim());
+      const hosts = lines.filter((l) => l.includes(".") && !l.includes("@")).map((l) => l.trim());
+      return { domain, emails, hosts, subdomains: hosts, total: emails.length + hosts.length };
+    }
+  } catch (error) {
+    logger.error("[OSINT/harvester] Erreur:", error);
+    return { domain, emails: [], hosts: [], subdomains: [], total: 0 };
+  }
+}
+
+// ─── WhatsMyName (Python — username search complémentaire) ───────────────────
+
+export interface WhatsMyNameResult {
+  username: string;
+  found: { platform: string; url: string; category?: string }[];
+  totalFound: number;
+}
+
+export async function runWhatsMyName(username: string): Promise<WhatsMyNameResult> {
+  try {
+    // WhatsMyName utilise un fichier JSON de sources
+    const { stdout } = await execAsync(
+      `python "D:\\osint-tools\\whatsmyname\\whatsmyname.py" -u "${username.replace(/"/g, "")}" -j`,
+      { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
+    );
+
+    try {
+      const data = JSON.parse(stdout);
+      const found = (data || [])
+        .filter((r: any) => r.http_status === 200)
+        .map((r: any) => ({
+          platform: r.site || r.name || "unknown",
+          url: r.uri || r.url,
+          category: r.category,
+        }));
+      return { username, found, totalFound: found.length };
+    } catch {
+      // Fallback texte
+      const lines = stdout.split("\n").filter((l) => l.includes("http") && !l.includes("[-]"));
+      const found = lines
+        .map((l) => {
+          const match = l.match(/\[(.+?)\].+?(https?:\/\/\S+)/);
+          return match ? { platform: match[1], url: match[2] } : null;
+        })
+        .filter(Boolean) as { platform: string; url: string }[];
+      return { username, found, totalFound: found.length };
+    }
+  } catch (error) {
+    logger.error("[OSINT/whatsmyname] Erreur:", error);
+    return { username, found: [], totalFound: 0 };
+  }
+}
+
+// ─── EXIF Metadata (Python exifread — extraction métadonnées images) ─────────
+
+export interface ExifResult {
+  imageUrl: string;
+  metadata: { tag: string; value: string }[];
+  gpsCoordinates?: { latitude?: string; longitude?: string };
+  hasExif: boolean;
+}
+
+export async function runExifExtract(imageUrl: string): Promise<ExifResult> {
+  try {
+    // Télécharger l'image puis extraire les EXIF
+    const { stdout } = await execAsync(
+      `python -c "import exifread, urllib.request, io, json; f=urllib.request.urlopen('${imageUrl.replace(/'/g, "")}'); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))"`,
+      { timeout: 30000, maxBuffer: 5 * 1024 * 1024 },
+    );
+
+    try {
+      const data = JSON.parse(stdout);
+      const metadata = Object.entries(data).map(([tag, value]) => ({
+        tag,
+        value: String(value),
+      }));
+
+      // Extraire GPS si présent
+      let gpsCoordinates: { latitude?: string; longitude?: string } | undefined;
+      const lat = data["GPS GPSLatitude"];
+      const lon = data["GPS GPSLongitude"];
+      if (lat && lon) {
+        gpsCoordinates = { latitude: String(lat), longitude: String(lon) };
+      }
+
+      return {
+        imageUrl,
+        metadata: metadata.slice(0, 30),
+        gpsCoordinates,
+        hasExif: metadata.length > 0,
+      };
+    } catch {
+      return { imageUrl, metadata: [], hasExif: false };
+    }
+  } catch (error) {
+    logger.error("[OSINT/exif] Erreur:", error);
+    return { imageUrl, metadata: [], hasExif: false };
+  }
+}
+
+// ─── CMSeeK (Python — CMS detection & web recon) ─────────────────────────────
+
+export interface CmseekResult {
+  url: string;
+  cms: string;
+  version?: string;
+  technologies: string[];
+  server?: string;
+  poweredBy?: string;
+  wordpress: boolean;
+  drupal: boolean;
+  joomla: boolean;
+}
+
+export async function runCmseek(url: string): Promise<CmseekResult> {
+  try {
+    const { stdout } = await execAsync(
+      `python "D:\\osint-tools\\cmseek\\cmseek.py" -u "${url.replace(/"/g, "")}" --batch`,
+      { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
+    );
+
+    // Parser la sortie texte de CMSeeK
+    const cmsMatch = stdout.match(/CMS:\s*(.+)/i);
+    const versionMatch = stdout.match(/Version:\s*(.+)/i);
+    const serverMatch = stdout.match(/Server:\s*(.+)/i);
+    const poweredMatch = stdout.match(/X-Powered-By:\s*(.+)/i);
+
+    const technologies: string[] = [];
+    if (stdout.match(/wordpress/i)) technologies.push("WordPress");
+    if (stdout.match(/drupal/i)) technologies.push("Drupal");
+    if (stdout.match(/joomla/i)) technologies.push("Joomla");
+    if (stdout.match(/cloudflare/i)) technologies.push("Cloudflare");
+    if (stdout.match(/nginx/i)) technologies.push("Nginx");
+    if (stdout.match(/apache/i)) technologies.push("Apache");
+
+    return {
+      url,
+      cms: cmsMatch?.[1]?.trim() || "Unknown",
+      version: versionMatch?.[1]?.trim(),
+      technologies,
+      server: serverMatch?.[1]?.trim(),
+      poweredBy: poweredMatch?.[1]?.trim(),
+      wordpress: /wordpress/i.test(stdout),
+      drupal: /drupal/i.test(stdout),
+      joomla: /joomla/i.test(stdout),
+    };
+  } catch (error) {
+    logger.error("[OSINT/cmseek] Erreur:", error);
+    return {
+      url,
+      cms: "Unknown",
+      technologies: [],
+      wordpress: false,
+      drupal: false,
+      joomla: false,
+    };
+  }
+}
+
+// ─── Osintgram (Python — Instagram deep intel) ───────────────────────────────
+
+export interface OsintgramResult {
+  username: string;
+  found: boolean;
+  followers?: string;
+  following?: string;
+  posts?: string;
+  bio?: string;
+  fullName?: string;
+  isPrivate?: boolean;
+  isVerified?: boolean;
+  profilePicUrl?: string;
+  email?: string;
+  phone?: string;
+  externalUrls?: string[];
+  tags?: string[];
+}
+
+export async function runOsintgram(username: string): Promise<OsintgramResult> {
+  try {
+    // Utiliser instaloader pour des données plus profondes
+    const { stdout } = await execAsync(
+      `python -c "import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))"`,
+      { timeout: 45000, maxBuffer: 5 * 1024 * 1024 },
+    );
+
+    try {
+      const data = JSON.parse(stdout);
+      return { username, found: true, ...data };
+    } catch {
+      return { username, found: false };
+    }
+  } catch (error) {
+    logger.error("[OSINT/osintgram] Erreur:", error);
+    return { username, found: false };
+  }
+}
