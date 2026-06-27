@@ -72,7 +72,8 @@ export const CATEGORIES: Category[] = [
       "`/create-workflow - Crée un workflow`\n" +
       "`/list-workflows - Liste les workflows`\n" +
       "`/toggle-workflow - Active/désactive un workflow`\n" +
-      "`/userinfo [utilisateur] - Infos enregistrées sur un utilisateur`",
+      "`/userinfo [utilisateur] - Infos sur un utilisateur`\n" +
+      "`/permission-audit - Audite les permissions (admin)`",
   },
   {
     id: "ai",
@@ -83,7 +84,10 @@ export const CATEGORIES: Category[] = [
       "`/chat [message] - Discute avec l'IA (traduction, résumé, questions, etc.)`\n" +
       "`/mention [message] - Réponse personnalisée`\n" +
       "`/aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
-      "`/smartpoll [question] - Génère un sondage intelligent par IA`",
+      "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
+      "`/ai-profile [membre] - Profil comportemental IA (admin)`\n" +
+      "`/ai-config [parametre] [valeur] - Configure l'IA (admin)`\n" +
+      "`/ai-channel-summary [nombre] - Résume les messages d'un salon`",
   },
   {
     id: "alertcenter",
@@ -121,7 +125,8 @@ export const CATEGORIES: Category[] = [
       "`/snipe - Affiche le dernier message supprimé`\n" +
       "`/history [@user] - Historique des messages`\n" +
       "`/purgeuser [@user] - Purge tous les messages d'un utilisateur`\n" +
-      "`/tempban [@user] [durée] - Bannissement temporaire`",
+      "`/tempban [@user] [durée] - Bannissement temporaire`\n" +
+      "`/report [@user] [raison] - Signale un membre au staff`",
   },
   {
     id: "security",
