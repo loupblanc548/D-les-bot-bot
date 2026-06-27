@@ -20,17 +20,18 @@ const NEWS_FEED_URL = NEWS_BASE + "/fr/rss.xml";
 const IG_ORANGE = 0xef7f1a;
 
 // Image de secours si aucun visuel trouvé dans l'article
-const FALLBACK_IMAGE_URL = NEWS_BASE + "/assets/images/ig-logo.png";
+const FALLBACK_IMAGE_URL =
+  "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f3ae.png";
+const IG_LOGO_URL = NEWS_BASE + "/assets/images/ig-logo.png";
 
 const HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-  "Accept":
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
   "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
   "Accept-Encoding": "gzip, deflate, br",
-  "DNT": "1",
-  "Connection": "keep-alive",
+  DNT: "1",
+  Connection: "keep-alive",
   "Upgrade-Insecure-Requests": "1",
   "Sec-Fetch-Dest": "document",
   "Sec-Fetch-Mode": "navigate",
@@ -60,7 +61,10 @@ function cleanTitle(raw: string): string {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function truncateText(text: string, maxLen: number): string {
@@ -96,8 +100,7 @@ function isValidImageUrl(url: unknown): url is string {
  */
 function extractArticleImage(item: Record<string, any>): string | null {
   // 1. enclosure (standard RSS)
-  const enclosureUrl =
-    item.enclosure?.["@_url"] ?? item.enclosure?.url ?? null;
+  const enclosureUrl = item.enclosure?.["@_url"] ?? item.enclosure?.url ?? null;
   if (isValidImageUrl(enclosureUrl)) return enclosureUrl;
 
   // 2. media:content (peut etre un objet ou un tableau)
@@ -142,6 +145,54 @@ function extractArticleImage(item: Record<string, any>): string | null {
   return null;
 }
 
+/**
+ * Scrape la page de l'article pour y trouver l'image d'illustration principale.
+ * Cherche en priorité les balises <meta property="og:image">, puis <img> dans l'article.
+ */
+async function fetchArticleImage(articleUrl: string): Promise<string | null> {
+  try {
+    const response = await axios.get(articleUrl, {
+      headers: HEADERS,
+      timeout: 10000,
+      maxRedirects: 5,
+    });
+
+    const html = typeof response.data === "string" ? response.data : String(response.data);
+
+    // 1. og:image (meta tag)
+    const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+    if (ogMatch?.[1] && isValidImageUrl(ogMatch[1])) return ogMatch[1];
+
+    // 2. twitter:image
+    const twMatch = html.match(
+      /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    );
+    if (twMatch?.[1] && isValidImageUrl(twMatch[1])) return twMatch[1];
+
+    // 3. Première image dans un élément article ou .article-content
+    const articleImgMatch = html.match(
+      /<(?:article|div)[^>]*(?:article|content)[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i,
+    );
+    if (articleImgMatch?.[1] && isValidImageUrl(articleImgMatch[1])) return articleImgMatch[1];
+
+    // 4. Première image quelconque de taille > 100px (heuristique sur le nom)
+    const anyImg = extractImageFromHtml(html);
+    if (
+      anyImg &&
+      isValidImageUrl(anyImg) &&
+      !anyImg.includes("logo") &&
+      !anyImg.includes("icon") &&
+      !anyImg.includes("favicon")
+    ) {
+      return anyImg;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Fetch RSS ────────────────────────────────────────────────────────────────
 
 async function fetchNewsRSS(): Promise<ArticleData[]> {
@@ -159,9 +210,7 @@ async function fetchNewsRSS(): Promise<ArticleData[]> {
       return [];
     }
 
-    const items = Array.isArray(channel.item)
-      ? channel.item
-      : [channel.item];
+    const items = Array.isArray(channel.item) ? channel.item : [channel.item];
 
     const articles: ArticleData[] = [];
 
@@ -185,25 +234,19 @@ async function fetchNewsRSS(): Promise<ArticleData[]> {
 
     return articles;
   } catch (error) {
-    logger.error(
-      "[IG News] Erreur RSS:",
-      error instanceof Error ? error.message : String(error)
-    );
+    logger.error("[IG News] Erreur RSS:", error instanceof Error ? error.message : String(error));
     return [];
   }
 }
 
 // ─── Send Embed ───────────────────────────────────────────────────────────────
 
-async function sendNewsEmbed(
-  client: Client,
-  article: ArticleData
-): Promise<void> {
+async function sendNewsEmbed(client: Client, article: ArticleData): Promise<void> {
   // Priorité au GAMING_BLOG_CHANNEL_ID, fallback sur INSTANT_GAMING_CHANNEL_ID
   const channelId = config.gamingBlogChannel || config.instantGamingChannel;
   if (!channelId) {
     logger.warn(
-      "[IG News] Aucun salon configuré (GAMING_BLOG_CHANNEL_ID / INSTANT_GAMING_CHANNEL_ID)."
+      "[IG News] Aucun salon configuré (GAMING_BLOG_CHANNEL_ID / INSTANT_GAMING_CHANNEL_ID).",
     );
     return;
   }
@@ -238,19 +281,28 @@ async function sendNewsEmbed(
     });
   }
 
-  // Image de l'article (extraite ou fallback)
-  const imageUrl =
-    article.image && isValidImageUrl(article.image)
-      ? article.image
-      : FALLBACK_IMAGE_URL;
+  // Image de l'article : RSS en priorité, sinon scrape de la page, sinon fallback
+  let imageUrl: string =
+    article.image && isValidImageUrl(article.image) ? article.image : FALLBACK_IMAGE_URL;
+
+  // Si pas d'image dans le RSS, on scrape la page de l'article
+  if (imageUrl === FALLBACK_IMAGE_URL) {
+    const scraped = await fetchArticleImage(article.url);
+    if (scraped && isValidImageUrl(scraped)) {
+      imageUrl = scraped;
+    }
+  }
 
   embed.setImage(imageUrl);
+
+  // Logo IG en thumbnail pour identité visuelle
+  embed.setThumbnail(IG_LOGO_URL);
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setLabel("\uD83D\uDCF0 Lire l'article")
       .setStyle(ButtonStyle.Link)
-      .setURL(article.url)
+      .setURL(article.url),
   );
 
   await (channel as TextChannel).send({
@@ -265,9 +317,7 @@ async function sendNewsEmbed(
 
 let isCheckingNews = false;
 
-export async function checkInstantGamingNews(
-  client: Client
-): Promise<void> {
+export async function checkInstantGamingNews(client: Client): Promise<void> {
   // 🔒 Recharge le cache anti-doublon depuis le disque (persistance inter-cycles)
   await dedupCache.reloadFromDisk();
   if (isCheckingNews) return;
@@ -302,7 +352,9 @@ export async function checkInstantGamingNews(
       } catch (error: unknown) {
         // Autre erreur : on laisse passer pour ne pas bloquer le flux
         const err = error instanceof Error ? error : new Error(String(error));
-        logger.error(`[IG News] Erreur article: ${article.url} ${err.message}`, { stack: err.stack });
+        logger.error(`[IG News] Erreur article: ${article.url} ${err.message}`, {
+          stack: err.stack,
+        });
         await sendErrorLog("IG News article", err, client);
         continue;
       }
@@ -321,7 +373,7 @@ export async function checkInstantGamingNews(
         newCount +
         " nouveau(x), " +
         articles.length +
-        " v\u00E9rifi\u00E9(s)"
+        " v\u00E9rifi\u00E9(s)",
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -335,7 +387,7 @@ export async function checkInstantGamingNews(
 let newsCronJob: any = null;
 
 export function startInstantGamingNewsCheck(client: Client): void {
-  if ((newsCronJob as any)) {
+  if (newsCronJob as any) {
     logger.warn("[IG News] Surveillance actus déjà active.");
     return;
   }
@@ -344,13 +396,13 @@ export function startInstantGamingNewsCheck(client: Client): void {
 
   newsCronJob = cron.schedule("*/15 * * * *", () => {
     logger.info("[IG News] ⏱️ Exécution Cron planifiée pour Instant Gaming");
-    checkInstantGamingNews(client).catch(
-      (err) => logger.error("[IG News] Erreur cron:", String(err))
+    checkInstantGamingNews(client).catch((err) =>
+      logger.error("[IG News] Erreur cron:", String(err)),
     );
   });
 }
 export function stopInstantGamingNewsCheck(): void {
-  if ((newsCronJob as any)) {
+  if (newsCronJob as any) {
     (newsCronJob as any).stop();
     newsCronJob = null;
     logger.info("[IG News] Surveillance actus arrêtée.");
