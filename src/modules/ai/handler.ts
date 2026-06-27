@@ -43,8 +43,9 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
       }
     }
 
-    const systemPrompt = process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
-    const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o";
+    const systemPrompt =
+      process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
+    const model = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
 
     const response = await fetchOpenRouter(context, systemPrompt, model);
 
@@ -96,14 +97,18 @@ function estimateTokens(context: MessageContext[]): number {
   return context.reduce((total, msg) => total + msg.content.length, 0);
 }
 
-async function fetchOpenRouter(context: MessageContext[], systemPrompt: string, model: string): Promise<string> {
+async function fetchOpenRouter(
+  context: MessageContext[],
+  systemPrompt: string,
+  model: string,
+): Promise<string> {
   try {
     const messages = [{ role: "system", content: systemPrompt }, ...context];
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model, messages }),
@@ -113,7 +118,7 @@ async function fetchOpenRouter(context: MessageContext[], systemPrompt: string, 
       throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
     return data.choices[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse.";
   } catch (error) {
     console.error("[AIChat] OpenRouter error:", error);

@@ -32,7 +32,7 @@ async function runTrendReport(client: Client): Promise<void> {
         "X-Title": "John Helldiver - Trend Report",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
             role: "system",
@@ -326,7 +326,7 @@ async function runTrendPredict(client: Client): Promise<void> {
         "X-Title": "John Helldiver - Trend Predict",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
             role: "system",

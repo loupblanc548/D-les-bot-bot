@@ -31,7 +31,7 @@ async function generateAIContent(prompt: string, maxTokens: number = 300): Promi
         "X-Title": "John Helldiver - Gaming Bot",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
             role: "system",

@@ -19,9 +19,9 @@ interface PlatformConfig {
   name: string;
   keywords: RegExp[];
   envChannelKey: string;
-  color: number;         // Couleur d'embed officielle
-  icon: string;          // URL d'icône pour l'embed
-  guildEnvKey?: string;  // Optionnel: variable d'env pour le guild ID
+  color: number; // Couleur d'embed officielle
+  icon: string; // URL d'icône pour l'embed
+  guildEnvKey?: string; // Optionnel: variable d'env pour le guild ID
 }
 
 const PLATFORM_CONFIGS: PlatformConfig[] = [
@@ -29,35 +29,35 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
     name: "Steam/PC",
     keywords: [/steam/i, /\bpc\b/i, /gog/i, /epic/i, /\bdeck\b/i, /linux/i],
     envChannelKey: "STEAM_EPIC_CHANNEL_ID",
-    color: 0x1b2838,     // Noir/bleu sombre Steam
+    color: 0x1b2838, // Noir/bleu sombre Steam
     icon: "https://store.steampowered.com/favicon.ico",
   },
   {
     name: "PlayStation",
     keywords: [/playstation/i, /\bps4\b/i, /\bps5\b/i, /psn/i, /\bps plus\b/i, /\bps now\b/i],
     envChannelKey: "PLAYSTATION_CHANNEL_ID",
-    color: 0x003791,     // Bleu PlayStation
+    color: 0x003791, // Bleu PlayStation
     icon: "https://www.playstation.com/favicon.ico",
   },
   {
     name: "Xbox",
     keywords: [/xbox/i, /microsoft/i, /xbl/i, /game\s*pass/i, /series\s*x/i, /xcloud/i],
     envChannelKey: "XBOX_CHANNEL_ID",
-    color: 0x107c10,     // Vert Xbox
+    color: 0x107c10, // Vert Xbox
     icon: "https://www.xbox.com/favicon.ico",
   },
   {
     name: "Nintendo",
     keywords: [/nintendo/i, /switch/i, /\bwii\b/i, /gamecube/i, /3ds/i, /ds\b/i, /amiibo/i],
     envChannelKey: "NINTENDO_CHANNEL_ID",
-    color: 0xe60012,     // Rouge Nintendo
+    color: 0xe60012, // Rouge Nintendo
     icon: "https://www.nintendo.com/favicon.ico",
   },
   {
     name: "Fortnite",
     keywords: [/\bfortnite\b/i, /\bfn\b/i, /\bfort\b/i, /\bhypex\b/i, /\bshiina\b/i],
     envChannelKey: "FORTNITE_CHANNEL_ID",
-    color: 0x9147ff,     // Violet Fortnite
+    color: 0x9147ff, // Violet Fortnite
     icon: "https://static-assets-prod.epicgames.com/fortnite/favicon.ico",
   },
 ];
@@ -70,14 +70,14 @@ export interface RoutedArticle {
   url: string;
   pubDate: string;
   image?: string;
-  platforms: string[];     // Noms des plateformes matchées
-  channelIds: string[];    // IDs des channels cibles
+  platforms: string[]; // Noms des plateformes matchées
+  channelIds: string[]; // IDs des channels cibles
 }
 
 export interface RoutingResult {
   routed: boolean;
   article: RoutedArticle;
-  sentTo: string[];       // IDs des channels où l'article a été envoyé
+  sentTo: string[]; // IDs des channels où l'article a été envoyé
   errors: string[];
 }
 
@@ -125,7 +125,7 @@ export function resolveChannelIds(platforms: PlatformConfig[]): string[] {
  */
 export function buildPlatformEmbed(
   article: Omit<RoutedArticle, "platforms" | "channelIds">,
-  platform: PlatformConfig
+  platform: PlatformConfig,
 ): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(platform.color)
@@ -135,14 +135,12 @@ export function buildPlatformEmbed(
 
   if (article.content && article.content.length > 0) {
     const cleaned = article.content
-      .replace(/<[^>]*>/g, "")  // Strip HTML résiduel
+      .replace(/<[^>]*>/g, "") // Strip HTML résiduel
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 
     if (cleaned.length > 0) {
-      embed.setDescription(
-        cleaned.length > 1800 ? cleaned.slice(0, 1797) + "..." : cleaned
-      );
+      embed.setDescription(cleaned.length > 1800 ? cleaned.slice(0, 1797) + "..." : cleaned);
     }
   }
 
@@ -166,7 +164,7 @@ export function buildPlatformEmbed(
  */
 export async function dispatchToChannels(
   client: Client,
-  article: RoutedArticle
+  article: RoutedArticle,
 ): Promise<RoutingResult> {
   const result: RoutingResult = {
     routed: false,
@@ -178,7 +176,7 @@ export async function dispatchToChannels(
   if (article.channelIds.length === 0) {
     result.errors.push("Aucun channel configuré pour les plateformes détectées");
     logger.warn(
-      `[ChannelRouter] Aucun channel pour: "${article.title.slice(0, 60)}" — plateformes: ${article.platforms.join(", ")}`
+      `[ChannelRouter] Aucun channel pour: "${article.title.slice(0, 60)}" — plateformes: ${article.platforms.join(", ")}`,
     );
     return result;
   }
@@ -223,7 +221,7 @@ export async function dispatchToChannels(
       result.routed = true;
 
       logger.info(
-        `[ChannelRouter] ✅ Envoyé → #${(textChannel as TextChannel).name} (${platform.name}): "${article.title.slice(0, 60)}"`
+        `[ChannelRouter] ✅ Envoyé → #${(textChannel as TextChannel).name} (${platform.name}): "${article.title.slice(0, 60)}"`,
       );
     } catch (error) {
       const errMsg = `Échec envoi channel ${channelId}: ${(error as Error).message}`;
@@ -261,11 +259,24 @@ export async function routeArticle(
   content: string,
   url: string,
   pubDate: string,
-  image?: string
+  image?: string,
 ): Promise<RoutingResult> {
   // 🔒 Mode silencieux : retourne un succes factice (cache prime sans envoi Discord)
   if (__silentMode) {
-    return { routed: true, article: { title, content, url, pubDate, image, platforms: ["silent"], channelIds: ["silent"] }, sentTo: ["silent"], errors: [] };
+    return {
+      routed: true,
+      article: {
+        title,
+        content,
+        url,
+        pubDate,
+        image,
+        platforms: ["silent"],
+        channelIds: ["silent"],
+      },
+      sentTo: ["silent"],
+      errors: [],
+    };
   }
 
   logger.info(`[ChannelRouter] Routage: "${title.slice(0, 60)}"`);
@@ -275,7 +286,7 @@ export async function routeArticle(
   const platformNames = platforms.map((p) => p.name);
 
   logger.debug(
-    `[ChannelRouter] Plateformes détectées: ${platformNames.length > 0 ? platformNames.join(", ") : "AUCUNE"}`
+    `[ChannelRouter] Plateformes détectées: ${platformNames.length > 0 ? platformNames.join(", ") : "AUCUNE"}`,
   );
 
   // Étape 2: Résolution des channels
@@ -296,8 +307,9 @@ export async function routeArticle(
   const result = await dispatchToChannels(client, article);
 
   logger.info(
-    `[ChannelRouter] Routage terminé: ${result.sentTo.length} channel(s), ${result.errors.length} erreur(s)`
+    `[ChannelRouter] Routage terminé: ${result.sentTo.length} channel(s), ${result.errors.length} erreur(s)`,
   );
-  return result;}
+  return result;
+}
 
 export { PLATFORM_CONFIGS };

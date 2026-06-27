@@ -15,7 +15,7 @@ const envSchema = z.object({
 
   // OpenRouter AI (required)
   OPENROUTER_API_KEY: z.string().min(1, "OPENROUTER_API_KEY is required"),
-  OPENROUTER_MODEL: z.string().default("openai/gpt-4o"),
+  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-ultra-550b-a55b:free"),
   AI_SYSTEM_PROMPT: z.string().default("Tu es un assistant utile et concis. Reponds en francais."),
 
   // Twitch (optional)

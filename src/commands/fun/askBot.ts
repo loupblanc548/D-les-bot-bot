@@ -13,16 +13,19 @@ let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 function scheduleCooldownCleanup() {
   if (cleanupInterval) return;
-  cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [userId, timestamp] of cooldowns.entries()) {
-      if (now - timestamp >= COOLDOWN_MS) cooldowns.delete(userId);
-    }
-    if (cooldowns.size === 0 && cleanupInterval) {
-      clearInterval(cleanupInterval);
-      cleanupInterval = null;
-    }
-  }, 5 * 60 * 1000);
+  cleanupInterval = setInterval(
+    () => {
+      const now = Date.now();
+      for (const [userId, timestamp] of cooldowns.entries()) {
+        if (now - timestamp >= COOLDOWN_MS) cooldowns.delete(userId);
+      }
+      if (cooldowns.size === 0 && cleanupInterval) {
+        clearInterval(cleanupInterval);
+        cleanupInterval = null;
+      }
+    },
+    5 * 60 * 1000,
+  );
 }
 
 const JOHN_HELLDIVER_PROMPT =
@@ -43,7 +46,7 @@ export const commands = [
         .setName("question")
         .setDescription("Ta question pour John Helldiver")
         .setRequired(true)
-        .setMaxLength(500)
+        .setMaxLength(500),
     )
     .toJSON(),
 ];
@@ -69,7 +72,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   try {
     const client = getOpenAIClient();
     const completion = await client.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+      model: "nvidia/nemotron-3-ultra-550b-a55b:free",
       messages: [
         { role: "system", content: JOHN_HELLDIVER_PROMPT },
         { role: "user", content: question },
@@ -78,7 +81,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       temperature: 0.9,
     });
 
-    const reponse = completion.choices[0]?.message?.content || "Pour la Super-Terre ! (Desole, je n ai pas compris la question.)";
+    const reponse =
+      completion.choices[0]?.message?.content ||
+      "Pour la Super-Terre ! (Desole, je n ai pas compris la question.)";
     cooldowns.set(userId, Date.now());
     scheduleCooldownCleanup();
 

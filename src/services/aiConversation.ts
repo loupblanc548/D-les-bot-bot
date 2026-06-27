@@ -179,7 +179,7 @@ Limite à 5 faits maximum. Ignore les salutations et les questions ponctuelles s
         "X-Title": "John Helldiver Bot - Fact Extractor",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: conversationText.slice(0, 3000) },

@@ -40,7 +40,9 @@ export function checkCircuitBreaker(): boolean {
   }
 
   const remainingMinutes = Math.ceil((BAN_DURATION_MS - elapsed) / 60000);
-  logger.warn(`[CircuitBreaker] MyMemory toujours banni — ${remainingMinutes}min restantes avant réessai`);
+  logger.warn(
+    `[CircuitBreaker] MyMemory toujours banni — ${remainingMinutes}min restantes avant réessai`,
+  );
   return true;
 }
 
@@ -86,80 +88,80 @@ interface TranslationResult {
  * Codes de langues supportés (ISO 639-1)
  */
 export const SUPPORTED_LANGUAGES = {
-  'fr': 'Français',
-  'en': 'English',
-  'es': 'Español',
-  'de': 'Deutsch',
-  'it': 'Italiano',
-  'pt': 'Português',
-  'ru': 'Русский',
-  'ja': '日本語',
-  'ko': '한국어',
-  'zh': '中文',
-  'ar': 'العربية',
-  'hi': 'हिन्दी',
-  'tr': 'Türkçe',
-  'pl': 'Polski',
-  'nl': 'Nederlands',
-  'sv': 'Svenska',
-  'da': 'Dansk',
-  'no': 'Norsk',
-  'fi': 'Suomi',
-  'el': 'Ελληνικά',
-  'he': 'עברית',
-  'th': 'ไทย',
-  'vi': 'Tiếng Việt',
-  'id': 'Bahasa Indonesia',
-  'ms': 'Bahasa Melayu',
-  'uk': 'Українська',
-  'cs': 'Čeština',
-  'ro': 'Română',
-  'hu': 'Magyar',
-  'bg': 'Български',
-  'sk': 'Slovenčina',
-  'hr': 'Hrvatski',
-  'sr': 'Српски',
-  'sl': 'Slovenščina',
-  'lt': 'Lietuvių',
-  'lv': 'Latviešu',
-  'et': 'Eesti',
-  'is': 'Íslenska',
-  'mt': 'Malti',
-  'ga': 'Gaeilge',
-  'cy': 'Cymraeg',
-  'bn': 'বাংলা',
-  'ta': 'தமிழ்',
-  'te': 'తెలుగు',
-  'mr': 'मराठी',
-  'gu': 'ગુજરાતી',
-  'kn': 'ಕನ್ನಡ',
-  'ml': 'മലയാളം',
-  'fa': 'فارسی',
-  'ur': 'اردو',
-  'az': 'Azərbaycan',
-  'ka': 'ქართული',
-  'hy': 'Հայերեն',
-  'kk': 'Қазақша',
-  'ky': 'Кыргызча',
-  'uz': "Oʻzbekcha",
-  'mn': 'Монгол',
-  'ne': 'नेपाली',
-  'si': 'සිංහල',
-  'my': 'မြန်မာ',
-  'km': 'ខ្មែរ',
-  'lo': 'ລາວ',
-  'am': 'አማርኛ',
-  'sw': 'Kiswahili',
-  'zu': 'isiZulu',
-  'xh': 'isiXhosa',
-  'af': 'Afrikaans',
-  'sq': 'Shqip',
-  'mk': 'Македонски',
-  'be': 'Беларуская',
-  'bs': 'Bosanski',
-  'me': 'Crnogorski',
-  'lb': 'Lëtzebuergesch',
-  'fo': 'Føroyskt',
+  fr: "Français",
+  en: "English",
+  es: "Español",
+  de: "Deutsch",
+  it: "Italiano",
+  pt: "Português",
+  ru: "Русский",
+  ja: "日本語",
+  ko: "한국어",
+  zh: "中文",
+  ar: "العربية",
+  hi: "हिन्दी",
+  tr: "Türkçe",
+  pl: "Polski",
+  nl: "Nederlands",
+  sv: "Svenska",
+  da: "Dansk",
+  no: "Norsk",
+  fi: "Suomi",
+  el: "Ελληνικά",
+  he: "עברית",
+  th: "ไทย",
+  vi: "Tiếng Việt",
+  id: "Bahasa Indonesia",
+  ms: "Bahasa Melayu",
+  uk: "Українська",
+  cs: "Čeština",
+  ro: "Română",
+  hu: "Magyar",
+  bg: "Български",
+  sk: "Slovenčina",
+  hr: "Hrvatski",
+  sr: "Српски",
+  sl: "Slovenščina",
+  lt: "Lietuvių",
+  lv: "Latviešu",
+  et: "Eesti",
+  is: "Íslenska",
+  mt: "Malti",
+  ga: "Gaeilge",
+  cy: "Cymraeg",
+  bn: "বাংলা",
+  ta: "தமிழ்",
+  te: "తెలుగు",
+  mr: "मराठी",
+  gu: "ગુજરાતી",
+  kn: "ಕನ್ನಡ",
+  ml: "മലയാളം",
+  fa: "فارسی",
+  ur: "اردو",
+  az: "Azərbaycan",
+  ka: "ქართული",
+  hy: "Հայերեն",
+  kk: "Қазақша",
+  ky: "Кыргызча",
+  uz: "Oʻzbekcha",
+  mn: "Монгол",
+  ne: "नेपाली",
+  si: "සිංහල",
+  my: "မြန်မာ",
+  km: "ខ្មែរ",
+  lo: "ລາວ",
+  am: "አማርኛ",
+  sw: "Kiswahili",
+  zu: "isiZulu",
+  xh: "isiXhosa",
+  af: "Afrikaans",
+  sq: "Shqip",
+  mk: "Македонски",
+  be: "Беларуская",
+  bs: "Bosanski",
+  me: "Crnogorski",
+  lb: "Lëtzebuergesch",
+  fo: "Føroyskt",
 } as const;
 
 export type LanguageCode = keyof typeof SUPPORTED_LANGUAGES;
@@ -179,7 +181,7 @@ export async function translateAutoToFrench(text: string): Promise<TranslationRe
 export async function translateText(
   text: string,
   targetLang: LanguageCode,
-  sourceLang: LanguageCode | "auto" = "auto"
+  sourceLang: LanguageCode | "auto" = "auto",
 ): Promise<TranslationResult | null> {
   if (!text || text.trim().length === 0) {
     return null;
@@ -189,7 +191,7 @@ export async function translateText(
   if (sourceLang !== "auto" && sourceLang === targetLang) {
     return {
       translatedText: text,
-      detectedLanguage: sourceLang
+      detectedLanguage: sourceLang,
     };
   }
 
@@ -197,7 +199,7 @@ export async function translateText(
   if (sourceLang === "auto" && targetLang === "fr" && containsFrench(text)) {
     return {
       translatedText: text,
-      detectedLanguage: "fr"
+      detectedLanguage: "fr",
     };
   }
 
@@ -220,7 +222,9 @@ export async function translateText(
       }
     }
   } else {
-    logger.info("[Translator] MyMemory banni (Circuit Breaker) → basculement direct sur OpenRouter");
+    logger.info(
+      "[Translator] MyMemory banni (Circuit Breaker) → basculement direct sur OpenRouter",
+    );
   }
 
   // ── PLAN B: OpenRouter API (Failover) ────────────────────────────────
@@ -230,14 +234,16 @@ export async function translateText(
       return openRouterResult;
     }
   } catch (error) {
-    logger.error(`[Translator] OpenRouter API échouée également: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `[Translator] OpenRouter API échouée également: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   // ── SÉCURITÉ ULTIME: Retourner le texte original si tout échoue ─────
   logger.warn(`[Translator] Tous les services de traduction échoués, utilisation texte original`);
   return {
     translatedText: text,
-    detectedLanguage: sourceLang === "auto" ? "unknown" : sourceLang
+    detectedLanguage: sourceLang === "auto" ? "unknown" : sourceLang,
   };
 }
 
@@ -253,17 +259,17 @@ export async function translateFrenchToEnglish(text: string): Promise<Translatio
 async function translateWithMyMemory(
   text: string,
   sourceLang: LanguageCode | "auto" = "auto",
-  targetLang: LanguageCode = "fr"
+  targetLang: LanguageCode = "fr",
 ): Promise<TranslationResult | null> {
   try {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
 
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -273,24 +279,27 @@ async function translateWithMyMemory(
       throw new Error(`MyMemory HTTP error: ${response.status}`);
     }
 
-    const data: MyMemoryResponse = await response.json() as MyMemoryResponse;
+    const data: MyMemoryResponse = (await response.json()) as MyMemoryResponse;
 
     if (data.responseStatus === 200 && data.responseData?.translatedText) {
       const translatedText = data.responseData.translatedText;
-      const detectedLanguage = data.responseData.detectedLanguage || (sourceLang === "auto" ? "auto" : sourceLang);
+      const detectedLanguage =
+        data.responseData.detectedLanguage || (sourceLang === "auto" ? "auto" : sourceLang);
 
-      logger.debug(`[Translator] MyMemory ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`);
+      logger.debug(
+        `[Translator] MyMemory ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
+      );
 
       return {
         translatedText,
-        detectedLanguage
+        detectedLanguage,
       };
     } else {
       throw new Error(`MyMemory response invalid: ${JSON.stringify(data)}`);
     }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.name === 'AbortError') {
+      if (error.name === "AbortError") {
         throw new Error("MyMemory timeout", { cause: error });
       }
       throw new Error(error.message, { cause: error });
@@ -304,7 +313,7 @@ async function translateWithMyMemory(
 async function translateWithOpenRouter(
   text: string,
   sourceLang: LanguageCode | "auto" = "auto",
-  targetLang: LanguageCode = "fr"
+  targetLang: LanguageCode = "fr",
 ): Promise<TranslationResult | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -313,56 +322,59 @@ async function translateWithOpenRouter(
   }
 
   const targetLanguageName = SUPPORTED_LANGUAGES[targetLang] || targetLang;
-  const sourceLanguageName = sourceLang === "auto" ? "la langue détectée" : (SUPPORTED_LANGUAGES[sourceLang] || sourceLang);
+  const sourceLanguageName =
+    sourceLang === "auto" ? "la langue détectée" : SUPPORTED_LANGUAGES[sourceLang] || sourceLang;
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://discord-bot.com',
-        'X-Title': 'Discord Translation Bot'
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://discord-bot.com",
+        "X-Title": "Discord Translation Bot",
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3-8b-instruct:free',
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
-            role: 'system',
-            content: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`
+            role: "system",
+            content: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`,
           },
           {
-            role: 'user',
-            content: text
-          }
+            role: "user",
+            content: text,
+          },
         ],
         max_tokens: 500,
-        temperature: 0.3
+        temperature: 0.3,
       }),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
       throw new Error(`OpenRouter HTTP error: ${response.status}`);
     }
 
-    const data: OpenRouterResponse = await response.json() as OpenRouterResponse;
+    const data: OpenRouterResponse = (await response.json()) as OpenRouterResponse;
 
     if (data.choices && data.choices[0]?.message?.content) {
       const translatedText = data.choices[0].message.content.trim();
 
-      logger.debug(`[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`);
+      logger.debug(
+        `[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
+      );
 
       return {
         translatedText,
-        detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang
+        detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang,
       };
     } else {
       throw new Error("OpenRouter response invalid");
     }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.name === 'AbortError') {
+      if (error.name === "AbortError") {
         throw new Error("OpenRouter timeout", { cause: error });
       }
       throw new Error(error.message, { cause: error });
@@ -386,25 +398,58 @@ export async function translateToFrench(text: string): Promise<string> {
  */
 function containsFrench(text: string): boolean {
   const frenchIndicators = [
-    'le ', 'la ', 'les ', 'un ', 'une ', 'des ', 'du ', 'au ',
-    'et ', 'ou ', 'mais ', 'pour ', 'avec ', 'sans ', 'sur ',
-    'dans ', 'par ', 'pour ', 'avec ', 'sans ', 'sur ', 'sous ',
-    'être ', 'avoir ', 'faire ', 'aller ', 'venir ', 'voir ',
-    'pas ', 'plus ', 'moins ', 'très ', 'bien ', 'aussi ',
-    "c'est ", 'il ', 'elle ', 'nous ', 'vous ', 'ils ', 'elles '
+    "le ",
+    "la ",
+    "les ",
+    "un ",
+    "une ",
+    "des ",
+    "du ",
+    "au ",
+    "et ",
+    "ou ",
+    "mais ",
+    "pour ",
+    "avec ",
+    "sans ",
+    "sur ",
+    "dans ",
+    "par ",
+    "pour ",
+    "avec ",
+    "sans ",
+    "sur ",
+    "sous ",
+    "être ",
+    "avoir ",
+    "faire ",
+    "aller ",
+    "venir ",
+    "voir ",
+    "pas ",
+    "plus ",
+    "moins ",
+    "très ",
+    "bien ",
+    "aussi ",
+    "c'est ",
+    "il ",
+    "elle ",
+    "nous ",
+    "vous ",
+    "ils ",
+    "elles ",
   ];
 
   const lowerText = text.toLowerCase();
-  return frenchIndicators.some(indicator => lowerText.includes(indicator));
+  return frenchIndicators.some((indicator) => lowerText.includes(indicator));
 }
 
 /**
  * Traduit un tableau de textes en parallèle
  */
 export async function translateBatchToFrench(texts: string[]): Promise<string[]> {
-  const translations = await Promise.all(
-    texts.map(text => translateToFrench(text))
-  );
+  const translations = await Promise.all(texts.map((text) => translateToFrench(text)));
   return translations;
 }
 
@@ -413,16 +458,53 @@ export async function translateBatchToFrench(texts: string[]): Promise<string[]>
  */
 export function isLikelyEnglish(text: string): boolean {
   const englishIndicators = [
-    'the ', 'and ', 'or ', 'but ', 'for ', 'with ', 'without ',
-    'on ', 'in ', 'at ', 'to ', 'from ', 'by ', 'about ',
-    'this ', 'that ', 'these ', 'those ', 'is ', 'are ', 'was ',
-    'were ', 'be ', 'been ', 'being ', 'have ', 'has ', 'had ',
-    'will ', 'would ', 'could ', 'should ', 'may ', 'might ',
-    'can ', 'cannot ', 'not ', 'no ', 'yes ', 'very ', 'much '
+    "the ",
+    "and ",
+    "or ",
+    "but ",
+    "for ",
+    "with ",
+    "without ",
+    "on ",
+    "in ",
+    "at ",
+    "to ",
+    "from ",
+    "by ",
+    "about ",
+    "this ",
+    "that ",
+    "these ",
+    "those ",
+    "is ",
+    "are ",
+    "was ",
+    "were ",
+    "be ",
+    "been ",
+    "being ",
+    "have ",
+    "has ",
+    "had ",
+    "will ",
+    "would ",
+    "could ",
+    "should ",
+    "may ",
+    "might ",
+    "can ",
+    "cannot ",
+    "not ",
+    "no ",
+    "yes ",
+    "very ",
+    "much ",
   ];
 
   const lowerText = text.toLowerCase();
-  const englishCount = englishIndicators.filter(indicator => lowerText.includes(indicator)).length;
+  const englishCount = englishIndicators.filter((indicator) =>
+    lowerText.includes(indicator),
+  ).length;
 
   return englishCount >= 2;
 }
