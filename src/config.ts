@@ -35,7 +35,6 @@ export const config = {
   screenshotApiKey: env.SCREENSHOT_API_KEY || "",
   hfApiKey: env.HF_API_KEY || "",
   lastfmApiKey: env.LASTFM_API_KEY || "",
-  phishermanApiKey: env.PHISHERMAN_API_KEY || "",
   imgurClientId: env.IMGUR_CLIENT_ID || "",
   redditClientId: env.REDDIT_CLIENT_ID || "",
   redditClientSecret: env.REDDIT_CLIENT_SECRET || "",
