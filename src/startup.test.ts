@@ -90,6 +90,9 @@ vi.mock("./cron/wishlistCron", () => ({
 vi.mock("./cron/hourlyMaintenance", () => ({
   startHourlyMaintenance: vi.fn(),
 }));
+vi.mock("./cron/boutiqueCron", () => ({
+  startBoutiqueCron: vi.fn(),
+}));
 vi.mock("./cron/steamNewsCron", () => ({
   startSteamNewsMonitoring: mockServices.startSteamNewsMonitoring,
   checkTrackedGames: mockServices.checkTrackedGames,

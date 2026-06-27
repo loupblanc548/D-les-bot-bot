@@ -470,6 +470,27 @@ function buildExpiringEmbed(items: BoutiqueItem[], date: string): EmbedBuilder {
   return embed;
 }
 
+// ─── Fonction exportée pour le cron (construit tous les embeds overview) ───
+
+export function buildBoutiqueEmbeds(data: BoutiqueData): EmbedBuilder[] {
+  const embeds: EmbedBuilder[] = [buildOverviewEmbed(data)];
+
+  const newItems = data.items.filter((i) => i.isNew);
+  if (newItems.length > 0) {
+    embeds.push(buildNewItemsEmbed(newItems, data.date));
+  }
+
+  const now = Date.now();
+  const expiringItems = data.items.filter(
+    (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
+  );
+  if (expiringItems.length > 0) {
+    embeds.push(buildExpiringEmbed(expiringItems, data.date));
+  }
+
+  return embeds.slice(0, 10);
+}
+
 // ─── Commande Slash ──────────────────────────────────────────────────
 
 export const commands = [
