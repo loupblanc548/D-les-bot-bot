@@ -138,7 +138,7 @@ async function checkNickname(oldMember: GuildMember, newMember: GuildMember): Pr
   const lowerNick = newNick.toLowerCase();
 
   // Check hoist characters
-  const hasHoist = /^[!@#$%^&*()_+=\[\]{}|;:'",<>?/\\~`]/.test(newNick);
+  const hasHoist = /^[!@#$%^&*()_+=[\]{}|;:'",<>?/\\~`]/.test(newNick);
 
   // Check blocked words
   const hasBlockedWord = NICKNAME_BLOCKED_WORDS.some((w) => lowerNick.includes(w));
