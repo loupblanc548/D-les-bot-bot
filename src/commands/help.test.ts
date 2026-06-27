@@ -44,6 +44,8 @@ const REGISTERED_COMMANDS = new Set([
   "server-info",
   "profile",
   "reaction-roles",
+  "welcome-config",
+  "goodbye-config",
   // Utilitaires
   "embed-builder",
   "say",

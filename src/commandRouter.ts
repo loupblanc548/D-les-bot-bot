@@ -66,6 +66,14 @@ import {
   handleCommand as handleReactionRoles,
 } from "./commands/reactionRoles.js";
 import {
+  commands as welcomeConfigCommands,
+  handleCommand as handleWelcomeConfig,
+} from "./commands/welcomeConfig.js";
+import {
+  commands as goodbyeConfigCommands,
+  handleCommand as handleGoodbyeConfig,
+} from "./commands/goodbyeConfig.js";
+import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
 } from "./commands/clean-duplicates.js";
@@ -238,6 +246,8 @@ export const allCommands = [
   ...ttsCommands,
   ...profileCommands,
   ...reactionRolesCommands,
+  ...welcomeConfigCommands,
+  ...goodbyeConfigCommands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
   ...userinfoCommands,
@@ -318,6 +328,8 @@ export function buildCommandRouter(): void {
   registerGroup(["tts"], handleTts);
   registerGroup(["profile"], handleProfile);
   registerGroup(["reaction-roles"], handleReactionRoles);
+  registerGroup(["welcome-config"], handleWelcomeConfig);
+  registerGroup(["goodbye-config"], handleGoodbyeConfig);
   registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
