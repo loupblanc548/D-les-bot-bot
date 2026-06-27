@@ -1089,3 +1089,15 @@ model RaidLog {
   @@index([detectedAt])
   @@map("raid_log")
 }
+
+model NotifiedMessage {
+  id        Int      @id @default(autoincrement())
+  messageId String
+  channelOrDm String
+  content   String
+  sentAt    DateTime @default(now())
+
+  @@unique([messageId, channelOrDm])
+  @@index([channelOrDm])
+  @@index([sentAt])
+}
