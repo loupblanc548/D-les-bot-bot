@@ -115,7 +115,7 @@ describe("commandRouter", () => {
 
     it("enregistre les commandes fun", () => {
       buildCommandRouter();
-      expect(commandRouter["ai-translate-custom"]).toBeDefined();
+      expect(commandRouter["wishlist"]).toBeDefined();
     });
 
     it("ne crée pas de route pour des commandes inexistantes", () => {

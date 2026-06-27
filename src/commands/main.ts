@@ -141,6 +141,7 @@ export const CATEGORIES: Category[] = [
       "`/untrack-game [jeu] - Arrête la surveillance d'un jeu`\n" +
       "`/list-tracked - Liste les jeux surveillés`\n" +
       "`/steam - Profil Steam, wishlist, nowplaying`\n" +
+      "`/wishlist - Gère ta wishlist Fortnite`\n" +
       "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`\n" +
       "`/xbox [gamertag] - Profil Xbox/Game Pass`\n" +
       "`/price-compare [jeu] - Compare prix multi-plateforme`\n" +
