@@ -34,12 +34,9 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/start - Initialise le bot`\n" +
       "`/help - Cette aide`\n" +
-      "`/status - Statut du bot`\n" +
       "`/restart - Redémarre (admin)`\n" +
-      "`/retro - Rétrospective 24h (admin)`\n" +
       "`/retrospective [type] [limite] - Analyse comptes surveillés (admin)`\n" +
-      "`/debug - Diagnostic système (admin)`\n" +
-      "`/hotreload - Recharge les commandes à chaud (admin)`",
+      "`/debug - Diagnostic système (admin)`",
   },
   {
     id: "surveillance",
@@ -68,7 +65,6 @@ export const CATEGORIES: Category[] = [
       "`/deletehistory - Supprime l'historique`\n" +
       "`/maintenance - Active/désactive le mode maintenance`\n" +
       "`/uptime - Statistiques d'exécution`\n" +
-      "`/healthz - Health check`\n" +
       "`/clean-duplicates - Nettoie les doublons DB`\n" +
       "`/backup - Backup manuel de la DB`\n" +
       "`/guild-config - Configure la guilde`\n" +
@@ -143,8 +139,7 @@ export const CATEGORIES: Category[] = [
       "`/namehistory [@user] - Historique des pseudos`\n" +
       "`/avatarhistory [@user] - Historique des avatars`\n" +
       "`/linkcheck [url] - Vérifie un lien suspect`\n" +
-      "`/antiphishing - Active/désactive l'anti-phishing`\n" +
-      "`/guildconfig - Configure la sécurité de la guilde`",
+      "`/antiphishing - Active/désactive l'anti-phishing`",
   },
   {
     id: "gaming",
@@ -174,7 +169,6 @@ export const CATEGORIES: Category[] = [
       "`/ticket-setup - Configure le système de tickets`\n" +
       "`/wishlist-notify - Active/désactive les DMs wishlist`\n" +
       "`/poll [question] [options] - Crée un sondage`\n" +
-      "`/social-graph [action] - Visualise les interactions (salon logs)`\n" +
       "`/auto-report [action] - Rapports automatiques (salon logs)`\n" +
       "`/cooldown-config [commande] [secondes] - Cooldown par commande (salon logs)`\n" +
       "`/retro-config [action] [valeur] - Config rétrospective (salon logs)`",

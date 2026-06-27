@@ -12,7 +12,6 @@ import { config } from "../config.js";
 import { requireAdmin } from "../services/permissions.js";
 import prisma from "../prisma.js";
 import { viralDetectionService } from "../services/viral-detection.js";
-import { socialGraphService } from "../services/social-graph.js";
 import { reportGeneratorService } from "../services/report-generator.js";
 import { trendDetectionService } from "../services/trend-detection.js";
 import {
@@ -131,24 +130,6 @@ export const commands = [
         .setRequired(false)
         .setMinValue(0)
         .setMaxValue(100),
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-
-  // /social-graph
-  new SlashCommandBuilder()
-    .setName("social-graph")
-    .setDescription("Visualise les interactions entre membres")
-    .addStringOption((o) =>
-      o
-        .setName("action")
-        .setDescription("Action")
-        .setRequired(false)
-        .addChoices(
-          { name: "Vue d'ensemble", value: "overview" },
-          { name: "Top interactions", value: "top" },
-          { name: "Export JSON", value: "export" },
-        ),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
@@ -292,9 +273,6 @@ export async function handleCommand(
         break;
       case "viral-alert":
         await handleViralAlert(interaction, client);
-        break;
-      case "social-graph":
-        await handleSocialGraph(interaction, client);
         break;
       case "auto-report":
         await handleAutoReport(interaction, client);
@@ -733,70 +711,6 @@ async function handleViralAlert(
   } catch (err) {
     logger.error("[Advanced] viral-alert:", err);
     await interaction.editReply({ content: "❌ Erreur lors de la gestion virale." });
-  }
-}
-
-// ─── /social-graph ───────────────────────────────────────────────────────────
-
-async function handleSocialGraph(
-  interaction: ChatInputCommandInteraction,
-  client: Client,
-): Promise<void> {
-  if (!(await requireAdmin(interaction))) return;
-  await interaction.deferReply({ ephemeral: true });
-
-  const action = interaction.options.getString("action") || "overview";
-
-  try {
-    const embed = new EmbedBuilder()
-      .setColor(0x2f3136)
-      .setTitle("🕸️ Graphe social")
-      .setFooter(FOOTER)
-      .setTimestamp();
-
-    switch (action) {
-      case "overview": {
-        const graphData = socialGraphService.exportGraph();
-        const parsed = JSON.parse(graphData);
-        embed.setDescription(
-          `**Nœuds:** ${parsed.nodes?.length || 0}\n` + `**Arêtes:** ${parsed.edges?.length || 0}`,
-        );
-        break;
-      }
-      case "top": {
-        const graphData = socialGraphService.exportGraph();
-        const parsed = JSON.parse(graphData);
-        const topNodes = (parsed.nodes || [])
-          .sort((a: any, b: any) => (b.interactions || 0) - (a.interactions || 0))
-          .slice(0, 10);
-        embed.setDescription("Top 10 des membres par interactions");
-        embed.addFields({
-          name: "Membres actifs",
-          value:
-            topNodes
-              .map((n: any) => `• <@${n.id}> — ${n.interactions || 0} interactions`)
-              .join("\n") || "Aucune donnée",
-          inline: false,
-        });
-        break;
-      }
-      case "export": {
-        const graphData = socialGraphService.exportGraph();
-        embed.setDescription("Export JSON généré. Voir les logs pour le détail.");
-        logger.info("[Advanced] Social graph export:", graphData.slice(0, 500));
-        break;
-      }
-    }
-
-    if (config.logChannel) {
-      await sendToChannel(client, config.logChannel, embed);
-      await interaction.editReply({ content: `✅ Graphe envoyé dans <#${config.logChannel}>` });
-    } else {
-      await interaction.editReply({ embeds: [embed] });
-    }
-  } catch (err) {
-    logger.error("[Advanced] social-graph:", err);
-    await interaction.editReply({ content: "❌ Erreur lors de la génération du graphe." });
   }
 }
 

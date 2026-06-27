@@ -8,12 +8,9 @@ const REGISTERED_COMMANDS = new Set([
   // Principales
   "start",
   "help",
-  "status",
   "restart",
-  "retro",
   "retrospective",
   "debug",
-  "hotreload",
   // Surveillance
   "add-source",
   "remove-source",
@@ -30,7 +27,6 @@ const REGISTERED_COMMANDS = new Set([
   "deletehistory",
   "maintenance",
   "uptime",
-  "healthz",
   "clean-duplicates",
   "backup",
   "guild-config",
@@ -80,7 +76,6 @@ const REGISTERED_COMMANDS = new Set([
   "avatarhistory",
   "linkcheck",
   "antiphishing",
-  "guildconfig",
   // Gaming
   "game-status",
   "free-games",
@@ -99,7 +94,6 @@ const REGISTERED_COMMANDS = new Set([
   "ticket-setup",
   "wishlist-notify",
   "poll",
-  "social-graph",
   "auto-report",
   "cooldown-config",
   "retro-config",

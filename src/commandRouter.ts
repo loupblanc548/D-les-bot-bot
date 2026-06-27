@@ -77,7 +77,6 @@ import {
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
 import { commands as uptimeCommands, handleCommand as handleUptime } from "./commands/uptime.js";
-import { commands as healthzCommands, handleCommand as handleHealthz } from "./commands/healthz.js";
 import {
   commands as securityAuditCommands,
   handleCommand as handleSecurityAudit,
@@ -123,7 +122,6 @@ export const allCommands = [
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
   ...uptimeCommands,
-  ...healthzCommands,
   ...securityAuditCommands,
   ...userinfoCommands,
   ...advancedCommands,
@@ -147,7 +145,7 @@ function registerGroup(
 }
 
 export function buildCommandRouter(): void {
-  registerGroup(["start", "help", "status", "restart", "retro"], handleMain);
+  registerGroup(["start", "help", "restart"], handleMain);
   registerGroup(
     [
       "broadcast",
@@ -202,7 +200,6 @@ export function buildCommandRouter(): void {
       "avatarhistory",
       "linkcheck",
       "antiphishing",
-      "guildconfig",
     ],
     handleSecurity,
   );
@@ -221,7 +218,6 @@ export function buildCommandRouter(): void {
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
   registerGroup(["uptime"], handleUptime);
-  registerGroup(["healthz"], handleHealthz);
   registerGroup(["security-audit"], handleSecurityAudit);
   registerGroup(["userinfo"], handleUserinfo);
   registerGroup(
@@ -232,7 +228,6 @@ export function buildCommandRouter(): void {
       "source-stats",
       "trend-report",
       "viral-alert",
-      "social-graph",
       "auto-report",
       "cooldown-config",
       "smart-alerts",
