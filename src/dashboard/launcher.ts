@@ -1,8 +1,8 @@
 /**
- * dashboard/launcher.ts — Lance le dashboard Electron
+ * dashboard/launcher.ts — Lance le dashboard
  *
- * Utilisé par: npm run dashboard
- * Lance le main process Electron qui démarre le serveur Express + la fenêtre.
+ * En développement: lance le serveur Express avec tsx (ouvre le navigateur)
+ * En production: lance Electron (fenêtre desktop)
  */
 
 import { spawn } from "child_process";
@@ -10,23 +10,28 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// En production, lancer directement electron
-// En développement, lancer avec tsx
 const isDev = process.env.NODE_ENV !== "production";
 
-const electronBin = isDev ? "npx" : "electron";
-const args = isDev ? ["tsx", path.join(__dirname, "main.ts")] : [path.join(__dirname, "main.js")];
-
-const child = spawn(electronBin, args, {
-  stdio: "inherit",
-  cwd: path.join(__dirname, "..", ".."),
-  env: {
-    ...process.env,
-    DASHBOARD_DEV: isDev ? "true" : "false",
-  },
-});
-
-child.on("exit", (code) => {
-  process.exit(code ?? 0);
-});
+if (isDev) {
+  // Mode dev: lancer le serveur Express directement avec tsx
+  const child = spawn(process.execPath, ["--import", "tsx", path.join(__dirname, "server.ts")], {
+    stdio: "inherit",
+    cwd: path.join(__dirname, "..", ".."),
+    env: {
+      ...process.env,
+      DASHBOARD_DEV: "true",
+    },
+  });
+  child.on("exit", (code) => process.exit(code ?? 0));
+} else {
+  // Mode prod: lancer Electron
+  const child = spawn("electron", [path.join(__dirname, "main.js")], {
+    stdio: "inherit",
+    cwd: path.join(__dirname, "..", ".."),
+    env: {
+      ...process.env,
+      DASHBOARD_DEV: "false",
+    },
+  });
+  child.on("exit", (code) => process.exit(code ?? 0));
+}
