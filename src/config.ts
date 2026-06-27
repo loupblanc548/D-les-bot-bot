@@ -26,7 +26,7 @@ export const config = {
 
   // ─── Nouvelles APIs externes (fallback gracieux si vide) ──────────────────
   perspectiveApiKey: env.PERSPECTIVE_API_KEY || "",
-  tenorApiKey: env.TENOR_API_KEY || "",
+  giphyApiKey: env.GIPHY_API_KEY || "",
   youtubeApiKey: env.YOUTUBE_API_KEY || "",
   spotifyClientId: env.SPOTIFY_CLIENT_ID || "",
   spotifyClientSecret: env.SPOTIFY_CLIENT_SECRET || "",
