@@ -60,6 +60,13 @@ vi.mock("./commands/fun/askBot", () => ({ commands: [], handleCommand: vi.fn() }
 vi.mock("./commands/fun/wishlist", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/shop", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/boutique", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/mod", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/securityGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/sourcesGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/trackGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/casierGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/alertGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/aiGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 
 // IMPORTANT: mockReturnValue pour éviter le probleme "new" avec les arrow functions
 vi.mock("discord.js", () => ({

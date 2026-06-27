@@ -9,11 +9,7 @@ const REGISTERED_COMMANDS = new Set([
   "start",
   "help",
   "restart",
-  // Surveillance
-  "add-source",
-  "remove-source",
-  "list-sources",
-  "pause-source",
+  // Surveillance (regroupé en /sources)
   "twitch",
   "psn",
   // Administration
@@ -23,54 +19,27 @@ const REGISTERED_COMMANDS = new Set([
   "maintenance",
   "clean-duplicates",
   "backup",
-  // IA
-  "chat",
-  "mention",
-  "aichat",
-  "smartpoll",
-  // AlertCenter
-  "alertcenter",
-  "alertconfig",
+  // IA (regroupée en /ai)
+  // AlertCenter (regroupé en /alert)
   "security-audit",
-  "smart-alerts",
-  // Moderation
-  "warn",
-  "mute",
-  "unmute",
-  "kick",
-  "ban",
-  "timeout",
-  "clear",
-  "unlock",
-  "purge",
-  "history",
+  // Moderation (regroupée en /mod)
+  "mod",
   "report",
-  // Securite
-  "nuke",
-  "check-alt",
-  "blacklist",
-  "role-mass",
-  "antiraid",
-  "verif",
-  "namehistory",
-  "avatarhistory",
-  "linkcheck",
-  "antiphishing",
+  // Securite (regroupée en /security)
+  "security",
   // Gaming
   "game-status",
   "free-games",
   "patch_notes",
   "deal",
   "steam",
-  "track-game",
-  "untrack-game",
-  "list-tracked",
+  // Tracking (regroupé en /track)
+  "track",
   "wishlist",
   "boutique",
   "fortnite-wishlist",
   // Communaute
   "ticket-setup",
-  "giveaway",
   "self-role",
   "server-info",
   // Utilitaires
@@ -78,23 +47,18 @@ const REGISTERED_COMMANDS = new Set([
   "say",
   "vocal",
   "mp3",
-  // Casier
+  // Casier (regroupé en /casier)
   "casier",
-  "casier-clear",
   // Gaming Extra
   "xbox",
   "price-compare",
   "release-calendar",
-  // Sécurité Extra
-  "alt-link",
-  "ban-log",
-  "behavior-timeline",
-  "alert-rules",
-  // IA Extra
-  "ai-translate-custom",
-  // Surveillance Extra
-  "reddit-track",
-  "rss-custom",
+  // Sources (regroupé en /sources)
+  "sources",
+  // Alertes (regroupé en /alert)
+  "alert",
+  // IA (regroupée en /ai)
+  "ai",
 ]);
 
 /**
@@ -136,7 +100,9 @@ describe("Command /help - Categories coverage", () => {
 
     for (const cat of CATEGORIES) {
       const cmds = extractCommands(cat.commands);
-      for (const cmd of cmds) {
+      // Dedup within the same category (subcommands like /sources add, /sources remove count as one)
+      const uniqueCmds = new Set(cmds);
+      for (const cmd of uniqueCmds) {
         if (!seen.has(cmd)) {
           seen.set(cmd, []);
         }

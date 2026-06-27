@@ -42,14 +42,14 @@ export const CATEGORIES: Category[] = [
     emoji: "📡",
     description: "Gestion des sources de surveillance",
     commands:
-      "`/add-source [type] [handle] [salon] - Ajoute une source (admin)`\n" +
-      "`/remove-source [handle] - Supprime une source (admin)`\n" +
-      "`/list-sources - Liste les sources (admin)`\n" +
-      "`/pause-source [handle] - Met en pause une source (admin)`\n" +
+      "`/sources add [type] [handle] [salon] - Ajoute une source (admin)`\n" +
+      "`/sources remove [handle] - Supprime une source (admin)`\n" +
+      "`/sources list - Liste les sources (admin)`\n" +
+      "`/sources pause [handle] - Met en pause une source (admin)`\n" +
+      "`/sources reddit-track [subreddit] - Suit un subreddit`\n" +
+      "`/sources rss-custom [url] - Flux RSS personnalisé`\n" +
       "`/twitch - Gère les streamers suivis (add/list/remove)`\n" +
-      "`/psn - Profil, trophées et jeux PlayStation`\n" +
-      "`/reddit-track [subreddit] - Suit un subreddit`\n" +
-      "`/rss-custom [url] - Flux RSS personnalisé`",
+      "`/psn - Profil, trophées et jeux PlayStation`",
   },
   {
     id: "admin",
@@ -70,11 +70,11 @@ export const CATEGORIES: Category[] = [
     emoji: "🤖",
     description: "Commandes d'intelligence artificielle",
     commands:
-      "`/chat [message] - Discute avec l'IA (traduction, résumé, questions, etc.)`\n" +
-      "`/mention [message] - Réponse personnalisée`\n" +
-      "`/aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
-      "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
-      "`/ai-translate-custom [texte] [langue] - Traduit avec un ton`",
+      "`/ai chat [message] - Discute avec l'IA (traduction, résumé, questions, etc.)`\n" +
+      "`/ai mention [message] - Réponse personnalisée`\n" +
+      "`/ai aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
+      "`/ai smartpoll [question] - Génère un sondage intelligent par IA`\n" +
+      "`/ai translate [texte] [langue] - Traduit avec un ton`",
   },
   {
     id: "alertcenter",
@@ -82,11 +82,15 @@ export const CATEGORIES: Category[] = [
     emoji: "🚨",
     description: "Centre d'alertes et risques",
     commands:
-      "`/alertcenter - Vue d'ensemble des alertes`\n" +
-      "`/alertconfig - Configure les alertes`\n" +
-      "`/alertcenter reset [@user] - Réinitialise le profil de risque`\n" +
-      "`/security-audit - Audit sécurité des sanctions`\n" +
-      "`/smart-alerts [action] - Alertes groupées intelligentes (salon logs)`",
+      "`/alert pending - Alertes en attente`\n" +
+      "`/alert history - Historique des alertes`\n" +
+      "`/alert user [@user] - Alertes d'un utilisateur`\n" +
+      "`/alert channel [salon] - Définit le salon des alertes`\n" +
+      "`/alert threshold [score] - Seuil de score`\n" +
+      "`/alert reset [@user] - Réinitialise le profil de risque`\n" +
+      "`/alert view - Configuration actuelle`\n" +
+      "`/alert smart [action] - Alertes groupées intelligentes`\n" +
+      "`/security-audit - Audit sécurité des sanctions`",
   },
   {
     id: "moderation",
@@ -94,16 +98,16 @@ export const CATEGORIES: Category[] = [
     emoji: "🛡️",
     description: "Commandes de modération",
     commands:
-      "`/ban [@user] - Bannir (admin)`\n" +
-      "`/kick [@user] - Expulser`\n" +
-      "`/mute [@user] [durée] - Mute temporaire`\n" +
-      "`/unmute [@user] - Démute`\n" +
-      "`/warn [@user] [raison] - Avertir`\n" +
-      "`/clear [nombre] - Supprimer messages`\n" +
-      "`/timeout [@user] [durée] - Timeout court terme`\n" +
-      "`/unlock - Déverrouiller le salon`\n" +
-      "`/purge [@user] [nombre] - Supprime messages d'un utilisateur`\n" +
-      "`/history [@user] - Historique des messages`\n" +
+      "`/mod ban [@user] - Bannir (admin)`\n" +
+      "`/mod kick [@user] - Expulser`\n" +
+      "`/mod mute [@user] [durée] - Mute temporaire`\n" +
+      "`/mod unmute [@user] - Démute`\n" +
+      "`/mod warn [@user] [raison] - Avertir`\n" +
+      "`/mod clear [nombre] - Supprimer messages`\n" +
+      "`/mod timeout [@user] [durée] - Timeout court terme`\n" +
+      "`/mod unlock - Déverrouiller le salon`\n" +
+      "`/mod purge [@user] [nombre] - Supprime messages d'un utilisateur`\n" +
+      "`/mod history [@user] - Historique des messages`\n" +
       "`/report [@user] [raison] - Signale un membre au staff`",
   },
   {
@@ -112,20 +116,19 @@ export const CATEGORIES: Category[] = [
     emoji: "🔒",
     description: "Commandes de sécurité avancée",
     commands:
-      "`/nuke - Clone et nettoie un salon`\n" +
-      "`/check-alt - Liste les comptes récents`\n" +
-      "`/blacklist - Gère la liste noire (owner)`\n" +
-      "`/role-mass - Ajoute/retire un rôle à tous (admin)`\n" +
-      "`/antiraid - Protection anti-raid (comptes récents)`\n" +
-      "`/verif - Système de vérification par bouton`\n" +
-      "`/namehistory [@user] - Historique des pseudos`\n" +
-      "`/avatarhistory [@user] - Historique des avatars`\n" +
-      "`/linkcheck [url] - Vérifie un lien suspect`\n" +
-      "`/antiphishing - Active/désactive l'anti-phishing`\n" +
-      "`/alt-link [main] - Lie ton compte main et alt`\n" +
-      "`/ban-log [membre] - Historique cross-serveurs des bans`\n" +
-      "`/behavior-timeline [membre] - Timeline des events d'un user`\n" +
-      "`/alert-rules [action] - Builder de règles d'alerte (admin)`",
+      "`/security nuke - Clone et nettoie un salon`\n" +
+      "`/security check-alt - Liste les comptes récents`\n" +
+      "`/security blacklist - Gère la liste noire (owner)`\n" +
+      "`/security role-mass - Ajoute/retire un rôle à tous (admin)`\n" +
+      "`/security antiraid - Protection anti-raid (comptes récents)`\n" +
+      "`/security verif - Système de vérification par bouton`\n" +
+      "`/security namehistory [@user] - Historique des pseudos`\n" +
+      "`/security avatarhistory [@user] - Historique des avatars`\n" +
+      "`/security linkcheck [url] - Vérifie un lien suspect`\n" +
+      "`/security alt-link [@user] - Lie ton compte main et alt`\n" +
+      "`/security ban-log [membre] - Historique cross-serveurs des bans`\n" +
+      "`/security behavior-timeline [membre] - Timeline des events d'un user`\n" +
+      "`/security alert-rules [action] - Builder de règles d'alerte (admin)`",
   },
   {
     id: "gaming",
@@ -137,9 +140,9 @@ export const CATEGORIES: Category[] = [
       "`/free-games - Jeux gratuits (Epic Games)`\n" +
       "`/patch_notes [jeu] - Patch notes de jeux`\n" +
       "`/deal [jeu] - Comparateur de prix`\n" +
-      "`/track-game [jeu] - Surveille les actus Steam d'un jeu`\n" +
-      "`/untrack-game [jeu] - Arrête la surveillance d'un jeu`\n" +
-      "`/list-tracked - Liste les jeux surveillés`\n" +
+      "`/track add [jeu] - Surveille les actus Steam d'un jeu`\n" +
+      "`/track remove [jeu] - Arrête la surveillance d'un jeu`\n" +
+      "`/track list - Liste les jeux surveillés`\n" +
       "`/steam - Profil Steam, wishlist, nowplaying`\n" +
       "`/wishlist [action] [plateforme] [nom] - Wishlist multi-plateforme (PS, Xbox, Nintendo, Steam, Epic, Fortnite) avec notifs de réductions`\n" +
       "`/boutique [section] - Boutique Fortnite du jour en français (nouveautés, bientôt retirés, timestamps)`\n" +
@@ -155,7 +158,6 @@ export const CATEGORIES: Category[] = [
     description: "Fonctionnalités communautaires",
     commands:
       "`/ticket-setup - Configure le système de tickets`\n" +
-      "`/giveaway [prix] [duree] - Lance un giveaway (admin)`\n" +
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
       "`/server-info - Infos détaillées du serveur`",
   },
@@ -176,8 +178,8 @@ export const CATEGORIES: Category[] = [
     emoji: "📋",
     description: "Gestion du casier judiciaire",
     commands:
-      "`/casier [@user] - Affiche le casier d'un membre`\n" +
-      "`/casier-clear [id] - Efface une sanction ou un casier (admin)`",
+      "`/casier view [@user] - Affiche le casier d'un membre`\n" +
+      "`/casier clear [id] - Efface une sanction ou un casier (admin)`",
   },
 ];
 
