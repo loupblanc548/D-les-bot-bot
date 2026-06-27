@@ -25,7 +25,7 @@ interface RSSFeed {
   name: string;
   urls: string[];
   channelId: string;
-  type: "epic" | "steam" | "playstation" | "xbox" | "nintendo";
+  type: "epic" | "steam" | "playstation" | "xbox" | "nintendo" | "instantgaming";
 }
 
 const RSS_FEEDS: RSSFeed[] = [
@@ -42,9 +42,11 @@ const RSS_FEEDS: RSSFeed[] = [
     type: "playstation",
   },
   {
-    name: "Steam",
-    urls: process.env.PATCH_STEAM_RSS?.split(",") || [],
-    channelId: process.env.PATCH_CHANNEL_STEAM_ID || "",
+    name: "Steam/Epic",
+    urls: (process.env.PATCH_STEAM_EPIC_RSS || process.env.PATCH_STEAM_RSS || "")
+      .split(",")
+      .filter(Boolean),
+    channelId: process.env.PATCH_CHANNEL_STEAM_EPIC_ID || process.env.PATCH_CHANNEL_STEAM_ID || "",
     type: "steam",
   },
   {
@@ -59,7 +61,13 @@ const RSS_FEEDS: RSSFeed[] = [
     channelId: process.env.PATCH_CHANNEL_NINTENDO_ID || "",
     type: "nintendo",
   },
-];
+  {
+    name: "Instant Gaming",
+    urls: process.env.PATCH_INSTANT_GAMING_RSS?.split(",") || [],
+    channelId: process.env.PATCH_CHANNEL_INSTANT_GAMING_ID || "",
+    type: "instantgaming",
+  },
+].filter((feed) => feed.urls.length > 0 && feed.channelId) as RSSFeed[];
 
 export function startRSSAggregator(client: Client): void {
   console.log("[RSSAggregator] Starting RSS aggregator");

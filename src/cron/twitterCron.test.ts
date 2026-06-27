@@ -21,6 +21,7 @@ const mockLogger = vi.hoisted(() => ({
 const mockConfig = vi.hoisted(() => ({
   twitterChannel: "123456789",
   twitterAccounts: "fortnitegame,helldivers2",
+  twitterPlatformRouting: [] as Array<{ accounts: string[]; channelId: string; label: string }>,
   // All platform channels point to the same test channel ID so PLATFORM_CONFIGS entries resolve
   steamEpicChannel: "123456789",
   playstationChannel: "123456789",
