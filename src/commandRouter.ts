@@ -149,6 +149,10 @@ import {
   commands as channelRoutingCommands,
   handleCommand as handleChannelRouting,
 } from "./commands/channelRouting.js";
+import {
+  commands as purgeContentCommands,
+  handleCommand as handlePurgeContent,
+} from "./commands/purgeContent.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -318,6 +322,7 @@ export const allCommands = [
   ...aiFunCommands,
   ...apiCmdCommands,
   ...channelRoutingCommands,
+  ...purgeContentCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -465,6 +470,7 @@ export function buildCommandRouter(): void {
     handleApiCmd,
   );
   registerGroup(["channel-routing"], handleChannelRouting);
+  registerGroup(["purge-content"], handlePurgeContent);
 }
 
 export function applyCommandMiddleware(): void {
