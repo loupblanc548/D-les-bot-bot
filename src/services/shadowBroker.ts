@@ -89,7 +89,7 @@ export async function sendStealthAlert(
   client: Client,
   title: string,
   description: string,
-  color: number = 0x1a1a2e,
+  color: number = 0x00ff41,
 ): Promise<void> {
   try {
     const owner = await client.users.fetch(config.ownerId);

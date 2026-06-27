@@ -42,7 +42,7 @@ export const PLATFORM_THEMES: Record<string, PlatformTheme> = {
     emoji: "🎮",
   },
   default: {
-    color: 0x0099ff,
+    color: 0x00ff41,
     iconUrl: "https://cdn.discordapp.com/embed/avatars/0.png",
     label: "Bot",
     emoji: "🤖",
@@ -61,11 +61,11 @@ export enum AlertPriority {
 }
 
 export const ALERT_COLORS: Record<AlertPriority, number> = {
-  [AlertPriority.CRITICAL]: 0xff0000,
+  [AlertPriority.CRITICAL]: 0xff3333,
   [AlertPriority.HIGH]: 0xff6600,
   [AlertPriority.MEDIUM]: 0xffcc00,
-  [AlertPriority.LOW]: 0x00cc00,
-  [AlertPriority.INFO]: 0x0099ff,
+  [AlertPriority.LOW]: 0x00ff66,
+  [AlertPriority.INFO]: 0x00cc33,
 };
 
 /**

@@ -76,7 +76,7 @@ export async function stealthGuildLeave(client: Client, guild: Guild): Promise<v
       `stealth_leave_${guildId}`,
       "🚪 Départ invisible d'un serveur",
       `Le bot a quitté **${guildName}** (${guildId}) de façon invisible.\n- Commandes slash supprimées\n- Données DB nettoyées\n- Aucune trace visible`,
-      0x1a1a2e,
+      0x00ff41,
       60 * 1000,
     );
   } catch (error) {
