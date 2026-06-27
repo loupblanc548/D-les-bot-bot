@@ -19,12 +19,12 @@
  * reste propriétaire (le module ne le fermera pas).
  */
 
-import cron, { type ScheduledTask } from 'node-cron';
-import pg, { type Pool } from 'pg';
+import cron, { type ScheduledTask } from "node-cron";
+import pg, { type Pool } from "pg";
 
 const { Pool: PgPool } = pg;
 
-const DEFAULT_CRON = '0 3 1 * *';
+const DEFAULT_CRON = "0 3 1 * *";
 const DEFAULT_RETENTION_DAYS = 90;
 
 export interface PurgeLogger {
@@ -53,33 +53,25 @@ let logger: PurgeLogger | null = null;
 /**
  * Démarre la purge planifiée. Idempotent : un deuxième appel est ignoré.
  */
-export function startPurgeRssTwitterPosts(
-  options: PurgeOptions = {},
-): void {
+export function startPurgeRssTwitterPosts(options: PurgeOptions = {}): void {
   if (task) {
-    options.logger?.warn?.('[purgeRssTwitterPosts] déjà démarré, ignoré.');
+    options.logger?.warn?.("[purgeRssTwitterPosts] déjà démarré, ignoré.");
     return;
   }
 
-  const schedule =
-    options.schedule ?? process.env.RSS_PURGE_CRON ?? DEFAULT_CRON;
+  const schedule = options.schedule ?? process.env.RSS_PURGE_CRON ?? DEFAULT_CRON;
   const retentionDays =
-    options.retentionDays ??
-    Number(process.env.RSS_PURGE_DAYS ?? DEFAULT_RETENTION_DAYS);
-  const timezone = options.timezone ?? process.env.TZ ?? 'UTC';
+    options.retentionDays ?? Number(process.env.RSS_PURGE_DAYS ?? DEFAULT_RETENTION_DAYS);
+  const timezone = options.timezone ?? process.env.TZ ?? "UTC";
   const log: PurgeLogger = options.logger ?? console;
   logger = log;
 
   if (!cron.validate(schedule)) {
-    log.error?.(
-      `[purgeRssTwitterPosts] expression cron invalide : ${schedule}`,
-    );
+    log.error?.(`[purgeRssTwitterPosts] expression cron invalide : ${schedule}`);
     return;
   }
   if (!Number.isFinite(retentionDays) || retentionDays < 1) {
-    log.error?.(
-      `[purgeRssTwitterPosts] retentionDays invalide : ${retentionDays}`,
-    );
+    log.error?.(`[purgeRssTwitterPosts] retentionDays invalide : ${retentionDays}`);
     return;
   }
 
@@ -88,8 +80,7 @@ export function startPurgeRssTwitterPosts(
     ownsPool = false;
   } else {
     pool = new PgPool({
-      connectionString:
-        process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL,
+      connectionString: process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL,
       ssl: detectSsl(),
       max: 2,
       idleTimeoutMillis: 30_000,
@@ -106,7 +97,7 @@ export function startPurgeRssTwitterPosts(
         const activePool = pool; // snapshot: évite la race si stop() coupe pendant un tick en vol
         void runPurge(retentionDays, activePool, log).catch((err: unknown) =>
           log.error?.(
-            '[purgeRssTwitterPosts] erreur tick :',
+            "[purgeRssTwitterPosts] erreur tick :",
             err instanceof Error ? err.message : err,
           ),
         );
@@ -115,7 +106,7 @@ export function startPurgeRssTwitterPosts(
     );
   } catch (err) {
     log.error?.(
-      '[purgeRssTwitterPosts] cron.schedule a échoué :',
+      "[purgeRssTwitterPosts] cron.schedule a échoué :",
       err instanceof Error ? err.message : err,
     );
     if (ownsPool && pool) {
@@ -147,7 +138,7 @@ export async function stopPurgeRssTwitterPosts(): Promise<void> {
   pool = undefined;
   ownsPool = false;
   logger = null;
-  log.info?.('[purgeRssTwitterPosts] arrêté.');
+  log.info?.("[purgeRssTwitterPosts] arrêté.");
 }
 
 /**
@@ -164,8 +155,7 @@ export async function runPurge(
   const ownPool =
     poolArg ??
     new PgPool({
-      connectionString:
-        process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL,
+      connectionString: process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL,
       ssl: detectSsl(),
       max: 2,
     });
@@ -177,9 +167,7 @@ export async function runPurge(
       [retention],
     );
     const deleted = rowCount ?? 0;
-    log.info?.(
-      `[purgeRssTwitterPosts] ${deleted} ligne(s) purgée(s) (> ${retention} jours).`,
-    );
+    log.info?.(`[purgeRssTwitterPosts] ${deleted} ligne(s) purgée(s) (> ${retention} jours).`);
     return deleted;
   } finally {
     if (!poolArg) {
@@ -188,10 +176,9 @@ export async function runPurge(
   }
 }
 
-function detectSsl(): false | { rejectUnauthorized: false } {
-  const url =
-    process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL ?? '';
-  return url.includes('sslmode=require') || url.includes('ssl=true')
-    ? { rejectUnauthorized: false }
+function detectSsl(): false | { rejectUnauthorized: true } {
+  const url = process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL ?? "";
+  return url.includes("sslmode=require") || url.includes("ssl=true")
+    ? { rejectUnauthorized: true }
     : false;
 }
