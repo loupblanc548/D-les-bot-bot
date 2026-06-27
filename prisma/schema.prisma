@@ -1101,3 +1101,25 @@ model NotifiedMessage {
   @@index([channelOrDm])
   @@index([sentAt])
 }
+
+model WordFilterConfig {
+  guildId     String   @id
+  enabled     Boolean  @default(false)
+  action      String   @default("delete")
+  warnMessage String   @default("⚠️ Ce message contient un mot interdit.")
+  logChannel  String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("word_filter_config")
+}
+
+model WordFilterEntry {
+  id      Int      @id @default(autoincrement())
+  guildId String
+  word    String
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, word])
+  @@index([guildId])
+  @@map("word_filter_entry")
+}

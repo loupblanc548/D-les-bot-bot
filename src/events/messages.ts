@@ -19,6 +19,10 @@ import { translateAutoToFrench } from "../utils/translator.js";
 import { addMessageToConversation, getConversationHistory } from "../services/aiMemory.js";
 import { getCachedResponse, cacheResponse } from "../services/aiCache.js";
 import { checkRateLimit } from "../services/rateLimiter.js";
+import {
+  checkMessage as checkWordFilter,
+  enforceFilter as enforceWordFilter,
+} from "../services/wordFilter.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -134,6 +138,13 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (!message.guild || message.author.bot) return;
+
+      // ── FILTRE DE MOTS INTERDITS (avant tout le reste) ─────────────
+      const matchedWord = await checkWordFilter(message);
+      if (matchedWord) {
+        await enforceWordFilter(message, matchedWord);
+        return;
+      }
 
       const isMentioningBot = message.mentions.has(client.user!);
 

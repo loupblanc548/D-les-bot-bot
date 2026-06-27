@@ -128,7 +128,8 @@ export const CATEGORIES: Category[] = [
       "`/security alt-link [@user] - Lie ton compte main et alt`\n" +
       "`/security ban-log [membre] - Historique cross-serveurs des bans`\n" +
       "`/security behavior-timeline [membre] - Timeline des events d'un user`\n" +
-      "`/security alert-rules [action] - Builder de règles d'alerte (admin)`",
+      "`/security alert-rules [action] - Builder de règles d'alerte (admin)`\n" +
+      "`/security word-filter [action] - Filtre de mots interdits automatique (admin)`",
   },
   {
     id: "gaming",
