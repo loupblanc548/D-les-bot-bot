@@ -104,6 +104,10 @@ import {
   commands as extraCmdCommands,
   handleCommand as handleExtraCmd,
 } from "./commands/extraCommands.js";
+import {
+  radioGamingCommands as radioCommands,
+  handleRadioGamingCommand as handleRadioGaming,
+} from "./cron/radioGaming.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -262,6 +266,7 @@ export const allCommands = [
   ...aiCmdCommands,
   ...modExtraCommands,
   ...extraCmdCommands,
+  ...radioCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -378,6 +383,7 @@ export function buildCommandRouter(): void {
     ],
     handleExtraCmd,
   );
+  registerGroup(["radio-gaming"], handleRadioGaming);
 }
 
 export function applyCommandMiddleware(): void {
