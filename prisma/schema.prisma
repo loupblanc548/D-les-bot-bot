@@ -1199,3 +1199,19 @@ model WordFilterInfraction {
   @@index([guildId, userId, createdAt])
   @@map("word_filter_infraction")
 }
+
+model MemoryLink {
+  id          String   @id @default(cuid())
+  userId      String
+  sourceKey   String
+  targetKey   String
+  relation    String
+  strength    Float    @default(1.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, sourceKey, targetKey, relation])
+  @@index([userId, sourceKey])
+  @@index([userId, targetKey])
+  @@map("memory_link")
+}

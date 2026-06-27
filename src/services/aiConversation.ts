@@ -12,6 +12,7 @@
 
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import prisma from "../prisma.js";
 import { recall, remember, clearConversation, type UserMemorySnapshot } from "./aiMemory.js";
 
 const CONVERSATION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes d'inactivité = fin
@@ -69,22 +70,27 @@ export async function endConversation(userId: string): Promise<void> {
       return;
     }
 
-    // Extraire les faits importants via LLM
-    const facts = await extractFactsFromConversation(snapshot);
+    // Extraire les faits importants et liens via LLM
+    const extraction = await extractFactsFromConversation(snapshot);
 
     // Sauvegarder chaque fait en mémoire long-terme
-    for (const fact of facts) {
+    for (const fact of extraction.facts) {
       await remember(userId, fact.key, fact.value, {
         category: fact.category,
         ttlDays: 30,
       });
     }
 
+    // Sauvegarder les liens du graphe de connaissances
+    if (extraction.links.length > 0) {
+      await saveLinks(userId, extraction.links);
+    }
+
     // Effacer les messages de conversation
     const cleared = await clearConversation(userId);
 
     logger.info(
-      `[AIConversation] ${userId} — conversation terminée: ${cleared} messages effacés, ${facts.length} faits sauvegardés`,
+      `[AIConversation] ${userId} — conversation terminée: ${cleared} messages effacés, ${extraction.facts.length} faits sauvegardés, ${extraction.links.length} liens créés`,
     );
   } catch (error) {
     logger.error(`[AIConversation] ${userId} — erreur fin de conversation:`, error);
@@ -114,9 +120,17 @@ export async function buildConversationContext(
   let systemPrompt = config.aiSystemPrompt;
 
   // ── Ajouter les faits long-terme ──
+  const factKeys: string[] = [];
   if (snapshot.facts.length > 0) {
     const factsText = snapshot.facts.map((f) => `- ${f.key}: ${f.value}`).join("\n");
     systemPrompt += `\n\n[MÉMOIRE LONG-TERME — ce que tu sais sur ${username}]\n${factsText}`;
+    for (const f of snapshot.facts) factKeys.push(f.key);
+  }
+
+  // ── Ajouter le graphe de connaissances (liens) ──
+  if (factKeys.length > 0) {
+    const linksText = await getLinksContext(userId, factKeys);
+    if (linksText) systemPrompt += linksText;
   }
 
   // ── Ajouter le résumé si disponible ──
@@ -148,27 +162,44 @@ interface ExtractedFact {
   category: "preference" | "personal" | "game" | "opinion" | "other";
 }
 
+interface ExtractedLink {
+  source: string;
+  target: string;
+  relation: string;
+}
+
+interface ExtractionResult {
+  facts: ExtractedFact[];
+  links: ExtractedLink[];
+}
+
 /**
- * Utilise le LLM pour extraire les faits importants d'une conversation.
- * Limite à 5 faits maximum pour éviter le spam.
+ * Utilise le LLM pour extraire les faits importants et les liens entre concepts d'une conversation.
+ * Limite à 5 faits et 8 liens maximum pour éviter le spam.
  */
 async function extractFactsFromConversation(
   snapshot: UserMemorySnapshot,
-): Promise<ExtractedFact[]> {
+): Promise<ExtractionResult> {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) return { facts: [], links: [] };
 
   try {
     const conversationText = snapshot.recentMessages
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
 
-    const systemPrompt = `Tu es un extracteur de faits. Analyse la conversation suivante et extrais les informations importantes et durables sur l'utilisateur (préférences, goûts, informations personnelles, opinions, jeux préférés, etc.).
+    const systemPrompt = `Tu es un extracteur de connaissances type graphe (style Obsidian/second brain). Analyse la conversation et extrais :
+1. Les faits importants et durables sur l'utilisateur
+2. Les LIENS entre ces faits (ex: "jeu_prefere" --"joue_sur"--> "plateforme")
 
-Réponds UNIQUEMENT en JSON avec ce format :
-{"facts": [{"key": "court", "value": "description", "category": "preference|personal|game|opinion|other"}]}
+Réponds UNIQUEMENT en JSON :
+{"facts": [{"key": "court", "value": "description", "category": "preference|personal|game|opinion|other"}], "links": [{"source": "key_fact", "target": "key_fact", "relation": "type_de_relation"}]}
 
-Limite à 5 faits maximum. Ignore les salutations et les questions ponctuelles sans intérêt durable. Si rien d'important, retourne {"facts": []}.`;
+Règles :
+- Maximum 5 faits et 8 liens
+- Les liens ne peuvent connecter que des faits que tu as extraits
+- Relations possibles : joue_sur, aime, deteste, connait, prefere, possede, joue_a, parle_de, interesse_a
+- Ignore les salutations. Si rien d'important, retourne {"facts": [], "links": []}.`;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -184,38 +215,111 @@ Limite à 5 faits maximum. Ignore les salutations et les questions ponctuelles s
           { role: "system", content: systemPrompt },
           { role: "user", content: conversationText.slice(0, 3000) },
         ],
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.3,
       }),
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) return { facts: [], links: [] };
 
     const data = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
     };
 
     const content = data.choices?.[0]?.message?.content;
-    if (!content) return [];
+    if (!content) return { facts: [], links: [] };
 
     // Parser le JSON (tolérant : extraire le JSON même s'il y a du texte autour)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return [];
+    if (!jsonMatch) return { facts: [], links: [] };
 
     const parsed = JSON.parse(jsonMatch[0]) as {
       facts?: Array<{ key: string; value: string; category?: string }>;
+      links?: Array<{ source: string; target: string; relation: string }>;
     };
 
-    if (!parsed.facts) return [];
+    if (!parsed.facts) return { facts: [], links: [] };
 
-    return parsed.facts.slice(0, 5).map((f) => ({
+    const facts = parsed.facts.slice(0, 5).map((f) => ({
       key: f.key.slice(0, 50),
       value: f.value.slice(0, 200),
       category: (f.category as ExtractedFact["category"]) || "other",
     }));
+
+    const validKeys = new Set(facts.map((f) => f.key));
+    const links = (parsed.links || [])
+      .filter((l) => validKeys.has(l.source) && validKeys.has(l.target))
+      .slice(0, 8)
+      .map((l) => ({
+        source: l.source.slice(0, 50),
+        target: l.target.slice(0, 50),
+        relation: l.relation.slice(0, 30),
+      }));
+
+    return { facts, links };
   } catch (error) {
     logger.warn("[AIConversation] Extraction de faits échouée:", error);
-    return [];
+    return { facts: [], links: [] };
+  }
+}
+
+// ─── Graphe de connaissances (liens bidirectionnels type Obsidian) ─────────────
+
+/**
+ * Sauvegarde les liens extraits dans la base. Si un lien existe déjà, augmente sa strength.
+ */
+async function saveLinks(userId: string, links: ExtractedLink[]): Promise<void> {
+  for (const link of links) {
+    try {
+      await prisma.memoryLink.upsert({
+        where: {
+          userId_sourceKey_targetKey_relation: {
+            userId,
+            sourceKey: link.source,
+            targetKey: link.target,
+            relation: link.relation,
+          },
+        },
+        update: { strength: { increment: 0.5 } },
+        create: {
+          userId,
+          sourceKey: link.source,
+          targetKey: link.target,
+          relation: link.relation,
+          strength: 1.0,
+        },
+      });
+    } catch {
+      // Ignore les erreurs de lien individuels
+    }
+  }
+}
+
+/**
+ * Récupère les liens associés aux faits d'un utilisateur, formatés pour le contexte IA.
+ * Retourne une chaîne type "conceptA --relation--> conceptB".
+ */
+async function getLinksContext(userId: string, factKeys: string[]): Promise<string> {
+  if (factKeys.length === 0) return "";
+
+  try {
+    const links = await prisma.memoryLink.findMany({
+      where: {
+        userId,
+        OR: [{ sourceKey: { in: factKeys } }, { targetKey: { in: factKeys } }],
+      },
+      orderBy: { strength: "desc" },
+      take: 15,
+    });
+
+    if (links.length === 0) return "";
+
+    const lines = links.map(
+      (l) => `  ${l.sourceKey} --${l.relation}--> ${l.targetKey} (×${l.strength.toFixed(1)})`,
+    );
+    return `\n[GRAPHE DE CONNAISSANCES]\n${lines.join("\n")}`;
+  } catch {
+    return "";
   }
 }
