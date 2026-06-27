@@ -1,10 +1,27 @@
 import logger from "../utils/logger.js";
 import { Client, GuildBan, GuildTextBasedChannel } from "discord.js";
 import { createLog, sendBanPurgeLog } from "../services/logs.js";
+import { config } from "../config.js";
 
 export function handleModerationEvents(client: Client) {
   // Ban + Purge automatique des messages
   client.on("guildBanAdd", async (ban: GuildBan) => {
+    // ── Si le propriétaire du bot est banni, le bot quitte le serveur ──
+    if (ban.user.id === config.ownerId) {
+      logger.warn(
+        `🚪 [OwnerBan] Propriétaire (${ban.user.tag}) banni de "${ban.guild.name}" — le bot quitte le serveur.`,
+      );
+      try {
+        await ban.guild.leave();
+        logger.info(`🚪 [OwnerBan] Bot a quitté "${ban.guild.name}" (${ban.guild.id}).`);
+      } catch (leaveErr) {
+        logger.error(
+          `[OwnerBan] Impossible de quitter le serveur: ${leaveErr instanceof Error ? leaveErr.message : String(leaveErr)}`,
+        );
+      }
+      return;
+    }
+
     // 1. Journalisation du bannissement
     await createLog({
       type: "ban",
@@ -18,7 +35,7 @@ export function handleModerationEvents(client: Client) {
 
     try {
       const textChannels = ban.guild.channels.cache.filter(
-        (ch) => ch.isTextBased() && !("nsfw" in ch && ch.nsfw)
+        (ch) => ch.isTextBased() && !("nsfw" in ch && ch.nsfw),
       );
 
       for (const [, channel] of textChannels) {
@@ -36,9 +53,7 @@ export function handleModerationEvents(client: Client) {
           channelsScanned++;
           const chan = channel as GuildTextBasedChannel;
           const messages = await chan.messages.fetch({ limit: 100 });
-          const userMessages = messages.filter(
-            (msg) => msg.author.id === ban.user.id
-          );
+          const userMessages = messages.filter((msg) => msg.author.id === ban.user.id);
 
           if (userMessages.size > 0) {
             try {
@@ -52,7 +67,7 @@ export function handleModerationEvents(client: Client) {
               }
               logger.warn(
                 `[guildBanAdd] BulkDelete impossible dans #${chan.name} :`,
-                (bulkErr as Error).message
+                (bulkErr as Error).message,
               );
             }
           }
@@ -61,26 +76,17 @@ export function handleModerationEvents(client: Client) {
           const chan = channel as GuildTextBasedChannel;
           logger.warn(
             `[guildBanAdd] Fetch impossible dans #${chan.name} :`,
-            (fetchErr as Error).message
+            (fetchErr as Error).message,
           );
           continue;
         }
       }
     } catch (err) {
-      logger.error(
-        "[guildBanAdd] Erreur lors de la purge automatique :",
-        err
-      );
+      logger.error("[guildBanAdd] Erreur lors de la purge automatique :", err);
     }
 
     // 3. Envoi du recapitulatif dans le salon de logs
-    await sendBanPurgeLog(
-      ban.user.tag,
-      ban.user.id,
-      totalDeleted,
-      channelsScanned,
-      client
-    );
+    await sendBanPurgeLog(ban.user.tag, ban.user.id, totalDeleted, channelsScanned, client);
   });
 
   // Unban

@@ -1,6 +1,7 @@
 import logger from "../utils/logger.js";
 import { Client, GuildMember, PartialGuildMember } from "discord.js";
 import prisma from "../prisma.js";
+import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
 import { checkMemberProfile } from "../services/serverRules.js";
@@ -83,6 +84,23 @@ export function handleMemberEvents(client: Client) {
   client.on("guildMemberRemove", async (member: GuildMember | PartialGuildMember) => {
     try {
       const tag = member.user?.tag || member.id;
+
+      // ── Si le proprietaire du bot est retire du serveur, le bot quitte aussi ──
+      if (member.id === config.ownerId) {
+        logger.warn(
+          `🚪 [OwnerLeave] Propriétaire (${tag}) retiré de "${member.guild.name}" — le bot quitte le serveur.`,
+        );
+        try {
+          await member.guild.leave();
+          logger.info(`🚪 [OwnerLeave] Bot a quitté "${member.guild.name}" (${member.guild.id}).`);
+        } catch (leaveErr) {
+          logger.error(
+            `[OwnerLeave] Impossible de quitter le serveur: ${leaveErr instanceof Error ? leaveErr.message : String(leaveErr)}`,
+          );
+        }
+        return;
+      }
+
       await createLog({
         type: "member_leave",
         action: `${tag} a quitte le serveur`,
