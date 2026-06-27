@@ -120,6 +120,10 @@ import {
   commands as modProCommands,
   handleCommand as handleModPro,
 } from "./commands/moderationPro.js";
+import {
+  commands as translateAutoCommands,
+  handleCommand as handleTranslateAuto,
+} from "./commands/translateAuto.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -281,6 +285,7 @@ export const allCommands = [
   ...radioCommands,
   ...playCommands,
   ...modProCommands,
+  ...translateAutoCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -404,6 +409,7 @@ export function buildCommandRouter(): void {
   registerGroup(["resume"], handleResume);
   registerGroup(["queue-status"], handleQueueStatus);
   registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
+  registerGroup(["translate-auto"], handleTranslateAuto);
 }
 
 export function applyCommandMiddleware(): void {
