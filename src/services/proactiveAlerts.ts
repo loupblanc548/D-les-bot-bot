@@ -345,3 +345,93 @@ export async function alertCritical(title: string, description: string): Promise
     CRITICAL_COOLDOWN_MS,
   );
 }
+
+// ─── Notifications de déploiement / mise à jour ───────────────────────────────
+
+/**
+ * Envoie une notification de confirmation à l'owner après une mise en place.
+ * Utilisé pour confirmer que des changements ont été appliqués avec succès.
+ *
+ * @param title Titre court de la mise en place (ex: "OSINT Tools")
+ * @param items Liste des éléments mis en place
+ * @param color Couleur de l'embed (défaut: vert)
+ */
+export async function sendDeploymentNotification(
+  title: string,
+  items: string[],
+  color: number = 0x43b581,
+): Promise<void> {
+  if (!botClient) {
+    logger.warn("[ProactiveAlerts] Client non initialisé — notification de déploiement ignorée");
+    return;
+  }
+
+  try {
+    const owner = await botClient.users.fetch(config.ownerId);
+    if (!owner) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`✅ ${title}`)
+      .setColor(color)
+      .setTimestamp()
+      .setFooter({ text: "Shadow Broker — Notification de déploiement" });
+
+    const description = items.map((item) => `✅ ${item}`).join("\n");
+    embed.setDescription(description.slice(0, 4000));
+
+    // Ajouter un champ récapitulatif
+    embed.addFields({
+      name: "📊 Résumé",
+      value: `${items.length} élément(s) mis en place avec succès`,
+      inline: false,
+    });
+
+    await owner.send({ embeds: [embed] });
+    logger.info(
+      `[ProactiveAlerts] Notification de déploiement envoyée: ${title} (${items.length} éléments)`,
+    );
+  } catch (error) {
+    logger.error("[ProactiveAlerts] Impossible d'envoyer la notification de déploiement:", error);
+  }
+}
+
+/**
+ * Envoie une notification de statut global du bot.
+ * Résumé complet : serveurs, utilisateurs, uptime, mémoire, commandes.
+ */
+export async function sendStatusReport(): Promise<void> {
+  if (!botClient) return;
+
+  try {
+    const owner = await botClient.users.fetch(config.ownerId);
+    if (!owner) return;
+
+    const guilds = botClient.guilds.cache;
+    const totalMembers = guilds.reduce((sum, g) => sum + (g.memberCount || 0), 0);
+    const uptime = botClient.uptime || 0;
+    const uptimeHours = Math.floor(uptime / (1000 * 60 * 60));
+    const uptimeMinutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+    const memUsage = process.memoryUsage();
+    const memMb = (memUsage.rss / (1024 * 1024)).toFixed(1);
+
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Rapport de statut — Shadow Broker")
+      .setColor(0x1a1a2e)
+      .setTimestamp()
+      .setFooter({ text: "Rapport automatique" });
+
+    embed.addFields(
+      { name: "🖥️ Serveurs", value: String(guilds.size), inline: true },
+      { name: "👥 Membres totaux", value: String(totalMembers), inline: true },
+      { name: "⏱️ Uptime", value: `${uptimeHours}h ${uptimeMinutes}m`, inline: true },
+      { name: "💾 Mémoire RSS", value: `${memMb} MB`, inline: true },
+      { name: "📡 Latence API", value: `${Math.round(botClient.ws.ping)}ms`, inline: true },
+      { name: "✅ Statut", value: "En ligne", inline: true },
+    );
+
+    await owner.send({ embeds: [embed] });
+    logger.info("[ProactiveAlerts] Rapport de statut envoyé à l'owner");
+  } catch (error) {
+    logger.error("[ProactiveAlerts] Erreur envoi rapport de statut:", error);
+  }
+}
