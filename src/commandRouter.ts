@@ -84,6 +84,10 @@ import {
   commands as modExtraCommands,
   handleCommand as handleModExtra,
 } from "./commands/modExtra.js";
+import {
+  commands as extraCmdCommands,
+  handleCommand as handleExtraCmd,
+} from "./commands/extraCommands.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -118,6 +122,7 @@ export const allCommands = [
   ...dashboardCommands,
   ...aiCmdCommands,
   ...modExtraCommands,
+  ...extraCmdCommands,
 ];
 
 function registerGroup(
@@ -217,6 +222,46 @@ export function buildCommandRouter(): void {
   registerGroup(["dashboard"], handleDashboard);
   registerGroup(["ai-profile", "ai-config", "ai-channel-summary"], handleAiCmd);
   registerGroup(["report"], handleModExtra);
+  registerGroup(
+    [
+      "xbox",
+      "price-compare",
+      "playtime",
+      "game-recommend",
+      "release-calendar",
+      "metacritic",
+      "game-trivia",
+      "alt-link",
+      "ban-log",
+      "behavior-timeline",
+      "alert-rules",
+      "rank",
+      "leaderboard",
+      "level-config",
+      "birthday-set",
+      "birthday-list",
+      "server-info",
+      "timer",
+      "avatar",
+      "role-info",
+      "channel-info",
+      "color",
+      "dice",
+      "coinflip",
+      "8ball",
+      "rps",
+      "hangman",
+      "wordle",
+      "guess-game",
+      "emoji-quiz",
+      "ai-mood",
+      "ai-suggest",
+      "ai-translate-custom",
+      "reddit-track",
+      "rss-custom",
+    ],
+    handleExtraCmd,
+  );
 }
 
 export function applyCommandMiddleware(): void {
