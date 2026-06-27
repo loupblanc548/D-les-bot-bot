@@ -257,7 +257,7 @@ async function handleAiChatMention(
         "X-Title": "John Helldiver - Discord Bot",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: process.env.OPENROUTER_MODEL || "openai/gpt-4o",
         messages,
         max_tokens: 500,
         temperature: 0.7,
