@@ -160,7 +160,8 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/ticket-setup - Configure le système de tickets`\n" +
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/server-info - Infos détaillées du serveur`",
+      "`/server-info - Infos détaillées du serveur`\n" +
+      "`/profile [action] - Profil personnalisé (bio, couleur, badges, titre)`",
   },
   {
     id: "utility",

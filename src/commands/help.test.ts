@@ -42,6 +42,7 @@ const REGISTERED_COMMANDS = new Set([
   "ticket-setup",
   "self-role",
   "server-info",
+  "profile",
   // Utilitaires
   "embed-builder",
   "say",
