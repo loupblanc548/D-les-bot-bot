@@ -1,11 +1,42 @@
 import cron from "node-cron";
-import { Client, EmbedBuilder } from "discord.js";
+import { Client, EmbedBuilder, TextChannel, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { fetchFreeGames } from "../services/epicgames.js";
 import { fetchShop } from "../services/fortnite-api.js";
+import { config } from "../config.js";
 
 const FOOTER = { text: "Wishlist Alert • Notifications automatiques" };
+
+// Map plateforme wishlist → salon Discord configuré
+const PLATFORM_CHANNELS: Record<string, string> = {
+  fortnite: config.fortniteChannel,
+  epic: config.steamEpicChannel,
+  steam: config.steamEpicChannel,
+  playstation: config.playstationChannel,
+  xbox: config.xboxChannel,
+  nintendo: config.nintendoChannel,
+};
+
+async function sendToPlatformChannel(
+  client: Client,
+  platform: string,
+  embed: EmbedBuilder,
+): Promise<void> {
+  const channelId = PLATFORM_CHANNELS[platform];
+  if (!channelId) {
+    logger.warn(`[WishlistCron] Aucun salon configuré pour la plateforme "${platform}"`);
+    return;
+  }
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    logger.warn(`[WishlistCron] Salon ${channelId} inaccessible ou non textuel pour "${platform}"`);
+    return;
+  }
+  await (channel as TextChannel).send({ embeds: [embed] }).catch((err) => {
+    logger.error(`[WishlistCron] Erreur envoi salon ${channelId}:`, String(err));
+  });
+}
 
 // Vérifie les offres gratuites Epic Games et compare avec les wishlists
 async function checkEpicFreeGames(client: Client): Promise<void> {
@@ -32,12 +63,6 @@ async function checkEpicFreeGames(client: Client): Promise<void> {
           match.lastNotifiedAt && Date.now() - match.lastNotifiedAt.getTime() < 24 * 60 * 60 * 1000;
         if (alreadyNotified) continue;
 
-        const pref = await prisma.userPreference.findUnique({ where: { userId: match.userId } });
-        if (pref?.wishlistDm === false) continue;
-
-        const user = await client.users.fetch(match.userId).catch(() => null);
-        if (!user) continue;
-
         const embed = new EmbedBuilder()
           .setTitle("🎯 JEU GRATUIT — Epic Games")
           .setDescription(`**${game.title}** est actuellement **GRATUIT** sur l'Epic Games Store !`)
@@ -54,9 +79,19 @@ async function checkEpicFreeGames(client: Client): Promise<void> {
           });
         }
 
-        await user.send({ embeds: [embed] }).catch(() => {
-          logger.warn(`[WishlistCron] Impossible de DM ${match.userId}`);
-        });
+        // 1. Envoi dans le salon de la plateforme (Steam/Epic)
+        await sendToPlatformChannel(client, "epic", embed);
+
+        // 2. Envoi en DM si l'utilisateur a activé les notifs
+        const pref = await prisma.userPreference.findUnique({ where: { userId: match.userId } });
+        if (pref?.wishlistDm !== false) {
+          const user = await client.users.fetch(match.userId).catch(() => null);
+          if (user) {
+            await user.send({ embeds: [embed] }).catch(() => {
+              logger.warn(`[WishlistCron] Impossible de DM ${match.userId}`);
+            });
+          }
+        }
 
         await prisma.wishlist.update({
           where: { id: match.id },
@@ -129,12 +164,6 @@ async function checkFortniteShop(client: Client): Promise<void> {
         wish.lastNotifiedAt && Date.now() - wish.lastNotifiedAt!.getTime() < 24 * 60 * 60 * 1000;
       if (alreadyNotified) continue;
 
-      const pref = await prisma.userPreference.findUnique({ where: { userId: wish.userId } });
-      if (pref?.wishlistDm === false) continue;
-
-      const user = await client.users.fetch(wish.userId).catch(() => null);
-      if (!user) continue;
-
       const priceStr = matched.price > 0 ? `${matched.price} V-Bucks` : "Gratuit";
       const embed = new EmbedBuilder()
         .setTitle("🎮 Item disponible — Boutique Fortnite")
@@ -147,9 +176,19 @@ async function checkFortniteShop(client: Client): Promise<void> {
 
       if (matched.icon) embed.setThumbnail(matched.icon);
 
-      await user.send({ embeds: [embed] }).catch(() => {
-        logger.warn(`[WishlistCron] Impossible de DM ${wish.userId}`);
-      });
+      // 1. Envoi dans le salon Fortnite
+      await sendToPlatformChannel(client, "fortnite", embed);
+
+      // 2. Envoi en DM si activé
+      const pref = await prisma.userPreference.findUnique({ where: { userId: wish.userId } });
+      if (pref?.wishlistDm !== false) {
+        const user = await client.users.fetch(wish.userId).catch(() => null);
+        if (user) {
+          await user.send({ embeds: [embed] }).catch(() => {
+            logger.warn(`[WishlistCron] Impossible de DM ${wish.userId}`);
+          });
+        }
+      }
 
       await prisma.wishlist.update({
         where: { id: wish.id },
