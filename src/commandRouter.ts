@@ -455,7 +455,6 @@ export function buildCommandRouter(): void {
       "gaming-news",
       "screenshot",
       "lastfm",
-      "gif",
       "api-status",
     ],
     handleApiCmd,
