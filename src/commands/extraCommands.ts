@@ -69,20 +69,6 @@ export const commands = [
     .addStringOption((o) => o.setName("jeu").setDescription("Nom du jeu").setRequired(true))
     .toJSON(),
   new SlashCommandBuilder()
-    .setName("playtime")
-    .setDescription("Affiche ton temps de jeu + leaderboard du serveur")
-    .addUserOption((o) =>
-      o.setName("membre").setDescription("Voir le temps d'un autre membre").setRequired(false),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("game-recommend")
-    .setDescription("L'IA te recommande un jeu selon tes goûts")
-    .addStringOption((o) =>
-      o.setName("genres").setDescription("Tes genres préférés (ex: RPG, FPS)").setRequired(false),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
     .setName("release-calendar")
     .setDescription("Calendrier des sorties de jeux à venir")
     .addStringOption((o) =>
@@ -92,15 +78,6 @@ export const commands = [
         .setRequired(false)
         .addChoices({ name: "semaine", value: "week" }, { name: "mois", value: "month" }),
     )
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("metacritic")
-    .setDescription("Score Metacritic d'un jeu")
-    .addStringOption((o) => o.setName("jeu").setDescription("Nom du jeu").setRequired(true))
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("game-trivia")
-    .setDescription("Question trivia gaming aléatoire")
     .toJSON(),
 
   // Sécurité
@@ -144,40 +121,6 @@ export const commands = [
 
   // Communauté
   new SlashCommandBuilder()
-    .setName("rank")
-    .setDescription("Affiche ta carte de niveau XP")
-    .addUserOption((o) =>
-      o.setName("membre").setDescription("Voir le rang d'un autre membre").setRequired(false),
-    )
-    .toJSON(),
-  new SlashCommandBuilder().setName("leaderboard").setDescription("Top 10 XP du serveur").toJSON(),
-  new SlashCommandBuilder()
-    .setName("level-config")
-    .setDescription("Configure le système XP (Admin)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addStringOption((o) =>
-      o
-        .setName("parametre")
-        .setDescription("Le paramètre")
-        .setRequired(true)
-        .addChoices(
-          { name: "xp_per_message", value: "xp_per_message" },
-          { name: "cooldown", value: "cooldown" },
-          { name: "announce", value: "announce" },
-        ),
-    )
-    .addStringOption((o) => o.setName("valeur").setDescription("La valeur").setRequired(true))
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("birthday-set")
-    .setDescription("Définit ton anniversaire (pour les notifs auto)")
-    .addStringOption((o) => o.setName("date").setDescription("Format: JJ/MM").setRequired(true))
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("birthday-list")
-    .setDescription("Liste les anniversaires du mois")
-    .toJSON(),
-  new SlashCommandBuilder()
     .setName("server-info")
     .setDescription("Infos détaillées du serveur")
     .toJSON(),
@@ -196,69 +139,11 @@ export const commands = [
     )
     .addStringOption((o) => o.setName("label").setDescription("Label du timer").setRequired(false))
     .toJSON(),
-  new SlashCommandBuilder()
-    .setName("avatar")
-    .setDescription("Affiche ton avatar ou celui d'un user en grand")
-    .addUserOption((o) => o.setName("membre").setDescription("L'utilisateur").setRequired(false))
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("role-info")
-    .setDescription("Infos sur un rôle")
-    .addRoleOption((o) => o.setName("role").setDescription("Le rôle").setRequired(true))
-    .toJSON(),
-  new SlashCommandBuilder().setName("channel-info").setDescription("Infos sur un salon").toJSON(),
-  new SlashCommandBuilder()
-    .setName("color")
-    .setDescription("Génère un embed avec une couleur hex")
-    .addStringOption((o) =>
-      o.setName("hex").setDescription("Couleur hex (ex: #ff5733)").setRequired(true),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("dice")
-    .setDescription("Lance un dé (ex: 1d6, 3d20)")
-    .addStringOption((o) =>
-      o.setName("format").setDescription("Format: NdM (ex: 2d6)").setRequired(true),
-    )
-    .toJSON(),
-  new SlashCommandBuilder().setName("coinflip").setDescription("Pile ou face").toJSON(),
-  new SlashCommandBuilder()
-    .setName("8ball")
-    .setDescription("Boule magique 8 — répond à une question")
-    .addStringOption((o) => o.setName("question").setDescription("Ta question").setRequired(true))
-    .toJSON(),
 
   // Fun
   new SlashCommandBuilder()
-    .setName("rps")
-    .setDescription("Pierre feuille ciseaux contre le bot")
-    .addStringOption((o) =>
-      o
-        .setName("choix")
-        .setDescription("pierre, feuille ou ciseaux")
-        .setRequired(true)
-        .addChoices(
-          { name: "pierre", value: "pierre" },
-          { name: "feuille", value: "feuille" },
-          { name: "ciseaux", value: "ciseaux" },
-        ),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
     .setName("hangman")
     .setDescription("Pendu gaming — devine un mot lié aux jeux")
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("wordle")
-    .setDescription("Wordle gaming — devine un mot en 6 essais")
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("guess-game")
-    .setDescription("Le bot choisit un nombre 1-100, devine (chaud/froid)")
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("emoji-quiz")
-    .setDescription("Quiz — devine le jeu à partir d'emojis")
     .toJSON(),
 
   // IA

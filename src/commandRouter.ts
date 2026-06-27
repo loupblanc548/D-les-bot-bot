@@ -45,10 +45,7 @@ import {
   handleCommand as handleTrackGame,
 } from "./commands/trackGame.js";
 import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
-import {
-  commands as wishlistCommands,
-  handleCommand as handleWishlist,
-} from "./commands/fun/wishlist.js";
+import { commands as wishlistCommands } from "./commands/fun/wishlist.js";
 import { commands as dicteeCommands, handleCommand as handleDictee } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
@@ -63,10 +60,7 @@ import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
-import {
-  commands as userinfoCommands,
-  handleCommand as handleUserinfo,
-} from "./commands/userinfo.js";
+import { commands as userinfoCommands } from "./commands/userinfo.js";
 import {
   commands as advancedCommands,
   handleCommand as handleAdvanced,
@@ -75,10 +69,7 @@ import {
   commands as communityExtraCommands,
   handleCommand as handleCommunityExtra,
 } from "./commands/communityExtra.js";
-import {
-  commands as dashboardCommands,
-  handleCommand as handleDashboard,
-} from "./commands/dashboard.js";
+import { commands as dashboardCommands } from "./commands/dashboard.js";
 import { commands as aiCmdCommands, handleCommand as handleAiCmd } from "./commands/aiCommands.js";
 import {
   commands as modExtraCommands,
@@ -93,6 +84,38 @@ export type CmdHandler = (interaction: Interaction, client: Client) => Promise<v
 export const commandRouter: Record<string, CmdHandler> = {};
 
 const commandMiddlewares = [createLoggingMiddleware(), createRateLimitMiddleware()];
+
+const REMOVED_COMMANDS = new Set([
+  "lockdown",
+  "dashboard",
+  "userinfo",
+  "wishlist",
+  "reverse",
+  "poll",
+  "reminder",
+  "lfg",
+  "lfg-list",
+  "playtime",
+  "game-recommend",
+  "metacritic",
+  "game-trivia",
+  "rank",
+  "leaderboard",
+  "level-config",
+  "birthday-set",
+  "birthday-list",
+  "avatar",
+  "role-info",
+  "channel-info",
+  "color",
+  "dice",
+  "coinflip",
+  "8ball",
+  "rps",
+  "wordle",
+  "guess-game",
+  "emoji-quiz",
+]);
 
 export const allCommands = [
   ...mainCommands,
@@ -123,7 +146,10 @@ export const allCommands = [
   ...aiCmdCommands,
   ...modExtraCommands,
   ...extraCmdCommands,
-];
+].filter((cmd) => {
+  const name = (cmd as { name?: string }).name;
+  return name ? !REMOVED_COMMANDS.has(name) : true;
+});
 
 function registerGroup(
   groupNames: string[],
@@ -179,7 +205,6 @@ export function buildCommandRouter(): void {
   registerGroup(["casier", "casier-clear"], handleCasier);
   registerGroup(
     [
-      "lockdown",
       "nuke",
       "check-alt",
       "blacklist",
@@ -195,7 +220,7 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["free-games", "game-status", "patch_notes", "deal"], handleGaming);
   registerGroup(["ticket-setup"], handleCommunity);
-  registerGroup(["embed-builder", "say", "poll"], handleUtility);
+  registerGroup(["embed-builder", "say"], handleUtility);
   registerGroup(["vocal"], handleVocal);
   registerGroup(["twitch"], handleTwitch);
   registerGroup(["steam"], handleSteam);
@@ -206,54 +231,25 @@ export function buildCommandRouter(): void {
   registerGroup(["alertcenter", "riskscore", "riskyusers", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
-  registerGroup(["userinfo"], handleUserinfo);
   registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
 
-  // Commandes fun dispatchées via le handler main
-  for (const name of ["wishlist"]) {
-    commandRouter[name] = async (interaction, _client) => {
-      if (!interaction.isChatInputCommand()) return;
-      const cmd = interaction as ChatInputCommandInteraction;
-      if (name === "wishlist") await handleWishlist(cmd);
-    };
-  }
+  // Commandes fun dispatchées via le handler main — wishlist supprimé
 
-  registerGroup(["reminder", "lfg", "lfg-list", "giveaway", "self-role"], handleCommunityExtra);
-  registerGroup(["dashboard"], handleDashboard);
+  registerGroup(["giveaway", "self-role"], handleCommunityExtra);
   registerGroup(["ai-profile", "ai-config", "ai-channel-summary"], handleAiCmd);
   registerGroup(["report"], handleModExtra);
   registerGroup(
     [
       "xbox",
       "price-compare",
-      "playtime",
-      "game-recommend",
       "release-calendar",
-      "metacritic",
-      "game-trivia",
       "alt-link",
       "ban-log",
       "behavior-timeline",
       "alert-rules",
-      "rank",
-      "leaderboard",
-      "level-config",
-      "birthday-set",
-      "birthday-list",
       "server-info",
       "timer",
-      "avatar",
-      "role-info",
-      "channel-info",
-      "color",
-      "dice",
-      "coinflip",
-      "8ball",
-      "rps",
       "hangman",
-      "wordle",
-      "guess-game",
-      "emoji-quiz",
       "ai-mood",
       "ai-suggest",
       "ai-translate-custom",
