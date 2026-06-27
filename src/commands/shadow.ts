@@ -19,6 +19,7 @@ import {
 } from "discord.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import { PermissionLevel, getPermissionLevel } from "../services/permissions.js";
 import {
   getMemberIntel,
   getMemberNetwork,
@@ -247,16 +248,38 @@ export const commands = [
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
-  // Owner only
-  if (interaction.user.id !== config.ownerId) {
-    await interaction.reply({
-      content: "❌ Commande réservée au propriétaire du bot.",
-      flags: [MessageFlags.Ephemeral],
-    });
-    return;
-  }
-
   const sub = interaction.options.getSubcommand();
+
+  // Sous-commandes réservées à l'owner uniquement
+  const ownerOnlySubs = ["stealth", "watch", "report"];
+  if (ownerOnlySubs.includes(sub)) {
+    if (interaction.user.id !== config.ownerId) {
+      await interaction.reply({
+        content: "❌ Cette sous-commande est réservée au propriétaire du bot.",
+        flags: [MessageFlags.Ephemeral],
+      });
+      return;
+    }
+  } else {
+    // Toutes les autres sous-commandes : modérateur minimum
+    const member = interaction.member;
+    if (member && "roles" in member) {
+      const permLevel = await getPermissionLevel(member as any);
+      if (permLevel < PermissionLevel.MODERATOR && interaction.user.id !== config.ownerId) {
+        await interaction.reply({
+          content: "❌ Cette commande nécessite au minimum le grade **Modérateur**.",
+          flags: [MessageFlags.Ephemeral],
+        });
+        return;
+      }
+    } else if (interaction.user.id !== config.ownerId) {
+      await interaction.reply({
+        content: "❌ Cette commande nécessite au minimum le grade **Modérateur**.",
+        flags: [MessageFlags.Ephemeral],
+      });
+      return;
+    }
+  }
 
   switch (sub) {
     case "intel":
