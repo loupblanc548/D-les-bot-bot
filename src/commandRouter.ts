@@ -108,6 +108,14 @@ import {
   radioGamingCommands as radioCommands,
   handleRadioGamingCommand as handleRadioGaming,
 } from "./cron/radioGaming.js";
+import {
+  commands as playCommands,
+  handlePlayCommand as handlePlay,
+  handleStopCommand as handleStop,
+  handlePauseCommand as handlePause,
+  handleResumeCommand as handleResume,
+  handleQueueStatusCommand as handleQueueStatus,
+} from "./commands/play.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -267,6 +275,7 @@ export const allCommands = [
   ...modExtraCommands,
   ...extraCmdCommands,
   ...radioCommands,
+  ...playCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -384,6 +393,11 @@ export function buildCommandRouter(): void {
     handleExtraCmd,
   );
   registerGroup(["radio-gaming"], handleRadioGaming);
+  registerGroup(["play"], handlePlay);
+  registerGroup(["stop"], handleStop);
+  registerGroup(["pause"], handlePause);
+  registerGroup(["resume"], handleResume);
+  registerGroup(["queue-status"], handleQueueStatus);
 }
 
 export function applyCommandMiddleware(): void {
