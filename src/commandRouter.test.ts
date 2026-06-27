@@ -51,6 +51,7 @@ vi.mock("./commands/profile", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/reactionRoles", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/welcomeConfig", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/goodbyeConfig", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/recherche", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/ai-extra", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/security/core", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/clean-duplicates", () => ({ commands: [], handleCommand: vi.fn() }));

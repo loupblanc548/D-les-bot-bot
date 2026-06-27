@@ -176,7 +176,8 @@ export const CATEGORIES: Category[] = [
       "`/say [salon] [message] - Fait parler le bot`\n" +
       "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
       "`/mp3 [nom] - Joue un son en vocal`\n" +
-      "`/tts [texte] [langue] - Lit du texte à voix haute en vocal`",
+      "`/tts [texte] [langue] - Lit du texte à voix haute en vocal`\n" +
+      "`/recherche [sujet] - Recherche sur Internet`",
   },
   {
     id: "casier",
