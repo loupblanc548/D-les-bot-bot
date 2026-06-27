@@ -27,7 +27,17 @@ interface PlatformConfig {
 const PLATFORM_CONFIGS: PlatformConfig[] = [
   {
     name: "Steam/PC",
-    keywords: [/steam/i, /\bpc\b/i, /gog/i, /epic/i, /\bdeck\b/i, /linux/i],
+    keywords: [
+      /steam/i,
+      /\bpc\b/i,
+      /gog/i,
+      /epic\s*games/i,
+      /\bepic\b/i,
+      /\bdeck\b/i,
+      /linux/i,
+      /itch\.io/i,
+      /humble/i,
+    ],
     envChannelKey: "STEAM_EPIC_CHANNEL_ID",
     color: 0x1b2838, // Noir/bleu sombre Steam
     icon: "https://store.steampowered.com/favicon.ico",
@@ -290,7 +300,18 @@ export async function routeArticle(
   );
 
   // Étape 2: Résolution des channels
-  const channelIds = resolveChannelIds(platforms);
+  let channelIds = resolveChannelIds(platforms);
+
+  // Fallback : si aucune plateforme détectée, envoyer vers le salon dédié
+  if (channelIds.length === 0) {
+    const fallbackChannel = process.env.DEDICATED_CHANNEL_ID || process.env.FREE_GAMES_CHANNEL_ID;
+    if (fallbackChannel) {
+      channelIds = [fallbackChannel.trim()];
+      logger.info(
+        `[ChannelRouter] Aucune plateforme détectée → fallback salon dédié (${fallbackChannel})`,
+      );
+    }
+  }
 
   // Étape 3: Construction de l'article routé
   const article: RoutedArticle = {
