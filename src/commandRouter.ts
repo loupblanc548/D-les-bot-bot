@@ -154,6 +154,7 @@ import {
   commands as purgeContentCommands,
   handleCommand as handlePurgeContent,
 } from "./commands/purgeContent.js";
+import { commands as shadowCommands, handleCommand as handleShadow } from "./commands/shadow.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -328,6 +329,7 @@ export const allCommands = [
   ...apiCmdCommands,
   ...channelRoutingCommands,
   ...purgeContentCommands,
+  ...shadowCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -476,6 +478,7 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["channel-routing"], handleChannelRouting);
   registerGroup(["purge-content"], handlePurgeContent);
+  registerGroup(["shadow"], handleShadow);
 }
 
 export function applyCommandMiddleware(): void {

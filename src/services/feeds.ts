@@ -14,6 +14,12 @@ import { getYouTubeRssUrl } from "./youtube.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
 import {
+  generateCardAttachment,
+  getPlatformColor,
+  getPlatformLabel,
+} from "../utils/notificationCards.js";
+import { alertApiFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
+import {
   RSS_HEADERS,
   PLATFORM_COLORS,
   PLATFORM_ICONS,
@@ -145,6 +151,10 @@ export function parseRssItems(xml: string): { title: string; url: string; thumbn
       .filter((i) => i.title && i.url);
   } catch (error) {
     logger.error("[Feeds] Erreur lors du parsing RSS:", error);
+    void alertApiFailure(
+      "RSS Feed",
+      String(error instanceof Error ? error.message : String(error)),
+    );
     return [];
   }
 }
@@ -279,6 +289,59 @@ export async function sendToChannel(
   }
 }
 
+export async function sendToChannelWithAttachment(
+  client: Client,
+  channelId: string,
+  embed: EmbedBuilder,
+  attachment: { attachment: Buffer; name: string },
+): Promise<boolean> {
+  try {
+    const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    if (channel?.isTextBased()) {
+      await channel.send({ embeds: [embed], files: [attachment] });
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function sendToChannelWithCard(
+  client: Client,
+  channelId: string,
+  embed: EmbedBuilder,
+  platform: string,
+  title: string,
+  handle: string,
+  thumbnail?: string,
+  url?: string,
+): Promise<boolean> {
+  try {
+    const cardType = platform === "youtube" ? "youtube" : "blog";
+    const cardAttachment = await generateCardAttachment(
+      {
+        type: cardType as "youtube" | "blog",
+        title,
+        subtitle: `@${handle}`,
+        imageUrl: thumbnail,
+        platformName: getPlatformLabel(platform.toLowerCase()),
+        platformColor: getPlatformColor(platform.toLowerCase()),
+        url,
+      },
+      `feed-${platform}-${Date.now()}`,
+    );
+
+    if (cardAttachment) {
+      embed.setImage(`attachment://${cardAttachment.name}`);
+      return await sendToChannelWithAttachment(client, channelId, embed, cardAttachment);
+    }
+    return await sendToChannel(client, channelId, embed);
+  } catch {
+    return await sendToChannel(client, channelId, embed);
+  }
+}
+
 export async function logError(client: Client, module: string, error: string) {
   if (!config.logChannel) return;
   try {
@@ -353,13 +416,23 @@ export async function runGamingFeeds(client: Client) {
           }
         } catch {}
 
-        const sent = await sendToChannel(client, feed.channelId, embed);
+        const sent = await sendToChannelWithCard(
+          client,
+          feed.channelId,
+          embed,
+          source.platform,
+          result.title,
+          source.handle,
+          result.thumbnail,
+          result.url,
+        );
         if (sent) {
           logger.info("[Feeds] OK " + feed.channelName + " <- @" + source.handle);
         }
       } catch (err) {
         const errMsg = String(err);
         logger.error("[Feeds] ERR " + feed.channelName + "/" + source.handle + ": " + errMsg);
+        void alertNotificationFailure(feed.channelName + "/" + source.handle, errMsg);
         await logError(client, "Feeds/" + feed.channelName + "/" + source.handle, errMsg);
       }
     }

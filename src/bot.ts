@@ -22,6 +22,7 @@ import { attachInteractionHandlers } from "./interactionHandler.js";
 import { attachStartupLogic } from "./startup.js";
 import { attachShutdownHandlers, registerDestroyClient } from "./shutdown.js";
 import { attachProcessHandlers } from "./processHandlers.js";
+import { initProactiveAlerts } from "./services/proactiveAlerts.js";
 import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
@@ -243,6 +244,9 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
+
+  // Initialiser le système d'alertes proactive (DM owner)
+  initProactiveAlerts(client);
 }
 
 // Point d'entrée : la fonction main est appelée depuis index.ts

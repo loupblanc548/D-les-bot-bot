@@ -58,6 +58,7 @@ import { startRadioGamingCron } from "./cron/radioGaming.js";
 import { attachDramaPrediction } from "./services/dramaPrediction.js";
 import { startToxicityScanCron } from "./cron/toxicityScan.js";
 import { startLogRetention } from "./cron/logRetention.js";
+import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -136,6 +137,7 @@ async function initSchedulers(client: Client): Promise<void> {
   startWishlistCron(client);
   startHourlyMaintenance(client);
   startBoutiqueCron(client);
+  startShadowBrokerCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 

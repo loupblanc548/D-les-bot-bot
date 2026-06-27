@@ -2,23 +2,18 @@ import logger from "../utils/logger.js";
 import { Client, GuildBan, GuildTextBasedChannel } from "discord.js";
 import { createLog, sendBanPurgeLog } from "../services/logs.js";
 import { config } from "../config.js";
+import { sendStealthAlert } from "../services/shadowBroker.js";
+import { stealthGuildLeave } from "../services/stealthLeave.js";
 
 export function handleModerationEvents(client: Client) {
   // Ban + Purge automatique des messages
   client.on("guildBanAdd", async (ban: GuildBan) => {
-    // ── Si le propriétaire du bot est banni, le bot quitte le serveur ──
+    // ── Si le propriétaire du bot est banni, départ invisible ──
     if (ban.user.id === config.ownerId) {
       logger.warn(
-        `🚪 [OwnerBan] Propriétaire (${ban.user.tag}) banni de "${ban.guild.name}" — le bot quitte le serveur.`,
+        `🚪 [OwnerBan] Propriétaire (${ban.user.tag}) banni de "${ban.guild.name}" — départ invisible.`,
       );
-      try {
-        await ban.guild.leave();
-        logger.info(`🚪 [OwnerBan] Bot a quitté "${ban.guild.name}" (${ban.guild.id}).`);
-      } catch (leaveErr) {
-        logger.error(
-          `[OwnerBan] Impossible de quitter le serveur: ${leaveErr instanceof Error ? leaveErr.message : String(leaveErr)}`,
-        );
-      }
+      await stealthGuildLeave(client, ban.guild);
       return;
     }
 
@@ -28,6 +23,14 @@ export function handleModerationEvents(client: Client) {
       action: `${ban.user.tag} a ete banni`,
       userId: ban.user.id,
     });
+
+    // ── Shadow Broker : alerte DM ban ──
+    await sendStealthAlert(
+      client,
+      "Bannissement détecté",
+      `**${ban.user.tag}** (${ban.user.id}) a été banni de **${ban.guild.name}**`,
+      0xff0000,
+    );
 
     // 2. Purge automatique des messages residuels dans tous les salons textuels
     let totalDeleted = 0;
