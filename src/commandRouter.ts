@@ -46,7 +46,7 @@ import {
 } from "./commands/trackGame.js";
 import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
 import { commands as wishlistCommands } from "./commands/fun/wishlist.js";
-import { commands as dicteeCommands, handleCommand as handleDictee } from "./commands/dictee.js";
+import { commands as dicteeCommands } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
   handleCommand as handleAlertcenter,
@@ -70,7 +70,7 @@ import {
   handleCommand as handleCommunityExtra,
 } from "./commands/communityExtra.js";
 import { commands as dashboardCommands } from "./commands/dashboard.js";
-import { commands as aiCmdCommands, handleCommand as handleAiCmd } from "./commands/aiCommands.js";
+import { commands as aiCmdCommands } from "./commands/aiCommands.js";
 import {
   commands as modExtraCommands,
   handleCommand as handleModExtra,
@@ -115,6 +115,18 @@ const REMOVED_COMMANDS = new Set([
   "wordle",
   "guess-game",
   "emoji-quiz",
+  "ai-profile",
+  "ai-config",
+  "ai-channel-summary",
+  "ai-suggest",
+  "ai-mood",
+  "riskscore",
+  "riskyusers",
+  "lock",
+  "slowmode",
+  "dictee",
+  "timer",
+  "hangman",
 ]);
 
 export const allCommands = [
@@ -186,20 +198,7 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["chat", "mention", "aichat", "smartpoll"], handleAI);
   registerGroup(
-    [
-      "ban",
-      "kick",
-      "mute",
-      "unmute",
-      "warn",
-      "clear",
-      "timeout",
-      "lock",
-      "unlock",
-      "purge",
-      "slowmode",
-      "history",
-    ],
+    ["ban", "kick", "mute", "unmute", "warn", "clear", "timeout", "unlock", "purge", "history"],
     handleModeration,
   );
   registerGroup(["casier", "casier-clear"], handleCasier);
@@ -227,8 +226,7 @@ export function buildCommandRouter(): void {
   registerGroup(["track-game", "untrack-game", "list-tracked"], handleTrackGame);
   registerGroup(["psn"], handlePsn);
   registerGroup(["mp3"], handleMp3);
-  registerGroup(["dictee"], handleDictee);
-  registerGroup(["alertcenter", "riskscore", "riskyusers", "alertconfig"], handleAlertcenter);
+  registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
   registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
@@ -236,7 +234,6 @@ export function buildCommandRouter(): void {
   // Commandes fun dispatchées via le handler main — wishlist supprimé
 
   registerGroup(["giveaway", "self-role"], handleCommunityExtra);
-  registerGroup(["ai-profile", "ai-config", "ai-channel-summary"], handleAiCmd);
   registerGroup(["report"], handleModExtra);
   registerGroup(
     [
@@ -248,10 +245,6 @@ export function buildCommandRouter(): void {
       "behavior-timeline",
       "alert-rules",
       "server-info",
-      "timer",
-      "hangman",
-      "ai-mood",
-      "ai-suggest",
       "ai-translate-custom",
       "reddit-track",
       "rss-custom",

@@ -74,11 +74,6 @@ export const CATEGORIES: Category[] = [
       "`/mention [message] - Réponse personnalisée`\n" +
       "`/aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
       "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
-      "`/ai-profile [membre] - Profil comportemental IA (admin)`\n" +
-      "`/ai-config [parametre] [valeur] - Configure l'IA (admin)`\n" +
-      "`/ai-channel-summary [nombre] - Résume les messages d'un salon`\n" +
-      "`/ai-mood - Analyse l'humeur du salon`\n" +
-      "`/ai-suggest [besoin] - Suggère une commande`\n" +
       "`/ai-translate-custom [texte] [langue] - Traduit avec un ton`",
   },
   {
@@ -88,8 +83,6 @@ export const CATEGORIES: Category[] = [
     description: "Centre d'alertes et risques",
     commands:
       "`/alertcenter - Vue d'ensemble des alertes`\n" +
-      "`/riskscore [@user] - Score de risque d'un membre`\n" +
-      "`/riskyusers [niveau] - Liste les membres à risque`\n" +
       "`/alertconfig - Configure les alertes`\n" +
       "`/alertcenter reset [@user] - Réinitialise le profil de risque`\n" +
       "`/security-audit - Audit sécurité des sanctions`\n" +
@@ -108,10 +101,8 @@ export const CATEGORIES: Category[] = [
       "`/warn [@user] [raison] - Avertir`\n" +
       "`/clear [nombre] - Supprimer messages`\n" +
       "`/timeout [@user] [durée] - Timeout court terme`\n" +
-      "`/lock - Verrouiller le salon`\n" +
       "`/unlock - Déverrouiller le salon`\n" +
       "`/purge [@user] [nombre] - Supprime messages d'un utilisateur`\n" +
-      "`/slowmode [durée] - Active le slowmode`\n" +
       "`/history [@user] - Historique des messages`\n" +
       "`/report [@user] [raison] - Signale un membre au staff`",
   },
@@ -175,9 +166,7 @@ export const CATEGORIES: Category[] = [
       "`/embed-builder - Crée un embed personnalisé`\n" +
       "`/say [salon] [message] - Fait parler le bot`\n" +
       "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
-      "`/mp3 [nom] - Joue un son en vocal`\n" +
-      "`/dictee - Lance une dictée en vocal`\n" +
-      "`/timer [minutes] [label] - Minuteur avec notif`",
+      "`/mp3 [nom] - Joue un son en vocal`",
   },
   {
     id: "casier",
@@ -187,13 +176,6 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/casier [@user] - Affiche le casier d'un membre`\n" +
       "`/casier-clear [id] - Efface une sanction ou un casier (admin)`",
-  },
-  {
-    id: "fun",
-    name: "Fun",
-    emoji: "🎭",
-    description: "Commandes fun et divertissement",
-    commands: "`/hangman - Pendu gaming`",
   },
 ];
 
