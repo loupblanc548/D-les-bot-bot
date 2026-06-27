@@ -136,6 +136,11 @@ import {
   commands as utilityGamingCommands,
   handleCommand as handleUtilityGaming,
 } from "./commands/utilityCommands.js";
+import {
+  commands as memoryProfileCommands,
+  handleCommand as handleMemoryProfile,
+} from "./commands/memoryProfile.js";
+import { commands as aiFunCommands, handleCommand as handleAiFun } from "./commands/aiFun.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -301,6 +306,8 @@ export const allCommands = [
   ...audioPanelCommands,
   ...queueCtrlCommands,
   ...utilityGamingCommands,
+  ...memoryProfileCommands,
+  ...aiFunCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -431,6 +438,8 @@ export function buildCommandRouter(): void {
     ["qr-code", "wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
     handleUtilityGaming,
   );
+  registerGroup(["memory-profile"], handleMemoryProfile);
+  registerGroup(["ai-fun"], handleAiFun);
 }
 
 export function applyCommandMiddleware(): void {
