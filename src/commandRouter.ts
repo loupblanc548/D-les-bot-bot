@@ -128,6 +128,10 @@ import {
   commands as audioPanelCommands,
   handleCommand as handleAudioPanel,
 } from "./commands/audioPanel.js";
+import {
+  commands as queueCtrlCommands,
+  handleCommand as handleQueueCtrl,
+} from "./commands/queueControls.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -291,6 +295,7 @@ export const allCommands = [
   ...modProCommands,
   ...translateAutoCommands,
   ...audioPanelCommands,
+  ...queueCtrlCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -416,6 +421,7 @@ export function buildCommandRouter(): void {
   registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
   registerGroup(["translate-auto"], handleTranslateAuto);
   registerGroup(["volume", "seek", "audio-effects", "radio-stop"], handleAudioPanel);
+  registerGroup(["loop", "shuffle", "skip", "previous"], handleQueueCtrl);
 }
 
 export function applyCommandMiddleware(): void {

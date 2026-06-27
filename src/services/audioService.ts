@@ -102,11 +102,16 @@ interface GuildAudioState {
   disconnectTimer: NodeJS.Timeout | null;
   volume: number; // 0-100
   effect: AudioEffect;
-  startTime: number | null; // timestamp de début de lecture
-  pausedAt: number | null; // timestamp de pause
+  startTime: number | null;
+  pausedAt: number | null;
+  queue: AudioSource[];
+  queueIndex: number;
+  loopMode: LoopMode;
+  history: AudioSource[];
 }
 
 export type AudioEffect = "none" | "bassboost" | "nightcore" | "vaporwave" | "8d";
+export type LoopMode = "off" | "track" | "queue";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -231,6 +236,10 @@ export async function joinAndPlay(
     effect: "none",
     startTime: null,
     pausedAt: null,
+    queue: [],
+    queueIndex: -1,
+    loopMode: "off",
+    history: [],
   };
 
   guildAudioState.set(guildId, state);
@@ -569,4 +578,149 @@ export function stopRadio(guildId: string): boolean {
   stopPlayback(guildId);
   logger.info(`[AudioService] Radio stop guild ${guildId}`);
   return true;
+}
+
+// ─── Queue / Playlist Management ─────────────────────────────────────────────
+
+/**
+ * Ajoute une source à la queue.
+ */
+export function addToQueue(guildId: string, source: AudioSource): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state) {
+    // Créer une queue même si rien ne joue actuellement
+    return false;
+  }
+  state.queue.push(source);
+  logger.info(
+    `[AudioService] Queue+ guild ${guildId}: "${source.displayName}" (total: ${state.queue.length})`,
+  );
+  return true;
+}
+
+/**
+ * Retourne la queue actuelle.
+ */
+export function getQueue(guildId: string): AudioSource[] {
+  const state = guildAudioState.get(guildId);
+  return state ? state.queue : [];
+}
+
+/**
+ * Vide la queue.
+ */
+export function clearQueue(guildId: string): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state) return false;
+  state.queue = [];
+  state.queueIndex = -1;
+  logger.info(`[AudioService] Queue cleared guild ${guildId}`);
+  return true;
+}
+
+/**
+ * Mélange la queue (shuffle).
+ */
+export function shuffleQueue(guildId: string): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state || state.queue.length === 0) return false;
+
+  for (let i = state.queue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [state.queue[i], state.queue[j]] = [state.queue[j], state.queue[i]];
+  }
+
+  logger.info(`[AudioService] Queue shuffled guild ${guildId} (${state.queue.length} items)`);
+  return true;
+}
+
+/**
+ * Passe au morceau suivant (skip).
+ * Retourne la source suivante à jouer, ou null si la queue est vide.
+ */
+export function skipTrack(guildId: string): AudioSource | null {
+  const state = guildAudioState.get(guildId);
+  if (!state) return null;
+
+  // Sauvegarder dans l'historique
+  if (state.currentSource) {
+    state.history.push(state.currentSource);
+    if (state.history.length > 50) state.history.shift();
+  }
+
+  // Loop track : rejouer le même
+  if (state.loopMode === "track" && state.currentSource) {
+    return state.currentSource;
+  }
+
+  state.queueIndex++;
+
+  // Loop queue : reboucler si on dépasse
+  if (state.loopMode === "queue" && state.queueIndex >= state.queue.length) {
+    state.queueIndex = 0;
+  }
+
+  if (state.queueIndex < state.queue.length) {
+    const next = state.queue[state.queueIndex];
+    logger.info(`[AudioService] Skip → "${next.displayName}" guild ${guildId}`);
+    return next;
+  }
+
+  // Queue vide
+  state.queueIndex = -1;
+  return null;
+}
+
+/**
+ * Revient au morceau précédent (previous).
+ */
+export function previousTrack(guildId: string): AudioSource | null {
+  const state = guildAudioState.get(guildId);
+  if (!state) return null;
+
+  // D'abord essayer l'historique
+  if (state.history.length > 0) {
+    const prev = state.history.pop()!;
+    state.queueIndex = Math.max(0, state.queueIndex - 1);
+    logger.info(`[AudioService] Previous → "${prev.displayName}" guild ${guildId}`);
+    return prev;
+  }
+
+  // Sinon reculer dans la queue
+  if (state.queueIndex > 0) {
+    state.queueIndex--;
+    const prev = state.queue[state.queueIndex];
+    logger.info(`[AudioService] Previous (queue) → "${prev.displayName}" guild ${guildId}`);
+    return prev;
+  }
+
+  return null;
+}
+
+/**
+ * Définit le mode de boucle.
+ */
+export function setLoopMode(guildId: string, mode: LoopMode): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state) return false;
+  state.loopMode = mode;
+  logger.info(`[AudioService] Loop mode guild ${guildId}: ${mode}`);
+  return true;
+}
+
+/**
+ * Retourne le mode de boucle actuel.
+ */
+export function getLoopMode(guildId: string): LoopMode | null {
+  const state = guildAudioState.get(guildId);
+  return state ? state.loopMode : null;
+}
+
+/**
+ * Retourne l'index courant et la taille de la queue.
+ */
+export function getQueuePosition(guildId: string): { index: number; total: number } | null {
+  const state = guildAudioState.get(guildId);
+  if (!state) return null;
+  return { index: state.queueIndex, total: state.queue.length };
 }
