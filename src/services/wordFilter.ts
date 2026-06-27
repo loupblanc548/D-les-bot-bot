@@ -1,13 +1,19 @@
 /**
  * wordFilter.ts — Filtre de mots interdits automatique et configurable par serveur
  *
+ * Système gradué :
+ *   1ère infraction → delete + warn (sans sanction)
+ *   2ème infraction dans les 30 minutes → sanction configurée (timeout/kick/ban)
+ *
  * Actions possibles : delete, warn, timeout, kick, ban
- * Stockage : Prisma (WordFilterConfig + WordFilterEntry)
+ * Stockage : Prisma (WordFilterConfig + WordFilterEntry + WordFilterInfraction)
  */
 
 import { Message, TextChannel, PermissionFlagsBits, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
+
+const INFRACTION_WINDOW_MINUTES = 30;
 
 // Cache en mémoire : guildId → { words: Set, config: WordFilterConfig }
 interface FilterCache {
@@ -87,6 +93,7 @@ export async function checkMessage(message: Message): Promise<string | null> {
 
 /**
  * Applique l'action configurée sur un message contenant un mot interdit.
+ * Système gradué : 1ère fois = warn, 2ème fois dans les 30min = sanction.
  */
 export async function enforceFilter(message: Message, matchedWord: string): Promise<void> {
   if (!message.guild) return;
@@ -97,87 +104,141 @@ export async function enforceFilter(message: Message, matchedWord: string): Prom
   const action = config.action;
   const member = message.member;
   const logChannelId = config.logChannel;
+  const guildId = message.guild.id;
+  const userId = message.author.id;
 
   try {
+    // ── Enregistrer l'infraction ──
+    await prisma.wordFilterInfraction.create({
+      data: { guildId, userId, word: matchedWord },
+    });
+
+    // ── Compter les infractions dans la fenêtre temporelle ──
+    const since = new Date(Date.now() - INFRACTION_WINDOW_MINUTES * 60 * 1000);
+    const recentCount = await prisma.wordFilterInfraction.count({
+      where: { guildId, userId, createdAt: { gte: since } },
+    });
+
+    const isRecidive = recentCount >= 2;
+
+    // ── Supprimer le message dans tous les cas ──
+    await message.delete().catch(() => {});
+
+    if (!isRecidive) {
+      // ── 1ère infraction : warn seulement ──
+      if (config.warnMessage && message.channel.type === ChannelType.GuildText) {
+        const warnMsg = await (message.channel as TextChannel).send(
+          `${message.author} ⚠️ ${config.warnMessage}\n*(1er avertissement — la prochaine fois dans les ${INFRACTION_WINDOW_MINUTES}min, la sanction tombera)*`,
+        );
+        setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
+      }
+
+      // Log 1er avertissement
+      if (logChannelId) {
+        const logChannel = message.guild.channels.cache.get(logChannelId);
+        if (logChannel?.isTextBased()) {
+          await (logChannel as TextChannel).send({
+            content: `⚠️ **Filtre de mots (1er avert.)** — ${message.author.tag} (\`${userId}\`) dans <#${message.channelId}>`,
+            embeds: [
+              {
+                title: "Mot interdit détecté (1er avertissement)",
+                fields: [
+                  { name: "Utilisateur", value: `${message.author} (\`${userId}\`)` },
+                  { name: "Salon", value: `<#${message.channelId}>` },
+                  { name: "Mot détecté", value: `\`${matchedWord}\`` },
+                  { name: "Action", value: "Warn (1ère fois)" },
+                  { name: "Message (extrait)", value: message.content.slice(0, 500) || "(vide)" },
+                ],
+                color: 0xffaa00,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+      }
+
+      logger.info(
+        `[WordFilter] 1er avert. ${message.author.tag} dans ${message.guild.name} — mot: "${matchedWord}"`,
+      );
+      return;
+    }
+
+    // ── 2ème infraction : sanction configurée ──
     switch (action) {
       case "delete":
-        await message.delete().catch(() => {});
+        // delete déjà fait, juste warn plus ferme
         if (config.warnMessage && message.channel.type === ChannelType.GuildText) {
           const warnMsg = await (message.channel as TextChannel).send(
-            `${message.author} ${config.warnMessage}`,
+            `⚠️ ${message.author} ${config.warnMessage} *(récidive — message supprimé)*`,
           );
-          setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+          setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
         }
         break;
 
       case "warn":
-        await message.delete().catch(() => {});
         if (config.warnMessage && message.channel.type === ChannelType.GuildText) {
           const warnMsg = await (message.channel as TextChannel).send(
-            `${message.author} ${config.warnMessage}`,
+            `⚠️ ${message.author} ${config.warnMessage} *(récidive)*`,
           );
-          setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+          setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
         }
         break;
 
       case "timeout":
-        await message.delete().catch(() => {});
         if (member) {
-          await member.timeout(10 * 60 * 1000, `Word filter: "${matchedWord}"`).catch(() => {});
+          await member
+            .timeout(10 * 60 * 1000, `Word filter (récidive): "${matchedWord}"`)
+            .catch(() => {});
         }
         if (message.channel.type === ChannelType.GuildText) {
           const warnMsg = await (message.channel as TextChannel).send(
-            `⚠️ ${message.author} a été mis en timeout (10min) pour langage inapproprié.`,
+            `🔇 ${message.author} a été mis en timeout (10min) pour récidive de langage inapproprié.`,
           );
-          setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+          setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
         }
         break;
 
       case "kick":
-        await message.delete().catch(() => {});
         if (member) {
-          await member.kick(`Word filter: "${matchedWord}"`).catch(() => {});
+          await member.kick(`Word filter (récidive): "${matchedWord}"`).catch(() => {});
         }
         if (message.channel.type === ChannelType.GuildText) {
           const warnMsg = await (message.channel as TextChannel).send(
-            `👢 ${message.author} a été expulsé pour langage inapproprié.`,
+            `👢 ${message.author} a été expulsé pour récidive de langage inapproprié.`,
           );
-          setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+          setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
         }
         break;
 
       case "ban":
-        await message.delete().catch(() => {});
         await message.guild.bans
-          .create(message.author, { reason: `Word filter: "${matchedWord}"` })
+          .create(message.author, { reason: `Word filter (récidive): "${matchedWord}"` })
           .catch(() => {});
         if (message.channel.type === ChannelType.GuildText) {
           const warnMsg = await (message.channel as TextChannel).send(
-            `🔨 ${message.author} a été banni pour langage inapproprié.`,
+            `🔨 ${message.author} a été banni pour récidive de langage inapproprié.`,
           );
-          setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+          setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
         }
         break;
     }
 
-    // Log dans le salon configuré
+    // Log sanction (récidive)
     if (logChannelId) {
       const logChannel = message.guild.channels.cache.get(logChannelId);
       if (logChannel?.isTextBased()) {
         await (logChannel as TextChannel).send({
-          content: `🚫 **Filtre de mots** — ${message.author.tag} (\`${message.author.id}\`) a déclenché le filtre dans <#${message.channelId}>`,
+          content: `🚫 **Filtre de mots (SANCTION)** — ${message.author.tag} (\`${userId}\`) dans <#${message.channelId}>`,
           embeds: [
             {
-              title: "Mot interdit détecté",
+              title: "Mot interdit détecté (récidive — sanction)",
               fields: [
-                { name: "Utilisateur", value: `${message.author} (\`${message.author.id}\`)` },
+                { name: "Utilisateur", value: `${message.author} (\`${userId}\`)` },
                 { name: "Salon", value: `<#${message.channelId}>` },
                 { name: "Mot détecté", value: `\`${matchedWord}\`` },
                 { name: "Action", value: action },
-                {
-                  name: "Message (extrait)",
-                  value: message.content.slice(0, 500) || "(vide)",
-                },
+                { name: "Infractions (30min)", value: `${recentCount}` },
+                { name: "Message (extrait)", value: message.content.slice(0, 500) || "(vide)" },
               ],
               color: 0xff3344,
               timestamp: new Date().toISOString(),
@@ -188,7 +249,7 @@ export async function enforceFilter(message: Message, matchedWord: string): Prom
     }
 
     logger.info(
-      `[WordFilter] ${message.author.tag} dans ${message.guild.name} — mot: "${matchedWord}" — action: ${action}`,
+      `[WordFilter] SANCTION ${message.author.tag} dans ${message.guild.name} — mot: "${matchedWord}" — action: ${action} — infractions: ${recentCount}`,
     );
   } catch (error) {
     logger.error("[WordFilter] Erreur enforcement:", error);

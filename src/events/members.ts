@@ -3,7 +3,7 @@ import { Client, GuildMember, PartialGuildMember } from "discord.js";
 import prisma from "../prisma.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
-import { checkMemberProfile, autoPopulateWordFilter } from "../services/serverRules.js";
+import { checkMemberProfile } from "../services/serverRules.js";
 import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
 
 export function handleMemberEvents(client: Client) {
@@ -72,9 +72,6 @@ export function handleMemberEvents(client: Client) {
 
       // ── Vérification du profil selon le règlement ──
       await checkMemberProfile(member);
-
-      // ── Pré-remplir le filtre de mots si pas encore fait ──
-      await autoPopulateWordFilter(member.guild.id);
 
       // ── Message de bienvenue (si configuré et activé) ──
       await sendWelcomeMessage(member);
