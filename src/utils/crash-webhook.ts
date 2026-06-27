@@ -13,9 +13,12 @@ import logger from "./logger.js";
 
 const CRASH_WEBHOOK_URL = process.env.CRASH_WEBHOOK_URL || "";
 
+let lastCrashAlert = 0;
+const CRASH_ALERT_COOLDOWN_MS = 60 * 1000; // 1 minute entre alertes
+
 /**
  * Envoie un message d'alerte critique via Webhook Discord.
- * Ne dépend pas du client Discord — fonctionne même si le bot est down.
+ * Cooldown de 1 minute pour éviter le spam en cas de crash loop.
  */
 export async function sendCrashAlert(
   title: string,
@@ -26,6 +29,13 @@ export async function sendCrashAlert(
     logger.debug("[CrashWebhook] CRASH_WEBHOOK_URL non configuré, alerte ignorée");
     return;
   }
+
+  const now = Date.now();
+  if (now - lastCrashAlert < CRASH_ALERT_COOLDOWN_MS) {
+    logger.debug(`[CrashWebhook] Alert "${title}" skipped (cooldown)`);
+    return;
+  }
+  lastCrashAlert = now;
 
   try {
     const payload = {
@@ -64,10 +74,20 @@ export async function sendWarningAlert(title: string, description?: string): Pro
   await sendCrashAlert(title, description, 0xffaa00);
 }
 
+let lastRestartAlert = 0;
+const RESTART_ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Envoie une notification de redémarrage via Webhook.
+ * Cooldown de 5 minutes pour éviter le spam en cas de crash loop.
  */
 export async function sendRestartAlert(): Promise<void> {
+  const now = Date.now();
+  if (now - lastRestartAlert < RESTART_ALERT_COOLDOWN_MS) {
+    logger.debug("[CrashWebhook] Restart alert skipped (cooldown)");
+    return;
+  }
+  lastRestartAlert = now;
   await sendCrashAlert(
     "Bot redémarré",
     `Le bot a été redémarré le ${new Date().toLocaleString("fr-FR")}`,
