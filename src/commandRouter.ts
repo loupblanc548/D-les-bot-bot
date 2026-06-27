@@ -97,6 +97,11 @@ import {
   commands as dashboardCommands,
   handleCommand as handleDashboard,
 } from "./commands/dashboard.js";
+import { commands as aiCmdCommands, handleCommand as handleAiCmd } from "./commands/aiCommands.js";
+import {
+  commands as modExtraCommands,
+  handleCommand as handleModExtra,
+} from "./commands/modExtra.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -135,6 +140,8 @@ export const allCommands = [
   ...advancedCommands,
   ...communityExtraCommands,
   ...dashboardCommands,
+  ...aiCmdCommands,
+  ...modExtraCommands,
 ];
 
 function registerGroup(
@@ -261,6 +268,8 @@ export function buildCommandRouter(): void {
 
   registerGroup(["reminder", "lfg", "lfg-list", "giveaway", "self-role"], handleCommunityExtra);
   registerGroup(["dashboard", "bot-health"], handleDashboard);
+  registerGroup(["ai-profile", "ai-config", "ai-channel-summary"], handleAiCmd);
+  registerGroup(["permission-audit", "report"], handleModExtra);
 }
 
 export function applyCommandMiddleware(): void {

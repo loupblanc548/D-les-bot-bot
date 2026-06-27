@@ -39,6 +39,9 @@ const REGISTERED_COMMANDS = new Set([
   "mention",
   "aichat",
   "smartpoll",
+  "ai-profile",
+  "ai-config",
+  "ai-channel-summary",
   // AlertCenter
   "alertcenter",
   "riskscore",
@@ -64,6 +67,7 @@ const REGISTERED_COMMANDS = new Set([
   "history",
   "purgeuser",
   "tempban",
+  "report",
   // Securite
   "lockdown",
   "nuke",
@@ -104,6 +108,7 @@ const REGISTERED_COMMANDS = new Set([
   "retro-config",
   "dashboard",
   "bot-health",
+  "permission-audit",
   // Utilitaires
   "embed-builder",
   "say",
