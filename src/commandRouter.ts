@@ -11,6 +11,7 @@ import logger from "./utils/logger.js";
 import {
   createLoggingMiddleware,
   createRateLimitMiddleware,
+  createPermissionGuardMiddleware,
   withMiddleware,
 } from "./middleware/index.js";
 
@@ -180,7 +181,11 @@ import { commands as aiGroupCommands, handleCommand as handleAiGroup } from "./c
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
 
-const commandMiddlewares = [createLoggingMiddleware(), createRateLimitMiddleware()];
+const commandMiddlewares = [
+  createLoggingMiddleware(),
+  createPermissionGuardMiddleware(),
+  createRateLimitMiddleware(),
+];
 
 const REMOVED_COMMANDS = new Set([
   "lockdown",
