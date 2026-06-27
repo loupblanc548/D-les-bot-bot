@@ -87,6 +87,9 @@ vi.mock("./services/instantgaming", () => ({
 vi.mock("./cron/wishlistCron", () => ({
   startWishlistCron: vi.fn(),
 }));
+vi.mock("./cron/hourlyMaintenance", () => ({
+  startHourlyMaintenance: vi.fn(),
+}));
 vi.mock("./cron/steamNewsCron", () => ({
   startSteamNewsMonitoring: mockServices.startSteamNewsMonitoring,
   checkTrackedGames: mockServices.checkTrackedGames,
