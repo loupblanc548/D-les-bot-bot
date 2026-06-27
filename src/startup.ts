@@ -152,18 +152,9 @@ export function attachStartupLogic(
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
 
-    // Notification propriétaire
-    if (config.ownerId) {
-      client.users
-        .fetch(config.ownerId)
-        .then((owner) => owner.send(`🚀 **${readyClient.user.username}** vient de demarrer !`))
-        .catch((error) =>
-          logger.error(
-            `[Startup] Impossible d'envoyer le MP au proprietaire: ${error instanceof Error ? error.message : String(error)}`,
-            { stack: error instanceof Error ? error.stack : undefined },
-          ),
-        );
-    }
+    // Notification propriétaire — DÉSACTIVÉ (spam en cas de crash loop)
+    // Le redémarrage est loggé en interne uniquement
+    logger.info(`[Startup] ${readyClient.user.tag} démarré — notification Discord désactivée`);
 
     // Wishlist Fortnite (startup + interval)
     logger.info("[Startup] Verification wishlist Fortnite...");
