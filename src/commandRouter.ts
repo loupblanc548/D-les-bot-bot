@@ -132,6 +132,10 @@ import {
   commands as queueCtrlCommands,
   handleCommand as handleQueueCtrl,
 } from "./commands/queueControls.js";
+import {
+  commands as utilityGamingCommands,
+  handleCommand as handleUtilityGaming,
+} from "./commands/utilityCommands.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -296,6 +300,7 @@ export const allCommands = [
   ...translateAutoCommands,
   ...audioPanelCommands,
   ...queueCtrlCommands,
+  ...utilityGamingCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -422,6 +427,10 @@ export function buildCommandRouter(): void {
   registerGroup(["translate-auto"], handleTranslateAuto);
   registerGroup(["volume", "seek", "audio-effects", "radio-stop"], handleAudioPanel);
   registerGroup(["loop", "shuffle", "skip", "previous"], handleQueueCtrl);
+  registerGroup(
+    ["qr-code", "wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
+    handleUtilityGaming,
+  );
 }
 
 export function applyCommandMiddleware(): void {
