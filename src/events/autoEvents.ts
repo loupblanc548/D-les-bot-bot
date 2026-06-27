@@ -20,6 +20,7 @@ import { recordSecurityEvent } from "../services/risk-engine.js";
 import { createLog } from "../services/logs.js";
 import prisma from "../prisma.js";
 import { safeInterval } from "../utils/safe-interval.js";
+import { checkVoiceSoundboard } from "../services/serverRules.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -432,6 +433,18 @@ export function handleAutoEvents(client: Client): void {
       await handleAutoRole(member);
     } catch (error) {
       logger.error("[AutoEvents] guildMemberAdd error:", error);
+    }
+  });
+
+  // EVENT: Anti-soundboard (Voicemod et apps externes en vocal)
+  client.on("voiceStateUpdate", async (oldState, newState) => {
+    try {
+      // Détection quand un membre rejoint un salon vocal ou change de salon
+      if (newState.member && newState.channelId && newState.channelId !== oldState.channelId) {
+        await checkVoiceSoundboard(newState.member);
+      }
+    } catch (error) {
+      logger.error("[AutoEvents] voiceStateUpdate error:", error);
     }
   });
 

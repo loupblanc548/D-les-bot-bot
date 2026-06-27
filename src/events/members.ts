@@ -3,6 +3,7 @@ import { Client, GuildMember, PartialGuildMember } from "discord.js";
 import prisma from "../prisma.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
+import { checkMemberProfile, autoPopulateWordFilter } from "../services/serverRules.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -67,6 +68,12 @@ export function handleMemberEvents(client: Client) {
         }
       }
       logger.info(`+ ${member.user.tag} a rejoint`);
+
+      // ── Vérification du profil selon le règlement ──
+      await checkMemberProfile(member);
+
+      // ── Pré-remplir le filtre de mots si pas encore fait ──
+      await autoPopulateWordFilter(member.guild.id);
     } catch (error) {
       logger.error("[MemberEvents] Erreur lors du traitement guildMemberAdd:", error);
     }

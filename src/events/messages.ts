@@ -23,6 +23,7 @@ import {
   checkMessage as checkWordFilter,
   enforceFilter as enforceWordFilter,
 } from "../services/wordFilter.js";
+import { enforceServerRules } from "../services/serverRules.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -145,6 +146,10 @@ export function handleMessageEvents(client: Client) {
         await enforceWordFilter(message, matchedWord);
         return;
       }
+
+      // ── RÈGLEMENT DU SERVEUR (publicité, mentions, etc.) ───────────
+      const ruleViolated = await enforceServerRules(message);
+      if (ruleViolated) return;
 
       const isMentioningBot = message.mentions.has(client.user!);
 
