@@ -18,6 +18,7 @@ import {
 } from "./services/monitor.js";
 import { sendHealthReport } from "./services/healthcheck.js";
 import { validateChannels } from "./services/channel-validator.js";
+import { validateModeratorRoles } from "./services/permissions.js";
 import { startPatchNotesService } from "./services/patchNotes.js";
 import { startBackupService } from "./services/backup.js";
 import {
@@ -212,6 +213,18 @@ export function attachStartupLogic(
     const channelsReport = await validateChannels(client);
     if (channelsReport.errors > 0) {
       logger.warn(`[Startup] ${channelsReport.errors} salon(s) inaccessible(s)`);
+    }
+
+    // Validation des rôles modérateurs
+    logger.info("[Startup] Validation des rôles modérateurs...");
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await validateModeratorRoles(guild);
+      } catch (e) {
+        logger.warn(
+          `[Startup] Erreur validation rôles sur ${guild.id}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
     }
 
     // Démarrage de tous les services
