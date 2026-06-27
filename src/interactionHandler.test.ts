@@ -19,7 +19,6 @@ const { mockLogger, mockPrisma, mockSentry, mockCommandRouter, mockHandlers } = 
     handleAutocomplete: vi.fn().mockResolvedValue(undefined),
     handleMp3Autocomplete: vi.fn().mockResolvedValue(undefined),
     handleWishlistAutocomplete: vi.fn().mockResolvedValue(undefined),
-    handleTranslateAutocomplete: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -38,9 +37,6 @@ vi.mock("./commands/trackGame", () => ({ handleAutocomplete: mockHandlers.handle
 vi.mock("./commands/mp3", () => ({ handleAutocomplete: mockHandlers.handleMp3Autocomplete }));
 vi.mock("./commands/fun/wishlist", () => ({
   handleAutocomplete: mockHandlers.handleWishlistAutocomplete,
-}));
-vi.mock("./commands/utility", () => ({
-  handleTranslateAutocomplete: mockHandlers.handleTranslateAutocomplete,
 }));
 
 import { Events } from "discord.js";

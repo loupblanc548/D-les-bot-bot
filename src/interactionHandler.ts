@@ -15,7 +15,6 @@ import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
-import { handleTranslateAutocomplete } from "./commands/utility.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 1. Commandes slash ──────────────────────────────────────────────
@@ -26,12 +25,19 @@ export function attachInteractionHandlers(client: Client): void {
       try {
         await handler(interaction, client);
       } catch (error) {
-        logger.error(`Erreur commande /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined });
+        logger.error(
+          `Erreur commande /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`,
+          { stack: error instanceof Error ? error.stack : undefined },
+        );
         await Sentry.captureException(error, { tags: { command: interaction.commandName } });
-        const reply = interaction.replied || interaction.deferred
-          ? interaction.followUp.bind(interaction)
-          : interaction.reply.bind(interaction);
-        await reply({ content: "❌ Une erreur est survenue lors de l'execution de la commande.", flags: [MessageFlags.Ephemeral] }).catch(() => {});
+        const reply =
+          interaction.replied || interaction.deferred
+            ? interaction.followUp.bind(interaction)
+            : interaction.reply.bind(interaction);
+        await reply({
+          content: "❌ Une erreur est survenue lors de l'execution de la commande.",
+          flags: [MessageFlags.Ephemeral],
+        }).catch(() => {});
       }
     }
   });
@@ -43,7 +49,9 @@ export function attachInteractionHandlers(client: Client): void {
         const handled = handleVerifButton(interaction);
         if (handled) return;
       } catch (err) {
-        logger.error(`[Bouton] Erreur: ${err instanceof Error ? err.message : String(err)}`, { stack: err instanceof Error ? err.stack : undefined });
+        logger.error(`[Bouton] Erreur: ${err instanceof Error ? err.message : String(err)}`, {
+          stack: err instanceof Error ? err.stack : undefined,
+        });
       }
     }
 
@@ -52,11 +60,18 @@ export function attachInteractionHandlers(client: Client): void {
       try {
         await handleMainSelectMenu(interaction);
       } catch (error) {
-        logger.error(`Erreur select menu ${interaction.customId}: ${error instanceof Error ? error.message : String(error)}`, { stack: error instanceof Error ? error.stack : undefined });
-        const reply = interaction.replied || interaction.deferred
-          ? interaction.followUp.bind(interaction)
-          : interaction.reply.bind(interaction);
-        await reply({ content: "❌ Une erreur est survenue lors de la sélection.", flags: [MessageFlags.Ephemeral] }).catch(() => {});
+        logger.error(
+          `Erreur select menu ${interaction.customId}: ${error instanceof Error ? error.message : String(error)}`,
+          { stack: error instanceof Error ? error.stack : undefined },
+        );
+        const reply =
+          interaction.replied || interaction.deferred
+            ? interaction.followUp.bind(interaction)
+            : interaction.reply.bind(interaction);
+        await reply({
+          content: "❌ Une erreur est survenue lors de la sélection.",
+          flags: [MessageFlags.Ephemeral],
+        }).catch(() => {});
       }
     }
   });
@@ -73,7 +88,7 @@ export function attachInteractionHandlers(client: Client): void {
           take: 25,
         });
         await interaction.respond(
-          sources.map((s) => ({ name: `@${s.urlOrHandle} (${s.type})`, value: s.urlOrHandle }))
+          sources.map((s) => ({ name: `@${s.urlOrHandle} (${s.type})`, value: s.urlOrHandle })),
         );
         break;
       }
@@ -85,9 +100,6 @@ export function attachInteractionHandlers(client: Client): void {
         break;
       case "wishlist":
         await handleWishlistAutocomplete(interaction);
-        break;
-      case "translate":
-        await handleTranslateAutocomplete(interaction);
         break;
     }
   });

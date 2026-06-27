@@ -84,14 +84,10 @@ export const CATEGORIES: Category[] = [
     emoji: "🤖",
     description: "Commandes d'intelligence artificielle",
     commands:
-      "`/chat [message] - Discute avec l'IA`\n" +
+      "`/chat [message] - Discute avec l'IA (traduction, résumé, questions, etc.)`\n" +
       "`/mention [message] - Réponse personnalisée`\n" +
       "`/aichat - Active/désactive l'IA contextuelle dans un salon`\n" +
-      "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
-      "`/translate [texte] [langue] - Traduit un texte`\n" +
-      "`/summarize [nombre] - Résume les messages d'un salon`\n" +
-      "`/ask-gaming [question] - L'IA experte gaming`\n" +
-      "`/ask-tech [question] - L'IA experte tech`",
+      "`/smartpoll [question] - Génère un sondage intelligent par IA`",
   },
   {
     id: "alertcenter",

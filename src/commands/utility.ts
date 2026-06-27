@@ -2,7 +2,8 @@ import logger from "../utils/logger.js";
 // Commandes Utilitaires UI & Affichage
 // embed-builder (Modal), say, translate
 
-import { Message,
+import {
+  Message,
   MessageFlags,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
@@ -18,8 +19,6 @@ import { Message,
   ChannelType,
 } from "discord.js";
 import { createLog } from "../services/logs.js";
-import { translateAutoToFrench, translateText, translateFrenchToEnglish, SUPPORTED_LANGUAGES, LanguageCode } from "../utils/translator.js";
-import { addTranslationToHistory } from "../services/translationHistory.js";
 
 // ===== Définition des commandes =====
 
@@ -38,13 +37,10 @@ export const commands = [
         .setName("salon")
         .setDescription("Le salon où envoyer le message")
         .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
     )
     .addStringOption((opt) =>
-      opt
-        .setName("message")
-        .setDescription("Le message à envoyer")
-        .setRequired(true)
+      opt.setName("message").setDescription("Le message à envoyer").setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
@@ -53,63 +49,21 @@ export const commands = [
     .setName("poll")
     .setDescription("Créer un sondage interactif")
     .addStringOption((o) =>
-      o.setName("question").setDescription("La question du sondage").setRequired(true)
+      o.setName("question").setDescription("La question du sondage").setRequired(true),
     )
     .addStringOption((o) =>
-      o.setName("options").setDescription("Options séparées par des virgules (max 10, ex: Oui,Non,Peut-être)").setRequired(true)
+      o
+        .setName("options")
+        .setDescription("Options séparées par des virgules (max 10, ex: Oui,Non,Peut-être)")
+        .setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .toJSON(),
-
-  // /translate
-  new SlashCommandBuilder()
-    .setName("translate")
-    .setDescription("Traduit un texte dans une langue spécifique")
-    .addStringOption((o) =>
-      o.setName("texte").setDescription("Le texte à traduire").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("langue")
-        .setDescription("Langue cible (par défaut: français)")
-        .setRequired(false)
-    )
-    .addStringOption((o) =>
-      o.setName("source")
-        .setDescription("Langue source (par défaut: auto-détection)")
-        .setRequired(false)
-    )
-    .addBooleanOption((o) =>
-      o.setName("reverse")
-        .setDescription("Traduire du français vers l'anglais (équivalent à langue: en, source: fr)")
-        .setRequired(false)
-    )
-    .toJSON(),
-
-  // /ask-gaming
-  new SlashCommandBuilder()
-    .setName("ask-gaming")
-    .setDescription("Pose une question sur le gaming à l'IA")
-    .addStringOption((o) =>
-      o.setName("question").setDescription("Ta question sur le gaming").setRequired(true)
-    )
-    .toJSON(),
-
-  // /ask-tech
-  new SlashCommandBuilder()
-    .setName("ask-tech")
-    .setDescription("Pose une question technique à l'IA")
-    .addStringOption((o) =>
-      o.setName("question").setDescription("Ta question technique").setRequired(true)
-    )
     .toJSON(),
 ];
 
 // ===== Handler principal =====
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-  client: Client
-) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client) {
   try {
     switch (interaction.commandName) {
       case "embed-builder":
@@ -120,15 +74,6 @@ export async function handleCommand(
         break;
       case "say":
         await handleSay(interaction, client);
-        break;
-      case "translate":
-        await handleTranslate(interaction);
-        break;
-      case "ask-gaming":
-        await handleAskGaming(interaction);
-        break;
-      case "ask-tech":
-        await handleAskTech(interaction);
         break;
     }
   } catch (err) {
@@ -150,10 +95,7 @@ export async function handleCommand(
 
 // ===== Gestion des modals (exporté pour index.ts) =====
 
-export async function handleModalSubmit(
-  interaction: ModalSubmitInteraction,
-  _client: Client
-) {
+export async function handleModalSubmit(interaction: ModalSubmitInteraction, _client: Client) {
   if (interaction.customId !== "embed_builder_modal") return;
 
   try {
@@ -213,9 +155,7 @@ export async function handleModalSubmit(
 // ===== /embed-builder (affiche le Modal) =====
 
 async function handleEmbedBuilder(interaction: ChatInputCommandInteraction) {
-  const modal = new ModalBuilder()
-    .setCustomId("embed_builder_modal")
-    .setTitle("Créer un embed");
+  const modal = new ModalBuilder().setCustomId("embed_builder_modal").setTitle("Créer un embed");
 
   const titleInput = new TextInputBuilder()
     .setCustomId("embed_title")
@@ -265,12 +205,20 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
   const question = interaction.options.getString("question", true);
   const optionsStr = interaction.options.getString("options", true);
 
-  const optionsList = optionsStr.split(",").map((o) => o.trim()).filter((o) => o.length > 0);
+  const optionsList = optionsStr
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
 
   // Validations AVANT deferReply (utilisent reply)
   if (optionsList.length < 2) {
     await interaction.reply({
-      embeds: [new EmbedBuilder().setTitle("Erreur").setColor(0xff3344).setDescription("Il faut au moins 2 options.")],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("Erreur")
+          .setColor(0xff3344)
+          .setDescription("Il faut au moins 2 options."),
+      ],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -278,7 +226,12 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
 
   if (optionsList.length > 10) {
     await interaction.reply({
-      embeds: [new EmbedBuilder().setTitle("Erreur").setColor(0xff3344).setDescription("Maximum 10 options.")],
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("Erreur")
+          .setColor(0xff3344)
+          .setDescription("Maximum 10 options."),
+      ],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -288,9 +241,7 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
   try {
     const emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
-    const description = optionsList
-      .map((opt, idx) => `${emojis[idx]} **${opt}**`)
-      .join(`\n\n`);
+    const description = optionsList.map((opt, idx) => `${emojis[idx]} **${opt}**`).join(`\n\n`);
 
     const embed = new EmbedBuilder()
       .setTitle(question)
@@ -317,7 +268,12 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Erreur lors de la création du sondage." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de la création du sondage.", ephemeral: true }); } catch {
+      try {
+        await interaction.followUp({
+          content: "❌ Erreur lors de la création du sondage.",
+          ephemeral: true,
+        });
+      } catch {
         // Ignore follow-up errors
       }
     }
@@ -332,7 +288,9 @@ async function handleSay(interaction: ChatInputCommandInteraction, client: Clien
 
   // Vérification AVANT deferReply (utilise reply)
   if (
-    !channel.permissionsFor(client.user!)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages])
+    !channel
+      .permissionsFor(client.user!)
+      ?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages])
   ) {
     await interaction.reply({
       content: "Je n'ai pas la permission d'envoyer des messages dans ce salon.",
@@ -366,304 +324,14 @@ async function handleSay(interaction: ChatInputCommandInteraction, client: Clien
     try {
       await interaction.editReply({ content: "❌ Erreur lors de l'envoi du message." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de l'envoi du message.", ephemeral: true }); } catch {
+      try {
+        await interaction.followUp({
+          content: "❌ Erreur lors de l'envoi du message.",
+          ephemeral: true,
+        });
+      } catch {
         // Ignore follow-up errors
       }
     }
   }
-}
-
-// ===== /translate =====
-
-async function handleTranslate(interaction: ChatInputCommandInteraction) {
-  const text = interaction.options.getString("texte", true);
-  const targetLang = interaction.options.getString("langue") as LanguageCode | null;
-  const sourceLang = interaction.options.getString("source") as LanguageCode | "auto" | null;
-  const reverse = interaction.options.getBoolean("reverse") || false;
-
-  await interaction.deferReply();
-
-  try {
-    let result;
-    
-    // Si reverse est activé, traduire du français vers l'anglais
-    if (reverse) {
-      result = await translateFrenchToEnglish(text);
-    } 
-    // Si une langue cible est spécifiée, utiliser translateText
-    else if (targetLang) {
-      result = await translateText(text, targetLang, sourceLang || "auto");
-    } 
-    // Sinon, traduire automatiquement vers le français (comportement par défaut)
-    else {
-      result = await translateAutoToFrench(text);
-    }
-
-    if (!result) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur de traduction")
-            .setDescription("Impossible de traduire le texte. Veuillez réessayer.")
-        ]
-      });
-      return;
-    }
-
-    const targetLanguageName = targetLang ? SUPPORTED_LANGUAGES[targetLang] : (reverse ? "Anglais" : "Français");
-    const sourceLanguageName = sourceLang === "auto" ? "Auto-détection" : (sourceLang ? SUPPORTED_LANGUAGES[sourceLang] : result.detectedLanguage);
-
-    const embed = new EmbedBuilder()
-      .setColor(0x3498db)
-      .setTitle("🌍 Traduction")
-      .addFields(
-        { name: "📝 Texte original", value: text.slice(0, 1024), inline: false },
-        { name: "🔄 Traduction", value: result.translatedText.slice(0, 1024), inline: false },
-        { name: "🔤 Langue source", value: sourceLanguageName, inline: true },
-        { name: "🎯 Langue cible", value: targetLanguageName, inline: true }
-      )
-      .setFooter({
-        text: `Demandé par ${interaction.user.tag}`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
-      .setTimestamp();
-
-    await interaction.editReply({ embeds: [embed] });
-
-    // Ajouter à l'historique des traductions
-    await addTranslationToHistory(
-      interaction.user.id,
-      text,
-      result.translatedText,
-      sourceLanguageName,
-      targetLanguageName,
-      interaction.guildId || undefined
-    );
-
-    // Log
-    await createLog({
-      type: "member",
-      action: "translate_command_used",
-      userId: interaction.user.id,
-      details: `Source: ${sourceLanguageName} → Cible: ${targetLanguageName}`
-    });
-  } catch (error) {
-    logger.error("[CRASH COMMANDE TRANSLATE]:", error);
-    try {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur")
-            .setDescription("Une erreur est survenue lors de la traduction.")
-        ]
-      });
-    } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors de la traduction.", ephemeral: true }); } catch {
-        // Ignore follow-up errors
-      }
-    }
-  }
-}
-
-// ===== /ask-gaming =====
-
-async function handleAskGaming(interaction: ChatInputCommandInteraction) {
-  const question = interaction.options.getString("question", true);
-
-  await interaction.deferReply();
-
-  try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur")
-            .setDescription("OPENROUTER_API_KEY non configurée.")
-        ]
-      });
-      return;
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://discord-bot.com',
-        'X-Title': 'Discord Gaming AI'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3-8b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tu es un expert en jeux vidéo avec une passion pour le gaming. Réponds aux questions sur les jeux, les stratégies, les astuces, les lore, et l\'industrie du gaming. Sois précis, informatif et utilise un ton passionné. Utilise le formatage Discord (gras, listes) pour rendre tes réponses lisibles.'
-          },
-          {
-            role: 'user',
-            content: question
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.7
-      }),
-      signal: AbortSignal.timeout(15000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter HTTP error: ${response.status}`);
-    }
-
-    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-
-    if (data.choices && data.choices[0]?.message?.content) {
-      let aiResponse = data.choices[0].message.content.trim();
-      
-      if (aiResponse.length > 2000) {
-        aiResponse = aiResponse.slice(0, 1997) + "...";
-      }
-
-      const embed = new EmbedBuilder()
-        .setColor(0x9b59b6)
-        .setTitle("🎮 Expert Gaming")
-        .setDescription(aiResponse)
-        .setFooter({
-          text: `Demandé par ${interaction.user.tag}`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [embed] });
-    } else {
-      throw new Error("OpenRouter response invalid");
-    }
-  } catch (error) {
-    logger.error("[CRASH COMMANDE ASK-GAMING]:", error);
-    try {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur")
-            .setDescription("Une erreur est survenue lors du traitement de votre question.")
-        ]
-      });
-    } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {
-        // Ignore follow-up errors
-      }
-    }
-  }
-}
-
-// ===== /ask-tech =====
-
-async function handleAskTech(interaction: ChatInputCommandInteraction) {
-  const question = interaction.options.getString("question", true);
-
-  await interaction.deferReply();
-
-  try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur")
-            .setDescription("OPENROUTER_API_KEY non configurée.")
-        ]
-      });
-      return;
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://discord-bot.com',
-        'X-Title': 'Discord Tech AI'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3-8b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content: 'Tu es un expert technique avec des connaissances approfondies en programmation, développement logiciel, DevOps, cloud computing, cybersécurité et technologies émergentes. Réponds aux questions techniques de manière précise et professionnelle. Utilise le formatage Discord (blocs de code, listes) pour rendre tes réponses lisibles.'
-          },
-          {
-            role: 'user',
-            content: question
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.3
-      }),
-      signal: AbortSignal.timeout(15000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter HTTP error: ${response.status}`);
-    }
-
-    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-
-    if (data.choices && data.choices[0]?.message?.content) {
-      let aiResponse = data.choices[0].message.content.trim();
-      
-      if (aiResponse.length > 2000) {
-        aiResponse = aiResponse.slice(0, 1997) + "...";
-      }
-
-      const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle("💻 Expert Technique")
-        .setDescription(aiResponse)
-        .setFooter({
-          text: `Demandé par ${interaction.user.tag}`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
-        .setTimestamp();
-
-      await interaction.editReply({ embeds: [embed] });
-    } else {
-      throw new Error("OpenRouter response invalid");
-    }
-  } catch (error) {
-    logger.error("[CRASH COMMANDE ASK-TECH]:", error);
-    try {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff3344)
-            .setTitle("❌ Erreur")
-            .setDescription("Une erreur est survenue lors du traitement de votre question.")
-        ]
-      });
-    } catch {
-      try { await interaction.followUp({ content: "❌ Erreur lors du traitement.", ephemeral: true }); } catch {
-        // Ignore follow-up errors
-      }
-    }
-  }
-}
-
-/**
- * Autocomplete pour /translate - filtre les langues selon la saisie utilisateur
- */
-export async function handleTranslateAutocomplete(interaction: any) {
-  const focused = interaction.options.getFocused().toLowerCase();
-  const filtered = Object.entries(SUPPORTED_LANGUAGES)
-    .filter(([code, name]) =>
-      name.toLowerCase().includes(focused) || code.toLowerCase().includes(focused)
-    )
-    .slice(0, 25)
-    .map(([code, name]) => ({ name, value: code }));
-
-  await interaction.respond(filtered);
 }

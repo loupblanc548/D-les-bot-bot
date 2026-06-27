@@ -73,10 +73,6 @@ import {
   handleCommand as handleCleanDuplicates,
 } from "./commands/clean-duplicates.js";
 import {
-  commands as aiExtraCommands,
-  handleCommand as handleAIExtra,
-} from "./commands/ai-extra.js";
-import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
@@ -121,7 +117,6 @@ export const allCommands = [
   ...askBotCommands,
   ...wishlistCommands,
   ...shopCommands,
-  ...aiExtraCommands,
   ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
@@ -174,7 +169,6 @@ export function buildCommandRouter(): void {
     handleAdmin,
   );
   registerGroup(["chat", "mention", "aichat", "smartpoll"], handleAI);
-  registerGroup(["summarize"], handleAIExtra);
   registerGroup(
     [
       "ban",
@@ -214,10 +208,7 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["free-games", "game-status", "patch_notes", "deal"], handleGaming);
   registerGroup(["ticket-setup", "wishlist-notify"], handleCommunity);
-  registerGroup(
-    ["translate", "embed-builder", "say", "poll", "ask-gaming", "ask-tech"],
-    handleUtility,
-  );
+  registerGroup(["embed-builder", "say", "poll"], handleUtility);
   registerGroup(["vocal"], handleVocal);
   registerGroup(["retrospective"], handleRetrospective);
   registerGroup(["twitch"], handleTwitch);
