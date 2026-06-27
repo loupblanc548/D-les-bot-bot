@@ -124,6 +124,10 @@ import {
   commands as translateAutoCommands,
   handleCommand as handleTranslateAuto,
 } from "./commands/translateAuto.js";
+import {
+  commands as audioPanelCommands,
+  handleCommand as handleAudioPanel,
+} from "./commands/audioPanel.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -286,6 +290,7 @@ export const allCommands = [
   ...playCommands,
   ...modProCommands,
   ...translateAutoCommands,
+  ...audioPanelCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -410,6 +415,7 @@ export function buildCommandRouter(): void {
   registerGroup(["queue-status"], handleQueueStatus);
   registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
   registerGroup(["translate-auto"], handleTranslateAuto);
+  registerGroup(["volume", "seek", "audio-effects", "radio-stop"], handleAudioPanel);
 }
 
 export function applyCommandMiddleware(): void {

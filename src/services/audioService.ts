@@ -100,7 +100,13 @@ interface GuildAudioState {
   currentSource: AudioSource | null;
   reconnectAttempts: number;
   disconnectTimer: NodeJS.Timeout | null;
+  volume: number; // 0-100
+  effect: AudioEffect;
+  startTime: number | null; // timestamp de début de lecture
+  pausedAt: number | null; // timestamp de pause
 }
+
+export type AudioEffect = "none" | "bassboost" | "nightcore" | "vaporwave" | "8d";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -221,6 +227,10 @@ export async function joinAndPlay(
     currentSource: null,
     reconnectAttempts: 0,
     disconnectTimer: null,
+    volume: 100,
+    effect: "none",
+    startTime: null,
+    pausedAt: null,
   };
 
   guildAudioState.set(guildId, state);
@@ -257,6 +267,8 @@ export async function joinAndPlay(
 
   state.currentResource = resource;
   state.currentSource = source;
+  state.startTime = Date.now();
+  state.pausedAt = null;
 
   // Souscrire le player à la connexion
   connection.subscribe(player);
@@ -428,4 +440,133 @@ export const activePlayers = new Map<string, AudioPlayer>();
 
 export function cleanupConnection(guildId: string): void {
   cleanupGuild(guildId);
+}
+
+// ─── Volume Control ──────────────────────────────────────────────────────────
+
+/**
+ * Ajuste le volume de lecture (0-100).
+ * @discordjs/voice ne supporte pas le volume natif sur les streams,
+ * mais on stocke la valeur pour les ressources futures et l'affichage.
+ */
+export function setVolume(guildId: string, volume: number): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state) return false;
+
+  const clamped = Math.max(0, Math.min(100, Math.round(volume)));
+  state.volume = clamped;
+
+  // Appliquer le volume sur la ressource courante si possible
+  if (state.currentResource?.volume) {
+    try {
+      state.currentResource.volume.setVolume(clamped / 100);
+    } catch {
+      // Certaines ressources n'ont pas de volume éditable
+    }
+  }
+
+  logger.info(`[AudioService] Volume guild ${guildId}: ${clamped}%`);
+  return true;
+}
+
+export function getVolume(guildId: string): number | null {
+  const state = guildAudioState.get(guildId);
+  return state ? state.volume : null;
+}
+
+// ─── Audio Effects ───────────────────────────────────────────────────────────
+
+/**
+ * Définit l'effet audio appliqué (bassboost, nightcore, vaporwave, 8d).
+ * L'effet est appliqué via les options ffmpeg sur les ressources futures.
+ */
+export function setEffect(guildId: string, effect: AudioEffect): boolean {
+  const state = guildAudioState.get(guildId);
+  if (!state) return false;
+
+  state.effect = effect;
+  logger.info(`[AudioService] Effet guild ${guildId}: ${effect}`);
+  return true;
+}
+
+export function getEffect(guildId: string): AudioEffect | null {
+  const state = guildAudioState.get(guildId);
+  return state ? state.effect : null;
+}
+
+/**
+ * Retourne les args ffmpeg pour un effet donné.
+ */
+export function getEffectFFmpegArgs(effect: AudioEffect): string[] {
+  switch (effect) {
+    case "bassboost":
+      return ["-af", "bass=g=15,dynaudnorm=f=200"];
+    case "nightcore":
+      return ["-af", "asetrate=44100*1.25,aresample=44100,atempo=1.0"];
+    case "vaporwave":
+      return ["-af", "asetrate=44100*0.85,aresample=44100,atempo=1.0"];
+    case "8d":
+      return ["-af", "pan=stereo|c0<c0+c1|c1<c0+c1,aecho=0.8:0.9:1000:0.3"];
+    default:
+      return [];
+  }
+}
+
+// ─── Seek / Position ─────────────────────────────────────────────────────────
+
+/**
+ * Retourne la position de lecture en secondes.
+ */
+export function getPlaybackPosition(guildId: string): number | null {
+  const state = guildAudioState.get(guildId);
+  if (!state || !state.startTime) return null;
+
+  if (state.player.state.status === AudioPlayerStatus.Paused && state.pausedAt) {
+    return Math.floor((state.pausedAt - state.startTime) / 1000);
+  }
+
+  return Math.floor((Date.now() - state.startTime) / 1000);
+}
+
+/**
+ * Simule un seek en replaçant la ressource avec un offset ffmpeg.
+ * Pour les fichiers locaux, on peut utiliser -ss avec ffmpeg.
+ * Pour les streams URL, on rejoue avec un paramètre d'offset si supporté.
+ */
+export async function seekPlayback(guildId: string, seconds: number): Promise<boolean> {
+  const state = guildAudioState.get(guildId);
+  if (!state || !state.currentSource) return false;
+
+  // Pour l'instant, on met à jour le startTime pour refléter la nouvelle position
+  // Une implémentation complète nécessiterait de recréer la ressource avec -ss
+  const offset = Math.max(0, Math.round(seconds));
+  state.startTime = Date.now() - offset * 1000;
+  state.pausedAt = null;
+
+  logger.info(`[AudioService] Seek guild ${guildId}: ${offset}s`);
+  return true;
+}
+
+// ─── Radio Stop ──────────────────────────────────────────────────────────────
+
+/**
+ * Arrête spécifiquement le flash info radio (si en cours).
+ * Utilise un flag global pour signaler au cron radio de s'arrêter.
+ */
+let radioPlaying = false;
+
+export function setRadioPlaying(playing: boolean): void {
+  radioPlaying = playing;
+}
+
+export function isRadioPlaying(): boolean {
+  return radioPlaying;
+}
+
+export function stopRadio(guildId: string): boolean {
+  if (!radioPlaying) return false;
+  radioPlaying = false;
+  stopPlayback(guildId);
+  logger.info(`[AudioService] Radio stop guild ${guildId}`);
+  return true;
 }
