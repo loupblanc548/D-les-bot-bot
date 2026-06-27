@@ -28,13 +28,8 @@ const REGISTERED_COMMANDS = new Set([
   "mention",
   "aichat",
   "smartpoll",
-  "ai-profile",
-  "ai-config",
-  "ai-channel-summary",
   // AlertCenter
   "alertcenter",
-  "riskscore",
-  "riskyusers",
   "alertconfig",
   "security-audit",
   "smart-alerts",
@@ -46,10 +41,8 @@ const REGISTERED_COMMANDS = new Set([
   "ban",
   "timeout",
   "clear",
-  "lock",
   "unlock",
   "purge",
-  "slowmode",
   "history",
   "report",
   // Securite
@@ -83,8 +76,6 @@ const REGISTERED_COMMANDS = new Set([
   "say",
   "vocal",
   "mp3",
-  "dictee",
-  "timer",
   // Casier
   "casier",
   "casier-clear",
@@ -97,11 +88,7 @@ const REGISTERED_COMMANDS = new Set([
   "ban-log",
   "behavior-timeline",
   "alert-rules",
-  // Fun Extra
-  "hangman",
   // IA Extra
-  "ai-mood",
-  "ai-suggest",
   "ai-translate-custom",
   // Surveillance Extra
   "reddit-track",

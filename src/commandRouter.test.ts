@@ -115,7 +115,7 @@ describe("commandRouter", () => {
 
     it("enregistre les commandes fun", () => {
       buildCommandRouter();
-      expect(commandRouter["hangman"]).toBeDefined();
+      expect(commandRouter["ai-translate-custom"]).toBeDefined();
     });
 
     it("ne crée pas de route pour des commandes inexistantes", () => {
