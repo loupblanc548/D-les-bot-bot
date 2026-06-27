@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shadow Broker — Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+      <div class="login-container">
+        <div class="logo">
+          <span class="logo-icon">🕵️</span>
+          <h1>SHADOW BROKER</h1>
+          <p class="subtitle">Intelligence & Surveillance Dashboard</p>
+        </div>
+        <button id="login-btn" class="btn-primary">
+          <span>🔗 Se connecter avec Discord</span>
+        </button>
+        <div class="matrix-rain" id="matrix"></div>
+      </div>
+    </div>
+
+    <!-- Guild Selector -->
+    <div id="guilds-screen" class="screen">
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="logo-icon">🕵️</span>
+          <span class="topbar-title">SHADOW BROKER</span>
+        </div>
+        <div class="topbar-right">
+          <img id="user-avatar" class="user-avatar" src="" alt="">
+          <span id="user-name" class="user-name"></span>
+          <button id="logout-btn" class="btn-ghost">Déconnexion</button>
+        </div>
+      </header>
+      <div class="content">
+        <h2>Sélectionnez un serveur</h2>
+        <div id="guilds-grid" class="guilds-grid"></div>
+      </div>
+    </div>
+
+    <!-- Dashboard d'un serveur -->
+    <div id="dashboard-screen" class="screen">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="back-btn" class="btn-ghost">← Retour</button>
+          <img id="guild-icon" class="guild-icon" src="" alt="">
+          <span id="guild-name" class="topbar-title"></span>
+        </div>
+        <div class="topbar-right">
+          <button id="save-btn" class="btn-primary">💾 Sauvegarder</button>
+        </div>
+      </header>
+      <div class="dashboard-layout">
+        <nav class="sidebar">
+          <button class="nav-item active" data-tab="general">⚙️ Général</button>
+          <button class="nav-item" data-tab="moderation">⚖️ Modération</button>
+          <button class="nav-item" data-tab="logs">📋 Logs</button>
+          <button class="nav-item" data-tab="levels">📊 Niveaux</button>
+          <button class="nav-item" data-tab="welcome">👋 Bienvenue</button>
+          <button class="nav-item" data-tab="automod">🤖 Auto-Mod</button>
+          <button class="nav-item" data-tab="osint">🕵️ OSINT</button>
+          <button class="nav-item" data-tab="stats">📈 Statistiques</button>
+        </nav>
+        <main class="main-content" id="tab-content">
+          <!-- Contenu dynamique -->
+        </main>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
