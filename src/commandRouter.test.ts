@@ -115,10 +115,7 @@ describe("commandRouter", () => {
 
     it("enregistre les commandes fun", () => {
       buildCommandRouter();
-      expect(commandRouter["echo-tds"]).toBeDefined();
-      expect(commandRouter["ask-bot"]).toBeDefined();
       expect(commandRouter["wishlist"]).toBeDefined();
-      expect(commandRouter["shop"]).toBeDefined();
     });
 
     it("ne crée pas de route pour des commandes inexistantes", () => {
