@@ -16,8 +16,12 @@ import { analyzeToxicity } from "../services/ai-moderation.js";
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
-import { addMessageToConversation, getConversationHistory } from "../services/aiMemory.js";
-import { getCachedResponse, cacheResponse } from "../services/aiCache.js";
+import { addMessageToConversation } from "../services/aiMemory.js";
+import {
+  touchConversation,
+  checkExpiredConversations,
+  buildConversationContext,
+} from "../services/aiConversation.js";
 import { checkRateLimit } from "../services/rateLimiter.js";
 import {
   checkMessage as checkWordFilter,
@@ -33,25 +37,6 @@ const AICHAT_COOLDOWN_MS = 5_000;
 const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
 const SPAM_MUTE_MS = 5 * 60 * 1000;
-
-// ─── Personnalité John Helldiver ─────────────────────────────────────────────
-
-const JOHN_HELLDIVER_SYSTEM_PROMPT = `Tu es John Helldiver, soldat d'élite de la Super-Terre, bot Discord de service.
-
-PERSONNALITÉ :
-- Patriote convaincu de la Super-Terre, tu défends la liberté intergalactique avec ferveur.
-- Un peu bourrin mais ultra-serviable — tu adores aider tes camarades soldats.
-- Passionné de tech, gaming et démocratie gérée.
-- Tu parles français avec un ton militaire décontracté (pense "frères d'armes" pas "sergent instructeur").
-- Tu glisses parfois des références à Helldivers, à la Super-Terre ou à la lutte contre les Automatons.
-
-RÈGLES STRICTES :
-1. Réponds de manière concise et directe (moins de 1500 caractères si possible).
-2. Utilise le Markdown Discord (gras, italique, listes) pour la lisibilité.
-3. Reste dans le personnage MAIS priorise l'utilité — si la question est sérieuse, réponds sérieusement.
-4. Si tu ne connais pas la réponse, admets-le avec humour plutôt que d'inventer.
-5. Pour les questions techniques/gaming, sois précis et expert.
-6. Ne mentionne JAMAIS que tu es une IA — tu es John Helldiver, point final.`;
 
 // ─── Relances humoristiques quand @mention sans message ──────────────────────
 
@@ -71,6 +56,7 @@ function getRandomHelldiverReply(): string {
 // ─── Cleanup périodique ─────────────────────────────────────────────────────
 
 let mapCleanupInterval: NodeJS.Timeout | null = null;
+let conversationCleanupInterval: NodeJS.Timeout | null = null;
 
 export function startMapCleanup() {
   if (mapCleanupInterval) return;
@@ -82,12 +68,25 @@ export function startMapCleanup() {
       }
     }
   }, 300000);
+
+  // Vérifier les conversations IA expirées toutes les 2 minutes
+  if (!conversationCleanupInterval) {
+    conversationCleanupInterval = setInterval(() => {
+      checkExpiredConversations().catch((err) =>
+        logger.error("[MessageEvents] Erreur cleanup conversations:", err),
+      );
+    }, 120000);
+  }
 }
 
 export function stopMapCleanup() {
   if (mapCleanupInterval) {
     clearInterval(mapCleanupInterval);
     mapCleanupInterval = null;
+  }
+  if (conversationCleanupInterval) {
+    clearInterval(conversationCleanupInterval);
+    conversationCleanupInterval = null;
   }
 }
 
@@ -204,15 +203,10 @@ async function handleAiChatMention(
     // Déclencher l'indicateur de frappe
     await message.channel.sendTyping();
 
-    // Ajouter le message de l'utilisateur à la mémoire
-    addMessageToConversation(
-      message.author.id,
-      "user",
-      cleanedContent,
-      message.guildId || undefined,
-    );
+    // ── Vérifier les conversations expirées avant de continuer ──
+    await checkExpiredConversations();
 
-    // Vérifier le rate limiting
+    // ── Vérifier le rate limiting ──
     const rateLimitCheck = checkRateLimit(
       message.author.id,
       "ai_chat",
@@ -226,19 +220,6 @@ async function handleAiChatMention(
       return;
     }
 
-    const cachedResponse = getCachedResponse(cleanedContent);
-    if (cachedResponse) {
-      await message.reply({ content: cachedResponse, allowedMentions: { repliedUser: false } });
-      addMessageToConversation(
-        message.author.id,
-        "assistant",
-        cachedResponse,
-        message.guildId || undefined,
-      );
-      logger.info(`[AIChat] Cache: ${message.author.tag}`);
-      return;
-    }
-
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       await message.reply({
@@ -249,15 +230,23 @@ async function handleAiChatMention(
       return;
     }
 
-    const conversationHistory = await getConversationHistory(
+    // ── Construire le contexte : faits long-terme + historique conversation ──
+    const messages = await buildConversationContext(
       message.author.id,
+      cleanedContent,
+      message.author.username,
+    );
+
+    // ── Marquer la conversation comme active ──
+    touchConversation(message.author.id);
+
+    // ── Ajouter le message utilisateur à la mémoire de conversation ──
+    await addMessageToConversation(
+      message.author.id,
+      "user",
+      cleanedContent,
       message.guildId || undefined,
     );
-    const messages = [
-      { role: "system", content: JOHN_HELLDIVER_SYSTEM_PROMPT },
-      ...conversationHistory,
-      { role: "user", content: cleanedContent },
-    ];
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -283,13 +272,18 @@ async function handleAiChatMention(
       let aiResponse = data.choices[0].message.content.trim();
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
       await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
-      addMessageToConversation(
+
+      // ── Sauvegarder la réponse dans la conversation ──
+      await addMessageToConversation(
         message.author.id,
         "assistant",
         aiResponse,
         message.guildId || undefined,
       );
-      cacheResponse(cleanedContent, aiResponse);
+
+      // ── Maintenir la conversation active ──
+      touchConversation(message.author.id);
+
       logger.info(`[AIChat] IA -> ${message.author.tag}`);
     } else {
       throw new Error("OpenRouter response invalid");
