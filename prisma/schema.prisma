@@ -658,12 +658,15 @@ model Wishlist {
   userId         String
   guildId        String?
   itemName       String
+  platform       String    @default("fortnite")
+  gameName       String?
   lastNotifiedAt DateTime?
   createdAt      DateTime  @default(now())
 
-  @@unique([userId, itemName])
+  @@unique([userId, itemName, platform])
   @@index([userId])
   @@index([guildId])
+  @@index([platform])
 }
 
 model ProcessedFreeGames {
