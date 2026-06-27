@@ -48,6 +48,7 @@ import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
 import { handleAutoEvents } from "./events/autoEvents.js";
 import { startAutoEscalation } from "./cron/autoEscalation.js";
 import { startMiscCrons } from "./cron/miscCrons.js";
+import { startCommandAutomation } from "./cron/commandAutomation.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -227,6 +228,7 @@ export function attachStartupLogic(
       () => handleAutoEvents(client),
       () => startAutoEscalation(client),
       () => startMiscCrons(client),
+      () => startCommandAutomation(client),
     ];
     for (const start of services) {
       try {

@@ -38,10 +38,6 @@ import {
 } from "./commands/community.js";
 import { commands as utilityCommands, handleCommand as handleUtility } from "./commands/utility.js";
 import { commands as vocalCommands, handleCommand as handleVocal } from "./commands/vocal.js";
-import {
-  commands as retrospectiveCommands,
-  handleCommand as handleRetrospective,
-} from "./commands/retrospective.js";
 import { commands as twitchCommands, handleCommand as handleTwitch } from "./commands/twitch.js";
 import { commands as steamCommands, handleCommand as handleSteam } from "./commands/steam.js";
 import {
@@ -50,18 +46,9 @@ import {
 } from "./commands/trackGame.js";
 import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
 import {
-  commands as echoTdsCommands,
-  handleCommand as handleEchoTds,
-} from "./commands/fun/echoTds.js";
-import {
-  commands as askBotCommands,
-  handleCommand as handleAskBot,
-} from "./commands/fun/askBot.js";
-import {
   commands as wishlistCommands,
   handleCommand as handleWishlist,
 } from "./commands/fun/wishlist.js";
-import { commands as shopCommands, handleCommand as handleShop } from "./commands/fun/shop.js";
 import { commands as dicteeCommands, handleCommand as handleDictee } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
@@ -76,11 +63,6 @@ import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
-import { commands as uptimeCommands, handleCommand as handleUptime } from "./commands/uptime.js";
-import {
-  commands as securityAuditCommands,
-  handleCommand as handleSecurityAudit,
-} from "./commands/security-audit.js";
 import {
   commands as userinfoCommands,
   handleCommand as handleUserinfo,
@@ -120,22 +102,16 @@ export const allCommands = [
   ...communityCommands,
   ...utilityCommands,
   ...vocalCommands,
-  ...retrospectiveCommands,
   ...twitchCommands,
   ...steamCommands,
   ...psnCommands,
   ...trackGameCommands,
-  ...echoTdsCommands,
-  ...askBotCommands,
   ...wishlistCommands,
-  ...shopCommands,
   ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
-  ...uptimeCommands,
-  ...securityAuditCommands,
   ...userinfoCommands,
   ...advancedCommands,
   ...communityExtraCommands,
@@ -167,7 +143,6 @@ export function buildCommandRouter(): void {
     [
       "broadcast",
       "dm",
-      "logs",
       "deletehistory",
       "test-freegames",
       "add-source",
@@ -175,11 +150,6 @@ export function buildCommandRouter(): void {
       "list-sources",
       "pause-source",
       "backup",
-      "create-workflow",
-      "list-workflows",
-      "toggle-workflow",
-      "search-notifications",
-      "guild-config",
     ],
     handleAdmin,
   );
@@ -195,10 +165,8 @@ export function buildCommandRouter(): void {
       "timeout",
       "lock",
       "unlock",
-      "softban",
       "purge",
       "slowmode",
-      "snipe",
       "history",
     ],
     handleModeration,
@@ -221,10 +189,9 @@ export function buildCommandRouter(): void {
     handleSecurity,
   );
   registerGroup(["free-games", "game-status", "patch_notes", "deal"], handleGaming);
-  registerGroup(["ticket-setup", "wishlist-notify"], handleCommunity);
+  registerGroup(["ticket-setup"], handleCommunity);
   registerGroup(["embed-builder", "say", "poll"], handleUtility);
   registerGroup(["vocal"], handleVocal);
-  registerGroup(["retrospective"], handleRetrospective);
   registerGroup(["twitch"], handleTwitch);
   registerGroup(["steam"], handleSteam);
   registerGroup(["track-game", "untrack-game", "list-tracked"], handleTrackGame);
@@ -234,42 +201,22 @@ export function buildCommandRouter(): void {
   registerGroup(["alertcenter", "riskscore", "riskyusers", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
-  registerGroup(["uptime"], handleUptime);
-  registerGroup(["security-audit"], handleSecurityAudit);
   registerGroup(["userinfo"], handleUserinfo);
-  registerGroup(
-    [
-      "deals-history",
-      "price-track",
-      "scraper-status",
-      "source-stats",
-      "trend-report",
-      "viral-alert",
-      "auto-report",
-      "cooldown-config",
-      "smart-alerts",
-      "fortnite-wishlist",
-      "retro-config",
-    ],
-    handleAdvanced,
-  );
+  registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
 
   // Commandes fun dispatchées via le handler main
-  for (const name of ["echo-tds", "ask-bot", "wishlist", "shop"]) {
-    commandRouter[name] = async (interaction, client) => {
+  for (const name of ["wishlist"]) {
+    commandRouter[name] = async (interaction, _client) => {
       if (!interaction.isChatInputCommand()) return;
       const cmd = interaction as ChatInputCommandInteraction;
-      if (name === "echo-tds") await handleEchoTds(cmd, client);
-      else if (name === "ask-bot") await handleAskBot(cmd);
-      else if (name === "wishlist") await handleWishlist(cmd);
-      else if (name === "shop") await handleShop(cmd);
+      if (name === "wishlist") await handleWishlist(cmd);
     };
   }
 
   registerGroup(["reminder", "lfg", "lfg-list", "giveaway", "self-role"], handleCommunityExtra);
-  registerGroup(["dashboard", "bot-health"], handleDashboard);
+  registerGroup(["dashboard"], handleDashboard);
   registerGroup(["ai-profile", "ai-config", "ai-channel-summary"], handleAiCmd);
-  registerGroup(["permission-audit", "report"], handleModExtra);
+  registerGroup(["report"], handleModExtra);
 }
 
 export function applyCommandMiddleware(): void {
