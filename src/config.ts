@@ -166,6 +166,7 @@ export const config = {
   freeGamesMention: env.FREE_GAMES_MENTION_ROLE || null,
   playstationChannel: env.PLAYSTATION_CHANNEL_ID || "",
   fortniteChannel: env.FORTNITE_CHANNEL_ID || "",
+  boutiqueChannel: env.BOUTIQUE_CHANNEL_ID || "1373300746379858003",
   xboxChannel: env.XBOX_CHANNEL_ID || "",
   nintendoChannel: env.NINTENDO_CHANNEL_ID || "",
   robloxChannel: env.ROBLOX_CHANNEL_ID || "",

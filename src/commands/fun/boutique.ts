@@ -1,5 +1,13 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  Client,
+  TextChannel,
+  ChannelType,
+} from "discord.js";
 import logger from "../../utils/logger.js";
+import { config } from "../../config.js";
 
 // ─── Types pour parser l'API Fortnite v2 ─────────────────────────────
 
@@ -486,7 +494,7 @@ export const commands = [
     .toJSON(),
 ];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client?: Client) {
   await interaction.deferReply();
 
   try {
@@ -505,16 +513,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
     const section = interaction.options.getString("section") || "overview";
 
+    // Construire les embeds selon la section
+    let embeds: EmbedBuilder[] = [];
+
     // ─── Vue d'ensemble : overview + nouveautés + bientôt retirés ───
     if (section === "overview") {
-      const embeds: EmbedBuilder[] = [buildOverviewEmbed(data)];
+      embeds = [buildOverviewEmbed(data)];
 
       const newItems = data.items.filter((i) => i.isNew);
       if (newItems.length > 0) {
         embeds.push(buildNewItemsEmbed(newItems, data.date));
       }
 
-      // Items qui partent au prochain reset (expiry dans les prochaines 24h)
       const now = Date.now();
       const expiringItems = data.items.filter(
         (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
@@ -522,36 +532,41 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       if (expiringItems.length > 0) {
         embeds.push(buildExpiringEmbed(expiringItems, data.date));
       }
-
-      // Discord limite à 10 embeds par message
-      await interaction.editReply({ embeds: embeds.slice(0, 10) });
-      return;
-    }
-
-    // ─── Nouveautés ───
-    if (section === "new") {
+    } else if (section === "new") {
       const newItems = data.items.filter((i) => i.isNew);
-      const embed = buildNewItemsEmbed(newItems, data.date);
-      await interaction.editReply({ embeds: [embed] });
-      return;
-    }
-
-    // ─── Bientôt retirés ───
-    if (section === "expiring") {
+      embeds = [buildNewItemsEmbed(newItems, data.date)];
+    } else if (section === "expiring") {
       const now = Date.now();
       const expiringItems = data.items.filter(
         (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
       );
-      const embed = buildExpiringEmbed(expiringItems, data.date);
-      await interaction.editReply({ embeds: [embed] });
-      return;
+      embeds = [buildExpiringEmbed(expiringItems, data.date)];
+    } else {
+      const sectionItems = data.items.filter((i) => i.sectionId === section);
+      const sectionName = sectionItems[0]?.sectionName || section;
+      embeds = [buildSectionEmbed(sectionName, section, sectionItems, data.date, data.nextReset)];
     }
 
-    // ─── Section spécifique ───
-    const sectionItems = data.items.filter((i) => i.sectionId === section);
-    const sectionName = sectionItems[0]?.sectionName || section;
-    const embed = buildSectionEmbed(sectionName, section, sectionItems, data.date, data.nextReset);
-    await interaction.editReply({ embeds: [embed] });
+    // Discord limite à 10 embeds par message
+    const finalEmbeds = embeds.slice(0, 10);
+
+    // 1. Répondre à l'interaction
+    await interaction.editReply({ embeds: finalEmbeds });
+
+    // 2. Envoyer aussi dans le salon boutique configuré
+    if (client && config.boutiqueChannel) {
+      try {
+        const channel = await client.channels.fetch(config.boutiqueChannel).catch(() => null);
+        if (channel && channel.type === ChannelType.GuildText) {
+          await (channel as TextChannel).send({ embeds: finalEmbeds });
+          logger.info(`[Boutique] Embeds envoyés dans le salon ${config.boutiqueChannel}`);
+        } else {
+          logger.warn(`[Boutique] Salon ${config.boutiqueChannel} inaccessible ou non textuel`);
+        }
+      } catch (err) {
+        logger.error(`[Boutique] Erreur envoi salon:`, String(err));
+      }
+    }
   } catch (err) {
     logger.error("[Boutique] Erreur:", String(err));
     await interaction.editReply({

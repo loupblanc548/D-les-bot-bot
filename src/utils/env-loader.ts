@@ -146,6 +146,7 @@ const envSchema = z.object({
   FREE_GAMES_MENTION_ROLE: z.string().optional(),
   PLAYSTATION_CHANNEL_ID: z.string().optional(),
   FORTNITE_CHANNEL_ID: z.string().optional(),
+  BOUTIQUE_CHANNEL_ID: z.string().optional(),
   XBOX_CHANNEL_ID: z.string().optional(),
   NINTENDO_CHANNEL_ID: z.string().optional(),
   ROBLOX_CHANNEL_ID: z.string().optional(),

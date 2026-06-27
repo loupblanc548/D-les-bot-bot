@@ -240,11 +240,11 @@ export function buildCommandRouter(): void {
 
   // Commandes fun dispatchées via le handler main
   for (const name of ["wishlist", "boutique"]) {
-    commandRouter[name] = async (interaction, _client) => {
+    commandRouter[name] = async (interaction, client) => {
       if (!interaction.isChatInputCommand()) return;
       const cmd = interaction as ChatInputCommandInteraction;
       if (name === "wishlist") await handleWishlist(cmd);
-      if (name === "boutique") await handleBoutique(cmd);
+      if (name === "boutique") await handleBoutique(cmd, client);
     };
   }
 
