@@ -21,6 +21,7 @@ const { mockLogger, mockConfig, mockClient, mockServices, mockCron } = vi.hoiste
     guilds: {
       cache: {
         size: 5,
+        values: vi.fn().mockReturnValue([]),
       },
     },
   },
@@ -33,6 +34,7 @@ const { mockLogger, mockConfig, mockClient, mockServices, mockCron } = vi.hoiste
     runDbSourcesRetrospective: vi.fn().mockResolvedValue(undefined),
     sendHealthReport: vi.fn().mockResolvedValue(undefined),
     validateChannels: vi.fn().mockResolvedValue({ errors: 0 }),
+    validateModeratorRoles: vi.fn().mockResolvedValue(undefined),
     startPatchNotesService: vi.fn(),
     startBackupService: vi.fn(),
     startInstantGamingNewsCheck: vi.fn(),
@@ -72,6 +74,9 @@ vi.mock("./services/monitor", () => ({
 vi.mock("./services/healthcheck", () => ({ sendHealthReport: mockServices.sendHealthReport }));
 vi.mock("./services/channel-validator", () => ({
   validateChannels: mockServices.validateChannels,
+}));
+vi.mock("./services/permissions", () => ({
+  validateModeratorRoles: mockServices.validateModeratorRoles,
 }));
 vi.mock("./services/patchNotes", () => ({
   startPatchNotesService: mockServices.startPatchNotesService,

@@ -24,11 +24,16 @@ function mockMember(
     admin?: boolean;
     roleIds?: string[];
     guildId?: string;
+    modPermissions?: boolean;
   } = {},
 ): GuildMember {
   return {
     permissions: {
-      has: vi.fn().mockReturnValue(overrides.admin ?? false),
+      has: vi.fn().mockImplementation((perm: bigint) => {
+        if (overrides.admin) return true;
+        if (overrides.modPermissions && perm) return true;
+        return false;
+      }),
     },
     roles: {
       cache: {
@@ -37,6 +42,15 @@ function mockMember(
     },
     guild: {
       id: overrides.guildId ?? "guild-1",
+      roles: {
+        cache: {
+          get: vi.fn((roleId: string) =>
+            (overrides.roleIds ?? []).includes(roleId)
+              ? { name: `Role-${roleId}`, permissions: { has: vi.fn().mockReturnValue(true) } }
+              : undefined,
+          ),
+        },
+      },
     } as unknown as Guild,
   } as unknown as GuildMember;
 }
