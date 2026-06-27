@@ -116,6 +116,10 @@ import {
   handleResumeCommand as handleResume,
   handleQueueStatusCommand as handleQueueStatus,
 } from "./commands/play.js";
+import {
+  commands as modProCommands,
+  handleCommand as handleModPro,
+} from "./commands/moderationPro.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -276,6 +280,7 @@ export const allCommands = [
   ...extraCmdCommands,
   ...radioCommands,
   ...playCommands,
+  ...modProCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -398,6 +403,7 @@ export function buildCommandRouter(): void {
   registerGroup(["pause"], handlePause);
   registerGroup(["resume"], handleResume);
   registerGroup(["queue-status"], handleQueueStatus);
+  registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
 }
 
 export function applyCommandMiddleware(): void {
