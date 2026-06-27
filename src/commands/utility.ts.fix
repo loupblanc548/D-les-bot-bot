@@ -1,9 +1,0 @@
-75,78d
-79a\
-    .addStringOption((o) =>\
-      o.setName("source")\
-        .setDescription("Langue source (par défaut: auto-détection)")\
-        .setRequired(false)\n    )
-.
-w
-q

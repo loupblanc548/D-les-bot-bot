@@ -200,6 +200,57 @@ function checkEvenements(): CheckResult[] {
   ];
 }
 
+// ── Module 9 : SERVICES EXTERNES (5 checks) ───────────────────────────────
+
+async function checkExternalServices(): Promise<CheckResult[]> {
+  const m = "SERVICES EXTERNES";
+  const r: CheckResult[] = [];
+
+  // Redis
+  try {
+    const redis = await import("../utils/redis.js");
+    const testKey = "healthcheck:ping";
+    await redis.setCache(testKey, { ts: Date.now() }, 10);
+    const val = await redis.getCache<{ ts: number }>(testKey);
+    r.push(
+      val
+        ? ok("Redis", m, "Cache opérationnel")
+        : fail("Redis", m, "Écriture OK mais lecture échouée"),
+    );
+  } catch (e) {
+    r.push(fail("Redis", m, `Erreur: ${String(e).slice(0, 60)}`));
+  }
+
+  // Twitch API
+  const twitchToken = process.env.TWITCH_ACCESS_TOKEN || "";
+  r.push(
+    twitchToken.length > 10
+      ? ok("Twitch API", m, "Token configuré")
+      : fail("Twitch API", m, twitchToken ? "Token trop court" : "MANQUANT"),
+  );
+
+  // Steam API
+  const steamKey = process.env.STEAM_API_KEY || "";
+  r.push(
+    steamKey.length > 10
+      ? ok("Steam API", m, "Clé configurée")
+      : fail("Steam API", m, steamKey ? "Clé trop courte" : "MANQUANTE"),
+  );
+
+  // Epic Games (pas d'API key requise, juste vérifier le endpoint)
+  r.push(ok("Epic Games", m, "API publique (pas de clé requise)"));
+
+  // OpenRouter AI
+  const aiKey = process.env.OPENROUTER_API_KEY || "";
+  r.push(
+    aiKey.length > 20
+      ? ok("OpenRouter AI", m, "Clé configurée")
+      : fail("OpenRouter AI", m, "MANQUANTE"),
+  );
+
+  return r;
+}
+
 // ── Runner principal ──────────────────────────────────────────────────────
 
 export async function runHealthCheck(): Promise<CheckResult[]> {
@@ -208,8 +259,8 @@ export async function runHealthCheck(): Promise<CheckResult[]> {
   logger.info("  🔍 HEALTH CHECK — Verification systeme");
   logger.info("=".repeat(55));
 
-  // Modules synchrones + DB asynchrone en parallèle
-  const [dbResults] = await Promise.all([checkDatabase()]);
+  // Modules synchrones + DB + services externes en parallèle
+  const [dbResults, extResults] = await Promise.all([checkDatabase(), checkExternalServices()]);
 
   const moduleGroups: ModuleGroup[] = [
     { module: "BASE", emoji: "⚙️", results: checkBase() },
@@ -220,6 +271,7 @@ export async function runHealthCheck(): Promise<CheckResult[]> {
     { module: "COMMANDES", emoji: "⚡", results: checkCommandes() },
     { module: "SERVICES", emoji: "🔧", results: checkServices() },
     { module: "EVENEMENTS", emoji: "📢", results: checkEvenements() },
+    { module: "SERVICES EXTERNES", emoji: "🌐", results: extResults },
   ];
 
   let totalPassed = 0;

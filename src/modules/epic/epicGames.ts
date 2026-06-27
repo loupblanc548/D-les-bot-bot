@@ -1,12 +1,13 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
+import logger from "../../utils/logger.js";
 import { createClient } from "redis";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
+redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const EPIC_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions";
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
@@ -24,7 +25,7 @@ interface EpicGame {
 }
 
 export function startEpicGamesAggregator(client: Client): void {
-  console.log("[EpicGames] Starting Epic Games aggregator");
+  logger.info("[EpicGames] Starting Epic Games aggregator");
 
   setInterval(async () => {
     await checkEpicGames(client);
@@ -47,7 +48,7 @@ async function checkEpicGames(client: Client): Promise<void> {
       await processGame(client, game);
     }
   } catch (error) {
-    console.error("[EpicGames] Error:", error);
+    logger.error("[EpicGames] Error:", error);
   }
 }
 
@@ -91,7 +92,7 @@ function parseEpicGames(data: any): EpicGame[] {
         endDate,
       });
     } catch (error) {
-      console.error("[EpicGames] Error parsing offer:", error);
+      logger.error("[EpicGames] Error parsing offer:", error);
     }
   }
 
@@ -109,13 +110,13 @@ async function processGame(client: Client, game: EpicGame): Promise<void> {
 
     const channelId = process.env.EPIC_GAMES_CHANNEL_ID;
     if (!channelId) {
-      console.error("[EpicGames] EPIC_GAMES_CHANNEL_ID not defined");
+      logger.error("[EpicGames] EPIC_GAMES_CHANNEL_ID not defined");
       return;
     }
 
     const channel = await client.channels.fetch(channelId);
     if (!channel || !(channel instanceof TextChannel)) {
-      console.error(`[EpicGames] Invalid channel: ${channelId}`);
+      logger.error(`[EpicGames] Invalid channel: ${channelId}`);
       return;
     }
 
@@ -137,9 +138,9 @@ async function processGame(client: Client, game: EpicGame): Promise<void> {
 
     await redis.set(postedKey, "1", { EX: EPIC_TTL });
 
-    console.log(`[EpicGames] Posted new free game: ${game.title}`);
+    logger.info(`[EpicGames] Posted new free game: ${game.title}`);
   } catch (error) {
-    console.error(`[EpicGames] Error processing game ${game.title}:`, error);
+    logger.error(`[EpicGames] Error processing game ${game.title}:`, error);
   }
 }
 

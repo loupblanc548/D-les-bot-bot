@@ -1,4 +1,5 @@
 import { Client, TextChannel } from "discord.js";
+import logger from "../../utils/logger.js";
 import { createClient } from "redis";
 import prisma from "../../prisma.js";
 
@@ -6,13 +7,13 @@ const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
+redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const DIAGNOSTIC_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
 
 export function startSystemDiagnostic(client: Client): void {
-  console.log("[SystemDiagnostic] Starting daily system diagnostic");
+  logger.info("[SystemDiagnostic] Starting daily system diagnostic");
 
   setInterval(async () => {
     await runDiagnostic(client);
@@ -88,20 +89,20 @@ Neon DB     -> [1;${postgresColor}m ${postgresPing}ms [0m] -> ${postgresStatus}
 
     const logChannelId = process.env.LOG_CHANNEL_ID;
     if (!logChannelId) {
-      console.error("[SystemDiagnostic] LOG_CHANNEL_ID not defined");
+      logger.error("[SystemDiagnostic] LOG_CHANNEL_ID not defined");
       return;
     }
 
     const channel = await client.channels.fetch(logChannelId);
     if (!channel || !(channel instanceof TextChannel)) {
-      console.error(`[SystemDiagnostic] Invalid log channel: ${logChannelId}`);
+      logger.error(`[SystemDiagnostic] Invalid log channel: ${logChannelId}`);
       return;
     }
 
     await channel.send({ content: diagnosticOutput });
-    console.log("[SystemDiagnostic] Diagnostic report sent");
+    logger.info("[SystemDiagnostic] Diagnostic report sent");
   } catch (error) {
-    console.error("[SystemDiagnostic] Error:", error);
+    logger.error("[SystemDiagnostic] Error:", error);
   }
 }
 

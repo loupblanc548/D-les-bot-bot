@@ -112,7 +112,8 @@ export async function buildConversationContext(
   username: string,
 ): Promise<Array<{ role: "system" | "user" | "assistant"; content: string }>> {
   // Récupérer la mémoire long-terme + historique de conversation
-  const snapshot = await recall(userId, { includeMessages: true, messageLimit: 20 });
+  // Limite à 15 messages pour éviter de dépasser le context window
+  const snapshot = await recall(userId, { includeMessages: true, messageLimit: 15 });
 
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
@@ -141,7 +142,18 @@ export async function buildConversationContext(
   messages.push({ role: "system", content: systemPrompt });
 
   // ── Ajouter l'historique de conversation (si actif) ──
-  for (const msg of snapshot.recentMessages) {
+  // Limite la taille totale de l'historique à 6000 caractères pour éviter le dépassement de context window
+  const MAX_HISTORY_CHARS = 6000;
+  let historyChars = 0;
+  const trimmedMessages = [];
+  for (let i = snapshot.recentMessages.length - 1; i >= 0; i--) {
+    const msg = snapshot.recentMessages[i];
+    const msgChars = msg.content.length;
+    if (historyChars + msgChars > MAX_HISTORY_CHARS) break;
+    trimmedMessages.unshift(msg);
+    historyChars += msgChars;
+  }
+  for (const msg of trimmedMessages) {
     messages.push({
       role: msg.role as "user" | "assistant",
       content: msg.content,

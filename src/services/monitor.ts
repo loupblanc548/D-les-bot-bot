@@ -35,8 +35,8 @@ const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
+redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;
@@ -69,7 +69,7 @@ async function getCachedData<T>(key: string): Promise<T | null> {
     cacheStats.misses++;
     return null;
   } catch (error) {
-    console.error("[Cache] Error getting data:", error);
+    logger.error("[Cache] Error getting data:", error);
     cacheStats.misses++;
     return null;
   }
@@ -79,7 +79,7 @@ async function setCachedData<T>(key: string, data: T, ttl: number = 300): Promis
   try {
     await redis.set(key, JSON.stringify(data), { EX: ttl });
   } catch (error) {
-    console.error("[Cache] Error setting data:", error);
+    logger.error("[Cache] Error setting data:", error);
   }
 }
 
@@ -616,7 +616,7 @@ async function ensureSourceAndInsertNotification(
         skipped: true,
       };
     }
-    console.error(`⚠️ [AutoSource] Erreur pour ${urlOrHandle} :`, String(error));
+    logger.error(`⚠️ [AutoSource] Erreur pour ${urlOrHandle} :`, String(error));
     return {
       success: false,
       sourceCreated: false,
@@ -787,13 +787,13 @@ async function sendHealthAlert(
   try {
     const logChannelId = process.env.LOG_CHANNEL_ID;
     if (!logChannelId) {
-      console.error("[HealthAlert] LOG_CHANNEL_ID not defined");
+      logger.error("[HealthAlert] LOG_CHANNEL_ID not defined");
       return;
     }
 
     const channel = await client.channels.fetch(logChannelId);
     if (!channel || !(channel instanceof TextChannel)) {
-      console.error(`[HealthAlert] Invalid log channel: ${logChannelId}`);
+      logger.error(`[HealthAlert] Invalid log channel: ${logChannelId}`);
       return;
     }
 
@@ -823,9 +823,9 @@ STATUT      -> [1;${statusColor}m ${statusText} [0m]
 [1;30m// Cycle de rattrapage terminé. Système opérationnel.[0m\`\`\``;
 
     await channel.send({ content: healthOutput });
-    console.log("[HealthAlert] Health report sent");
+    logger.info("[HealthAlert] Health report sent");
   } catch (error) {
-    console.error("[HealthAlert] Error:", error);
+    logger.error("[HealthAlert] Error:", error);
   }
 }
 
@@ -858,7 +858,7 @@ async function checkSourceInactivity(client: Client): Promise<void> {
       }
     }
   } catch (error) {
-    console.error("[SourceInactivity] Error:", error);
+    logger.error("[SourceInactivity] Error:", error);
   }
 }
 
@@ -881,9 +881,9 @@ async function sendInactivityAlert(client: Client, source: any, reason: string):
 [1;30m// Source inactive depuis plus de 7 jours.[0m\`\`\``;
 
     await channel.send({ content: alertOutput });
-    console.log(`[SourceInactivity] Alert sent for ${source.urlOrHandle}`);
+    logger.info(`[SourceInactivity] Alert sent for ${source.urlOrHandle}`);
   } catch (error) {
-    console.error("[SourceInactivity] Error sending alert:", error);
+    logger.error("[SourceInactivity] Error sending alert:", error);
   }
 }
 

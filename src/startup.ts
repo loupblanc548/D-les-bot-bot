@@ -57,6 +57,7 @@ import { startMemoryGrooming } from "./cron/memoryGrooming.js";
 import { startRadioGamingCron } from "./cron/radioGaming.js";
 import { attachDramaPrediction } from "./services/dramaPrediction.js";
 import { startToxicityScanCron } from "./cron/toxicityScan.js";
+import { startLogRetention } from "./cron/logRetention.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -256,6 +257,7 @@ export function attachStartupLogic(
       () => startRadioGamingCron(client),
       () => attachDramaPrediction(client),
       () => startToxicityScanCron(client),
+      () => startLogRetention(),
     ];
     for (const start of services) {
       try {

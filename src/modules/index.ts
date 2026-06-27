@@ -1,4 +1,5 @@
 import { Client } from "discord.js";
+import logger from "../utils/logger.js";
 import { startReminderWorker } from "./reminders/worker.js";
 import { handleAIChat } from "./ai/handler.js";
 import { startRSSAggregator } from "./rss/aggregator.js";
@@ -14,7 +15,7 @@ export function initializeModules(client: Client): void {
   startSystemDiagnostic(client);
   startEpicGamesAggregator(client);
   startDatabaseBackup(client);
-  console.log("[Modules] All modules initialized");
+  logger.info("[Modules] All modules initialized");
 }
 
 export { remindmeCommand };

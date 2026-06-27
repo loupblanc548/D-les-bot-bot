@@ -23,6 +23,10 @@ import { stopMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
 import { stopTwitterMonitoring } from "./cron/twitterCron.js";
 import { stopMapCleanup } from "./events/messages.js";
 import { closeBrowser } from "./managers/ScraperManager.js";
+import { disconnectRedis } from "./utils/redis.js";
+import { stopAutoCleanup } from "./services/auto-cleanup.js";
+import { stopLogRetention } from "./cron/logRetention.js";
+import type { Client } from "discord.js";
 
 export type ClientDestroyFn = () => void;
 
@@ -43,15 +47,28 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
   // Arrêter tous les services monitoring
   const stopFns = [
-    stopMonitoring, stopTwitchMonitoring, stopPatchNotesService,
-    stopInstantGamingCheck, stopInstantGamingNewsCheck,
-    stopSteamNewsMonitoring, stopFreeGamesMonitoring,
-    stopDealsMonitoring, stopGlobalPatchNotesMonitoring,
-    stopMonthlyMaintenance, stopTwitterMonitoring, stopMapCleanup,
+    stopMonitoring,
+    stopTwitchMonitoring,
+    stopPatchNotesService,
+    stopInstantGamingCheck,
+    stopInstantGamingNewsCheck,
+    stopSteamNewsMonitoring,
+    stopFreeGamesMonitoring,
+    stopDealsMonitoring,
+    stopGlobalPatchNotesMonitoring,
+    stopMonthlyMaintenance,
+    stopTwitterMonitoring,
+    stopMapCleanup,
+    stopAutoCleanup,
+    stopLogRetention,
   ];
 
   for (const fn of stopFns) {
-    try { fn(); } catch (err) { logger.error(`[Shutdown] Erreur arrêt: ${err}`); }
+    try {
+      fn();
+    } catch (err) {
+      logger.error(`[Shutdown] Erreur arrêt: ${err}`);
+    }
   }
 
   // Nettoyer les intervalles
@@ -60,10 +77,31 @@ async function gracefulShutdown(signal: string): Promise<void> {
   }
 
   // Déconnexions
-  try { await prisma.$disconnect(); } catch { /* silent */ }
-  try { if (destroyClient) destroyClient(); } catch { /* silent */ }
-  try { await closeBrowser(); } catch { /* silent */ }
-  try { await Sentry.close(2000); } catch { /* silent */ }
+  try {
+    await prisma.$disconnect();
+  } catch {
+    /* silent */
+  }
+  try {
+    await disconnectRedis();
+  } catch {
+    /* silent */
+  }
+  try {
+    if (destroyClient) destroyClient();
+  } catch {
+    /* silent */
+  }
+  try {
+    await closeBrowser();
+  } catch {
+    /* silent */
+  }
+  try {
+    await Sentry.close(2000);
+  } catch {
+    /* silent */
+  }
 
   logger.info("[Shutdown] Bot arrêté.");
   process.exit(0);

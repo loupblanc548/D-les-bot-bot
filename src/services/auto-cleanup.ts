@@ -175,7 +175,7 @@ async function runAutoCleanup(client: Client): Promise<void> {
       totalRemoved += result.removed;
       totalErrors += result.errors;
       if (result.removed > 0) {
-        console.log(
+        logger.info(
           `[Menage Auto] ${result.removed} doublons supprimes dans le salon #${result.channelName}`,
         );
       }
@@ -186,7 +186,7 @@ async function runAutoCleanup(client: Client): Promise<void> {
     }
   }
   if (totalRemoved > 0) {
-    console.log(
+    logger.info(
       `[Menage Auto] Total: ${totalRemoved} doublons supprimes sur ${channelIds.length} salons (${totalErrors} echecs)`,
     );
   }
