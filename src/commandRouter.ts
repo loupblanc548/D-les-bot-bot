@@ -145,6 +145,10 @@ import {
   commands as apiCmdCommands,
   handleCommand as handleApiCmd,
 } from "./commands/apiCommands.js";
+import {
+  commands as channelRoutingCommands,
+  handleCommand as handleChannelRouting,
+} from "./commands/channelRouting.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
@@ -313,6 +317,7 @@ export const allCommands = [
   ...memoryProfileCommands,
   ...aiFunCommands,
   ...apiCmdCommands,
+  ...channelRoutingCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -459,6 +464,7 @@ export function buildCommandRouter(): void {
     ],
     handleApiCmd,
   );
+  registerGroup(["channel-routing"], handleChannelRouting);
 }
 
 export function applyCommandMiddleware(): void {
