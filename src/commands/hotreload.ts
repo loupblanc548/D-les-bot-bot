@@ -14,49 +14,42 @@ import {
 export const data = new SlashCommandBuilder()
   .setName("hotreload")
   .setDescription("Gestion du hot reload du bot (admin only)")
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("reload")
-      .setDescription("Recharge les commandes et la configuration")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("reload").setDescription("Recharge les commandes et la configuration"),
   )
-  .addSubcommand(subcommand =>
+  .addSubcommand((subcommand) =>
     subcommand
       .setName("maintenance")
       .setDescription("Active/désactive le mode maintenance")
-      .addBooleanOption(option =>
-        option
-          .setName("enable")
-          .setDescription("Activer le mode maintenance")
-          .setRequired(true)
-      )
+      .addBooleanOption((option) =>
+        option.setName("enable").setDescription("Activer le mode maintenance").setRequired(true),
+      ),
   )
-  .addSubcommand(subcommand =>
+  .addSubcommand((subcommand) =>
     subcommand
       .setName("auto")
       .setDescription("Active/désactive le rechargement automatique")
-      .addBooleanOption(option =>
+      .addBooleanOption((option) =>
         option
           .setName("enable")
           .setDescription("Activer le rechargement automatique")
-          .setRequired(true)
+          .setRequired(true),
       )
-      .addIntegerOption(option =>
+      .addIntegerOption((option) =>
         option
           .setName("interval")
           .setDescription("Intervalle en secondes (défaut: 300)")
           .setRequired(false)
           .setMinValue(60)
-          .setMaxValue(3600)
-      )
+          .setMaxValue(3600),
+      ),
   )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("status")
-      .setDescription("Affiche le statut du hot reload")
+  .addSubcommand((subcommand) =>
+    subcommand.setName("status").setDescription("Affiche le statut du hot reload"),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client) {
-  await requireAdmin(interaction);
+  if (!(await requireAdmin(interaction))) return;
   const subcommand = interaction.options.getSubcommand();
 
   switch (subcommand) {
@@ -191,7 +184,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
         name: "Auto-reload",
         value: status.autoReloadEnabled ? "✅ Activé" : "❌ Désactivé",
         inline: true,
-      }
+      },
     )
     .setColor(0x00ff00)
     .setTimestamp();

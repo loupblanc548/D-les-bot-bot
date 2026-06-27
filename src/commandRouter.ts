@@ -19,7 +19,7 @@ import {
   handleCommand as handleMain,
   handleSelectMenu as handleMainSelectMenu,
 } from "./commands/main.js";
-import { commands as sourceCommands, handleCommand as handleSource } from "./commands/sources.js";
+import { commands as sourceCommands } from "./commands/sources.js";
 import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin.js";
 import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai.js";
 import {

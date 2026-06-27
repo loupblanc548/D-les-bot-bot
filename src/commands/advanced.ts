@@ -23,7 +23,9 @@ import {
 } from "../utils/smart-alerts.js";
 
 // Track active intervals for disable functionality
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let viralMonitoringActive = false;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let autoReportingActive: "daily" | "weekly" | "monthly" | null = null;
 
 const FOOTER = { text: "Système de Surveillance • Advanced" };
