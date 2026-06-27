@@ -96,6 +96,48 @@ const REGISTERED_COMMANDS = new Set([
   "casier-clear",
   // System
   "userinfo",
+  // Gaming Extra
+  "xbox",
+  "price-compare",
+  "playtime",
+  "game-recommend",
+  "release-calendar",
+  "metacritic",
+  "game-trivia",
+  // Sécurité Extra
+  "alt-link",
+  "ban-log",
+  "behavior-timeline",
+  "alert-rules",
+  // Communauté Extra
+  "rank",
+  "leaderboard",
+  "level-config",
+  "birthday-set",
+  "birthday-list",
+  "server-info",
+  // Utility Extra
+  "timer",
+  "avatar",
+  "role-info",
+  "channel-info",
+  "color",
+  "dice",
+  "coinflip",
+  "8ball",
+  // Fun Extra
+  "rps",
+  "hangman",
+  "wordle",
+  "guess-game",
+  "emoji-quiz",
+  // IA Extra
+  "ai-mood",
+  "ai-suggest",
+  "ai-translate-custom",
+  // Surveillance Extra
+  "reddit-track",
+  "rss-custom",
 ]);
 
 /**
@@ -103,7 +145,7 @@ const REGISTERED_COMMANDS = new Set([
  * Format: `/commandname - description` or `/commandname [params] - description`
  */
 function extractCommands(commandsString: string): string[] {
-  const matches = commandsString.matchAll(/`\/([a-zA-Z][a-zA-Z0-9_-]*)/g);
+  const matches = commandsString.matchAll(/`\/([a-zA-Z0-9][a-zA-Z0-9_-]*)/g);
   return Array.from(matches, (m) => m[1]);
 }
 

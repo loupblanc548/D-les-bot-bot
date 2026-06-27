@@ -47,7 +47,9 @@ export const CATEGORIES: Category[] = [
       "`/list-sources - Liste les sources (admin)`\n" +
       "`/pause-source [handle] - Met en pause une source (admin)`\n" +
       "`/twitch - Gère les streamers suivis (add/list/remove)`\n" +
-      "`/psn - Profil, trophées et jeux PlayStation`",
+      "`/psn - Profil, trophées et jeux PlayStation`\n" +
+      "`/reddit-track [subreddit] - Suit un subreddit`\n" +
+      "`/rss-custom [url] - Flux RSS personnalisé`",
   },
   {
     id: "admin",
@@ -76,7 +78,10 @@ export const CATEGORIES: Category[] = [
       "`/smartpoll [question] - Génère un sondage intelligent par IA`\n" +
       "`/ai-profile [membre] - Profil comportemental IA (admin)`\n" +
       "`/ai-config [parametre] [valeur] - Configure l'IA (admin)`\n" +
-      "`/ai-channel-summary [nombre] - Résume les messages d'un salon`",
+      "`/ai-channel-summary [nombre] - Résume les messages d'un salon`\n" +
+      "`/ai-mood - Analyse l'humeur du salon`\n" +
+      "`/ai-suggest [besoin] - Suggère une commande`\n" +
+      "`/ai-translate-custom [texte] [langue] - Traduit avec un ton`",
   },
   {
     id: "alertcenter",
@@ -128,7 +133,11 @@ export const CATEGORIES: Category[] = [
       "`/namehistory [@user] - Historique des pseudos`\n" +
       "`/avatarhistory [@user] - Historique des avatars`\n" +
       "`/linkcheck [url] - Vérifie un lien suspect`\n" +
-      "`/antiphishing - Active/désactive l'anti-phishing`",
+      "`/antiphishing - Active/désactive l'anti-phishing`\n" +
+      "`/alt-link [main] - Lie ton compte main et alt`\n" +
+      "`/ban-log [membre] - Historique cross-serveurs des bans`\n" +
+      "`/behavior-timeline [membre] - Timeline des events d'un user`\n" +
+      "`/alert-rules [action] - Builder de règles d'alerte (admin)`",
   },
   {
     id: "gaming",
@@ -144,7 +153,14 @@ export const CATEGORIES: Category[] = [
       "`/untrack-game [jeu] - Arrête la surveillance d'un jeu`\n" +
       "`/list-tracked - Liste les jeux surveillés`\n" +
       "`/steam - Profil Steam, wishlist, nowplaying`\n" +
-      "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`",
+      "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`\n" +
+      "`/xbox [gamertag] - Profil Xbox/Game Pass`\n" +
+      "`/price-compare [jeu] - Compare prix multi-plateforme`\n" +
+      "`/playtime [membre] - Temps de jeu + leaderboard`\n" +
+      "`/game-recommend [genres] - IA recommande un jeu`\n" +
+      "`/release-calendar [periode] - Calendrier des sorties`\n" +
+      "`/metacritic [jeu] - Score Metacritic`\n" +
+      "`/game-trivia - Trivia gaming aléatoire`",
   },
   {
     id: "community",
@@ -158,7 +174,13 @@ export const CATEGORIES: Category[] = [
       "`/lfg-list - Liste les groupes LFG actifs`\n" +
       "`/giveaway [prix] [duree] - Lance un giveaway (admin)`\n" +
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/poll [question] [options] - Crée un sondage`",
+      "`/poll [question] [options] - Crée un sondage`\n" +
+      "`/rank [membre] - Carte de niveau XP`\n" +
+      "`/leaderboard - Top 10 XP du serveur`\n" +
+      "`/level-config [parametre] [valeur] - Config XP (admin)`\n" +
+      "`/birthday-set [date] - Définit ton anniversaire`\n" +
+      "`/birthday-list - Anniversaires du mois`\n" +
+      "`/server-info - Infos détaillées du serveur`",
   },
   {
     id: "utility",
@@ -171,7 +193,15 @@ export const CATEGORIES: Category[] = [
       "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
       "`/mp3 [nom] - Joue un son en vocal`\n" +
       "`/dictee - Lance une dictée en vocal`\n" +
-      "`/reverse [texte] - Inverse un texte`",
+      "`/reverse [texte] - Inverse un texte`\n" +
+      "`/timer [minutes] [label] - Minuteur avec notif`\n" +
+      "`/avatar [membre] - Avatar en grand`\n" +
+      "`/role-info [role] - Infos sur un rôle`\n" +
+      "`/channel-info - Infos sur un salon`\n" +
+      "`/color [hex] - Couleur hex/RGB`\n" +
+      "`/dice [format] - Lance un dé (NdM)`\n" +
+      "`/coinflip - Pile ou face`\n" +
+      "`/8ball [question] - Boule magique 8`",
   },
   {
     id: "casier",
@@ -187,7 +217,13 @@ export const CATEGORIES: Category[] = [
     name: "Fun",
     emoji: "🎭",
     description: "Commandes fun et divertissement",
-    commands: "`/wishlist - Gère ta wishlist Fortnite`",
+    commands:
+      "`/wishlist - Gère ta wishlist Fortnite`\n" +
+      "`/rps [choix] - Pierre feuille ciseaux`\n" +
+      "`/hangman - Pendu gaming`\n" +
+      "`/wordle - Wordle gaming`\n" +
+      "`/guess-game - Devine un nombre (chaud/froid)`\n" +
+      "`/emoji-quiz - Devine le jeu via emojis`",
   },
 ];
 
