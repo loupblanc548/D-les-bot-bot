@@ -62,20 +62,28 @@ vi.mock("./services/fortnite-api", () => ({
   runWishlistRetrospective: mockServices.runWishlistRetrospective,
 }));
 vi.mock("./services/twitch", () => ({ startTwitchMonitoring: mockServices.startTwitchMonitoring }));
-vi.mock("./services/feeds", () => ({ runStartupRetrospective: mockServices.runStartupRetrospective }));
+vi.mock("./services/feeds", () => ({
+  runStartupRetrospective: mockServices.runStartupRetrospective,
+}));
 vi.mock("./services/monitor", () => ({
   startMonitoring: mockServices.startMonitoring,
   runDbSourcesRetrospective: mockServices.runDbSourcesRetrospective,
 }));
 vi.mock("./services/healthcheck", () => ({ sendHealthReport: mockServices.sendHealthReport }));
-vi.mock("./services/channel-validator", () => ({ validateChannels: mockServices.validateChannels }));
-vi.mock("./services/patchNotes", () => ({ startPatchNotesService: mockServices.startPatchNotesService }));
+vi.mock("./services/channel-validator", () => ({
+  validateChannels: mockServices.validateChannels,
+}));
+vi.mock("./services/patchNotes", () => ({
+  startPatchNotesService: mockServices.startPatchNotesService,
+}));
 vi.mock("./services/backup", () => ({ startBackupService: mockServices.startBackupService }));
 vi.mock("./services/instantgaming-news", () => ({
   startInstantGamingNewsCheck: mockServices.startInstantGamingNewsCheck,
   checkInstantGamingNews: mockServices.checkInstantGamingNews,
 }));
-vi.mock("./services/instantgaming", () => ({ startInstantGamingCheck: mockServices.startInstantGamingCheck }));
+vi.mock("./services/instantgaming", () => ({
+  startInstantGamingCheck: mockServices.startInstantGamingCheck,
+}));
 vi.mock("./cron/steamNewsCron", () => ({
   startSteamNewsMonitoring: mockServices.startSteamNewsMonitoring,
   checkTrackedGames: mockServices.checkTrackedGames,
@@ -96,7 +104,16 @@ vi.mock("./cron/globalPatchNotesCron", () => ({
   startGlobalPatchNotesMonitoring: mockServices.startGlobalPatchNotesMonitoring,
   checkPatchNotes: mockServices.checkPatchNotes,
 }));
-vi.mock("./cron/monthlyMaintenance", () => ({ startMonthlyMaintenance: mockServices.startMonthlyMaintenance }));
+vi.mock("./cron/monthlyMaintenance", () => ({
+  startMonthlyMaintenance: mockServices.startMonthlyMaintenance,
+}));
+vi.mock("./cron/botHealthCheck", () => ({ startBotHealthCheck: vi.fn() }));
+vi.mock("./cron/notificationCleanup", () => ({ startNotificationCleanup: vi.fn() }));
+vi.mock("./cron/alertDigest", () => ({ startAlertDigest: vi.fn() }));
+vi.mock("./cron/dailyGamingContent", () => ({ startDailyGamingContent: vi.fn() }));
+vi.mock("./events/autoModeration", () => ({ handleAutoModeration: vi.fn() }));
+vi.mock("./events/inviteTracker", () => ({ handleInviteTracker: vi.fn() }));
+vi.mock("./events/serverCloneDetect", () => ({ handleServerCloneDetect: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";
@@ -107,8 +124,7 @@ describe("startup", () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-  });
+  afterEach(() => {});
 
   describe("attachStartupLogic", () => {
     it("enregistre le handler ClientReady sur le client", () => {
@@ -118,11 +134,11 @@ describe("startup", () => {
 
     it("notifie le propriétaire au démarrage", async () => {
       attachStartupLogic(mockClient as any, []);
-      
+
       // Récupérer et exécuter le handler ClientReady
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockClient.users.fetch).toHaveBeenCalledWith("owner-123");
@@ -130,10 +146,10 @@ describe("startup", () => {
 
     it("démarre tous les services dans l'ordre", async () => {
       attachStartupLogic(mockClient as any, []);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockServices.startMonitoring).toHaveBeenCalledWith(mockClient);
@@ -144,10 +160,10 @@ describe("startup", () => {
 
     it("lance les vérifications wishlist Fortnite", async () => {
       attachStartupLogic(mockClient as any, []);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockServices.checkWishlistMatches).toHaveBeenCalledWith(mockClient);
@@ -156,10 +172,10 @@ describe("startup", () => {
 
     it("enregistre l'intervalle cyclique wishlist (24h)", async () => {
       attachStartupLogic(mockClient as any, []);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       // setInterval a dû être appelé
@@ -168,10 +184,10 @@ describe("startup", () => {
 
     it("valide les canaux Discord", async () => {
       attachStartupLogic(mockClient as any, []);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockServices.validateChannels).toHaveBeenCalledWith(mockClient);
@@ -179,31 +195,30 @@ describe("startup", () => {
 
     it("log un avertissement si des canaux sont inaccessibles", async () => {
       mockServices.validateChannels.mockResolvedValueOnce({ errors: 3 });
-      
+
       attachStartupLogic(mockClient as any, []);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining("3 salon(s) inaccessible(s)")
+        expect.stringContaining("3 salon(s) inaccessible(s)"),
       );
     });
 
     it("envoie le rapport de santé à la fin du démarrage", async () => {
       const healthResults = [{ status: "ok" }];
-      
+
       attachStartupLogic(mockClient as any, healthResults as any);
-      
+
       const readyHandler = mockClient.once.mock.calls[0][1];
       const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-      
+
       await readyHandler(readyClient);
 
       expect(mockServices.sendHealthReport).toHaveBeenCalledWith(mockClient, healthResults);
     });
   });
 });
-
