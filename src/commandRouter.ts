@@ -59,6 +59,7 @@ import {
   handleCommand as handleAlertcenter,
 } from "./commands/alertcenter.js";
 import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
+import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
 import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
@@ -229,6 +230,7 @@ export const allCommands = [
   ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
+  ...ttsCommands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
   ...userinfoCommands,
@@ -306,6 +308,7 @@ export function buildCommandRouter(): void {
   registerGroup(["track-game", "untrack-game", "list-tracked"], handleTrackGame);
   registerGroup(["psn"], handlePsn);
   registerGroup(["mp3"], handleMp3);
+  registerGroup(["tts"], handleTts);
   registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);

@@ -47,6 +47,7 @@ const REGISTERED_COMMANDS = new Set([
   "say",
   "vocal",
   "mp3",
+  "tts",
   // Casier (regroupé en /casier)
   "casier",
   // Gaming Extra
