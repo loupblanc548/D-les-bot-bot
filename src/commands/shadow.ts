@@ -359,7 +359,7 @@ async function handleIntel(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
       .setTitle(`🕵️ Shadow Broker — Intel: ${intel.tag}`)
       .setThumbnail(intel.avatarUrl)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     // Infos de base
@@ -488,7 +488,7 @@ async function handlePatterns(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle("🔍 Shadow Broker — Patterns suspects détectés")
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (patterns.length === 0) {
@@ -542,7 +542,7 @@ async function handleReport(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle("📊 Shadow Broker — Rapport d'intelligence serveur")
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     embed.addFields(
@@ -668,7 +668,7 @@ async function handleSearch(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🔍 OSINT — Recherche username: ${username}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (found.length > 0) {
@@ -711,7 +711,7 @@ async function handleSherlock(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🔍 Sherlock — ${username} (${result.totalFound} trouvés)`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.found.length > 0) {
@@ -761,7 +761,7 @@ async function handleMaigret(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🔍 Maigret — ${username} (${result.totalFound} trouvés)`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.found.length > 0) {
@@ -811,7 +811,7 @@ async function handleEmail(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📧 OSINT — Email: ${email}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     // Résultats Holehe (120+ sites)
@@ -865,7 +865,7 @@ async function handlePhone(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📱 OSINT — Téléphone: ${phone}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.valid) {
@@ -911,7 +911,7 @@ async function handleDomain(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🌐 Intel domaine — ${domain}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     // crt.sh — sous-domaines
@@ -993,7 +993,7 @@ async function handleWhois(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📋 WHOIS — ${domain}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.registrar || result.creationDate) {
@@ -1041,7 +1041,7 @@ async function handleDns(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🌐 DNS — ${domain}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.aRecords.length > 0) {
@@ -1124,7 +1124,7 @@ async function handleInstagram(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📸 Instagram — @${username}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.found) {
@@ -1170,7 +1170,7 @@ async function handleCrawl(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🕷️ Crawl — ${url}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     embed.addFields({ name: "📊 Total URLs", value: String(result.total), inline: true });
@@ -1229,7 +1229,7 @@ async function handleSocial(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📱 SocialScan — ${query}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     const found = result.results.filter((r) => r.found);
@@ -1281,7 +1281,7 @@ async function handleHarvester(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🌾 theHarvester — ${domain}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     embed.addFields({ name: "📊 Total", value: String(result.total), inline: true });
@@ -1334,7 +1334,7 @@ async function handleWmn(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🔍 WhatsMyName — ${username} (${result.totalFound} trouvés)`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.found.length > 0) {
@@ -1417,7 +1417,7 @@ async function handleCms(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`🔧 CMS Detection — ${url}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     embed.addFields(
@@ -1456,7 +1456,7 @@ async function handleInstaDeep(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setTitle(`📸 Instagram Deep — @${username}`)
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp();
 
     if (result.found) {

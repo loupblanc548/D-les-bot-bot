@@ -44,7 +44,7 @@ async function sendPeriodicReport(client: Client): Promise<void> {
 
         const embed = new EmbedBuilder()
           .setTitle(`🕵️ [Shadow Broker] Rapport d'intelligence — ${guild.name}`)
-          .setColor(0x1a1a2e)
+          .setColor(0x00ff41)
           .setTimestamp();
 
         embed.addFields(
@@ -170,7 +170,7 @@ async function sendDailySummary(client: Client): Promise<void> {
 
         const embed = new EmbedBuilder()
           .setTitle(`📊 ${guild.name} (${guild.memberCount} membres)`)
-          .setColor(0x1a1a2e)
+          .setColor(0x00ff41)
           .setTimestamp();
 
         embed.addFields(

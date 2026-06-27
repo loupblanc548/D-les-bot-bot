@@ -416,7 +416,7 @@ export async function sendStatusReport(): Promise<void> {
 
     const embed = new EmbedBuilder()
       .setTitle("📊 Rapport de statut — Shadow Broker")
-      .setColor(0x1a1a2e)
+      .setColor(0x00ff41)
       .setTimestamp()
       .setFooter({ text: "Rapport automatique" });
 
