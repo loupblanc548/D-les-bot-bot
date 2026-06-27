@@ -20,13 +20,16 @@ import {
 } from "discord.js";
 import logger from "../utils/logger.js";
 import { requireAdmin } from "../services/permissions.js";
+import { LoadingAnimation } from "../utils/loadingAnimation.js";
 
 // ─── Definition Slash Command ──────────────────────────────────────────────
 
 export const commands = [
   new SlashCommandBuilder()
     .setName("clean-duplicates")
-    .setDescription("🧹 Analyse le salon et supprime tous les messages en doublon (Admin uniquement)")
+    .setDescription(
+      "🧹 Analyse le salon et supprime tous les messages en doublon (Admin uniquement)",
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
 ];
@@ -60,14 +63,12 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
   const isAdmin = await requireAdmin(interaction);
   if (!isAdmin) return;
 
-  await interaction.reply({
-    content: "🔍 **Analyse du salon et tri des doublons en cours...**",
-    ephemeral: false,
-  });
+  const anim = new LoadingAnimation(interaction, "🔍 Analyse des doublons");
+  await anim.start();
 
   const channel = interaction.channel;
   if (!channel || !channel.isTextBased()) {
-    await interaction.editReply({ content: "❌ Cette commande ne peut etre utilisee que dans un salon textuel." });
+    await anim.stop("❌ Cette commande ne peut etre utilisee que dans un salon textuel.");
     return;
   }
 
@@ -77,12 +78,11 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
     const messages: Collection<string, Message> = await textChannel.messages.fetch({ limit: 100 });
 
     if (messages.size < 2) {
-      await interaction.editReply({ content: "✅ Le salon contient moins de 2 messages — aucun doublon possible." });
-      setTimeout(() => { interaction.deleteReply().catch(() => {}); }, 10000);
+      await anim.stop("✅ Le salon contient moins de 2 messages — aucun doublon possible.");
       return;
     }
 
-    // Grouper par cle de deduplication
+    await anim.update(30, `${messages.size} messages analysés`);
     const groups = new Map<string, DuplicateGroup>();
 
     for (const [, msg] of messages) {
@@ -109,9 +109,12 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
       allDuplicates.push(...group.duplicates);
     }
 
+    await anim.update(60, `${allDuplicates.length} doublon(s) detecté(s)`);
+
     if (allDuplicates.length === 0) {
-      await interaction.editReply({ content: "✅ Aucun doublon detecte parmi les 100 derniers messages. Le salon est propre !" });
-      setTimeout(() => { interaction.deleteReply().catch(() => {}); }, 10000);
+      await anim.stop(
+        "✅ Aucun doublon detecte parmi les 100 derniers messages. Le salon est propre !",
+      );
       return;
     }
 
@@ -132,11 +135,13 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
         deletedCount += bulkDeleted.size;
         logger.info(`[CleanDuplicates] Bulk delete: ${bulkDeleted.size} messages`);
       } catch (err) {
-        logger.error(`[CleanDuplicates] Echec bulkDelete: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(
+          `[CleanDuplicates] Echec bulkDelete: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
-    // Suppression individuelle pour les anciens (avec delai anti rate-limit)
+    await anim.update(80, `Suppression: ${deletedCount}/${allDuplicates.length}`);
     if (old.length > 0) {
       for (const msg of old) {
         try {
@@ -153,19 +158,21 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
     const embed = new EmbedBuilder()
       .setColor(0x00ff88)
       .setTitle("🧹 Nettoyage termine !")
-      .setDescription(`J'ai analyse les **100 derniers messages** et supprime **${deletedCount} doublon(s)**.\nLe salon est maintenant propre !`)
-      .setFooter({ text: `Cles de doublons detectees : ${[...groups.values()].filter(g => g.duplicates.length > 0).length}` })
+      .setDescription(
+        `J'ai analyse les **100 derniers messages** et supprime **${deletedCount} doublon(s)**.\nLe salon est maintenant propre !`,
+      )
+      .setFooter({
+        text: `Cles de doublons detectees : ${[...groups.values()].filter((g) => g.duplicates.length > 0).length}`,
+      })
       .setTimestamp();
 
-    await interaction.editReply({ content: null, embeds: [embed] });
-
-    setTimeout(() => { interaction.deleteReply().catch(() => {}); }, 10000);
+    await anim.stop(embed);
   } catch (error) {
-    logger.error(`[CleanDuplicates] Erreur critique: ${error instanceof Error ? error.message : String(error)}`,
-      { stack: error instanceof Error ? error.stack : undefined });
-    const errorMsg = "❌ Une erreur est survenue pendant le nettoyage.";
-    try { await interaction.editReply({ content: errorMsg, embeds: [] }); }
-    catch { await interaction.followUp({ content: errorMsg, ephemeral: true }); }
+    logger.error(
+      `[CleanDuplicates] Erreur critique: ${error instanceof Error ? error.message : String(error)}`,
+      { stack: error instanceof Error ? error.stack : undefined },
+    );
+    await anim.stop("❌ Une erreur est survenue pendant le nettoyage.");
   }
 }
 
