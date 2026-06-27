@@ -22,7 +22,11 @@ import { attachInteractionHandlers } from "./interactionHandler.js";
 import { attachStartupLogic } from "./startup.js";
 import { attachShutdownHandlers, registerDestroyClient } from "./shutdown.js";
 import { attachProcessHandlers } from "./processHandlers.js";
-import { initProactiveAlerts } from "./services/proactiveAlerts.js";
+import {
+  initProactiveAlerts,
+  sendDeploymentNotification,
+  sendStatusReport,
+} from "./services/proactiveAlerts.js";
 import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
@@ -247,6 +251,25 @@ async function main(): Promise<void> {
 
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
+
+  // Notification de démarrage à l'owner
+  await sendDeploymentNotification(
+    "Bot démarré avec succès",
+    [
+      "Connexion Discord établie",
+      "Commandes slash enregistrées",
+      "Système d'alertes proactive actif",
+      "Système de départ invisible (stealth leave) actif",
+      "18 sous-commandes /shadow opérationnelles",
+      "Outils OSINT Python intégrés (Sherlock, Maigret, Holehe, PhoneInfoga, h8mail, instaloader, Photon, Sublist3r, socialscan, theHarvester, WhatsMyName, CMSeeK, exifread)",
+      "24 repos OSINT clonés dans D:\\osint-tools\\",
+      "README avec liens API disponible",
+    ],
+    0x43b581,
+  );
+
+  // Rapport de statut après 5 secondes (le temps que les guildes se chargent)
+  setTimeout(() => void sendStatusReport(), 5000);
 }
 
 // Point d'entrée : la fonction main est appelée depuis index.ts
