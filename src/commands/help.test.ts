@@ -43,6 +43,7 @@ const REGISTERED_COMMANDS = new Set([
   "self-role",
   "server-info",
   "profile",
+  "reaction-roles",
   // Utilitaires
   "embed-builder",
   "say",

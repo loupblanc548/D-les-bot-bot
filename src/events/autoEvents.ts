@@ -21,6 +21,7 @@ import { createLog } from "../services/logs.js";
 import prisma from "../prisma.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { checkVoiceSoundboard } from "../services/serverRules.js";
+import { handleReactionRoleAdd, handleReactionRoleRemove } from "../commands/reactionRoles.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -448,13 +449,24 @@ export function handleAutoEvents(client: Client): void {
     }
   });
 
-  // EVENT-20: Starboard
+  // EVENT-20: Starboard + Reaction Roles
   client.on("messageReactionAdd", async (reaction, user) => {
     try {
       if (reaction.partial) await reaction.fetch();
       await handleStarboard(reaction as MessageReaction, user as User, client);
+      await handleReactionRoleAdd(reaction as MessageReaction, user as User);
     } catch (error) {
       logger.error("[AutoEvents] reactionAdd error:", error);
+    }
+  });
+
+  // EVENT: Reaction Roles — retrait de réaction
+  client.on("messageReactionRemove", async (reaction, user) => {
+    try {
+      if (reaction.partial) await reaction.fetch();
+      await handleReactionRoleRemove(reaction as MessageReaction, user as User);
+    } catch (error) {
+      logger.error("[AutoEvents] reactionRemove error:", error);
     }
   });
 

@@ -62,6 +62,10 @@ import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/
 import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
 import { commands as profileCommands, handleCommand as handleProfile } from "./commands/profile.js";
 import {
+  commands as reactionRolesCommands,
+  handleCommand as handleReactionRoles,
+} from "./commands/reactionRoles.js";
+import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
 } from "./commands/clean-duplicates.js";
@@ -233,6 +237,7 @@ export const allCommands = [
   ...mp3Commands,
   ...ttsCommands,
   ...profileCommands,
+  ...reactionRolesCommands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
   ...userinfoCommands,
@@ -312,6 +317,7 @@ export function buildCommandRouter(): void {
   registerGroup(["mp3"], handleMp3);
   registerGroup(["tts"], handleTts);
   registerGroup(["profile"], handleProfile);
+  registerGroup(["reaction-roles"], handleReactionRoles);
   registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
