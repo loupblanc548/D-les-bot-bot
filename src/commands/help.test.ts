@@ -43,10 +43,6 @@ const REGISTERED_COMMANDS = new Set([
   "mention",
   "aichat",
   "smartpoll",
-  "translate",
-  "summarize",
-  "ask-gaming",
-  "ask-tech",
   // AlertCenter
   "alertcenter",
   "riskscore",
