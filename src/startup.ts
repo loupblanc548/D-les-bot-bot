@@ -38,6 +38,13 @@ import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
 import { startAutoCleanup } from "./services/auto-cleanup.js";
+import { startBotHealthCheck } from "./cron/botHealthCheck.js";
+import { startNotificationCleanup } from "./cron/notificationCleanup.js";
+import { startAlertDigest } from "./cron/alertDigest.js";
+import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
+import { handleAutoModeration } from "./events/autoModeration.js";
+import { handleInviteTracker } from "./events/inviteTracker.js";
+import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -207,6 +214,13 @@ export function attachStartupLogic(
       () => startMonthlyMaintenance(client),
       () => startGlobalPatchNotesMonitoring(client),
       () => startAutoCleanup(client),
+      () => startBotHealthCheck(client),
+      () => startNotificationCleanup(client),
+      () => startAlertDigest(client),
+      () => startDailyGamingContent(client),
+      () => handleAutoModeration(client),
+      () => handleInviteTracker(client),
+      () => handleServerCloneDetect(client),
     ];
     for (const start of services) {
       try {
