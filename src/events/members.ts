@@ -4,6 +4,7 @@ import prisma from "../prisma.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
 import { checkMemberProfile, autoPopulateWordFilter } from "../services/serverRules.js";
+import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -74,6 +75,9 @@ export function handleMemberEvents(client: Client) {
 
       // ── Pré-remplir le filtre de mots si pas encore fait ──
       await autoPopulateWordFilter(member.guild.id);
+
+      // ── Message de bienvenue (si configuré et activé) ──
+      await sendWelcomeMessage(member);
     } catch (error) {
       logger.error("[MemberEvents] Erreur lors du traitement guildMemberAdd:", error);
     }
@@ -88,6 +92,14 @@ export function handleMemberEvents(client: Client) {
         userId: member.id,
       });
       logger.info(`- ${tag} a quitte`);
+
+      // ── Message de départ (si configuré et activé) ──
+      const fullMember = await member.guild.members.fetch(member.id).catch(() => null);
+      if (fullMember) {
+        await sendGoodbyeMessage(fullMember);
+      } else if (member instanceof GuildMember) {
+        await sendGoodbyeMessage(member);
+      }
     } catch (error) {
       logger.error("[MemberEvents] Erreur lors du traitement guildMemberRemove:", error);
     }

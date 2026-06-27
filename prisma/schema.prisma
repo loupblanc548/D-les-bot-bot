@@ -1162,3 +1162,29 @@ model ReactionRoleMapping {
   @@index([roleId])
   @@map("reaction_role_mapping")
 }
+
+model WelcomeConfig {
+  guildId     String   @id
+  enabled     Boolean  @default(false)
+  channelId   String?
+  message     String   @default("Bienvenue {user} sur **{server}** ! 🎉")
+  title       String   @default("👋 Nouveau membre")
+  color       String   @default("5865f2")
+  imageUrl    String?
+  useImage    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@map("welcome_config")
+}
+
+model GoodbyeConfig {
+  guildId     String   @id
+  enabled     Boolean  @default(false)
+  channelId   String?
+  message     String   @default("**{username}** a quitté le serveur. 👋")
+  title       String   @default("👋 Au revoir")
+  color       String   @default("ed4245")
+  updatedAt   DateTime @updatedAt
+
+  @@map("goodbye_config")
+}

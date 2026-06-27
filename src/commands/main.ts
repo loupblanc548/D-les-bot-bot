@@ -162,7 +162,9 @@ export const CATEGORIES: Category[] = [
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
       "`/server-info - Infos détaillées du serveur`\n" +
       "`/profile [action] - Profil personnalisé (bio, couleur, badges, titre)`\n" +
-      "`/reaction-roles [action] - Rôles par réaction (admin)`",
+      "`/reaction-roles [action] - Rôles par réaction (admin)`\n" +
+      "`/welcome-config [action] - Message de bienvenue personnalisé (admin)`\n" +
+      "`/goodbye-config [action] - Message de départ personnalisé (admin)`",
   },
   {
     id: "utility",
