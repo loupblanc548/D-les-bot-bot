@@ -65,31 +65,6 @@ export const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
-    .setName("giveaway")
-    .setDescription("Lance un giveaway dans ce salon (Admin)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .addStringOption((opt) =>
-      opt.setName("prix").setDescription("Le prix à gagner").setRequired(true),
-    )
-    .addIntegerOption((opt) =>
-      opt
-        .setName("duree")
-        .setDescription("Durée en minutes (1-10080 = 7 jours max)")
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(10080),
-    )
-    .addIntegerOption((opt) =>
-      opt
-        .setName("gagnants")
-        .setDescription("Nombre de gagnants (défaut: 1)")
-        .setRequired(false)
-        .setMinValue(1)
-        .setMaxValue(20),
-    )
-    .toJSON(),
-
-  new SlashCommandBuilder()
     .setName("self-role")
     .setDescription("Configure un message de rôles auto-attribuables (Admin)")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
@@ -129,10 +104,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
         break;
       case "lfg-list":
         await handleLfgList(interaction);
-        break;
-      case "giveaway":
-        if (!(await requireAdmin(interaction))) return;
-        await handleGiveaway(interaction, client);
         break;
       case "self-role":
         if (!(await requireAdmin(interaction))) return;
@@ -264,77 +235,6 @@ async function handleLfgList(interaction: ChatInputCommandInteraction) {
     content: "📋 Utilise les boutons Rejoindre/Quitter sur les messages LFG actifs dans le salon.",
     flags: [MessageFlags.Ephemeral],
   });
-}
-
-// ===== /giveaway =====
-
-async function handleGiveaway(interaction: ChatInputCommandInteraction, _client: Client) {
-  const prize = interaction.options.getString("prix", true);
-  const durationMin = interaction.options.getInteger("duree", true);
-  const winnerCount = interaction.options.getInteger("gagnants") || 1;
-
-  const embed = new EmbedBuilder()
-    .setColor(0xf1c40f)
-    .setTitle("🎉 GIVEAWAY !")
-    .setDescription(
-      `**Prix :** ${prize}\n**Gagnants :** ${winnerCount}\n\nClique sur 🎉 pour participer !`,
-    )
-    .addFields({
-      name: "Fin dans",
-      value: `<t:${Math.floor((Date.now() + durationMin * 60000) / 1000)}:R>`,
-      inline: true,
-    })
-    .setTimestamp()
-    .setFooter({ text: "Giveaway automatique" });
-
-  const message = await interaction.reply({ embeds: [embed], fetchReply: true });
-  await message.react("🎉");
-
-  await interaction.followUp({
-    content: "Giveaway lancé !",
-    flags: [MessageFlags.Ephemeral],
-  });
-
-  // Schedule the draw
-  setTimeout(
-    async () => {
-      try {
-        const fetchedMessage = await message.fetch();
-        const reaction = fetchedMessage.reactions.cache.get("🎉");
-        if (!reaction) return;
-
-        const users = await reaction.users.fetch();
-        const participants = users.filter((u) => !u.bot);
-        if (participants.size === 0) {
-          await message.reply({ content: "😢 Personne n'a participé au giveaway !" });
-          return;
-        }
-
-        const winners: string[] = [];
-        const participantArray = Array.from(participants.values());
-        for (let i = 0; i < Math.min(winnerCount, participantArray.length); i++) {
-          const randomIndex = Math.floor(Math.random() * participantArray.length);
-          winners.push(`<@${participantArray[randomIndex].id}>`);
-          participantArray.splice(randomIndex, 1);
-        }
-
-        const resultEmbed = new EmbedBuilder()
-          .setColor(0xf1c40f)
-          .setTitle("🎉 Giveaway Terminé !")
-          .setDescription(`**Prix :** ${prize}\n**Gagnant(s) :** ${winners.join(", ")}`)
-          .setTimestamp();
-
-        await message.reply({
-          content: `Félicitations ${winners.join(" ")} ! 🎊`,
-          embeds: [resultEmbed],
-        });
-        logger.info(`[Giveaway] Winners: ${winners.join(", ")} — Prize: ${prize}`);
-      } catch (error) {
-        logger.error("[Giveaway] Erreur tirage:", error);
-      }
-    },
-    durationMin * 60 * 1000,
-  );
 }
 
 // ===== /self-role =====

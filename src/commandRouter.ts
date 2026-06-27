@@ -86,6 +86,29 @@ import {
   commands as extraCmdCommands,
   handleCommand as handleExtraCmd,
 } from "./commands/extraCommands.js";
+// ─── Wrappers de regroupement (subcommands) ───
+import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
+import {
+  commands as securityGroupCommands,
+  handleCommand as handleSecurityGroup,
+} from "./commands/securityGroup.js";
+import {
+  commands as sourcesGroupCommands,
+  handleCommand as handleSourcesGroup,
+} from "./commands/sourcesGroup.js";
+import {
+  commands as trackGroupCommands,
+  handleCommand as handleTrackGroup,
+} from "./commands/trackGroup.js";
+import {
+  commands as casierGroupCommands,
+  handleCommand as handleCasierGroup,
+} from "./commands/casierGroup.js";
+import {
+  commands as alertGroupCommands,
+  handleCommand as handleAlertGroup,
+} from "./commands/alertGroup.js";
+import { commands as aiGroupCommands, handleCommand as handleAiGroup } from "./commands/aiGroup.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -133,6 +156,49 @@ const REMOVED_COMMANDS = new Set([
   "dictee",
   "timer",
   "hangman",
+  // ─── Anciennes commandes regroupées en subcommands ───
+  "warn",
+  "mute",
+  "unmute",
+  "kick",
+  "ban",
+  "timeout",
+  "clear",
+  "unlock",
+  "purge",
+  "history",
+  "nuke",
+  "check-alt",
+  "blacklist",
+  "role-mass",
+  "antiraid",
+  "verif",
+  "namehistory",
+  "avatarhistory",
+  "linkcheck",
+  "alt-link",
+  "ban-log",
+  "behavior-timeline",
+  "alert-rules",
+  "add-source",
+  "remove-source",
+  "list-sources",
+  "pause-source",
+  "reddit-track",
+  "rss-custom",
+  "track-game",
+  "untrack-game",
+  "list-tracked",
+  "casier-clear",
+  "alertcenter",
+  "alertconfig",
+  "smart-alerts",
+  "chat",
+  "mention",
+  "aichat",
+  "smartpoll",
+  "ai-translate-custom",
+  "giveaway",
 ]);
 
 export const allCommands = [
@@ -153,6 +219,13 @@ export const allCommands = [
   ...trackGameCommands,
   ...wishlistCommands,
   ...boutiqueCommands,
+  ...modGroupCommands,
+  ...securityGroupCommands,
+  ...sourcesGroupCommands,
+  ...trackGroupCommands,
+  ...casierGroupCommands,
+  ...alertGroupCommands,
+  ...aiGroupCommands,
   ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
@@ -238,6 +311,15 @@ export function buildCommandRouter(): void {
   registerGroup(["maintenance"], handleMaintenance);
   registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
 
+  // ─── Commandes groupées (subcommands) ───
+  registerGroup(["mod"], handleModGroup);
+  registerGroup(["security"], handleSecurityGroup);
+  registerGroup(["sources"], handleSourcesGroup);
+  registerGroup(["track"], handleTrackGroup);
+  registerGroup(["casier"], handleCasierGroup);
+  registerGroup(["alert"], handleAlertGroup);
+  registerGroup(["ai"], handleAiGroup);
+
   // Commandes fun dispatchées via le handler main
   for (const name of ["wishlist", "boutique"]) {
     commandRouter[name] = async (interaction, client) => {
@@ -248,7 +330,7 @@ export function buildCommandRouter(): void {
     };
   }
 
-  registerGroup(["giveaway", "self-role"], handleCommunityExtra);
+  registerGroup(["self-role"], handleCommunityExtra);
   registerGroup(["report"], handleModExtra);
   registerGroup(
     [
