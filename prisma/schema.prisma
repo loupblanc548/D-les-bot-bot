@@ -1134,3 +1134,31 @@ model MemberProfile {
 
   @@map("member_profile")
 }
+
+model ReactionRoleMessage {
+  id        String   @id @default(cuid())
+  guildId   String
+  channelId String
+  messageId String
+  title     String   @default("Rôles par réaction")
+  createdAt DateTime @default(now())
+
+  mappings  ReactionRoleMapping[]
+
+  @@unique([channelId, messageId])
+  @@index([guildId])
+  @@map("reaction_role_message")
+}
+
+model ReactionRoleMapping {
+  id      String @id @default(cuid())
+  msgId   String
+  emoji   String
+  roleId  String
+
+  message ReactionRoleMessage @relation(fields: [msgId], references: [id], onDelete: Cascade)
+
+  @@unique([msgId, emoji])
+  @@index([roleId])
+  @@map("reaction_role_mapping")
+}
