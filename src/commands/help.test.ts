@@ -93,10 +93,17 @@ const REGISTERED_COMMANDS = new Set([
   // Communaute
   "ticket-setup",
   "wishlist-notify",
+  "reminder",
+  "lfg",
+  "lfg-list",
+  "giveaway",
+  "self-role",
   "poll",
   "auto-report",
   "cooldown-config",
   "retro-config",
+  "dashboard",
+  "bot-health",
   // Utilitaires
   "embed-builder",
   "say",

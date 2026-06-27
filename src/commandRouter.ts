@@ -89,6 +89,14 @@ import {
   commands as advancedCommands,
   handleCommand as handleAdvanced,
 } from "./commands/advanced.js";
+import {
+  commands as communityExtraCommands,
+  handleCommand as handleCommunityExtra,
+} from "./commands/communityExtra.js";
+import {
+  commands as dashboardCommands,
+  handleCommand as handleDashboard,
+} from "./commands/dashboard.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -125,6 +133,8 @@ export const allCommands = [
   ...securityAuditCommands,
   ...userinfoCommands,
   ...advancedCommands,
+  ...communityExtraCommands,
+  ...dashboardCommands,
 ];
 
 function registerGroup(
@@ -248,6 +258,9 @@ export function buildCommandRouter(): void {
       else if (name === "shop") await handleShop(cmd);
     };
   }
+
+  registerGroup(["reminder", "lfg", "lfg-list", "giveaway", "self-role"], handleCommunityExtra);
+  registerGroup(["dashboard", "bot-health"], handleDashboard);
 }
 
 export function applyCommandMiddleware(): void {
