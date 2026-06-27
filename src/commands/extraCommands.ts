@@ -330,7 +330,7 @@ async function aiResponse(prompt: string, system: string, maxTokens = 300): Prom
         "X-Title": "John Helldiver",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           { role: "system", content: system },
           { role: "user", content: prompt },

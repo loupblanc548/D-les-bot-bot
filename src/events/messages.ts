@@ -257,7 +257,7 @@ async function handleAiChatMention(
         "X-Title": "John Helldiver - Discord Bot",
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || "openai/gpt-4o",
+        model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
         messages,
         max_tokens: 500,
         temperature: 0.7,

@@ -104,7 +104,7 @@ async function summarizeWithAI(rawContent: string): Promise<string> {
   try {
     const client = getOpenAIClient();
     const completion = await client.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+      model: "nvidia/nemotron-3-ultra-550b-a55b:free",
       messages: [
         {
           role: "system",

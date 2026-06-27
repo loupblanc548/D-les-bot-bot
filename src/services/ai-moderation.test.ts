@@ -5,7 +5,7 @@ const { mockOpenAI, mockConfig, mockLogger } = vi.hoisted(() => ({
     chat: { completions: { create: vi.fn() } },
   },
   mockConfig: {
-    openRouterModel: "openai/gpt-4o-mini",
+    openRouterModel: "nvidia/nemotron-3-ultra-550b-a55b:free",
     openRouterApiKey: "test-key",
   },
   mockLogger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
@@ -55,7 +55,7 @@ describe("ai-moderation", () => {
       mockAIResponse({ isToxic: false, category: "normal", confidence: 0.9, explanation: "" });
       await analyzeToxicity("test model");
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalledWith(
-        expect.objectContaining({ model: "openai/gpt-4o-mini" }),
+        expect.objectContaining({ model: "nvidia/nemotron-3-ultra-550b-a55b:free" }),
         expect.any(Object),
       );
     });

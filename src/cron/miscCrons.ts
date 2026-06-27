@@ -133,7 +133,7 @@ export async function runAiServerHealth(client: Client): Promise<void> {
         "X-Title": "John Helldiver - Health Report",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
             role: "system",

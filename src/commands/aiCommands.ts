@@ -108,7 +108,7 @@ async function generateAIResponse(prompt: string, maxTokens: number = 500): Prom
         "X-Title": "John Helldiver - AI Commands",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-8b-instruct:free",
+        model: "meta-llama/llama-3.2-3b-instruct:free",
         messages: [
           {
             role: "system",
