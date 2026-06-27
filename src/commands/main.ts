@@ -62,9 +62,7 @@ export const CATEGORIES: Category[] = [
       "`/deletehistory - Supprime l'historique`\n" +
       "`/maintenance - Active/désactive le mode maintenance`\n" +
       "`/clean-duplicates - Nettoie les doublons DB`\n" +
-      "`/backup - Backup manuel de la DB`\n" +
-      "`/userinfo [utilisateur] - Infos sur un utilisateur`\n" +
-      "`/dashboard - Vue d'ensemble globale (admin)`",
+      "`/backup - Backup manuel de la DB`",
   },
   {
     id: "ai",
@@ -123,7 +121,6 @@ export const CATEGORIES: Category[] = [
     emoji: "🔒",
     description: "Commandes de sécurité avancée",
     commands:
-      "`/lockdown - Verrouille/déverrouille tous les salons`\n" +
       "`/nuke - Clone et nettoie un salon`\n" +
       "`/check-alt - Liste les comptes récents`\n" +
       "`/blacklist - Gère la liste noire (owner)`\n" +
@@ -156,11 +153,7 @@ export const CATEGORIES: Category[] = [
       "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`\n" +
       "`/xbox [gamertag] - Profil Xbox/Game Pass`\n" +
       "`/price-compare [jeu] - Compare prix multi-plateforme`\n" +
-      "`/playtime [membre] - Temps de jeu + leaderboard`\n" +
-      "`/game-recommend [genres] - IA recommande un jeu`\n" +
-      "`/release-calendar [periode] - Calendrier des sorties`\n" +
-      "`/metacritic [jeu] - Score Metacritic`\n" +
-      "`/game-trivia - Trivia gaming aléatoire`",
+      "`/release-calendar [periode] - Calendrier des sorties`",
   },
   {
     id: "community",
@@ -169,17 +162,8 @@ export const CATEGORIES: Category[] = [
     description: "Fonctionnalités communautaires",
     commands:
       "`/ticket-setup - Configure le système de tickets`\n" +
-      "`/reminder [message] [minutes] - Définit un rappel`\n" +
-      "`/lfg [jeu] [joueurs] - Looking For Group gaming`\n" +
-      "`/lfg-list - Liste les groupes LFG actifs`\n" +
       "`/giveaway [prix] [duree] - Lance un giveaway (admin)`\n" +
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/poll [question] [options] - Crée un sondage`\n" +
-      "`/rank [membre] - Carte de niveau XP`\n" +
-      "`/leaderboard - Top 10 XP du serveur`\n" +
-      "`/level-config [parametre] [valeur] - Config XP (admin)`\n" +
-      "`/birthday-set [date] - Définit ton anniversaire`\n" +
-      "`/birthday-list - Anniversaires du mois`\n" +
       "`/server-info - Infos détaillées du serveur`",
   },
   {
@@ -193,15 +177,7 @@ export const CATEGORIES: Category[] = [
       "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
       "`/mp3 [nom] - Joue un son en vocal`\n" +
       "`/dictee - Lance une dictée en vocal`\n" +
-      "`/reverse [texte] - Inverse un texte`\n" +
-      "`/timer [minutes] [label] - Minuteur avec notif`\n" +
-      "`/avatar [membre] - Avatar en grand`\n" +
-      "`/role-info [role] - Infos sur un rôle`\n" +
-      "`/channel-info - Infos sur un salon`\n" +
-      "`/color [hex] - Couleur hex/RGB`\n" +
-      "`/dice [format] - Lance un dé (NdM)`\n" +
-      "`/coinflip - Pile ou face`\n" +
-      "`/8ball [question] - Boule magique 8`",
+      "`/timer [minutes] [label] - Minuteur avec notif`",
   },
   {
     id: "casier",
@@ -217,13 +193,7 @@ export const CATEGORIES: Category[] = [
     name: "Fun",
     emoji: "🎭",
     description: "Commandes fun et divertissement",
-    commands:
-      "`/wishlist - Gère ta wishlist Fortnite`\n" +
-      "`/rps [choix] - Pierre feuille ciseaux`\n" +
-      "`/hangman - Pendu gaming`\n" +
-      "`/wordle - Wordle gaming`\n" +
-      "`/guess-game - Devine un nombre (chaud/froid)`\n" +
-      "`/emoji-quiz - Devine le jeu via emojis`",
+    commands: "`/hangman - Pendu gaming`",
   },
 ];
 
