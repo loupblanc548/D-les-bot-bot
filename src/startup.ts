@@ -45,6 +45,7 @@ import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
+import { handleAutoEvents } from "./events/autoEvents.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -221,6 +222,7 @@ export function attachStartupLogic(
       () => handleAutoModeration(client),
       () => handleInviteTracker(client),
       () => handleServerCloneDetect(client),
+      () => handleAutoEvents(client),
     ];
     for (const start of services) {
       try {

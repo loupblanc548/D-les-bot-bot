@@ -114,6 +114,7 @@ vi.mock("./cron/dailyGamingContent", () => ({ startDailyGamingContent: vi.fn() }
 vi.mock("./events/autoModeration", () => ({ handleAutoModeration: vi.fn() }));
 vi.mock("./events/inviteTracker", () => ({ handleInviteTracker: vi.fn() }));
 vi.mock("./events/serverCloneDetect", () => ({ handleServerCloneDetect: vi.fn() }));
+vi.mock("./events/autoEvents", () => ({ handleAutoEvents: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";
