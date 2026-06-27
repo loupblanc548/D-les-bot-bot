@@ -312,8 +312,12 @@ export async function startDashboardServer(port: number): Promise<number> {
   });
 
   // Fallback : servir index.html pour les routes non-API
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(__dirname, "frontend", "index.html"));
+  app.use((req, res) => {
+    if (!req.path.startsWith("/api")) {
+      res.sendFile(path.join(__dirname, "frontend", "index.html"));
+    } else {
+      res.status(404).json({ error: "Route non trouvée" });
+    }
   });
 
   return new Promise((resolve) => {
@@ -329,5 +333,16 @@ export async function startDashboardServer(port: number): Promise<number> {
         logger.error("[Dashboard] Erreur serveur:", err);
       }
     });
+  });
+}
+
+// Auto-démarrage si exécuté directement (npm run dashboard)
+const isDirectRun = process.argv[1]?.includes("dashboard") || process.env.DASHBOARD_DEV === "true";
+if (isDirectRun) {
+  void startDashboardServer(3721).then((port) => {
+    console.log(`\n  ╔══════════════════════════════════════════╗`);
+    console.log(`  ║  🕵️  SHADOW BROKER DASHBOARD              ║`);
+    console.log(`  ║  → http://localhost:${port}                 ║`);
+    console.log(`  ╚══════════════════════════════════════════╝\n`);
   });
 }
