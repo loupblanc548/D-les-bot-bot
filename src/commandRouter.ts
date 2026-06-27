@@ -45,7 +45,10 @@ import {
   handleCommand as handleTrackGame,
 } from "./commands/trackGame.js";
 import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
-import { commands as wishlistCommands } from "./commands/fun/wishlist.js";
+import {
+  commands as wishlistCommands,
+  handleCommand as handleWishlist,
+} from "./commands/fun/wishlist.js";
 import { commands as dicteeCommands } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
@@ -89,7 +92,6 @@ const REMOVED_COMMANDS = new Set([
   "lockdown",
   "dashboard",
   "userinfo",
-  "wishlist",
   "reverse",
   "poll",
   "reminder",
@@ -231,7 +233,14 @@ export function buildCommandRouter(): void {
   registerGroup(["maintenance"], handleMaintenance);
   registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
 
-  // Commandes fun dispatchées via le handler main — wishlist supprimé
+  // Commandes fun dispatchées via le handler main
+  for (const name of ["wishlist"]) {
+    commandRouter[name] = async (interaction, _client) => {
+      if (!interaction.isChatInputCommand()) return;
+      const cmd = interaction as ChatInputCommandInteraction;
+      if (name === "wishlist") await handleWishlist(cmd);
+    };
+  }
 
   registerGroup(["giveaway", "self-role"], handleCommunityExtra);
   registerGroup(["report"], handleModExtra);

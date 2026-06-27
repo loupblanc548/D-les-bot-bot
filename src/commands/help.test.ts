@@ -65,6 +65,7 @@ const REGISTERED_COMMANDS = new Set([
   "track-game",
   "untrack-game",
   "list-tracked",
+  "wishlist",
   "fortnite-wishlist",
   // Communaute
   "ticket-setup",
