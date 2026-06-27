@@ -20,6 +20,7 @@ import {
   Message,
 } from "discord.js";
 import logger from "../utils/logger.js";
+import { LoadingAnimation } from "../utils/loadingAnimation.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -75,7 +76,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     return;
   }
 
-  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+  const anim = new LoadingAnimation(interaction, "🧹 Purge en cours");
+  await anim.start();
 
   let totalScanned = 0;
   let totalDeleted = 0;
@@ -163,6 +165,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
         noMoreMessages = true;
       }
 
+      // Animation update
+      const progress = noMoreMessages ? 100 : Math.min(95, Math.round((passes / maxPasses) * 100));
+      await anim.update(
+        progress,
+        `Passe ${passes} • ${totalScanned} scannés • ${totalDeleted} supprimés`,
+      );
+
       // Petit délai pour éviter le rate limit Discord
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
@@ -186,7 +195,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       })
       .setTimestamp();
 
-    await interaction.editReply({ embeds: [embed] });
+    await anim.stop(embed);
 
     logger.info(
       `[PurgeContent] ${interaction.user.tag} a supprimé ${totalDeleted}/${totalScanned} messages contenant "${searchText.slice(0, 50)}" en ${passes} passes (${elapsed}s)`,
@@ -195,8 +204,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     logger.error(
       `[PurgeContent] Erreur: ${error instanceof Error ? error.message : String(error)}`,
     );
-    await interaction.editReply({
-      content: `❌ Erreur lors de la purge: ${error instanceof Error ? error.message : String(error)}`,
-    });
+    await anim.stop(
+      `❌ Erreur lors de la purge: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
