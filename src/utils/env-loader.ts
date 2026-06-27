@@ -25,6 +25,50 @@ const envSchema = z.object({
   TWITCH_CLIENT_ID: z.string().optional(),
   TWITCH_CLIENT_SECRET: z.string().optional(),
 
+  // Twitter multi-platform accounts
+  TWITTER_ACCOUNTS_STEAM_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_STEAM_EPIC_ID: z.string().optional(),
+  TWITTER_ACCOUNTS_PLAYSTATION_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_PLAYSTATION_ID: z.string().optional(),
+  TWITTER_ACCOUNTS_NINTENDO_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_NINTENDO_ID: z.string().optional(),
+  TWITTER_ACCOUNTS_XBOX_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_XBOX_ID: z.string().optional(),
+  TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_FORTNITE_ID: z.string().optional(),
+  TWITTER_ACCOUNTS_INSTANT_GAMING_ACCOUNTS: z.string().optional(),
+  TWITTER_CHANNEL_INSTANT_GAMING_ID: z.string().optional(),
+
+  // YouTube multi-platform channels
+  YOUTUBE_FORTNITE_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_FORTNITE_ID: z.string().optional(),
+  YOUTUBE_PLAYSTATION_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_PLAYSTATION_ID: z.string().optional(),
+  YOUTUBE_XBOX_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_XBOX_ID: z.string().optional(),
+  YOUTUBE_NINTENDO_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_NINTENDO_ID: z.string().optional(),
+  YOUTUBE_STEAM_EPIC_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_STEAM_EPIC_ID: z.string().optional(),
+  YOUTUBE_INSTANT_GAMING_CHANNELS: z.string().optional(),
+  YOUTUBE_CHANNEL_INSTANT_GAMING_ID: z.string().optional(),
+
+  // Patch Notes RSS per-platform
+  PATCH_FORTNITE_RSS: z.string().optional(),
+  PATCH_CHANNEL_FORTNITE_ID: z.string().optional(),
+  PATCH_PLAYSTATION_RSS: z.string().optional(),
+  PATCH_CHANNEL_PLAYSTATION_ID: z.string().optional(),
+  PATCH_XBOX_RSS: z.string().optional(),
+  PATCH_CHANNEL_XBOX_ID: z.string().optional(),
+  PATCH_NINTENDO_RSS: z.string().optional(),
+  PATCH_CHANNEL_NINTENDO_ID: z.string().optional(),
+  PATCH_STEAM_EPIC_RSS: z.string().optional(),
+  PATCH_CHANNEL_STEAM_EPIC_ID: z.string().optional(),
+  PATCH_INSTANT_GAMING_RSS: z.string().optional(),
+  PATCH_CHANNEL_INSTANT_GAMING_ID: z.string().optional(),
+  PATCH_STEAM_RSS: z.string().optional(),
+  PATCH_CHANNEL_STEAM_ID: z.string().optional(),
+
   // Monitoring & Cache
   SENTRY_DSN: z.string().url().optional().or(z.literal("")),
   CONTROL_TOKEN: z.string().optional(),
@@ -112,6 +156,10 @@ const envSchema = z.object({
   PRICE_TRACK_CHANNEL_ID: z.string().optional(),
   TRENDS_CHANNEL_ID: z.string().optional(),
   VIRAL_CHANNEL_ID: z.string().optional(),
+
+  // Crash webhook & Bull Board
+  CRASH_WEBHOOK_URL: z.string().optional(),
+  BULL_BOARD_PORT: z.string().optional(),
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_SECONDS: z.string().default("5"),

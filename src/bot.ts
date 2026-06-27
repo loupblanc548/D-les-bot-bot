@@ -127,6 +127,14 @@ async function main(): Promise<void> {
   );
   startDataPruning();
 
+  // Auto-seed des sources YouTube/Twitter depuis le .env
+  try {
+    const { autoSeedSources } = await import("./utils/auto-seed.js");
+    void autoSeedSources();
+  } catch (err) {
+    logger.warn(`[AutoSeed] Erreur: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   // Validation de la configuration
   const { errors, warnings } = validateConfig();
   if (warnings.length > 0) {

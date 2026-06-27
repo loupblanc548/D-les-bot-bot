@@ -24,6 +24,77 @@ export const config = {
   twitchClientId: env.TWITCH_CLIENT_ID || "",
   twitchClientSecret: env.TWITCH_CLIENT_SECRET || "",
 
+  // Twitter multi-platform routing (account → channel)
+  twitterPlatformRouting: [
+    {
+      accounts: (env.TWITTER_ACCOUNTS_STEAM_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_STEAM_EPIC_ID || env.STEAM_EPIC_CHANNEL_ID || "",
+      label: "Steam/Epic",
+    },
+    {
+      accounts: (env.TWITTER_ACCOUNTS_PLAYSTATION_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_PLAYSTATION_ID || env.PLAYSTATION_CHANNEL_ID || "",
+      label: "PlayStation",
+    },
+    {
+      accounts: (env.TWITTER_ACCOUNTS_NINTENDO_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_NINTENDO_ID || env.NINTENDO_CHANNEL_ID || "",
+      label: "Nintendo",
+    },
+    {
+      accounts: (env.TWITTER_ACCOUNTS_XBOX_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_XBOX_ID || env.XBOX_CHANNEL_ID || "",
+      label: "Xbox",
+    },
+    {
+      accounts: (env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_FORTNITE_ID || env.FORTNITE_CHANNEL_ID || "",
+      label: "Fortnite",
+    },
+    {
+      accounts: (env.TWITTER_ACCOUNTS_INSTANT_GAMING_ACCOUNTS || "").split(",").filter(Boolean),
+      channelId: env.TWITTER_CHANNEL_INSTANT_GAMING_ID || env.INSTANT_GAMING_CHANNEL_ID || "",
+      label: "Instant Gaming",
+    },
+  ].filter((r) => r.accounts.length > 0 && r.channelId),
+
+  // YouTube multi-platform routing
+  youtubePlatformRouting: [
+    {
+      channels: (env.YOUTUBE_FORTNITE_CHANNELS || "").split(",").filter(Boolean),
+      channelId: (env.YOUTUBE_CHANNEL_FORTNITE_ID || "").trim() || env.FORTNITE_CHANNEL_ID || "",
+      label: "Fortnite",
+    },
+    {
+      channels: (env.YOUTUBE_PLAYSTATION_CHANNELS || "").split(",").filter(Boolean),
+      channelId:
+        (env.YOUTUBE_CHANNEL_PLAYSTATION_ID || "").trim() || env.PLAYSTATION_CHANNEL_ID || "",
+      label: "PlayStation",
+    },
+    {
+      channels: (env.YOUTUBE_XBOX_CHANNELS || "").split(",").filter(Boolean),
+      channelId: (env.YOUTUBE_CHANNEL_XBOX_ID || "").trim() || env.XBOX_CHANNEL_ID || "",
+      label: "Xbox",
+    },
+    {
+      channels: (env.YOUTUBE_NINTENDO_CHANNELS || "").split(",").filter(Boolean),
+      channelId: (env.YOUTUBE_CHANNEL_NINTENDO_ID || "").trim() || env.NINTENDO_CHANNEL_ID || "",
+      label: "Nintendo",
+    },
+    {
+      channels: (env.YOUTUBE_STEAM_EPIC_CHANNELS || "").split(",").filter(Boolean),
+      channelId:
+        (env.YOUTUBE_CHANNEL_STEAM_EPIC_ID || "").trim() || env.STEAM_EPIC_CHANNEL_ID || "",
+      label: "Steam/Epic",
+    },
+    {
+      channels: (env.YOUTUBE_INSTANT_GAMING_CHANNELS || "").split(",").filter(Boolean),
+      channelId:
+        (env.YOUTUBE_CHANNEL_INSTANT_GAMING_ID || "").trim() || env.INSTANT_GAMING_CHANNEL_ID || "",
+      label: "Instant Gaming",
+    },
+  ].filter((r) => r.channels.length > 0 && r.channelId),
+
   // Monitoring & Cache
   sentryDsn: env.SENTRY_DSN || "",
   controlToken: env.CONTROL_TOKEN || "",

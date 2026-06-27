@@ -275,9 +275,27 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
   }
 
   const accountsRaw = config.twitterAccounts;
-  if (!accountsRaw || accountsRaw.length === 0) {
-    logger.warn("[TwitterCron] TWITTER_ACCOUNTS non configuré — cron desactive");
+  // Fusionner avec les comptes des routes spécifiques par plateforme
+  const platformRouting = config.twitterPlatformRouting;
+  const allPlatformAccounts = platformRouting.flatMap((r) => r.accounts);
+  const globalAccounts = (accountsRaw || "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter((a) => a.length > 0);
+  // Combiner en dédupliquant
+  const accounts = [...new Set([...globalAccounts, ...allPlatformAccounts])];
+
+  if (accounts.length === 0) {
+    logger.warn("[TwitterCron] Aucun compte Twitter configuré");
     return;
+  }
+
+  // Map: account → channelId (pour routing par compte)
+  const accountToChannel = new Map<string, string>();
+  for (const route of platformRouting) {
+    for (const acc of route.accounts) {
+      accountToChannel.set(acc.toLowerCase(), route.channelId);
+    }
   }
 
   if (isChecking) {
@@ -290,16 +308,6 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
   let tweetsSent = 0;
 
   try {
-    const accounts = accountsRaw
-      .split(",")
-      .map((a) => a.trim())
-      .filter((a) => a.length > 0);
-
-    if (accounts.length === 0) {
-      logger.warn("[TwitterCron] Aucun compte Twitter configuré");
-      return;
-    }
-
     checkCount++;
     logger.info(
       "[TwitterCron] Verification #" + checkCount + " de " + accounts.length + " compte(s)...",
@@ -353,9 +361,22 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
 
       const platforms = detectPlatforms(tweet.content);
 
-      // Fallback : TWITTER_CHANNEL_ID si aucune plateforme detectee
-      const targetConfigs: PlatformConfig[] =
-        platforms.length > 0
+      // 1. Routing par compte (account → channel) — priorité
+      const accountChannel = accountToChannel.get(tweet.account.toLowerCase());
+
+      // 2. Fallback : détection par mots-clés dans le contenu
+      // 3. Fallback final : TWITTER_CHANNEL_ID
+      const targetConfigs: PlatformConfig[] = accountChannel
+        ? [
+            {
+              id: "steam" as Platform,
+              channelId: accountChannel,
+              color: TWITTER_BLUE,
+              label: "Twitter",
+              iconUrl: TWITTER_ICON,
+            },
+          ]
+        : platforms.length > 0
           ? platforms
           : [
               {
