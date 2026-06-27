@@ -7,25 +7,15 @@ import {
   GuildMember,
 } from "discord.js";
 import { join } from "path";
-import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
-  VoiceConnectionStatus,
-  NoSubscriberBehavior,
-} from "@discordjs/voice";
 import { config } from "../config.js";
 import {
   SOUNDS_DIR,
   AUTOCOMPLETE_LIMIT,
-  DISCONNECT_DELAY_MS,
-  activeConnections,
-  activePlayers,
   listSoundFiles,
   findSoundFile,
-  cleanupConnection,
-} from "../services/audioPlayer.js";
+  joinAndPlay,
+  cleanupGuild,
+} from "../services/audioService.js";
 import logger from "../utils/logger.js";
 import { existsSync } from "fs";
 
@@ -120,77 +110,16 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
 
     // Nettoyer toute connexion existante
     const guildId = interaction.guildId!;
-    if (activeConnections.has(guildId)) {
-      cleanupConnection(guildId);
-    }
+    cleanupGuild(guildId);
 
-    // Rejoindre le vocal
-    const connection = joinVoiceChannel({
-      channelId: voiceChannel.id,
-      guildId,
-      adapterCreator: interaction.guild!.voiceAdapterCreator,
-      selfDeaf: false,
-      selfMute: false,
+    // Utiliser le service audio robuste
+    await joinAndPlay(interaction.guild!, voiceChannel.id, {
+      type: "file",
+      path: filePath,
+      displayName: sound.displayName,
     });
-
-    activeConnections.set(guildId, connection);
-
-    // Attendre que la connexion soit prête
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Timeout de connexion au salon vocal"));
-      }, 10000);
-
-      connection.once(VoiceConnectionStatus.Ready, () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-
-      connection.once(VoiceConnectionStatus.Disconnected, () => {
-        clearTimeout(timeout);
-        cleanupConnection(guildId);
-        reject(new Error("Déconnecté du salon vocal"));
-      });
-    });
-
-    // Créer l'AudioPlayer et la ressource
-    const player = createAudioPlayer({
-      behaviors: { noSubscriber: NoSubscriberBehavior.Pause },
-    });
-
-    const resource = createAudioResource(filePath);
-
-    activePlayers.set(guildId, player);
-    connection.subscribe(player);
-    player.play(resource);
 
     logger.info(`[MP3] ▶ ${interaction.user.tag} joue "${sound.displayName}" (${sound.name})`);
-
-    // Gérer la fin de lecture
-    player.once(AudioPlayerStatus.Idle, () => {
-      logger.info(`[MP3] ■ Lecture terminée : "${sound.displayName}"`);
-      setTimeout(() => {
-        if (
-          activePlayers.get(guildId) === player &&
-          player.state.status === AudioPlayerStatus.Idle
-        ) {
-          cleanupConnection(guildId);
-          logger.info(`[MP3] 🔌 Déconnexion après ${DISCONNECT_DELAY_MS / 1000}s d'inactivité`);
-        }
-      }, DISCONNECT_DELAY_MS);
-    });
-
-    // Gérer les erreurs de lecture
-    player.once("error", (error: Error) => {
-      logger.error(`[MP3] Erreur lecture "${sound.name}":`, String(error));
-      cleanupConnection(guildId);
-      interaction
-        .followUp({
-          content: `❌ Erreur de lecture pour **${sound.displayName}** : ${String(error).slice(0, 100)}`,
-          flags: [MessageFlags.Ephemeral],
-        })
-        .catch(() => {});
-    });
 
     // Embed de confirmation
     const embed = new EmbedBuilder()
