@@ -5,6 +5,8 @@
 
 import { z } from "zod";
 
+import logger from "./logger.js";
+
 // Environment variable schema with validation
 const envSchema = z.object({
   // Discord (required)
@@ -206,9 +208,9 @@ export function loadEnv(): Env {
       return `${path}: ${err.message}`;
     });
 
-    console.error("❌ Environment variable validation failed:");
-    errors.forEach((err) => console.error(`  - ${err}`));
-    console.error("\nPlease check your .env file and ensure all required variables are set.");
+    logger.error("❌ Environment variable validation failed:");
+    errors.forEach((err) => logger.error(`  - ${err}`));
+    logger.error("\nPlease check your .env file and ensure all required variables are set.");
     throw new Error("Environment variable validation failed");
   }
 

@@ -75,7 +75,28 @@ export async function validateModeratorRoles(guild: {
   }
 }
 
+// Cache des permission levels par membre (TTL 60s)
+const permCache = new Map<string, { level: PermissionLevel; expires: number }>();
+const PERM_CACHE_TTL = 60 * 1000;
+
 export async function getPermissionLevel(member: GuildMember): Promise<PermissionLevel> {
+  const cacheKey = `${member.guild.id}:${member.id}`;
+  const cached = permCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.level;
+  }
+
+  const level = await computePermissionLevel(member);
+  permCache.set(cacheKey, { level, expires: Date.now() + PERM_CACHE_TTL });
+  return level;
+}
+
+/** Invalide le cache pour un membre (à appeler si ses rôles changent) */
+export function invalidatePermissionCache(guildId: string, memberId: string): void {
+  permCache.delete(`${guildId}:${memberId}`);
+}
+
+async function computePermissionLevel(member: GuildMember): Promise<PermissionLevel> {
   // Admin Discord = accès total
   if (member.permissions.has(PermissionFlagsBits.Administrator)) {
     return PermissionLevel.ADMIN;

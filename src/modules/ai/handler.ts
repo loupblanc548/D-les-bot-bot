@@ -1,12 +1,13 @@
 import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
+import logger from "../../utils/logger.js";
 import { createClient } from "redis";
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
+redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 const CONTEXT_KEY_PREFIX = "ai:context:";
 const CONTEXT_TTL = 15 * 60; // 15 minutes
 const MAX_MESSAGES = 8;
@@ -68,7 +69,7 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
       await message.reply({ embeds: [embed] });
     }
   } catch (error) {
-    console.error("[AIChat] Error:", error);
+    logger.error("[AIChat] Error:", error);
     await message.reply({
       content: "❌ Erreur lors du traitement de votre message",
     });
@@ -80,7 +81,7 @@ async function getContext(key: string): Promise<MessageContext[]> {
     const data = await redis.get(key);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.error("[AIChat] Error getting context:", error);
+    logger.error("[AIChat] Error getting context:", error);
     return [];
   }
 }
@@ -89,7 +90,7 @@ async function saveContext(key: string, context: MessageContext[]): Promise<void
   try {
     await redis.set(key, JSON.stringify(context), { EX: CONTEXT_TTL });
   } catch (error) {
-    console.error("[AIChat] Error saving context:", error);
+    logger.error("[AIChat] Error saving context:", error);
   }
 }
 
@@ -121,7 +122,7 @@ async function fetchOpenRouter(
     const data = (await response.json()) as any;
     return data.choices[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse.";
   } catch (error) {
-    console.error("[AIChat] OpenRouter error:", error);
+    logger.error("[AIChat] OpenRouter error:", error);
     return "Désolé, une erreur s'est produite lors de la communication avec l'IA.";
   }
 }

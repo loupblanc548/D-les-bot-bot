@@ -1,6 +1,7 @@
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import OpenAI from "openai";
+import { chatWithHF } from "../utils/huggingFace.js";
 
 let openai: OpenAI | null = null;
 
@@ -23,27 +24,59 @@ export function getOpenAIClient(): OpenAI {
 export async function chatWithAI(message: string, username?: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.aiTimeoutMs);
+  const contextMessage = username
+    ? `L'utilisateur Discord "${username}" dit : ${message}`
+    : message;
   try {
     const client = getOpenAIClient();
-    const contextMessage = username
-      ? `L'utilisateur Discord "${username}" dit : ${message}`
-      : message;
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        { role: "system", content: config.aiSystemPrompt },
-        { role: "user", content: contextMessage },
-      ],
-      max_tokens: 1000,
-      temperature: 0.7,
-    }, { signal: controller.signal });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          { role: "system", content: config.aiSystemPrompt },
+          { role: "user", content: contextMessage },
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
+      },
+      { signal: controller.signal },
+    );
     return completion.choices[0]?.message?.content || "Desole, je n'ai pas pu generer de reponse.";
   } catch (error) {
     logger.error("OpenRouter API error:", String(error));
     if ((error as Error).name === "AbortError") {
       return "❌ La reponse de l'IA a pris trop de temps. Reessayez.";
     }
-    return "❌ Erreur lors de la communication avec l'IA.";
+
+    // Fallback: essayer un modele plus leger/rapide
+    try {
+      logger.warn("[AI] Tentative de fallback avec modele leger...");
+      const client = getOpenAIClient();
+      const fallbackModel = "openai/gpt-4o-mini";
+      const completion = await client.chat.completions.create({
+        model: fallbackModel,
+        messages: [
+          { role: "system", content: config.aiSystemPrompt },
+          { role: "user", content: contextMessage },
+        ],
+        max_tokens: 500,
+        temperature: 0.5,
+      });
+      return completion.choices[0]?.message?.content || "❌ L'IA n'a pas pu repondre.";
+    } catch (fallbackErr) {
+      logger.error("[AI] Fallback aussi en echec:", String(fallbackErr));
+
+      // Fallback ultime: Hugging Face (gratuit, open-source)
+      try {
+        logger.warn("[AI] Tentative de fallback Hugging Face...");
+        const hfResponse = await chatWithHF(contextMessage, config.aiSystemPrompt);
+        if (hfResponse) return hfResponse;
+      } catch (hfErr) {
+        logger.error("[AI] HuggingFace aussi en echec:", String(hfErr));
+      }
+
+      return "❌ Le service IA est temporairement indisponible. Reessayez plus tard.";
+    }
   } finally {
     clearTimeout(timeout);
   }

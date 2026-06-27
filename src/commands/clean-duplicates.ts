@@ -21,6 +21,7 @@ import {
 import logger from "../utils/logger.js";
 import { requireAdmin } from "../services/permissions.js";
 import { LoadingAnimation } from "../utils/loadingAnimation.js";
+import { requestConfirmation } from "../utils/confirm.js";
 
 // ─── Definition Slash Command ──────────────────────────────────────────────
 
@@ -62,6 +63,13 @@ function isOlderThan14Days(msg: Message): boolean {
 async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): Promise<void> {
   const isAdmin = await requireAdmin(interaction);
   if (!isAdmin) return;
+
+  // Confirmation requise pour cette commande destructive
+  const confirmed = await requestConfirmation(
+    interaction,
+    "Vous êtes sur le point de supprimer tous les messages en doublon dans ce salon. Cette action est irréversible.",
+  );
+  if (!confirmed) return;
 
   const anim = new LoadingAnimation(interaction, "🔍 Analyse des doublons");
   await anim.start();

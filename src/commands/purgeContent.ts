@@ -21,6 +21,7 @@ import {
 } from "discord.js";
 import logger from "../utils/logger.js";
 import { LoadingAnimation } from "../utils/loadingAnimation.js";
+import { requestConfirmation } from "../utils/confirm.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -75,6 +76,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     });
     return;
   }
+
+  // Confirmation requise pour cette commande destructive
+  const confirmed = await requestConfirmation(
+    interaction,
+    `Vous êtes sur le point de supprimer **tous** les messages contenant "${searchText}" dans ${channel.toString()}. Cette action est irréversible.`,
+  );
+  if (!confirmed) return;
 
   const anim = new LoadingAnimation(interaction, "🧹 Purge en cours");
   await anim.start();

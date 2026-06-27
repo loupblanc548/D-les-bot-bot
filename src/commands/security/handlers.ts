@@ -19,6 +19,8 @@ import { checkSuspiciousLinksDetailed } from "./utils.js";
 import logger from "../../utils/logger.js";
 import { antiPhishingCache } from "./cache.js";
 import { isAntiPhishingActive } from "./utils.js";
+import { requestConfirmation } from "../../utils/confirm.js";
+import { scanURL as virusTotalScan } from "../../utils/virusTotal.js";
 
 const FOOTER = { text: "Surveillance System • Securite" };
 
@@ -82,13 +84,23 @@ export async function handleLockdown(interaction: ChatInputCommandInteraction) {
 // ===== /nuke =====
 
 export async function handleNuke(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
-
   const channel = interaction.channel as TextChannel;
   if (!channel || channel.type !== ChannelType.GuildText) {
-    await interaction.editReply("Cette commande ne fonctionne que dans un salon textuel.");
+    await interaction.reply({
+      content: "Cette commande ne fonctionne que dans un salon textuel.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
+
+  // Confirmation requise — nuke supprime le salon et tout son historique
+  const confirmed = await requestConfirmation(
+    interaction,
+    `Vous êtes sur le point de **nuke** le salon ${channel.toString()} (${channel.name}). Le salon sera cloné puis supprimé, tout l'historique sera perdu. Cette action est irréversible.`,
+  );
+  if (!confirmed) return;
+
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
   const channelName = channel.name;
   const channelPosition = channel.position;
@@ -675,11 +687,14 @@ export async function handleLinkCheck(interaction: ChatInputCommandInteraction) 
 
   const allFlags = checkSuspiciousLinksDetailed(url);
 
+  // Scan VirusTotal (si configure)
+  const vtResult = await virusTotalScan(url);
+
   let riskLevel: string;
   let color: number;
 
-  if (allFlags.length >= 3) {
-    riskLevel = "CRITIQUE";
+  if (allFlags.length >= 3 || (vtResult?.isMalicious ?? false)) {
+    riskLevel = "🔴 CRITIQUE";
     color = 0xff0000;
   } else if (allFlags.length >= 2) {
     riskLevel = "🟠 Suspect";
@@ -692,6 +707,12 @@ export async function handleLinkCheck(interaction: ChatInputCommandInteraction) 
     color = 0x53fc18;
   }
 
+  let vtText = "";
+  if (vtResult) {
+    vtText = `\n\n**🔬 VirusTotal:** ${vtResult.maliciousCount} moteur(s) malveillant(s), réputation: ${vtResult.reputation}`;
+    if (vtResult.isMalicious) vtText += " ⚠️";
+  }
+
   const embed = new EmbedBuilder()
     .setColor(color)
     .setTitle("🔍 Analyse de lien")
@@ -702,7 +723,8 @@ export async function handleLinkCheck(interaction: ChatInputCommandInteraction) 
         riskLevel +
         (allFlags.length > 0
           ? "\n\n**Drapeaux détectés :**\n" + allFlags.map((f) => "• " + f).join("\n")
-          : ""),
+          : "") +
+        vtText,
     )
     .setFooter({ text: "Surveillance System • LinkCheck" })
     .setTimestamp();

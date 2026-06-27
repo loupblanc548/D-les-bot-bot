@@ -15,6 +15,7 @@ import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
+import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 1. Commandes slash ──────────────────────────────────────────────
@@ -100,6 +101,9 @@ export function attachInteractionHandlers(client: Client): void {
         break;
       case "wishlist":
         await handleWishlistAutocomplete(interaction);
+        break;
+      case "twitch":
+        await handleTwitchAutocomplete(interaction);
         break;
     }
   });

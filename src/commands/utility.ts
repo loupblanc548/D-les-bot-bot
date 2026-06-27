@@ -19,6 +19,7 @@ import {
   ChannelType,
 } from "discord.js";
 import { createLog } from "../services/logs.js";
+import { sanitizeMassMentions } from "../utils/sanitize.js";
 
 // ===== Définition des commandes =====
 
@@ -99,8 +100,10 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction, _cl
   if (interaction.customId !== "embed_builder_modal") return;
 
   try {
-    const title = interaction.fields.getTextInputValue("embed_title");
-    const description = interaction.fields.getTextInputValue("embed_description");
+    const title = sanitizeMassMentions(interaction.fields.getTextInputValue("embed_title"));
+    const description = sanitizeMassMentions(
+      interaction.fields.getTextInputValue("embed_description"),
+    );
     const colorHex = interaction.fields.getTextInputValue("embed_color") || "5865F2";
     const imageUrl = interaction.fields.getTextInputValue("embed_image") || "";
 
@@ -284,7 +287,7 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
 
 async function handleSay(interaction: ChatInputCommandInteraction, client: Client) {
   const channel = interaction.options.getChannel("salon", true) as TextChannel;
-  const message = interaction.options.getString("message", true);
+  const message = sanitizeMassMentions(interaction.options.getString("message", true));
 
   // Vérification AVANT deferReply (utilise reply)
   if (

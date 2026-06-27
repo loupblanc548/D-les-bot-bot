@@ -1,4 +1,5 @@
 import { Worker, Job, QueueEvents } from "bullmq";
+import logger from "../../utils/logger.js";
 import { Client, EmbedBuilder } from "discord.js";
 
 const connection = {
@@ -24,9 +25,9 @@ export function startReminderWorker(client: Client): void {
           .setTimestamp();
 
         await user.send({ embeds: [embed] });
-        console.log(`[ReminderWorker] Rappel envoyé à ${userId}: ${raison}`);
+        logger.info(`[ReminderWorker] Rappel envoyé à ${userId}: ${raison}`);
       } catch (error) {
-        console.error(`[ReminderWorker] Erreur envoi DM à ${job.data.userId}:`, error);
+        logger.error(`[ReminderWorker] Erreur envoi DM à ${job.data.userId}:`, error);
         throw error;
       }
     },
@@ -40,20 +41,20 @@ export function startReminderWorker(client: Client): void {
   const queueEvents = new QueueEvents("reminders", { connection });
 
   queueEvents.on("completed", (job) => {
-    console.log(`[ReminderWorker] Job ${job.jobId} complété`);
+    logger.info(`[ReminderWorker] Job ${job.jobId} complété`);
   });
 
   queueEvents.on("failed", (job, err) => {
-    console.error(`[ReminderWorker] Job ${job?.jobId} échoué:`, err);
+    logger.error(`[ReminderWorker] Job ${job?.jobId} échoué:`, err);
   });
 
   worker.on("completed", (job) => {
-    console.log(`[ReminderWorker] Job ${job.id} complété`);
+    logger.info(`[ReminderWorker] Job ${job.id} complété`);
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[ReminderWorker] Job ${job?.id} échoué:`, err);
+    logger.error(`[ReminderWorker] Job ${job?.id} échoué:`, err);
   });
 
-  console.log("[ReminderWorker] Worker démarré");
+  logger.info("[ReminderWorker] Worker démarré");
 }

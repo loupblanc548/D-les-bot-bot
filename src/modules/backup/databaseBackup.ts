@@ -4,14 +4,20 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdir, unlink, readdir } from "fs/promises";
 import { join } from "path";
+import logger from "../../utils/logger.js";
+import { syncBackupsToCloud } from "../../utils/rcloneSync.js";
 const execFileAsync = promisify(execFile);
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", { message: err.message }));
+redis.connect().catch((err) =>
+  logger.error("[Redis] Connect error:", {
+    message: err instanceof Error ? err.message : String(err),
+  }),
+);
 
 const BACKUP_DIR = join(process.cwd(), "backups");
 const BACKUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
@@ -32,7 +38,7 @@ const backupStats: BackupStats = {
 };
 
 export function startDatabaseBackup(client: Client): void {
-  console.log("[DatabaseBackup] Starting automatic database backup system");
+  logger.info("[DatabaseBackup] Starting automatic database backup system");
 
   setInterval(async () => {
     await performBackup(client);
@@ -46,7 +52,7 @@ export function startDatabaseBackup(client: Client): void {
 
 async function performBackup(client: Client): Promise<void> {
   try {
-    console.log("[DatabaseBackup] Starting backup...");
+    logger.info("[DatabaseBackup] Starting backup...");
     const startTime = Date.now();
 
     // Créer le dossier de backups s'il n'existe pas
@@ -84,15 +90,22 @@ async function performBackup(client: Client): Promise<void> {
     backupStats.lastError = null;
 
     const executionTime = Date.now() - startTime;
-    console.log(
+    logger.info(
       `[DatabaseBackup] Backup completed in ${executionTime}ms, size: ${(size / 1024 / 1024).toFixed(2)}MB`,
     );
 
     // Envoyer une alerte de succès
     await sendBackupAlert(client, true, executionTime, size);
+
+    // Sync vers le cloud (rclone) — non bloquant
+    syncBackupsToCloud().catch((err) =>
+      logger.error(
+        `[DatabaseBackup] rclone sync failed: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[DatabaseBackup] Error:", errorMessage);
+    logger.error(`[DatabaseBackup] Error: ${errorMessage}`);
     backupStats.lastError = errorMessage;
     await sendBackupAlert(client, false, 0, 0, errorMessage);
   }
@@ -112,11 +125,13 @@ async function cleanupOldBackups(): Promise<void> {
       if (fileToDelete) {
         const filePath = join(BACKUP_DIR, fileToDelete);
         await unlink(filePath);
-        console.log(`[DatabaseBackup] Deleted old backup: ${fileToDelete}`);
+        logger.info(`[DatabaseBackup] Deleted old backup: ${fileToDelete}`);
       }
     }
   } catch (error) {
-    console.error("[DatabaseBackup] Error cleaning up old backups:", error);
+    logger.error(
+      `[DatabaseBackup] Error cleaning up old backups: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -130,13 +145,13 @@ async function sendBackupAlert(
   try {
     const logChannelId = process.env.LOG_CHANNEL_ID;
     if (!logChannelId) {
-      console.error("[BackupAlert] LOG_CHANNEL_ID not defined");
+      logger.error("[BackupAlert] LOG_CHANNEL_ID not defined");
       return;
     }
 
     const channel = await client.channels.fetch(logChannelId);
     if (!channel || !(channel instanceof TextChannel)) {
-      console.error(`[BackupAlert] Invalid log channel: ${logChannelId}`);
+      logger.error(`[BackupAlert] Invalid log channel: ${logChannelId}`);
       return;
     }
 
@@ -162,9 +177,9 @@ ${error ? `[1;31mERREUR[0m] -> ${error}` : ""}
 [1;30m// ${success ? "Sauvegarde terminée avec succès." : "Sauvegarde échouée."}[0m\`\`\``;
 
     await channel.send({ content: backupOutput });
-    console.log("[BackupAlert] Backup report sent");
+    logger.info("[BackupAlert] Backup report sent");
   } catch (error) {
-    console.error("[BackupAlert] Error:", error);
+    logger.error(`[BackupAlert] Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -173,6 +188,6 @@ export function getBackupStats(): BackupStats {
 }
 
 export async function manualBackup(client: Client): Promise<void> {
-  console.log("[DatabaseBackup] Manual backup requested");
+  logger.info("[DatabaseBackup] Manual backup requested");
   await performBackup(client);
 }

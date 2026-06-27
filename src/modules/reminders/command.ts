@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import logger from "../../utils/logger.js";
 import ms from "ms";
 import { Queue } from "bullmq";
 
@@ -60,7 +61,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     await interaction.reply({ embeds: [embed] });
   } catch (error) {
-    console.error("[RemindMe] Error:", error);
+    logger.error("[RemindMe] Error:", error);
     await interaction.reply({
       content: "❌ Erreur lors de la programmation du rappel",
       ephemeral: true,

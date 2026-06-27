@@ -1,4 +1,5 @@
 import { Client, Message, AttachmentBuilder } from "discord.js";
+import logger from "../../utils/logger.js";
 import { readdir } from "fs/promises";
 import { join } from "path";
 import { createClient } from "redis";
@@ -7,8 +8,8 @@ const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on("error", (err: Error) => console.error("[Redis] Error:", err));
-redis.connect().catch((err) => console.error("[Redis] Connect error:", err));
+redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
+redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const MEDIA_DIR = join(process.cwd(), "media");
 const VALID_EXTENSIONS = [".mp3", ".mp4", ".wav", ".mov"];
@@ -45,7 +46,7 @@ export async function handleMediaResponse(client: Client, message: Message): Pro
       await sendTextResponse(message);
     }
   } catch (error) {
-    console.error("[MediaResponder] Error:", error);
+    logger.error("[MediaResponder] Error:", error);
     await sendTextResponse(message);
   }
 }
@@ -53,11 +54,9 @@ export async function handleMediaResponse(client: Client, message: Message): Pro
 async function getMediaFiles(): Promise<string[]> {
   try {
     const files = await readdir(MEDIA_DIR);
-    return files.filter((file) =>
-      VALID_EXTENSIONS.some((ext) => file.toLowerCase().endsWith(ext)),
-    );
+    return files.filter((file) => VALID_EXTENSIONS.some((ext) => file.toLowerCase().endsWith(ext)));
   } catch (error) {
-    console.error("[MediaResponder] Error reading media directory:", error);
+    logger.error("[MediaResponder] Error reading media directory:", error);
     return [];
   }
 }
@@ -74,9 +73,9 @@ async function sendMediaResponse(message: Message, mediaFiles: string[]): Promis
       files: [attachment],
     });
 
-    console.log(`[MediaResponder] Sent media: ${randomFile}`);
+    logger.info(`[MediaResponder] Sent media: ${randomFile}`);
   } catch (error) {
-    console.error("[MediaResponder] Error sending media:", error);
+    logger.error("[MediaResponder] Error sending media:", error);
     await sendTextResponse(message);
   }
 }
@@ -89,8 +88,8 @@ async function sendTextResponse(message: Message): Promise<void> {
       content: `📡 **[TRANSMISSION ÉCRITE]**\n\n${randomText}`,
     });
 
-    console.log("[MediaResponder] Sent text response");
+    logger.info("[MediaResponder] Sent text response");
   } catch (error) {
-    console.error("[MediaResponder] Error sending text:", error);
+    logger.error("[MediaResponder] Error sending text:", error);
   }
 }

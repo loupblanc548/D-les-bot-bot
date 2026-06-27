@@ -1,10 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// src/commands/rssTest.ts
-/**
- * /rss-test \u2014 commande owner-only de debug.
- * Force un tick imm\u00e9diat du tracker RSS X / Twitter et affiche un r\u00e9cap.
- */
+import logger from "../utils/logger.js";
 import {
   SlashCommandBuilder,
   EmbedBuilder,
@@ -14,6 +8,13 @@ import {
 } from "discord.js";
 import { getRssTwitterTracker, type FeedStats, type TickResult } from "../rssTwitterTracker.js";
 import { config } from "../config.js";
+
+// @ts-nocheck
+// src/commands/rssTest.ts
+/**
+ * /rss-test — commande owner-only de debug.
+ * Force un tick immédiat du tracker RSS X / Twitter et affiche un récap.
+ */
 
 export const commands = [
   new SlashCommandBuilder()
@@ -126,6 +127,6 @@ async function safeEditReply(
   try {
     await interaction.editReply(opts);
   } catch (err) {
-    console.error("[rssTest] editReply failed:", err instanceof Error ? err.message : err);
+    logger.error("[rssTest] editReply failed:", err instanceof Error ? err.message : err);
   }
 }

@@ -6,8 +6,8 @@ import logger from "./logger.js";
 const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 3,
   retryStrategy(times: number) {
-    if (times > 5) return null; // Stop retrying after 5 attempts
-    return Math.min(times * 200, 2000);
+    // Reconnexion infinie avec backoff exponentiel plafonné à 5s
+    return Math.min(times * 500, 5000);
   },
   lazyConnect: true,
 });
@@ -19,6 +19,36 @@ const localCache = new NodeCache({
 });
 
 let redisConnected = false;
+
+// Gestion des événements de connexion Redis
+redis.on("error", (err: Error) => {
+  if (redisConnected) {
+    logger.warn(`[Redis] Error: ${err.message} — fallback vers cache local`);
+    redisConnected = false;
+  }
+});
+
+redis.on("reconnecting", (delay: number) => {
+  logger.info(`[Redis] Reconnexion dans ${delay}ms...`);
+});
+
+redis.on("connect", () => {
+  logger.info("[Redis] Connexion établie");
+});
+
+redis.on("ready", () => {
+  if (!redisConnected) {
+    logger.info("[Redis] Prêt — cache Redis actif ✅");
+    redisConnected = true;
+  }
+});
+
+redis.on("end", () => {
+  if (redisConnected) {
+    logger.warn("[Redis] Connexion fermée — fallback vers cache local");
+    redisConnected = false;
+  }
+});
 
 /**
  * Connecte Redis. Non-bloquant — si Redis est down, le bot continue sans cache.
