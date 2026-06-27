@@ -9,7 +9,7 @@
  * /gaming-news    — Actus gaming (NewsAPI)
  * /screenshot     — Capture d'écran d'une URL
  * /lastfm         — Top tracks Last.fm
- * /gif            — Recherche GIF (Tenor)
+ * /gif            — Recherche GIF (GIPHY)
  * /api-status     — Statut des APIs externes
  */
 
@@ -105,7 +105,7 @@ export const commands = [
 
   new SlashCommandBuilder()
     .setName("gif")
-    .setDescription("Recherche un GIF (Tenor)")
+    .setDescription("Recherche un GIF (GIPHY)")
     .addStringOption((o) =>
       o.setName("requete").setDescription("Termes de recherche").setRequired(true),
     )
@@ -424,7 +424,7 @@ async function handleGif(interaction: ChatInputCommandInteraction): Promise<void
   const gifs = await searchGifs(query, 5);
 
   if (gifs.length === 0) {
-    await interaction.editReply({ content: "❌ Aucun GIF trouvé. (Tenor API non configurée)" });
+    await interaction.editReply({ content: "❌ Aucun GIF trouvé. (GIPHY API non configurée)" });
     return;
   }
 

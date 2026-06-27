@@ -1,0 +1,28 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "prisma.prisma",
+    "ms-azuretools.vscode-docker",
+    "eamodio.gitlens",
+    "christian-kohler.path-intellisense",
+    "wix.vscode-import-cost",
+    "christian-kohler.npm-intellisense",
+    "vitest.explorer",
+    "hbenl.vscode-test-explorer",
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
+    "github.vscode-github-actions",
+    "redhat.vscode-yaml",
+    "yzhang.markdown-all-in-one",
+    "mikestead.dotenv",
+    "rangav.vscode-thunder-client",
+    "humao.rest-client",
+    "cweijan.vscode-mysql-client2",
+    "aaron-bond.better-comments",
+    "gruntfuggly.todo-tree",
+    "pkief.material-icon-theme",
+    "masaeedu.electron",
+    "GitGuardian.gg-shield"
+  ]
+}

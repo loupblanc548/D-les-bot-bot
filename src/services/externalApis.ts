@@ -7,7 +7,7 @@
  *
  * APIs gérées :
  * 1.  Perspective API (toxicité IA)
- * 2.  Tenor (GIFs)
+ * 2.  GIPHY (GIFs)
  * 3.  YouTube Data API v3 (recherche vidéos)
  * 4.  Spotify Web API (recherche, now-playing)
  * 5.  RAWG (base de données jeux)
@@ -130,31 +130,32 @@ export async function analyzeToxicity(text: string): Promise<ToxicityResult | nu
   }
 }
 
-// ─── 2. Tenor GIF API ────────────────────────────────────────────────────────
+// ─── 2. GIPHY API ────────────────────────────────────────────────────────────
 
 export async function searchGifs(query: string, limit = 8): Promise<GifResult[]> {
-  if (!config.tenorApiKey) return [];
+  if (!config.giphyApiKey) return [];
 
   try {
-    const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${config.tenorApiKey}&limit=${limit}&media_filter=gif`;
+    const url = `https://api.giphy.com/v1/gifs/search?api_key=${config.giphyApiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Tenor API ${res.status}`);
+    if (!res.ok) throw new Error(`GIPHY API ${res.status}`);
     const data = (await res.json()) as {
-      results: Array<{
+      data: Array<{
+        id: string;
         url: string;
-        content_description: string;
-        media_formats: { tinygif: { url: string } };
+        title: string;
+        images: { fixed_height_small: { url: string }; original: { url: string } };
       }>;
     };
 
-    return (data.results ?? []).map((r) => ({
-      url: r.url,
-      preview: r.media_formats?.tinygif?.url ?? r.url,
-      title: r.content_description ?? query,
+    return (data.data ?? []).map((g) => ({
+      url: g.images?.original?.url ?? g.url,
+      preview: g.images?.fixed_height_small?.url ?? g.url,
+      title: g.title ?? query,
     }));
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] Tenor error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] GIPHY error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
@@ -603,7 +604,7 @@ export async function getRedditPosts(
 export function getApiStatus(): Record<string, boolean> {
   return {
     perspective: !!config.perspectiveApiKey,
-    tenor: !!config.tenorApiKey,
+    giphy: !!config.giphyApiKey,
     youtube: !!config.youtubeApiKey,
     spotify: !!config.spotifyClientId && !!config.spotifyClientSecret,
     rawg: !!config.rawgApiKey,

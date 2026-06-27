@@ -86,7 +86,7 @@ const envSchema = z.object({
 
   // ─── Nouvelles APIs externes (optionnelles) ──────────────────────────────
   PERSPECTIVE_API_KEY: z.string().optional(),
-  TENOR_API_KEY: z.string().optional(),
+  GIPHY_API_KEY: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
   SPOTIFY_CLIENT_ID: z.string().optional(),
   SPOTIFY_CLIENT_SECRET: z.string().optional(),
