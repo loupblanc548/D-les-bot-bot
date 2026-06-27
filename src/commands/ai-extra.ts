@@ -6,14 +6,9 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { requireAdmin } from "../services/permissions.js";
-import { translateText, getSupportedLanguages, summarizeMessages } from "../services/ai-extra.js";
+import { summarizeMessages } from "../services/ai-extra.js";
 
 const FOOTER = { text: "Système de Surveillance • IA" };
-
-const langChoices = Object.entries(getSupportedLanguages()).map(([code, name]) => ({
-  name: `${name} (${code})`,
-  value: code,
-}));
 
 export const commands = [
   new SlashCommandBuilder()
@@ -53,41 +48,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       /* ignore */
     }
   }
-}
-
-async function handleTranslate(interaction: ChatInputCommandInteraction) {
-  const text = interaction.options.getString("texte", true);
-  const targetLang = interaction.options.getString("langue") || "fr";
-
-  if (text.length > 2000) {
-    await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffaa00)
-          .setDescription("⚠️ Le texte est trop long (max 2000 caractères)."),
-      ],
-      flags: [MessageFlags.Ephemeral],
-    });
-    return;
-  }
-
-  await interaction.deferReply();
-  const result = await translateText(text, targetLang);
-
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle("🌐 Traduction")
-    .addFields(
-      { name: "📥 Source", value: `\`\`\`${text.slice(0, 1000)}\`\`\`` },
-      {
-        name: `📤 ${result.targetLanguage}`,
-        value: `\`\`\`${result.translation.slice(0, 1000)}\`\`\``,
-      },
-    )
-    .setFooter(FOOTER)
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
 }
 
 async function handleSummarize(interaction: ChatInputCommandInteraction) {

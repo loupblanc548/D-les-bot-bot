@@ -57,7 +57,7 @@ export async function handleCommand(
   interaction: ChatInputCommandInteraction,
   _client?: Client,
 ): Promise<void> {
-  await requireAdmin(interaction);
+  if (!(await requireAdmin(interaction))) return;
   const sub = interaction.options.getSubcommand();
   if (sub === "test-rss") await handleTestRss(interaction);
 }

@@ -1,17 +1,12 @@
 import logger from "../utils/logger.js";
-import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits,
-} from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import prisma from "../prisma.js";
 import { resolveYouTubeChannelId } from "../services/youtube.js";
 import { requireAdmin } from "../services/permissions.js";
 
 export const commands: ReturnType<SlashCommandBuilder["toJSON"]>[] = [];
 
-async function handleAddSource(interaction: ChatInputCommandInteraction) {
+export async function handleAddSource(interaction: ChatInputCommandInteraction) {
   if (!(await requireAdmin(interaction))) return;
   await interaction.deferReply({ ephemeral: true });
   try {
@@ -85,7 +80,7 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
   }
 }
 
-async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
+export async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
   if (!(await requireAdmin(interaction))) return;
   await interaction.deferReply({ ephemeral: true });
   try {
@@ -118,7 +113,7 @@ async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
   }
 }
 
-async function handleListSources(interaction: ChatInputCommandInteraction) {
+export async function handleListSources(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ ephemeral: true });
   try {
     const guildId = interaction.guildId!;

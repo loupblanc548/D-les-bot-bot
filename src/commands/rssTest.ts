@@ -13,8 +13,7 @@ import {
   type Client,
 } from "discord.js";
 import { getRssTwitterTracker, type FeedStats, type TickResult } from "../rssTwitterTracker.js";
-
-const OWNER_ID = process.env.BOT_OWNER_ID ?? "620589482185457674";
+import { config } from "../config.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -29,7 +28,7 @@ export async function handleCommand(
   client: Client,
 ): Promise<void> {
   void client;
-  if (interaction.user.id !== OWNER_ID) {
+  if (!config.ownerId || interaction.user.id !== config.ownerId) {
     await interaction.reply({
       content: "\ud83d\udd12 Commande r\u00e9serv\u00e9e au propri\u00e9taire du bot.",
       flags: MessageFlags.Ephemeral,

@@ -1,10 +1,10 @@
 import { Client, TextChannel } from "discord.js";
 import { createClient } from "redis";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdir, unlink, readdir } from "fs/promises";
 import { join } from "path";
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const redis = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -62,13 +62,14 @@ async function performBackup(client: Client): Promise<void> {
       throw new Error("DATABASE_URL not defined");
     }
 
-    // Utiliser pg_dump pour créer un backup
-    const command = `pg_dump "${databaseUrl}" > "${backupFile}"`;
-    await execAsync(command);
+    // Utiliser pg_dump avec execFile (anti-injection: pas de shell)
+    const { stdout } = await execFileAsync("pg_dump", [databaseUrl]);
+    const { writeFile } = await import("fs/promises");
+    await writeFile(backupFile, stdout);
 
     // Compresser le backup avec gzip
     const compressedFile = `${backupFile}.gz`;
-    await execAsync(`gzip "${backupFile}"`);
+    await execFileAsync("gzip", [backupFile]);
 
     // Obtenir la taille du fichier compressé
     const { size } = await import("fs").then((fs) => fs.promises.stat(compressedFile));
