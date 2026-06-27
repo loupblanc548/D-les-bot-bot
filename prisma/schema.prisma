@@ -1188,3 +1188,14 @@ model GoodbyeConfig {
 
   @@map("goodbye_config")
 }
+
+model WordFilterInfraction {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  word      String
+  createdAt DateTime @default(now())
+
+  @@index([guildId, userId, createdAt])
+  @@map("word_filter_infraction")
+}

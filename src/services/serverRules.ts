@@ -2,91 +2,17 @@
  * serverRules.ts — Application automatique du règlement du serveur
  *
  * Règles automatisées :
- * 1. Discrimination → pré-remplissage du word filter
- * 2. Publicité → détection invitations Discord + liens sociaux
- * 3. Mentions → blocage @everyone/@here
- * 4. Soundboard → détection Voicemod/apps externes en vocal
- * 5. Profil → vérification pseudo à l'entrée
+ * 1. Publicité → détection invitations Discord + liens sociaux
+ * 2. Mentions → blocage @everyone/@here
+ * 3. Soundboard → détection Voicemod/apps externes en vocal
+ * 4. Profil → vérification pseudo à l'entrée
+ *
+ * Note: Le word filter est géré exclusivement via /security word-filter (manuel).
  */
 
 import { Message, TextChannel, ChannelType, GuildMember, EmbedBuilder } from "discord.js";
-import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-
-// ─── 1. Mots discriminatoires pré-configurés ─────────────────────────────────
-
-const DEFAULT_BANNED_WORDS = [
-  // Insultes générales
-  "connard",
-  "encule",
-  "enculer",
-  "pute",
-  "salope",
-  "ntm",
-  "nique",
-  "niquer",
-  "fdp",
-  "tg",
-  "ferme ta gueule",
-  // Racisme
-  "negro",
-  "neger",
-  "nègre",
-  "nigger",
-  "race traitor",
-  // Homophobie
-  "pd",
-  "pédé",
-  "fiotte",
-  "tapette",
-  "homophobe",
-  // Transphobie
-  "tranny",
-  "shemale",
-  // Sexisme
-  "thot",
-  "slut",
-  "whore",
-  // Validisme
-  "retard",
-  "autiste",
-  "trisomique",
-  // Extrémisme
-  "nazi",
-  "hitler",
-  "fascist",
-  "fascisme",
-];
-
-/**
- * Pré-remplit le filtre de mots pour un serveur s'il n'a pas encore été configuré.
- */
-export async function autoPopulateWordFilter(guildId: string): Promise<void> {
-  const existing = await prisma.wordFilterEntry.count({ where: { guildId } });
-  if (existing > 0) return; // Déjà configuré
-
-  await prisma.wordFilterEntry.createMany({
-    data: DEFAULT_BANNED_WORDS.map((word) => ({ guildId, word })),
-    skipDuplicates: true,
-  });
-
-  // Activer le filtre par défaut avec action "delete"
-  await prisma.wordFilterConfig.upsert({
-    where: { guildId },
-    update: { enabled: true, action: "delete" },
-    create: {
-      guildId,
-      enabled: true,
-      action: "delete",
-      warnMessage: "⚠️ Ce message contient un mot interdit par le règlement.",
-    },
-  });
-
-  logger.info(
-    `[ServerRules] Filtre de mots pré-rempli avec ${DEFAULT_BANNED_WORDS.length} mots pour ${guildId}`,
-  );
-}
 
 // ─── 2. Anti-publicité ────────────────────────────────────────────────────────
 
