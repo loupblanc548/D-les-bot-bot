@@ -142,6 +142,7 @@ export const CATEGORIES: Category[] = [
       "`/list-tracked - Liste les jeux surveillés`\n" +
       "`/steam - Profil Steam, wishlist, nowplaying`\n" +
       "`/wishlist [action] [plateforme] [nom] - Wishlist multi-plateforme (PS, Xbox, Nintendo, Steam, Epic, Fortnite) avec notifs de réductions`\n" +
+      "`/boutique [section] - Boutique Fortnite du jour en français (nouveautés, bientôt retirés, timestamps)`\n" +
       "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`\n" +
       "`/xbox [gamertag] - Profil Xbox/Game Pass`\n" +
       "`/price-compare [jeu] - Compare prix multi-plateforme`\n" +

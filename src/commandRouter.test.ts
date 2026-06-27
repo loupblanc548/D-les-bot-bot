@@ -59,6 +59,7 @@ vi.mock("./commands/fun/echoTds", () => ({ commands: [], handleCommand: vi.fn() 
 vi.mock("./commands/fun/askBot", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/wishlist", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/fun/shop", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/fun/boutique", () => ({ commands: [], handleCommand: vi.fn() }));
 
 // IMPORTANT: mockReturnValue pour éviter le probleme "new" avec les arrow functions
 vi.mock("discord.js", () => ({

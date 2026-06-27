@@ -49,6 +49,10 @@ import {
   commands as wishlistCommands,
   handleCommand as handleWishlist,
 } from "./commands/fun/wishlist.js";
+import {
+  commands as boutiqueCommands,
+  handleCommand as handleBoutique,
+} from "./commands/fun/boutique.js";
 import { commands as dicteeCommands } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
@@ -148,6 +152,7 @@ export const allCommands = [
   ...psnCommands,
   ...trackGameCommands,
   ...wishlistCommands,
+  ...boutiqueCommands,
   ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
@@ -234,11 +239,12 @@ export function buildCommandRouter(): void {
   registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
 
   // Commandes fun dispatchées via le handler main
-  for (const name of ["wishlist"]) {
+  for (const name of ["wishlist", "boutique"]) {
     commandRouter[name] = async (interaction, _client) => {
       if (!interaction.isChatInputCommand()) return;
       const cmd = interaction as ChatInputCommandInteraction;
       if (name === "wishlist") await handleWishlist(cmd);
+      if (name === "boutique") await handleBoutique(cmd);
     };
   }
 
