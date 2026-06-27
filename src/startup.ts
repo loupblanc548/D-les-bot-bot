@@ -24,6 +24,7 @@ import {
   startInstantGamingNewsCheck,
   checkInstantGamingNews,
 } from "./services/instantgaming-news.js";
+import { startWishlistCron } from "./cron/wishlistCron.js";
 import { startInstantGamingCheck } from "./services/instantgaming.js";
 import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron.js";
 import { checkFreeGames } from "./cron/freeGamesCron.js";
@@ -124,6 +125,7 @@ async function initSchedulers(client: Client): Promise<void> {
   startFreeGamesMonitoring(client);
   startInstantGamingNewsCheck(client);
   startGlobalPatchNotesMonitoring(client);
+  startWishlistCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
