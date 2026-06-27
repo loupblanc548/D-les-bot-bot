@@ -150,7 +150,7 @@ describe("startup", () => {
       expect(mockClient.once).toHaveBeenCalledWith(Events.ClientReady, expect.any(Function));
     });
 
-    it("ne notifie plus le propriétaire au démarrage (désactivé)", async () => {
+    it("notifie le propriétaire au démarrage", async () => {
       attachStartupLogic(mockClient as any, []);
 
       // Récupérer et exécuter le handler ClientReady
@@ -159,8 +159,7 @@ describe("startup", () => {
 
       await readyHandler(readyClient);
 
-      // Le DM au propriétaire ne doit plus être envoyé
-      expect(mockClient.users.fetch).not.toHaveBeenCalled();
+      expect(mockClient.users.fetch).toHaveBeenCalledWith("owner-123");
     });
 
     it("démarre tous les services dans l'ordre", async () => {
