@@ -18,7 +18,7 @@ const localCache = new NodeCache({
   checkperiod: 120, // nettoyage toutes les 2 minutes
 });
 
-const redisConnected = false;
+let redisConnected = false;
 
 /**
  * Connecte Redis. Non-bloquant — si Redis est down, le bot continue sans cache.
@@ -26,8 +26,10 @@ const redisConnected = false;
 export async function connectRedis(): Promise<void> {
   try {
     await redis.connect();
-    logger.info("[Redis] Connected to " + config.redisUrl);
+    redisConnected = true;
+    logger.info("[Redis] Connected");
   } catch (err) {
+    redisConnected = false;
     logger.warn("[Redis] Connection failed — cache disabled: " + String(err));
   }
 }
