@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Hoisted mocks ──────────────────────────────────────────────
 const { mockLogger, mockSentry } = vi.hoisted(() => ({
-  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   mockSentry: { captureException: vi.fn() },
 }));
 
 vi.mock("./utils/logger", () => ({ default: mockLogger }));
+vi.mock("./utils/crash-webhook", () => ({ sendCrashAlert: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@sentry/node", () => ({
   default: mockSentry,
   captureException: mockSentry.captureException,

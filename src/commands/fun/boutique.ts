@@ -83,28 +83,6 @@ let cachedData: BoutiqueData | null = null;
 let cachedAt = 0;
 const CACHE_TTL = 15 * 60 * 1000;
 
-// RARITY_COLORS et getRarityColor réservés pour usage futur dans les embeds
-const RARITY_COLORS: Record<string, number> = {
-  common: 0xb0b0b0,
-  uncommon: 0x00cc00,
-  rare: 0x0099ff,
-  epic: 0x9933ff,
-  legendary: 0xff6600,
-  mythic: 0xffcc00,
-  icon: 0x00ffff,
-  marvel: 0xff0000,
-  dc: 0x3366ff,
-  "star wars": 0xffff00,
-  frozen: 0x66ccff,
-  lava: 0xff4400,
-  shadow: 0x333333,
-  slurp: 0x00ffcc,
-};
-
-function getRarityColor(rarity: string): number {
-  return RARITY_COLORS[rarity.toLowerCase()] || 0x9b59b6;
-}
-
 function extractItemNames(entry: FortniteShopEntry): string[] {
   const names: string[] = [];
   if (entry.bundle?.name) names.push(entry.bundle.name);

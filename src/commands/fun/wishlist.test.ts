@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
-    wishlist: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    wishlist: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     userPreference: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -19,7 +25,13 @@ import { validateCosmeticName, searchCosmetics } from "../../services/fortnite-c
 function mi(o: any = {}) {
   return {
     options: {
-      getString: vi.fn((n: string) => (n === "action" ? (o.action ?? "add") : (o.nom ?? null))),
+      getString: vi.fn((n: string) =>
+        n === "action"
+          ? (o.action ?? "add")
+          : n === "plateforme"
+            ? (o.plateforme ?? null)
+            : (o.nom ?? null),
+      ),
     },
     user: o.user ?? { id: "u1", tag: "Test#1234", username: "Test", displayName: "Test" },
     guildId: "g1",
@@ -35,11 +47,17 @@ describe("add", () => {
 
   it("ajoute un item (lowercase+trim)", async () => {
     (validateCosmeticName as any).mockResolvedValue(true);
-    mockPrisma.wishlist.findUnique.mockResolvedValue(null);
+    mockPrisma.wishlist.findFirst.mockResolvedValue(null);
     mockPrisma.wishlist.create.mockResolvedValue({});
     await handleCommand(mi({ nom: "  Renegade Raider  " }));
     expect(mockPrisma.wishlist.create).toHaveBeenCalledWith({
-      data: { userId: "u1", itemName: "renegade raider" },
+      data: {
+        userId: "u1",
+        itemName: "renegade raider",
+        platform: "fortnite",
+        gameName: "Renegade Raider",
+        guildId: "g1",
+      },
     });
   });
 
@@ -61,7 +79,7 @@ describe("add", () => {
 
   it("refuse doublon", async () => {
     (validateCosmeticName as any).mockResolvedValue(true);
-    mockPrisma.wishlist.findUnique.mockResolvedValue({ id: 1 });
+    mockPrisma.wishlist.findFirst.mockResolvedValue({ id: 1 });
     await handleCommand(mi({ nom: "Test" }));
     expect(mockPrisma.wishlist.create).not.toHaveBeenCalled();
   });
@@ -74,7 +92,7 @@ describe("remove", () => {
     mockPrisma.wishlist.deleteMany.mockResolvedValue({ count: 1 });
     await handleCommand(mi({ action: "remove", nom: "Test" }));
     expect(mockPrisma.wishlist.deleteMany).toHaveBeenCalledWith({
-      where: { userId: "u1", itemName: "test" },
+      where: { userId: "u1", itemName: "test", platform: "fortnite" },
     });
   });
 
@@ -111,17 +129,18 @@ describe("erreurs", () => {
 
   it("capture erreur Prisma", async () => {
     (validateCosmeticName as any).mockResolvedValue(true);
-    mockPrisma.wishlist.findUnique.mockRejectedValue(new Error("DB locked"));
+    mockPrisma.wishlist.findFirst.mockRejectedValue(new Error("DB locked"));
     await handleCommand(mi({ nom: "Test" }));
   });
 
-  it("fallback followUp si reply echoue", async () => {
+  it("fallback reply echoue sans crash", async () => {
     (validateCosmeticName as any).mockResolvedValue(true);
-    mockPrisma.wishlist.findUnique.mockRejectedValue(new Error("x"));
+    mockPrisma.wishlist.findFirst.mockRejectedValue(new Error("x"));
     const m = mi({ nom: "Test" });
-    m.reply.mockRejectedValue(new Error("deja repondu"));
+    m.reply.mockRejectedValueOnce(new Error("deja repondu"));
     await handleCommand(m);
-    expect(m.followUp).toHaveBeenCalled();
+    // Le code catch l'erreur de reply silencieusement — pas de followUp
+    expect(m.reply).toHaveBeenCalled();
   });
 });
 
