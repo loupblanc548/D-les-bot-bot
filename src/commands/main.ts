@@ -168,10 +168,17 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/ticket-setup - Configure le système de tickets`\n" +
       "`/wishlist-notify - Active/désactive les DMs wishlist`\n" +
+      "`/reminder [message] [minutes] - Définit un rappel`\n" +
+      "`/lfg [jeu] [joueurs] - Looking For Group gaming`\n" +
+      "`/lfg-list - Liste les groupes LFG actifs`\n" +
+      "`/giveaway [prix] [duree] - Lance un giveaway (admin)`\n" +
+      "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
       "`/poll [question] [options] - Crée un sondage`\n" +
       "`/auto-report [action] - Rapports automatiques (salon logs)`\n" +
       "`/cooldown-config [commande] [secondes] - Cooldown par commande (salon logs)`\n" +
-      "`/retro-config [action] [valeur] - Config rétrospective (salon logs)`",
+      "`/retro-config [action] [valeur] - Config rétrospective (salon logs)`\n" +
+      "`/dashboard - Vue d'ensemble globale (admin)`\n" +
+      "`/bot-health - Santé du bot (mémoire, latence)`",
   },
   {
     id: "utility",
