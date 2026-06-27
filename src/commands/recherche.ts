@@ -54,9 +54,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     // 2. Scraper les résultats de recherche DuckDuckGo
     const searchResults = await scrapeDuckDuckGo(query, lang);
 
-    // 3. Rechercher sur FindSkills (94 000+ AI skills)
-    const skillsResults = await searchFindSkills(query);
-
     if (!instantAnswer && searchResults.length === 0) {
       await interaction.editReply({
         content: `❌ Aucun résultat trouvé pour **"${query}"**.`,
@@ -69,8 +66,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       .setColor(0x4285f4)
       .setTitle(`🔍 Recherche : ${query}`)
       .setFooter({
-        text: "Résultats via DuckDuckGo + FindSkills",
-        iconURL: "https://www.findskills.org/favicon.ico",
+        text: "Résultats via DuckDuckGo",
+        iconURL: "https://duckduckgo.com/favicon.ico",
       })
       .setTimestamp();
 
@@ -108,28 +105,16 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       });
     }
 
-    // Ajouter les résultats FindSkills (AI skills)
-    if (skillsResults.length > 0) {
-      const skillsText = skillsResults
-        .map((s, i) => `**${i + 1}.** ${s.name} — ${s.description}`)
-        .join("\n");
-      embed.addFields({
-        name: `🤖 FindSkills (${skillsResults.length})`,
-        value: skillsText.slice(0, 1024),
-      });
-    }
-
     // Ajouter un lien vers la recherche complète
     const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web`;
-    const findskillsUrl = `https://www.findskills.org/?q=${encodeURIComponent(query)}`;
     embed.addFields({
-      name: "🔗 Voir plus",
-      value: `[DuckDuckGo](${searchUrl}) • [FindSkills](${findskillsUrl})`,
+      name: "🔗 Voir tous les résultats",
+      value: `[Ouvrir sur DuckDuckGo](${searchUrl})`,
     });
 
     await interaction.editReply({ embeds: [embed] });
     logger.info(
-      `[Recherche] ${interaction.user.tag} a recherché "${query}" (${lang}) — ${searchResults.length} web + ${skillsResults.length} skills`,
+      `[Recherche] ${interaction.user.tag} a recherché "${query}" (${lang}) — ${searchResults.length} résultats`,
     );
   } catch (error) {
     logger.error("[Recherche] Erreur:", error);
@@ -264,53 +249,6 @@ function decodeDuckDuckGoUrl(rawUrl: string): string {
     return `https://duckduckgo.com${rawUrl}`;
   } catch {
     return rawUrl;
-  }
-}
-
-// ─── FindSkills API ────────────────────────────────────────────────────────────
-
-interface FindSkillResult {
-  name: string;
-  description: string;
-  category: string;
-  url?: string;
-}
-
-async function searchFindSkills(query: string): Promise<FindSkillResult[]> {
-  try {
-    const url = `https://www.findskills.org/api/v1/search?q=${encodeURIComponent(query)}&limit=5&sort=relevance`;
-
-    const res = await fetch(url, {
-      headers: { "User-Agent": "DiscordBot/1.0" },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!res.ok) {
-      logger.warn(`[Recherche] FindSkills HTTP ${res.status}`);
-      return [];
-    }
-
-    const data = (await res.json()) as {
-      skills?: Array<{
-        name: string;
-        description: string;
-        category?: string;
-        url?: string;
-        _featured?: boolean;
-      }>;
-    };
-
-    if (!data.skills) return [];
-
-    return data.skills.slice(0, 5).map((s) => ({
-      name: s.name,
-      description: (s.description || "").slice(0, 150),
-      category: s.category || "other",
-      url: s.url,
-    }));
-  } catch (error) {
-    logger.warn("[Recherche] Erreur FindSkills:", error);
-    return [];
   }
 }
 
