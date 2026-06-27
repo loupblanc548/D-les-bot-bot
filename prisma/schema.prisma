@@ -1123,3 +1123,14 @@ model WordFilterEntry {
   @@index([guildId])
   @@map("word_filter_entry")
 }
+
+model MemberProfile {
+  userId    String   @id
+  bio       String   @default("")
+  color     String   @default("2f3136")
+  badges    String   @default("[]")
+  title     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@map("member_profile")
+}

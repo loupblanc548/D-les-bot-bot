@@ -60,6 +60,7 @@ import {
 } from "./commands/alertcenter.js";
 import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
 import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
+import { commands as profileCommands, handleCommand as handleProfile } from "./commands/profile.js";
 import {
   commands as cleanDuplicatesCommands,
   handleCommand as handleCleanDuplicates,
@@ -231,6 +232,7 @@ export const allCommands = [
   ...alertcenterCommands,
   ...mp3Commands,
   ...ttsCommands,
+  ...profileCommands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
   ...userinfoCommands,
@@ -309,6 +311,7 @@ export function buildCommandRouter(): void {
   registerGroup(["psn"], handlePsn);
   registerGroup(["mp3"], handleMp3);
   registerGroup(["tts"], handleTts);
+  registerGroup(["profile"], handleProfile);
   registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
   registerGroup(["maintenance"], handleMaintenance);
