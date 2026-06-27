@@ -16,7 +16,7 @@
  * 8.  ScreenshotOne (capture d'écran URL)
  * 9.  Hugging Face (NLP, classification)
  * 10. Last.fm (scrobbling, recommandations)
- * 11. Phisherman (anti-phishing)
+ * 11. Anti-phishing (Sinking Yachts + Google Safe Browsing)
  * 12. Imgur (upload images)
  * 13. Reddit API officielle (posts, trending)
  */
@@ -82,10 +82,12 @@ export interface LastfmTrack {
   playCount: number;
 }
 
-export interface PhishermanResult {
+export interface PhishingResult {
   isPhishing: boolean;
   status: string;
   reportedAt: string | null;
+  /** Liste des services qui ont détecté la menace (ex: ["sinking-yachts", "google-safe-browsing"]) */
+  sources: string[];
 }
 
 // ─── 1. Perspective API (toxicité IA) ────────────────────────────────────────
@@ -465,36 +467,95 @@ export async function getLastfmTopTracks(username: string, limit = 5): Promise<L
   }
 }
 
-// ─── 11. Phisherman (anti-phishing) ──────────────────────────────────────────
+// ─── 11. Anti-phishing combiné (Sinking Yachts + Google Safe Browsing) ───────
 
-export async function checkPhishing(url: string): Promise<PhishermanResult> {
-  if (!config.phishermanApiKey) {
-    return { isPhishing: false, status: "not_checked", reportedAt: null };
-  }
-
+/**
+ * Sinking Yachts — base communautaire de phishing Discord (sans clé).
+ * Retourne true si le domaine est un phishing connu.
+ */
+async function checkSinkingYachts(domain: string): Promise<boolean> {
   try {
-    const res = await fetch("https://api.phisherman.gg/v2/phish/check", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.phishermanApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url }),
+    const res = await fetch(`https://phish.sinking.yachts/v2/check/${encodeURIComponent(domain)}`, {
+      headers: { "X-Identity": "discord-bot-helldiver", Accept: "application/json" },
     });
-    if (!res.ok) throw new Error(`Phisherman API ${res.status}`);
-    const data = (await res.json()) as { status: string; reportedAt?: string };
-
-    return {
-      isPhishing: data.status === "phishing" || data.status === "suspicious",
-      status: data.status,
-      reportedAt: data.reportedAt ?? null,
-    };
+    if (!res.ok) throw new Error(`Sinking Yachts API ${res.status}`);
+    return ((await res.json()) as boolean) === true;
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] Phisherman error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] Sinking Yachts error: ${error instanceof Error ? error.message : String(error)}`,
     );
-    return { isPhishing: false, status: "error", reportedAt: null };
+    return false;
   }
+}
+
+/**
+ * Google Safe Browsing — détecte malware + phishing web général.
+ * Utilise la clé Google existante (Perspective/YouTube).
+ */
+async function checkGoogleSafeBrowsing(url: string): Promise<boolean> {
+  if (!config.perspectiveApiKey) return false;
+
+  try {
+    const apiUrl = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${config.perspectiveApiKey}`;
+    const res = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client: { clientId: "discord-bot-helldiver", clientVersion: "1.0.0" },
+        threatInfo: {
+          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"],
+          platformTypes: ["ANY_PLATFORM"],
+          threatEntryTypes: ["URL"],
+          threatEntries: [{ url }],
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`Safe Browsing API ${res.status}`);
+    const data = (await res.json()) as { matches?: unknown[] };
+    return Array.isArray(data.matches) && data.matches.length > 0;
+  } catch (error) {
+    logger.warn(
+      `[ExternalAPI] Google Safe Browsing error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Vérifie une URL contre DEUX services anti-phishing en parallèle.
+ * Une menace détectée par l'un OU l'autre suffit à marquer comme dangereux.
+ * Les deux services sont indépendants — aucun conflit possible.
+ */
+export async function checkPhishing(url: string): Promise<PhishingResult> {
+  // Extraire le domaine pour Sinking Yachts (qui travaille par domaine)
+  let domain: string;
+  let fullUrl: string;
+  try {
+    fullUrl = url.startsWith("http") ? url : `https://${url}`;
+    domain = new URL(fullUrl).hostname;
+  } catch {
+    domain = url;
+    fullUrl = url;
+  }
+
+  // Exécution parallèle des deux services
+  const [sinkingResult, googleResult] = await Promise.all([
+    checkSinkingYachts(domain),
+    checkGoogleSafeBrowsing(fullUrl),
+  ]);
+
+  const sources: string[] = [];
+  if (sinkingResult) sources.push("sinking-yachts");
+  if (googleResult) sources.push("google-safe-browsing");
+
+  const isPhishing = sources.length > 0;
+
+  return {
+    isPhishing,
+    status: isPhishing ? "phishing" : "clean",
+    reportedAt: null,
+    sources,
+  };
 }
 
 // ─── 12. Imgur (upload images) ───────────────────────────────────────────────
@@ -613,7 +674,8 @@ export function getApiStatus(): Record<string, boolean> {
     screenshot: !!config.screenshotApiKey,
     huggingface: !!config.hfApiKey,
     lastfm: !!config.lastfmApiKey,
-    phisherman: !!config.phishermanApiKey,
+    sinkingYachts: true,
+    googleSafeBrowsing: !!config.perspectiveApiKey,
     imgur: !!config.imgurClientId,
     reddit: !!config.redditClientId && !!config.redditClientSecret,
   };

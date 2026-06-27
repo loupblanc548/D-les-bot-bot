@@ -95,7 +95,6 @@ const envSchema = z.object({
   SCREENSHOT_API_KEY: z.string().optional(),
   HF_API_KEY: z.string().optional(),
   LASTFM_API_KEY: z.string().optional(),
-  PHISHERMAN_API_KEY: z.string().optional(),
   IMGUR_CLIENT_ID: z.string().optional(),
   REDDIT_CLIENT_ID: z.string().optional(),
   REDDIT_CLIENT_SECRET: z.string().optional(),
