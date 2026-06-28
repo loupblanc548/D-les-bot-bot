@@ -13,6 +13,12 @@ import { commandRouter } from "./commandRouter.js";
 import { handleMainSelectMenu } from "./commandRouter.js";
 import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
+import {
+  createTicket,
+  closeTicket,
+  claimTicket,
+  getPanel,
+} from "./services/ticketService.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
@@ -49,6 +55,64 @@ export function attachInteractionHandlers(client: Client): void {
       try {
         const handled = handleVerifButton(interaction);
         if (handled) return;
+
+        // ── Ticket buttons ──
+        if (interaction.customId === "ticket_create") {
+          if (!interaction.guild) return;
+          const member = await interaction.guild.members.fetch(interaction.user.id);
+
+          // Check if this came from a panel
+          const panel = await getPanel(
+            interaction.guild.id,
+            interaction.channelId,
+            interaction.message.id,
+          ).catch(() => null);
+
+          const ticketChannel = await createTicket(
+            interaction.guild,
+            member,
+            panel?.id ?? null,
+          );
+
+          if (ticketChannel) {
+            await interaction.reply({
+              content: `✅ Ticket créé : ${ticketChannel.toString()}`,
+              flags: [MessageFlags.Ephemeral],
+            });
+          } else {
+            await interaction.reply({
+              content: "❌ Tu as déjà un ticket ouvert ou une erreur est survenue.",
+              flags: [MessageFlags.Ephemeral],
+            });
+          }
+          return;
+        }
+
+        if (interaction.customId === "ticket_close") {
+          const closed = await closeTicket(interaction, interaction.user.id);
+          if (!closed) {
+            await interaction.reply({
+              content: "❌ Ce salon n'est pas un ticket ou une erreur est survenue.",
+              flags: [MessageFlags.Ephemeral],
+            });
+          }
+          return;
+        }
+
+        if (interaction.customId === "ticket_claim") {
+          const claimed = await claimTicket(interaction, interaction.channelId, interaction.user.id);
+          if (claimed) {
+            await interaction.reply({
+              content: `✋ ${interaction.user.toString()} a pris en charge ce ticket.`,
+            });
+          } else {
+            await interaction.reply({
+              content: "❌ Impossible de prendre en charge ce ticket (déjà pris en charge ou erreur).",
+              flags: [MessageFlags.Ephemeral],
+            });
+          }
+          return;
+        }
       } catch (err) {
         logger.error(`[Bouton] Erreur: ${err instanceof Error ? err.message : String(err)}`, {
           stack: err instanceof Error ? err.stack : undefined,
