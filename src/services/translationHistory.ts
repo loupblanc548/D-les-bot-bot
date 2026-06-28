@@ -135,4 +135,5 @@ export async function cleanupOldTranslationHistory(): Promise<void> {
 }
 
 // Nettoyage automatique toutes les heures
-setInterval(cleanupOldTranslationHistory, 60 * 60 * 1000);
+const _translationCleanup = setInterval(cleanupOldTranslationHistory, 60 * 60 * 1000);
+if (_translationCleanup.unref) _translationCleanup.unref();

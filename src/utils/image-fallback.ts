@@ -400,4 +400,5 @@ export function getImageCacheStats(): {
 }
 
 // Auto-clear expired cache every 5 minutes
-setInterval(clearExpiredImageCache, 5 * 60 * 1000);
+const _imageCacheCleanup = setInterval(clearExpiredImageCache, 5 * 60 * 1000);
+if (_imageCacheCleanup.unref) _imageCacheCleanup.unref();

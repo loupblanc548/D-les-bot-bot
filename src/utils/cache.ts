@@ -76,8 +76,9 @@ export const rssCache = new SimpleCache<unknown>(300000); // 5 minutes for RSS f
 export const apiCache = new SimpleCache<unknown>(120000); // 2 minutes for API responses
 
 // Cleanup expired entries every 5 minutes
-setInterval(() => {
+const _cacheCleanup = setInterval(() => {
   dbCache.cleanup();
   rssCache.cleanup();
   apiCache.cleanup();
 }, 300000);
+if (_cacheCleanup.unref) _cacheCleanup.unref();

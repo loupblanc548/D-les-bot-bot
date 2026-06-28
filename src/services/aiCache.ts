@@ -16,7 +16,7 @@ interface CachedResponse {
 const responseCache = new Map<string, CachedResponse>();
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure de TTL
-const MAX_CACHE_SIZE = 1000; // Maximum 1000 réponses en cache
+const MAX_CACHE_SIZE = 200; // Reduced from 1000 for memory optimization
 
 /**
  * Génère une clé de cache basée sur le message et le contexte
@@ -160,4 +160,5 @@ export function cleanupExpiredCache(): void {
 }
 
 // Nettoyage automatique toutes les 30 minutes
-setInterval(cleanupExpiredCache, 30 * 60 * 1000);
+const _aiCacheCleanup = setInterval(cleanupExpiredCache, 30 * 60 * 1000);
+if (_aiCacheCleanup.unref) _aiCacheCleanup.unref();

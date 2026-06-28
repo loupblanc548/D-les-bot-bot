@@ -279,7 +279,8 @@ export function cleanupExpiredRateLimits(): void {
 }
 
 // Nettoyage automatique toutes les 5 minutes
-setInterval(cleanupExpiredRateLimits, 5 * 60 * 1000);
+const _rateLimitCleanup = setInterval(cleanupExpiredRateLimits, 5 * 60 * 1000);
+if (_rateLimitCleanup.unref) _rateLimitCleanup.unref();
 
 /**
  * Configure une limite personnalisée pour un type de requête
