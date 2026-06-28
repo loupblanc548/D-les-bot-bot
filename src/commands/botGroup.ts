@@ -15,6 +15,8 @@ import { execute as executeDebug } from "./debug.js";
 import { execute as executeHotreload } from "./hotreload.js";
 
 import { handleBotExtra } from "./stubHandlers.js";
+import { getShardStats, restartShard, isSharded, getShardCount } from "../shardManager.js";
+import { requireAdmin } from "../services/permissions.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -88,6 +90,15 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("support").setDescription("Serveur support et documentation"))
     .addSubcommand((sc) => sc.setName("privacy").setDescription("Politique de confidentialité"))
     .addSubcommand((sc) => sc.setName("commands-list").setDescription("Liste toutes les commandes disponibles"))
+    .addSubcommand((sc) => sc.setName("shard-stats").setDescription("Statut des shards (admin)"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("shard-restart")
+        .setDescription("Redémarre un shard spécifique (admin)")
+        .addIntegerOption((o) =>
+          o.setName("shard_id").setDescription("ID du shard à redémarrer").setRequired(true).setMinValue(0),
+        ),
+    )
     .toJSON(),
 ];
 
@@ -149,6 +160,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     const sub = action.replace("hotreload-", "");
     const patched = patchSubcommand(interaction, sub);
     await executeHotreload(patched, dc);
+  } else if (action === "shard-stats") {
+    await handleShardStats(interaction);
+  } else if (action === "shard-restart") {
+    await handleShardRestart(interaction);
   } else {
     await handleBotExtra(interaction, dc);
   }
@@ -161,4 +176,82 @@ function patchSubcommand(
   const origGetSubcommand = interaction.options.getSubcommand.bind(interaction.options);
   interaction.options.getSubcommand = (() => sub) as typeof origGetSubcommand;
   return interaction;
+}
+
+async function handleShardStats(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
+
+  const sharded = isSharded();
+  const count = getShardCount();
+
+  if (!sharded) {
+    await interaction.reply({
+      content: `ℹ️ Le bot tourne en mode **single** (pas de sharding).\nPour activer le sharding : \`FORCE_SHARDING=true\` dans le .env`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const stats = await getShardStats();
+    if (stats.length === 0) {
+      await interaction.editReply("❌ Aucune donnée de shard disponible.");
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Statut des Shards")
+      .setColor(0x5865f2)
+      .setDescription(`${stats.length} shard(s) — Total: ${count}`);
+
+    let totalGuilds = 0;
+    let totalPing = 0;
+    let connectedCount = 0;
+
+    for (const stat of stats) {
+      const statusEmoji =
+        stat.status === "connected" ? "🟢" : stat.status === "disconnected" ? "🔴" : "❌";
+      embed.addFields({
+        name: `${statusEmoji} Shard ${stat.id}`,
+        value: `**Ping:** ${stat.ping}ms\n**Guildes:** ${stat.guilds}\n**Statut:** ${stat.status}`,
+        inline: true,
+      });
+      totalGuilds += stat.guilds;
+      if (stat.ping > 0) totalPing += stat.ping;
+      if (stat.status === "connected") connectedCount++;
+    }
+
+    embed.setFooter({
+      text: `${connectedCount}/${stats.length} connectés • ${totalGuilds} guildes • ${Math.round(totalPing / stats.length)}ms avg`,
+    });
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    await interaction.editReply(`❌ Erreur: ${error instanceof Error ? error.message : "erreur inconnue"}`);
+  }
+}
+
+async function handleShardRestart(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
+
+  const shardId = interaction.options.getInteger("shard_id", true);
+
+  if (!isSharded()) {
+    await interaction.reply({
+      content: "❌ Le bot n'est pas en mode sharded. Impossible de redémarrer un shard.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const restarted = await restartShard(shardId);
+  await interaction.editReply(
+    restarted
+      ? `✅ Shard ${shardId} redémarré avec succès.`
+      : `❌ Impossible de redémarrer le shard ${shardId} (introuvable ou erreur).`,
+  );
 }
