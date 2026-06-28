@@ -1,6 +1,14 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  Client,
+} from "discord.js";
 import { handleCommand as handleAlertcenter } from "./alertcenter.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
+import { handleCommand as handleSecurityAudit } from "./security-audit.js";
+import { handleCommand as handleModPro } from "./moderationPro.js";
+import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -78,25 +86,65 @@ export const commands = [
             .setMaxValue(300),
         ),
     )
+    .addSubcommand((sc) =>
+      sc.setName("security-audit").setDescription("Audit sécurité des sanctions"),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("riskscore")
+        .setDescription("Score de risque d'un utilisateur")
+        .addUserOption((o) =>
+          o.setName("cible").setDescription("L'utilisateur").setRequired(false),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("riskyusers").setDescription("Liste des utilisateurs à risque"),
+    )
+    .addSubcommand((sc) => sc.setName("spam-analysis").setDescription("Analyse de spam"))
+    .addSubcommand((sc) => sc.setName("auto-report").setDescription("Rapport automatique"))
+    .addSubcommand((sc) => sc.setName("viral-alert").setDescription("Alerte virale"))
+    .addSubcommand((sc) => sc.setName("trend-report").setDescription("Rapport de tendances"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("alert-rules")
+        .setDescription("Règles d'alerte personnalisées (admin)")
+        .addStringOption((o) => o.setName("action").setDescription("Action").setRequired(true)),
+    )
     .toJSON(),
 ];
 
 // Subcommands that map to alertcenter (commandName = alertcenter)
-const ALERTCENTER_SUBS = ["pending", "history", "user"];
+const ALERTCENTER_SUBS = ["pending", "history", "user", "riskscore", "riskyusers"];
 // Subcommands that map to alertconfig (commandName = alertconfig)
 const ALERTCONFIG_SUBS = ["channel", "threshold", "owner_notify", "reset", "view"];
+// Subcommands that map to advanced
+const ADVANCED_SUBS = ["smart", "auto-report", "viral-alert", "trend-report"];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+  const dc = client as Client;
   const action = interaction.options.getSubcommand();
 
   if (ALERTCENTER_SUBS.includes(action)) {
-    Object.defineProperty(interaction, "commandName", { value: "alertcenter", writable: true });
+    Object.defineProperty(interaction, "commandName", {
+      value: action === "riskscore" || action === "riskyusers" ? action : "alertcenter",
+      writable: true,
+    });
     await handleAlertcenter(interaction);
   } else if (ALERTCONFIG_SUBS.includes(action)) {
     Object.defineProperty(interaction, "commandName", { value: "alertconfig", writable: true });
     await handleAlertcenter(interaction);
-  } else if (action === "smart") {
-    Object.defineProperty(interaction, "commandName", { value: "smart-alerts", writable: true });
-    await handleAdvanced(interaction, client as import("discord.js").Client);
+  } else if (ADVANCED_SUBS.includes(action)) {
+    const mapped = action === "smart" ? "smart-alerts" : action;
+    Object.defineProperty(interaction, "commandName", { value: mapped, writable: true });
+    await handleAdvanced(interaction, dc);
+  } else if (action === "security-audit") {
+    Object.defineProperty(interaction, "commandName", { value: "security-audit", writable: true });
+    await handleSecurityAudit(interaction);
+  } else if (action === "spam-analysis") {
+    Object.defineProperty(interaction, "commandName", { value: "spam-analysis", writable: true });
+    await handleModPro(interaction);
+  } else if (action === "alert-rules") {
+    Object.defineProperty(interaction, "commandName", { value: "alert-rules", writable: true });
+    await handleExtraCmd(interaction, dc);
   }
 }

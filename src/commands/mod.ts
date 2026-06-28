@@ -5,6 +5,8 @@ import {
   Client,
 } from "discord.js";
 import { handleCommand as handleModeration } from "./moderation.js";
+import { handleCommand as handleModExtra } from "./modExtra.js";
+import { handleCommand as handleModPro } from "./moderationPro.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -144,12 +146,85 @@ export const commands = [
             .setMaxValue(50),
         ),
     )
+    .addSubcommand((sc) =>
+      sc
+        .setName("slowmode")
+        .setDescription("Slowmode du salon")
+        .addIntegerOption((o) =>
+          o
+            .setName("duree")
+            .setDescription("Durée en secondes (0-21600)")
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(21600),
+        ),
+    )
+    .addSubcommand((sc) => sc.setName("lock").setDescription("Verrouiller le salon"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("softban")
+        .setDescription("Soft ban (ban+unban)")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true))
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("tempban")
+        .setDescription("Ban temporaire")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true))
+        .addIntegerOption((o) =>
+          o.setName("duree").setDescription("Durée en minutes").setRequired(true).setMinValue(1),
+        )
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("purgeuser")
+        .setDescription("Supprime tous les messages d'un utilisateur")
+        .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("snipe").setDescription("Affiche le dernier message supprimé"),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("report")
+        .setDescription("Signale un membre au staff")
+        .addUserOption((o) =>
+          o.setName("cible").setDescription("Le membre à signaler").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("raison").setDescription("Raison du signalement").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("mass-move")
+        .setDescription("Déplace tous les membres vocaux vers un autre salon")
+        .addChannelOption((o) =>
+          o.setName("destination").setDescription("Salon vocal de destination").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("voice-kick")
+        .setDescription("Expulse un membre du vocal")
+        .addUserOption((o) =>
+          o.setName("cible").setDescription("Le membre à expulser").setRequired(true),
+        ),
+    )
     .toJSON(),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client) {
   const action = interaction.options.getSubcommand();
-  // Override commandName so the existing handler routes correctly
   Object.defineProperty(interaction, "commandName", { value: action, writable: true });
-  await handleModeration(interaction, client);
+
+  if (action === "report") {
+    await handleModExtra(interaction, client);
+  } else if (action === "mass-move" || action === "voice-kick") {
+    await handleModPro(interaction);
+  } else {
+    await handleModeration(interaction, client);
+  }
 }

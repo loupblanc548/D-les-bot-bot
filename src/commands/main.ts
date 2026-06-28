@@ -27,21 +27,27 @@ export interface Category {
 
 export const CATEGORIES: Category[] = [
   {
-    id: "main",
-    name: "Principales",
+    id: "bot",
+    name: "Bot",
     emoji: "🛠️",
     description: "Commandes principales du bot",
     commands:
-      "`/start - Initialise le bot`\n" +
-      "`/help - Cette aide`\n" +
-      "`/restart - Redémarre (admin)`\n" +
-      "`/status - Statut système`\n" +
-      "`/uptime - Uptime du bot`\n" +
-      "`/userinfo [@user] - Infos enregistrées sur un utilisateur`\n" +
-      "`/server-info - Infos détaillées du serveur`\n" +
-      "`/dashboard - Dashboard de gestion`\n" +
-      "`/debug - Debug info (admin)`\n" +
-      "`/hotreload - Hot reload (admin)`",
+      "`/bot start - Initialise le bot`\n" +
+      "`/bot help - Cette aide`\n" +
+      "`/bot restart - Redémarre (admin)`\n" +
+      "`/bot status - Statut système`\n" +
+      "`/bot uptime - Uptime du bot`\n" +
+      "`/bot userinfo [@user] - Infos d'un utilisateur`\n" +
+      "`/bot server-info - Infos du serveur`\n" +
+      "`/bot dashboard - Dashboard (admin)`\n" +
+      "`/bot debug-status - Debug: statut (admin)`\n" +
+      "`/bot debug-services - Debug: services (admin)`\n" +
+      "`/bot debug-database - Debug: DB (admin)`\n" +
+      "`/bot debug-memory - Debug: mémoire (admin)`\n" +
+      "`/bot hotreload-reload - Recharge commandes (admin)`\n" +
+      "`/bot hotreload-maintenance - Mode maintenance (admin)`\n" +
+      "`/bot hotreload-auto - Auto-reload (admin)`\n" +
+      "`/bot hotreload-status - Statut hot reload (admin)`",
   },
   {
     id: "surveillance",
@@ -49,26 +55,18 @@ export const CATEGORIES: Category[] = [
     emoji: "📡",
     description: "Gestion des sources de surveillance",
     commands:
-      "`/sources add [type] [handle] [salon] - Ajoute une source (admin)`\n" +
-      "`/sources remove [handle] - Supprime une source (admin)`\n" +
-      "`/sources list - Liste les sources (admin)`\n" +
-      "`/sources pause [handle] - Met en pause une source (admin)`\n" +
+      "`/sources add [type] [handle] [salon] - Ajoute une source`\n" +
+      "`/sources remove [handle] - Supprime une source`\n" +
+      "`/sources list - Liste les sources`\n" +
+      "`/sources pause [handle] - Met en pause une source`\n" +
       "`/sources reddit-track [subreddit] - Suit un subreddit`\n" +
       "`/sources rss-custom [url] - Flux RSS personnalisé`\n" +
-      "`/add-source - Ajoute une source rapidement`\n" +
-      "`/remove-source - Supprime une source rapidement`\n" +
-      "`/pause-source - Met en pause une source`\n" +
-      "`/list-sources - Liste les sources`\n" +
-      "`/source-stats - Statistiques des sources`\n" +
-      "`/rss-test - Teste un flux RSS`\n" +
-      "`/reddit-track - Suit un subreddit`\n" +
-      "`/rss-custom - Flux RSS personnalisé`\n" +
-      "`/twitch - Gère les streamers suivis (add/list/remove)`\n" +
-      "`/psn - Profil, trophées et jeux PlayStation`\n" +
-      "`/scraper-status - Statut des scrapers`\n" +
-      "`/search-notifications - Recherche dans les notifications`\n" +
-      "`/test-freegames - Teste les jeux gratuits`\n" +
-      "`/test-rss - Teste un flux RSS`",
+      "`/sources stats - Statistiques des sources`\n" +
+      "`/sources rss-test [url] - Teste un flux RSS`\n" +
+      "`/sources scraper-status - Statut des scrapers`\n" +
+      "`/sources search-notifications [requete] - Recherche notifications`\n" +
+      "`/sources test-freegames - Teste les jeux gratuits`\n" +
+      "`/sources test-rss [url] - Teste un flux RSS`",
   },
   {
     id: "admin",
@@ -76,23 +74,23 @@ export const CATEGORIES: Category[] = [
     emoji: "👑",
     description: "Commandes d'administration",
     commands:
-      "`/broadcast [message] - Message à tous (admin)`\n" +
-      "`/dm [@user] [message] - DM (admin)`\n" +
-      "`/deletehistory - Supprime l'historique`\n" +
-      "`/maintenance - Active/désactive le mode maintenance`\n" +
-      "`/clean-duplicates - Nettoie les doublons DB`\n" +
-      "`/backup - Backup manuel de la DB`\n" +
-      "`/permission-audit - Audit des permissions (admin)`\n" +
-      "`/guild-config - Configuration du serveur (admin)`\n" +
-      "`/cooldown-config - Configuration des cooldowns (admin)`\n" +
-      "`/channel-routing - Routage des salons (admin)`\n" +
-      "`/purge-content - Purge de contenu (admin)`\n" +
-      "`/api-status - Statut des APIs externes`\n" +
-      "`/bot-health - Health check du bot`\n" +
-      "`/healthz - Endpoint health`\n" +
-      "`/create-workflow - Crée un workflow (admin)`\n" +
-      "`/list-workflows - Liste les workflows`\n" +
-      "`/toggle-workflow - Active/désactive un workflow`",
+      "`/admin broadcast [message] - Message à tous`\n" +
+      "`/admin dm [@user] [message] - DM à un utilisateur`\n" +
+      "`/admin deletehistory - Supprime l'historique`\n" +
+      "`/admin maintenance - Mode maintenance`\n" +
+      "`/admin clean-duplicates - Nettoie les doublons DB`\n" +
+      "`/admin backup - Backup manuel`\n" +
+      "`/admin permission-audit - Audit permissions`\n" +
+      "`/admin guild-config - Configuration serveur`\n" +
+      "`/admin cooldown-config - Configuration cooldowns`\n" +
+      "`/admin channel-routing - Routage des salons`\n" +
+      "`/admin purge-content - Purge de contenu`\n" +
+      "`/admin api-status - Statut des APIs`\n" +
+      "`/admin bot-health - Health check`\n" +
+      "`/admin healthz - Endpoint health`\n" +
+      "`/admin create-workflow - Crée un workflow`\n" +
+      "`/admin list-workflows - Liste les workflows`\n" +
+      "`/admin toggle-workflow - Active/désactive un workflow`",
   },
   {
     id: "ai",
@@ -120,17 +118,14 @@ export const CATEGORIES: Category[] = [
       "`/alert reset [@user] - Réinitialise le profil de risque`\n" +
       "`/alert view - Configuration actuelle`\n" +
       "`/alert smart [action] - Alertes groupées intelligentes`\n" +
-      "`/alertcenter - Centre d'alertes complet`\n" +
-      "`/alertconfig - Configuration des alertes`\n" +
-      "`/alert-rules - Règles d'alerte personnalisées (admin)`\n" +
-      "`/smart-alerts - Alertes intelligentes`\n" +
-      "`/security-audit - Audit sécurité des sanctions`\n" +
-      "`/riskscore [@user] - Score de risque d'un utilisateur`\n" +
-      "`/riskyusers - Liste des utilisateurs à risque`\n" +
-      "`/spam-analysis - Analyse de spam`\n" +
-      "`/auto-report - Rapport automatique`\n" +
-      "`/viral-alert - Alerte virale`\n" +
-      "`/trend-report - Rapport de tendances`",
+      "`/alert security-audit - Audit sécurité des sanctions`\n" +
+      "`/alert riskscore [@user] - Score de risque`\n" +
+      "`/alert riskyusers - Utilisateurs à risque`\n" +
+      "`/alert spam-analysis - Analyse de spam`\n" +
+      "`/alert auto-report - Rapport automatique`\n" +
+      "`/alert viral-alert - Alerte virale`\n" +
+      "`/alert trend-report - Rapport de tendances`\n" +
+      "`/alert alert-rules [action] - Règles d'alerte (admin)`",
   },
   {
     id: "moderation",
@@ -152,24 +147,11 @@ export const CATEGORIES: Category[] = [
       "`/mod lock - Verrouiller le salon`\n" +
       "`/mod softban [@user] - Soft ban (ban+unban)`\n" +
       "`/mod tempban [@user] [durée] - Ban temporaire`\n" +
-      "`/report [@user] [raison] - Signale un membre au staff`\n" +
-      "`/ban [@user] - Bannir directement`\n" +
-      "`/kick [@user] - Expulser directement`\n" +
-      "`/mute [@user] - Mute directement`\n" +
-      "`/unmute [@user] - Démute directement`\n" +
-      "`/warn [@user] - Avertir directement`\n" +
-      "`/clear [nombre] - Supprimer messages`\n" +
-      "`/timeout [@user] - Timeout directement`\n" +
-      "`/unlock - Déverrouiller le salon`\n" +
-      "`/lock - Verrouiller le salon`\n" +
-      "`/slowmode [durée] - Slowmode du salon`\n" +
-      "`/softban [@user] - Soft ban`\n" +
-      "`/tempban [@user] - Ban temporaire`\n" +
-      "`/purge [@user] [nombre] - Purge messages`\n" +
-      "`/purgeuser [@user] - Purge messages d'un user`\n" +
-      "`/snipe - Dernier message supprimé`\n" +
-      "`/mass-move - Déplace tous les membres vocaux`\n" +
-      "`/voice-kick - Expulse du vocal`",
+      "`/mod purgeuser [@user] - Purge messages d'un user`\n" +
+      "`/mod snipe - Dernier message supprimé`\n" +
+      "`/mod report [@user] [raison] - Signale un membre`\n" +
+      "`/mod mass-move [destination] - Déplace tous les membres vocaux`\n" +
+      "`/mod voice-kick [@user] - Expulse du vocal`",
   },
   {
     id: "security",
@@ -192,13 +174,7 @@ export const CATEGORIES: Category[] = [
       "`/security alert-rules [action] - Builder de règles d'alerte (admin)`\n" +
       "`/security word-filter [action] - Filtre de mots interdits (admin)`\n" +
       "`/security permission-audit - Audit des permissions`\n" +
-      "`/raid-shield - Bouclier anti-raid`\n" +
-      "`/ban-log [membre] - Historique des bans cross-serveur`\n" +
-      "`/behavior-timeline [membre] - Timeline comportementale`\n" +
-      "`/alt-link [@user] - Lier compte main/alt`\n" +
-      "`/namehistory [@user] - Historique des pseudos`\n" +
-      "`/avatarhistory [@user] - Historique des avatars`\n" +
-      "`/linkcheck [url] - Vérifie un lien`",
+      "`/security raid-shield - Bouclier anti-raid`",
   },
   {
     id: "osint",
@@ -236,34 +212,33 @@ export const CATEGORIES: Category[] = [
     emoji: "🎮",
     description: "Commandes liées aux jeux vidéo",
     commands:
-      "`/game-status [jeu] - Statut des serveurs de jeu`\n" +
-      "`/game-info [jeu] - Infos détaillées d'un jeu`\n" +
-      "`/free-games - Jeux gratuits (Epic Games)`\n" +
-      "`/free-game-reminder - Rappels jeux gratuits`\n" +
-      "`/patch_notes [jeu] - Patch notes de jeux`\n" +
-      "`/deal [jeu] - Comparateur de prix`\n" +
-      "`/deals-history [jeu] - Historique des prix`\n" +
-      "`/track add [jeu] - Surveille les actus Steam d'un jeu`\n" +
-      "`/track remove [jeu] - Arrête la surveillance d'un jeu`\n" +
-      "`/track list - Liste les jeux surveillés`\n" +
-      "`/track-game [jeu] - Track un jeu`\n" +
-      "`/untrack-game [jeu] - Arrête le tracking`\n" +
-      "`/list-tracked - Liste les jeux trackés`\n" +
-      "`/steam - Profil Steam, wishlist, nowplaying`\n" +
-      "`/steam-deals - Deals Steam`\n" +
-      "`/wishlist [action] [plateforme] [nom] - Wishlist multi-plateforme`\n" +
-      "`/wishlist-stats - Stats de ta wishlist`\n" +
-      "`/wishlist-notify - Notifs wishlist`\n" +
-      "`/boutique [section] - Boutique Fortnite (FR)`\n" +
-      "`/fortnite-wishlist [action] [identifiant] - Wishlist Fortnite (DM)`\n" +
-      "`/fortnite-shop-preview - Aperçu boutique Fortnite`\n" +
-      "`/xbox [gamertag] - Profil Xbox/Game Pass`\n" +
-      "`/price-compare [jeu] - Compare prix multi-plateforme`\n" +
-      "`/price-history [jeu] - Historique des prix`\n" +
-      "`/price-track [jeu] - Suivi de prix`\n" +
-      "`/release-calendar [periode] - Calendrier des sorties`\n" +
-      "`/gaming-news - News gaming`\n" +
-      "`/epic-calendar - Calendrier Epic Games`",
+      "`/game status [jeu] - Statut des serveurs de jeu`\n" +
+      "`/game info [jeu] - Infos détaillées d'un jeu`\n" +
+      "`/game free-games - Jeux gratuits (Epic Games)`\n" +
+      "`/game free-game-reminder - Rappels jeux gratuits`\n" +
+      "`/game patch-notes [jeu] - Patch notes de jeux`\n" +
+      "`/game deal [jeu] - Comparateur de prix`\n" +
+      "`/game deals-history [jeu] - Historique des prix`\n" +
+      "`/game price-compare [jeu] - Compare prix multi-plateforme`\n" +
+      "`/game price-history [jeu] - Historique des prix`\n" +
+      "`/game price-track [jeu] - Suivi de prix`\n" +
+      "`/game release-calendar [periode] - Calendrier des sorties`\n" +
+      "`/game gaming-news - News gaming`\n" +
+      "`/game epic-calendar - Calendrier Epic Games`\n" +
+      "`/game steam - Profil Steam, wishlist, nowplaying`\n" +
+      "`/game steam-deals - Deals Steam`\n" +
+      "`/game wishlist [action] - Wishlist multi-plateforme`\n" +
+      "`/game wishlist-stats - Stats de ta wishlist`\n" +
+      "`/game wishlist-notify - Notifs wishlist`\n" +
+      "`/game boutique [section] - Boutique Fortnite (FR)`\n" +
+      "`/game fortnite-wishlist [action] - Wishlist Fortnite (DM)`\n" +
+      "`/game fortnite-shop-preview - Aperçu boutique Fortnite`\n" +
+      "`/game xbox [gamertag] - Profil Xbox/Game Pass`\n" +
+      "`/game twitch - Gère les streamers suivis`\n" +
+      "`/game psn - Profil, trophées et jeux PlayStation`\n" +
+      "`/game track-add [jeu] - Surveille les actus Steam d'un jeu`\n" +
+      "`/game track-remove [jeu] - Arrête la surveillance`\n" +
+      "`/game track-list - Liste les jeux surveillés`",
   },
   {
     id: "community",
@@ -271,9 +246,9 @@ export const CATEGORIES: Category[] = [
     emoji: "👥",
     description: "Fonctionnalités communautaires",
     commands:
-      "`/ticket-setup - Configure le système de tickets`\n" +
-      "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/profile [action] - Profil personnalisé (bio, couleur, badges, titre)`",
+      "`/community ticket-setup - Configure le système de tickets`\n" +
+      "`/community self-role [action] - Rôles auto-attribuables (admin)`\n" +
+      "`/community profile [action] - Profil personnalisé (bio, couleur, badges, titre)`",
   },
   {
     id: "utility",
@@ -281,14 +256,14 @@ export const CATEGORIES: Category[] = [
     emoji: "🔧",
     description: "Outils et utilitaires",
     commands:
-      "`/embed-builder - Crée un embed personnalisé`\n" +
-      "`/say [salon] [message] - Fait parler le bot`\n" +
-      "`/vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
-      "`/mp3 [nom] - Joue un son en vocal`\n" +
-      "`/tts [texte] [langue] - Lit du texte à voix haute en vocal`\n" +
-      "`/recherche [sujet] - Recherche sur Internet`\n" +
-      "`/audio-effects - Effets audio`\n" +
-      "`/radio-stop - Arrête la radio`",
+      "`/tools embed-builder - Crée un embed personnalisé`\n" +
+      "`/tools say [salon] [message] - Fait parler le bot`\n" +
+      "`/tools vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
+      "`/tools mp3 [nom] - Joue un son en vocal`\n" +
+      "`/tools tts [texte] [langue] - Lit du texte à voix haute en vocal`\n" +
+      "`/tools recherche [sujet] - Recherche sur Internet`\n" +
+      "`/tools audio-effects - Effets audio`\n" +
+      "`/tools radio-stop - Arrête la radio`",
   },
   {
     id: "casier",
@@ -297,8 +272,7 @@ export const CATEGORIES: Category[] = [
     description: "Gestion du casier judiciaire",
     commands:
       "`/casier view [@user] - Affiche le casier d'un membre`\n" +
-      "`/casier clear [id] - Efface une sanction ou un casier (admin)`\n" +
-      "`/casier-clear - Efface un casier (admin)`",
+      "`/casier clear [id] - Efface une sanction ou un casier (admin)`",
   },
 ];
 

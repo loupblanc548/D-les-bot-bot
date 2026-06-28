@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "dockerfile": "Dockerfile.dashboard"
+  },
+  "deploy": {
+    "startCommand": "npx tsx src/dashboard/server.ts",
+    "healthcheckPath": "/api/bot/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
