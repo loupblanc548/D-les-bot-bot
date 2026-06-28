@@ -11,7 +11,7 @@ module.exports = {
       name: "john-helldiver",
       script: "src/index.ts",
       interpreter: "node",
-      interpreter_args: "--expose-gc --max-old-space-size=256 --import tsx",
+      interpreter_args: "--expose-gc --import tsx",
       cwd: __dirname,
       autorestart: true,
       max_restarts: 10,
