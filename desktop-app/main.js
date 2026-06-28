@@ -48,6 +48,43 @@ function loadSettings() {
   } catch (e) {
     settings = {};
   }
+  // Auto-populate token from bot .env if not set
+  if (!settings.token) {
+    try {
+      const envPath = path.join(__dirname, "..", ".env");
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, "utf8");
+        const match = envContent.match(/^CONTROL_TOKEN\s*=\s*["']?([^"'\s]*)["']?/m);
+        if (match) {
+          settings.token = match[1] || "no-token-needed";
+          console.log("[Settings] Auto-loaded CONTROL_TOKEN from .env");
+        } else {
+          // CONTROL_TOKEN not set in .env — control server allows no-auth
+          settings.token = "no-token-needed";
+          console.log("[Settings] CONTROL_TOKEN not set — using no-auth mode");
+        }
+      } else {
+        settings.token = "no-token-needed";
+      }
+    } catch (e) {
+      // Ignore — user can set manually
+    }
+  }
+  // Auto-detect local API URL if not set
+  if (!settings.apiUrl) {
+    const controlPort = (() => {
+      try {
+        const envPath = path.join(__dirname, "..", ".env");
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, "utf8");
+          const match = envContent.match(/^CONTROL_PORT\s*=\s*(\d+)/m);
+          if (match) return match[1];
+        }
+      } catch (e) {}
+      return "3002";
+    })();
+    settings.apiUrl = "http://localhost:" + controlPort;
+  }
   return settings;
 }
 
@@ -72,7 +109,7 @@ function getToken() {
 function getApiBase() {
   const s = loadSettings();
   if (s.apiUrl) return s.apiUrl.replace(/\/$/, "");
-  return "https://d-les-bot-bot-production.up.railway.app";
+  return "http://localhost:3002";
 }
 
 // ─── API Helper ─────────────────────────────────────────────────────────
