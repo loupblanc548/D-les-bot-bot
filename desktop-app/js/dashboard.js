@@ -13,7 +13,7 @@ const Dashboard = {
     this._setupActions();
     this._setupSettings();
     this._updateStatsLoop();
-    Store.on("status", (data) => data && this._renderStatus(data));
+    Store.on("status", (data) => this._renderStatus(data));
     Store.on("platforms", (data) => data && this._renderPlatforms(data));
     Store.on("health", (data) => data && this._renderHealth(data));
     Store.on("logs", () => LogConsole.render());
@@ -202,6 +202,26 @@ const Dashboard = {
   },
 
   _renderStatus(data) {
+    if (!data) {
+      const dot = document.getElementById("titlebar-dot");
+      if (dot) dot.className = "offline";
+      document.getElementById("stats-grid").innerHTML = [
+        { icon: "⬤", label: "Statut", value: "OFFLINE", cls: "offline" },
+        { icon: "⏱", label: "Uptime", value: "--", cls: "" },
+        { icon: "⚡", label: "Ping Discord", value: "--", cls: "" },
+        { icon: "", label: "RAM", value: "--", cls: "" },
+        { icon: "🏠", label: "Serveurs", value: "--", cls: "" },
+        { icon: "👥", label: "Utilisateurs", value: "--", cls: "" },
+        { icon: "📡", label: "Commandes", value: "--", cls: "" },
+      ].map((s) =>
+        '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label +
+        '</span></div><span class="stat-value ' + s.cls + '">' + s.value + '</span></div>'
+      ).join("");
+      document.getElementById("sb-ping").textContent = "Ping: --";
+      this._updateGauge(0);
+      return;
+    }
+
     const dot = document.getElementById("titlebar-dot");
     if (dot) dot.className = data.online ? "" : "offline";
 
