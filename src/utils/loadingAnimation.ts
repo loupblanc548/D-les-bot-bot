@@ -34,12 +34,17 @@ export class LoadingAnimation {
     if (this.started) return;
     this.started = true;
 
-    await this.interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    // If interaction was already replied (e.g. after requestConfirmation),
+    // use editReply instead of deferReply to avoid InteractionHasAlreadyReplied error
+    if (!this.interaction.deferred && !this.interaction.replied) {
+      await this.interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    }
 
     this.interval = setInterval(async () => {
       this.currentFrame = (this.currentFrame + 1) % FRAMES.length;
       await this.render();
     }, 200);
+    if (this.interval.unref) this.interval.unref();
 
     await this.render();
   }
@@ -56,7 +61,7 @@ export class LoadingAnimation {
     const text = `${frame} **${this.title}**\n${bar} ${this.progress}%${this.detail ? `\n\`${this.detail}\`` : ""}`;
 
     try {
-      if (this.interaction.deferred) {
+      if (this.interaction.deferred || this.interaction.replied) {
         await this.interaction.editReply({ content: text });
       }
     } catch {
@@ -77,7 +82,7 @@ export class LoadingAnimation {
     }
 
     try {
-      if (this.interaction.deferred) {
+      if (this.interaction.deferred || this.interaction.replied) {
         if (finalContent instanceof EmbedBuilder) {
           await this.interaction.editReply({ content: "", embeds: [finalContent] });
         } else {
