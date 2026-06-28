@@ -2,7 +2,8 @@ import { createClient } from "redis";
 import NodeCache from "node-cache";
 import logger from "../utils/logger.js";
 
-const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const redisUrl = process.env.REDIS_URL || "";
+const hasRedis = Boolean(redisUrl);
 
 const localCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
 let redisConnected = false;
@@ -35,6 +36,7 @@ redisClient.on("disconnect", () => {
 });
 
 async function connectRedis(): Promise<void> {
+  if (!hasRedis) return;
   if (connectAttempted) return;
   connectAttempted = true;
   if (!redisClient.isOpen) {

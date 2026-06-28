@@ -2,14 +2,6 @@ import { Client, Message, AttachmentBuilder } from "discord.js";
 import logger from "../../utils/logger.js";
 import { readdir } from "fs/promises";
 import { join } from "path";
-import { createClient } from "redis";
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const MEDIA_DIR = join(process.cwd(), "media");
 const VALID_EXTENSIONS = [".mp3", ".mp4", ".wav", ".mov"];

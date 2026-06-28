@@ -3,57 +3,63 @@ import NodeCache from "node-cache";
 import { config } from "../config.js";
 import logger from "./logger.js";
 
-const redis = new Redis(config.redisUrl, {
-  maxRetriesPerRequest: 3,
-  retryStrategy(times: number) {
-    // Reconnexion infinie avec backoff exponentiel plafonné à 5s
-    return Math.min(times * 500, 5000);
-  },
-  lazyConnect: true,
-});
+const hasRedisUrl = Boolean(config.redisUrl);
 
-// Cache local de fallback si Redis est down
+// Cache local de fallback si Redis est down ou non configuré
 const localCache = new NodeCache({
-  stdTTL: 300, // 5 minutes par défaut
-  checkperiod: 120, // nettoyage toutes les 2 minutes
+  stdTTL: 300,
+  checkperiod: 120,
 });
 
 let redisConnected = false;
+let redis: Redis | null = null;
 
-// Gestion des événements de connexion Redis
-redis.on("error", (err: Error) => {
-  if (redisConnected) {
-    logger.warn(`[Redis] Error: ${err.message} — fallback vers cache local`);
-    redisConnected = false;
-  }
-});
+if (hasRedisUrl) {
+  redis = new Redis(config.redisUrl!, {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times: number) {
+      return Math.min(times * 500, 5000);
+    },
+    lazyConnect: true,
+  });
 
-redis.on("reconnecting", (delay: number) => {
-  logger.info(`[Redis] Reconnexion dans ${delay}ms...`);
-});
+  redis.on("error", (err: Error) => {
+    if (redisConnected) {
+      logger.warn(`[Redis] Error: ${err.message} — fallback vers cache local`);
+      redisConnected = false;
+    }
+  });
 
-redis.on("connect", () => {
-  logger.info("[Redis] Connexion établie");
-});
+  redis.on("reconnecting", (delay: number) => {
+    logger.info(`[Redis] Reconnexion dans ${delay}ms...`);
+  });
 
-redis.on("ready", () => {
-  if (!redisConnected) {
-    logger.info("[Redis] Prêt — cache Redis actif ✅");
-    redisConnected = true;
-  }
-});
+  redis.on("connect", () => {
+    logger.info("[Redis] Connexion établie");
+  });
 
-redis.on("end", () => {
-  if (redisConnected) {
-    logger.warn("[Redis] Connexion fermée — fallback vers cache local");
-    redisConnected = false;
-  }
-});
+  redis.on("ready", () => {
+    if (!redisConnected) {
+      logger.info("[Redis] Prêt — cache Redis actif ✅");
+      redisConnected = true;
+    }
+  });
+
+  redis.on("end", () => {
+    if (redisConnected) {
+      logger.warn("[Redis] Connexion fermée — fallback vers cache local");
+      redisConnected = false;
+    }
+  });
+} else {
+  logger.info("[Redis] REDIS_URL non défini — cache local uniquement");
+}
 
 /**
  * Connecte Redis. Non-bloquant — si Redis est down, le bot continue sans cache.
  */
 export async function connectRedis(): Promise<void> {
+  if (!redis) return;
   try {
     await redis.connect();
     redisConnected = true;
@@ -74,7 +80,7 @@ export async function connectRedis(): Promise<void> {
 export async function setCache(key: string, value: unknown, ttlInSeconds: number): Promise<void> {
   const serialized = JSON.stringify(value);
   try {
-    if (redisConnected) {
+    if (redis && redisConnected) {
       await redis.setex(key, ttlInSeconds, serialized);
     } else {
       localCache.set(key, serialized, ttlInSeconds);
@@ -90,7 +96,7 @@ export async function setCache(key: string, value: unknown, ttlInSeconds: number
  */
 export async function getCache<T = unknown>(key: string): Promise<T | null> {
   try {
-    if (redisConnected) {
+    if (redis && redisConnected) {
       const raw = await redis.get(key);
       if (!raw) return null;
       return JSON.parse(raw) as T;
@@ -108,10 +114,11 @@ export async function getCache<T = unknown>(key: string): Promise<T | null> {
  */
 export async function deleteCache(key: string): Promise<void> {
   try {
-    await redis.del(key);
+    if (redis) await redis.del(key);
   } catch {
     // Silently ignore
   }
+  localCache.del(key);
 }
 
 /**
@@ -119,9 +126,11 @@ export async function deleteCache(key: string): Promise<void> {
  */
 export async function deleteCachePattern(pattern: string): Promise<void> {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    if (redis) {
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
     }
   } catch {
     // Silently ignore
@@ -133,10 +142,11 @@ export async function deleteCachePattern(pattern: string): Promise<void> {
  */
 export async function incrementCache(key: string): Promise<number> {
   try {
-    return await redis.incr(key);
+    if (redis) return await redis.incr(key);
   } catch {
-    return 0;
+    // fallback
   }
+  return 0;
 }
 
 /**
@@ -144,10 +154,11 @@ export async function incrementCache(key: string): Promise<number> {
  */
 export async function decrementCache(key: string): Promise<number> {
   try {
-    return await redis.decr(key);
+    if (redis) return await redis.decr(key);
   } catch {
-    return 0;
+    // fallback
   }
+  return 0;
 }
 
 /**
@@ -155,11 +166,14 @@ export async function decrementCache(key: string): Promise<number> {
  */
 export async function cacheExists(key: string): Promise<boolean> {
   try {
-    const result = await redis.exists(key);
-    return result === 1;
+    if (redis) {
+      const result = await redis.exists(key);
+      return result === 1;
+    }
   } catch {
-    return false;
+    // fallback
   }
+  return localCache.has(key);
 }
 
 /**
@@ -167,11 +181,14 @@ export async function cacheExists(key: string): Promise<boolean> {
  */
 export async function setCacheExpire(key: string, ttlInSeconds: number): Promise<boolean> {
   try {
-    await redis.expire(key, ttlInSeconds);
-    return true;
+    if (redis) {
+      await redis.expire(key, ttlInSeconds);
+      return true;
+    }
   } catch {
-    return false;
+    // fallback
   }
+  return false;
 }
 
 /**
@@ -179,10 +196,11 @@ export async function setCacheExpire(key: string, ttlInSeconds: number): Promise
  */
 export async function getCacheTTL(key: string): Promise<number> {
   try {
-    return await redis.ttl(key);
+    if (redis) return await redis.ttl(key);
   } catch {
-    return -1;
+    // fallback
   }
+  return -1;
 }
 
 /**
@@ -190,7 +208,7 @@ export async function getCacheTTL(key: string): Promise<number> {
  */
 export async function disconnectRedis(): Promise<void> {
   try {
-    await redis.quit();
+    if (redis) await redis.quit();
     logger.info("[Redis] Disconnected");
   } catch {
     // Ignore
