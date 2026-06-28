@@ -13,13 +13,6 @@
  *   - shutdown.ts      : Arrêt gracieux (SIGINT/SIGTERM)
  */
 
-// ── Node v26 + undici workaround ────────────────────────────────────────────
-// undici-patch.cjs is loaded via --require in package.json scripts (npm start, Docker).
-// This ESM side-effect import ensures the patch also applies when running with
-// `npx tsx src/index.ts` or any other launcher that doesn't use --require.
-// It MUST be the first import so ESM evaluates it before discord.js loads.
-import "./undici-patch-loader.js";
-
 import { startBot } from "./shardManager.js";
 
 startBot();
