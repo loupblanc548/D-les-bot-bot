@@ -17,6 +17,10 @@ let server: ReturnType<typeof express.application.listen> | null = null;
 
 export function startBullBoard(port = parseInt(process.env.BULL_BOARD_PORT || "3006")): void {
   if (server) return;
+  if (!dealQueue || !notificationQueue || !reminderQueue) {
+    logger.info("[BullBoard] REDIS non configuré — BullBoard désactivé");
+    return;
+  }
 
   const app = express();
   const serverAdapter = new ExpressAdapter();

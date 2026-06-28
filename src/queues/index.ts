@@ -1,73 +1,81 @@
 import { Queue, Worker, Job } from "bullmq";
 import logger from "../utils/logger.js";
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  password: process.env.REDIS_PASSWORD,
-};
+const hasRedis = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
 
-export const dealQueue = new Queue("deals", { connection });
-
-export const notificationQueue = new Queue("notifications", { connection });
-
-export const reminderQueue = new Queue("reminders", { connection });
-
-const dealWorker = new Worker(
-  "deals",
-  async (job: Job) => {
-    logger.info(`[DealWorker] Processing job ${job.id}:`, job.name);
-    switch (job.name) {
-      case "humble_bundle": {
-        const { runHumbleBundleCron } = await import("../cron/humbleBundleCron.js");
-        await runHumbleBundleCron();
-        break;
-      }
-      case "gmg": {
-        const { runGMGCron } = await import("../cron/gmgCron.js");
-        await runGMGCron();
-        break;
-      }
-      case "xbox_game_pass": {
-        const { runXboxGamePassCron } = await import("../cron/xboxGamePassCron.js");
-        await runXboxGamePassCron();
-        break;
-      }
+const connection = hasRedis
+  ? {
+      host: process.env.REDIS_HOST || "localhost",
+      port: parseInt(process.env.REDIS_PORT || "6379", 10),
+      password: process.env.REDIS_PASSWORD,
     }
-  },
-  { connection },
-);
+  : null;
 
-dealWorker.on("completed", (job) => {
-  logger.info(`[DealWorker] Job ${job.id} completed`);
-});
+export const dealQueue = connection ? new Queue("deals", { connection }) : null;
+export const notificationQueue = connection ? new Queue("notifications", { connection }) : null;
+export const reminderQueue = connection ? new Queue("reminders", { connection }) : null;
 
-dealWorker.on("failed", (job, err) => {
-  logger.error(`[DealWorker] Job ${job?.id} failed:`, err);
-});
+if (connection) {
+  const dealWorker = new Worker(
+    "deals",
+    async (job: Job) => {
+      logger.info(`[DealWorker] Processing job ${job.id}:`, job.name);
+      switch (job.name) {
+        case "humble_bundle": {
+          const { runHumbleBundleCron } = await import("../cron/humbleBundleCron.js");
+          await runHumbleBundleCron();
+          break;
+        }
+        case "gmg": {
+          const { runGMGCron } = await import("../cron/gmgCron.js");
+          await runGMGCron();
+          break;
+        }
+        case "xbox_game_pass": {
+          const { runXboxGamePassCron } = await import("../cron/xboxGamePassCron.js");
+          await runXboxGamePassCron();
+          break;
+        }
+      }
+    },
+    { connection },
+  );
 
-const reminderWorker = new Worker(
-  "reminders",
-  async (job: Job) => {
-    logger.info(`[ReminderWorker] Processing job ${job.id}`);
-    const { data } = job;
-    logger.info(`[ReminderWorker] Sending reminder to user ${data.userId}: ${data.message}`);
-  },
-  { connection },
-);
+  dealWorker.on("completed", (job) => {
+    logger.info(`[DealWorker] Job ${job.id} completed`);
+  });
 
-reminderWorker.on("completed", (job) => {
-  logger.info(`[ReminderWorker] Job ${job.id} completed`);
-});
+  dealWorker.on("failed", (job, err) => {
+    logger.error(`[DealWorker] Job ${job?.id} failed:`, err);
+  });
 
-reminderWorker.on("failed", (job, err) => {
-  logger.error(`[ReminderWorker] Job ${job?.id} failed:`, err);
-});
+  const reminderWorker = new Worker(
+    "reminders",
+    async (job: Job) => {
+      logger.info(`[ReminderWorker] Processing job ${job.id}`);
+      const { data } = job;
+      logger.info(`[ReminderWorker] Sending reminder to user ${data.userId}: ${data.message}`);
+    },
+    { connection },
+  );
+
+  reminderWorker.on("completed", (job) => {
+    logger.info(`[ReminderWorker] Job ${job.id} completed`);
+  });
+
+  reminderWorker.on("failed", (job, err) => {
+    logger.error(`[ReminderWorker] Job ${job?.id} failed:`, err);
+  });
+} else {
+  logger.info("[Queues] REDIS_URL/REDIS_HOST non défini — queues BullMQ désactivées");
+}
 
 export async function addDealJob(type: string, data: unknown = {}): Promise<void> {
+  if (!dealQueue) return;
   await dealQueue.add(type, data);
 }
 
 export async function addReminderJob(data: unknown): Promise<void> {
+  if (!reminderQueue) return;
   await reminderQueue.add("send_reminder", data);
 }
