@@ -3,9 +3,11 @@
  * Implémentations de base qui peuvent être enrichies ensuite.
  */
 
-import { ChatInputCommandInteraction, Client, EmbedBuilder, PermissionFlagsBits, ChannelType, Role } from "discord.js";
+import { ChatInputCommandInteraction, Client, EmbedBuilder, PermissionFlagsBits, ChannelType, Role, AttachmentBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
+import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
+import { generateRankCard } from "../services/imageService.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -713,15 +715,48 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
     case "rank": {
       const cible = interaction.options.getUser("cible") ?? interaction.user;
-      embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Niveau et XP affichés.");
-      await interaction.reply({ embeds: [embed] });
+      const xpData = await getUserXp(cible.id);
+      if (!xpData) {
+        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Aucun XP enregistré. Envoie des messages pour gagner de l'XP !");
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
+      await interaction.deferReply();
+      try {
+        const buffer = await generateRankCard({
+          username: cible.username,
+          avatarUrl: cible.displayAvatarURL({ extension: "png", size: 256 }),
+          level: xpData.level,
+          xp: xpData.xp,
+          xpNeeded: levelFromXp(xpData.xp).xpNeeded,
+          rank: xpData.rank,
+        });
+        await interaction.editReply({
+          content: `🏆 Rang de **${cible.username}** — Niveau ${xpData.level} • #${xpData.rank}`,
+          files: [new AttachmentBuilder(buffer, { name: "rank-card.png" })],
+        });
+      } catch {
+        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription(`Niveau ${xpData.level} • ${xpData.xp} XP • Rang #${xpData.rank}`);
+        await interaction.editReply({ embeds: [embed] });
+      }
       break;
     }
 
-    case "leaderboard":
-      embed.setTitle("🏆 Classement XP").setDescription("Top 10 des membres.");
+    case "leaderboard": {
+      const top = await getLeaderboard(10);
+      if (top.length === 0) {
+        embed.setTitle("🏆 Classement XP").setDescription("Aucune donnée XP. Envoie des messages pour gagner de l'XP !");
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
+      const lines = top.map((u, i) => {
+        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `**${i + 1}.**`;
+        return `${medal} <@${u.discordId}> — Niv. ${u.level} • ${u.xp.toLocaleString()} XP`;
+      });
+      embed.setTitle("🏆 Classement XP").setDescription(lines.join("\n")).setColor(0xffd700);
       await interaction.reply({ embeds: [embed] });
       break;
+    }
 
     case "lfg": {
       const jeu = interaction.options.getString("jeu", true);
@@ -1153,20 +1188,51 @@ export async function handleEconomy(interaction: ChatInputCommandInteraction, _c
       await interaction.reply({ embeds: [embed] });
       break;
     case "level": {
-      embed.setTitle("📈 Ton niveau").setDescription("Niveau 1 • 0 XP");
+      const xpData = await getUserXp(interaction.user.id);
+      const level = xpData?.level ?? 0;
+      const xp = xpData?.xp ?? 0;
+      embed.setTitle("📈 Ton niveau").setDescription(`Niveau ${level} • ${xp.toLocaleString()} XP`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "rank": {
       const cible = interaction.options.getUser("cible") ?? interaction.user;
-      embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Niveau 1 • 0 XP");
+      const xpData = await getUserXp(cible.id);
+      if (!xpData) {
+        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Aucun XP enregistré.");
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
+      embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription(`Niveau ${xpData.level} • ${xpData.xp.toLocaleString()} XP • Rang #${xpData.rank}`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
-    case "rank-card":
-      embed.setTitle("🏆 Carte de rang").setDescription("Carte de rang personnalisée — en développement.");
-      await interaction.reply({ embeds: [embed] });
+    case "rank-card": {
+      const xpData = await getUserXp(interaction.user.id);
+      if (!xpData) {
+        embed.setTitle("🏆 Carte de rang").setDescription("Aucun XP enregistré.");
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
+      await interaction.deferReply();
+      try {
+        const buffer = await generateRankCard({
+          username: interaction.user.username,
+          avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 256 }),
+          level: xpData.level,
+          xp: xpData.xp,
+          xpNeeded: levelFromXp(xpData.xp).xpNeeded,
+          rank: xpData.rank,
+        });
+        await interaction.editReply({
+          files: [new AttachmentBuilder(buffer, { name: "rank-card.png" })],
+        });
+      } catch {
+        embed.setTitle("🏆 Carte de rang").setDescription("Erreur lors de la génération.");
+        await interaction.editReply({ embeds: [embed] });
+      }
       break;
+    }
     case "xp-config":
       embed.setTitle("⚙️ Configuration XP").setDescription("Système XP en développement.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
