@@ -3,12 +3,12 @@
  *
  * /steam-deals    — Deals Steam en temps réel (CheapShark, pas de clé)
  * /price-history  — Historique de prix d'un jeu Steam (CheapShark)
- * /game-info      — Info sur un jeu (RAWG)
- * /yt-search      — Recherche YouTube
- * /spotify-search — Recherche Spotify
- * /gaming-news    — Actus gaming (NewsAPI)
- * /screenshot     — Capture d'écran d'une URL
- * /lastfm         — Top tracks Last.fm
+ * /game-info      — Info sur un jeu (Steam Store, sans clé)
+ * /yt-search      — Recherche YouTube (RSS + Invidious, sans clé)
+ * /spotify-search — Recherche Spotify (clé requise)
+ * /gaming-news    — Actus gaming (RSS feeds, sans clé)
+ * /screenshot     — Capture d'écran d'une URL (Playwright, sans clé)
+ * /lastfm         — Top tracks Last.fm (clé requise)
  * /api-status     — Statut des APIs externes
  */
 
@@ -360,7 +360,7 @@ async function handleScreenshot(interaction: ChatInputCommandInteraction): Promi
   const buffer = await takeScreenshot(url);
   if (!buffer) {
     await interaction.editReply({
-      content: "❌ Capture impossible. (ScreenshotOne API non configurée)",
+      content: "❌ Capture impossible. (Playwright non disponible)",
     });
     return;
   }

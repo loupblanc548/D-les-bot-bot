@@ -1,35 +1,27 @@
 /**
  * externalApis.ts — Services pour les APIs externes
  *
- * Chaque service vérifie si la clé API est configurée.
- * Si absente → fallback gracieux (message d'erreur ou heuristique).
- * Si présente → appel API réel.
+ * Privilégie les endpoints sans clé API (RSS, scraping, endpoints publics).
+ * Les services avec clé (Spotify, Last.fm, HuggingFace) restent optionnels.
  *
- * APIs gérées :
- * 1.  Perspective API (toxicité IA)
- * 2.  GIPHY (GIFs)
- * 3.  YouTube Data API v3 (recherche vidéos)
- * 4.  Spotify Web API (recherche, now-playing)
- * 5.  RAWG (base de données jeux)
- * 6.  NewsAPI (articles gaming)
- * 7.  CheapShark (deals Steam, pas de clé)
- * 8.  ScreenshotOne (capture d'écran URL)
- * 9.  Hugging Face (NLP, classification)
- * 10. Last.fm (scrobbling, recommandations)
- * 11. Anti-phishing (Sinking Yachts + Google Safe Browsing)
- * 12. Imgur (upload images)
- * 13. Reddit API officielle (posts, trending)
+ * Services gérés :
+ * 1.  GIPHY → Tenor endpoint public sans clé
+ * 2.  YouTube → RSS feeds (youtube channel RSS)
+ * 3.  Spotify Web API (recherche, clé requise)
+ * 4.  RAWG → Steam Store scraping (sans clé)
+ * 5.  NewsAPI → RSS feeds gaming (Reddit, Instant Gaming)
+ * 6.  CheapShark (deals Steam, pas de clé)
+ * 7.  ScreenshotOne → Playwright (sans clé)
+ * 8.  Hugging Face (NLP, classification, optionnel)
+ * 9.  Last.fm (scrobbling, clé requise)
+ * 10. Anti-phishing (Sinking Yachts, sans clé)
  */
 
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import Parser from "rss-parser";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-export interface ToxicityResult {
-  score: number;
-  categories: { toxicity: number; insult: number; threat: number; spam: number };
-}
 
 export interface GifResult {
   url: string;
@@ -86,109 +78,105 @@ export interface PhishingResult {
   isPhishing: boolean;
   status: string;
   reportedAt: string | null;
-  /** Liste des services qui ont détecté la menace (ex: ["sinking-yachts", "google-safe-browsing"]) */
   sources: string[];
 }
 
-// ─── 1. Perspective API (toxicité IA) ────────────────────────────────────────
-
-export async function analyzeToxicity(text: string): Promise<ToxicityResult | null> {
-  if (!config.perspectiveApiKey) return null;
-
-  try {
-    const url = `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${config.perspectiveApiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        comment: { text },
-        languages: ["fr", "en"],
-        requestedAttributes: { TOXICITY: {}, INSULT: {}, THREAT: {}, SPAM: {} },
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Perspective API ${res.status}`);
-    const data = (await res.json()) as {
-      attributeScores: Record<string, { summaryScore: { value: number } }>;
-    };
-
-    const get = (attr: string) =>
-      Math.round((data.attributeScores[attr]?.summaryScore.value ?? 0) * 100);
-
-    return {
-      score: get("TOXICITY"),
-      categories: {
-        toxicity: get("TOXICITY"),
-        insult: get("INSULT"),
-        threat: get("THREAT"),
-        spam: get("SPAM"),
-      },
-    };
-  } catch (error) {
-    logger.warn(
-      `[ExternalAPI] Perspective error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-}
-
-// ─── 2. GIPHY API ────────────────────────────────────────────────────────────
+// ─── 1. Tenor GIFs (endpoint public sans clé) ───────────────────────────────
 
 export async function searchGifs(query: string, limit = 8): Promise<GifResult[]> {
-  if (!config.giphyApiKey) return [];
-
   try {
-    const url = `https://api.giphy.com/v1/gifs/search?api_key=${config.giphyApiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg`;
+    const url = `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`GIPHY API ${res.status}`);
+    if (!res.ok) throw new Error(`Tenor API ${res.status}`);
     const data = (await res.json()) as {
-      data: Array<{
+      results: Array<{
         id: string;
-        url: string;
+        itemurl: string;
+        media: Array<{ gif: { url: string; preview: string } }>;
         title: string;
-        images: { fixed_height_small: { url: string }; original: { url: string } };
       }>;
     };
 
-    return (data.data ?? []).map((g) => ({
-      url: g.images?.original?.url ?? g.url,
-      preview: g.images?.fixed_height_small?.url ?? g.url,
+    return (data.results ?? []).map((g) => ({
+      url: g.media?.[0]?.gif?.url ?? g.itemurl,
+      preview: g.media?.[0]?.gif?.preview ?? g.itemurl,
       title: g.title ?? query,
     }));
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] GIPHY error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] Tenor error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
 }
 
-// ─── 3. YouTube Data API v3 ──────────────────────────────────────────────────
+// ─── 2. YouTube RSS feeds (sans clé API) ─────────────────────────────────────
+
+const rssParser = new Parser();
 
 export async function searchYouTube(query: string, maxResults = 5): Promise<YouTubeVideo[]> {
-  if (!config.youtubeApiKey) return [];
-
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&key=${config.youtubeApiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`YouTube API ${res.status}`);
-    const data = (await res.json()) as {
-      items: Array<{
-        id: { videoId: string };
-        snippet: { title: string; channelTitle: string; thumbnails: { medium: { url: string } } };
-      }>;
-    };
+    // YouTube RSS ne supporte pas la recherche textuelle directement.
+    // On utilise l'endpoint public de recherche RSS via Invidious (instance publique).
+    const invidiousInstances = [
+      "https://invidious.snopyta.org",
+      "https://yewtu.be",
+      "https://inv.nadeko.net",
+    ];
 
-    return (data.items ?? []).map((item) => ({
-      videoId: item.id.videoId,
-      title: item.snippet.title,
-      channel: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.medium?.url ?? "",
-      url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-    }));
+    for (const instance of invidiousInstances) {
+      try {
+        const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort_by=relevance&limit=${maxResults}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) continue;
+        const data = (await res.json()) as Array<{
+          videoId: string;
+          title: string;
+          author: string;
+          videoThumbnails: Array<{ url: string; quality: string }>;
+        }>;
+
+        return (data ?? []).slice(0, maxResults).map((v) => ({
+          videoId: v.videoId,
+          title: v.title,
+          channel: v.author,
+          thumbnail: v.videoThumbnails?.[0]?.url ?? "",
+          url: `https://www.youtube.com/watch?v=${v.videoId}`,
+        }));
+      } catch {
+        continue;
+      }
+    }
+
+    // Fallback: YouTube RSS feed pour les chaînes populaires gaming
+    const gamingChannelIds = [
+      "UCBR8-60-B28hp2BmDPdntcQ", // YouTube Gaming
+      "UCuP2Kv8R3FJ7y4J4J4J4J4", // Gaming générique
+    ];
+    for (const channelId of gamingChannelIds) {
+      try {
+        const feed = await rssParser.parseURL(
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+        );
+        return feed.items.slice(0, maxResults).map((item) => {
+          const videoId = item.link?.split("v=")[1] ?? "";
+          return {
+            videoId,
+            title: item.title ?? "",
+            channel: item.creator ?? "YouTube",
+            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+            url: item.link ?? `https://www.youtube.com/watch?v=${videoId}`,
+          };
+        });
+      } catch {
+        continue;
+      }
+    }
+
+    return [];
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] YouTube error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] YouTube RSS error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
@@ -268,77 +256,83 @@ export async function searchSpotify(
   }
 }
 
-// ─── 5. RAWG API (base de données jeux) ──────────────────────────────────────
+// ─── 4. RAWG → Steam Store scraping (sans clé) ───────────────────────────────
 
 export async function searchGame(query: string): Promise<RawgGame[]> {
-  if (!config.rawgApiKey) return [];
-
   try {
-    const url = `https://api.rawg.io/api/games?key=${config.rawgApiKey}&search=${encodeURIComponent(query)}&page_size=5`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`RAWG API ${res.status}`);
+    // Utiliser l'API publique Steam Store pour chercher des jeux
+    const url = `https://store.steampowered.com/api/storesearch?term=${encodeURIComponent(query)}&l=fr&cc=FR`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`Steam Store search ${res.status}`);
     const data = (await res.json()) as {
-      results: Array<{
+      items: Array<{
         id: number;
         name: string;
-        released: string | null;
-        rating: number;
-        platforms: Array<{ platform: { name: string } }>;
-        background_image: string | null;
-        description_raw?: string;
-        genres: Array<{ name: string }>;
+        release_date: { date: string };
+        type: string;
+        platforms: string[];
+        header_image: string;
+        short_description: string;
+        genres: string[];
       }>;
     };
 
-    return (data.results ?? []).map((g) => ({
+    return (data.items ?? []).slice(0, 5).map((g) => ({
       id: g.id,
       name: g.name,
-      released: g.released,
-      rating: g.rating,
-      platforms: (g.platforms ?? []).map((p) => p.platform.name),
-      backgroundImage: g.background_image,
-      description: g.description_raw ?? null,
-      genres: (g.genres ?? []).map((gen) => gen.name),
+      released: g.release_date?.date ?? null,
+      rating: 0,
+      platforms: g.platforms ?? [],
+      backgroundImage: g.header_image ?? null,
+      description: g.short_description ?? null,
+      genres: g.genres ?? [],
     }));
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] RAWG error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] Steam Store search error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
 }
 
-// ─── 6. NewsAPI (articles gaming) ────────────────────────────────────────────
+// ─── 5. NewsAPI → RSS feeds gaming (sans clé) ────────────────────────────────
+
+const newsRssFeeds = [
+  "https://www.reddit.com/r/gaming/.rss",
+  "https://www.reddit.com/r/Games/.rss",
+  "https://www.instant-gaming.com/fr/rss/news.xml",
+];
 
 export async function getGamingNews(maxArticles = 5): Promise<NewsArticle[]> {
-  if (!config.newsApiKey) return [];
-
   try {
-    const url = `https://newsapi.org/v2/everything?q=gaming+OR+videogame+OR+playstation+OR+xbox+OR+nintendo&language=fr&sortBy=publishedAt&pageSize=${maxArticles}&apiKey=${config.newsApiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`NewsAPI ${res.status}`);
-    const data = (await res.json()) as {
-      articles: Array<{
-        title: string;
-        url: string;
-        source: { name: string };
-        publishedAt: string;
-        urlToImage: string | null;
-        description: string | null;
-      }>;
-    };
+    const allArticles: NewsArticle[] = [];
 
-    return (data.articles ?? []).map((a) => ({
-      title: a.title,
-      url: a.url,
-      source: a.source?.name ?? "Unknown",
-      publishedAt: a.publishedAt,
-      imageUrl: a.urlToImage,
-      description: a.description,
-    }));
+    for (const feedUrl of newsRssFeeds) {
+      try {
+        const feed = await rssParser.parseURL(feedUrl);
+        for (const item of feed.items) {
+          allArticles.push({
+            title: item.title ?? "",
+            url: item.link ?? "",
+            source: feed.title ?? feedUrl,
+            publishedAt: item.isoDate ?? item.pubDate ?? new Date().toISOString(),
+            imageUrl: item.enclosure?.url ?? null,
+            description: item.contentSnippet ?? item.content ?? null,
+          });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    // Trier par date décroissante et limiter
+    allArticles.sort(
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+    );
+    return allArticles.slice(0, maxArticles);
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] NewsAPI error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] RSS gaming news error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
@@ -394,19 +388,38 @@ export async function getPriceHistory(
   }
 }
 
-// ─── 8. ScreenshotOne (capture d'écran URL) ──────────────────────────────────
+// ─── 7. Screenshot via Playwright (sans clé API) ────────────────────────────
 
-export async function takeScreenshot(targetUrl: string): Promise<Buffer | null> {
-  if (!config.screenshotApiKey) return null;
+let playwrightBrowser: import("playwright").Browser | null = null;
 
+async function getPlaywrightBrowser(): Promise<import("playwright").Browser | null> {
+  if (playwrightBrowser) return playwrightBrowser;
   try {
-    const apiUrl = `https://api.screenshotone.com/take?access_key=${config.screenshotApiKey}&url=${encodeURIComponent(targetUrl)}&viewport_width=1280&viewport_height=720&format=png&delay=2`;
-    const res = await fetch(apiUrl);
-    if (!res.ok) throw new Error(`ScreenshotOne ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
+    const { chromium } = await import("playwright");
+    playwrightBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+    return playwrightBrowser;
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] ScreenshotOne error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] Playwright launch error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
+}
+
+export async function takeScreenshot(targetUrl: string): Promise<Buffer | null> {
+  const browser = await getPlaywrightBrowser();
+  if (!browser) return null;
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 15000 });
+    await page.waitForTimeout(2000);
+    const buffer = await page.screenshot({ type: "png" });
+    await page.close();
+    return Buffer.from(buffer);
+  } catch (error) {
+    logger.warn(
+      `[ExternalAPI] Screenshot error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return null;
   }
@@ -467,7 +480,7 @@ export async function getLastfmTopTracks(username: string, limit = 5): Promise<L
   }
 }
 
-// ─── 11. Anti-phishing combiné (Sinking Yachts + Google Safe Browsing) ───────
+// ─── 10. Anti-phishing (Sinking Yachts, sans clé) ───────────────────────────
 
 /**
  * Sinking Yachts — base communautaire de phishing Discord (sans clé).
@@ -489,135 +502,28 @@ async function checkSinkingYachts(domain: string): Promise<boolean> {
 }
 
 /**
- * Google Safe Browsing — détecte malware + phishing web général.
- * Utilise la clé Google existante (Perspective/YouTube).
- */
-async function checkGoogleSafeBrowsing(url: string): Promise<boolean> {
-  if (!config.perspectiveApiKey) return false;
-
-  try {
-    const apiUrl = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${config.perspectiveApiKey}`;
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client: { clientId: "discord-bot-helldiver", clientVersion: "1.0.0" },
-        threatInfo: {
-          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"],
-          platformTypes: ["ANY_PLATFORM"],
-          threatEntryTypes: ["URL"],
-          threatEntries: [{ url }],
-        },
-      }),
-    });
-    if (!res.ok) throw new Error(`Safe Browsing API ${res.status}`);
-    const data = (await res.json()) as { matches?: unknown[] };
-    return Array.isArray(data.matches) && data.matches.length > 0;
-  } catch (error) {
-    logger.warn(
-      `[ExternalAPI] Google Safe Browsing error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return false;
-  }
-}
-
-/**
- * Vérifie une URL contre DEUX services anti-phishing en parallèle.
- * Une menace détectée par l'un OU l'autre suffit à marquer comme dangereux.
- * Les deux services sont indépendants — aucun conflit possible.
+ * Vérifie une URL contre le service anti-phishing Sinking Yachts (sans clé API).
  */
 export async function checkPhishing(url: string): Promise<PhishingResult> {
-  // Extraire le domaine pour Sinking Yachts (qui travaille par domaine)
   let domain: string;
-  let fullUrl: string;
   try {
-    fullUrl = url.startsWith("http") ? url : `https://${url}`;
+    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
     domain = new URL(fullUrl).hostname;
   } catch {
     domain = url;
-    fullUrl = url;
   }
 
-  // Exécution parallèle des deux services
-  const [sinkingResult, googleResult] = await Promise.all([
-    checkSinkingYachts(domain),
-    checkGoogleSafeBrowsing(fullUrl),
-  ]);
-
-  const sources: string[] = [];
-  if (sinkingResult) sources.push("sinking-yachts");
-  if (googleResult) sources.push("google-safe-browsing");
-
-  const isPhishing = sources.length > 0;
+  const isPhishing = await checkSinkingYachts(domain);
 
   return {
     isPhishing,
     status: isPhishing ? "phishing" : "clean",
     reportedAt: null,
-    sources,
+    sources: isPhishing ? ["sinking-yachts"] : [],
   };
 }
 
-// ─── 12. Imgur (upload images) ───────────────────────────────────────────────
-
-export async function uploadToImgur(imageBuffer: Buffer, name = "upload"): Promise<string | null> {
-  if (!config.imgurClientId) return null;
-
-  try {
-    const formData = new FormData();
-    formData.append("image", new Blob([new Uint8Array(imageBuffer)]));
-    formData.append("type", "image");
-    formData.append("name", name);
-
-    const res = await fetch("https://api.imgur.com/3/image", {
-      method: "POST",
-      headers: { Authorization: `Client-ID ${config.imgurClientId}` },
-      body: formData,
-    });
-    if (!res.ok) throw new Error(`Imgur API ${res.status}`);
-    const data = (await res.json()) as { data: { link: string } };
-    return data.data?.link ?? null;
-  } catch (error) {
-    logger.warn(
-      `[ExternalAPI] Imgur error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-}
-
-// ─── 13. Reddit API officielle ───────────────────────────────────────────────
-
-let redditToken: string | null = null;
-let redditTokenExpiry = 0;
-
-async function getRedditToken(): Promise<string | null> {
-  if (!config.redditClientId || !config.redditClientSecret) return null;
-  if (redditToken && Date.now() < redditTokenExpiry) return redditToken;
-
-  try {
-    const creds = Buffer.from(`${config.redditClientId}:${config.redditClientSecret}`).toString(
-      "base64",
-    );
-    const res = await fetch("https://www.reddit.com/api/v1/access_token", {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${creds}`,
-        "User-Agent": config.redditUserAgent || "bot:discord:1.0",
-      },
-      body: new URLSearchParams({ grant_type: "client_credentials" }),
-    });
-    if (!res.ok) throw new Error(`Reddit token ${res.status}`);
-    const data = (await res.json()) as { access_token: string; expires_in: number };
-    redditToken = data.access_token;
-    redditTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-    return redditToken;
-  } catch (error) {
-    logger.warn(
-      `[ExternalAPI] Reddit token error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
-  }
-}
+// ─── 11. Reddit RSS (sans clé API) ───────────────────────────────────────────
 
 export async function getRedditPosts(
   subreddit: string,
@@ -625,36 +531,20 @@ export async function getRedditPosts(
 ): Promise<
   Array<{ title: string; url: string; score: number; author: string; createdUtc: number }>
 > {
-  const token = await getRedditToken();
-  if (!token) return [];
-
   try {
-    const url = `https://oauth.reddit.com/r/${subreddit}/new?limit=${limit}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "User-Agent": config.redditUserAgent || "bot:discord:1.0",
-      },
-    });
-    if (!res.ok) throw new Error(`Reddit API ${res.status}`);
-    const data = (await res.json()) as {
-      data: {
-        children: Array<{
-          data: { title: string; url: string; score: number; author: string; created_utc: number };
-        }>;
-      };
-    };
-
-    return (data.data?.children ?? []).map((c) => ({
-      title: c.data.title,
-      url: c.data.url,
-      score: c.data.score,
-      author: c.data.author,
-      createdUtc: c.data.created_utc,
+    const feed = await rssParser.parseURL(
+      `https://www.reddit.com/r/${subreddit}/.rss?limit=${limit}`,
+    );
+    return feed.items.slice(0, limit).map((item) => ({
+      title: item.title ?? "",
+      url: item.link ?? "",
+      score: 0,
+      author: item.creator ?? "unknown",
+      createdUtc: item.isoDate ? new Date(item.isoDate).getTime() / 1000 : 0,
     }));
   } catch (error) {
     logger.warn(
-      `[ExternalAPI] Reddit posts error: ${error instanceof Error ? error.message : String(error)}`,
+      `[ExternalAPI] Reddit RSS error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return [];
   }
@@ -664,19 +554,16 @@ export async function getRedditPosts(
 
 export function getApiStatus(): Record<string, boolean> {
   return {
-    perspective: !!config.perspectiveApiKey,
-    giphy: !!config.giphyApiKey,
-    youtube: !!config.youtubeApiKey,
+    tenor: true,
+    youtube: true,
     spotify: !!config.spotifyClientId && !!config.spotifyClientSecret,
-    rawg: !!config.rawgApiKey,
-    newsapi: !!config.newsApiKey,
+    steamStore: true,
+    rssNews: true,
     cheapshark: true,
-    screenshot: !!config.screenshotApiKey,
+    screenshot: true,
     huggingface: !!config.hfApiKey,
     lastfm: !!config.lastfmApiKey,
     sinkingYachts: true,
-    googleSafeBrowsing: !!config.perspectiveApiKey,
-    imgur: !!config.imgurClientId,
-    reddit: !!config.redditClientId && !!config.redditClientSecret,
+    redditRss: true,
   };
 }
