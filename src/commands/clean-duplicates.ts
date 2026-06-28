@@ -46,11 +46,35 @@ interface DuplicateGroup {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function extractDedupKey(msg: Message): string {
+  // 1. URL dans le contenu du message
   const urlMatch = msg.content.match(/https?:\/\/[^\s]+/);
   if (urlMatch) {
-    return urlMatch[0].replace(/[?&](utm_|fbclid|ref|source|tracking)=[^&\s]*/gi, "");
+    return urlMatch[0].replace(
+      /[?&](utm_|fbclid|ref|source|tracking|gclid|si|t|feature|pp)=[^&\s]*/gi,
+      "",
+    );
   }
-  return msg.content.trim().replace(/\s+/g, " ").toLowerCase();
+
+  // 2. URL dans le premier embed (cas des messages du bot)
+  const embed = msg.embeds[0];
+  if (embed) {
+    const embedUrl = embed.url;
+    if (embedUrl) {
+      return embedUrl.replace(
+        /[?&](utm_|fbclid|ref|source|tracking|gclid|si|t|feature|pp)=[^&\s]*/gi,
+        "",
+      );
+    }
+    // 3. Titre de l'embed comme fallback
+    const embedTitle = embed.title;
+    if (embedTitle) {
+      return embedTitle.trim().replace(/\s+/g, " ").toLowerCase();
+    }
+  }
+
+  // 4. Contenu textuel comme fallback ultime
+  const text = msg.content.trim().replace(/\s+/g, " ").toLowerCase();
+  return text;
 }
 
 function isOlderThan14Days(msg: Message): boolean {
@@ -83,7 +107,7 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
   const textChannel = channel as TextChannel;
 
   try {
-    const messages: Collection<string, Message> = await textChannel.messages.fetch({ limit: 100 });
+    const messages: Collection<string, Message> = await textChannel.messages.fetch({ limit: 200 });
 
     if (messages.size < 2) {
       await anim.stop("✅ Le salon contient moins de 2 messages — aucun doublon possible.");
@@ -94,7 +118,7 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
     const groups = new Map<string, DuplicateGroup>();
 
     for (const [, msg] of messages) {
-      if (msg.author.id === interaction.client.user?.id) continue;
+      // Ne pas ignorer les messages du bot — ce sont précisément ceux qu'on veut dédupliquer
       const key = extractDedupKey(msg);
       if (!key) continue;
 
@@ -121,7 +145,7 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
 
     if (allDuplicates.length === 0) {
       await anim.stop(
-        "✅ Aucun doublon detecte parmi les 100 derniers messages. Le salon est propre !",
+        "✅ Aucun doublon detecte parmi les 200 derniers messages. Le salon est propre !",
       );
       return;
     }
@@ -167,7 +191,7 @@ async function handleCleanDuplicates(interaction: ChatInputCommandInteraction): 
       .setColor(0x00ff88)
       .setTitle("🧹 Nettoyage termine !")
       .setDescription(
-        `J'ai analyse les **100 derniers messages** et supprime **${deletedCount} doublon(s)**.\nLe salon est maintenant propre !`,
+        `J'ai analyse les **200 derniers messages** et supprime **${deletedCount} doublon(s)**.\nLe salon est maintenant propre !`,
       )
       .setFooter({
         text: `Cles de doublons detectees : ${[...groups.values()].filter((g) => g.duplicates.length > 0).length}`,
