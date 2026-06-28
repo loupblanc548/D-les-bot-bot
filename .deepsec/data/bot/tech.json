@@ -1,0 +1,16 @@
+{
+  "tags": [
+    "bullmq",
+    "docker",
+    "express",
+    "github-actions",
+    "node",
+    "prisma"
+  ],
+  "sentinels": [
+    "Dockerfile",
+    "package.json"
+  ],
+  "detectedAt": "2026-06-28T05:58:02.350Z",
+  "rootPath": "D:\\les bot\\bot"
+}

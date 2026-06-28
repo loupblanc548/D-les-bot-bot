@@ -27,7 +27,7 @@ const Dashboard = {
       const tab = document.getElementById("tab-settings");
       if (tab && !tab.querySelector("#setting-api-url")) {
         const defaultUrl = s.apiUrl || "https://d-les-bot-bot-production.up.railway.app";
-        const defaultToken = s.token || "d557bace6a9e095344f7d38c5fd2dea7c0720099316bc3b7258a1128d7db028d";
+        const defaultToken = s.token || "";
         const section = document.createElement("div");
         section.className = "settings-section";
         section.innerHTML = `
@@ -294,8 +294,8 @@ const Dashboard = {
       const grid = document.getElementById("server-grid");
       if (!grid || !servers?.length) { if (grid) grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏰</div>Aucun serveur</div>'; return; }
       grid.innerHTML = servers.map((s) => {
-        const icon = s.iconURL ? '<img src="' + s.iconURL + '" style="width:40px;height:40px;border-radius:50%">' : '<div class="server-icon">🏰</div>';
-        return '<div class="server-card"><div class="server-card-header">' + icon + '<div><div class="server-name">' + Utils.escapeHtml(s.name) + '</div><div class="server-id">' + s.id + '</div></div></div><div class="server-stats"><span class="server-stat">👥 ' + Utils.formatNumber(s.memberCount) + '</span><span class="server-stat">👑 ' + Utils.escapeHtml(s.ownerName || "—") + '</span></div></div>';
+        const icon = s.iconURL ? '<img src="' + Utils.escapeHtml(s.iconURL) + '" style="width:40px;height:40px;border-radius:50%">' : '<div class="server-icon">🏰</div>';
+        return '<div class="server-card"><div class="server-card-header">' + icon + '<div><div class="server-name">' + Utils.escapeHtml(s.name) + '</div><div class="server-id">' + Utils.escapeHtml(s.id) + '</div></div></div><div class="server-stats"><span class="server-stat">👥 ' + Utils.formatNumber(s.memberCount) + '</span><span class="server-stat">👑 ' + Utils.escapeHtml(s.ownerName || "—") + '</span></div></div>';
       }).join("");
     }).catch(() => {
       const grid = document.getElementById("server-grid");
