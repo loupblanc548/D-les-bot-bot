@@ -232,7 +232,7 @@ export const commands = [
         .addStringOption((o) => o.setName("action").setDescription("Action").setRequired(true))
         .addStringOption((o) => o.setName("filtre").setDescription("Filtre à configurer").setRequired(false)),
     )
-    .addSubcommand((sc) => sc.setName("automod-status").setDescription("Statut de l'automod")),
+    .addSubcommand((sc) => sc.setName("automod-status").setDescription("Statut de l'automod"))
     .addSubcommand((sc) =>
       sc
         .setName("invite-block")
@@ -258,7 +258,7 @@ export const commands = [
         .addStringOption((o) => o.setName("event").setDescription("Type d'event").setRequired(true))
         .addChannelOption((o) => o.setName("salon").setDescription("Salon de log").setRequired(false)),
     )
-    .addSubcommand((sc) => sc.setName("audit-export").setDescription("Exporte l'audit de sécurité en JSON")),
+    .addSubcommand((sc) => sc.setName("audit-export").setDescription("Exporte l'audit de sécurité en JSON"))
     .addSubcommand((sc) =>
       sc
         .setName("whitelist-domain")
