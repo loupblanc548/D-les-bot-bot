@@ -29,6 +29,7 @@ import {
 } from "../services/wordFilter.js";
 import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
+import { addXp } from "../services/xpService.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -175,6 +176,19 @@ export function handleMessageEvents(client: Client) {
 
       // ── Auto-react (après sécurité, non bloquant) ──
       await processAutoReact(message);
+
+      // ── XP gain (après tous les modules, non bloquant) ──
+      const xpResult = await addXp(message.author.id, message.guildId!);
+      if (xpResult.leveledUp) {
+        try {
+          const channel = message.channel as TextChannel;
+          await channel.send({
+            content: `🎉 ${message.author.toString()} a atteint le **niveau ${xpResult.newLevel}** !`,
+          });
+        } catch {
+          // ignore send errors
+        }
+      }
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
     }
