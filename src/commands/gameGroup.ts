@@ -3,14 +3,12 @@ import { handleCommand as handleGaming } from "./gaming.js";
 import { handleCommand as handleSteam } from "./steam.js";
 import { handleCommand as handleTwitch } from "./twitch.js";
 import { handleCommand as handlePsn } from "./psn.js";
-import { handleCommand as handleTrackGame } from "./trackGame.js";
 import { handleCommand as handleWishlist } from "./fun/wishlist.js";
 import { handleCommand as handleBoutique } from "./fun/boutique.js";
 import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleCommand as handleUtilityGaming } from "./utilityCommands.js";
 import { handleCommand as handleApiCmd } from "./apiCommands.js";
-import { handleCommand as handleTrackGroup } from "./trackGroup.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -114,19 +112,6 @@ export const commands = [
     )
     .addSubcommand((sc) => sc.setName("twitch").setDescription("Gère les streamers suivis"))
     .addSubcommand((sc) => sc.setName("psn").setDescription("Profil, trophées et jeux PlayStation"))
-    .addSubcommand((sc) =>
-      sc
-        .setName("track-add")
-        .setDescription("Surveille les actus Steam d'un jeu")
-        .addStringOption((o) => o.setName("jeu").setDescription("Le jeu").setRequired(true)),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("track-remove")
-        .setDescription("Arrête la surveillance d'un jeu")
-        .addStringOption((o) => o.setName("jeu").setDescription("Le jeu").setRequired(true)),
-    )
-    .addSubcommand((sc) => sc.setName("track-list").setDescription("Liste les jeux surveillés"))
     .toJSON(),
 ];
 
@@ -150,15 +135,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else if (action === "psn") {
     Object.defineProperty(interaction, "commandName", { value: "psn", writable: true });
     await handlePsn(interaction);
-  } else if (action === "track-add" || action === "track-remove" || action === "track-list") {
-    const mapped =
-      action === "track-add"
-        ? "track-game"
-        : action === "track-remove"
-          ? "untrack-game"
-          : "list-tracked";
-    Object.defineProperty(interaction, "commandName", { value: mapped, writable: true });
-    await handleTrackGame(interaction);
   } else if (action === "wishlist") {
     Object.defineProperty(interaction, "commandName", { value: "wishlist", writable: true });
     await handleWishlist(interaction);
