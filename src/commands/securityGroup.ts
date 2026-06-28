@@ -12,6 +12,8 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { invalidateCache as invalidateWordFilterCache } from "../services/wordFilter.js";
 
+import { handleSecurityExtra } from "./stubHandlers.js";
+
 export const commands = [
   new SlashCommandBuilder()
     .setName("security")
@@ -210,6 +212,59 @@ export const commands = [
     .addSubcommand((sc) =>
       sc.setName("raid-shield").setDescription("Bouclier anti-raid (comptes récents)"),
     )
+    // ─── Nouvelles sous-commandes sécurité ───
+    .addSubcommand((sc) =>
+      sc
+        .setName("raid-mode")
+        .setDescription("Active le mode raid (verrouillage total temporaire)")
+        .addIntegerOption((o) => o.setName("duree").setDescription("Durée en minutes").setRequired(false).setMinValue(1).setMaxValue(1440)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("lockdown-server")
+        .setDescription("Verrouille le serveur entier (anti-raid)")
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("automod-config")
+        .setDescription("Configure l'automod (liens, invites, spam)")
+        .addStringOption((o) => o.setName("action").setDescription("Action").setRequired(true))
+        .addStringOption((o) => o.setName("filtre").setDescription("Filtre à configurer").setRequired(false)),
+    )
+    .addSubcommand((sc) => sc.setName("automod-status").setDescription("Statut de l'automod")),
+    .addSubcommand((sc) =>
+      sc
+        .setName("invite-block")
+        .setDescription("Bloque les invitations Discord dans les messages")
+        .addStringOption((o) => o.setName("action").setDescription("on/off").setRequired(true).addChoices({name:"Activer",value:"on"},{name:"Désactiver",value:"off"})),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("captcha-config")
+        .setDescription("Configuration du captcha à l'arrivée")
+        .addStringOption((o) => o.setName("action").setDescription("Action").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("anti-bot")
+        .setDescription("Active la détection auto des bots")
+        .addStringOption((o) => o.setName("action").setDescription("on/off").setRequired(true).addChoices({name:"Activer",value:"on"},{name:"Désactiver",value:"off"})),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("logging-config")
+        .setDescription("Configure quels events sont loggés")
+        .addStringOption((o) => o.setName("event").setDescription("Type d'event").setRequired(true))
+        .addChannelOption((o) => o.setName("salon").setDescription("Salon de log").setRequired(false)),
+    )
+    .addSubcommand((sc) => sc.setName("audit-export").setDescription("Exporte l'audit de sécurité en JSON")),
+    .addSubcommand((sc) =>
+      sc
+        .setName("whitelist-domain")
+        .setDescription("Whiteliste un domaine pour le linkcheck")
+        .addStringOption((o) => o.setName("domaine").setDescription("Le domaine").setRequired(true)),
+    )
     .toJSON(),
 ];
 
@@ -234,7 +289,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   if (extraCmds.includes(action)) {
     await handleExtraCmd(interaction, client);
   } else {
-    await handleSecurityCore(interaction, client);
+    // Try existing security core, then stub for new ones
+    const existingSecSubs = ["nuke","check-alt","blacklist","role-mass","antiraid","verif","namehistory","avatarhistory","linkcheck"];
+    if (existingSecSubs.includes(action)) {
+      await handleSecurityCore(interaction, client);
+    } else {
+      await handleSecurityExtra(interaction, client);
+    }
   }
 }
 

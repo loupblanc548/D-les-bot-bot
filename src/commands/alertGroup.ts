@@ -10,6 +10,8 @@ import { handleCommand as handleSecurityAudit } from "./security-audit.js";
 import { handleCommand as handleModPro } from "./moderationPro.js";
 import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 
+import { handleAlertExtra } from "./stubHandlers.js";
+
 export const commands = [
   new SlashCommandBuilder()
     .setName("alert")
@@ -110,6 +112,34 @@ export const commands = [
         .setDescription("Règles d'alerte personnalisées (admin)")
         .addStringOption((o) => o.setName("action").setDescription("Action").setRequired(true)),
     )
+    // ─── Nouvelles sous-commandes alert ───
+    .addSubcommand((sc) => sc.setName("alert-test").setDescription("Teste le système d'alerte"))
+    .addSubcommand((sc) => sc.setName("alert-export").setDescription("Exporte les alertes en JSON"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("alert-whitelist")
+        .setDescription("Whiteliste un utilisateur (plus d'alertes)")
+        .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("alert-digest")
+        .setDescription("Configure un digest périodique d'alertes")
+        .addStringOption((o) => o.setName("frequence").setDescription("Fréquence (hourly/daily/weekly)").setRequired(true))
+        .addChannelOption((o) => o.setName("salon").setDescription("Salon de réception").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("alert-ack")
+        .setDescription("Acquitter une alerte spécifique")
+        .addStringOption((o) => o.setName("id").setDescription("ID de l'alerte").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("alert-escalate")
+        .setDescription("Escalader une alerte aux admins (DM)")
+        .addStringOption((o) => o.setName("id").setDescription("ID de l'alerte").setRequired(true)),
+    )
     .toJSON(),
 ];
 
@@ -146,5 +176,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else if (action === "alert-rules") {
     Object.defineProperty(interaction, "commandName", { value: "alert-rules", writable: true });
     await handleExtraCmd(interaction, dc);
+  } else {
+    await handleAlertExtra(interaction, dc);
   }
 }

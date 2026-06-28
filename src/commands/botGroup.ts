@@ -14,6 +14,8 @@ import { handleCommand as handleUptime } from "./uptime.js";
 import { execute as executeDebug } from "./debug.js";
 import { execute as executeHotreload } from "./hotreload.js";
 
+import { handleBotExtra } from "./stubHandlers.js";
+
 export const commands = [
   new SlashCommandBuilder()
     .setName("bot")
@@ -72,6 +74,20 @@ export const commands = [
     .addSubcommand((sc) =>
       sc.setName("hotreload-status").setDescription("Hotreload: statut du hot reload (admin)"),
     )
+    // ─── Nouvelles sous-commandes bot ───
+    .addSubcommand((sc) =>
+      sc
+        .setName("invite")
+        .setDescription("Génère un lien d'invitation du bot")
+        .addStringOption((o) => o.setName("permissions").setDescription("Niveau de permissions (bitfield)").setRequired(false)),
+    )
+    .addSubcommand((sc) => sc.setName("stats").setDescription("Statistiques détaillées du bot"))
+    .addSubcommand((sc) => sc.setName("ping").setDescription("Latence du bot"))
+    .addSubcommand((sc) => sc.setName("changelog").setDescription("Derniers changements du bot"))
+    .addSubcommand((sc) => sc.setName("vote").setDescription("Vote pour le bot sur les listes"))
+    .addSubcommand((sc) => sc.setName("support").setDescription("Serveur support et documentation"))
+    .addSubcommand((sc) => sc.setName("privacy").setDescription("Politique de confidentialité"))
+    .addSubcommand((sc) => sc.setName("commands-list").setDescription("Liste toutes les commandes disponibles"))
     .toJSON(),
 ];
 
@@ -133,6 +149,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     const sub = action.replace("hotreload-", "");
     const patched = patchSubcommand(interaction, sub);
     await executeHotreload(patched, dc);
+  } else {
+    await handleBotExtra(interaction, dc);
   }
 }
 

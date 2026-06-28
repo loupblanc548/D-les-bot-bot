@@ -7,6 +7,7 @@ import {
 import { handleCommand as handleModeration } from "./moderation.js";
 import { handleCommand as handleModExtra } from "./modExtra.js";
 import { handleCommand as handleModPro } from "./moderationPro.js";
+import { handleModExtra as handleModStub } from "./stubHandlers.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -213,6 +214,82 @@ export const commands = [
           o.setName("cible").setDescription("Le membre à expulser").setRequired(true),
         ),
     )
+    // ─── Nouvelles sous-commandes modération ───
+    .addSubcommand((sc) =>
+      sc
+        .setName("unban")
+        .setDescription("Révoque un ban")
+        .addStringOption((o) => o.setName("id").setDescription("ID Discord").setRequired(true))
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("ban-all")
+        .setDescription("Ban en masse depuis une liste d'IDs")
+        .addStringOption((o) => o.setName("ids").setDescription("IDs séparés par virgule/espace").setRequired(true))
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("mass-unban").setDescription("Révoque tous les bans du serveur"),
+    )
+    .addSubcommand((sc) => sc.setName("mute-list").setDescription("Liste des membres actuellement mute")),
+    .addSubcommand((sc) =>
+      sc
+        .setName("warn-list")
+        .setDescription("Liste les warns d'un membre")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("warn-remove")
+        .setDescription("Supprime un warn spécifique")
+        .addIntegerOption((o) => o.setName("id").setDescription("ID du warn").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("warn-reset")
+        .setDescription("Réinitialise tous les warns d'un membre")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("lockdown")
+        .setDescription("Verrouille tous les salons du serveur")
+        .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
+    )
+    .addSubcommand((sc) => sc.setName("unlock-all").setDescription("Déverrouille tous les salons")),
+    .addSubcommand((sc) => sc.setName("dehoist").setDescription("Retire les caractères spéciaux des pseudos")),
+    .addSubcommand((sc) =>
+      sc
+        .setName("nickname-force")
+        .setDescription("Force un pseudo à un membre")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true))
+        .addStringOption((o) => o.setName("pseudo").setDescription("Nouveau pseudo").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("nickname-reset")
+        .setDescription("Réinitialise le pseudo d'un membre")
+        .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("inrole")
+        .setDescription("Liste les membres ayant un rôle")
+        .addRoleOption((o) => o.setName("rôle").setDescription("Le rôle").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("role-all")
+        .setDescription("Donne un rôle à tous les membres")
+        .addRoleOption((o) => o.setName("rôle").setDescription("Le rôle").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("role-remove-all")
+        .setDescription("Retire un rôle à tous les membres")
+        .addRoleOption((o) => o.setName("rôle").setDescription("Le rôle").setRequired(true)),
+    )
     .toJSON(),
 ];
 
@@ -225,6 +302,12 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else if (action === "mass-move" || action === "voice-kick") {
     await handleModPro(interaction);
   } else {
-    await handleModeration(interaction, client);
+    // Try existing handlers first, then stub
+    const existingSubs = ["warn","mute","unmute","kick","ban","timeout","clear","unlock","purge","history","slowmode","lock","softban","tempban","purgeuser","snipe"];
+    if (existingSubs.includes(action)) {
+      await handleModeration(interaction, client);
+    } else {
+      await handleModStub(interaction, client);
+    }
   }
 }
