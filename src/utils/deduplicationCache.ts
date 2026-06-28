@@ -29,7 +29,7 @@ export type PlatformKey =
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
-const MAX_IDS_PER_PLATFORM = 50;
+const MAX_IDS_PER_PLATFORM = 200;
 const ALL_PLATFORMS: PlatformKey[] = [
   "steam",
   "epic",

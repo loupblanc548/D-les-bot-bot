@@ -12,6 +12,7 @@ import {
   getPlatformLabel,
 } from "../utils/notificationCards.js";
 import { alertCronFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
+import { generateStableId } from "../utils/url-cleaner.js";
 
 // Types
 
@@ -248,7 +249,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
     // Deduplication via ProcessedPatchNotes (guid)
     const freshItems: RedditFeedItem[] = [];
     for (const item of (feed as Record<string, any>).items || []) {
-      const guid = item.guid || item.link || item.title;
+      const guid = generateStableId({ guid: item.guid, link: item.link, title: item.title });
       if (!guid) continue;
 
       if (!(await isPatchProcessed(guid))) {
@@ -365,7 +366,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
       }
 
       // Persister dans la BDD (une seule fois, meme si multi-plateforme)
-      const guid = item.guid || item.link || item.title;
+      const guid = generateStableId({ guid: item.guid, link: item.link, title: item.title });
       if (guid) {
         // Marquer dans le cache JSON anti-doublon
         await dedupCache.markAsProcessed("patch_notes", guid);

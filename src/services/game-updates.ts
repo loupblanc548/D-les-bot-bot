@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import prisma from "../prisma.js";
 import Parser from "rss-parser";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { generateStableId } from "../utils/url-cleaner.js";
 
 interface GameUpdate {
   gameId: string;
@@ -182,7 +183,11 @@ export async function checkGameUpdates(client: Client): Promise<void> {
   const updates = await checkSteamUpdates();
 
   for (const update of updates) {
-    const updateId = `${update.gameId}-${update.publishedAt.getTime()}`;
+    const updateId = generateStableId({
+      guid: `${update.gameId}-${update.url}`,
+      link: update.url,
+      title: update.title,
+    });
 
     if (!(await isUpdateProcessed(updateId))) {
       // VERROU ANTI-SPAM : dedup cache JSON local

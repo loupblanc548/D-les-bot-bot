@@ -24,6 +24,7 @@ import {
 import { FreeGameFetcher, FreeGameItem } from "../services/FreeGameFetcher.js";
 import { routeArticle } from "../managers/ChannelRouter.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { generateStableId } from "../utils/url-cleaner.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,11 @@ function generateSummary(content: string): string {
  * 4. Marquage comme traite (ScraperManager)
  */
 async function processFreeGame(client: Client, item: FreeGameItem): Promise<void> {
-  const gameId = item.redditPostId || item.guid || item.link;
+  const gameId = generateStableId({
+    guid: item.redditPostId || item.guid,
+    link: item.link,
+    title: item.title,
+  });
 
   // Etape 1: Barriere temporelle 48h (ScraperManager)
   if (!isWithinTemporalBarrier(item.pubDate)) {

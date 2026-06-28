@@ -9,6 +9,8 @@ import {
   createXboxEmbed,
   createNintendoEmbed,
 } from "./themedEmbeds.js";
+import { cleanUrl } from "../../utils/url-cleaner.js";
+import { dedupCache } from "../../utils/deduplicationCache.js";
 
 const parser = new Parser();
 const RSS_POSTED_KEY_PREFIX = "rss:posted:";
@@ -96,22 +98,6 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
       return;
     }
 
-    const latestItem = feedData.items[0];
-    const itemIdentifier = latestItem.guid || latestItem.link;
-
-    if (!itemIdentifier) {
-      logger.warn(`[RSSAggregator] No GUID or link for item in ${feed.name}`);
-      return;
-    }
-
-    const postedKey = `${RSS_POSTED_KEY_PREFIX}${itemIdentifier}`;
-    const redis = await ensureConnected();
-    const isPosted = redis ? await redis.get(postedKey) : null;
-
-    if (isPosted) {
-      return;
-    }
-
     const channel = await client.channels.fetch(feed.channelId);
 
     if (!channel || !(channel instanceof TextChannel)) {
@@ -119,13 +105,56 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
       return;
     }
 
-    const embed = createThemedEmbed(feed.type, latestItem);
+    const redis = await ensureConnected();
+    let postedCount = 0;
 
-    await channel.send({ embeds: [embed] });
+    for (const item of feedData.items) {
+      const rawIdentifier = item.guid || item.link;
+      if (!rawIdentifier) {
+        logger.warn(`[RSSAggregator] No GUID or link for item in ${feed.name}`);
+        continue;
+      }
 
-    if (redis) await redis.set(postedKey, "1", { EX: RSS_TTL });
+      // Normaliser l'URL pour la déduplication (retire tracking params)
+      const itemIdentifier = cleanUrl(rawIdentifier);
+      const postedKey = `${RSS_POSTED_KEY_PREFIX}${itemIdentifier}`;
 
-    logger.info(`[RSSAggregator] Posted new ${feed.name} item: ${latestItem.title}`);
+      // Check 1: Redis (si disponible)
+      const isPosted = redis ? await redis.get(postedKey) : null;
+      if (isPosted) {
+        logger.debug(`[RSSAggregator] Doublon Redis ignoré: ${item.title?.slice(0, 60)}`);
+        continue;
+      }
+
+      // Check 2: dedupCache local (fallback si Redis down)
+      if (dedupCache.isAlreadyProcessed(feed.type as any, itemIdentifier)) {
+        logger.debug(`[RSSAggregator] Doublon cache local ignoré: ${item.title?.slice(0, 60)}`);
+        continue;
+      }
+
+      const embed = createThemedEmbed(feed.type, item);
+
+      try {
+        await channel.send({ embeds: [embed] });
+        postedCount++;
+      } catch (sendError) {
+        logger.error(`[RSSAggregator] Erreur envoi ${feed.name}: ${sendError}`);
+        continue;
+      }
+
+      // Marquer comme publié
+      if (redis) await redis.set(postedKey, "1", { EX: RSS_TTL });
+      await dedupCache.markAsProcessed(feed.type as any, itemIdentifier);
+
+      logger.info(`[RSSAggregator] Posted new ${feed.name} item: ${item.title}`);
+
+      // Délai anti rate-limit
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    if (postedCount === 0) {
+      logger.debug(`[RSSAggregator] No new items for ${feed.name}`);
+    }
   } catch (error) {
     logger.error(`[RSSAggregator] Error processing ${feed.name} (${url}):`, error);
   }
