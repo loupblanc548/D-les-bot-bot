@@ -13,6 +13,7 @@ import { recordSecurityEvent } from "../services/risk-engine.js";
 import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
 import { isAiChatEnabled, chatWithHistory } from "../services/aichat.js";
 import { analyzeToxicity } from "../services/ai-moderation.js";
+import { sendSecurityAlert } from "../services/reportChannel.js";
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
@@ -172,7 +173,7 @@ export function handleMessageEvents(client: Client) {
       //     Anti-Spam) continuent normalement APRÈS les deux branches ────
 
       await handleContextualAiChat(message, client);
-      await handleSecurityModules(message, spamTracker);
+      await handleSecurityModules(message, spamTracker, client);
 
       // ── Auto-react (après sécurité, non bloquant) ──
       await processAutoReact(message);
@@ -398,6 +399,7 @@ async function handleContextualAiChat(
 async function handleSecurityModules(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
   spamTracker: Map<string, { count: number; firstSeen: number; warned: boolean }>,
+  client: Client,
 ): Promise<void> {
   if (!("member" in message) || !message.member) return;
   const member = message.member as GuildMember;
@@ -425,6 +427,16 @@ async function handleSecurityModules(
                   "AI_MODERATION",
                 ).catch(() => {});
                 logger.info(`\u{1f916} [AI-Mod] ${message.author.tag}: ${result.category}`);
+                await sendSecurityAlert(client, {
+                  type: "AI_MODERATION",
+                  userId: message.author.id,
+                  userTag: message.author.tag,
+                  guildId: message.guild!.id,
+                  reason: `Message supprimé par IA: ${result.category} (${Math.round(result.confidence * 100)}%)`,
+                  details: result.explanation,
+                  messageContent: message.content.slice(0, 500),
+                  messageUrl: message.url,
+                }).catch(() => {});
               } catch (err) {
                 logger.error("[AI-Mod] Erreur:", err);
               }
@@ -456,6 +468,16 @@ async function handleSecurityModules(
           userId: message.author.id,
           details: message.content.slice(0, 500),
         });
+        await sendSecurityAlert(client, {
+          type: "ANTI_PHISHING",
+          userId: message.author.id,
+          userTag: message.author.tag,
+          guildId: message.guild!.id,
+          reason: `Lien suspect détecté: ${suspicious[0]}`,
+          details: suspicious.join(", "),
+          messageContent: message.content.slice(0, 500),
+          messageUrl: message.url,
+        }).catch(() => {});
         return;
       } catch (err) {
         logger.error("[Anti-Phishing] Erreur:", err);
@@ -485,6 +507,15 @@ async function handleSecurityModules(
         await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_SPAM").catch(
           () => {},
         );
+        await sendSecurityAlert(client, {
+          type: "ANTI_SPAM",
+          userId: message.author.id,
+          userTag: message.author.tag,
+          guildId: message.guild!.id,
+          reason: `Spam détecté: ${entry.count} messages en ${SPAM_WINDOW_MS / 1000}s`,
+          messageContent: message.content.slice(0, 500),
+          messageUrl: message.url,
+        }).catch(() => {});
       } catch (err) {
         logger.error("[Anti-Spam] Erreur:", err);
       }
