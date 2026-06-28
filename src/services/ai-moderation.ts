@@ -11,6 +11,7 @@ export interface ToxicityResult {
 
 const TOXICITY_CACHE = new Map<string, { result: ToxicityResult; timestamp: number }>();
 const CACHE_TTL = 60_000;
+const MAX_TOXICITY_ENTRIES = 150;
 
 export function clearToxicityCache(): void {
   TOXICITY_CACHE.clear();
@@ -59,12 +60,12 @@ export async function analyzeToxicity(content: string): Promise<ToxicityResult> 
     };
 
     TOXICITY_CACHE.set(cacheKey, { result, timestamp: Date.now() });
-    if (TOXICITY_CACHE.size > 500) {
+    if (TOXICITY_CACHE.size > MAX_TOXICITY_ENTRIES) {
       const now = Date.now();
       for (const [k, v] of TOXICITY_CACHE) {
         if (now - v.timestamp > CACHE_TTL) TOXICITY_CACHE.delete(k);
       }
-      if (TOXICITY_CACHE.size > 500) {
+      if (TOXICITY_CACHE.size > MAX_TOXICITY_ENTRIES) {
         const firstKey = TOXICITY_CACHE.keys().next().value;
         if (firstKey) TOXICITY_CACHE.delete(firstKey);
       }

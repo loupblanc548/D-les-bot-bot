@@ -31,6 +31,7 @@ import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
+import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
 import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
 import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceService.js";
@@ -51,27 +52,28 @@ const client = new Client({
   // gardent leur comportement par defaut.
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
-    // --- Caches volumineux : plafonnés pour un bot 24/7 ---
-    MessageManager: 50, // 50 messages max par salon en cache
-    ThreadManager: 50, // 50 threads max en cache
-    GuildMemberManager: 200, // 200 membres max par serveur (évite la croissance infinie)
-    // --- Caches inutiles pour ce bot : désactivés (0 = pas de cache) ---
-    PresenceManager: 0, // Pas de tracking de présence
-    GuildInviteManager: 0, // Pas de cache d'invitations
-    StageInstanceManager: 0, // Pas de cache de stages
-    GuildBanManager: 0, // Bans gérés par événements, pas de cache
-    AutoModerationRuleManager: 0, // Pas d'auto-mod sur ce bot
+    MessageManager: 25, // 25 messages max par salon (reduced from 50)
+    ThreadManager: 25, // 25 threads max (reduced from 50)
+    GuildMemberManager: 100, // 100 membres max (reduced from 200)
+    // --- Caches inutiles : désactivés ---
+    PresenceManager: 0,
+    GuildInviteManager: 0,
+    StageInstanceManager: 0,
+    GuildBanManager: 0,
+    AutoModerationRuleManager: 0,
+    ReactionUserManager: 0, // Pas de cache des réactions utilisateurs
+    GuildEmojiManager: 50, // Limite les emojis en cache
   }),
-  // Purge periodique des entrees obsoletes pour eviter les fuites memoire.
+  // Purge plus agressive
   sweepers: {
     ...Options.DefaultSweeperSettings,
     messages: {
-      interval: 3600, // toutes les heures
-      lifetime: 1800, // supprime les messages caches inactifs depuis 30 min
+      interval: 1800, // toutes les 30 min (reduced from 3600)
+      lifetime: 900, // supprime après 15 min d'inactivité (reduced from 1800)
     },
     threads: {
-      interval: 3600,
-      lifetime: 1800,
+      interval: 1800,
+      lifetime: 900,
     },
   },
   presence: {
@@ -246,6 +248,7 @@ async function main(): Promise<void> {
   handleEmojiEvents(client);
   handleModerationEvents(client);
   startMapCleanup();
+  startMemoryOptimizer();
 
   // Salons vocaux temporaires
   client.on("voiceStateUpdate", (oldState, newState) => {

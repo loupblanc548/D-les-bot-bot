@@ -4,7 +4,7 @@ import { getCache, setCache, deleteCache } from "../utils/redis.js";
  * Cache avec fallback: utilise Redis si dispo, sinon un Map en mémoire.
  */
 const memoryFallback = new Map<string, { value: unknown; expiresAt: number }>();
-const MAX_MEMORY_ENTRIES = 1000;
+const MAX_MEMORY_ENTRIES = 300;
 
 export async function cachedGet<T>(key: string): Promise<T | null> {
   try {

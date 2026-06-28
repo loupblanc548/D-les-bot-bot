@@ -43,7 +43,7 @@ export interface AggregatedPeriodMetrics {
 class MetricsCollector {
   private metrics: Map<string, Metrics> = new Map();
   private timeSeriesHistory: Map<string, TimeSeriesSnapshot[]> = new Map();
-  private readonly MAX_SNAPSHOTS_PER_JOB = 1440;
+  private readonly MAX_SNAPSHOTS_PER_JOB = 180; // 3h of per-minute data (reduced from 1440)
 
   recordProcessing(jobName: string, success: boolean, processingTimeMs: number): void {
     const current = this.metrics.get(jobName) || {
