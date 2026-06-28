@@ -28,6 +28,7 @@ import {
   getNumberFact,
   getHackerNewsTop,
 } from "../services/freeApis.js";
+import { startTrivia } from "../services/triviaService.js";
 import logger from "../utils/logger.js";
 
 export const commands = [
@@ -39,7 +40,22 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("quote").setDescription("Citation inspirante"))
     .addSubcommand((sc) => sc.setName("advice").setDescription("Conseil aléatoire"))
     .addSubcommand((sc) => sc.setName("activity").setDescription("Activité anti-ennui"))
-    .addSubcommand((sc) => sc.setName("trivia").setDescription("Question trivia"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("trivia")
+        .setDescription("Question trivia interactive")
+        .addStringOption((o) =>
+          o
+            .setName("difficulte")
+            .setDescription("Niveau de difficulté")
+            .setRequired(false)
+            .addChoices(
+              { name: "🟢 Facile", value: "easy" },
+              { name: "🟡 Moyen", value: "medium" },
+              { name: "🔴 Difficile", value: "hard" },
+            ),
+        ),
+    )
     .addSubcommand((sc) =>
       sc
         .setName("8ball")
@@ -224,30 +240,8 @@ export async function handleCommand(
     }
 
     case "trivia": {
-      await interaction.deferReply();
-      const trivia = await getTriviaQuestion();
-      if (!trivia) {
-        await interaction.editReply("❌ Aucune question trouvée.");
-        return;
-      }
-      const embed = new EmbedBuilder()
-        .setTitle(`🧠 Trivia — ${trivia.category}`)
-        .addFields(
-          { name: "Difficulté", value: trivia.difficulty, inline: true },
-          { name: "Question", value: trivia.question },
-        )
-        .setColor(0x9b59b6);
-
-      let answerStr = "";
-      trivia.answers.forEach((a, i) => {
-        answerStr += `${String.fromCharCode(65 + i)}. ${a}\n`;
-      });
-      embed.addFields({
-        name: "Réponses",
-        value: `${answerStr}\n||Réponse: ${trivia.correctAnswer}||`,
-      });
-
-      await interaction.editReply({ embeds: [embed] });
+      const difficulty = interaction.options.getString("difficulte") as "easy" | "medium" | "hard" | null;
+      await startTrivia(interaction, { difficulty: difficulty ?? undefined });
       break;
     }
 

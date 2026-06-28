@@ -33,6 +33,7 @@ import { handleChannelEvents } from "./events/channels.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
 import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
+import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceService.js";
 import { initDisTube } from "./services/musicService.js";
 
 const client = new Client({
@@ -241,6 +242,11 @@ async function main(): Promise<void> {
   handleEmojiEvents(client);
   handleModerationEvents(client);
   startMapCleanup();
+
+  // Salons vocaux temporaires
+  client.on("voiceStateUpdate", (oldState, newState) => {
+    void handleTempVoice(client, oldState, newState);
+  });
 
   // Initialiser DisTube (système de musique)
   initDisTube(client);
