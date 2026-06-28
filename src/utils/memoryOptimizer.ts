@@ -1,8 +1,8 @@
 import logger from "./logger.js";
 
-const MEMORY_CHECK_INTERVAL = 90 * 1000; // 90s
+const MEMORY_CHECK_INTERVAL = 3 * 60 * 1000; // 3 min
 const MB = 1024 * 1024;
-const GC_THRESHOLD_MB = 100; // Trigger GC at 100MB RSS (limit is ~124MB)
+const GC_THRESHOLD_MB = 350; // Trigger GC at 350MB RSS (heap limit is 448MB)
 
 export function startMemoryOptimizer(): NodeJS.Timeout {
   const interval = setInterval(() => {
