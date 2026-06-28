@@ -1,0 +1,68 @@
+# Auto-labeler configuration
+# Maps file patterns to labels
+
+ci-cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/workflows/*"
+      - ".github/dependabot.yml"
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "package.json"
+      - "package-lock.json"
+
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "prisma/**"
+      - "src/database/**"
+
+commands:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/commands/**"
+
+events:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/events/**"
+
+services:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/services/**"
+
+backend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/backend/**"
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+
+docker:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "Dockerfile"
+      - "docker-compose*.yml"
+
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "*.json"
+      - "*.mjs"
+      - "*.cjs"
+      - ".env*"
+      - "eslint.config.*"
+      - "tsconfig*.json"
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/*.md"
+      - "docs/**"
