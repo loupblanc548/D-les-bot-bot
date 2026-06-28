@@ -3,6 +3,7 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 const REPORT_CHANNEL_CACHE = new Map<string, { id: string | null; cachedAt: number }>();
+const USER_REPORT_CHANNEL_CACHE = new Map<string, { id: string | null; cachedAt: number }>();
 const CACHE_TTL = 60_000;
 
 async function getReportChannelId(guildId: string): Promise<string | null> {
@@ -20,8 +21,24 @@ async function getReportChannelId(guildId: string): Promise<string | null> {
   }
 }
 
+async function getUserReportChannelId(guildId: string): Promise<string | null> {
+  const cached = USER_REPORT_CHANNEL_CACHE.get(guildId);
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
+    return cached.id;
+  }
+  try {
+    const cfg = await prisma.guildConfig.findUnique({ where: { guildId } });
+    const id = cfg?.userReportChannelId || cfg?.reportChannelId || null;
+    USER_REPORT_CHANNEL_CACHE.set(guildId, { id, cachedAt: Date.now() });
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 export function clearReportChannelCache(): void {
   REPORT_CHANNEL_CACHE.clear();
+  USER_REPORT_CHANNEL_CACHE.clear();
 }
 
 export async function setReportChannel(guildId: string, channelId: string | null): Promise<void> {
@@ -29,6 +46,15 @@ export async function setReportChannel(guildId: string, channelId: string | null
     where: { guildId },
     create: { guildId, reportChannelId: channelId },
     update: { reportChannelId: channelId },
+  });
+  clearReportChannelCache();
+}
+
+export async function setUserReportChannel(guildId: string, channelId: string | null): Promise<void> {
+  await prisma.guildConfig.upsert({
+    where: { guildId },
+    create: { guildId, userReportChannelId: channelId },
+    update: { userReportChannelId: channelId },
   });
   clearReportChannelCache();
 }
@@ -102,13 +128,34 @@ export async function sendUserReport(
   reason: string,
   messageUrl?: string,
 ): Promise<void> {
-  await sendSecurityAlert(client, {
-    type: "USER_REPORT",
-    userId: target?.id || reporter.id,
-    userTag: target?.tag || "Inconnu",
-    guildId,
-    reason: `Signalé par ${reporter.tag}`,
-    details: reason,
-    messageUrl,
-  });
+  try {
+    const channelId = await getUserReportChannelId(guildId);
+    if (!channelId) return;
+
+    const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    let targetChannel: TextChannel | null = channel || null;
+    if (!targetChannel) {
+      const fetched = await client.channels.fetch(channelId).catch(() => null);
+      if (fetched && fetched.isTextBased()) targetChannel = fetched as TextChannel;
+    }
+    if (!targetChannel) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle("📢 Signalement Utilisateur")
+      .setColor(0x3498db)
+      .addFields(
+        { name: "Signalé par", value: `<@${reporter.id}> (${reporter.tag})`, inline: true },
+        { name: "Utilisateur signalé", value: target ? `<@${target.id}> (${target.tag})` : "N/A", inline: true },
+        { name: "Raison", value: reason.slice(0, 1024), inline: false },
+      )
+      .setTimestamp();
+
+    if (messageUrl) {
+      embed.addFields({ name: "Lien du message", value: messageUrl, inline: false });
+    }
+
+    await targetChannel.send({ embeds: [embed] });
+  } catch (err) {
+    logger.error("[ReportChannel] Erreur envoi signalement utilisateur:", err);
+  }
 }
