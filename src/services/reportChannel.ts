@@ -70,6 +70,8 @@ export interface SecurityAlert {
   messageUrl?: string;
 }
 
+const REPORT_ROLE_ID = "1402362014264983762";
+
 export async function sendSecurityAlert(client: Client, alert: SecurityAlert): Promise<void> {
   try {
     const channelId = await getReportChannelId(alert.guildId);
@@ -79,10 +81,10 @@ export async function sendSecurityAlert(client: Client, alert: SecurityAlert): P
     if (!channel) {
       const fetched = await client.channels.fetch(channelId).catch(() => null);
       if (!fetched || !fetched.isTextBased()) return;
-      return void (await (fetched as TextChannel).send({ embeds: [buildAlertEmbed(alert)] }));
+      return void (await (fetched as TextChannel).send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [buildAlertEmbed(alert)] }));
     }
 
-    await channel.send({ embeds: [buildAlertEmbed(alert)] });
+    await channel.send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [buildAlertEmbed(alert)] });
   } catch (err) {
     logger.error("[ReportChannel] Erreur envoi alerte:", err);
   }
@@ -154,7 +156,7 @@ export async function sendUserReport(
       embed.addFields({ name: "Lien du message", value: messageUrl, inline: false });
     }
 
-    await targetChannel.send({ embeds: [embed] });
+    await targetChannel.send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [embed] });
   } catch (err) {
     logger.error("[ReportChannel] Erreur envoi signalement utilisateur:", err);
   }
