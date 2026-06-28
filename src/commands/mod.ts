@@ -232,7 +232,7 @@ export const commands = [
     .addSubcommand((sc) =>
       sc.setName("mass-unban").setDescription("Révoque tous les bans du serveur"),
     )
-    .addSubcommand((sc) => sc.setName("mute-list").setDescription("Liste des membres actuellement mute")),
+    .addSubcommand((sc) => sc.setName("mute-list").setDescription("Liste des membres actuellement mute"))
     .addSubcommand((sc) =>
       sc
         .setName("warn-list")
