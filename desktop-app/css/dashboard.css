@@ -137,9 +137,9 @@ html, body {
 }
 .status-item { display: flex; align-items: center; gap: 7px; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.status-dot.ok   { background: var(--success); box-shadow: 0 0 6px var(--success); }
-.status-dot.warn { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
-.status-dot.err  { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.status-dot.ok   { background: var(--success); box-shadow: 0 0 6px var(--success); animation: dotPulse 2s ease-in-out infinite; }
+.status-dot.warn { background: var(--warning); box-shadow: 0 0 6px var(--warning); animation: dotPulse 1.5s ease-in-out infinite; }
+.status-dot.err  { background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: dotPulse 1s ease-in-out infinite; }
 #sb-ping { margin-left: auto; font-family: var(--font-mono); font-size: 10px; }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
@@ -185,8 +185,13 @@ html, body {
   text-align: left; width: 100%;
   font-family: var(--font-ui);
   position: relative;
+  overflow: hidden;
 }
-.nav-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.nav-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding-left: 16px;
+}
 .nav-btn.active {
   background: var(--accent-bg);
   color: var(--accent);
@@ -199,6 +204,15 @@ html, body {
   width: 3px; height: 60%;
   background: var(--accent);
   border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.nav-btn.active::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, var(--accent-bg));
+  pointer-events: none;
 }
 .nav-btn .nav-icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
 .nav-btn .nav-badge {
@@ -341,12 +355,28 @@ html, body {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent);
+  background: linear-gradient(90deg, transparent 10%, oklch(62% 0.19 250 / 0.6) 50%, transparent 90%);
+}
+.glass-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  padding: 1px;
+  background: linear-gradient(135deg, oklch(62% 0.19 250 / 0.2), transparent 40%, transparent 60%, oklch(60% 0.2 295 / 0.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 .glass-card:hover {
-  border-color: rgba(59, 130, 246, 0.25);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59,130,246,0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: oklch(62% 0.19 250 / 0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 24px oklch(62% 0.19 250 / 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
+.glass-card:hover::after { opacity: 1; }
 
 /* ─── Server Cards ───────────────────────────────────────────── */
 .server-grid {
@@ -361,14 +391,26 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius);
   padding: 16px;
-  transition: var(--transition);
+  transition: var(--transition-slow);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.server-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--purple), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 .server-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  border-color: oklch(62% 0.19 250 / 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35), 0 0 16px oklch(62% 0.19 250 / 0.06);
 }
+.server-card:hover::before { opacity: 1; }
 .server-card-header {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 12px;
