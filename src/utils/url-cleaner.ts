@@ -4,25 +4,38 @@
  * légèrement différents pointant vers le même contenu.
  */
 
+import crypto from "crypto";
+
 const TRACKING_PARAMS = [
-  "si",           // YouTube source info
-  "t",            // YouTube timestamp
-  "feature",      // YouTube feature
-  "pp",           // YouTube
+  "si", // YouTube source info
+  "t", // YouTube timestamp
+  "feature", // YouTube feature
+  "pp", // YouTube
   "utm_source",
   "utm_medium",
   "utm_campaign",
   "utm_term",
   "utm_content",
-  "fbclid",        // Facebook click ID
-  "ref",           // Generic referral
-  "ref_src",       // Referral source
-  "source",        // Generic source tracking
-  "ocid",          // Microsoft
-  "ncid",          // Microsoft
-  "igshid",        // Instagram
-  "mc_cid",        // Mailchimp
-  "mc_eid",        // Mailchimp
+  "fbclid", // Facebook click ID
+  "gclid", // Google click ID
+  "ref", // Generic referral
+  "ref_src", // Referral source
+  "source", // Generic source tracking
+  "ocid", // Microsoft
+  "ncid", // Microsoft
+  "igshid", // Instagram
+  "mc_cid", // Mailchimp
+  "mc_eid", // Mailchimp
+  "dclid", // Google Display
+  "msclkid", // Microsoft Ads
+  "yclid", // Yahoo Ads
+  "_hsenc", // HubSpot
+  "_hsmi", // HubSpot
+  "hsCtaTracking", // HubSpot
+  "vero_id", // Vero
+  "spm", // Aliyun
+  "scm", // Aliyun
+  "tracking_source", // Generic
 ];
 
 const YOUTUBE_HOSTS = [
@@ -127,4 +140,32 @@ export function cleanUrl(rawUrl: string): string {
     // URL invalide, on retourne l'original
     return rawUrl;
   }
+}
+
+/**
+ * Génère un identifiant stable pour la déduplication.
+ *
+ * Priorité:
+ *   1. GUID RSS (si fourni et non vide)
+ *   2. URL canonique normalisée (tracking params retirés)
+ *   3. Hash SHA-256 du titre + URL normalisée (fallback ultime)
+ *
+ * L'ID ne dépend JAMAIS de la date de publication.
+ */
+export function generateStableId(opts: { guid?: string; link?: string; title?: string }): string {
+  // 1. GUID RSS stable
+  if (opts.guid && opts.guid.trim().length > 0) {
+    return opts.guid.trim();
+  }
+
+  // 2. URL normalisée
+  const normalizedUrl = opts.link ? cleanUrl(opts.link) : "";
+
+  if (normalizedUrl) {
+    return normalizedUrl;
+  }
+
+  // 3. Hash titre + URL (fallback ultime)
+  const data = `${opts.title || ""}|${normalizedUrl || ""}`;
+  return crypto.createHash("sha256").update(data).digest("hex").substring(0, 32);
 }

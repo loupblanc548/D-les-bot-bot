@@ -12,6 +12,7 @@ import { translateAutoToFrench } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { getOgImage } from "../utils/image-helpers.js";
 import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
+import { generateStableId } from "../utils/url-cleaner.js";
 
 interface DealItem {
   title: string;
@@ -163,7 +164,7 @@ async function markDealProcessed(guid: string): Promise<void> {
  * @returns GUID unique généré
  */
 function generateDealGuid(item: DealItem): string {
-  return item.guid || Buffer.from(item.link).toString("base64").substring(0, 50);
+  return generateStableId({ guid: item.guid, link: item.link, title: item.title });
 }
 
 async function sendDealEmbed(

@@ -14,6 +14,7 @@ import { scrapeRssFeed } from "../managers/ScraperManager.js";
 import { routeArticle } from "../managers/ChannelRouter.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { parseRssXmlItems } from "../utils/rss.js";
+import { generateStableId } from "../utils/url-cleaner.js";
 
 // âââ Constantes âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -48,7 +49,7 @@ function generatePatchId(link: string): string {
 }
 
 function generatePatchGuid(item: PatchNoteItem): string {
-  return item.guid || generatePatchId(item.link);
+  return generateStableId({ guid: item.guid, link: item.link, title: item.title });
 }
 
 function generateSummary(content: string): string {
