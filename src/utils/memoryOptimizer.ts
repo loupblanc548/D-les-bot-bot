@@ -1,7 +1,8 @@
 import logger from "./logger.js";
 
-const MEMORY_CHECK_INTERVAL = 3 * 60 * 1000; // 3 min
+const MEMORY_CHECK_INTERVAL = 90 * 1000; // 90s
 const MB = 1024 * 1024;
+const GC_THRESHOLD_MB = 100; // Trigger GC at 100MB RSS (limit is ~124MB)
 
 export function startMemoryOptimizer(): NodeJS.Timeout {
   const interval = setInterval(() => {
@@ -9,7 +10,7 @@ export function startMemoryOptimizer(): NodeJS.Timeout {
     const heapUsedMB = Math.round(mem.heapUsed / MB);
     const rssMB = Math.round(mem.rss / MB);
 
-    if (rssMB > 350) {
+    if (rssMB > GC_THRESHOLD_MB) {
       logger.warn(`[Memory] RSS élevé: ${rssMB}MB — forçage GC`);
       if (global.gc) {
         global.gc();

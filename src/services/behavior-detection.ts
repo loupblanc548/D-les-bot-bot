@@ -41,6 +41,8 @@ class BehaviorDetectionService {
   private alerts: AnomalyAlert[];
   private monitoringInterval: NodeJS.Timeout | null = null;
   private readonly ANOMALY_THRESHOLD = 3;
+  private readonly MAX_PATTERNS = 500;
+  private readonly MAX_ALERTS = 100;
 
   constructor() {
     this.patterns = new Map();
@@ -78,6 +80,10 @@ class BehaviorDetectionService {
     const pattern = this.patterns.get(userId);
 
     if (!pattern) {
+      if (this.patterns.size >= this.MAX_PATTERNS) {
+        const firstKey = this.patterns.keys().next().value;
+        if (firstKey !== undefined) this.patterns.delete(firstKey);
+      }
       this.patterns.set(userId, {
         userId,
         messageFrequency: 1,
@@ -223,6 +229,7 @@ class BehaviorDetectionService {
     };
 
     this.alerts.push(alert);
+    if (this.alerts.length > this.MAX_ALERTS) this.alerts.shift();
     logger.warn(`[BehaviorDetection] Anomalie détectée pour ${userId}: ${description}`);
     this.cleanupOldAlerts();
   }

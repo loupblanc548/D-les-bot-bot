@@ -18,14 +18,20 @@ class CacheNode<T> {
 class SimpleCache<T> {
   private cache: Map<string, CacheNode<T>> = new Map();
   private defaultTtlMs: number;
+  private maxEntries: number;
 
-  constructor(defaultTtlMs: number = 300000) {
-    // 5 minutes default
+  constructor(defaultTtlMs: number = 300000, maxEntries: number = 500) {
     this.defaultTtlMs = defaultTtlMs;
+    this.maxEntries = maxEntries;
   }
 
   set(key: string, value: T, ttlMs?: number): void {
     const ttl = ttlMs || this.defaultTtlMs;
+    // LRU eviction: remove oldest entry if at capacity
+    if (this.cache.size >= this.maxEntries && !this.cache.has(key)) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) this.cache.delete(firstKey);
+    }
     this.cache.set(key, new CacheNode(value, ttl));
   }
 
@@ -71,9 +77,9 @@ class SimpleCache<T> {
 }
 
 // Singleton instances for different cache types
-export const dbCache = new SimpleCache<boolean>(60000); // 1 minute for DB queries
-export const rssCache = new SimpleCache<unknown>(300000); // 5 minutes for RSS feeds
-export const apiCache = new SimpleCache<unknown>(120000); // 2 minutes for API responses
+export const dbCache = new SimpleCache<boolean>(60000, 200); // 1 min TTL, 200 max entries
+export const rssCache = new SimpleCache<unknown>(300000, 100); // 5 min TTL, 100 max entries
+export const apiCache = new SimpleCache<unknown>(120000, 150); // 2 min TTL, 150 max entries
 
 // Cleanup expired entries every 5 minutes
 const _cacheCleanup = setInterval(() => {

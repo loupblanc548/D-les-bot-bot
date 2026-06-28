@@ -41,6 +41,7 @@ class UserPersonalizationService {
   private client: Client;
   private preferencesCache: Map<string, UserPreferences> = new Map();
   private profileCache: Map<string, UserProfile> = new Map();
+  private readonly MAX_CACHE_ENTRIES = 200;
 
   constructor(client: Client) {
     this.client = client;
@@ -80,6 +81,10 @@ class UserPersonalizationService {
         customSettings: {},
       };
 
+      if (this.preferencesCache.size >= this.MAX_CACHE_ENTRIES) {
+        const firstKey = this.preferencesCache.keys().next().value;
+        if (firstKey !== undefined) this.preferencesCache.delete(firstKey);
+      }
       this.preferencesCache.set(cacheKey, defaultPreferences);
       return defaultPreferences;
     } catch (error) {
@@ -135,6 +140,10 @@ class UserPersonalizationService {
         createdAt: user.createdAt,
       };
 
+      if (this.profileCache.size >= this.MAX_CACHE_ENTRIES) {
+        const firstKey = this.profileCache.keys().next().value;
+        if (firstKey !== undefined) this.profileCache.delete(firstKey);
+      }
       this.profileCache.set(userId, profile);
       return profile;
     } catch (error) {

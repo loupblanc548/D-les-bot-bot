@@ -26,6 +26,7 @@ interface SocialGraph {
 class SocialGraphService {
   private graph: SocialGraph;
   private updateInterval: NodeJS.Timeout | null = null;
+  private readonly MAX_EDGES = 1000;
 
   constructor() {
     this.graph = {
@@ -114,6 +115,7 @@ class SocialGraphService {
     };
 
     this.graph.edges.push(edge);
+    if (this.graph.edges.length > this.MAX_EDGES) this.graph.edges.shift();
 
     // Mettre à jour les connexions des noeuds
     const sourceNode = this.graph.nodes.get(source);
