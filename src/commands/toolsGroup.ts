@@ -17,6 +17,13 @@ import {
   decodeBase64,
   makeTimestamp,
 } from "../services/freeApis.js";
+import {
+  addRule as addAutoReactRule,
+  removeRule as removeAutoReactRule,
+  listRules as listAutoReactRules,
+  toggleRule as toggleAutoReactRule,
+  clearRules as clearAutoReactRules,
+} from "../services/autoReact.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -185,6 +192,56 @@ export const commands = [
           o.setName("requete").setDescription("Termes de recherche").setRequired(true),
         ),
     )
+    .addSubcommand((sc) =>
+      sc
+        .setName("auto-react-add")
+        .setDescription("Ajoute une règle d'auto-réaction")
+        .addStringOption((o) =>
+          o.setName("declencheur").setDescription("Mot-clé ou regex").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("emoji").setDescription("L'emoji à réagir").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("type")
+            .setDescription("Type de match")
+            .setRequired(false)
+            .addChoices(
+              { name: "Mot-clé (contient)", value: "keyword" },
+              { name: "Regex", value: "regex" },
+              { name: "Toujours (tous les messages)", value: "always" },
+            ),
+        )
+        .addChannelOption((o) =>
+          o.setName("salon").setDescription("Limiter à un salon (optionnel)").setRequired(false),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("auto-react-list").setDescription("Liste les règles d'auto-réaction"),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("auto-react-remove")
+        .setDescription("Supprime une règle d'auto-réaction")
+        .addStringOption((o) =>
+          o.setName("id").setDescription("ID de la règle").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("auto-react-toggle")
+        .setDescription("Active/désactive une règle d'auto-réaction")
+        .addStringOption((o) =>
+          o.setName("id").setDescription("ID de la règle").setRequired(true),
+        )
+        .addBooleanOption((o) =>
+          o.setName("actif").setDescription("Activer ou désactiver").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("auto-react-clear").setDescription("Supprime toutes les règles d'auto-réaction"),
+    )
     .toJSON(),
 ];
 
@@ -225,6 +282,16 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleTimestamp(interaction);
   } else if (action === "github") {
     await handleGithub(interaction);
+  } else if (action === "auto-react-add") {
+    await handleAutoReactAdd(interaction);
+  } else if (action === "auto-react-list") {
+    await handleAutoReactList(interaction);
+  } else if (action === "auto-react-remove") {
+    await handleAutoReactRemove(interaction);
+  } else if (action === "auto-react-toggle") {
+    await handleAutoReactToggle(interaction);
+  } else if (action === "auto-react-clear") {
+    await handleAutoReactClear(interaction);
   }
 }
 
@@ -419,4 +486,118 @@ async function handleGithub(interaction: ChatInputCommandInteraction): Promise<v
     });
   });
   await interaction.editReply({ embeds: [embed] });
+}
+
+// ─── Auto-React Handlers ──────────────────────────────────────────────────────
+
+async function handleAutoReactAdd(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    return;
+  }
+
+  const trigger = interaction.options.getString("declencheur", true);
+  const emoji = interaction.options.getString("emoji", true);
+  const matchType = interaction.options.getString("type") || "keyword";
+  const channel = interaction.options.getChannel("salon");
+
+  if (emoji.length > 50) {
+    await interaction.reply({ content: "❌ Emoji trop long (max 50 caractères).", ephemeral: true });
+    return;
+  }
+
+  if (matchType === "regex") {
+    try {
+      new RegExp(trigger, "i");
+    } catch {
+      await interaction.reply({ content: "❌ Regex invalide.", ephemeral: true });
+      return;
+    }
+  }
+
+  await addAutoReactRule(
+    interaction.guildId,
+    trigger,
+    emoji,
+    matchType,
+    channel?.id ?? null,
+  );
+
+  await interaction.reply({
+    content: `✅ Règle d'auto-réaction ajoutée !\n**Déclencheur:** ${trigger}\n**Emoji:** ${emoji}\n**Type:** ${matchType}${channel ? `\n**Salon:** <#${channel.id}>` : "\n**Salon:** Tous"}`,
+    ephemeral: true,
+  });
+}
+
+async function handleAutoReactList(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    return;
+  }
+
+  const rules = await listAutoReactRules(interaction.guildId);
+  if (rules.length === 0) {
+    await interaction.reply({ content: "📭 Aucune règle d'auto-réaction configurée.", ephemeral: true });
+    return;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("🤖 Règles d'auto-réaction")
+    .setColor(0x5865f2)
+    .setDescription(`${rules.length} règle(s) configurée(s)`);
+
+  for (const rule of rules.slice(0, 25)) {
+    embed.addFields({
+      name: `${rule.enabled ? "✅" : "❌"} \`${rule.id.slice(-8)}\` — ${rule.emoji}`,
+      value: `**Type:** ${rule.matchType} • **Déclencheur:** ${rule.trigger}${rule.channelId ? ` • **Salon:** <#${rule.channelId}>` : " • **Salon:** Tous"}`,
+    });
+  }
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+async function handleAutoReactRemove(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    return;
+  }
+
+  const ruleId = interaction.options.getString("id", true);
+  const removed = await removeAutoReactRule(interaction.guildId, ruleId);
+
+  await interaction.reply({
+    content: removed ? "✅ Règle supprimée." : "❌ Règle introuvable.",
+    ephemeral: true,
+  });
+}
+
+async function handleAutoReactToggle(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    return;
+  }
+
+  const ruleId = interaction.options.getString("id", true);
+  const enabled = interaction.options.getBoolean("actif", true);
+  const toggled = await toggleAutoReactRule(interaction.guildId, ruleId, enabled);
+
+  await interaction.reply({
+    content: toggled
+      ? `✅ Règle ${enabled ? "activée" : "désactivée"}.`
+      : "❌ Règle introuvable.",
+    ephemeral: true,
+  });
+}
+
+async function handleAutoReactClear(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    return;
+  }
+
+  const count = await clearAutoReactRules(interaction.guildId);
+  await interaction.reply({
+    content: `✅ ${count} règle(s) supprimée(s).`,
+    ephemeral: true,
+  });
 }

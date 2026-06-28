@@ -1215,3 +1215,19 @@ model MemoryLink {
   @@index([userId, targetKey])
   @@map("memory_link")
 }
+
+model AutoReactRule {
+  id        String   @id @default(cuid())
+  guildId   String
+  channelId String?
+  trigger   String
+  emoji     String
+  matchType String   @default("keyword")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, enabled])
+  @@index([guildId, channelId])
+  @@map("auto_react_rule")
+}
