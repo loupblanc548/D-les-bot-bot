@@ -29,18 +29,18 @@
   font-weight: 600;
 }
 
-/* ─── Stat Cards ─────────────────────────────────────────────── */
+/* ─── Stat Cards (Uiverse-inspired with gradient glow border) ── */
 .stat-card {
   background: rgba(26, 35, 50, 0.5);
-  backdrop-filter: blur(10px) saturate(150%);
-  -webkit-backdrop-filter: blur(10px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius);
   padding: 16px;
   display: flex; flex-direction: column; gap: 8px;
-  transition: var(--transition);
+  transition: var(--transition-slow);
   cursor: default;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04);
   position: relative;
   overflow: hidden;
 }
@@ -49,16 +49,28 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  background: linear-gradient(90deg, transparent 10%, var(--accent) 50%, transparent 90%);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  bottom: -50%; left: 50%;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
 .stat-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 16px var(--accent-glow);
+  border-color: oklch(62% 0.19 250 / 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 0 20px oklch(62% 0.19 250 / 0.08);
 }
 .stat-card:hover::after { opacity: 1; }
+.stat-card:hover::before { opacity: 0.15; }
 .stat-card .stat-icon { font-size: 22px; }
 .stat-card .stat-header {
   display: flex; align-items: center; gap: 9px;
@@ -83,7 +95,7 @@
 
 /* ─── Buttons ────────────────────────────────────────────────── */
 .btn {
-  padding: 8px 16px; border-radius: 7px;
+  padding: 8px 16px; border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-tertiary); color: var(--text-primary);
   font-size: 12px; font-weight: 500; cursor: pointer;
@@ -103,35 +115,86 @@
   transition: opacity 0.2s ease;
 }
 .btn:hover::before { opacity: 0.08; }
-.btn:active { transform: scale(0.97); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: #2563eb; }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn-danger:hover { background: #dc2626; }
-.btn-warn { background: var(--warning); border-color: var(--warning); color: #000; }
-.btn-warn:hover { background: #d97706; }
-.btn-success { background: var(--success); border-color: var(--success); color: #fff; }
-.btn-success:hover { background: #16a34a; }
+.btn:active { transform: scale(0.96); }
+
+/* Shimmer sweep on hover (Uiverse-inspired) */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.btn:hover::after { left: 120%; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), oklch(55% 0.20 255));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+.btn-primary:hover {
+  box-shadow: 0 4px 16px var(--accent-glow), 0 0 24px oklch(62% 0.19 250 / 0.2);
+  transform: translateY(-1px);
+}
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger), oklch(55% 0.24 25));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 2px 8px oklch(64% 0.22 25 / 0.3);
+}
+.btn-danger:hover {
+  box-shadow: 0 4px 16px oklch(64% 0.22 25 / 0.4);
+  transform: translateY(-1px);
+}
+.btn-warn {
+  background: linear-gradient(135deg, var(--warning), oklch(68% 0.17 75));
+  border-color: transparent; color: #000;
+  box-shadow: 0 2px 8px oklch(75% 0.16 75 / 0.3);
+}
+.btn-warn:hover {
+  box-shadow: 0 4px 16px oklch(75% 0.16 75 / 0.4);
+  transform: translateY(-1px);
+}
+.btn-success {
+  background: linear-gradient(135deg, var(--success), oklch(60% 0.18 145));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 2px 8px oklch(70% 0.17 145 / 0.3);
+}
+.btn-success:hover {
+  box-shadow: 0 4px 16px oklch(70% 0.17 145 / 0.4);
+  transform: translateY(-1px);
+}
 .btn-sm { padding: 5px 11px; font-size: 11px; }
-.btn-xs { padding: 3px 8px; font-size: 10px; border-radius: 4px; }
+.btn-xs { padding: 3px 8px; font-size: 10px; border-radius: 5px; }
 .btn-icon { padding: 6px; width: 30px; height: 30px; justify-content: center; }
 
-/* ─── Toggle Switch ──────────────────────────────────────────── */
-.toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+/* ─── Toggle Switch (Uiverse-inspired glow) ──────────────────── */
+.toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
 .toggle input { display: none; }
 .toggle .slider {
   position: absolute; inset: 0;
-  background: var(--border); border-radius: 11px;
+  background: var(--bg-tertiary); border-radius: 12px;
   cursor: pointer; transition: var(--transition);
+  border: 1px solid var(--border);
 }
 .toggle .slider::before {
   content: ""; position: absolute;
-  width: 16px; height: 16px; left: 3px; top: 3px;
-  background: var(--text-primary); border-radius: 50%;
+  width: 18px; height: 18px; left: 2px; top: 2px;
+  background: var(--text-secondary); border-radius: 50%;
   transition: var(--transition);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
-.toggle input:checked + .slider { background: var(--success); }
-.toggle input:checked + .slider::before { transform: translateX(18px); }
+.toggle input:checked + .slider {
+  background: oklch(70% 0.17 145 / 0.25);
+  border-color: var(--success);
+  box-shadow: 0 0 12px oklch(70% 0.17 145 / 0.3), inset 0 0 8px oklch(70% 0.17 145 / 0.1);
+}
+.toggle input:checked + .slider::before {
+  transform: translateX(18px);
+  background: var(--success);
+  box-shadow: 0 2px 8px oklch(70% 0.17 145 / 0.5);
+}
 
 /* ─── Tables ─────────────────────────────────────────────────── */
 .data-table {
@@ -153,7 +216,7 @@
 .data-table tbody tr { transition: background var(--transition); }
 .data-table tbody tr:hover { background: var(--bg-hover); }
 
-/* ─── Forms ──────────────────────────────────────────────────── */
+/* ─── Forms (Uiverse-inspired with glow focus) ───────────────── */
 input[type="text"],
 input[type="number"],
 input[type="password"],
@@ -162,8 +225,8 @@ select,
 textarea {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 12px;
+  border-radius: 8px;
+  padding: 8px 14px;
   color: var(--text-primary);
   font-size: 12px;
   font-family: var(--font-ui);
@@ -172,7 +235,18 @@ textarea {
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  box-shadow: 0 0 0 3px oklch(62% 0.19 250 / 0.12), 0 0 16px oklch(62% 0.19 250 / 0.08);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Search input with icon padding */
+input[type="search"] {
+  padding-left: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 10px center;
 }
 
 /* ─── Badges ─────────────────────────────────────────────────── */
@@ -186,16 +260,45 @@ input:focus, select:focus, textarea:focus {
 .badge-warning { background: var(--warning-bg); color: var(--warning); }
 .badge-danger  { background: var(--danger-bg); color: var(--danger); }
 
-/* ─── Skeleton Loading ───────────────────────────────────────── */
+/* ─── Skeleton Loading (Uiverse-inspired gradient sweep) ─────── */
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+  background: linear-gradient(90deg,
+    var(--bg-tertiary) 0%,
+    oklch(35% 0.03 250 / 0.6) 50%,
+    var(--bg-tertiary) 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 6px;
 }
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ─── Premium Loader (Uiverse-inspired orbit) ────────────────── */
+.loader-orbit {
+  width: 32px; height: 32px;
+  position: relative;
+  display: inline-block;
+}
+.loader-orbit::before,
+.loader-orbit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.loader-orbit::before {
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+.loader-orbit::after {
+  border-bottom-color: oklch(60% 0.2 295);
+  border-left-color: oklch(60% 0.2 295);
+  animation: spin 1.2s linear infinite reverse;
+  inset: 4px;
 }
 
 /* ─── Empty State ────────────────────────────────────────────── */
