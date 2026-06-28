@@ -26,7 +26,7 @@ if (hasRedisUrl) {
       logger.warn(`[Redis] Error: ${err.message} — fallback vers cache local`);
       redisConnected = false;
     }
-    // Always suppress to prevent unhandled error event crash
+    // Always suppress — prevents ECONNREFUSED console spam
   });
 
   redis.on("reconnecting", (delay: number) => {

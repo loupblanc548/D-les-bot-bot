@@ -24,7 +24,10 @@ if (hasRedis) {
       logger.warn("[RedisCache] Error — fallback vers cache local");
       redisConnected = false;
     }
-    // Always suppress — prevents unhandled 'error' event crash
+    // Always suppress — prevents ECONNREFUSED spam
+  });
+  redisClient.on("connectionError", () => {
+    // Silent — prevents console spam when Redis is unreachable
   });
   redisClient.on("connect", () => logger.info("[RedisCache] Connected"));
   redisClient.on("ready", () => {

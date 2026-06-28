@@ -75,7 +75,7 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional().or(z.literal("")),
   CONTROL_TOKEN: z.string().optional(),
   CONTROL_PORT: z.string().default("3002"),
-  REDIS_URL: z.string().default("redis://localhost:6379"),
+  REDIS_URL: z.string().optional(),
 
   // PlayStation Network (optional)
   PSN_NPSSO_TOKEN: z.string().optional(),
