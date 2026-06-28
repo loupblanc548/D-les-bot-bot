@@ -14,8 +14,8 @@
  */
 
 // ── Node v26 + undici workaround ────────────────────────────────────────────
-// Must be imported FIRST — before anything that loads undici (discord.js, etc.)
-import "./undici-patch.js";
+// undici-patch.cjs is loaded via --require in package.json scripts
+// (before tsx and before any ESM imports) to guarantee it runs first.
 
 import { startBot } from "./shardManager.js";
 
