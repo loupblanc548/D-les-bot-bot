@@ -2,6 +2,7 @@ import logger from "../utils/logger.js";
 import cron from "node-cron";
 import axios from "axios";
 import { XMLParser } from "fast-xml-parser";
+import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import {
   Client,
   EmbedBuilder,
@@ -58,13 +59,6 @@ interface ArticleData {
 
 function cleanTitle(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function truncateText(text: string, maxLen: number): string {
@@ -221,7 +215,7 @@ async function fetchNewsRSS(): Promise<ArticleData[]> {
 
       let summary = "";
       if (item.description) {
-        summary = stripHtml(item.description);
+        summary = stripAllHtml(item.description);
       }
 
       // Extraction robuste de l'image

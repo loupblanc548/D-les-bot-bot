@@ -7,6 +7,7 @@
 
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { stripAllHtml } from "../utils/sanitizeHtml.js";
 
 interface SearchResult {
   title: string;
@@ -202,8 +203,8 @@ function parseDuckDuckGoHtml(html: string): SearchResult[] {
   let match: RegExpExecArray | null;
   while ((match = resultRegex.exec(html)) !== null && results.length < 10) {
     const rawUrl = match[1];
-    const title = stripHtml(match[2]).trim();
-    const snippet = stripHtml(match[3]).trim();
+    const title = stripAllHtml(match[2]).trim();
+    const snippet = stripAllHtml(match[3]).trim();
 
     // DuckDuckGo redirige via /l/?uddg= — extraire l'URL réelle
     const url = decodeDuckDuckGoUrl(rawUrl);
@@ -223,7 +224,7 @@ function parseDuckDuckGoHtml(html: string): SearchResult[] {
       /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
     while ((match = simpleLinkRegex.exec(html)) !== null && results.length < 10) {
       const rawUrl = match[1];
-      const title = stripHtml(match[2]).trim();
+      const title = stripAllHtml(match[2]).trim();
       const url = decodeDuckDuckGoUrl(rawUrl);
 
       if (title && url && !url.includes("duckduckgo.com")) {
@@ -250,16 +251,4 @@ function decodeDuckDuckGoUrl(rawUrl: string): string {
   } catch {
     return rawUrl;
   }
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .trim();
 }

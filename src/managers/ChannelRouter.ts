@@ -12,6 +12,7 @@
 
 import { EmbedBuilder, TextChannel, Client, MessageCreateOptions } from "discord.js";
 import logger from "../utils/logger.js";
+import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import {
   generateCardAttachment,
   getPlatformColor,
@@ -149,8 +150,7 @@ export function buildPlatformEmbed(
     .setTimestamp(article.pubDate ? new Date(article.pubDate) : new Date());
 
   if (article.content && article.content.length > 0) {
-    const cleaned = article.content
-      .replace(/<[^>]*>/g, "") // Strip HTML résiduel
+    const cleaned = stripAllHtml(article.content)
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 

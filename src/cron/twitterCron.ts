@@ -12,6 +12,7 @@ import { XMLParser } from "fast-xml-parser";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { translateToFrench, isLikelyEnglish } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { getTweetImage } from "../utils/image-helpers.js";
@@ -121,13 +122,6 @@ let checkCount = 0;
 
 // Helpers
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function extractImageFromHtml(html: string): string | null {
   const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
   return match?.[1] ?? null;
@@ -165,7 +159,7 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
     const itemList = (Array.isArray(items) ? items : [items]).slice(0, MAX_TWEETS_PER_ACCOUNT);
 
     for (const item of itemList) {
-      const title = stripHtml(item.title || "");
+      const title = stripAllHtml(item.title || "");
       const link = item.link || "";
       const pubDate = item.pubDate || "";
       const tweetId = extractTweetId(link);
@@ -174,7 +168,7 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
 
       let content = "";
       if (item.description) {
-        content = stripHtml(item.description);
+        content = stripAllHtml(item.description);
       }
 
       let imageUrl: string | null = null;
