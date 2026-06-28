@@ -19,6 +19,7 @@ import {
   claimTicket,
   getPanel,
 } from "./services/ticketService.js";
+import { handleTriviaButton } from "./services/triviaService.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
@@ -111,6 +112,12 @@ export function attachInteractionHandlers(client: Client): void {
               flags: [MessageFlags.Ephemeral],
             });
           }
+          return;
+        }
+
+        // ── Trivia buttons ──
+        if (interaction.customId.startsWith("trivia_")) {
+          await handleTriviaButton(interaction);
           return;
         }
       } catch (err) {
