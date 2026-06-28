@@ -247,6 +247,12 @@ export const commands = [
     )
     .addChannelOption((opt) =>
       opt
+        .setName("report-channel")
+        .setDescription("Salon de signalement (alertes sécurité)")
+        .setRequired(false)
+    )
+    .addChannelOption((opt) =>
+      opt
         .setName("free-games-channel")
         .setDescription("Salon des jeux gratuits")
         .setRequired(false)
@@ -963,6 +969,7 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
   if (!(await requireAdmin(interaction))) return;
 
   const logChannel = interaction.options.getChannel("log-channel");
+  const reportChannel = interaction.options.getChannel("report-channel");
   const freeGamesChannel = interaction.options.getChannel("free-games-channel");
   const monitoringEnabled = interaction.options.getBoolean("monitoring-enabled");
   const monitoringInterval = interaction.options.getInteger("monitoring-interval");
@@ -979,6 +986,7 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
   try {
     const updateData: any = {};
     if (logChannel) updateData.logChannelId = logChannel.id;
+    if (reportChannel) updateData.reportChannelId = reportChannel.id;
     if (freeGamesChannel) updateData.freeGamesChannelId = freeGamesChannel.id;
     if (monitoringEnabled !== null) updateData.monitoringEnabled = monitoringEnabled;
     if (monitoringInterval !== null) updateData.monitoringIntervalMs = monitoringInterval;
@@ -991,6 +999,7 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
       .setColor(0x53fc18)
       .addFields(
         { name: "Salon de logs", value: config?.logChannelId || "Non configuré", inline: true },
+        { name: "Salon de signalement", value: config?.reportChannelId || "Non configuré", inline: true },
         { name: "Salon jeux gratuits", value: config?.freeGamesChannelId || "Non configuré", inline: true },
         { name: "Monitoring", value: config?.monitoringEnabled ? "Activé" : "Désactivé", inline: true },
         { name: "Intervalle monitoring", value: `${config?.monitoringIntervalMs || 300000}ms`, inline: true },

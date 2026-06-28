@@ -336,6 +336,7 @@ model GuildConfig {
   id                  String   @id @default(uuid())
   guildId             String   @unique
   logChannelId        String?
+  reportChannelId     String?
   adminRoleId         String?
   modRoleId           String?
   antiPhishing        Boolean? @default(false)

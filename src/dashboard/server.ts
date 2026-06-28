@@ -285,7 +285,7 @@ export async function startDashboardServer(port: number): Promise<number> {
 
     // Allowlist fields to prevent mass assignment
     const ALLOWED_FIELDS = [
-      "prefix", "language", "logChannelId", "modLogChannelId",
+      "prefix", "language", "logChannelId", "modLogChannelId", "reportChannelId",
       "welcomeChannelId", "welcomeMessage", "goodbyeMessage",
       "autoModEnabled", "antiRaidEnabled", "antiPhishingEnabled",
       "levelingEnabled", "musicEnabled",
