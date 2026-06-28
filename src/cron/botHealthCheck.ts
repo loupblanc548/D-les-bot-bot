@@ -9,9 +9,9 @@ import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const MEMORY_THRESHOLD_MB = 500; // alerte si > 500MB
 const LATENCY_THRESHOLD_MS = 500; // alerte si > 500ms
 
 let intervalId: NodeJS.Timeout | null = null;
@@ -32,13 +32,17 @@ export function startBotHealthCheck(client: Client): void {
       try {
         const memUsage = process.memoryUsage();
         const heapMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+        const rssMB = Math.round(memUsage.rss / 1024 / 1024);
         const ping = client.ws.ping;
         const uptime = process.uptime();
         const guildCount = client.guilds.cache.size;
 
         const issues: string[] = [];
-        if (heapMB > MEMORY_THRESHOLD_MB)
-          issues.push(`⚠️ Memory: ${heapMB}MB (seuil: ${MEMORY_THRESHOLD_MB}MB)`);
+        const memLevel = getMemoryLevel(rssMB);
+        if (memLevel === "WARNING" || memLevel === "CRITICAL")
+          issues.push(
+            `⚠️ Memory: ${heapMB}MB (seuil GC: ${MEMORY_CONFIG.GC_THRESHOLD_MB}MB, niveau: ${memLevel})`,
+          );
         if (ping > LATENCY_THRESHOLD_MS)
           issues.push(`⚠️ Latence: ${ping}ms (seuil: ${LATENCY_THRESHOLD_MS}ms)`);
         if (uptime < 60) issues.push("⚠️ Bot redémarré récemment (< 1 min)");
@@ -51,10 +55,14 @@ export function startBotHealthCheck(client: Client): void {
             if (channel?.isTextBased()) {
               const embed = new EmbedBuilder()
                 .setTitle("🩺 Bot Health Check")
-                .setColor(0xff9900)
+                .setColor(memLevel === "CRITICAL" ? 0xff3344 : 0xff9900)
                 .setDescription(issues.join("\n"))
                 .addFields(
-                  { name: "Memory", value: `${heapMB}MB`, inline: true },
+                  {
+                    name: "Memory",
+                    value: `${heapMB}MB / ${MEMORY_CONFIG.V8_HEAP_LIMIT_MB}MB`,
+                    inline: true,
+                  },
                   { name: "Latence", value: `${ping}ms`, inline: true },
                   { name: "Uptime", value: `${Math.round(uptime / 60)}min`, inline: true },
                   { name: "Serveurs", value: `${guildCount}`, inline: true },
