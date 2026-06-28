@@ -244,8 +244,7 @@ export const commands = [
         .addStringOption((opt) =>
           opt.setName("pseudo").setDescription("Le pseudo Instagram").setRequired(true),
         ),
-    ),
-    // ─── Nouvelles sous-commandes shadow (sans clé API) ───
+    )
     .addSubcommand((sub) =>
       sub
         .setName("headers")

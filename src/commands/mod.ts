@@ -257,8 +257,8 @@ export const commands = [
         .setDescription("Verrouille tous les salons du serveur")
         .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(false)),
     )
-    .addSubcommand((sc) => sc.setName("unlock-all").setDescription("Déverrouille tous les salons")),
-    .addSubcommand((sc) => sc.setName("dehoist").setDescription("Retire les caractères spéciaux des pseudos")),
+    .addSubcommand((sc) => sc.setName("unlock-all").setDescription("Déverrouille tous les salons"))
+    .addSubcommand((sc) => sc.setName("dehoist").setDescription("Retire les caractères spéciaux des pseudos"))
     .addSubcommand((sc) =>
       sc
         .setName("nickname-force")
