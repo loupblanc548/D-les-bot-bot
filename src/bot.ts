@@ -44,6 +44,7 @@ const client = new Client({
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   // Limite la croissance memoire des caches (bot 24/7). Les managers non listes
   // gardent leur comportement par defaut.
