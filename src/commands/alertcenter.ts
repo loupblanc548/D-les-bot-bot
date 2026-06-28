@@ -25,8 +25,13 @@ function baseEmbed(title: string, color: number): EmbedBuilder {
 
 async function isLogChannel(interaction: ChatInputCommandInteraction): Promise<boolean> {
   if (!interaction.guildId) return true;
-  const config = await prisma.guildConfig.findUnique({ where: { guildId: interaction.guildId } });
-  return config?.logChannelId === interaction.channelId;
+  try {
+    const config = await prisma.guildConfig.findUnique({ where: { guildId: interaction.guildId } });
+    return config?.logChannelId === interaction.channelId;
+  } catch (error) {
+    logger.error("[ALERTCENTER isLogChannel]:", error);
+    return false;
+  }
 }
 
 async function shouldUseEphemeral(interaction: ChatInputCommandInteraction): Promise<boolean> {

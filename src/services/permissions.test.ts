@@ -19,15 +19,19 @@ vi.mock("../config", () => ({
 import { getPermissionLevel, requireAdmin, requireMod, PermissionLevel } from "./permissions.js";
 import type { GuildMember, CommandInteraction, Guild } from "discord.js";
 
+let _memberIdCounter = 0;
+
 function mockMember(
   overrides: {
     admin?: boolean;
     roleIds?: string[];
     guildId?: string;
     modPermissions?: boolean;
+    id?: string;
   } = {},
 ): GuildMember {
   return {
+    id: overrides.id ?? `member-${++_memberIdCounter}`,
     permissions: {
       has: vi.fn().mockImplementation((perm: bigint) => {
         if (overrides.admin) return true;
