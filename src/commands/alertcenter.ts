@@ -4,6 +4,7 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
+  MessageFlags,
 } from "discord.js";
 import prisma from "../prisma.js";
 import { requireAdmin } from "../services/permissions.js";
@@ -20,6 +21,17 @@ const FOOTER = { text: "Système de Surveillance • v1.0.0" };
 
 function baseEmbed(title: string, color: number): EmbedBuilder {
   return new EmbedBuilder().setTitle(title).setColor(color).setFooter(FOOTER).setTimestamp();
+}
+
+async function isLogChannel(interaction: ChatInputCommandInteraction): Promise<boolean> {
+  if (!interaction.guildId) return true;
+  const config = await prisma.guildConfig.findUnique({ where: { guildId: interaction.guildId } });
+  return config?.logChannelId === interaction.channelId;
+}
+
+async function shouldUseEphemeral(interaction: ChatInputCommandInteraction): Promise<boolean> {
+  const inLog = await isLogChannel(interaction);
+  return !inLog;
 }
 
 // ============================================================
@@ -117,28 +129,29 @@ export const commands = [
 export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<boolean> {
   if (!(await requireAdmin(interaction))) return false;
   const { commandName } = interaction;
+  const ephemeral = await shouldUseEphemeral(interaction);
 
   switch (commandName) {
     case "alertcenter": {
       const sub = interaction.options.getSubcommand();
-      if (sub === "pending") await handleAlertPending(interaction);
-      else if (sub === "history") await handleAlertHistory(interaction);
-      else if (sub === "user") await handleAlertUser(interaction);
+      if (sub === "pending") await handleAlertPending(interaction, ephemeral);
+      else if (sub === "history") await handleAlertHistory(interaction, ephemeral);
+      else if (sub === "user") await handleAlertUser(interaction, ephemeral);
       return true;
     }
     case "riskscore":
-      await handleRiskScore(interaction);
+      await handleRiskScore(interaction, ephemeral);
       return true;
     case "riskyusers":
-      await handleRiskyUsers(interaction);
+      await handleRiskyUsers(interaction, ephemeral);
       return true;
     case "alertconfig": {
       const sub = interaction.options.getSubcommand();
-      if (sub === "channel") await handleAlertConfigChannel(interaction);
-      else if (sub === "threshold") await handleAlertConfigThreshold(interaction);
-      else if (sub === "owner_notify") await handleAlertConfigOwnerNotify(interaction);
-      else if (sub === "reset") await handleAlertConfigReset(interaction);
-      else if (sub === "view") await handleAlertConfigView(interaction);
+      if (sub === "channel") await handleAlertConfigChannel(interaction, ephemeral);
+      else if (sub === "threshold") await handleAlertConfigThreshold(interaction, ephemeral);
+      else if (sub === "owner_notify") await handleAlertConfigOwnerNotify(interaction, ephemeral);
+      else if (sub === "reset") await handleAlertConfigReset(interaction, ephemeral);
+      else if (sub === "view") await handleAlertConfigView(interaction, ephemeral);
       return true;
     }
   }
@@ -149,8 +162,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
 // ============================================================
 // Handlers /alertcenter
 // ============================================================
-async function handleAlertPending(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertPending(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const alerts = await getPendingAlerts(interaction.guildId!);
     if (alerts.length === 0) {
@@ -192,8 +205,8 @@ async function handleAlertPending(interaction: ChatInputCommandInteraction) {
   }
 }
 
-async function handleAlertHistory(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertHistory(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const alerts = await getAlertHistory(interaction.guildId!, 25);
     if (alerts.length === 0) {
@@ -240,8 +253,8 @@ async function handleAlertHistory(interaction: ChatInputCommandInteraction) {
   }
 }
 
-async function handleAlertUser(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertUser(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const user = interaction.options.getUser("cible", true);
     const alerts = await getAlertsByUser(user.id, interaction.guildId!);
@@ -290,8 +303,8 @@ async function handleAlertUser(interaction: ChatInputCommandInteraction) {
 // ============================================================
 // Handler /riskscore
 // ============================================================
-async function handleRiskScore(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleRiskScore(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const user = interaction.options.getUser("cible", true);
     const { profile, recentSanctions } = await getRiskReport(user.id, interaction.guildId!);
@@ -349,8 +362,8 @@ async function handleRiskScore(interaction: ChatInputCommandInteraction) {
 // ============================================================
 // Handler /riskyusers
 // ============================================================
-async function handleRiskyUsers(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleRiskyUsers(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const niveau = (interaction.options.getString("niveau") || "MOYEN") as RiskLevel;
     const users = await getAllRiskyUsers(interaction.guildId!, niveau);
@@ -407,8 +420,11 @@ async function handleRiskyUsers(interaction: ChatInputCommandInteraction) {
 // ============================================================
 // Handlers /alertconfig
 // ============================================================
-async function handleAlertConfigChannel(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertConfigChannel(
+  interaction: ChatInputCommandInteraction,
+  ephemeral: boolean,
+) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const channel = interaction.options.getChannel("salon", true);
     await prisma.guildConfig.upsert({
@@ -439,8 +455,11 @@ async function handleAlertConfigChannel(interaction: ChatInputCommandInteraction
   }
 }
 
-async function handleAlertConfigThreshold(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertConfigThreshold(
+  interaction: ChatInputCommandInteraction,
+  ephemeral: boolean,
+) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const score = interaction.options.getInteger("score", true);
 
@@ -465,8 +484,11 @@ async function handleAlertConfigThreshold(interaction: ChatInputCommandInteracti
   }
 }
 
-async function handleAlertConfigOwnerNotify(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertConfigOwnerNotify(
+  interaction: ChatInputCommandInteraction,
+  ephemeral: boolean,
+) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const actif = interaction.options.getBoolean("actif", true);
 
@@ -493,8 +515,11 @@ async function handleAlertConfigOwnerNotify(interaction: ChatInputCommandInterac
   }
 }
 
-async function handleAlertConfigReset(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertConfigReset(
+  interaction: ChatInputCommandInteraction,
+  ephemeral: boolean,
+) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const user = interaction.options.getUser("cible", true);
     await resetRiskProfile(user.id, interaction.guildId!);
@@ -523,8 +548,8 @@ async function handleAlertConfigReset(interaction: ChatInputCommandInteraction) 
   }
 }
 
-async function handleAlertConfigView(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply();
+async function handleAlertConfigView(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
+  await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
   try {
     const config = await prisma.guildConfig.findUnique({
       where: { guildId: interaction.guildId! },
