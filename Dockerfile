@@ -41,4 +41,4 @@ USER botuser
 EXPOSE 3000
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "--expose-gc", "--require", "./src/undici-patch.cjs", "--import", "tsx", "src/index.ts"]
+CMD ["node", "--expose-gc", "--import", "tsx", "src/index.ts"]

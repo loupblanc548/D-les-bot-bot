@@ -5,14 +5,14 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "node --expose-gc --require ./src/undici-patch.cjs --import tsx src/index.ts",
-    "dev": "node --expose-gc --require ./src/undici-patch.cjs --import tsx --inspect src/index.ts",
+    "start": "node --expose-gc --import tsx src/index.ts",
+    "dev": "node --expose-gc --import tsx --inspect src/index.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "register": "node --require ./src/undici-patch.cjs --import tsx src/index.ts --register",
+    "register": "node --import tsx src/index.ts --register",
     "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
@@ -65,7 +65,6 @@
     "rss-parser": "^3.13.0",
     "satori": "^0.26.0",
     "sharp": "^0.35.2",
-    "undici": "^8.5.0",
     "whois-json": "^2.0.4",
     "winston": "^3.19.0",
     "ws": "^8.21.0",
@@ -98,9 +97,6 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.0",
     "vitest": "^4.1.8"
-  },
-  "overrides": {
-    "undici": "^8.5.0"
   },
   "allowScripts": {
     "ffmpeg-static@5.3.0": true
