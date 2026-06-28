@@ -12,6 +12,7 @@ export interface CheckResult {
   name: string;
   passed: boolean;
   detail: string;
+  critical: boolean;
 }
 
 interface ModuleGroup {
@@ -23,11 +24,15 @@ interface ModuleGroup {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function ok(name: string, module: string, detail = "OK"): CheckResult {
-  return { module, name, passed: true, detail };
+  return { module, name, passed: true, detail, critical: true };
 }
 
 function fail(name: string, module: string, detail: string): CheckResult {
-  return { module, name, passed: false, detail };
+  return { module, name, passed: false, detail, critical: true };
+}
+
+function warn(name: string, module: string, detail: string): CheckResult {
+  return { module, name, passed: false, detail, critical: false };
 }
 
 function isValidSnowflake(val: string): boolean {
@@ -221,20 +226,20 @@ async function checkExternalServices(): Promise<CheckResult[]> {
     r.push(fail("Redis", m, `Erreur: ${String(e).slice(0, 60)}`));
   }
 
-  // Twitch API
+  // Twitch API (non-critical — bot works without it)
   const twitchToken = process.env.TWITCH_ACCESS_TOKEN || "";
   r.push(
     twitchToken.length > 10
       ? ok("Twitch API", m, "Token configuré")
-      : fail("Twitch API", m, twitchToken ? "Token trop court" : "MANQUANT"),
+      : warn("Twitch API", m, twitchToken ? "Token trop court" : "MANQUANT"),
   );
 
-  // Steam API
+  // Steam API (non-critical — bot works without it)
   const steamKey = process.env.STEAM_API_KEY || "";
   r.push(
     steamKey.length > 10
       ? ok("Steam API", m, "Clé configurée")
-      : fail("Steam API", m, steamKey ? "Clé trop courte" : "MANQUANTE"),
+      : warn("Steam API", m, steamKey ? "Clé trop courte" : "MANQUANTE"),
   );
 
   // Epic Games (pas d'API key requise, juste vérifier le endpoint)
