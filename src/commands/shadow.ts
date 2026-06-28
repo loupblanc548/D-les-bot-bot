@@ -245,6 +245,43 @@ export const commands = [
           opt.setName("pseudo").setDescription("Le pseudo Instagram").setRequired(true),
         ),
     ),
+    // ─── Nouvelles sous-commandes shadow (sans clé API) ───
+    .addSubcommand((sub) =>
+      sub
+        .setName("headers")
+        .setDescription("Récupère les headers HTTP d'une URL")
+        .addStringOption((opt) => opt.setName("url").setDescription("L'URL à analyser").setRequired(true)),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("ssl-check")
+        .setDescription("Vérifie le certificat SSL d'un domaine")
+        .addStringOption((opt) => opt.setName("domaine").setDescription("Le domaine (ex: example.com)").setRequired(true)),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("port-scan")
+        .setDescription("Scan de ports communs sur un host")
+        .addStringOption((opt) => opt.setName("host").setDescription("Le host ou IP").setRequired(true)),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("username-gen")
+        .setDescription("Génère des usernames à partir de mots-clés")
+        .addStringOption((opt) => opt.setName("mots").setDescription("Mots-clés séparés par espaces").setRequired(true)),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("metadata")
+        .setDescription("Métadonnées d'une URL (content-type, taille, server)")
+        .addStringOption((opt) => opt.setName("url").setDescription("L'URL").setRequired(true)),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("tech-detect")
+        .setDescription("Détecte les technologies d'un site web (headers)")
+        .addStringOption((opt) => opt.setName("url").setDescription("L'URL du site").setRequired(true)),
+    ),
 ];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction) {
@@ -328,6 +365,15 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       return handleCms(interaction);
     case "insta-deep":
       return handleInstaDeep(interaction);
+    case "headers":
+    case "ssl-check":
+    case "port-scan":
+    case "username-gen":
+    case "metadata":
+    case "tech-detect": {
+      const { handleShadowExtra } = await import("./stubHandlers.js");
+      return handleShadowExtra(interaction, undefined as unknown as import("discord.js").Client);
+    }
     default:
       await interaction.reply({
         content: "Sous-commande inconnue.",

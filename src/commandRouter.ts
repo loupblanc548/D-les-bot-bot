@@ -173,6 +173,14 @@ import {
   commands as game2GroupCommands,
   handleCommand as handleGame2Group,
 } from "./commands/game2Group.js";
+import {
+  commands as musicGroupCommands,
+  handleCommand as handleMusicGroup,
+} from "./commands/musicGroup.js";
+import {
+  commands as economyGroupCommands,
+  handleCommand as handleEconomyGroup,
+} from "./commands/economyGroup.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -448,6 +456,8 @@ export const allCommands = [
   ...casierGroupCommands,
   ...funGroupCommands,
   ...game2GroupCommands,
+  ...musicGroupCommands,
+  ...economyGroupCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -486,6 +496,8 @@ export function buildCommandRouter(): void {
   registerGroup(["casier"], handleCasierGroup);
   registerGroup(["fun"], handleFunGroup);
   registerGroup(["game2"], handleGame2Group);
+  registerGroup(["music"], handleMusicGroup);
+  registerGroup(["economy"], handleEconomyGroup);
 }
 
 export function applyCommandMiddleware(): void {

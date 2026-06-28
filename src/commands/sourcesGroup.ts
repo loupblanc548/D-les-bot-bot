@@ -4,6 +4,8 @@ import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleCommand as handleMaintenance } from "./maintenance.js";
 
+import { handleSourcesExtra } from "./stubHandlers.js";
+
 export const commands = [
   new SlashCommandBuilder()
     .setName("sources")
@@ -91,6 +93,30 @@ export const commands = [
         .setDescription("Teste un flux RSS")
         .addStringOption((o) => o.setName("url").setDescription("URL du flux").setRequired(true)),
     )
+    // ─── Nouvelles sous-commandes sources ───
+    .addSubcommand((sc) =>
+      sc
+        .setName("source-edit")
+        .setDescription("Modifier une source existante")
+        .addStringOption((o) => o.setName("handle").setDescription("Handle de la source").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("source-test")
+        .setDescription("Tester une source")
+        .addStringOption((o) => o.setName("handle").setDescription("Handle de la source").setRequired(true)),
+    )
+    .addSubcommand((sc) => sc.setName("source-logs").setDescription("Logs des sources"))
+    .addSubcommand((sc) => sc.setName("source-pause-all").setDescription("Mettre toutes les sources en pause"))
+    .addSubcommand((sc) => sc.setName("source-resume-all").setDescription("Reprendre toutes les sources"))
+    .addSubcommand((sc) => sc.setName("source-health").setDescription("Sant\u00e9 des sources (uptime, erreurs)"))
+    .addSubcommand((sc) => sc.setName("source-export").setDescription("Exporter la configuration des sources"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("source-import")
+        .setDescription("Importer une configuration de sources")
+        .addStringOption((o) => o.setName("json").setDescription("Configuration JSON").setRequired(true)),
+    )
     .toJSON(),
 ];
 
@@ -129,6 +155,12 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else if (MAINTENANCE_CMDS.includes(action)) {
     await handleMaintenance(interaction, dc);
   } else {
-    await handleAdmin(interaction);
+    // Try existing handlers, then stub
+    const existingSubs = ["add","remove","list","pause"];
+    if (existingSubs.includes(action)) {
+      await handleAdmin(interaction);
+    } else {
+      await handleSourcesExtra(interaction, dc);
+    }
   }
 }
