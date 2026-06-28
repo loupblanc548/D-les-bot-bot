@@ -145,6 +145,26 @@ import {
   handleCommand as handleAlertGroup,
 } from "./commands/alertGroup.js";
 import { commands as aiGroupCommands, handleCommand as handleAiGroup } from "./commands/aiGroup.js";
+import {
+  commands as botGroupCommands,
+  handleCommand as handleBotGroup,
+} from "./commands/botGroup.js";
+import {
+  commands as adminGroupCommands,
+  handleCommand as handleAdminGroup,
+} from "./commands/adminGroup.js";
+import {
+  commands as gameGroupCommands,
+  handleCommand as handleGameGroup,
+} from "./commands/gameGroup.js";
+import {
+  commands as toolsGroupCommands,
+  handleCommand as handleToolsGroup,
+} from "./commands/toolsGroup.js";
+import {
+  commands as communityGroupCommands,
+  handleCommand as handleCommunityGroup,
+} from "./commands/communityGroup.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -294,55 +314,130 @@ const REMOVED_COMMANDS = new Set([
   "translate-auto",
   "summarize",
   "explain",
+  // ─── Commandes regroupées en sous-commandes (vague 2) ───
+  "start",
+  "help",
+  "restart",
+  "status",
+  "uptime",
+  "userinfo",
+  "server-info",
+  "dashboard",
+  "debug",
+  "hotreload",
+  "broadcast",
+  "dm",
+  "deletehistory",
+  "maintenance",
+  "clean-duplicates",
+  "backup",
+  "permission-audit",
+  "guild-config",
+  "cooldown-config",
+  "channel-routing",
+  "purge-content",
+  "api-status",
+  "bot-health",
+  "healthz",
+  "create-workflow",
+  "list-workflows",
+  "toggle-workflow",
+  "alertcenter",
+  "alertconfig",
+  "alert-rules",
+  "security-audit",
+  "riskscore",
+  "riskyusers",
+  "spam-analysis",
+  "auto-report",
+  "viral-alert",
+  "trend-report",
+  "report",
+  "ban",
+  "kick",
+  "mute",
+  "unmute",
+  "warn",
+  "clear",
+  "timeout",
+  "unlock",
+  "lock",
+  "slowmode",
+  "softban",
+  "tempban",
+  "purge",
+  "purgeuser",
+  "snipe",
+  "mass-move",
+  "voice-kick",
+  "raid-shield",
+  "ban-log",
+  "behavior-timeline",
+  "alt-link",
+  "namehistory",
+  "avatarhistory",
+  "linkcheck",
+  "source-stats",
+  "rss-test",
+  "scraper-status",
+  "search-notifications",
+  "test-freegames",
+  "test-rss",
+  "game-status",
+  "game-info",
+  "free-games",
+  "free-game-reminder",
+  "patch_notes",
+  "deal",
+  "deals-history",
+  "price-compare",
+  "price-history",
+  "price-track",
+  "release-calendar",
+  "gaming-news",
+  "epic-calendar",
+  "steam",
+  "steam-deals",
+  "wishlist",
+  "wishlist-stats",
+  "wishlist-notify",
+  "boutique",
+  "fortnite-wishlist",
+  "fortnite-shop-preview",
+  "xbox",
+  "twitch",
+  "psn",
+  "track-game",
+  "untrack-game",
+  "list-tracked",
+  "ticket-setup",
+  "self-role",
+  "profile",
+  "embed-builder",
+  "say",
+  "vocal",
+  "mp3",
+  "tts",
+  "recherche",
+  "audio-effects",
+  "radio-stop",
+  "track",
 ]);
 
 export const allCommands = [
-  ...mainCommands,
-  ...sourceCommands,
-  ...adminCommands,
-  ...aiCommands,
-  ...modCommands,
-  ...casierCommands,
-  ...securityCommands,
-  ...gamingCommands,
-  ...communityCommands,
-  ...utilityCommands,
-  ...vocalCommands,
-  ...twitchCommands,
-  ...steamCommands,
-  ...psnCommands,
-  ...trackGameCommands,
-  ...wishlistCommands,
-  ...boutiqueCommands,
+  // Groupes (commandes avec sous-commandes)
+  ...botGroupCommands,
+  ...sourcesGroupCommands,
+  ...adminGroupCommands,
+  ...aiGroupCommands,
+  ...alertGroupCommands,
   ...modGroupCommands,
   ...securityGroupCommands,
-  ...sourcesGroupCommands,
-  ...trackGroupCommands,
-  ...casierGroupCommands,
-  ...alertGroupCommands,
-  ...aiGroupCommands,
-  ...alertcenterCommands,
-  ...mp3Commands,
-  ...ttsCommands,
-  ...profileCommands,
-  ...rechercheCommands,
-  ...cleanDuplicatesCommands,
-  ...maintenanceCommands,
-  ...userinfoCommands,
-  ...advancedCommands,
-  ...communityExtraCommands,
-  ...dashboardCommands,
-  ...aiCmdCommands,
-  ...modExtraCommands,
-  ...extraCmdCommands,
-  ...radioCommands,
-  ...modProCommands,
-  ...audioPanelCommands,
-  ...utilityGamingCommands,
-  ...apiCmdCommands,
-  ...channelRoutingCommands,
-  ...purgeContentCommands,
   ...shadowCommands,
+  ...gameGroupCommands,
+  ...communityGroupCommands,
+  ...toolsGroupCommands,
+  ...casierGroupCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -366,108 +461,19 @@ function registerGroup(
 }
 
 export function buildCommandRouter(): void {
-  registerGroup(["start", "help", "restart"], handleMain);
-  registerGroup(
-    [
-      "broadcast",
-      "dm",
-      "deletehistory",
-      "test-freegames",
-      "add-source",
-      "remove-source",
-      "list-sources",
-      "pause-source",
-      "backup",
-    ],
-    handleAdmin,
-  );
-  registerGroup(
-    ["ban", "kick", "mute", "unmute", "warn", "clear", "timeout", "unlock", "purge", "history"],
-    handleModeration,
-  );
-  registerGroup(["casier", "casier-clear"], handleCasier);
-  registerGroup(
-    [
-      "nuke",
-      "check-alt",
-      "blacklist",
-      "role-mass",
-      "antiraid",
-      "verif",
-      "namehistory",
-      "avatarhistory",
-      "linkcheck",
-      "antiphishing",
-    ],
-    handleSecurity,
-  );
-  registerGroup(["free-games", "game-status", "patch_notes", "deal"], handleGaming);
-  registerGroup(["ticket-setup"], handleCommunity);
-  registerGroup(["embed-builder", "say"], handleUtility);
-  registerGroup(["vocal"], handleVocal);
-  registerGroup(["twitch"], handleTwitch);
-  registerGroup(["steam"], handleSteam);
-  registerGroup(["track-game", "untrack-game", "list-tracked"], handleTrackGame);
-  registerGroup(["psn"], handlePsn);
-  registerGroup(["mp3"], handleMp3);
-  registerGroup(["tts"], handleTts);
-  registerGroup(["profile"], handleProfile);
-  registerGroup(["recherche"], handleRecherche);
-  registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
-  registerGroup(["clean-duplicates"], handleCleanDuplicates);
-  registerGroup(["maintenance"], handleMaintenance);
-  registerGroup(["smart-alerts", "fortnite-wishlist"], handleAdvanced);
-
   // ─── Commandes groupées (subcommands) ───
+  registerGroup(["bot"], handleBotGroup);
+  registerGroup(["sources"], handleSourcesGroup);
+  registerGroup(["admin"], handleAdminGroup);
+  registerGroup(["ai"], handleAiGroup);
+  registerGroup(["alert"], handleAlertGroup);
   registerGroup(["mod"], handleModGroup);
   registerGroup(["security"], handleSecurityGroup);
-  registerGroup(["sources"], handleSourcesGroup);
-  registerGroup(["track"], handleTrackGroup);
-  registerGroup(["casier"], handleCasierGroup);
-  registerGroup(["alert"], handleAlertGroup);
-  registerGroup(["ai"], handleAiGroup);
-
-  // Commandes fun dispatchées via le handler main
-  for (const name of ["wishlist", "boutique"]) {
-    commandRouter[name] = async (interaction, client) => {
-      if (!interaction.isChatInputCommand()) return;
-      const cmd = interaction as ChatInputCommandInteraction;
-      if (name === "wishlist") await handleWishlist(cmd);
-      if (name === "boutique") await handleBoutique(cmd, client);
-    };
-  }
-
-  registerGroup(["self-role"], handleCommunityExtra);
-  registerGroup(["report"], handleModExtra);
-  registerGroup(
-    [
-      "xbox",
-      "price-compare",
-      "release-calendar",
-      "alt-link",
-      "ban-log",
-      "behavior-timeline",
-      "alert-rules",
-      "server-info",
-      "reddit-track",
-      "rss-custom",
-    ],
-    handleExtraCmd,
-  );
-  registerGroup(["radio-gaming"], handleRadioGaming);
-  registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
-  registerGroup(["audio-effects", "radio-stop"], handleAudioPanel);
-  registerGroup(
-    ["wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
-    handleUtilityGaming,
-  );
-  registerGroup(
-    ["steam-deals", "price-history", "game-info", "gaming-news", "api-status"],
-    handleApiCmd,
-  );
-  registerGroup(["channel-routing"], handleChannelRouting);
-  registerGroup(["purge-content"], handlePurgeContent);
   registerGroup(["shadow"], handleShadow);
+  registerGroup(["game"], handleGameGroup);
+  registerGroup(["community"], handleCommunityGroup);
+  registerGroup(["tools"], handleToolsGroup);
+  registerGroup(["casier"], handleCasierGroup);
 }
 
 export function applyCommandMiddleware(): void {

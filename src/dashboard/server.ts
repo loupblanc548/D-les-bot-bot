@@ -336,13 +336,17 @@ export async function startDashboardServer(port: number): Promise<number> {
   });
 }
 
-// Auto-démarrage si exécuté directement (npm run dashboard)
-const isDirectRun = process.argv[1]?.includes("dashboard") || process.env.DASHBOARD_DEV === "true";
+// Auto-démarrage si exécuté directement (npm run dashboard ou Railway)
+const isDirectRun =
+  process.argv[1]?.includes("dashboard") ||
+  process.env.DASHBOARD_DEV === "true" ||
+  process.env.RAILWAY_SERVICE_ID !== undefined;
 if (isDirectRun) {
-  void startDashboardServer(3721).then((port) => {
+  const port = parseInt(process.env.PORT || process.env.DASHBOARD_PORT || "3721");
+  void startDashboardServer(port).then((p) => {
     console.log(`\n  ╔══════════════════════════════════════════╗`);
     console.log(`  ║  🕵️  SHADOW BROKER DASHBOARD              ║`);
-    console.log(`  ║  → http://localhost:${port}                 ║`);
+    console.log(`  ║  → http://localhost:${p}                 ║`);
     console.log(`  ╚══════════════════════════════════════════╝\n`);
   });
 }

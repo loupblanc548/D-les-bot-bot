@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 import { handleCommand as handleSecurityCore } from "./security/core.js";
 import { handleCommand as handleExtraCmd } from "./extraCommands.js";
+import { handleCommand as handleModPro } from "./moderationPro.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { invalidateCache as invalidateWordFilterCache } from "../services/wordFilter.js";
@@ -206,6 +207,9 @@ export const commands = [
             ),
         ),
     )
+    .addSubcommand((sc) =>
+      sc.setName("raid-shield").setDescription("Bouclier anti-raid (comptes récents)"),
+    )
     .toJSON(),
 ];
 
@@ -219,6 +223,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   }
 
   Object.defineProperty(interaction, "commandName", { value: action, writable: true });
+
+  if (action === "raid-shield") {
+    await handleModPro(interaction);
+    return;
+  }
 
   // Les commandes alt-link, ban-log, behavior-timeline, alert-rules sont dans extraCommands
   const extraCmds = ["alt-link", "ban-log", "behavior-timeline", "alert-rules"];

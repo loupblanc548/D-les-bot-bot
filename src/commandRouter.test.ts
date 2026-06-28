@@ -121,16 +121,18 @@ describe("commandRouter", () => {
   describe("buildCommandRouter", () => {
     it("enregistre les commandes dans le router", () => {
       buildCommandRouter();
-      expect(commandRouter["start"]).toBeDefined();
-      expect(commandRouter["help"]).toBeDefined();
-      expect(commandRouter["add-source"]).toBeDefined();
-      expect(commandRouter["broadcast"]).toBeDefined();
-      expect(commandRouter["chat"]).toBeDefined();
+      expect(commandRouter["bot"]).toBeDefined();
+      expect(commandRouter["ai"]).toBeDefined();
+      expect(commandRouter["sources"]).toBeDefined();
+      expect(commandRouter["admin"]).toBeDefined();
+      expect(commandRouter["game"]).toBeDefined();
     });
 
-    it("enregistre les commandes fun", () => {
+    it("enregistre les commandes groupées", () => {
       buildCommandRouter();
-      expect(commandRouter["wishlist"]).toBeDefined();
+      expect(commandRouter["mod"]).toBeDefined();
+      expect(commandRouter["security"]).toBeDefined();
+      expect(commandRouter["alert"]).toBeDefined();
     });
 
     it("ne crée pas de route pour des commandes inexistantes", () => {
