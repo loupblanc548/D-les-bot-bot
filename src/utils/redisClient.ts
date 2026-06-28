@@ -16,11 +16,12 @@ if (hasRedis) {
     },
   });
 
-  client.on("error", () => {
+  client.on("error", (err) => {
     if (connected) {
       logger.warn("[RedisClient] Error — degrading");
       connected = false;
     }
+    // Always suppress — prevents unhandled 'error' event crash
   });
   client.on("ready", () => {
     connected = true;
