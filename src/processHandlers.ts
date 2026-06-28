@@ -10,11 +10,22 @@ import { sendCrashAlert } from "./utils/crash-webhook.js";
 import { sendProactiveAlert } from "./services/proactiveAlerts.js";
 
 export function attachProcessHandlers(): void {
+  function isRedisError(err: Error): boolean {
+    const msg = String(err.message);
+    const code = (err as any).code;
+    return (
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("Redis") ||
+      code === "ECONNREFUSED" ||
+      (err as any).errors?.some?.((e: Error) => isRedisError(e))
+    );
+  }
+
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     // Erreurs Redis non-fatals — ne pas crasher le bot
-    if (String(err.message).includes("ECONNREFUSED") || String(err.message).includes("Redis")) {
-      logger.warn(`[PROCESS] Redis rejection (non-fatal): ${err.message}`);
+    if (isRedisError(err)) {
+      logger.warn(`[PROCESS] Redis rejection (non-fatal): ${err.message || err.name}`);
       return;
     }
     logger.error(`[PROCESS] Unhandled Rejection at: ${promise}, reason: ${err.message}`, {
@@ -36,8 +47,8 @@ export function attachProcessHandlers(): void {
 
   process.on("uncaughtException", (error: Error) => {
     // Erreurs Redis non-fatals — ne pas crasher le bot
-    if (String(error.message).includes("ECONNREFUSED") || String(error.message).includes("Redis")) {
-      logger.warn(`[PROCESS] Redis error (non-fatal): ${error.message}`);
+    if (isRedisError(error)) {
+      logger.warn(`[PROCESS] Redis error (non-fatal): ${error.message || error.name}`);
       return;
     }
     logger.error(`[PROCESS] ⚠️ Uncaught Exception: ${error.message}`, { stack: error.stack });
