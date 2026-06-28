@@ -102,10 +102,6 @@ import {
   handleCommand as handleModPro,
 } from "./commands/moderationPro.js";
 import {
-  commands as translateAutoCommands,
-  handleCommand as handleTranslateAuto,
-} from "./commands/translateAuto.js";
-import {
   commands as audioPanelCommands,
   handleCommand as handleAudioPanel,
 } from "./commands/audioPanel.js";
@@ -113,7 +109,6 @@ import {
   commands as utilityGamingCommands,
   handleCommand as handleUtilityGaming,
 } from "./commands/utilityCommands.js";
-import { commands as aiFunCommands, handleCommand as handleAiFun } from "./commands/aiFun.js";
 import {
   commands as apiCmdCommands,
   handleCommand as handleApiCmd,
@@ -285,6 +280,20 @@ const REMOVED_COMMANDS = new Set([
   "vibe-check",
   "therapy",
   "timecapsule",
+  // ─── Commandes IA supprimées (regroupées en sous-commandes /ai) ───
+  "ai-profile",
+  "ai-suggest",
+  "ai-mood",
+  "ai-fun",
+  "ai-channel-summary",
+  "ai-translate-custom",
+  "aichat",
+  "smartpoll",
+  "mention",
+  "chat",
+  "translate-auto",
+  "summarize",
+  "explain",
 ]);
 
 export const allCommands = [
@@ -328,10 +337,8 @@ export const allCommands = [
   ...extraCmdCommands,
   ...radioCommands,
   ...modProCommands,
-  ...translateAutoCommands,
   ...audioPanelCommands,
   ...utilityGamingCommands,
-  ...aiFunCommands,
   ...apiCmdCommands,
   ...channelRoutingCommands,
   ...purgeContentCommands,
@@ -374,7 +381,6 @@ export function buildCommandRouter(): void {
     ],
     handleAdmin,
   );
-  registerGroup(["chat", "mention", "aichat", "smartpoll"], handleAI);
   registerGroup(
     ["ban", "kick", "mute", "unmute", "warn", "clear", "timeout", "unlock", "purge", "history"],
     handleModeration,
@@ -443,7 +449,6 @@ export function buildCommandRouter(): void {
       "behavior-timeline",
       "alert-rules",
       "server-info",
-      "ai-translate-custom",
       "reddit-track",
       "rss-custom",
     ],
@@ -451,13 +456,11 @@ export function buildCommandRouter(): void {
   );
   registerGroup(["radio-gaming"], handleRadioGaming);
   registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
-  registerGroup(["translate-auto"], handleTranslateAuto);
   registerGroup(["audio-effects", "radio-stop"], handleAudioPanel);
   registerGroup(
     ["wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
     handleUtilityGaming,
   );
-  registerGroup(["ai-fun"], handleAiFun);
   registerGroup(
     ["steam-deals", "price-history", "game-info", "gaming-news", "api-status"],
     handleApiCmd,
