@@ -101,24 +101,10 @@ export const CATEGORIES: Category[] = [
     description: "Commandes d'intelligence artificielle",
     commands:
       "`/ai chat [message] - Discute avec l'IA`\n" +
-      "`/ai mention [message] - Réponse personnalisée`\n" +
       "`/ai aichat - Active/désactive l'IA contextuelle`\n" +
       "`/ai smartpoll [question] - Sondage intelligent par IA`\n" +
-      "`/ai translate [texte] [langue] - Traduit avec un ton`\n" +
-      "`/ai-config - Configuration de l'IA (admin)`\n" +
-      "`/ai-profile - Profil IA personnalisé`\n" +
-      "`/ai-suggest - Suggestions par IA`\n" +
-      "`/ai-mood - Analyse d'humeur par IA`\n" +
-      "`/ai-fun - Commandes fun IA`\n" +
-      "`/ai-channel-summary - Résumé d'un salon par IA`\n" +
-      "`/ai-translate-custom - Traduction personnalisée`\n" +
-      "`/aichat - Chat IA direct`\n" +
-      "`/smartpoll - Sondage intelligent rapide`\n" +
-      "`/mention - Mention IA`\n" +
-      "`/chat - Chat IA`\n" +
-      "`/translate-auto - Traduction automatique`\n" +
-      "`/summarize - Résumé de texte`\n" +
-      "`/explain - Explication par IA`",
+      "`/ai translate-auto [texte] - Traduction automatique`\n" +
+      "`/ai config [parametre] [valeur] - Configuration IA (admin)`",
   },
   {
     id: "alertcenter",
