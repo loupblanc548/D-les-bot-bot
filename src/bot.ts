@@ -33,6 +33,7 @@ import { handleChannelEvents } from "./events/channels.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
 import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
+import { initDisTube } from "./services/musicService.js";
 
 const client = new Client({
   intents: [
@@ -239,6 +240,9 @@ async function main(): Promise<void> {
   handleEmojiEvents(client);
   handleModerationEvents(client);
   startMapCleanup();
+
+  // Initialiser DisTube (système de musique)
+  initDisTube(client);
   logger.info("✓ Gestionnaires d'evenements initialises");
 
   // Handlers d'interactions (commandes, boutons, menus, autocomplete)

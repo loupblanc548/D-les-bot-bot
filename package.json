@@ -38,6 +38,7 @@
     "compromise": "^14.15.1",
     "cors": "^2.8.6",
     "discord.js": "^14.26.4",
+    "distube": "^5.2.3",
     "dns-packet": "^5.6.1",
     "dotenv": "^17.4.2",
     "electron": "^42.5.0",
