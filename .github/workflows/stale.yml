@@ -1,0 +1,35 @@
+name: "🧹 Close Stale Issues & PRs"
+
+on:
+  schedule:
+    - cron: "30 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
+          exempt-issue-labels: "pinned,security,enhancement"
+          exempt-pr-labels: "pinned,security"
+          stale-issue-message: |
+            Cette issue est inactive depuis 60 jours.
+            Elle sera fermée dans 14 jours si aucune activité n'est détectée.
+            Commentez pour la garder ouverte.
+          stale-pr-message: |
+            Cette PR est inactive depuis 60 jours.
+            Elle sera fermée dans 14 jours sans activité.
+            Mettez à jour ou commentez pour la garder ouverte.
+          close-issue-message: "Issue fermée automatiquement (inactivité). Rouvrez si nécessaire."
+          close-pr-message: "PR fermée automatiquement (inactivité). Rouvrez si nécessaire."
+          operations-per-run: 30
