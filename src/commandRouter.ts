@@ -54,7 +54,6 @@ import {
   commands as boutiqueCommands,
   handleCommand as handleBoutique,
 } from "./commands/fun/boutique.js";
-import { commands as dicteeCommands } from "./commands/dictee.js";
 import {
   commands as alertcenterCommands,
   handleCommand as handleAlertcenter,
@@ -62,18 +61,7 @@ import {
 import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
 import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
 import { commands as profileCommands, handleCommand as handleProfile } from "./commands/profile.js";
-import {
-  commands as reactionRolesCommands,
-  handleCommand as handleReactionRoles,
-} from "./commands/reactionRoles.js";
-import {
-  commands as welcomeConfigCommands,
-  handleCommand as handleWelcomeConfig,
-} from "./commands/welcomeConfig.js";
-import {
-  commands as goodbyeConfigCommands,
-  handleCommand as handleGoodbyeConfig,
-} from "./commands/goodbyeConfig.js";
+import { handleReactionRoleAdd, handleReactionRoleRemove } from "./commands/reactionRoles.js";
 import {
   commands as rechercheCommands,
   handleCommand as handleRecherche,
@@ -110,14 +98,6 @@ import {
   handleRadioGamingCommand as handleRadioGaming,
 } from "./cron/radioGaming.js";
 import {
-  commands as playCommands,
-  handlePlayCommand as handlePlay,
-  handleStopCommand as handleStop,
-  handlePauseCommand as handlePause,
-  handleResumeCommand as handleResume,
-  handleQueueStatusCommand as handleQueueStatus,
-} from "./commands/play.js";
-import {
   commands as modProCommands,
   handleCommand as handleModPro,
 } from "./commands/moderationPro.js";
@@ -130,17 +110,9 @@ import {
   handleCommand as handleAudioPanel,
 } from "./commands/audioPanel.js";
 import {
-  commands as queueCtrlCommands,
-  handleCommand as handleQueueCtrl,
-} from "./commands/queueControls.js";
-import {
   commands as utilityGamingCommands,
   handleCommand as handleUtilityGaming,
 } from "./commands/utilityCommands.js";
-import {
-  commands as memoryProfileCommands,
-  handleCommand as handleMemoryProfile,
-} from "./commands/memoryProfile.js";
 import { commands as aiFunCommands, handleCommand as handleAiFun } from "./commands/aiFun.js";
 import {
   commands as apiCmdCommands,
@@ -272,6 +244,47 @@ const REMOVED_COMMANDS = new Set([
   "smartpoll",
   "ai-translate-custom",
   "giveaway",
+  // ─── Commandes supprimées (nettoyage) ───
+  "qr-code",
+  "screenshot",
+  "spotify-search",
+  "yt-search",
+  "lastfm",
+  "timer",
+  "play",
+  "stop",
+  "pause",
+  "resume",
+  "skip",
+  "previous",
+  "shuffle",
+  "loop",
+  "seek",
+  "volume",
+  "queue-status",
+  "nowplaying",
+  "reaction-roles",
+  "welcome-config",
+  "goodbye-config",
+  "poll",
+  "reminder",
+  "lfg",
+  "lfg-list",
+  "retrospective",
+  "retro-config",
+  "memory-profile",
+  "dictee",
+  "hangman",
+  "quiz",
+  "debate",
+  "two-truths",
+  "fortune",
+  "compliment",
+  "roast",
+  "pickup-line",
+  "vibe-check",
+  "therapy",
+  "timecapsule",
 ]);
 
 export const allCommands = [
@@ -299,14 +312,10 @@ export const allCommands = [
   ...casierGroupCommands,
   ...alertGroupCommands,
   ...aiGroupCommands,
-  ...dicteeCommands,
   ...alertcenterCommands,
   ...mp3Commands,
   ...ttsCommands,
   ...profileCommands,
-  ...reactionRolesCommands,
-  ...welcomeConfigCommands,
-  ...goodbyeConfigCommands,
   ...rechercheCommands,
   ...cleanDuplicatesCommands,
   ...maintenanceCommands,
@@ -318,13 +327,10 @@ export const allCommands = [
   ...modExtraCommands,
   ...extraCmdCommands,
   ...radioCommands,
-  ...playCommands,
   ...modProCommands,
   ...translateAutoCommands,
   ...audioPanelCommands,
-  ...queueCtrlCommands,
   ...utilityGamingCommands,
-  ...memoryProfileCommands,
   ...aiFunCommands,
   ...apiCmdCommands,
   ...channelRoutingCommands,
@@ -400,9 +406,6 @@ export function buildCommandRouter(): void {
   registerGroup(["mp3"], handleMp3);
   registerGroup(["tts"], handleTts);
   registerGroup(["profile"], handleProfile);
-  registerGroup(["reaction-roles"], handleReactionRoles);
-  registerGroup(["welcome-config"], handleWelcomeConfig);
-  registerGroup(["goodbye-config"], handleGoodbyeConfig);
   registerGroup(["recherche"], handleRecherche);
   registerGroup(["alertcenter", "alertconfig"], handleAlertcenter);
   registerGroup(["clean-duplicates"], handleCleanDuplicates);
@@ -447,33 +450,16 @@ export function buildCommandRouter(): void {
     handleExtraCmd,
   );
   registerGroup(["radio-gaming"], handleRadioGaming);
-  registerGroup(["play"], handlePlay);
-  registerGroup(["stop"], handleStop);
-  registerGroup(["pause"], handlePause);
-  registerGroup(["resume"], handleResume);
-  registerGroup(["queue-status"], handleQueueStatus);
   registerGroup(["mass-move", "voice-kick", "raid-shield", "spam-analysis"], handleModPro);
   registerGroup(["translate-auto"], handleTranslateAuto);
-  registerGroup(["volume", "seek", "audio-effects", "radio-stop"], handleAudioPanel);
-  registerGroup(["loop", "shuffle", "skip", "previous"], handleQueueCtrl);
+  registerGroup(["audio-effects", "radio-stop"], handleAudioPanel);
   registerGroup(
-    ["qr-code", "wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
+    ["wishlist-stats", "free-game-reminder", "fortnite-shop-preview", "epic-calendar"],
     handleUtilityGaming,
   );
-  registerGroup(["memory-profile"], handleMemoryProfile);
   registerGroup(["ai-fun"], handleAiFun);
   registerGroup(
-    [
-      "steam-deals",
-      "price-history",
-      "game-info",
-      "yt-search",
-      "spotify-search",
-      "gaming-news",
-      "screenshot",
-      "lastfm",
-      "api-status",
-    ],
+    ["steam-deals", "price-history", "game-info", "gaming-news", "api-status"],
     handleApiCmd,
   );
   registerGroup(["channel-routing"], handleChannelRouting);

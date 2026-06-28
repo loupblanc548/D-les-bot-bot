@@ -287,29 +287,7 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/ticket-setup - Configure le système de tickets`\n" +
       "`/self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/profile [action] - Profil personnalisé (bio, couleur, badges, titre)`\n" +
-      "`/reaction-roles [action] - Rôles par réaction (admin)`\n" +
-      "`/welcome-config [action] - Message de bienvenue (admin)`\n" +
-      "`/goodbye-config [action] - Message de départ (admin)`\n" +
-      "`/poll [question] [options] - Créer un sondage`\n" +
-      "`/reminder [action] - Rappels personnels`\n" +
-      "`/lfg [action] - Looking For Group`\n" +
-      "`/lfg-list - Liste des groupes LFG`\n" +
-      "`/retrospective [type] - Rétrospective`\n" +
-      "`/retro-config - Config rétrospective`\n" +
-      "`/memory-profile - Profil mémoire`\n" +
-      "`/dictee - Dictée interactive`\n" +
-      "`/hangman - Pendu`\n" +
-      "`/quiz - Quiz`\n" +
-      "`/debate - Débat`\n" +
-      "`/two-truths - Two Truths and a Lie`\n" +
-      "`/fortune - Fortune cookie`\n" +
-      "`/compliment - Compliment`\n" +
-      "`/roast - Roast`\n" +
-      "`/pickup-line - Pickup line`\n" +
-      "`/vibe-check - Vibe check`\n" +
-      "`/therapy - Therapy IA`\n" +
-      "`/timecapsule - Capsule temporelle`",
+      "`/profile [action] - Profil personnalisé (bio, couleur, badges, titre)`",
   },
   {
     id: "utility",
@@ -323,24 +301,6 @@ export const CATEGORIES: Category[] = [
       "`/mp3 [nom] - Joue un son en vocal`\n" +
       "`/tts [texte] [langue] - Lit du texte à voix haute en vocal`\n" +
       "`/recherche [sujet] - Recherche sur Internet`\n" +
-      "`/qr-code [url] - Génère un QR code`\n" +
-      "`/screenshot [url] - Capture d'écran d'un site`\n" +
-      "`/spotify-search [query] - Recherche Spotify`\n" +
-      "`/yt-search [query] - Recherche YouTube`\n" +
-      "`/lastfm [action] - Last.fm`\n" +
-      "`/timer [durée] - Minuteur`\n" +
-      "`/play [query] - Joue de la musique`\n" +
-      "`/stop - Arrête la musique`\n" +
-      "`/pause - Pause`\n" +
-      "`/resume - Reprend`\n" +
-      "`/skip - Passe à la suivante`\n" +
-      "`/previous - Précédente`\n" +
-      "`/shuffle - Aléatoire`\n" +
-      "`/loop - Boucle`\n" +
-      "`/seek [temps] - Seek`\n" +
-      "`/volume [niveau] - Volume`\n" +
-      "`/queue-status - Statut de la queue`\n" +
-      "`/nowplaying - Titre en cours`\n" +
       "`/audio-effects - Effets audio`\n" +
       "`/radio-stop - Arrête la radio`",
   },
