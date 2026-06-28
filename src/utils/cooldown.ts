@@ -8,6 +8,7 @@ interface CooldownEntry {
 }
 
 const cooldownMap = new Map<string, CooldownEntry>();
+const MAX_COOLDOWN_ENTRIES = 500;
 
 const COOLDOWN_CONFIG = {
   low: { duration: 60000, maxAlerts: 5 }, // 1 minute, 5 alertes
@@ -32,6 +33,10 @@ export function canSendAlert(
 
   if (!entry) {
     // Première alerte
+    if (cooldownMap.size >= MAX_COOLDOWN_ENTRIES) {
+      const firstKey = cooldownMap.keys().next().value;
+      if (firstKey !== undefined) cooldownMap.delete(firstKey);
+    }
     cooldownMap.set(key, {
       lastAlert: now,
       alertCount: 1,

@@ -34,6 +34,7 @@ interface CacheEntry {
 
 // Cache for extracted images
 const imageCache = new Map<string, CacheEntry>();
+const MAX_IMAGE_CACHE_ENTRIES = 200;
 
 // Default configuration
 const defaultConfig: ImageFallbackConfig = {
@@ -97,6 +98,11 @@ export async function extractImageWithFallback(
 
   // Cache the result
   if (result && currentConfig.cacheEnabled) {
+    // LRU eviction if at capacity
+    if (imageCache.size >= MAX_IMAGE_CACHE_ENTRIES) {
+      const firstKey = imageCache.keys().next().value;
+      if (firstKey !== undefined) imageCache.delete(firstKey);
+    }
     imageCache.set(cacheKey, { url: result, timestamp: Date.now() });
   }
 

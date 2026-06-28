@@ -36,6 +36,7 @@ const guildConfigs = new Map<string, GuildRateLimitConfig>();
 
 // Stockage en mémoire (pourrait être remplacé par Redis pour la persistance distribuée)
 const rateLimits = new Map<string, RateLimitEntry>();
+const MAX_RATE_LIMIT_ENTRIES = 500;
 
 /**
  * Génère une clé unique pour le rate limiting
@@ -156,6 +157,11 @@ export function checkRateLimit(
 
   // Si aucune entrée ou fenêtre expirée, créer une nouvelle
   if (!entry || now - entry.windowStart > config.windowMs) {
+    // Evict oldest if at capacity
+    if (rateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
+      const firstKey = rateLimits.keys().next().value;
+      if (firstKey !== undefined) rateLimits.delete(firstKey);
+    }
     entry = {
       count: 0,
       windowStart: now,

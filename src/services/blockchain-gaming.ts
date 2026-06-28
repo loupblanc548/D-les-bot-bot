@@ -35,6 +35,7 @@ class BlockchainGamingService {
   private gamingTokens: Map<string, GamingToken>;
   private alerts: BlockchainAlert[];
   private monitoringInterval: NodeJS.Timeout | null = null;
+  private readonly MAX_ALERTS = 100;
 
   constructor() {
     this.nftCollections = new Map();
@@ -171,6 +172,7 @@ class BlockchainGamingService {
     };
 
     this.alerts.push(alert);
+    if (this.alerts.length > this.MAX_ALERTS) this.alerts.shift();
     logger.warn(`[BlockchainGaming] Alert: ${message}`);
     this.cleanupOldAlerts();
   }

@@ -16,7 +16,7 @@ interface CachedResponse {
 const responseCache = new Map<string, CachedResponse>();
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure de TTL
-const MAX_CACHE_SIZE = 200; // Reduced from 1000 for memory optimization
+const MAX_CACHE_SIZE = 100; // Reduced for memory optimization
 
 /**
  * Génère une clé de cache basée sur le message et le contexte
@@ -80,7 +80,7 @@ export function cacheResponse(message: string, response: string, context?: strin
   responseCache.set(key, {
     response,
     timestamp: Date.now(),
-    hitCount: 0
+    hitCount: 0,
   });
 
   logger.debug(`[AICache] Réponse mise en cache: ${message.slice(0, 30)}...`);
@@ -136,7 +136,7 @@ export function getCacheStats(): {
     maxSize: MAX_CACHE_SIZE,
     hitRate,
     oldestEntry: oldestTimestamp,
-    newestEntry: newestTimestamp
+    newestEntry: newestTimestamp,
   };
 }
 

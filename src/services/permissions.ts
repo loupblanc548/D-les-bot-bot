@@ -78,6 +78,7 @@ export async function validateModeratorRoles(guild: {
 // Cache des permission levels par membre (TTL 60s)
 const permCache = new Map<string, { level: PermissionLevel; expires: number }>();
 const PERM_CACHE_TTL = 60 * 1000;
+const PERM_CACHE_MAX = 500;
 
 export async function getPermissionLevel(member: GuildMember): Promise<PermissionLevel> {
   const cacheKey = `${member.guild.id}:${member.id}`;
@@ -87,6 +88,11 @@ export async function getPermissionLevel(member: GuildMember): Promise<Permissio
   }
 
   const level = await computePermissionLevel(member);
+  // LRU eviction if at capacity
+  if (permCache.size >= PERM_CACHE_MAX) {
+    const firstKey = permCache.keys().next().value;
+    if (firstKey !== undefined) permCache.delete(firstKey);
+  }
   permCache.set(cacheKey, { level, expires: Date.now() + PERM_CACHE_TTL });
   return level;
 }
