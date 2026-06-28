@@ -3,13 +3,18 @@ import logger from "../../utils/logger.js";
 import ms from "ms";
 import { Queue } from "bullmq";
 
-const connection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  password: process.env.REDIS_PASSWORD,
-};
+const hasRedis = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+let remindersQueue: Queue | null = null;
 
-const remindersQueue = new Queue("reminders", { connection });
+if (hasRedis) {
+  remindersQueue = new Queue("reminders", {
+    connection: {
+      host: process.env.REDIS_HOST || "localhost",
+      port: parseInt(process.env.REDIS_PORT || "6379", 10),
+      password: process.env.REDIS_PASSWORD,
+    },
+  });
+}
 
 export const command = new SlashCommandBuilder()
   .setName("remindme")
@@ -40,6 +45,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     if (delay > 30 * 24 * 60 * 60 * 1000) {
       await interaction.reply({
         content: "❌ Le rappel ne peut pas dépasser 30 jours",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!remindersQueue) {
+      await interaction.reply({
+        content: "❌ Système de rappel indisponible (Redis non configuré)",
         ephemeral: true,
       });
       return;

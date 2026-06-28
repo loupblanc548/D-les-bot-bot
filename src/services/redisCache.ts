@@ -1,4 +1,4 @@
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 import NodeCache from "node-cache";
 import logger from "../utils/logger.js";
 
@@ -8,35 +8,40 @@ const hasRedis = Boolean(redisUrl);
 const localCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
 let redisConnected = false;
 let connectAttempted = false;
+let redisClient: RedisClientType | null = null;
 
-const redisClient = createClient({
-  url: redisUrl,
-  socket: {
-    connectTimeout: 5000,
-    reconnectStrategy: (retries: number) => Math.min(retries * 500, 5000),
-  },
-});
+if (hasRedis) {
+  redisClient = createClient({
+    url: redisUrl,
+    socket: {
+      connectTimeout: 5000,
+      reconnectStrategy: (retries: number) => Math.min(retries * 500, 5000),
+    },
+  });
 
-redisClient.on("error", () => {
-  if (redisConnected) {
-    logger.warn("[RedisCache] Error — fallback vers cache local");
-    redisConnected = false;
-  }
-});
-redisClient.on("connect", () => logger.info("[RedisCache] Connected"));
-redisClient.on("ready", () => {
-  redisConnected = true;
-  logger.info("[RedisCache] Ready");
-});
-redisClient.on("disconnect", () => {
-  if (redisConnected) {
-    logger.warn("[RedisCache] Disconnected — fallback vers cache local");
-    redisConnected = false;
-  }
-});
+  redisClient.on("error", () => {
+    if (redisConnected) {
+      logger.warn("[RedisCache] Error — fallback vers cache local");
+      redisConnected = false;
+    }
+  });
+  redisClient.on("connect", () => logger.info("[RedisCache] Connected"));
+  redisClient.on("ready", () => {
+    redisConnected = true;
+    logger.info("[RedisCache] Ready");
+  });
+  redisClient.on("disconnect", () => {
+    if (redisConnected) {
+      logger.warn("[RedisCache] Disconnected — fallback vers cache local");
+      redisConnected = false;
+    }
+  });
+} else {
+  logger.info("[RedisCache] REDIS_URL non défini — cache local uniquement");
+}
 
 async function connectRedis(): Promise<void> {
-  if (!hasRedis) return;
+  if (!hasRedis || !redisClient) return;
   if (connectAttempted) return;
   connectAttempted = true;
   if (!redisClient.isOpen) {
@@ -49,7 +54,7 @@ async function connectRedis(): Promise<void> {
 }
 
 async function disconnectRedis(): Promise<void> {
-  if (redisClient.isOpen) {
+  if (redisClient?.isOpen) {
     try {
       await redisClient.quit();
     } catch {
@@ -62,7 +67,7 @@ async function set<T>(key: string, value: T, ttl: number = 300): Promise<void> {
   await connectRedis();
   const serialized = JSON.stringify(value);
   try {
-    if (redisConnected) {
+    if (redisClient && redisConnected) {
       await redisClient.set(key, serialized, { EX: ttl });
       return;
     }
@@ -75,7 +80,7 @@ async function set<T>(key: string, value: T, ttl: number = 300): Promise<void> {
 async function get<T>(key: string): Promise<T | null> {
   await connectRedis();
   try {
-    if (redisConnected) {
+    if (redisClient && redisConnected) {
       const data = await redisClient.get(key);
       if (data) return JSON.parse(data) as T;
       return null;
@@ -91,7 +96,7 @@ async function get<T>(key: string): Promise<T | null> {
 async function del(key: string): Promise<void> {
   await connectRedis();
   try {
-    if (redisConnected) await redisClient.del(key);
+    if (redisClient && redisConnected) await redisClient.del(key);
   } catch {
     /* silent */
   }
@@ -101,7 +106,7 @@ async function del(key: string): Promise<void> {
 async function clear(): Promise<void> {
   await connectRedis();
   try {
-    if (redisConnected) await redisClient.flushDb();
+    if (redisClient && redisConnected) await redisClient.flushDb();
   } catch {
     /* silent */
   }
