@@ -5,8 +5,7 @@ import {
   User,
   EmbedBuilder,
 } from "discord.js";
-import { sendUserReport } from "../services/reportChannel.js";
-import { setReportChannel } from "../services/reportChannel.js";
+import { sendUserReport, setReportChannel, setUserReportChannel } from "../services/reportChannel.js";
 import logger from "../utils/logger.js";
 
 export const commands = [
@@ -31,11 +30,17 @@ export const commands = [
     .addSubcommand((sc) =>
       sc
         .setName("set-channel")
-        .setDescription("Définit le salon de signalement (admin)")
-        .addChannelOption((o) => o.setName("salon").setDescription("Le salon de signalement").setRequired(true)),
+        .setDescription("Définit le salon des alertes bot (admin)")
+        .addChannelOption((o) => o.setName("salon").setDescription("Salon où le bot envoie ses alertes de sécurité").setRequired(true)),
     )
     .addSubcommand((sc) =>
-      sc.setName("channel-info").setDescription("Affiche le salon de signalement actuel"),
+      sc
+        .setName("set-user-channel")
+        .setDescription("Définit le salon des signalements utilisateurs (admin)")
+        .addChannelOption((o) => o.setName("salon").setDescription("Salon où les utilisateurs peuvent signaler").setRequired(true)),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("channel-info").setDescription("Affiche les salons de signalement configurés"),
     )
     .toJSON(),
 ];
@@ -51,23 +56,42 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     const channel = interaction.options.getChannel("salon", true);
     await setReportChannel(interaction.guildId!, channel.id);
     await interaction.reply({
-      content: `✅ Salon de signalement défini sur ${channel} (${channel.id})`,
+      content: `✅ Salon des alertes bot défini sur ${channel} (${channel.id})`,
       ephemeral: true,
     });
-    logger.info(`[Report] Channel set to ${channel.id} by ${interaction.user.tag}`);
+    logger.info(`[Report] Bot alert channel set to ${channel.id} by ${interaction.user.tag}`);
+    return;
+  }
+
+  if (action === "set-user-channel") {
+    if (!interaction.memberPermissions?.has("ManageGuild")) {
+      await interaction.reply({ content: "❌ Vous devez avoir la permission de gérer le serveur.", ephemeral: true });
+      return;
+    }
+    const channel = interaction.options.getChannel("salon", true);
+    await setUserReportChannel(interaction.guildId!, channel.id);
+    await interaction.reply({
+      content: `✅ Salon des signalements utilisateurs défini sur ${channel} (${channel.id})`,
+      ephemeral: true,
+    });
+    logger.info(`[Report] User report channel set to ${channel.id} by ${interaction.user.tag}`);
     return;
   }
 
   if (action === "channel-info") {
     const prisma = (await import("../prisma.js")).default;
     const cfg = await prisma.guildConfig.findUnique({ where: { guildId: interaction.guildId! } });
-    const channelId = cfg?.reportChannelId;
-    if (!channelId) {
-      await interaction.reply({ content: "❌ Aucun salon de signalement configuré. Utilisez `/report set-channel`.", ephemeral: true });
-      return;
-    }
-    const channel = client.channels.cache.get(channelId);
-    await interaction.reply({ content: `📢 Salon de signalement : ${channel || channelId} (${channelId})`, ephemeral: true });
+    const botChannelId = cfg?.reportChannelId;
+    const userChannelId = cfg?.userReportChannelId;
+    const botChannel = botChannelId ? client.channels.cache.get(botChannelId) : null;
+    const userChannel = userChannelId ? client.channels.cache.get(userChannelId) : null;
+    await interaction.reply({
+      content:
+        `📢 **Salons de signalement:**\n` +
+        `🤖 Alertes bot : ${botChannel || botChannelId || "❌ Non configuré"}\n` +
+        `👤 Signalements utilisateurs : ${userChannel || userChannelId || "❌ Non configuré (fallback: alertes bot)"}`,
+      ephemeral: true,
+    });
     return;
   }
 
