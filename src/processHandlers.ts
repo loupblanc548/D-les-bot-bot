@@ -10,7 +10,16 @@ import { sendCrashAlert } from "./utils/crash-webhook.js";
 import { sendProactiveAlert } from "./services/proactiveAlerts.js";
 
 export function attachProcessHandlers(): void {
-  // Suppress ECONNREFUSED spam from node-redis socket layer (printed to stderr before handlers)
+  // Suppress ECONNREFUSED spam from node-redis/BullMQ socket layer (printed to stderr before handlers)
+  const origStderrWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: Buffer | string, ...args: unknown[]) => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString();
+    if (text.includes("ECONNREFUSED") && text.includes("6379")) {
+      return true; // Pretend we wrote it — silently swallow
+    }
+    return origStderrWrite(chunk, ...(args as []));
+  }) as typeof process.stderr.write;
+
   const origConsoleError = console.error;
   console.error = (...args: unknown[]) => {
     const combined = args.map(String).join(" ");

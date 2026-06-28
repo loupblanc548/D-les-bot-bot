@@ -1,15 +1,23 @@
 import { Queue, Worker, Job } from "bullmq";
 import logger from "../utils/logger.js";
 
-const hasRedis = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+// Parse REDIS_URL for BullMQ (which needs host/port, not a URL string)
+function parseRedisUrl(): { host: string; port: number; password?: string } | null {
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname,
+      port: parseInt(parsed.port || "6379", 10),
+      password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
-const connection = hasRedis
-  ? {
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379", 10),
-      password: process.env.REDIS_PASSWORD,
-    }
-  : null;
+const connection = parseRedisUrl();
 
 export const dealQueue = connection ? new Queue("deals", { connection }) : null;
 export const notificationQueue = connection ? new Queue("notifications", { connection }) : null;

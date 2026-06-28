@@ -2,18 +2,23 @@ import { Worker, Job, QueueEvents } from "bullmq";
 import logger from "../../utils/logger.js";
 import { Client, EmbedBuilder } from "discord.js";
 
-const hasRedis = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+function parseRedisUrl(): { host: string; port: number; password?: string } | null {
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  try {
+    const p = new URL(url);
+    return { host: p.hostname, port: parseInt(p.port || "6379", 10), password: p.password ? decodeURIComponent(p.password) : undefined };
+  } catch { return null; }
+}
+
+const redisConn = parseRedisUrl();
 
 export function startReminderWorker(client: Client): void {
-  if (!hasRedis) {
+  if (!redisConn) {
     logger.info("[ReminderWorker] REDIS non configuré — worker désactivé");
     return;
   }
-  const connection = {
-    host: process.env.REDIS_HOST || "localhost",
-    port: parseInt(process.env.REDIS_PORT || "6379", 10),
-    password: process.env.REDIS_PASSWORD,
-  };
+  const connection = redisConn;
 
   const worker = new Worker(
     "reminders",
