@@ -97,11 +97,14 @@ async function main(): Promise<void> {
 
   logger.info("Demarrage...");
 
-  // Health check HTTP (Docker/monitoring)
-  try {
-    startHealthServer(3000);
-  } catch {
-    logger.warn("Health server failed to start (port 3000 in use?)");
+  // Health check HTTP (Docker/monitoring) — only if control server won't handle it
+  const railwayPort = parseInt(process.env.PORT || "0", 10);
+  if (!railwayPort || railwayPort !== 3000) {
+    try {
+      startHealthServer(3000);
+    } catch {
+      logger.warn("Health server failed to start (port 3000 in use?)");
+    }
   }
   try {
     startMetricsServer();
@@ -123,6 +126,13 @@ async function main(): Promise<void> {
   startControlServer(config.controlPort, client).catch(() =>
     logger.warn("[Startup] Control server failed to start"),
   );
+  // Also listen on Railway's PORT for external access
+  const rwyPort = parseInt(process.env.PORT || "0", 10);
+  if (rwyPort && rwyPort !== config.controlPort) {
+    startControlServer(rwyPort, client).catch(() =>
+      logger.warn("[Startup] Control server (Railway port) failed to start"),
+    );
+  }
 
   // Nettoyage initial + automatique
   pruneOldData().catch((err) =>

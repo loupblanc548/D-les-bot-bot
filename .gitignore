@@ -1,9 +1,11 @@
 node_modules
-# Keep environment variables out of version control
+
+# Environment variables
 .env
 .env.local
 raw-editor.env
 
+# Prisma generated
 /generated/prisma
 
 # Database
@@ -21,46 +23,43 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+nul
 
 # IDE
 .vscode/
 .idea/
-nul
 
-# Cache runtime (genere automatiquement, obsolete apres migration Neon)
+# Cache runtime
 notification_cache.json
 notification_cache.json.tmp
 
 # Diagnostic / one-shot scripts
 _*.js
+_*.py
 ts_errors_raw.txt
 test-control-server.js
-node_modules/
-desktop-app/dist/
 
 # Build output
 dist/
+desktop-app/dist/
 
-# Build & test artifacts (fix-everything)
-dist/
+# Test artifacts
 /playwright-report/
 /test-results/
 /coverage/
 *.tsbuildinfo
 
-# AI tooling task dumps
+# AI tooling
 .kilocode/
 .agent-cache/
+.windsurf/
 
-# Python caches / one-shot debug scripts
+# Python
 __pycache__/
 *.pyc
-debug_fix_b.py
-verify_fix_b.py
-_write_test.py
 _dump/
 
-# Lint / diagnostic dumps (one-shot, not source)
+# Diagnostic dumps
 erreur.txt
 errors-list.txt
 unused-*.txt

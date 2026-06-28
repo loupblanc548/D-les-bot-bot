@@ -11,6 +11,7 @@ const Dashboard = {
   init() {
     this._setupTabs();
     this._setupActions();
+    this._setupSettings();
     this._updateStatsLoop();
     Store.on("status", (data) => data && this._renderStatus(data));
     Store.on("platforms", (data) => data && this._renderPlatforms(data));
@@ -18,6 +19,46 @@ const Dashboard = {
     Store.on("logs", () => LogConsole.render());
     Store.on("fortnite", (data) => data && this._renderFortnite(data));
     Store.update("init", true);
+  },
+
+  _setupSettings() {
+    window.electronAPI.loadSettings().then((s) => {
+      Store.update("settings", s);
+      const tab = document.getElementById("tab-settings");
+      if (tab && !tab.querySelector("#setting-api-url")) {
+        const defaultUrl = s.apiUrl || "https://d-les-bot-bot-production.up.railway.app";
+        const defaultToken = s.token || "d557bace6a9e095344f7d38c5fd2dea7c0720099316bc3b7258a1128d7db028d";
+        const section = document.createElement("div");
+        section.className = "settings-section";
+        section.innerHTML = `
+          <div class="settings-title">🔗 Connexion Railway</div>
+          <div class="setting-row" style="flex-direction:column;align-items:stretch">
+            <div class="setting-label">URL API du bot</div>
+            <div class="setting-desc">L'URL de ton bot sur Railway</div>
+            <input type="text" id="setting-api-url" value="${defaultUrl}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
+          </div>
+          <div class="setting-row" style="flex-direction:column;align-items:stretch">
+            <div class="setting-label">Token de contrôle</div>
+            <div class="setting-desc">Le token d'authentification (CONTROL_TOKEN)</div>
+            <input type="password" id="setting-api-token" value="${defaultToken}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
+          </div>
+          <div class="setting-row">
+            <button class="btn btn-primary btn-sm" onclick="saveApiSettings()" style="margin-top:8px">💾 Sauvegarder</button>
+          </div>
+        `;
+        const railwaySection = document.getElementById("settings-railway");
+        if (railwaySection) railwaySection.appendChild(section);
+        else tab.insertBefore(section, tab.firstChild);
+      }
+    });
+    window.saveApiSettings = async () => {
+      const apiUrl = document.getElementById("setting-api-url")?.value || "";
+      const token = document.getElementById("setting-api-token")?.value || "";
+      await window.electronAPI.saveSettings({ apiUrl, token });
+      Store.update("settings", { ...Store.get("settings"), apiUrl, token });
+      Notifications.success("Paramètres sauvegardés. Reconnexion...");
+      setTimeout(() => { WS.connect(); API.fetchStatus().catch(() => {}); }, 1000);
+    };
   },
 
   _setupTabs() {
@@ -44,48 +85,149 @@ const Dashboard = {
     window.refreshFortnite = () => { API.fetchFortnite(); Notifications.info("Actualisation Fortnite..."); };
     window.testFortniteDetection = async () => {
       try {
-        const res = await fetch(window.electronAPI._apiBase + "/api/fortnite/test", {
-          method: "POST", headers: { Authorization: "Bearer " + (Store.get("settings")?.token || "") },
-        });
-        if (res.ok) Notifications.success("Test Fortnite déclenché");
+        await window.electronAPI.apiFetch("/api/fortnite/test", { method: "POST" });
+        Notifications.success("Test Fortnite déclenché");
       } catch { Notifications.warning("Backend Fortnite non disponible"); }
     };
     window.clearLogs = () => LogConsole.clear();
     window.exportLogs = (fmt) => LogConsole.export(fmt);
     window.togglePauseLogs = () => LogConsole.togglePause();
+    window.sendDM = async () => {
+      const userId = document.getElementById("dm-user-id")?.value?.trim();
+      const message = document.getElementById("dm-message")?.value?.trim();
+      if (!userId || !message) { Notifications.warning("ID utilisateur et message requis"); return; }
+      try {
+        await window.electronAPI.sendDM(userId, message);
+        Notifications.success("DM envoyé à " + userId);
+        document.getElementById("dm-message").value = "";
+        loadDMHistory();
+      } catch (e) { Notifications.error("Échec envoi DM: " + e.message); }
+    };
+    window.loadDMHistory = async () => {
+      try {
+        const history = await window.electronAPI.getDMHistory();
+        const el = document.getElementById("dm-history");
+        if (!el) return;
+        if (!history?.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div>Aucun message envoyé</div>'; return; }
+        el.innerHTML = history.slice(-50).map((d) => {
+          const time = new Date(d.timestamp).toLocaleString("fr-FR");
+          const status = d.success ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--danger)">✕</span>';
+          return '<div class="activity-item"><span class="activity-time">' + time + '</span>' + status + '<span class="activity-msg">→ ' + Utils.escapeHtml(d.userId) + ': ' + Utils.escapeHtml(d.message?.substring(0, 80)) + '</span></div>';
+        }).join("");
+      } catch {}
+    };
+    window.changeRefreshRate = (rate) => {
+      const ms = parseInt(rate);
+      clearInterval(Dashboard._refreshInterval);
+      Dashboard._refreshInterval = setInterval(() => API.fetchStatus().catch(() => {}), ms);
+      Notifications.info("Fréquence d'actualisation: " + (ms / 1000) + "s");
+    };
+    window.controlAction = async (action) => {
+      try {
+        switch (action) {
+          case "restart":
+            if (!confirm("Vraiment redémarrer le bot ?")) return;
+            Notifications.warning("Redémarrage du bot...");
+            await window.electronAPI.apiFetch("/api/restart", { method: "POST" });
+            Notifications.success("Bot redémarré");
+            break;
+          case "reload-commands":
+            Notifications.info("Rechargement des commandes...");
+            await window.electronAPI.apiFetch("/api/restart", { method: "POST" });
+            Notifications.success("Bot redémarré (commandes rechargées)");
+            break;
+          case "clear-cache":
+            Notifications.info("Vidage du cache...");
+            await window.electronAPI.apiFetch("/api/flux/test", { method: "POST", body: JSON.stringify({ platformId: "all" }) });
+            Notifications.success("Cache vidé");
+            break;
+          case "clear-logs":
+            await window.electronAPI.clearLogs();
+            LogConsole.clear();
+            Notifications.success("Logs vidés");
+            break;
+          case "pause-all-flux":
+            Notifications.warning("Pause de tous les flux...");
+            await window.electronAPI.apiFetch("/api/flux/pause", { method: "POST", body: JSON.stringify({ platformId: "all" }) });
+            Notifications.success("Flux mis en pause");
+            break;
+          case "resume-all-flux":
+            Notifications.success("Reprise des flux...");
+            await window.electronAPI.apiFetch("/api/flux/resume", { method: "POST", body: JSON.stringify({ platformId: "all" }) });
+            Notifications.success("Flux repris");
+            break;
+          case "test-flux":
+            Notifications.info("Test des flux...");
+            await window.electronAPI.apiFetch("/api/flux/test", { method: "POST", body: JSON.stringify({ platformId: "all" }) });
+            Notifications.success("Test déclenché");
+            break;
+          case "test-fortnite":
+            Notifications.info("Test détection Fortnite...");
+            await window.electronAPI.apiFetch("/api/fortnite/test", { method: "POST" });
+            Notifications.success("Test Fortnite déclenché");
+            break;
+          case "refresh-fortnite":
+            API.fetchFortnite().catch(() => {});
+            Notifications.success("Données Fortnite actualisées");
+            break;
+          case "refresh-status":
+            API.fetchStatus().catch(() => {});
+            API.fetchPlatforms().catch(() => {});
+            Notifications.success("Statut actualisé");
+            break;
+          case "export-logs":
+            LogConsole.export("txt");
+            break;
+          case "health-check": {
+            const health = await window.electronAPI.apiFetch("/api/health");
+            if (health.status === "ok") Notifications.success("Bot en bonne santé — uptime: " + Math.floor(health.uptime) + "s");
+            else Notifications.error("Problème détecté");
+            break;
+          }
+        }
+      } catch (e) {
+        Notifications.error("Échec: " + (e.message || "erreur"));
+      }
+    };
+    this._loadServers();
   },
 
   _updateStatsLoop() {
     API.fetchStatus().catch(() => {});
     API.fetchPlatforms().catch(() => {});
     API.fetchFortnite().catch(() => {});
-    setInterval(() => API.fetchStatus().catch(() => {}), 5000);
-    setInterval(() => API.fetchPlatforms().catch(() => {}), 15000);
-    setInterval(() => API.fetchFortnite().catch(() => {}), 30000);
+    setInterval(() => API.fetchStatus().catch(() => {}), 10000);
+    setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
+    setInterval(() => API.fetchFortnite().catch(() => {}), 60000);
   },
 
   _renderStatus(data) {
     const dot = document.getElementById("titlebar-dot");
     if (dot) dot.className = data.online ? "" : "offline";
 
+    const memMb = data.memoryMb || data.memoryMB || 0;
+    const guilds = data.guilds ?? data.guildCount ?? 0;
+    const members = data.members ?? data.userCount ?? 0;
+    const ping = data.ping ?? -1;
+    const cpu = data.cpuPercent ?? 0;
+
     document.getElementById("stats-grid").innerHTML = [
       { icon: "⬤", label: "Statut", value: data.online ? "ONLINE" : "OFFLINE", cls: data.online ? "" : "offline" },
       { icon: "⏱", label: "Uptime", value: Utils.formatUptime(data.uptime), cls: "" },
-      { icon: "⚡", label: "Ping Discord", value: (data.ping >= 0 ? data.ping : "--") + "ms", cls: "" },
-      { icon: "💻", label: "CPU", value: data.cpuPercent + "%", cls: "" },
-      { icon: "📊", label: "RAM", value: data.memoryMB + " MB", cls: "" },
-      { icon: "🏠", label: "Serveurs", value: Utils.formatNumber(data.guildCount), cls: "" },
-      { icon: "👥", label: "Utilisateurs", value: Utils.formatNumber(data.userCount), cls: "" },
-      { icon: "📡", label: "Flux actifs", value: data.activePlatforms + "/" + data.totalPlatforms, cls: "" },
+      { icon: "⚡", label: "Ping Discord", value: (ping >= 0 ? ping : "--") + "ms", cls: "" },
+      { icon: "", label: "RAM", value: memMb + " MB", cls: "" },
+      { icon: "🏠", label: "Serveurs", value: Utils.formatNumber(guilds), cls: "" },
+      { icon: "👥", label: "Utilisateurs", value: Utils.formatNumber(members), cls: "" },
+      { icon: "📡", label: "Commandes", value: data.commands || 0, cls: "" },
     ].map((s) =>
       '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label +
       '</span></div><span class="stat-value ' + s.cls + '">' + s.value + '</span></div>'
     ).join("");
 
-    document.getElementById("sb-ping").textContent = "Ping: " + (data.ping >= 0 ? data.ping + "ms" : "--");
+    document.getElementById("sb-ping").textContent = "Ping: " + (ping >= 0 ? ping + "ms" : "--");
 
-    this._updateGauge(data.cpuPercent);
-    Charts.record(data.cpuPercent, data.memoryMB, Math.max(0, data.ping), this._eventsCounter);
+    this._updateGauge(cpu);
+    Charts.record(cpu, memMb, Math.max(0, ping), this._eventsCounter);
     this._eventsCounter = 0;
   },
 
@@ -96,17 +238,17 @@ const Dashboard = {
     const offset = circumference - (score / 100) * circumference;
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = offset;
-    circle.style.stroke = score >= 80 ? "#ef4444" : score >= 50 ? "#f59e0b" : "#22c55e";
+    circle.style.stroke = score >= 80 ? "var(--danger)" : score >= 50 ? "var(--warning)" : "var(--success)";
     document.getElementById("gauge-value").textContent = score + "%";
   },
 
   _renderPlatforms(platforms) {
     if (!platforms?.length) return;
     document.getElementById("flux-table-body").innerHTML = platforms.map((p) =>
-      '<tr><td><strong>' + p.label + '</strong></td>' +
+      '<tr><td><strong>' + Utils.escapeHtml(p.name || p.label || p.id) + '</strong></td>' +
       '<td><div class="flux-status"><span class="dot ' + (p.active ? "on" : "off") + '"></span>' + (p.active ? "Actif" : "Inactif") + '</div></td>' +
-      '<td style="font-size:11px;color:var(--text-muted)">' + (p.cacheCount || 0) + ' IDs</td>' +
-      '<td style="font-size:11px;color:var(--text-muted)">' + (p.lastRun || "--") + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + Utils.escapeHtml(p.platform || p.type || "—") + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + (p.lastFetch || p.lastRun || "--") + '</td>' +
       '<td><div class="flux-actions">' +
       '<label class="toggle"><input type="checkbox" ' + (p.active ? "checked" : "") +
       ' onchange="togglePlatform(\'' + p.id + '\', this.checked)"><span class="slider"></span></label>' +
@@ -123,8 +265,28 @@ const Dashboard = {
     document.getElementById("alert-list").innerHTML = alerts.map((a) => {
       const level = a.status === "error" ? "critical" : "warning";
       const icon = a.status === "error" ? "✕" : "⚠";
-      return '<div class="alert-card ' + level + '"><div class="alert-icon">' + icon + '</div><div class="alert-content"><div class="alert-title">' + a.name + '</div><div class="alert-desc">' + a.message + '</div></div></div>';
+      return '<div class="alert-card ' + level + '"><div class="alert-icon">' + icon + '</div><div class="alert-content"><div class="alert-title">' + Utils.escapeHtml(a.name) + '</div><div class="alert-desc">' + Utils.escapeHtml(a.message) + '</div></div></div>';
     }).join("");
+  },
+
+  _loadServers() {
+    window.electronAPI.getServers().then((servers) => {
+      const grid = document.getElementById("server-grid");
+      if (!grid || !servers?.length) { if (grid) grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏰</div>Aucun serveur</div>'; return; }
+      grid.innerHTML = servers.map((s) => {
+        const icon = s.iconURL ? '<img src="' + s.iconURL + '" style="width:40px;height:40px;border-radius:50%">' : '<div class="server-icon">🏰</div>';
+        return '<div class="server-card"><div class="server-card-header">' + icon + '<div><div class="server-name">' + Utils.escapeHtml(s.name) + '</div><div class="server-id">' + s.id + '</div></div></div><div class="server-stats"><span class="server-stat">👥 ' + Utils.formatNumber(s.memberCount) + '</span><span class="server-stat">👑 ' + Utils.escapeHtml(s.ownerName || "—") + '</span></div></div>';
+      }).join("");
+    }).catch(() => {
+      const grid = document.getElementById("server-grid");
+      if (grid) grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏰</div>Impossible de charger les serveurs</div>';
+    });
+    document.getElementById("server-search")?.addEventListener("input", (e) => {
+      const search = e.target.value.toLowerCase();
+      document.querySelectorAll("#server-grid .server-card").forEach((card) => {
+        card.style.display = card.textContent.toLowerCase().includes(search) ? "" : "none";
+      });
+    });
   },
 
   _renderFortnite(data) {

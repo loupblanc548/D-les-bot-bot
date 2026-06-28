@@ -76,8 +76,8 @@ const API = {
 
   async triggerCleanup() {
     try {
-      const res = await window.electronAPI.triggerCleanup();
-      Notifications.success("Cache nettoyé: " + res.before + " → " + res.after);
+      await window.electronAPI.triggerCleanup();
+      Notifications.success("Nettoyage déclenché");
     } catch (e) {
       Notifications.error("Échec nettoyage: " + e.message);
     }
