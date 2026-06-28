@@ -12,7 +12,7 @@ if (hasRedis) {
     url: redisUrl,
     socket: {
       connectTimeout: 5000,
-      reconnectStrategy: (retries: number) => Math.min(retries * 500, 5000),
+      reconnectStrategy: false,
     },
   });
 
