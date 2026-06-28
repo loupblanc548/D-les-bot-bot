@@ -223,11 +223,15 @@ async function main(): Promise<void> {
 
   // Health check
   healthResults = await runHealthCheck();
-  const healthFailed = healthResults.filter((r) => !r.passed).length;
-  if (healthFailed > 0) {
-    logger.error(`\n[HEALTHCHECK] LANCEMENT BLOQUE : ${healthFailed} anomalie(s).`);
+  const criticalFailed = healthResults.filter((r) => !r.passed && r.critical).length;
+  const nonCriticalFailed = healthResults.filter((r) => !r.passed && !r.critical).length;
+  if (criticalFailed > 0) {
+    logger.error(`\n[HEALTHCHECK] LANCEMENT BLOQUE : ${criticalFailed} anomalie(s) critique(s).`);
     logger.error("[HEALTHCHECK] Corrigez les variables .env ou fichiers manquants.");
     process.exit(1);
+  }
+  if (nonCriticalFailed > 0) {
+    logger.warn(`[HEALTHCHECK] ${nonCriticalFailed} anomalie(s) non-critique(s) — démarrage autorisé.`);
   }
 
   // Construction du routeur de commandes
