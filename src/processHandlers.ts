@@ -10,6 +10,19 @@ import { sendCrashAlert } from "./utils/crash-webhook.js";
 import { sendProactiveAlert } from "./services/proactiveAlerts.js";
 
 export function attachProcessHandlers(): void {
+  // Suppress ECONNREFUSED spam from node-redis socket layer (printed to stderr before handlers)
+  const origConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    const combined = args.map(String).join(" ");
+    if (
+      combined.includes("ECONNREFUSED") &&
+      (combined.includes("6379") || combined.includes("redis") || combined.includes("AggregateError"))
+    ) {
+      return; // Silent — Redis is optional, fallback to local cache
+    }
+    origConsoleError(...args);
+  };
+
   function isRedisError(err: Error): boolean {
     const msg = String(err.message);
     const code = (err as any).code;

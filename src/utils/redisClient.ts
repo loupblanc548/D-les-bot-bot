@@ -21,7 +21,11 @@ if (hasRedis) {
       logger.warn("[RedisClient] Error — degrading");
       connected = false;
     }
-    // Always suppress — prevents unhandled 'error' event crash
+    // Always suppress — prevents ECONNREFUSED spam on console
+  });
+  // Suppress unhandled socket errors (ECONNREFUSED etc.)
+  client.on("connectionError", () => {
+    // Silent — prevents console spam when Redis is unreachable
   });
   client.on("ready", () => {
     connected = true;
