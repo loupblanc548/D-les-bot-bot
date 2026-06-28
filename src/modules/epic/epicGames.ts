@@ -1,13 +1,6 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import logger from "../../utils/logger.js";
-import { createClient } from "redis";
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
+import { ensureConnected } from "../../utils/redisClient.js";
 
 const EPIC_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions";
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
@@ -102,7 +95,8 @@ function parseEpicGames(data: any): EpicGame[] {
 async function processGame(client: Client, game: EpicGame): Promise<void> {
   try {
     const postedKey = `${EPIC_POSTED_KEY_PREFIX}${game.id}`;
-    const isPosted = await redis.get(postedKey);
+    const redis = await ensureConnected();
+    const isPosted = redis ? await redis.get(postedKey) : null;
 
     if (isPosted) {
       return;
@@ -136,7 +130,7 @@ async function processGame(client: Client, game: EpicGame): Promise<void> {
 
     await channel.send({ embeds: [embed] });
 
-    await redis.set(postedKey, "1", { EX: EPIC_TTL });
+    if (redis) await redis.set(postedKey, "1", { EX: EPIC_TTL });
 
     logger.info(`[EpicGames] Posted new free game: ${game.title}`);
   } catch (error) {

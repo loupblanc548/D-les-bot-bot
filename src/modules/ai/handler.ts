@@ -1,13 +1,7 @@
 import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
 import logger from "../../utils/logger.js";
-import { createClient } from "redis";
+import { ensureConnected } from "../../utils/redisClient.js";
 
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 const CONTEXT_KEY_PREFIX = "ai:context:";
 const CONTEXT_TTL = 15 * 60; // 15 minutes
 const MAX_MESSAGES = 8;
@@ -78,6 +72,8 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
 
 async function getContext(key: string): Promise<MessageContext[]> {
   try {
+    const redis = await ensureConnected();
+    if (!redis) return [];
     const data = await redis.get(key);
     return data ? JSON.parse(data) : [];
   } catch (error) {
@@ -88,6 +84,8 @@ async function getContext(key: string): Promise<MessageContext[]> {
 
 async function saveContext(key: string, context: MessageContext[]): Promise<void> {
   try {
+    const redis = await ensureConnected();
+    if (!redis) return;
     await redis.set(key, JSON.stringify(context), { EX: CONTEXT_TTL });
   } catch (error) {
     logger.error("[AIChat] Error saving context:", error);

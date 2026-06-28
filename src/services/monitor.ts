@@ -35,15 +35,8 @@ import {
   textOf,
   extractLink,
 } from "../utils/rss-parser.js";
-import { createClient } from "redis";
+import { ensureConnected } from "../utils/redisClient.js";
 import { isMonitoringEnabled } from "../modules/guild/guildConfig.js";
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;
@@ -68,6 +61,8 @@ const cacheStats: CacheStats = { hits: 0, misses: 0 };
 
 async function getCachedData<T>(key: string): Promise<T | null> {
   try {
+    const redis = await ensureConnected();
+    if (!redis) return null;
     const data = await redis.get(key);
     if (data) {
       cacheStats.hits++;
@@ -84,6 +79,8 @@ async function getCachedData<T>(key: string): Promise<T | null> {
 
 async function setCachedData<T>(key: string, data: T, ttl: number = 300): Promise<void> {
   try {
+    const redis = await ensureConnected();
+    if (!redis) return;
     await redis.set(key, JSON.stringify(data), { EX: ttl });
   } catch (error) {
     logger.error("[Cache] Error setting data:", error);

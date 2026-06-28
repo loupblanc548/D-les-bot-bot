@@ -1,5 +1,4 @@
 import { Client, TextChannel } from "discord.js";
-import { createClient } from "redis";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdir, unlink, readdir } from "fs/promises";
@@ -7,17 +6,6 @@ import { join } from "path";
 import logger from "../../utils/logger.js";
 import { syncBackupsToCloud } from "../../utils/rcloneSync.js";
 const execFileAsync = promisify(execFile);
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", { message: err.message }));
-redis.connect().catch((err) =>
-  logger.error("[Redis] Connect error:", {
-    message: err instanceof Error ? err.message : String(err),
-  }),
-);
 
 const BACKUP_DIR = join(process.cwd(), "backups");
 const BACKUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures

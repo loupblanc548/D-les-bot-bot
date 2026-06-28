@@ -1,14 +1,7 @@
 import { Client, TextChannel } from "discord.js";
 import logger from "../../utils/logger.js";
-import { createClient } from "redis";
 import prisma from "../../prisma.js";
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
+import { ensureConnected } from "../../utils/redisClient.js";
 
 const DIAGNOSTIC_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
 
@@ -40,8 +33,9 @@ async function runDiagnostic(client: Client): Promise<void> {
     const discordPing = client.ws.ping ? Math.round(client.ws.ping) : 0;
 
     const redisPingStart = Date.now();
-    await redis.ping();
-    const redisPing = Date.now() - redisPingStart;
+    const redisClient = await ensureConnected();
+    if (redisClient) await redisClient.ping();
+    const redisPing = redisClient ? Date.now() - redisPingStart : 0;
 
     const postgresPingStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;

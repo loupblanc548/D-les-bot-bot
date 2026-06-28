@@ -1,7 +1,7 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../../utils/logger.js";
 import Parser from "rss-parser";
-import { createClient } from "redis";
+import { ensureConnected } from "../../utils/redisClient.js";
 import {
   createEpicEmbed,
   createSteamEmbed,
@@ -9,13 +9,6 @@ import {
   createXboxEmbed,
   createNintendoEmbed,
 } from "./themedEmbeds.js";
-
-const redis = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-
-redis.on("error", (err: Error) => logger.error("[Redis] Error:", err));
-redis.connect().catch((err) => logger.error("[Redis] Connect error:", err));
 
 const parser = new Parser();
 const RSS_POSTED_KEY_PREFIX = "rss:posted:";
@@ -111,7 +104,8 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
     }
 
     const postedKey = `${RSS_POSTED_KEY_PREFIX}${itemIdentifier}`;
-    const isPosted = await redis.get(postedKey);
+    const redis = await ensureConnected();
+    const isPosted = redis ? await redis.get(postedKey) : null;
 
     if (isPosted) {
       return;
@@ -128,7 +122,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
 
     await channel.send({ embeds: [embed] });
 
-    await redis.set(postedKey, "1", { EX: RSS_TTL });
+    if (redis) await redis.set(postedKey, "1", { EX: RSS_TTL });
 
     logger.info(`[RSSAggregator] Posted new ${feed.name} item: ${latestItem.title}`);
   } catch (error) {
