@@ -28,6 +28,7 @@ import {
   enforceFilter as enforceWordFilter,
 } from "../services/wordFilter.js";
 import { enforceServerRules } from "../services/serverRules.js";
+import { processAutoReact } from "../services/autoReact.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -171,6 +172,9 @@ export function handleMessageEvents(client: Client) {
 
       await handleContextualAiChat(message, client);
       await handleSecurityModules(message, spamTracker);
+
+      // ── Auto-react (après sécurité, non bloquant) ──
+      await processAutoReact(message);
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
     }
