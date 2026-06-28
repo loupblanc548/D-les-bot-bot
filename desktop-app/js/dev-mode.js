@@ -11,28 +11,25 @@ if (!window.electronAPI) {
     // Dashboard
     getStatus: function () {
       return Promise.resolve({
-        online: true, uptime: 84200, memoryMB: 245.6, cpuPercent: 34,
-        loadAvg: [1.2, 0.9, 0.7], ping: 42,
-        guildCount: 18, userCount: 45200, activePlatforms: 5, totalPlatforms: 7,
-        cacheTotal: 3200, alertsTotal: 2, pid: 12345, version: "1.1.0"
+        online: true, uptime: 84200, memoryMb: 245.6, cpuPercent: 34,
+        ping: 42,
+        guilds: 18, members: 45200,
+        commands: 24
       });
     },
 
     getPlatforms: function () {
       return Promise.resolve([
-        { id: "free-games", label: "Jeux gratuits (Epic/Steam/GOG...)", active: true, cacheCount: 450, lastRun: new Date().toISOString(), recentErrors: 0 },
-        { id: "twitter", label: "Twitter / X", active: true, cacheCount: 1200, lastRun: new Date().toISOString(), recentErrors: 1 },
-        { id: "deals", label: "Bons plans (Dealabs/PPDG...)", active: true, cacheCount: 320, lastRun: new Date().toISOString(), recentErrors: 0 },
-        { id: "steam-news", label: "Actualités Steam", active: true, cacheCount: 180, lastRun: new Date().toISOString(), recentErrors: 0 },
-        { id: "patch-notes", label: "Patch notes globaux", active: false, cacheCount: 95, lastRun: null, recentErrors: 2 },
-        { id: "instantgaming-news", label: "Instant Gaming - News", active: true, cacheCount: 60, lastRun: new Date().toISOString(), recentErrors: 0 },
-        { id: "instantgaming-giveaway", label: "Instant Gaming - Giveaway", active: true, cacheCount: 210, lastRun: new Date().toISOString(), recentErrors: 0 },
+        { id: "twitter", name: "Twitter / X", platform: "twitter", active: true, lastFetch: new Date().toISOString() },
+        { id: "youtube", name: "YouTube", platform: "youtube", active: true, lastFetch: new Date().toISOString() },
+        { id: "rss", name: "RSS News", platform: "rss", active: true, lastFetch: new Date().toISOString() },
+        { id: "patch-notes", name: "Patch notes", platform: "rss", active: false, lastFetch: null },
       ]);
     },
 
     getCache: function () { return Promise.resolve({ total: 3200, stats: {} }); },
     togglePlatform: function () { return Promise.resolve(); },
-    triggerCleanup: function () { return Promise.resolve({ before: 3200, after: 2800 }); },
+    triggerCleanup: function () { return Promise.resolve({ success: true }); },
     restartBot: function () { return Promise.resolve(); },
 
     // Health & Activity
@@ -47,10 +44,20 @@ if (!window.electronAPI) {
     getDiscord: function () { return Promise.resolve({ ping: 42, guildCount: 18 }); },
     getStats: function () { return Promise.resolve({ messagesEnvoyes: 1450, alertes: 12, erreurs: 3, detections: 890 }); },
 
-    // Feeds
-    fluxPause: function () { return Promise.resolve(); },
-    fluxResume: function () { return Promise.resolve(); },
-    fluxTest: function () { return Promise.resolve(); },
+    // Generic API fetch (for controlAction)
+    apiFetch: function (endpoint, options) {
+      console.log("[DEV] apiFetch:", endpoint, options);
+      return Promise.resolve({ success: true });
+    },
+    // DM
+    sendDM: function () { return Promise.resolve({ success: true }); },
+    getDMHistory: function () { return Promise.resolve([]); },
+    // Servers
+    getServers: function () {
+      return Promise.resolve([
+        { id: "123456789", name: "Serveur de test", memberCount: 42, ownerName: "Admin", iconURL: null }
+      ]);
+    },
 
     // Fortnite — données mockées riches pour tester les animations
     getFortnite: function () {

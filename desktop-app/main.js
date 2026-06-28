@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const WebSocket = require("ws");
 
 let mainWindow;
 
@@ -9,7 +10,8 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    backgroundColor: "#0b1220",
+    backgroundColor: "#00000000",
+    transparent: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -28,14 +30,17 @@ app.on("window-all-closed", () => app.quit());
 
 // ─── Settings ────────────────────────────────────────────────────────────
 
-let settings = {};
+let settings = null;
 const fs = require("fs");
 const SETTINGS_FILE = path.join(app.getPath("userData"), "settings.json");
 
 function loadSettings() {
+  if (settings) return settings;
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
+    } else {
+      settings = {};
     }
   } catch (e) {
     settings = {};
@@ -44,7 +49,7 @@ function loadSettings() {
 }
 
 function saveSettings(newSettings) {
-  settings = { ...settings, ...newSettings };
+  settings = { ...loadSettings(), ...newSettings };
   try {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
   } catch (e) {
@@ -54,13 +59,13 @@ function saveSettings(newSettings) {
 }
 
 function getToken() {
-  loadSettings();
-  return settings.token || "CHANGE_ME_TO_MATCH_YOUR_CONTROL_TOKEN";
+  return loadSettings().token || "d557bace6a9e095344f7d38c5fd2dea7c0720099316bc3b7258a1128d7db028d";
 }
 
 function getApiBase() {
-  loadSettings();
-  return "http://localhost:" + (settings.port || "3002");
+  const s = loadSettings();
+  if (s.apiUrl) return s.apiUrl.replace(/\/$/, "");
+  return "https://d-les-bot-bot-production.up.railway.app";
 }
 
 // ─── API Helper ─────────────────────────────────────────────────────────
@@ -85,18 +90,18 @@ async function apiFetch(endpoint, options = {}) {
 // Dashboard
 ipcMain.handle("api:status", () => apiFetch("/api/status"));
 ipcMain.handle("api:platforms", () => apiFetch("/api/platforms"));
-ipcMain.handle("api:cache", () => apiFetch("/api/cache"));
+ipcMain.handle("api:cache", () => apiFetch("/api/metrics"));
 ipcMain.handle("api:toggle-platform", (_e, { platformId, enable }) =>
-  apiFetch("/api/platforms/toggle", { method: "POST", body: JSON.stringify({ platformId, enable }) })
+  apiFetch("/api/flux/" + (enable ? "resume" : "pause"), { method: "POST", body: JSON.stringify({ platformId }) })
 );
-ipcMain.handle("api:cleanup", () => apiFetch("/api/cleanup", { method: "POST" }));
-ipcMain.handle("api:restart", () => apiFetch("/api/bot/restart", { method: "POST" }));
+ipcMain.handle("api:cleanup", () => apiFetch("/api/flux/test", { method: "POST", body: JSON.stringify({ platformId: "all" }) }));
+ipcMain.handle("api:restart", () => apiFetch("/api/restart", { method: "POST" }));
 
 // Health & Activity
 ipcMain.handle("api:health", () => apiFetch("/api/health"));
-ipcMain.handle("api:activity", () => apiFetch("/api/activity"));
-ipcMain.handle("api:discord", () => apiFetch("/api/discord"));
-ipcMain.handle("api:stats", () => apiFetch("/api/stats"));
+ipcMain.handle("api:activity", () => apiFetch("/api/logs?limit=20"));
+ipcMain.handle("api:discord", () => apiFetch("/api/status"));
+ipcMain.handle("api:stats", () => apiFetch("/api/metrics"));
 
 // Feeds / Flux
 ipcMain.handle("api:flux-pause", (_e, { platformId }) =>
@@ -119,6 +124,18 @@ ipcMain.handle("api:logs", (_e, params) => {
 });
 ipcMain.handle("api:clear-logs", () => apiFetch("/api/logs", { method: "DELETE" }));
 
+// DM
+ipcMain.handle("api:send-dm", (_e, { userId, message }) =>
+  apiFetch("/api/dm/send", { method: "POST", body: JSON.stringify({ userId, message }) })
+);
+ipcMain.handle("api:dm-history", () => apiFetch("/api/dm/history"));
+
+// Servers
+ipcMain.handle("api:servers", () => apiFetch("/api/servers"));
+
+// Generic fetch
+ipcMain.handle("api:fetch", (_e, { endpoint, options }) => apiFetch(endpoint, options));
+
 // Settings
 ipcMain.handle("settings:load", () => loadSettings());
 ipcMain.handle("settings:save", (_e, newSettings) => saveSettings(newSettings));
@@ -139,8 +156,9 @@ ipcMain.handle("ws:connect", () => {
   if (ws && ws.readyState === WebSocket.OPEN) return { ok: true };
 
   return new Promise((resolve) => {
-    const port = settings.port || "3002";
-    ws = new WebSocket("ws://localhost:" + port + "/ws?token=" + getToken());
+    const apiBase = getApiBase();
+    const wsUrl = apiBase.replace(/^http/, "ws") + "/ws?token=" + getToken();
+    ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log("[WS] Connected");

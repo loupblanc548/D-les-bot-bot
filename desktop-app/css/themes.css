@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Themes CSS — Multiple theme definitions + Splash screen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Theme: Glass (default) ─────────────────────────────────── */
+[data-theme="glass"] {
+  --bg-base: rgba(10, 15, 28, 0.85);
+  --bg-primary: rgba(17, 24, 39, 0.55);
+  --bg-secondary: rgba(26, 35, 50, 0.45);
+  --bg-tertiary: rgba(31, 42, 58, 0.4);
+  --bg-hover: rgba(38, 51, 72, 0.5);
+  --border: rgba(45, 58, 79, 0.5);
+  --border-light: rgba(61, 79, 102, 0.6);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-bg: rgba(59,130,246,0.1);
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --purple: #8b5cf6;
+  --glass-bg: rgba(17, 24, 39, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 24px;
+}
+
+/* ─── Theme: Cyber ───────────────────────────────────────────── */
+[data-theme="cyber"] {
+  --bg-base: #0a0014;
+  --bg-primary: #14001f;
+  --bg-secondary: #1a0028;
+  --bg-tertiary: #220033;
+  --bg-hover: #2e0044;
+  --border: #3d0066;
+  --border-light: #5c0099;
+  --text-primary: #e0d4ff;
+  --text-secondary: #a78bfa;
+  --text-muted: #7c6f9e;
+  --accent: #d946ef;
+  --accent-hover: #e879f9;
+  --accent-bg: rgba(217,70,239,0.1);
+  --success: #00ff88;
+  --danger: #ff0066;
+  --warning: #ffaa00;
+  --purple: #c026d3;
+  --glass-bg: rgba(20, 0, 31, 0.7);
+  --glass-border: rgba(217, 70, 239, 0.15);
+  --glass-blur: 20px;
+}
+
+/* ─── Theme: Carbon ──────────────────────────────────────────── */
+[data-theme="carbon"] {
+  --bg-base: #0a0a0a;
+  --bg-primary: #141414;
+  --bg-secondary: #1c1c1c;
+  --bg-tertiary: #242424;
+  --bg-hover: #2e2e2e;
+  --border: #333333;
+  --border-light: #444444;
+  --text-primary: #e8e8e8;
+  --text-secondary: #999999;
+  --text-muted: #666666;
+  --accent: #ff6b35;
+  --accent-hover: #ff8855;
+  --accent-bg: rgba(255,107,53,0.1);
+  --success: #00d97e;
+  --danger: #ff3838;
+  --warning: #ffb800;
+  --purple: #9b59b6;
+  --glass-bg: rgba(20, 20, 20, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-blur: 16px;
+}
+
+/* ─── Theme: Ocean ───────────────────────────────────────────── */
+[data-theme="ocean"] {
+  --bg-base: #001220;
+  --bg-primary: #001829;
+  --bg-secondary: #002238;
+  --bg-tertiary: #002b47;
+  --bg-hover: #003656;
+  --border: #004070;
+  --border-light: #005a99;
+  --text-primary: #d4f1ff;
+  --text-secondary: #7ec8e3;
+  --text-muted: #4a8ba8;
+  --accent: #00d4ff;
+  --accent-hover: #33dfff;
+  --accent-bg: rgba(0,212,255,0.1);
+  --success: #00ff9d;
+  --danger: #ff4757;
+  --warning: #ffd93d;
+  --purple: #6c5ce7;
+  --glass-bg: rgba(0, 24, 41, 0.65);
+  --glass-border: rgba(0, 212, 255, 0.12);
+  --glass-blur: 20px;
+}
+
+/* ─── Theme: Sunset ──────────────────────────────────────────── */
+[data-theme="sunset"] {
+  --bg-base: #1a0a14;
+  --bg-primary: #2a0f1e;
+  --bg-secondary: #381528;
+  --bg-tertiary: #451a32;
+  --bg-hover: #52203c;
+  --border: #5e2748;
+  --border-light: #7a3360;
+  --text-primary: #ffe4e6;
+  --text-secondary: #f9a8c4;
+  --text-muted: #c97b9a;
+  --accent: #ff6b6b;
+  --accent-hover: #ff8585;
+  --accent-bg: rgba(255,107,107,0.1);
+  --success: #51cf66;
+  --danger: #ff4444;
+  --warning: #ffd43b;
+  --purple: #cc5de8;
+  --glass-bg: rgba(42, 15, 30, 0.65);
+  --glass-border: rgba(255, 107, 107, 0.12);
+  --glass-blur: 18px;
+}
+
+/* ─── Splash Screen ──────────────────────────────────────────── */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+#splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.splash-logo {
+  width: 80px; height: 80px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px;
+  box-shadow: 0 0 40px var(--accent);
+  animation: splashPulse 1.5s ease-in-out infinite;
+}
+@keyframes splashPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 40px var(--accent); }
+  50% { transform: scale(1.1); box-shadow: 0 0 60px var(--accent); }
+}
+
+.splash-title {
+  margin-top: 24px;
+  font-size: 22px; font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+}
+
+.splash-subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.splash-bar {
+  margin-top: 32px;
+  width: 220px; height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.splash-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--purple));
+  border-radius: 2px;
+  animation: splashBar 2s ease-in-out forwards;
+}
+@keyframes splashBar {
+  0% { width: 0%; }
+  60% { width: 75%; }
+  100% { width: 100%; }
+}
+
+.splash-dots {
+  margin-top: 16px;
+  display: flex; gap: 8px;
+}
+.splash-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: splashDots 1.4s ease-in-out infinite;
+}
+.splash-dot:nth-child(2) { animation-delay: 0.2s; }
+.splash-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes splashDots {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ─── Theme Switcher ─────────────────────────────────────────── */
+.theme-switcher {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.theme-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px; font-weight: 500;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-ui);
+}
+.theme-chip:hover { transform: translateY(-2px); }
+.theme-chip.active { border-color: var(--accent); }
+.theme-chip-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.theme-chip-glass .theme-chip-dot { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+.theme-chip-cyber .theme-chip-dot { background: linear-gradient(135deg, #d946ef, #00ff88); }
+.theme-chip-carbon .theme-chip-dot { background: linear-gradient(135deg, #ff6b35, #333); }
+.theme-chip-ocean .theme-chip-dot { background: linear-gradient(135deg, #00d4ff, #6c5ce7); }
+.theme-chip-sunset .theme-chip-dot { background: linear-gradient(135deg, #ff6b6b, #ffd43b); }

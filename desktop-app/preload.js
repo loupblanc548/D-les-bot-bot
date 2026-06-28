@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getLogs: (params) => ipcRenderer.invoke("api:logs", params),
   clearLogs: () => ipcRenderer.invoke("api:clear-logs"),
 
+  // DM
+  sendDM: (userId, message) => ipcRenderer.invoke("api:send-dm", { userId, message }),
+  getDMHistory: () => ipcRenderer.invoke("api:dm-history"),
+
+  // Servers
+  getServers: () => ipcRenderer.invoke("api:servers"),
+
+  // Generic API fetch
+  apiFetch: (endpoint, options) => ipcRenderer.invoke("api:fetch", { endpoint, options }),
+
   // WebSocket
   connectWebSocket: () => ipcRenderer.invoke("ws:connect"),
   disconnectWebSocket: () => ipcRenderer.invoke("ws:disconnect"),
