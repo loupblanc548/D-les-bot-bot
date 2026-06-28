@@ -121,6 +121,18 @@ export async function startControlServer(port: number, client: Client): Promise<
       return;
     }
 
+    if (path === "/metrics") {
+      try {
+        const { register } = await import("./services/metrics.js");
+        res.writeHead(200, { "Content-Type": register.contentType });
+        res.end(await register.metrics());
+      } catch {
+        res.writeHead(503, { "Content-Type": "text/plain" });
+        res.end("Metrics unavailable");
+      }
+      return;
+    }
+
     if (!authCheck(req)) {
       sendJson(res, 401, { error: "Non autorisé" });
       return;
