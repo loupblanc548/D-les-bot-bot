@@ -165,6 +165,14 @@ import {
   commands as communityGroupCommands,
   handleCommand as handleCommunityGroup,
 } from "./commands/communityGroup.js";
+import {
+  commands as funGroupCommands,
+  handleCommand as handleFunGroup,
+} from "./commands/funGroup.js";
+import {
+  commands as game2GroupCommands,
+  handleCommand as handleGame2Group,
+} from "./commands/game2Group.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -438,6 +446,8 @@ export const allCommands = [
   ...communityGroupCommands,
   ...toolsGroupCommands,
   ...casierGroupCommands,
+  ...funGroupCommands,
+  ...game2GroupCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -474,6 +484,8 @@ export function buildCommandRouter(): void {
   registerGroup(["community"], handleCommunityGroup);
   registerGroup(["tools"], handleToolsGroup);
   registerGroup(["casier"], handleCasierGroup);
+  registerGroup(["fun"], handleFunGroup);
+  registerGroup(["game2"], handleGame2Group);
 }
 
 export function applyCommandMiddleware(): void {
