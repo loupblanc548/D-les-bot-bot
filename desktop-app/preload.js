@@ -35,8 +35,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Servers
   getServers: () => ipcRenderer.invoke("api:servers"),
 
-  // Generic API fetch
-  apiFetch: (endpoint, options) => ipcRenderer.invoke("api:fetch", { endpoint, options }),
+  // Generic API fetch — endpoint validated in main process
+  apiFetch: (endpoint, options) => {
+    if (typeof endpoint !== "string" || endpoint.length > 500) {
+      return Promise.reject(new Error("Invalid endpoint"));
+    }
+    return ipcRenderer.invoke("api:fetch", { endpoint, options });
+  },
 
   // WebSocket
   connectWebSocket: () => ipcRenderer.invoke("ws:connect"),

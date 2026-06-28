@@ -19,12 +19,13 @@ import jwt from "jsonwebtoken";
 import axios from "axios";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const JWT_SECRET = process.env.JWT_SECRET || "shadow-broker-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID().replace(/-/g, "");
 const SESSION_COOKIE_NAME = "sb_session";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -99,8 +100,20 @@ function authRequired(
 export async function startDashboardServer(port: number): Promise<number> {
   const app = express();
 
-  app.use(cors());
-  app.use(express.json());
+  app.use(cors({
+    origin: process.env.DASHBOARD_CORS_ORIGIN || "http://localhost:3721",
+    credentials: true,
+  }));
+  app.use(express.json({ limit: "1mb" }));
+
+  // Security headers
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+  });
 
   // Cookie parser simple
   app.use((req, _res, next) => {
@@ -236,6 +249,12 @@ export async function startDashboardServer(port: number): Promise<number> {
   app.get("/api/guilds/:id", authRequired, async (req, res) => {
     const guildId = String(req.params.id);
 
+    // Validate guildId format
+    if (!/^\d{17,20}$/.test(guildId)) {
+      res.status(400).json({ error: "Invalid guild ID" });
+      return;
+    }
+
     try {
       const guildConfig = await prisma.guildConfig.findUnique({
         where: { guildId },
@@ -258,16 +277,34 @@ export async function startDashboardServer(port: number): Promise<number> {
     const guildId = String(req.params.id);
     const settings = req.body;
 
+    // Validate guildId format
+    if (!/^\d{17,20}$/.test(guildId)) {
+      res.status(400).json({ error: "Invalid guild ID" });
+      return;
+    }
+
+    // Allowlist fields to prevent mass assignment
+    const ALLOWED_FIELDS = [
+      "prefix", "language", "logChannelId", "modLogChannelId",
+      "welcomeChannelId", "welcomeMessage", "goodbyeMessage",
+      "autoModEnabled", "antiRaidEnabled", "antiPhishingEnabled",
+      "levelingEnabled", "musicEnabled",
+    ];
+    const safeSettings: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in settings) safeSettings[key] = settings[key];
+    }
+
     try {
       // Upsert : créer ou mettre à jour
       const updated = await prisma.guildConfig.upsert({
         where: { guildId },
         create: {
           guildId,
-          ...settings,
+          ...safeSettings,
         },
         update: {
-          ...settings,
+          ...safeSettings,
         },
       });
 

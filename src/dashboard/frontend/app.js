@@ -117,7 +117,7 @@ async function loadGuilds() {
       card.className = "guild-card";
       card.innerHTML = `
         ${guild.icon
-          ? `<img class="guild-card-icon" src="${guild.icon}" alt="">`
+          ? `<img class="guild-card-icon" src="${escapeHtml(guild.icon)}" alt="">`
           : `<div class="guild-card-icon-placeholder">🏰</div>`
         }
         <div class="guild-card-info">
@@ -129,8 +129,8 @@ async function loadGuilds() {
           </div>
           <div class="guild-card-actions">
             ${guild.botPresent
-              ? `<button class="btn-ghost" onclick="openDashboard('${guild.id}', '${escapeHtml(guild.name)}', '${guild.icon || ""}')">Configurer →</button>`
-              : `<button class="btn-ghost" onclick="inviteBot('${guild.id}')">+ Inviter le bot</button>`
+              ? `<button class="btn-ghost" onclick="openDashboard('${escapeHtml(guild.id)}', '${escapeHtml(guild.name)}', '${escapeHtml(guild.icon || "")}')">Configurer →</button>`
+              : `<button class="btn-ghost" onclick="inviteBot('${escapeHtml(guild.id)}')">+ Inviter le bot</button>`
             }
           </div>
         </div>

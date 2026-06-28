@@ -94,6 +94,11 @@ export async function getWeather(city: string): Promise<WeatherData | null> {
 
 export async function shortenUrl(url: string): Promise<string | null> {
   try {
+    // Validate URL to prevent SSRF
+    const parsed = new URL(url);
+    if (!parsed.protocol.startsWith("http")) {
+      throw new Error("Only http/https URLs are allowed");
+    }
     const apiUrl = `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`;
     const res = await fetch(apiUrl, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error(`is.gd ${res.status}`);
@@ -408,6 +413,11 @@ export async function getIpInfo(ip: string): Promise<{
   lon: number;
 } | null> {
   try {
+    // Validate IP format to prevent injection
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$|^[a-fA-F0-9:]+$/;
+    if (!ipRegex.test(ip)) {
+      throw new Error("Invalid IP format");
+    }
     const res = await fetch(
       `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,query,city,regionName,country,isp,lat,lon`,
       {

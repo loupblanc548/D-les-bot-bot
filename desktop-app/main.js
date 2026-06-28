@@ -16,6 +16,9 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
     },
     frame: false,
     titleBarStyle: "hidden",
@@ -59,7 +62,11 @@ function saveSettings(newSettings) {
 }
 
 function getToken() {
-  return loadSettings().token || "d557bace6a9e095344f7d38c5fd2dea7c0720099316bc3b7258a1128d7db028d";
+  const t = loadSettings().token;
+  if (!t) {
+    throw new Error("No auth token configured. Set it in Settings.");
+  }
+  return t;
 }
 
 function getApiBase() {
@@ -133,8 +140,17 @@ ipcMain.handle("api:dm-history", () => apiFetch("/api/dm/history"));
 // Servers
 ipcMain.handle("api:servers", () => apiFetch("/api/servers"));
 
-// Generic fetch
-ipcMain.handle("api:fetch", (_e, { endpoint, options }) => apiFetch(endpoint, options));
+// Generic fetch — restricted to allowlisted API paths only
+const ALLOWED_API_PREFIXES = ["/api/", "/ws"];
+ipcMain.handle("api:fetch", (_e, { endpoint, options }) => {
+  if (!endpoint || typeof endpoint !== "string") {
+    return Promise.reject(new Error("Invalid endpoint"));
+  }
+  if (!ALLOWED_API_PREFIXES.some((p) => endpoint.startsWith(p))) {
+    return Promise.reject(new Error("Endpoint not allowed: " + endpoint));
+  }
+  return apiFetch(endpoint, options);
+});
 
 // Settings
 ipcMain.handle("settings:load", () => loadSettings());
