@@ -97,33 +97,19 @@ async function main(): Promise<void> {
 
   logger.info("Demarrage...");
 
-  // Health check HTTP (Docker/monitoring) — only if control server won't handle it
+  // Health check HTTP (Docker/monitoring)
   const railwayPort = parseInt(process.env.PORT || "0", 10);
-  const metricsPort = parseInt(process.env.METRICS_PORT || "3005", 10);
-
-  // Start control server on Railway's PORT (primary) or controlPort (fallback)
-  const controlPort = railwayPort || config.controlPort || 3002;
-  startControlServer(controlPort, client).catch(() =>
-    logger.warn("[Startup] Control server failed to start"),
-  );
-
-  // Start metrics server only if its port differs from the control server port
-  // (metrics endpoint /metrics is also served by the control server)
-  if (metricsPort !== controlPort) {
-    try {
-      startMetricsServer(metricsPort);
-    } catch {
-      logger.warn(`Metrics server failed to start (port ${metricsPort} in use?)`);
-    }
-  }
-
-  // Health server on port 3000 only if different from control server
-  if (3000 !== controlPort) {
+  if (!railwayPort || railwayPort !== 3000) {
     try {
       startHealthServer(3000);
     } catch {
       logger.warn("Health server failed to start (port 3000 in use?)");
     }
+  }
+  try {
+    startMetricsServer();
+  } catch {
+    logger.warn("Metrics server failed to start (port 3005 in use?)");
   }
   try {
     const { startBullBoard } = await import("./utils/bull-board.js");
@@ -136,6 +122,16 @@ async function main(): Promise<void> {
     void sendRestartAlert();
   } catch {
     // Ignore if crash webhook not configured
+  }
+  startControlServer(config.controlPort, client).catch(() =>
+    logger.warn("[Startup] Control server failed to start"),
+  );
+  // Also listen on Railway's PORT for external access
+  const rwyPort = parseInt(process.env.PORT || "0", 10);
+  if (rwyPort && rwyPort !== config.controlPort) {
+    startControlServer(rwyPort, client).catch(() =>
+      logger.warn("[Startup] Control server (Railway port) failed to start"),
+    );
   }
 
   // Nettoyage initial + automatique
