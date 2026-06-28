@@ -1231,3 +1231,43 @@ model AutoReactRule {
   @@index([guildId, channelId])
   @@map("auto_react_rule")
 }
+
+model TicketPanel {
+  id          String   @id @default(cuid())
+  guildId     String
+  channelId   String
+  messageId   String
+  title       String   @default("Support - Tickets")
+  description String   @default("Clique sur le bouton pour creer un ticket.")
+  buttonLabel String   @default("Creer un ticket")
+  buttonEmoji String   @default("🎫")
+  categoryId  String?
+  staffRoleId String?
+  welcomeMsg  String   @default("Bienvenue ! Decris ton probleme.")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guildId])
+  @@unique([guildId, channelId, messageId])
+  @@map("ticket_panel")
+}
+
+model Ticket {
+  id          String    @id @default(cuid())
+  guildId     String
+  channelId   String
+  userId      String
+  panelId     String?
+  claimedBy   String?
+  status      String    @default("open")
+  topic       String?
+  transcript  String?
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+  closedBy    String?
+
+  @@index([guildId, status])
+  @@index([guildId, userId])
+  @@index([channelId])
+  @@map("ticket")
+}
