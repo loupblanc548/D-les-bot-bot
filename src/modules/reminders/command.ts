@@ -3,17 +3,22 @@ import logger from "../../utils/logger.js";
 import ms from "ms";
 import { Queue } from "bullmq";
 
-const hasRedis = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+const hasRedis = Boolean(process.env.REDIS_URL);
 let remindersQueue: Queue | null = null;
 
 if (hasRedis) {
-  remindersQueue = new Queue("reminders", {
-    connection: {
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379", 10),
-      password: process.env.REDIS_PASSWORD,
-    },
-  });
+  try {
+    const p = new URL(process.env.REDIS_URL!);
+    remindersQueue = new Queue("reminders", {
+      connection: {
+        host: p.hostname,
+        port: parseInt(p.port || "6379", 10),
+        password: p.password ? decodeURIComponent(p.password) : undefined,
+      },
+    });
+  } catch {
+    remindersQueue = null;
+  }
 }
 
 export const command = new SlashCommandBuilder()
