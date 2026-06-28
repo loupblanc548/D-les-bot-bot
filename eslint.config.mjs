@@ -33,14 +33,18 @@ export default tseslint.config(
     },
   },
   {
-    // .js files kept outside the type-aware parser (they are JS-only and not in tsconfig).
+    // Files kept outside the type-aware parser (JS-only / not in tsconfig include).
     ignores: [
       "dist",
       "node_modules",
       "src/imageExtractor.js",
+      "src/imageExtractor.d.ts",
       "src/managers/_fix_scraper.js",
       "src/rawgClient.js",
+      "src/rawgClient.d.ts",
       "src/rssTwitterTracker.js",
+      "src/undici-patch.cjs",
+      "src/dashboard/frontend/**",
       "scripts/migrate-cache-to-neon.ts",
       "vitest.config.ts",
       "batch-scripts.test.ts",
