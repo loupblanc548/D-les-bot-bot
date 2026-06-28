@@ -17,6 +17,7 @@
 
 import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 import { config } from "../config.js";
 
 // ─── Cooldown system ─────────────────────────────────────────────────────────
@@ -179,24 +180,27 @@ async function checkMemoryUsage(): Promise<void> {
   const heapTotalMB = memUsage.heapTotal / (1024 * 1024);
   const rssMB = memUsage.rss / (1024 * 1024);
 
-  // Alerte si > 400MB RSS
-  if (rssMB > 400) {
+  const level = getMemoryLevel(rssMB);
+  const report = formatMemoryReport(rssMB, heapUsedMB, heapTotalMB);
+
+  if (level === "CRITICAL") {
     await sendProactiveAlert(
       "memory_critical",
       "🧠 Mémoire critique",
-      `**RSS:** ${rssMB.toFixed(0)} MB\n**Heap utilisé:** ${heapUsedMB.toFixed(0)} MB / ${heapTotalMB.toFixed(0)} MB\n\nLe bot consomme beaucoup de mémoire. Redémarrage recommandé.`,
+      `${report}\n\nLe bot consomme beaucoup de mémoire. Redémarrage recommandé.`,
       0xff3344,
       30 * 60 * 1000, // 30 min cooldown
     );
-  } else if (rssMB > 250) {
+  } else if (level === "WARNING") {
     await sendProactiveAlert(
       "memory_warning",
       "🧠 Mémoire élevée",
-      `**RSS:** ${rssMB.toFixed(0)} MB\n**Heap utilisé:** ${heapUsedMB.toFixed(0)} MB / ${heapTotalMB.toFixed(0)} MB`,
+      report,
       0xffaa00,
       60 * 60 * 1000, // 1h cooldown
     );
   }
+  // OK and SURVEILLANCE: no alert sent
 }
 
 // ─── Vérification santé bot ──────────────────────────────────────────────────
