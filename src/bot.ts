@@ -99,18 +99,32 @@ async function main(): Promise<void> {
 
   // Health check HTTP (Docker/monitoring)
   const railwayPort = parseInt(process.env.PORT || "0", 10);
-  if (!railwayPort || railwayPort !== 3000) {
+  const metricsPort = parseInt(process.env.METRICS_PORT || "3005", 10);
+
+  // On Railway: only one port is exposed. Start control server on PORT.
+  // The control server already handles /metrics, /api/health, etc.
+  if (railwayPort) {
+    // Start control server on Railway's PORT (handles all traffic)
+    startControlServer(railwayPort, client).catch(() =>
+      logger.warn("[Startup] Control server failed to start on Railway PORT"),
+    );
+  } else {
+    // Local dev: start all servers on their own ports
     try {
       startHealthServer(3000);
     } catch {
       logger.warn("Health server failed to start (port 3000 in use?)");
     }
+    try {
+      startMetricsServer(metricsPort);
+    } catch {
+      logger.warn(`Metrics server failed to start (port ${metricsPort} in use?)`);
+    }
+    startControlServer(config.controlPort || 3002, client).catch(() =>
+      logger.warn("[Startup] Control server failed to start"),
+    );
   }
-  try {
-    startMetricsServer();
-  } catch {
-    logger.warn("Metrics server failed to start (port 3005 in use?)");
-  }
+
   try {
     const { startBullBoard } = await import("./utils/bull-board.js");
     startBullBoard();
@@ -122,16 +136,6 @@ async function main(): Promise<void> {
     void sendRestartAlert();
   } catch {
     // Ignore if crash webhook not configured
-  }
-  startControlServer(config.controlPort, client).catch(() =>
-    logger.warn("[Startup] Control server failed to start"),
-  );
-  // Also listen on Railway's PORT for external access
-  const rwyPort = parseInt(process.env.PORT || "0", 10);
-  if (rwyPort && rwyPort !== config.controlPort) {
-    startControlServer(rwyPort, client).catch(() =>
-      logger.warn("[Startup] Control server (Railway port) failed to start"),
-    );
   }
 
   // Nettoyage initial + automatique
