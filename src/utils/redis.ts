@@ -16,10 +16,8 @@ let redis: Redis | null = null;
 
 if (hasRedisUrl) {
   redis = new Redis(config.redisUrl!, {
-    maxRetriesPerRequest: 3,
-    retryStrategy(times: number) {
-      return Math.min(times * 500, 5000);
-    },
+    maxRetriesPerRequest: 0,
+    retryStrategy: null,
     lazyConnect: true,
   });
 
