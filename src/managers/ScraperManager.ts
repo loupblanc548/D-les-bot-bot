@@ -18,8 +18,6 @@
 
  */
 
-import { chromium, Browser } from "playwright";
-
 import { z } from "zod";
 
 import logger from "../utils/logger.js";
@@ -27,6 +25,8 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 
 import { closeBrowser as closeScraperBrowser } from "../utils/scraper.js";
+
+type Browser = import("playwright").Browser;
 
 /** Re-export du closeBrowser du scraper */
 export async function closeBrowser(): Promise<void> {
@@ -193,6 +193,7 @@ let browserInstance: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browserInstance?.isConnected()) {
+    const { chromium } = await import("playwright");
     browserInstance = await chromium.launch({
       headless: true,
       executablePath: process.env.CHROMIUM_PATH || undefined,
@@ -200,7 +201,7 @@ async function getBrowser(): Promise<Browser> {
     });
     logger.info("[ScraperManager] Navigateur Playwright lance");
   }
-  return browserInstance;
+  return browserInstance!;
 }
 
 const DEFAULT_HTML_SELECTORS = {
