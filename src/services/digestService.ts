@@ -31,24 +31,24 @@ class DigestService {
    */
   private async getStats(hours: number): Promise<DigestStats> {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-    
+
     try {
       const [patchNotesCount, dealsCount, newsCount, logs] = await Promise.all([
         prisma.processedPatchNotes.count({
-          where: { createdAt: { gte: since } }
+          where: { createdAt: { gte: since } },
         }),
         prisma.processedDeal.count({
-          where: { createdAt: { gte: since } }
+          where: { createdAt: { gte: since } },
         }),
         prisma.notification.count({
-          where: { sentAt: { gte: since } }
+          where: { sentAt: { gte: since } },
         }),
         prisma.log.findMany({
-          where: { 
-            createdAt: { gte: since }
+          where: {
+            createdAt: { gte: since },
           },
-          take: 10
-        })
+          take: 10,
+        }),
       ]);
 
       return {
@@ -56,7 +56,7 @@ class DigestService {
         deals: dealsCount,
         news: newsCount,
         errors: logs.length,
-        uptime: 100 // Calculer l'uptime réel
+        uptime: 100, // Calculer l'uptime réel
       };
     } catch (error) {
       logger.error(`[DigestService] Erreur récupération stats: ${error}`);
@@ -65,7 +65,7 @@ class DigestService {
         deals: 0,
         news: 0,
         errors: 0,
-        uptime: 0
+        uptime: 0,
       };
     }
   }
@@ -75,34 +75,34 @@ class DigestService {
    */
   private async generateDailyDigest(): Promise<EmbedBuilder> {
     const stats = await this.getStats(24);
-    const date = new Date().toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    const date = new Date().toLocaleDateString("fr-FR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
 
     const sections = [
       {
         title: "Patch Notes",
         content: `${stats.patchNotes} nouveaux patch notes traités`,
-        emoji: "📋"
+        emoji: "📋",
       },
       {
         title: "Deals Gaming",
         content: `${stats.deals} deals détectés et partagés`,
-        emoji: "🎮"
+        emoji: "🎮",
       },
       {
         title: "Actualités",
         content: `${stats.news} articles de news publiés`,
-        emoji: "📢"
+        emoji: "📢",
       },
       {
         title: "Système",
         content: `${stats.errors} erreurs • Uptime: ${stats.uptime}%`,
-        emoji: "⚡"
-      }
+        emoji: "⚡",
+      },
     ];
 
     return AdvancedEmbedBuilder.createDailyDigest(`Digest Quotidien - ${date}`, sections);
@@ -115,20 +115,20 @@ class DigestService {
     const stats = await this.getStats(168); // 7 jours
     const weekStart = new Date(Date.now() - 168 * 60 * 60 * 1000);
     const weekEnd = new Date();
-    
-    const weekRange = `${weekStart.toLocaleDateString('fr-FR')} - ${weekEnd.toLocaleDateString('fr-FR')}`;
+
+    const weekRange = `${weekStart.toLocaleDateString("fr-FR")} - ${weekEnd.toLocaleDateString("fr-FR")}`;
 
     const sections = [
       {
         title: "Résumé Hebdomadaire",
         content: `Patch Notes: ${stats.patchNotes}\nDeals: ${stats.deals}\nNews: ${stats.news}\nErreurs: ${stats.errors}`,
-        emoji: "📊"
+        emoji: "📊",
       },
       {
         title: "Performance",
-        content: `Uptime moyen: ${stats.uptime}%\nStabilité: ${stats.errors < 5 ? 'Excellente' : stats.errors < 15 ? 'Bonne' : 'À améliorer'}`,
-        emoji: "📈"
-      }
+        content: `Uptime moyen: ${stats.uptime}%\nStabilité: ${stats.errors < 5 ? "Excellente" : stats.errors < 15 ? "Bonne" : "À améliorer"}`,
+        emoji: "📈",
+      },
     ];
 
     return AdvancedEmbedBuilder.createDailyDigest(`Digest Hebdomadaire - ${weekRange}`, sections);
@@ -152,7 +152,7 @@ class DigestService {
 
       await (channel as TextChannel).send({
         content: "📊 **Rapport automatique**",
-        embeds: [embed]
+        embeds: [embed],
       });
 
       logger.info("[DigestService] Digest envoyé avec succès");
@@ -192,41 +192,50 @@ class DigestService {
     const now = new Date();
     const dailyTime = new Date(now);
     dailyTime.setHours(9, 0, 0, 0);
-    
+
     if (dailyTime <= now) {
       dailyTime.setDate(dailyTime.getDate() + 1);
     }
 
     const dailyDelay = dailyTime.getTime() - now.getTime();
-    this.dailyInterval = setInterval(() => {
-      this.sendDailyDigest().catch(error => 
-        logger.error(`[DigestService] Erreur digest quotidien: ${error}`)
-      );
-    }, 24 * 60 * 60 * 1000); // Toutes les 24h
+    this.dailyInterval = setInterval(
+      () => {
+        this.sendDailyDigest().catch((error) =>
+          logger.error(`[DigestService] Erreur digest quotidien: ${error}`),
+        );
+      },
+      24 * 60 * 60 * 1000,
+    ); // Toutes les 24h
+    if (this.dailyInterval.unref) this.dailyInterval.unref();
 
     // Premier envoi après le délai initial
     setTimeout(() => {
-      this.sendDailyDigest().catch(error => 
-        logger.error(`[DigestService] Erreur digest quotidien initial: ${error}`)
+      this.sendDailyDigest().catch((error) =>
+        logger.error(`[DigestService] Erreur digest quotidien initial: ${error}`),
       );
     }, dailyDelay);
 
     // Digest hebdomadaire le lundi à 9h00
     const weeklyTime = new Date(dailyTime);
-    while (weeklyTime.getDay() !== 1) { // 1 = lundi
+    while (weeklyTime.getDay() !== 1) {
+      // 1 = lundi
       weeklyTime.setDate(weeklyTime.getDate() + 1);
     }
 
     const weeklyDelay = weeklyTime.getTime() - now.getTime();
-    this.weeklyInterval = setInterval(() => {
-      this.sendWeeklyDigest().catch(error => 
-        logger.error(`[DigestService] Erreur digest hebdomadaire: ${error}`)
-      );
-    }, 7 * 24 * 60 * 60 * 1000); // Toutes les semaines
+    this.weeklyInterval = setInterval(
+      () => {
+        this.sendWeeklyDigest().catch((error) =>
+          logger.error(`[DigestService] Erreur digest hebdomadaire: ${error}`),
+        );
+      },
+      7 * 24 * 60 * 60 * 1000,
+    ); // Toutes les semaines
+    if (this.weeklyInterval.unref) this.weeklyInterval.unref();
 
     setTimeout(() => {
-      this.sendWeeklyDigest().catch(error => 
-        logger.error(`[DigestService] Erreur digest hebdomadaire initial: ${error}`)
+      this.sendWeeklyDigest().catch((error) =>
+        logger.error(`[DigestService] Erreur digest hebdomadaire initial: ${error}`),
       );
     }, weeklyDelay);
 
@@ -251,8 +260,8 @@ class DigestService {
   /**
    * Envoie un digest manuel (pour test)
    */
-  async sendManualDigest(type: 'daily' | 'weekly'): Promise<void> {
-    if (type === 'daily') {
+  async sendManualDigest(type: "daily" | "weekly"): Promise<void> {
+    if (type === "daily") {
       await this.sendDailyDigest();
     } else {
       await this.sendWeeklyDigest();

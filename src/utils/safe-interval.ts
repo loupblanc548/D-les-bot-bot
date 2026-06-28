@@ -47,11 +47,13 @@ export function safeInterval(
     }
   };
 
-  return setInterval(() => {
+  const timer = setInterval(() => {
     if (jitter > 0) {
       setTimeout(() => void tick(), Math.floor(Math.random() * jitter));
     } else {
       void tick();
     }
   }, intervalMs);
+  if (timer.unref) timer.unref();
+  return timer;
 }

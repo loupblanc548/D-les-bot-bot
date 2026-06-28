@@ -438,11 +438,21 @@ async function checkAndNotify(client: Client) {
 
     // 1. Sources de la DB (utilisateur)
     const sources = await prisma.source.findMany();
+
+    // Batch: fetch all guild configs in one query to avoid N+1
+    const guildIds = [...new Set(sources.map((s) => s.guildId))];
+    const guildConfigs = await prisma.guildConfig.findMany({
+      where: { guildId: { in: guildIds } },
+      select: { guildId: true, monitoringEnabled: true },
+    });
+    const monitoringMap = new Map(
+      guildConfigs.map((g) => [g.guildId, g.monitoringEnabled ?? true]),
+    );
+
     for (const source of sources) {
       try {
-        // Check if monitoring is enabled for this guild
-        const monitoringEnabled = await isMonitoringEnabled(source.guildId);
-        if (!monitoringEnabled) {
+        // Check if monitoring is enabled for this guild (from batch cache)
+        if (!monitoringMap.get(source.guildId)) {
           continue;
         }
 

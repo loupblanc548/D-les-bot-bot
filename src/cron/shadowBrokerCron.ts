@@ -320,6 +320,7 @@ export function startShadowBrokerCron(client: Client): void {
     },
     5 * 60 * 1000,
   );
+  if (alertInterval.unref) alertInterval.unref();
 
   logger.info(
     "[ShadowBrokerCron] Crons démarrés: rapport (6h), résumé quotidien (22:00), alertes temps réel (5min)",

@@ -107,12 +107,13 @@ export function handleInviteTracker(client: Client): void {
   });
 
   // Cleanup périodique
-  setInterval(() => {
+  const _inviteCleanup = setInterval(() => {
     const now = Date.now();
     for (const [key, val] of joinTracker) {
       if (now - val.firstJoin > 3600000) joinTracker.delete(key);
     }
   }, 300000);
+  if (_inviteCleanup.unref) _inviteCleanup.unref();
 
   logger.info("[InviteTracker] Tracker d'invitations activé");
 }

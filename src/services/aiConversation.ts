@@ -282,30 +282,32 @@ Règles :
  * Sauvegarde les liens extraits dans la base. Si un lien existe déjà, augmente sa strength.
  */
 async function saveLinks(userId: string, links: ExtractedLink[]): Promise<void> {
-  for (const link of links) {
-    try {
-      await prisma.memoryLink.upsert({
-        where: {
-          userId_sourceKey_targetKey_relation: {
+  await Promise.all(
+    links.map((link) =>
+      prisma.memoryLink
+        .upsert({
+          where: {
+            userId_sourceKey_targetKey_relation: {
+              userId,
+              sourceKey: link.source,
+              targetKey: link.target,
+              relation: link.relation,
+            },
+          },
+          update: { strength: { increment: 0.5 } },
+          create: {
             userId,
             sourceKey: link.source,
             targetKey: link.target,
             relation: link.relation,
+            strength: 1.0,
           },
-        },
-        update: { strength: { increment: 0.5 } },
-        create: {
-          userId,
-          sourceKey: link.source,
-          targetKey: link.target,
-          relation: link.relation,
-          strength: 1.0,
-        },
-      });
-    } catch {
-      // Ignore les erreurs de lien individuels
-    }
-  }
+        })
+        .catch(() => {
+          // Ignore les erreurs de lien individuels
+        }),
+    ),
+  );
 }
 
 /**

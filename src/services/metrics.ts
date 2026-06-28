@@ -190,10 +190,11 @@ export function startMetricsServer(port = parseInt(process.env.METRICS_PORT || "
   });
 
   // Update metrics every 30 seconds
-  setInterval(() => {
+  const _metricsInterval = setInterval(() => {
     updateProcessMetrics();
     updateDatabaseMetrics();
   }, 30000);
+  if (_metricsInterval.unref) _metricsInterval.unref();
 }
 
 export function stopMetricsServer(): void {

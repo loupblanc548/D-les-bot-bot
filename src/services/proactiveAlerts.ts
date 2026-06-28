@@ -121,20 +121,22 @@ export function initProactiveAlerts(client: Client): void {
   });
 
   // 7. Détection mémoire critique (toutes les 2 min)
-  setInterval(
+  const _memInterval = setInterval(
     () => {
       void checkMemoryUsage();
     },
     2 * 60 * 1000,
   );
+  if (_memInterval.unref) _memInterval.unref();
 
   // 8. Vérification santé périodique (toutes les 10 min)
-  setInterval(
+  const _healthInterval = setInterval(
     () => {
       void checkBotHealth();
     },
     10 * 60 * 1000,
   );
+  if (_healthInterval.unref) _healthInterval.unref();
 
   logger.info("[ProactiveAlerts] Système d'alertes proactive démarré");
 }

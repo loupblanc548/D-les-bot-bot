@@ -47,13 +47,21 @@ class BlockchainGamingService {
     const collections: NFTCollection[] = [
       {
         contractAddress: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
-        name: "Bored Ape Yacht Club", symbol: "BAYC",
-        floorPrice: 50000, volume24h: 1000000, owners: 6000, lastUpdated: Date.now(),
+        name: "Bored Ape Yacht Club",
+        symbol: "BAYC",
+        floorPrice: 50000,
+        volume24h: 1000000,
+        owners: 6000,
+        lastUpdated: Date.now(),
       },
       {
         contractAddress: "0x60ae865ee4c749cdfe64ab18a64c482dcfc77ae8",
-        name: "Azuki", symbol: "AZUKI",
-        floorPrice: 15000, volume24h: 500000, owners: 5000, lastUpdated: Date.now(),
+        name: "Azuki",
+        symbol: "AZUKI",
+        floorPrice: 15000,
+        volume24h: 500000,
+        owners: 5000,
+        lastUpdated: Date.now(),
       },
     ];
 
@@ -67,16 +75,28 @@ class BlockchainGamingService {
   async initializeTokens(): Promise<void> {
     const tokens: GamingToken[] = [
       {
-        symbol: "AXS", name: "Axie Infinity", price: 5.50,
-        change24h: 2.5, marketCap: 500000000, lastUpdated: Date.now(),
+        symbol: "AXS",
+        name: "Axie Infinity",
+        price: 5.5,
+        change24h: 2.5,
+        marketCap: 500000000,
+        lastUpdated: Date.now(),
       },
       {
-        symbol: "MANA", name: "Decentraland", price: 0.50,
-        change24h: -1.2, marketCap: 1000000000, lastUpdated: Date.now(),
+        symbol: "MANA",
+        name: "Decentraland",
+        price: 0.5,
+        change24h: -1.2,
+        marketCap: 1000000000,
+        lastUpdated: Date.now(),
       },
       {
-        symbol: "SAND", name: "The Sandbox", price: 0.60,
-        change24h: 3.8, marketCap: 1200000000, lastUpdated: Date.now(),
+        symbol: "SAND",
+        name: "The Sandbox",
+        price: 0.6,
+        change24h: 3.8,
+        marketCap: 1200000000,
+        lastUpdated: Date.now(),
       },
     ];
 
@@ -97,9 +117,11 @@ class BlockchainGamingService {
       collection.lastUpdated = Date.now();
 
       if (priceChange < -0.05) {
-        this.createAlert("nft_floor_drop", "high",
+        this.createAlert(
+          "nft_floor_drop",
+          "high",
           `Chute significative du floor price de ${collection.name}: ${(priceChange * 100).toFixed(2)}%`,
-          { collection: collection.name, previousPrice, newPrice: newFloorPrice }
+          { collection: collection.name, previousPrice, newPrice: newFloorPrice },
         );
       }
 
@@ -120,9 +142,11 @@ class BlockchainGamingService {
       token.lastUpdated = Date.now();
 
       if (priceChange > 0.05) {
-        this.createAlert("token_spike", "medium",
+        this.createAlert(
+          "token_spike",
+          "medium",
           `Spike de prix pour ${token.name}: ${(priceChange * 100).toFixed(2)}%`,
-          { token: token.name, previousPrice, newPrice }
+          { token: token.name, previousPrice, newPrice },
         );
       }
 
@@ -133,11 +157,17 @@ class BlockchainGamingService {
   }
 
   private createAlert(
-    type: BlockchainAlert["type"], severity: BlockchainAlert["severity"],
-    message: string, data: Record<string, unknown>
+    type: BlockchainAlert["type"],
+    severity: BlockchainAlert["severity"],
+    message: string,
+    data: Record<string, unknown>,
   ): void {
     const alert: BlockchainAlert = {
-      type, severity, message, data, timestamp: Date.now(),
+      type,
+      severity,
+      message,
+      data,
+      timestamp: Date.now(),
     };
 
     this.alerts.push(alert);
@@ -147,12 +177,12 @@ class BlockchainGamingService {
 
   private cleanupOldAlerts(): void {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    this.alerts = this.alerts.filter(alert => alert.timestamp > oneDayAgo);
+    this.alerts = this.alerts.filter((alert) => alert.timestamp > oneDayAgo);
   }
 
   getRecentAlerts(hours: number = 24): BlockchainAlert[] {
     const cutoff = Date.now() - hours * 60 * 60 * 1000;
-    return this.alerts.filter(alert => alert.timestamp > cutoff);
+    return this.alerts.filter((alert) => alert.timestamp > cutoff);
   }
 
   getLowestFloorCollections(limit: number = 5): NFTCollection[] {
@@ -196,19 +226,27 @@ class BlockchainGamingService {
       .addFields(
         {
           name: "📈 Top Gainers",
-          value: topGainers.map(t => `${t.symbol}: ${t.change24h.toFixed(2)}%`).join("\n") || "Aucune donnée",
+          value:
+            topGainers.map((t) => `${t.symbol}: ${t.change24h.toFixed(2)}%`).join("\n") ||
+            "Aucune donnée",
           inline: true,
         },
         {
           name: "📉 Top Losers",
-          value: topLosers.map(t => `${t.symbol}: ${t.change24h.toFixed(2)}%`).join("\n") || "Aucune donnée",
+          value:
+            topLosers.map((t) => `${t.symbol}: ${t.change24h.toFixed(2)}%`).join("\n") ||
+            "Aucune donnée",
           inline: true,
         },
         {
           name: "🚨 Alertes Récentes",
-          value: recentAlerts.slice(0, 3).map(a => a.message).join("\n") || "Aucune alerte",
+          value:
+            recentAlerts
+              .slice(0, 3)
+              .map((a) => a.message)
+              .join("\n") || "Aucune alerte",
           inline: false,
-        }
+        },
       )
       .setTimestamp()
       .setFooter({ text: "Données mises à jour automatiquement" });
@@ -234,6 +272,7 @@ class BlockchainGamingService {
       await this.updateTokenPrices();
       await this.sendBlockchainReport(client);
     }, intervalMs);
+    if (this.monitoringInterval.unref) this.monitoringInterval.unref();
   }
 
   disableMonitoring(): void {
@@ -255,9 +294,10 @@ class BlockchainGamingService {
     const tokens = Array.from(this.gamingTokens.values());
 
     const totalVolume = collections.reduce((sum, c) => sum + c.volume24h, 0);
-    const averageFloorPrice = collections.length > 0
-      ? collections.reduce((sum, c) => sum + c.floorPrice, 0) / collections.length
-      : 0;
+    const averageFloorPrice =
+      collections.length > 0
+        ? collections.reduce((sum, c) => sum + c.floorPrice, 0) / collections.length
+        : 0;
 
     return {
       totalCollections: collections.length,
@@ -299,7 +339,9 @@ class BlockchainGamingService {
       this.gamingTokens.set(token.symbol, token as unknown as GamingToken);
     }
 
-    logger.info(`[BlockchainGaming] ${collections.length} collection(s) et ${tokens.length} token(s) chargé(s)`);
+    logger.info(
+      `[BlockchainGaming] ${collections.length} collection(s) et ${tokens.length} token(s) chargé(s)`,
+    );
   }
 }
 

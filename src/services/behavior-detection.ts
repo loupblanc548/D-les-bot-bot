@@ -255,6 +255,7 @@ class BehaviorDetectionService {
     this.monitoringInterval = setInterval(() => {
       this.periodicSave();
     }, intervalMs);
+    if (this.monitoringInterval.unref) this.monitoringInterval.unref();
   }
 
   private async periodicSave(): Promise<void> {

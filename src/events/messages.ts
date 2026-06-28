@@ -71,6 +71,7 @@ export function startMapCleanup() {
       }
     }
   }, 300000);
+  if (mapCleanupInterval.unref) mapCleanupInterval.unref();
 
   // Vérifier les conversations IA expirées toutes les 2 minutes
   if (!conversationCleanupInterval) {
@@ -79,6 +80,7 @@ export function startMapCleanup() {
         logger.error("[MessageEvents] Erreur cleanup conversations:", err),
       );
     }, 120000);
+    if (conversationCleanupInterval.unref) conversationCleanupInterval.unref();
   }
 }
 
