@@ -125,6 +125,8 @@ import { commands as shadowCommands, handleCommand as handleShadow } from "./com
 import { commands as osintCommands, handleCommand as handleOsint } from "./commands/osint.js";
 // ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
+import { commands as modAdminCommands, handleCommand as handleModAdmin } from "./commands/modadmin.js";
+import { commands as debugGroupCommands, handleCommand as handleDebugGroup } from "./commands/debugGroup.js";
 import {
   commands as securityGroupCommands,
   handleCommand as handleSecurityGroup,
@@ -453,6 +455,8 @@ export const allCommands = [
   ...aiGroupCommands,
   ...alertGroupCommands,
   ...modGroupCommands,
+  ...modAdminCommands,
+  ...debugGroupCommands,
   ...securityGroupCommands,
   ...shadowCommands,
   ...osintCommands,
@@ -495,6 +499,8 @@ export function buildCommandRouter(): void {
   registerGroup(["ai"], handleAiGroup);
   registerGroup(["alert"], handleAlertGroup);
   registerGroup(["mod"], handleModGroup);
+  registerGroup(["modadmin"], handleModAdmin);
+  registerGroup(["debug"], handleDebugGroup);
   registerGroup(["security"], handleSecurityGroup);
   registerGroup(["shadow"], handleShadow);
   registerGroup(["osint"], handleOsint);

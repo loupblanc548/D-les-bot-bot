@@ -11,8 +11,6 @@ import { handleCommand as handleMain } from "./main.js";
 import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 import { handleCommand as handleDashboard } from "./dashboard.js";
 import { handleCommand as handleUptime } from "./uptime.js";
-import { execute as executeDebug } from "./debug.js";
-import { execute as executeHotreload } from "./hotreload.js";
 
 import { handleBotExtra } from "./stubHandlers.js";
 import { getShardStats, restartShard, isSharded, getShardCount } from "../shardManager.js";
@@ -39,42 +37,6 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("dashboard").setDescription("Dashboard de gestion (admin)"))
     .addSubcommand((sc) =>
       sc.setName("shadowbroker").setDescription("Ouvre le dashboard Shadow Broker"),
-    )
-    .addSubcommand((sc) =>
-      sc.setName("debug-status").setDescription("Debug: statut complet du bot (admin)"),
-    )
-    .addSubcommand((sc) =>
-      sc.setName("debug-services").setDescription("Debug: état des services externes (admin)"),
-    )
-    .addSubcommand((sc) =>
-      sc.setName("debug-database").setDescription("Debug: test connexion DB (admin)"),
-    )
-    .addSubcommand((sc) =>
-      sc.setName("debug-memory").setDescription("Debug: utilisation mémoire (admin)"),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("hotreload-reload")
-        .setDescription("Hotreload: recharge commandes et config (admin)"),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("hotreload-maintenance")
-        .setDescription("Hotreload: mode maintenance (admin)")
-        .addBooleanOption((o) =>
-          o.setName("enable").setDescription("Activer ou non").setRequired(true),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("hotreload-auto")
-        .setDescription("Hotreload: auto-reload (admin)")
-        .addBooleanOption((o) =>
-          o.setName("enable").setDescription("Activer ou non").setRequired(true),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc.setName("hotreload-status").setDescription("Hotreload: statut du hot reload (admin)"),
     )
     // ─── Nouvelles sous-commandes bot ───
     .addSubcommand((sc) =>
@@ -104,13 +66,6 @@ export const commands = [
 
 const MAIN_SUBS = ["start", "help", "restart", "status"];
 const EXTRA_SUBS = ["server-info", "userinfo"];
-const DEBUG_SUBS = ["debug-status", "debug-services", "debug-database", "debug-memory"];
-const HOTRELOAD_SUBS = [
-  "hotreload-reload",
-  "hotreload-maintenance",
-  "hotreload-auto",
-  "hotreload-status",
-];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const dc = client as Client;
@@ -152,14 +107,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
         .setURL("https://github.com/x0rz/EQGRP_Lost_in_Translation"),
     );
     await interaction.reply({ embeds: [embed], components: [row] });
-  } else if (DEBUG_SUBS.includes(action)) {
-    const sub = action.replace("debug-", "");
-    const patched = patchSubcommand(interaction, sub);
-    await executeDebug(patched, dc);
-  } else if (HOTRELOAD_SUBS.includes(action)) {
-    const sub = action.replace("hotreload-", "");
-    const patched = patchSubcommand(interaction, sub);
-    await executeHotreload(patched, dc);
   } else if (action === "shard-stats") {
     await handleShardStats(interaction);
   } else if (action === "shard-restart") {
@@ -167,15 +114,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else {
     await handleBotExtra(interaction, dc);
   }
-}
-
-function patchSubcommand(
-  interaction: ChatInputCommandInteraction,
-  sub: string,
-): ChatInputCommandInteraction {
-  const origGetSubcommand = interaction.options.getSubcommand.bind(interaction.options);
-  interaction.options.getSubcommand = (() => sub) as typeof origGetSubcommand;
-  return interaction;
 }
 
 async function handleShardStats(interaction: ChatInputCommandInteraction): Promise<void> {
