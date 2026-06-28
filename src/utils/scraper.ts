@@ -1,5 +1,8 @@
-import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import logger from './logger.js';
+
+type Browser = import('playwright').Browser;
+type BrowserContext = import('playwright').BrowserContext;
+type Page = import('playwright').Page;
 
 let browser: Browser | null = null;
 let context: BrowserContext | null = null;
@@ -35,6 +38,7 @@ export async function launchBrowser(): Promise<{ browser: Browser; context: Brow
   }
 
   logger.info('[Scraper] Launching Chromium...');
+  const { chromium } = await import('playwright');
   browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
@@ -65,7 +69,7 @@ export async function launchBrowser(): Promise<{ browser: Browser; context: Brow
   });
 
   logger.info('[Scraper] Chromium launched successfully');
-  return { browser, context, page };
+  return { browser: browser!, context: context!, page };
 }
 
 /**
