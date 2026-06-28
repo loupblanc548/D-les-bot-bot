@@ -8,9 +8,10 @@ const DIAGNOSTIC_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
 export function startSystemDiagnostic(client: Client): void {
   logger.info("[SystemDiagnostic] Starting daily system diagnostic");
 
-  setInterval(async () => {
+  const _diagInterval = setInterval(async () => {
     await runDiagnostic(client);
   }, DIAGNOSTIC_INTERVAL);
+  if (_diagInterval.unref) _diagInterval.unref();
 
   setTimeout(async () => {
     await runDiagnostic(client);

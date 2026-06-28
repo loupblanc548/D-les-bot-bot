@@ -210,12 +210,13 @@ export function handleAutoModeration(client: Client): void {
   });
 
   // Cleanup périodique du tracker slowmode
-  setInterval(() => {
+  const _slowmodeCleanup = setInterval(() => {
     const now = Date.now();
     for (const [key, val] of channelMsgTracker) {
       if (now - val.windowStart > 120_000) channelMsgTracker.delete(key);
     }
   }, 60_000);
+  if (_slowmodeCleanup.unref) _slowmodeCleanup.unref();
 
   logger.info(
     "[AutoMod] Filtres d'auto-modération activés (word blacklist, caps, emoji, mentions, files, slowmode)",

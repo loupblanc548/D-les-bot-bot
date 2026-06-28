@@ -301,14 +301,14 @@ describe("decayStep()", () => {
       { id: "b", userId: "u2", weight: 0.04 },
     ]);
     m.memoryFact.update.mockResolvedValue({});
-    m.memoryFact.delete.mockResolvedValue({});
+    m.memoryFact.deleteMany.mockResolvedValue({ count: 1 });
     m.memoryDecayLog.create.mockResolvedValue({});
 
     const result = await decayStep({ factor: 0.5, minWeight: 0.1 });
 
     expect(result.processed).toBe(2);
     expect(result.pruned).toBe(1);
-    expect(m.memoryFact.delete).toHaveBeenCalledWith({ where: { id: "b" } });
+    expect(m.memoryFact.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ["b"] } } });
     expect(m.memoryFact.update).toHaveBeenCalledWith({
       where: { id: "a" },
       data: { weight: 0.25 },
@@ -324,7 +324,7 @@ describe("decayStep()", () => {
 
     expect(result.processed).toBe(0);
     expect(result.pruned).toBe(0);
-    expect(m.memoryFact.delete).not.toHaveBeenCalled();
+    expect(m.memoryFact.deleteMany).not.toHaveBeenCalled();
   });
 });
 

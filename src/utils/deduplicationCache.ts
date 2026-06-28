@@ -13,17 +13,37 @@ import logger from "./logger.js";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type PlatformKey =
-  | "steam" | "epic" | "playstation" | "xbox" | "nintendo"
-  | "fortnite" | "instantgaming" | "twitter" | "deals"
-  | "free_games" | "patch_notes" | "game_updates" | "blogs";
+  | "steam"
+  | "epic"
+  | "playstation"
+  | "xbox"
+  | "nintendo"
+  | "fortnite"
+  | "instantgaming"
+  | "twitter"
+  | "deals"
+  | "free_games"
+  | "patch_notes"
+  | "game_updates"
+  | "blogs";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
 const MAX_IDS_PER_PLATFORM = 50;
 const ALL_PLATFORMS: PlatformKey[] = [
-  "steam", "epic", "playstation", "xbox", "nintendo",
-  "fortnite", "instantgaming", "twitter", "deals",
-  "free_games", "patch_notes", "game_updates", "blogs",
+  "steam",
+  "epic",
+  "playstation",
+  "xbox",
+  "nintendo",
+  "fortnite",
+  "instantgaming",
+  "twitter",
+  "deals",
+  "free_games",
+  "patch_notes",
+  "game_updates",
+  "blogs",
 ];
 
 // ─── Cache Singleton ────────────────────────────────────────────────────────
@@ -69,9 +89,7 @@ class DeduplicationCache {
     if (this.initialized) return;
     try {
       await this.loadFromDatabase();
-      logger.info(
-        `[DedupCache] Chargé depuis Neon (${this.getTotalCount()} IDs en mémoire)`
-      );
+      logger.info(`[DedupCache] Chargé depuis Neon (${this.getTotalCount()} IDs en mémoire)`);
 
       // Charge _lastMaintenance depuis AppState
       try {
@@ -86,7 +104,7 @@ class DeduplicationCache {
     } catch (error) {
       logger.error(
         "[DedupCache] Erreur chargement cache Neon: " +
-          (error instanceof Error ? error.message : String(error))
+          (error instanceof Error ? error.message : String(error)),
       );
       this.memoryCache.clear();
       // Ne pas marquer comme initialisé pour permettre une ré-initialisation
@@ -102,7 +120,7 @@ class DeduplicationCache {
     } catch (error) {
       logger.error(
         "[DedupCache] Erreur rechargement Neon: " +
-          (error instanceof Error ? error.message : String(error))
+          (error instanceof Error ? error.message : String(error)),
       );
       this.memoryCache.clear();
     }
@@ -116,10 +134,7 @@ class DeduplicationCache {
 
   // ─── Marquage ─────────────────────────────────────────────────────────────
 
-  async markAsProcessed(
-    platform: PlatformKey,
-    uniqueId: string
-  ): Promise<void> {
+  async markAsProcessed(platform: PlatformKey, uniqueId: string): Promise<void> {
     // Mémoire
     if (!this.memoryCache.has(platform)) {
       this.memoryCache.set(platform, new Set());
@@ -129,10 +144,7 @@ class DeduplicationCache {
     set.add(uniqueId);
     if (set.size > MAX_IDS_PER_PLATFORM) {
       const arr = [...set];
-      this.memoryCache.set(
-        platform,
-        new Set(arr.slice(arr.length - MAX_IDS_PER_PLATFORM))
-      );
+      this.memoryCache.set(platform, new Set(arr.slice(arr.length - MAX_IDS_PER_PLATFORM)));
     }
     // Persistance Neon (ignore doublons)
     try {
@@ -142,10 +154,7 @@ class DeduplicationCache {
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "P2002") {
-        logger.error(
-          "[DedupCache] Erreur DB markAsProcessed: " +
-            (err?.message || String(error))
-        );
+        logger.error("[DedupCache] Erreur DB markAsProcessed: " + (err?.message || String(error)));
       }
     }
   }
@@ -160,10 +169,7 @@ class DeduplicationCache {
     for (const id of newIds) set.add(id);
     if (set.size > MAX_IDS_PER_PLATFORM) {
       const arr = [...set];
-      this.memoryCache.set(
-        platform,
-        new Set(arr.slice(arr.length - MAX_IDS_PER_PLATFORM))
-      );
+      this.memoryCache.set(platform, new Set(arr.slice(arr.length - MAX_IDS_PER_PLATFORM)));
     }
     // Persistance Neon (ignore doublons)
     try {
@@ -174,10 +180,7 @@ class DeduplicationCache {
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "P2002") {
-        logger.error(
-          "[DedupCache] Erreur DB markBatch: " +
-            (err?.message || String(error))
-        );
+        logger.error("[DedupCache] Erreur DB markBatch: " + (err?.message || String(error)));
       }
     }
   }
@@ -186,15 +189,11 @@ class DeduplicationCache {
 
   async warmUp(platform: PlatformKey, currentIds: string[]): Promise<void> {
     const deduped = [...new Set(currentIds)];
-    logger.info(
-      `[DedupCache] Warm-up ${platform}: ${deduped.length} IDs sans envoi`
-    );
+    logger.info(`[DedupCache] Warm-up ${platform}: ${deduped.length} IDs sans envoi`);
     await this.markBatch(platform, deduped);
   }
 
-  async warmUpFromDatabase(
-    getIds: (platform: PlatformKey) => Promise<string[]>
-  ): Promise<void> {
+  async warmUpFromDatabase(getIds: (platform: PlatformKey) => Promise<string[]>): Promise<void> {
     for (const platform of ALL_PLATFORMS) {
       try {
         const ids = await getIds(platform);
@@ -204,7 +203,7 @@ class DeduplicationCache {
           "[DedupCache] Warm-up Neon ignoré pour " +
             platform +
             ": " +
-            (error instanceof Error ? error.message : String(error))
+            (error instanceof Error ? error.message : String(error)),
         );
       }
     }
@@ -226,25 +225,27 @@ class DeduplicationCache {
 
   /** Supprime les IDs trop anciens (conserve les 100 plus récents par plateforme). */
   async clean(): Promise<void> {
-    for (const platform of ALL_PLATFORMS) {
-      const count = await prisma.processedCache.count({
-        where: { platform },
-      });
-      if (count > MAX_IDS_PER_PLATFORM) {
-        const excess = count - MAX_IDS_PER_PLATFORM;
-        const oldestToDelete = await prisma.processedCache.findMany({
+    await Promise.all(
+      ALL_PLATFORMS.map(async (platform) => {
+        const count = await prisma.processedCache.count({
           where: { platform },
-          orderBy: { createdAt: "asc" },
-          take: excess,
-          select: { id: true },
         });
-        if (oldestToDelete.length > 0) {
-          await prisma.processedCache.deleteMany({
-            where: { id: { in: oldestToDelete.map((e) => e.id) } },
+        if (count > MAX_IDS_PER_PLATFORM) {
+          const excess = count - MAX_IDS_PER_PLATFORM;
+          const oldestToDelete = await prisma.processedCache.findMany({
+            where: { platform },
+            orderBy: { createdAt: "asc" },
+            take: excess,
+            select: { id: true },
           });
+          if (oldestToDelete.length > 0) {
+            await prisma.processedCache.deleteMany({
+              where: { id: { in: oldestToDelete.map((e) => e.id) } },
+            });
+          }
         }
-      }
-    }
+      }),
+    );
     // Recharge le cache mémoire
     await this.reloadFromDisk();
     logger.info("[DedupCache] Nettoyage Neon terminé");
@@ -275,10 +276,7 @@ class DeduplicationCache {
     }
     if (this.lastMaintenance) {
       const lastDate = new Date(this.lastMaintenance);
-      if (
-        lastDate.getMonth() === now.getMonth() &&
-        lastDate.getFullYear() === now.getFullYear()
-      ) {
+      if (lastDate.getMonth() === now.getMonth() && lastDate.getFullYear() === now.getFullYear()) {
         return false;
       }
     }
@@ -297,7 +295,7 @@ class DeduplicationCache {
     } catch (error) {
       logger.error(
         "[DedupCache] Erreur markMaintenanceDone: " +
-          (error instanceof Error ? error.message : String(error))
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }

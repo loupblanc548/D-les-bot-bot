@@ -20,9 +20,10 @@ interface EpicGame {
 export function startEpicGamesAggregator(client: Client): void {
   logger.info("[EpicGames] Starting Epic Games aggregator");
 
-  setInterval(async () => {
+  const _epicInterval = setInterval(async () => {
     await checkEpicGames(client);
   }, CHECK_INTERVAL);
+  if (_epicInterval.unref) _epicInterval.unref();
 
   checkEpicGames(client);
 }

@@ -66,9 +66,10 @@ const RSS_FEEDS: RSSFeed[] = [
 export function startRSSAggregator(client: Client): void {
   logger.info("[RSSAggregator] Starting RSS aggregator");
 
-  setInterval(async () => {
+  const _rssInterval = setInterval(async () => {
     await checkAllFeeds(client);
   }, CHECK_INTERVAL);
+  if (_rssInterval.unref) _rssInterval.unref();
 
   checkAllFeeds(client);
 }

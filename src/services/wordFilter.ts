@@ -19,6 +19,7 @@ const INFRACTION_WINDOW_MINUTES = 1;
 // Cache en mémoire : guildId → { words: Set, config: WordFilterConfig }
 interface FilterCache {
   words: Set<string>;
+  compiledRegexes: RegExp[];
   config: {
     enabled: boolean;
     action: string;
@@ -45,6 +46,9 @@ async function loadCache(guildId: string): Promise<FilterCache> {
 
   const result: FilterCache = {
     words: new Set(entries.map((e) => e.word.toLowerCase())),
+    compiledRegexes: entries.map(
+      (e) => new RegExp(`\\b${escapeRegex(e.word.toLowerCase())}\\b`, "i"),
+    ),
     config: config
       ? {
           enabled: config.enabled,
@@ -75,17 +79,15 @@ export async function checkMessage(message: Message): Promise<string | null> {
   // Ignorer les admins
   if (message.member?.permissions?.has(PermissionFlagsBits.Administrator)) return null;
 
-  const { words, config } = await loadCache(message.guild.id);
+  const { words, compiledRegexes, config } = await loadCache(message.guild.id);
   if (!config?.enabled || words.size === 0) return null;
 
   const content = message.content.toLowerCase();
 
-  // Vérification mot par mot avec boundaries
-  for (const word of words) {
-    // Match exact avec word boundaries
-    const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, "i");
-    if (regex.test(content)) {
-      return word;
+  // Vérification avec les regex pré-compilées du cache
+  for (let i = 0; i < compiledRegexes.length; i++) {
+    if (compiledRegexes[i].test(content)) {
+      return [...words][i];
     }
   }
 

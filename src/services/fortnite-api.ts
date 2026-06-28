@@ -123,6 +123,9 @@ export function extractAllNamesFromEntry(entry: Record<string, unknown>): string
   return [...names];
 }
 
+const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
+const _regexCache = new Map<string, RegExp>();
+
 /**
  * Word-level fuzzy matching entre le nom wishlist et le nom boutique.
  * Stratégie :
@@ -145,10 +148,15 @@ export function matchesWishlist(wishlistName: string, shopName: string): boolean
     }
   }
 
-  // Fallback : boundary regex
-  const escRe = /[.*+?^${}()|[\]\\]/g;
-  const escaped = w.replace(escRe, (ch) => "\\" + ch);
-  if (new RegExp("(^|\\W)" + escaped + "($|\\W)", "i").test(s)) return true;
+  // Fallback : boundary regex (avec cache)
+  let regex = _regexCache.get(w);
+  if (!regex) {
+    const escaped = w.replace(ESCAPE_RE, "\\$&");
+    regex = new RegExp("(^|\\W)" + escaped + "($|\\W)", "i");
+    if (_regexCache.size > 200) _regexCache.clear();
+    _regexCache.set(w, regex);
+  }
+  if (regex.test(s)) return true;
 
   return false;
 }

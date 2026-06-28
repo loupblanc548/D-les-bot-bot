@@ -288,19 +288,30 @@ export async function decayStep(opts: DecayOptions = {}): Promise<DecayResult> {
 
   const stale = await prisma.memoryFact.findMany({
     where: { accessedAt: { lt: cutoff } },
-    select: { id: true, weight: true, userId: true },
+    select: { id: true, weight: true },
   });
 
-  let pruned = 0;
+  const toDelete: string[] = [];
+  const toUpdate: { id: string; weight: number }[] = [];
   for (const fact of stale) {
     const next = fact.weight * factor;
     if (next < minWeight) {
-      await prisma.memoryFact.delete({ where: { id: fact.id } });
-      pruned++;
+      toDelete.push(fact.id);
     } else {
-      await prisma.memoryFact.update({ where: { id: fact.id }, data: { weight: next } });
+      toUpdate.push({ id: fact.id, weight: next });
     }
   }
+
+  const pruned = toDelete.length;
+
+  await Promise.all([
+    toDelete.length > 0
+      ? prisma.memoryFact.deleteMany({ where: { id: { in: toDelete } } })
+      : Promise.resolve(),
+    ...toUpdate.map((f) =>
+      prisma.memoryFact.update({ where: { id: f.id }, data: { weight: f.weight } }),
+    ),
+  ]);
 
   await prisma.memoryDecayLog.create({
     data: {

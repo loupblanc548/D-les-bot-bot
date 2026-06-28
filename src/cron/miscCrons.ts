@@ -193,6 +193,7 @@ export function startMiscCrons(client: Client): void {
     },
     10 * 60 * 1000,
   );
+  if (milestoneInterval.unref) milestoneInterval.unref();
 
   // CRON-15: Birthday notifier — daily at 09:00
   birthdayCron = cron.schedule("0 9 * * *", () => {

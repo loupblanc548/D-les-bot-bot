@@ -489,12 +489,13 @@ export function handleAutoEvents(client: Client): void {
   );
 
   // XP cooldown cleanup
-  setInterval(() => {
+  const _xpCooldownCleanup = setInterval(() => {
     const now = Date.now();
     for (const [userId, timestamp] of xpCooldown) {
       if (now - timestamp > 3600000) xpCooldown.delete(userId);
     }
   }, 300000);
+  if (_xpCooldownCleanup.unref) _xpCooldownCleanup.unref();
 
   logger.info(
     "[AutoEvents] Events automatiques activés (NSFW, shortener, nickname, auto-role, starboard, XP, temp-expiry, permission-audit)",

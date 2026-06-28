@@ -430,6 +430,7 @@ export function startSteamNewsMonitoring(client: Client): void {
       ),
     );
   }, intervalMs);
+  if (intervalId.unref) intervalId.unref();
 }
 
 export function stopSteamNewsMonitoring(): void {

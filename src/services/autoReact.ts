@@ -21,6 +21,7 @@ interface CachedRule {
   emoji: string;
   matchType: string;
   enabled: boolean;
+  compiledRegex: RegExp | null;
 }
 
 const cache = new Map<string, CachedRule[]>();
@@ -53,6 +54,16 @@ async function loadRules(guildId: string): Promise<CachedRule[]> {
     emoji: r.emoji,
     matchType: r.matchType,
     enabled: r.enabled,
+    compiledRegex:
+      r.matchType === "regex"
+        ? (() => {
+            try {
+              return new RegExp(r.trigger, "i");
+            } catch {
+              return null;
+            }
+          })()
+        : null,
   }));
 
   cache.set(guildId, result);
@@ -71,11 +82,8 @@ function matchesRule(content: string, rule: CachedRule): boolean {
     case "keyword":
       return text.includes(rule.trigger.toLowerCase());
     case "regex":
-      try {
-        return new RegExp(rule.trigger, "i").test(content);
-      } catch {
-        return false;
-      }
+      if (!rule.compiledRegex) return false;
+      return rule.compiledRegex.test(content);
     case "always":
       return true;
     default:
@@ -146,7 +154,11 @@ export async function listRules(guildId: string) {
   });
 }
 
-export async function toggleRule(guildId: string, ruleId: string, enabled: boolean): Promise<boolean> {
+export async function toggleRule(
+  guildId: string,
+  ruleId: string,
+  enabled: boolean,
+): Promise<boolean> {
   const result = await prisma.autoReactRule.updateMany({
     where: { id: ruleId, guildId },
     data: { enabled },

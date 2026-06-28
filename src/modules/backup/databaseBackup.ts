@@ -28,9 +28,10 @@ const backupStats: BackupStats = {
 export function startDatabaseBackup(client: Client): void {
   logger.info("[DatabaseBackup] Starting automatic database backup system");
 
-  setInterval(async () => {
+  const _backupInterval = setInterval(async () => {
     await performBackup(client);
   }, BACKUP_INTERVAL);
+  if (_backupInterval.unref) _backupInterval.unref();
 
   // Premier backup après 1 minute
   setTimeout(async () => {
