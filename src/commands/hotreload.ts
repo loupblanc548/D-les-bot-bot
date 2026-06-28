@@ -6,6 +6,7 @@ import {
   disableMaintenanceMode,
   reloadConfig,
   reloadCommands,
+  fullReload,
   enableAutoReload,
   disableAutoReload,
   getHotReloadStatus,
@@ -73,12 +74,17 @@ async function handleReload(interaction: ChatInputCommandInteraction, client: Cl
 
   try {
     reloadConfig();
-    await reloadCommands(client);
+    const result = await fullReload(client);
 
     const embed = new EmbedBuilder()
       .setTitle("🔄 Hot Reload")
-      .setDescription("Commandes et configuration rechargées avec succès")
+      .setDescription("Rechargement complet terminé")
       .setColor(0x00ff00)
+      .addFields(
+        { name: "📝 Commandes", value: `✅ ${result.commands.success} | ❌ ${result.commands.failed}`, inline: true },
+        { name: "⚙️ Services", value: `✅ ${result.services.success} | ❌ ${result.services.failed}`, inline: true },
+        { name: "📡 API Discord", value: result.registered ? "✅ Réenregistrées" : "❌ Échec", inline: true },
+      )
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
