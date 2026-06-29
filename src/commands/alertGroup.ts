@@ -105,7 +105,6 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("spam-analysis").setDescription("Analyse de spam"))
     .addSubcommand((sc) => sc.setName("auto-report").setDescription("Rapport automatique"))
     .addSubcommand((sc) => sc.setName("viral-alert").setDescription("Alerte virale"))
-    .addSubcommand((sc) => sc.setName("trend-report").setDescription("Rapport de tendances"))
     .addSubcommand((sc) =>
       sc
         .setName("alert-rules")
@@ -125,8 +124,15 @@ export const commands = [
       sc
         .setName("alert-digest")
         .setDescription("Configure un digest périodique d'alertes")
-        .addStringOption((o) => o.setName("frequence").setDescription("Fréquence (hourly/daily/weekly)").setRequired(true))
-        .addChannelOption((o) => o.setName("salon").setDescription("Salon de réception").setRequired(false)),
+        .addStringOption((o) =>
+          o
+            .setName("frequence")
+            .setDescription("Fréquence (hourly/daily/weekly)")
+            .setRequired(true),
+        )
+        .addChannelOption((o) =>
+          o.setName("salon").setDescription("Salon de réception").setRequired(false),
+        ),
     )
     .addSubcommand((sc) =>
       sc
@@ -148,7 +154,7 @@ const ALERTCENTER_SUBS = ["pending", "history", "user", "riskscore", "riskyusers
 // Subcommands that map to alertconfig (commandName = alertconfig)
 const ALERTCONFIG_SUBS = ["channel", "threshold", "owner_notify", "reset", "view"];
 // Subcommands that map to advanced
-const ADVANCED_SUBS = ["smart", "auto-report", "viral-alert", "trend-report"];
+const ADVANCED_SUBS = ["smart", "auto-report", "viral-alert"];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const dc = client as Client;
