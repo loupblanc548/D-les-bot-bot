@@ -42,6 +42,9 @@ const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
 const SPAM_MUTE_MS = 5 * 60 * 1000;
 
+const discordLinkCooldown = new Map<string, number>();
+const DISCORD_LINK_COOLDOWN_MS = 10_000;
+
 // ─── Relances humoristiques quand @mention sans message ──────────────────────
 
 const HELPDIVER_EMPTY_MENTION_REPLIES = [
@@ -191,13 +194,18 @@ export function handleMessageEvents(client: Client) {
         }
       }
 
-      // ── Détection du mot "discord" → partage le lien du serveur ────
+      // ── Détection du mot "discord" → partage le lien du serveur (cooldown 10s) ──
       if (lowerContent.includes("discord") && !message.author.bot) {
-        await message.reply({
-          content: `<@${message.author.id}> 📌 Voici le lien du serveur Discord : https://discord.gg/hAVqWmpGV`,
-          allowedMentions: { repliedUser: true },
-        });
-        return;
+        const now = Date.now();
+        const lastTime = discordLinkCooldown.get(message.channel.id) ?? 0;
+        if (now - lastTime >= DISCORD_LINK_COOLDOWN_MS) {
+          discordLinkCooldown.set(message.channel.id, now);
+          await message.reply({
+            content: `<@${message.author.id}> 📌 Voici le lien du serveur Discord : https://discord.gg/hAVqWmpGV`,
+            allowedMentions: { repliedUser: true },
+          });
+          return;
+        }
       }
 
       // ── Détection spam proactive ──────────────────────────────────
