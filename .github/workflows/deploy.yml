@@ -12,7 +12,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.actor == 'MON_PSEUDO_GITHUB'
+    if: github.actor == 'loupblanc548'
     
     steps:
       # Étape 1 : Checkout du code source
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       
       # Étape 3 : Installation des dépendances

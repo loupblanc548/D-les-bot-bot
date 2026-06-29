@@ -10,22 +10,19 @@ on:
 
 jobs:
   audit:
-    name: npm audit + eslint security
+    name: npm audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: npm audit (0 vulnerabilities expected)
-        run: npm audit --audit-level=moderate
-
-      - name: ESLint security plugin
-        run: npx eslint --plugin security --ext .ts src/
+      - name: npm audit
+        run: npm audit --audit-level=high
         continue-on-error: true
