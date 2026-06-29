@@ -24,6 +24,23 @@ const TWITTER_BLUE = 0x1da1f2;
 const RSSHUB_BASE = "https://rsshub.app/twitter/user";
 const MAX_TWEETS_PER_ACCOUNT = 3;
 
+// Multiple free RSS sources for Twitter (fallback chain)
+const NITTER_INSTANCES = [
+  "https://xcancel.com",
+  "https://nitter.poast.org",
+  "https://nitter.privacydev.net",
+  "https://nitter.woodland.cafe",
+  "https://bird.trom.tf",
+  "https://nitter.cz",
+  "https://nitter.1d4.us",
+];
+
+const RSSHUB_INSTANCES = [
+  "https://rsshub.app/twitter/user",
+  "https://rsshub.rssforever.com/twitter/user",
+  "https://rss.shab.fun/twitter/user",
+];
+
 const FOOTER = { text: "Twitter Monitor • Surveillance automatique" };
 const TWITTER_ICON = "https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png";
 
@@ -136,23 +153,33 @@ function extractTweetId(link: string): string | null {
   return match?.[1] ?? null;
 }
 
-// Fetch RSS
+// Fetch RSS — multi-source fallback system
 
-async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
-  const url = RSSHUB_BASE + "/" + account;
-  const tweets: TweetData[] = [];
-
+async function tryFetchRss(url: string): Promise<string | null> {
   try {
     const response = await axios.get(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Accept: "application/rss+xml, application/xml, text/xml",
       },
-      timeout: 15000,
+      timeout: 12000,
       maxRedirects: 5,
+      validateStatus: (s) => s < 400,
     });
+    if (response.data && typeof response.data === "string" && response.data.length > 50) {
+      if (response.data.includes("RSS reader not yet whitelisted")) return null;
+      return response.data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
-    const parsed = rssParser.parse(response.data);
+function parseTweetsFromRss(xml: string, account: string): TweetData[] {
+  const tweets: TweetData[] = [];
+  try {
+    const parsed = rssParser.parse(xml);
     const items = parsed?.rss?.channel?.item;
     if (!items) return [];
 
@@ -172,7 +199,6 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
       }
 
       let imageUrl: string | null = null;
-
       const enclosureUrl = item.enclosure?.["@_url"] ?? item.enclosure?.url ?? null;
       if (isValidUrl(enclosureUrl)) imageUrl = enclosureUrl;
 
@@ -188,25 +214,41 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
         if (isValidUrl(img)) imageUrl = img;
       }
 
-      tweets.push({
-        tweetId,
-        account,
-        content,
-        pubDate,
-        link,
-        imageUrl,
-      });
+      tweets.push({ tweetId, account, content, pubDate, link, imageUrl });
     }
-  } catch (error) {
-    logger.warn(
-      "[TwitterCron] Flux RSS inaccessible pour @" +
-        account +
-        ": " +
-        (error instanceof Error ? error.message : String(error)),
-    );
+  } catch {
+    // Parse error
+  }
+  return tweets;
+}
+
+async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
+  // Strategy: try Nitter instances first (RSS endpoint), then RSSHub instances
+  const sources: string[] = [];
+
+  // Nitter instances: {instance}/{account}/rss
+  for (const instance of NITTER_INSTANCES) {
+    sources.push(`${instance}/${account}/rss`);
   }
 
-  return tweets;
+  // RSSHub instances: {base}/{account}
+  for (const base of RSSHUB_INSTANCES) {
+    sources.push(`${base}/${account}`);
+  }
+
+  for (const url of sources) {
+    const xml = await tryFetchRss(url);
+    if (xml) {
+      const tweets = parseTweetsFromRss(xml, account);
+      if (tweets.length > 0) {
+        logger.info(`[TwitterCron] ✓ @${account}: ${tweets.length} tweet(s) via ${url.split("/")[2]}`);
+        return tweets;
+      }
+    }
+  }
+
+  logger.warn(`[TwitterCron] ✗ @${account}: toutes les sources RSS ont échoué (${sources.length} essayées)`);
+  return [];
 }
 
 // Detection de plateforme dans le contenu du tweet

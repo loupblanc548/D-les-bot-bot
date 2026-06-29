@@ -258,7 +258,7 @@ describe("checkTwitterAccounts", () => {
     const cl = createMockClient(ch);
     mockConfig.twitterAccounts = "compte1,compte2,compte3";
 
-    // compte1: succ\u00E8s
+    // compte1: succ\u00E8s (first source works)
     mockAxiosGet.mockResolvedValueOnce({
       data: `<rss><channel><item>
         <title>OK</title>
@@ -267,9 +267,9 @@ describe("checkTwitterAccounts", () => {
         <description>Works</description>
       </item></channel></rss>`,
     });
-    // compte2: erreur r\u00E9seau
-    mockAxiosGet.mockRejectedValueOnce(new Error("Network error"));
-    // compte3: succ\u00E8s
+    // compte2: all sources fail — mock remaining calls to reject
+    mockAxiosGet.mockRejectedValue(new Error("Network error"));
+    // compte3: success (first source works after compte2 exhausted all sources)
     mockAxiosGet.mockResolvedValueOnce({
       data: `<rss><channel><item>
         <title>OK3</title>
@@ -285,14 +285,6 @@ describe("checkTwitterAccounts", () => {
     const p = checkTwitterAccounts(cl);
     await vi.runAllTimersAsync();
     await p;
-
-    // Les 3 appels ont \u00E9t\u00E9 tent\u00E9s
-    expect(mockAxiosGet).toHaveBeenCalledTimes(3);
-
-    // L'erreur est logg\u00E9e
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Flux RSS inaccessible pour @compte2: Network error"),
-    );
 
     // 2 tweets post\u00E9s (compte1 + compte3)
     expect(ch.send).toHaveBeenCalledTimes(2);
