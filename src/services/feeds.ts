@@ -159,14 +159,27 @@ export function parseRssItems(xml: string): { title: string; url: string; thumbn
   }
 }
 
+const NITTER_INSTANCES = [
+  "https://xcancel.com",
+  "https://nitter.poast.org",
+  "https://nitter.privacydev.net",
+  "https://nitter.woodland.cafe",
+  "https://bird.trom.tf",
+  "https://nitter.cz",
+  "https://nitter.1d4.us",
+];
+
 async function checkTwitterSource(
   handle: string,
 ): Promise<{ title: string; url: string; thumbnail?: string } | null> {
-  const url = `https://${new URL(config.xcancelBaseUrl).hostname}/` + handle + "/rss";
-  const xml = await fetchRss(url, true);
-  if (!xml || xml.includes("RSS reader not yet whitelisted")) return null;
-  const items = parseRssItems(xml);
-  return items[0] || null;
+  for (const instance of NITTER_INSTANCES) {
+    const url = `${instance}/${handle}/rss`;
+    const xml = await fetchRss(url, true);
+    if (!xml || xml.includes("RSS reader not yet whitelisted")) continue;
+    const items = parseRssItems(xml);
+    if (items.length > 0) return items[0];
+  }
+  return null;
 }
 
 async function checkYouTubeSource(
@@ -200,11 +213,14 @@ async function checkTwitterSourceMulti(
   handle: string,
   limit: number = 3,
 ): Promise<{ title: string; url: string; thumbnail?: string }[]> {
-  const url = `https://${new URL(config.xcancelBaseUrl).hostname}/` + handle + "/rss";
-  const xml = await fetchRss(url, true);
-  if (!xml || xml.includes("RSS reader not yet whitelisted")) return [];
-  const items = parseRssItems(xml);
-  return items.slice(0, limit);
+  for (const instance of NITTER_INSTANCES) {
+    const url = `${instance}/${handle}/rss`;
+    const xml = await fetchRss(url, true);
+    if (!xml || xml.includes("RSS reader not yet whitelisted")) continue;
+    const items = parseRssItems(xml);
+    if (items.length > 0) return items.slice(0, limit);
+  }
+  return [];
 }
 
 async function checkYouTubeSourceMulti(

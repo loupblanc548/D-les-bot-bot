@@ -137,45 +137,51 @@ async function checkYouTubeChannel(handle: string): Promise<{
   return { status: "error" };
 }
 
+const NITTER_INSTANCES = [
+  "https://xcancel.com",
+  "https://nitter.poast.org",
+  "https://nitter.privacydev.net",
+  "https://nitter.woodland.cafe",
+  "https://bird.trom.tf",
+  "https://nitter.cz",
+  "https://nitter.1d4.us",
+];
+
 async function checkTwitterUser(handle: string): Promise<{
   status: "new" | "none" | "error";
   content?: TextRSSContent;
 }> {
-  const url = `https://xcancel.com/${handle}/rss`;
+  for (const instance of NITTER_INSTANCES) {
+    const url = `${instance}/${handle}/rss`;
+    try {
+      const response = await fetch(url, { headers: RSS_HEADERS });
+      if (!response.ok) continue;
+      const text = await response.text();
 
-  try {
-    const response = await fetch(url, { headers: RSS_HEADERS });
-    if (!response.ok) {
-      logger.warn(`[Monitor] Twitter RSS: HTTP ${response.status} pour @${handle}`);
-      return { status: "error" };
-    }
-    const text = await response.text();
+      if (text.includes("RSS reader not yet whitelisted")) continue;
 
-    if (text.includes("RSS reader not yet whitelisted")) {
-      if (!whitelistWarningShown) {
-        whitelistWarningShown = true;
-        logger.warn(
-          `[Monitor] ⚠️  xcancel.com exige une whitelist. ` +
-            `Envoyez un email à rss@xcancel.com avec votre User-Agent (DiscordSurveillanceBot/1.0)`,
-        );
+      const parsed = xmlParser.parse(text);
+      const items = parsed.rss?.channel?.item;
+      if (!items) continue;
+      const firstItem = Array.isArray(items) ? items[0] : items;
+      const content = textOf(firstItem.title).trim();
+      const link = extractLink(firstItem.link).trim();
+      if (content && link) {
+        return { status: "new", content: { text: content, url: link } };
       }
-      return { status: "error" };
+    } catch {
+      continue;
     }
-
-    const parsed = xmlParser.parse(text);
-    const items = parsed.rss?.channel?.item;
-    if (!items) return { status: "none" };
-    const firstItem = Array.isArray(items) ? items[0] : items;
-    const content = textOf(firstItem.title).trim();
-    const link = extractLink(firstItem.link).trim();
-    if (content && link) {
-      return { status: "new", content: { text: content, url: link } };
-    }
-    return { status: "none" };
-  } catch (error) {
-    logger.error(`[Monitor] Erreur lors du check Twitter pour @${handle}:`, error);
-    return { status: "error" };
   }
+
+  if (!whitelistWarningShown) {
+    whitelistWarningShown = true;
+    logger.warn(
+      `[Monitor] ⚠️ Toutes les instances Nitter ont échoué pour @${handle}. ` +
+        `Les services RSS Twitter gratuits sont instables.`,
+    );
+  }
+  return { status: "error" };
 }
 
 async function checkBlueskyUser(handle: string): Promise<{
@@ -239,27 +245,29 @@ async function checkYouTubeChannelMulti(
 }
 
 async function checkTwitterUserMulti(handle: string, limit: number = 3): Promise<TextRSSContent[]> {
-  const url = `https://xcancel.com/${handle}/rss`;
-  try {
-    const response = await fetch(url, { headers: RSS_HEADERS });
-    if (!response.ok) return [];
-    const text = await response.text();
-    if (text.includes("RSS reader not yet whitelisted")) return [];
-    const parsed = xmlParser.parse(text);
-    const items = parsed.rss?.channel?.item;
-    if (!items) return [];
-    const list = Array.isArray(items) ? items : [items];
-    const results: TextRSSContent[] = [];
-    for (const item of list) {
-      const content = textOf(item.title).trim();
-      const link = extractLink(item.link).trim();
-      if (content && link) results.push({ text: content, url: link });
+  for (const instance of NITTER_INSTANCES) {
+    const url = `${instance}/${handle}/rss`;
+    try {
+      const response = await fetch(url, { headers: RSS_HEADERS });
+      if (!response.ok) continue;
+      const text = await response.text();
+      if (text.includes("RSS reader not yet whitelisted")) continue;
+      const parsed = xmlParser.parse(text);
+      const items = parsed.rss?.channel?.item;
+      if (!items) continue;
+      const list = Array.isArray(items) ? items : [items];
+      const results: TextRSSContent[] = [];
+      for (const item of list) {
+        const content = textOf(item.title).trim();
+        const link = extractLink(item.link).trim();
+        if (content && link) results.push({ text: content, url: link });
+      }
+      return results.slice(0, limit);
+    } catch {
+      continue;
     }
-    return results.slice(0, limit);
-  } catch (error) {
-    logger.error(`[Monitor] Erreur lors du check:`, error);
-    return [];
   }
+  return [];
 }
 
 async function checkBlueskyUserMulti(
