@@ -65,8 +65,11 @@ const AuthGuard = {
         <p style="color:var(--text-muted,#888);font-size:13px;margin:0">Entrez le mot de passe pour accéder au panneau</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;width:300px">
-        <input type="password" id="auth-password" placeholder="Mot de passe" autofocus
-          style="padding:12px 16px;background:var(--bg-tertiary,#1a1f2e);border:1px solid var(--border,#2a3142);border-radius:8px;color:var(--text,#fff);font-size:14px;outline:none;text-align:center">
+        <div style="position:relative">
+          <input type="password" id="auth-password" placeholder="Mot de passe" autofocus
+            style="width:100%;padding:12px 40px 12px 16px;background:var(--bg-tertiary,#1a1f2e);border:1px solid var(--border,#2a3142);border-radius:8px;color:var(--text,#fff);font-size:14px;outline:none;text-align:center">
+          <span id="auth-toggle-eye" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;user-select:none">👁</span>
+        </div>
         <button id="auth-submit"
           style="padding:12px;background:var(--accent,#6366f1);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.2s">
           🔓 Déverrouiller
@@ -102,6 +105,19 @@ const AuthGuard = {
 
     btn.addEventListener("click", attempt);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") attempt(); });
+
+    const eye = document.getElementById("auth-toggle-eye");
+    if (eye) {
+      eye.addEventListener("click", () => {
+        if (input.type === "password") {
+          input.type = "text";
+          eye.textContent = "🙈";
+        } else {
+          input.type = "password";
+          eye.textContent = "👁";
+        }
+      });
+    }
   },
 };
 
