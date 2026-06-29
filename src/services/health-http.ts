@@ -228,7 +228,7 @@ async function handleDetailedHealth(res: http.ServerResponse): Promise<void> {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       timestamp: new Date().toISOString(),
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? "Internal error" : "Unknown error",
     };
 
     res.writeHead(503, { "Content-Type": "application/json" });

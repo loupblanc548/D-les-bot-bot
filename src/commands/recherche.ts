@@ -209,7 +209,7 @@ function parseDuckDuckGoHtml(html: string): SearchResult[] {
     // DuckDuckGo redirige via /l/?uddg= — extraire l'URL réelle
     const url = decodeDuckDuckGoUrl(rawUrl);
 
-    if (title && url && !url.includes("duckduckgo.com")) {
+    if (title && url && !isDuckDuckGoUrl(url)) {
       results.push({
         title: title.slice(0, 200),
         url,
@@ -227,7 +227,7 @@ function parseDuckDuckGoHtml(html: string): SearchResult[] {
       const title = stripAllHtml(match[2]).trim();
       const url = decodeDuckDuckGoUrl(rawUrl);
 
-      if (title && url && !url.includes("duckduckgo.com")) {
+      if (title && url && !isDuckDuckGoUrl(url)) {
         results.push({ title: title.slice(0, 200), url, snippet: "" });
       }
     }
@@ -250,5 +250,14 @@ function decodeDuckDuckGoUrl(rawUrl: string): string {
     return `https://duckduckgo.com${rawUrl}`;
   } catch {
     return rawUrl;
+  }
+}
+
+function isDuckDuckGoUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "duckduckgo.com" || parsed.hostname === "duckduckgo.org";
+  } catch {
+    return url.includes("duckduckgo.com");
   }
 }

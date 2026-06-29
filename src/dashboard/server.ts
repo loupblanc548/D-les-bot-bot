@@ -28,6 +28,28 @@ const DISCORD_API = "https://discord.com/api/v10";
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID().replace(/-/g, "");
 const SESSION_COOKIE_NAME = "sb_session";
 
+// ─── Rate limiting (simple in-memory) ─────────────────────────────────────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 30; // 30 requests per minute per IP
+
+function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    next();
+    return;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    res.status(429).json({ error: "Too many requests" });
+    return;
+  }
+  next();
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface DiscordUser {
@@ -115,13 +137,18 @@ export async function startDashboardServer(port: number): Promise<number> {
     next();
   });
 
+  // Rate limiting on all API routes
+  app.use("/api", rateLimit);
+
   // Cookie parser simple
   app.use((req, _res, next) => {
     const cookieHeader = req.headers.cookie || "";
     const cookies: Record<string, string> = {};
     for (const part of cookieHeader.split(";")) {
       const [key, ...val] = part.trim().split("=");
-      if (key) cookies[key] = val.join("=");
+      if (key && key !== "__proto__" && key !== "constructor" && key !== "prototype") {
+        cookies[key] = val.join("=");
+      }
     }
     (req as any).cookies = cookies;
     next();

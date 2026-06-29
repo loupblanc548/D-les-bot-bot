@@ -52,7 +52,12 @@ async function notifyStatusChange(client: Client, isOk: boolean): Promise<void> 
 
   if (webhookUrl) {
     // Discord webhook format
-    if (webhookUrl.includes("discord.com/api/webhooks") || webhookUrl.includes("discordapp.com")) {
+    let isDiscordWebhook = false;
+    try {
+      const parsed = new URL(webhookUrl);
+      isDiscordWebhook = (parsed.hostname === "discord.com" || parsed.hostname === "discordapp.com") && parsed.pathname.includes("/api/webhooks/");
+    } catch {}
+    if (isDiscordWebhook) {
       await sendWebhook(webhookUrl, {
         embeds: [{
           title: isOk ? "✅ Bot de nouveau en ligne" : "⚠️ Bot hors ligne ou instable",

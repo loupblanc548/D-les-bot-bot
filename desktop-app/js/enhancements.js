@@ -384,7 +384,10 @@ const Enhancements = {
     var bot = this._bots[idx];
     var settings = JSON.parse(localStorage.getItem("botSettings") || "{}");
     settings.apiUrl = bot.apiUrl;
+    // Store token in sessionStorage (cleared on close) instead of persistent localStorage
     settings.token = bot.token;
+    try { sessionStorage.setItem("botPanelToken", bot.token || ""); } catch {}
+    delete settings.token;
     localStorage.setItem("botSettings", JSON.stringify(settings));
     this.logAction("switch", "Switch vers " + bot.name);
     Notifications.info("Switch vers " + bot.name + ". Reconnexion...");

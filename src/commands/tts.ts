@@ -96,7 +96,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     await mkdir(TTS_DIR, { recursive: true });
     const filename = `tts-${randomUUID()}.mp3`;
     const filepath = join(TTS_DIR, filename);
-    await writeFile(filepath, audioBuffer);
+    await writeFile(filepath, audioBuffer, { mode: 0o600 });
 
     // Rejoindre le vocal
     const guildId = interaction.guildId!;

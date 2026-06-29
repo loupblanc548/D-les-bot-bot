@@ -65,9 +65,9 @@ export function sanitizeHtml(html: string, options?: {
   // Supprimer les commentaires HTML et les scripts/style
   let result = html
     .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "");
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
 
   // Parser les tags restants
   result = result.replace(/<\/?([a-zA-Z0-9]+)([^>]*?)\/?>/g, (match, tag: string, attrs: string) => {
@@ -95,9 +95,9 @@ export function sanitizeHtml(html: string, options?: {
   });
 
   // Nettoyer les attributs restants dans les tags autorisés (event handlers)
-  result = result.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");
-  result = result.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
-  result = result.replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
+  result = result.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "");
+  result = result.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
+  result = result.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "");
 
   return result;
 }
@@ -142,13 +142,14 @@ function sanitizeAttributes(tag: string, attrs: string): string {
  * Vérifie si une URL est dangereuse (javascript:, data:, vbscript:).
  */
 function isDangerousUrl(url: string): boolean {
-  const trimmed = url.trim().toLowerCase();
-  return (
-    trimmed.startsWith("javascript:") ||
-    trimmed.startsWith("data:") ||
-    trimmed.startsWith("vbscript:") ||
-    trimmed.startsWith("file:")
-  );
+  try {
+    const parsed = new URL(url.trim(), "http://safe.invalid");
+    const proto = parsed.protocol.toLowerCase();
+    return proto === "javascript:" || proto === "data:" || proto === "vbscript:" || proto === "file:";
+  } catch {
+    const trimmed = url.trim().toLowerCase();
+    return trimmed.startsWith("javascript:") || trimmed.startsWith("vbscript:");
+  }
 }
 
 /**
@@ -200,7 +201,7 @@ export function htmlToMarkdown(html: string): string {
   // Conversions HTML → Markdown
   md = md
     // Liens
-    .replace(/<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis, (_, href, text) => {
+    .replace(/<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis, (_match, href: string, text: string) => {
       const cleanText = text.replace(/<[^>]*>/g, "").trim();
       return cleanText ? `[${cleanText}](${href})` : "";
     })
@@ -304,6 +305,7 @@ export function escapeHtml(str: unknown): string {
  * Strip toutes les balises HTML — retourne uniquement le texte.
  */
 export function stripAllHtml(html: string): string {
+  // First strip all HTML tags, then decode entities ONCE (no double escaping)
   return html
     .replace(/<[^>]*>/g, "")
     .replace(/&nbsp;/g, " ")
@@ -311,7 +313,7 @@ export function stripAllHtml(html: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
+    .replace(/&#0?39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }

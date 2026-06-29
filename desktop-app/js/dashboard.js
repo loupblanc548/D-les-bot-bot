@@ -33,6 +33,7 @@ const Dashboard = {
       if (tab && !tab.querySelector("#setting-api-url")) {
         const defaultUrl = s.apiUrl || "https://d-les-bot-bot-production.up.railway.app";
         const defaultToken = s.token || "";
+        const safeUrl = defaultUrl.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const section = document.createElement("div");
         section.className = "settings-section";
         section.innerHTML = `
@@ -40,7 +41,7 @@ const Dashboard = {
           <div class="setting-row" style="flex-direction:column;align-items:stretch">
             <div class="setting-label">URL API du bot</div>
             <div class="setting-desc">L'URL de ton bot sur Railway</div>
-            <input type="text" id="setting-api-url" value="${defaultUrl}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
+            <input type="text" id="setting-api-url" value="${safeUrl}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
           </div>
           <div class="setting-row" style="flex-direction:column;align-items:stretch">
             <div class="setting-label">Token de contrôle</div>

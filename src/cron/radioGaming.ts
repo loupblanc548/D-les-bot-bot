@@ -219,9 +219,9 @@ export async function broadcastRadioGaming(
       return { success: false, script, error: "Impossible de générer l'audio TTS" };
     }
 
-    await mkdir(TTS_DIR, { recursive: true });
+    await mkdir(TTS_DIR, { recursive: true, mode: 0o700 });
     const ttsFilepath = join(TTS_DIR, `radio-${randomUUID()}.mp3`);
-    await writeFile(ttsFilepath, ttsBuffer);
+    await writeFile(ttsFilepath, ttsBuffer, { mode: 0o600 });
 
     // 4. Join voice channel
     const connection = joinVoiceChannel({
@@ -263,7 +263,7 @@ export async function broadcastRadioGaming(
       try {
         const jingleBuffer = await readFile(JINGLE_PATH);
         const jinglePath = join(TTS_DIR, `jingle-${randomUUID()}.mp3`);
-        await writeFile(jinglePath, jingleBuffer);
+        await writeFile(jinglePath, jingleBuffer, { mode: 0o600 });
         const jingleResource = createAudioResource(jinglePath);
         player.play(jingleResource);
 
