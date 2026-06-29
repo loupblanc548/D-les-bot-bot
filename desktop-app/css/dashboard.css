@@ -436,3 +436,148 @@ html, body {
   position: absolute;
   font-size: 11px; font-weight: 700;
 }
+
+/* ─── Studio ──────────────────────────────────────────────────── */
+#studio-dropzone.dragover {
+  border-color: var(--accent) !important;
+  background: var(--accent-bg);
+}
+.color-swatches {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.color-swatch {
+  width: 80px; height: 80px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 4px; cursor: pointer;
+  transition: transform 0.2s;
+  position: relative;
+}
+.color-swatch:hover { transform: scale(1.08); }
+.color-swatch.sm { width: 50px; height: 50px; }
+.color-hex {
+  font-size: 9px; font-weight: 700;
+  background: rgba(0,0,0,0.6); color: #fff;
+  padding: 2px 4px; border-radius: 3px;
+  white-space: nowrap;
+}
+.palette-group {
+  margin-bottom: 12px;
+}
+.palette-name {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.palette-colors {
+  display: flex; gap: 6px;
+}
+.font-results {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+}
+.font-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; background: var(--bg-tertiary); border-radius: var(--radius-sm);
+}
+.font-preview {
+  min-width: 50px; color: var(--text-primary);
+}
+.font-info {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.font-tags {
+  font-size: 10px; color: var(--text-muted);
+}
+.font-confidence {
+  font-size: 10px; color: var(--success); font-weight: 600;
+}
+.moodboard-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.moodboard-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); padding: 16px; min-height: 100px;
+  color: #fff;
+}
+.layout-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+}
+.layout-preview {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.layout-canvas {
+  border: 1px solid var(--border);
+}
+.layout-name {
+  font-size: 11px; color: var(--text-muted); text-align: center;
+}
+.contrast-preview {
+  margin-bottom: 10px;
+}
+.contrast-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.contrast-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px; border-radius: var(--radius-sm); background: var(--bg-tertiary);
+}
+.contrast-stat.pass { border: 1px solid var(--success); }
+.contrast-stat.fail { border: 1px solid var(--danger); }
+.contrast-label {
+  font-size: 10px; color: var(--text-muted);
+}
+.contrast-value {
+  font-size: 16px; font-weight: 700;
+}
+.contrast-stat.pass .contrast-value { color: var(--success); }
+.contrast-stat.fail .contrast-value { color: var(--danger); }
+.audit-score {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px; border-radius: var(--radius); margin-bottom: 12px;
+  background: var(--bg-tertiary);
+}
+.audit-score.pass { border: 1px solid var(--success); }
+.audit-score.warn { border: 1px solid var(--warning); }
+.audit-score.fail { border: 1px solid var(--danger); }
+.audit-score-value {
+  font-size: 32px; font-weight: 800;
+}
+.audit-score.pass .audit-score-value { color: var(--success); }
+.audit-score.warn .audit-score-value { color: var(--warning); }
+.audit-score.fail .audit-score-value { color: var(--danger); }
+.audit-score-label {
+  font-size: 12px; color: var(--text-muted);
+}
+.audit-checks {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.audit-check {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg-tertiary);
+}
+.audit-check.pass { border-left: 3px solid var(--success); }
+.audit-check.warn { border-left: 3px solid var(--warning); }
+.audit-check.info { border-left: 3px solid var(--accent); }
+.audit-icon {
+  font-size: 16px; font-weight: 700;
+}
+.audit-check.pass .audit-icon { color: var(--success); }
+.audit-check.warn .audit-icon { color: var(--warning); }
+.audit-msg {
+  display: block; font-size: 11px; color: var(--text-muted);
+}
+.prompt-result {
+  padding: 12px; background: var(--bg-tertiary); border-radius: var(--radius-sm);
+}
+.prompt-original {
+  font-size: 12px; color: var(--text-muted); margin-bottom: 8px;
+}
+.prompt-expanded {
+  font-size: 13px; color: var(--text-primary);
+}
+.prompt-tags {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;
+}
+.prompt-tags .tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: var(--accent-bg); color: var(--accent);
+}
