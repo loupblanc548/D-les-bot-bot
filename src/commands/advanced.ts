@@ -13,7 +13,6 @@ import { requireAdmin } from "../services/permissions.js";
 import prisma from "../prisma.js";
 import { viralDetectionService } from "../services/viral-detection.js";
 import { reportGeneratorService } from "../services/report-generator.js";
-import { trendDetectionService } from "../services/trend-detection.js";
 import {
   enableSmartAlerts,
   disableSmartAlerts,
@@ -97,13 +96,6 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("source-stats")
     .setDescription("Statistiques par source (notifications, activité, succès)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-
-  // /trend-report
-  new SlashCommandBuilder()
-    .setName("trend-report")
-    .setDescription("Rapport de tendances gaming de la semaine")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
 
@@ -267,9 +259,6 @@ export async function handleCommand(
         break;
       case "source-stats":
         await handleSourceStats(interaction, client);
-        break;
-      case "trend-report":
-        await handleTrendReport(interaction, client);
         break;
       case "viral-alert":
         await handleViralAlert(interaction, client);
@@ -564,68 +553,6 @@ async function handleSourceStats(
   } catch (err) {
     logger.error("[Advanced] source-stats:", err);
     await interaction.editReply({ content: "❌ Erreur lors de la récupération des stats." });
-  }
-}
-
-// ─── /trend-report ───────────────────────────────────────────────────────────
-
-async function handleTrendReport(
-  interaction: ChatInputCommandInteraction,
-  client: Client,
-): Promise<void> {
-  if (!(await requireAdmin(interaction))) return;
-  await interaction.deferReply({ ephemeral: true });
-
-  try {
-    const trends = trendDetectionService.getCurrentTrends(15);
-    const fastGrowing = trendDetectionService.getFastGrowingTrends(50);
-    const globalStats = trendDetectionService.getGlobalStats();
-
-    const embed = new EmbedBuilder()
-      .setColor(0xfaa61a)
-      .setTitle("📈 Rapport de tendances gaming")
-      .setDescription(
-        `**${globalStats.totalTrends} tendances** détectées\n` +
-          `Croissance moyenne: ${globalStats.averageGrowthRate.toFixed(1)}%\n` +
-          `Top mots-clés: ${globalStats.topKeywords.slice(0, 5).join(", ")}`,
-      )
-      .setFooter(FOOTER)
-      .setTimestamp();
-
-    if (trends.length > 0) {
-      embed.addFields({
-        name: "🔥 Top tendances",
-        value: trends
-          .slice(0, 10)
-          .map((t) => `• **${t.keyword}** — ${t.mentions} mentions (+${t.growthRate.toFixed(0)}%)`)
-          .join("\n"),
-        inline: false,
-      });
-    }
-
-    if (fastGrowing.length > 0) {
-      embed.addFields({
-        name: "🚀 Croissance rapide",
-        value: fastGrowing
-          .slice(0, 5)
-          .map((t) => `• **${t.keyword}** — +${t.growthRate.toFixed(0)}%`)
-          .join("\n"),
-        inline: false,
-      });
-    }
-
-    const targetChannel = config.trendsChannel || config.gamingBlogChannel;
-    if (targetChannel) {
-      await sendToChannel(client, targetChannel, embed);
-      await interaction.editReply({
-        content: `✅ Rapport envoyé dans <#${targetChannel}>`,
-      });
-    } else {
-      await interaction.editReply({ embeds: [embed] });
-    }
-  } catch (err) {
-    logger.error("[Advanced] trend-report:", err);
-    await interaction.editReply({ content: "❌ Erreur lors de la génération du rapport." });
   }
 }
 

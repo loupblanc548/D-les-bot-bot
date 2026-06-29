@@ -186,14 +186,6 @@ export const commands = [
     )
     .addSubcommand((sc) =>
       sc
-        .setName("github")
-        .setDescription("Recherche des repos GitHub (API publique, sans clé)")
-        .addStringOption((o) =>
-          o.setName("requete").setDescription("Termes de recherche").setRequired(true),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc
         .setName("auto-react-add")
         .setDescription("Ajoute une règle d'auto-réaction")
         .addStringOption((o) =>
@@ -224,17 +216,13 @@ export const commands = [
       sc
         .setName("auto-react-remove")
         .setDescription("Supprime une règle d'auto-réaction")
-        .addStringOption((o) =>
-          o.setName("id").setDescription("ID de la règle").setRequired(true),
-        ),
+        .addStringOption((o) => o.setName("id").setDescription("ID de la règle").setRequired(true)),
     )
     .addSubcommand((sc) =>
       sc
         .setName("auto-react-toggle")
         .setDescription("Active/désactive une règle d'auto-réaction")
-        .addStringOption((o) =>
-          o.setName("id").setDescription("ID de la règle").setRequired(true),
-        )
+        .addStringOption((o) => o.setName("id").setDescription("ID de la règle").setRequired(true))
         .addBooleanOption((o) =>
           o.setName("actif").setDescription("Activer ou désactiver").setRequired(true),
         ),
@@ -280,8 +268,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleBase64(interaction);
   } else if (action === "timestamp") {
     await handleTimestamp(interaction);
-  } else if (action === "github") {
-    await handleGithub(interaction);
   } else if (action === "auto-react-add") {
     await handleAutoReactAdd(interaction);
   } else if (action === "auto-react-list") {
@@ -469,30 +455,14 @@ async function handleTimestamp(interaction: ChatInputCommandInteraction): Promis
   await interaction.reply({ embeds: [embed] });
 }
 
-async function handleGithub(interaction: ChatInputCommandInteraction): Promise<void> {
-  const query = interaction.options.getString("requete", true);
-  await interaction.deferReply();
-  const { searchGithubRepos } = await import("../services/freeApis.js");
-  const repos = await searchGithubRepos(query, 5);
-  if (!repos.length) {
-    await interaction.editReply(`❌ Aucun repo trouvé pour "${query}".`);
-    return;
-  }
-  const embed = new EmbedBuilder().setTitle(`🔍 GitHub — ${query}`).setColor(0x24292e);
-  repos.forEach((r, i) => {
-    embed.addFields({
-      name: `${i + 1}. ${r.fullName} ⭐ ${r.stars}`,
-      value: `${r.description || "Aucune description"}\n**Langage:** ${r.language} • [Voir](${r.url})`,
-    });
-  });
-  await interaction.editReply({ embeds: [embed] });
-}
-
 // ─── Auto-React Handlers ──────────────────────────────────────────────────────
 
 async function handleAutoReactAdd(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande ne fonctionne que dans un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -502,7 +472,10 @@ async function handleAutoReactAdd(interaction: ChatInputCommandInteraction): Pro
   const channel = interaction.options.getChannel("salon");
 
   if (emoji.length > 50) {
-    await interaction.reply({ content: "❌ Emoji trop long (max 50 caractères).", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Emoji trop long (max 50 caractères).",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -515,13 +488,7 @@ async function handleAutoReactAdd(interaction: ChatInputCommandInteraction): Pro
     }
   }
 
-  await addAutoReactRule(
-    interaction.guildId,
-    trigger,
-    emoji,
-    matchType,
-    channel?.id ?? null,
-  );
+  await addAutoReactRule(interaction.guildId, trigger, emoji, matchType, channel?.id ?? null);
 
   await interaction.reply({
     content: `✅ Règle d'auto-réaction ajoutée !\n**Déclencheur:** ${trigger}\n**Emoji:** ${emoji}\n**Type:** ${matchType}${channel ? `\n**Salon:** <#${channel.id}>` : "\n**Salon:** Tous"}`,
@@ -531,13 +498,19 @@ async function handleAutoReactAdd(interaction: ChatInputCommandInteraction): Pro
 
 async function handleAutoReactList(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande ne fonctionne que dans un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
   const rules = await listAutoReactRules(interaction.guildId);
   if (rules.length === 0) {
-    await interaction.reply({ content: "📭 Aucune règle d'auto-réaction configurée.", ephemeral: true });
+    await interaction.reply({
+      content: "📭 Aucune règle d'auto-réaction configurée.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -558,7 +531,10 @@ async function handleAutoReactList(interaction: ChatInputCommandInteraction): Pr
 
 async function handleAutoReactRemove(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande ne fonctionne que dans un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -573,7 +549,10 @@ async function handleAutoReactRemove(interaction: ChatInputCommandInteraction): 
 
 async function handleAutoReactToggle(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande ne fonctionne que dans un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -582,16 +561,17 @@ async function handleAutoReactToggle(interaction: ChatInputCommandInteraction): 
   const toggled = await toggleAutoReactRule(interaction.guildId, ruleId, enabled);
 
   await interaction.reply({
-    content: toggled
-      ? `✅ Règle ${enabled ? "activée" : "désactivée"}.`
-      : "❌ Règle introuvable.",
+    content: toggled ? `✅ Règle ${enabled ? "activée" : "désactivée"}.` : "❌ Règle introuvable.",
     ephemeral: true,
   });
 }
 
 async function handleAutoReactClear(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande ne fonctionne que dans un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 

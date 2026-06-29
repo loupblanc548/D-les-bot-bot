@@ -11,12 +11,11 @@
  * /game2 compare     — Compare deux jeux
  * /game2 dlc         — DLC disponibles pour un jeu
  * /game2 beta        — Bêtas ouvertes
- * /game2 clips       — Clips Twitch récents
  * /game2 youtube     — Vidéos gaming YouTube (Invidious, sans clé)
  */
 
 import { ChatInputCommandInteraction, SlashCommandBuilder, Client, EmbedBuilder } from "discord.js";
-import { getSpeedrunRecords, searchGithubRepos } from "../services/freeApis.js";
+import { getSpeedrunRecords } from "../services/freeApis.js";
 import Parser from "rss-parser";
 import logger from "../utils/logger.js";
 
@@ -84,19 +83,6 @@ export const commands = [
     )
     .addSubcommand((sc) =>
       sc.setName("beta").setDescription("Bêtas ouvertes actuelles (Reddit /r/gamedeals)"),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("clips")
-        .setDescription("Derniers clips gaming (Reddit /r/gamingclips)")
-        .addIntegerOption((o) =>
-          o
-            .setName("nombre")
-            .setDescription("Nombre de clips (défaut: 3)")
-            .setRequired(false)
-            .setMinValue(1)
-            .setMaxValue(10),
-        ),
     )
     .addSubcommand((sc) =>
       sc
@@ -354,27 +340,6 @@ export async function handleCommand(
         await interaction.editReply({ embeds: [embed] });
       } catch {
         await interaction.editReply("❌ Impossible de charger les bêtas.");
-      }
-      break;
-    }
-
-    case "clips": {
-      const count = interaction.options.getInteger("nombre") ?? 3;
-      await interaction.deferReply();
-      try {
-        const feed = await rssParser.parseURL(
-          `https://www.reddit.com/r/gamingclips/hot.rss?limit=${count}`,
-        );
-        const embed = new EmbedBuilder().setTitle("🎬 Clips Gaming").setColor(0xff4500);
-        feed.items.slice(0, count).forEach((item, i) => {
-          embed.addFields({
-            name: `${i + 1}. ${item.title?.slice(0, 100) ?? "Sans titre"}`,
-            value: `[Lien](${item.link ?? "#"})`,
-          });
-        });
-        await interaction.editReply({ embeds: [embed] });
-      } catch {
-        await interaction.editReply("❌ Impossible de charger les clips.");
       }
       break;
     }
