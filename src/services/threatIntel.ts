@@ -53,6 +53,11 @@ export interface IPReputationResult {
   abuseScore: number;
   country: string | null;
   isp: string | null;
+  isProxy: boolean;
+  isHosting: boolean;
+  isMobile: boolean;
+  city: string | null;
+  region: string | null;
   scannedAt: Date;
 }
 
@@ -429,23 +434,44 @@ export async function checkIPReputation(ip: string): Promise<IPReputationResult>
   const abuseResult = await checkIPAbuseIPDB(ip);
   results.push(abuseResult);
 
-  // Géolocalisation IP (free, no key needed)
+  // Géolocalisation IP + détection proxy/VPN/hosting (free, no key needed)
   try {
     const geoRes = await fetch(
-      `http://ip-api.com/json/${ip}?fields=status,country,countryCode,isp,org,as`,
+      `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,reverse,mobile,proxy,hosting,query&lang=fr`,
       {
         signal: AbortSignal.timeout(5000),
       },
     );
     if (geoRes.ok) {
       const geoData = (await geoRes.json()) as any;
+
+      // Vérifier le rate limit (X-Rl header)
+      const remaining = geoRes.headers.get("X-Rl");
+      const ttl = geoRes.headers.get("X-Ttl");
+      if (remaining === "0" && ttl) {
+        logger.warn(`[ThreatIntel] ip-api rate limit atteint, retry dans ${ttl}s`);
+      }
+
+      // Détection de proxy/VPN/hosting
+      const isProxy = geoData.proxy === true;
+      const isHosting = geoData.hosting === true;
+      const isMobile = geoData.mobile === true;
+      const suspiciousFlags: string[] = [];
+      if (isProxy) suspiciousFlags.push("PROXY/VPN/TOR");
+      if (isHosting) suspiciousFlags.push("DATACENTER/HOSTING");
+      if (isMobile) suspiciousFlags.push("MOBILE");
+
+      // Une IP proxy+hosting est suspecte
+      const geoMalicious = isProxy && isHosting;
+      const geoConfidence = isProxy && isHosting ? 70 : isProxy ? 40 : isHosting ? 20 : 0;
+
       results.push({
         source: "IPVOID",
         query: ip,
-        malicious: false,
-        confidence: 0,
-        details: `Country: ${geoData.country ?? "?"}, ISP: ${geoData.isp ?? "?"}, AS: ${geoData.as ?? "?"}`,
-        categories: [],
+        malicious: geoMalicious,
+        confidence: geoConfidence,
+        details: `Country: ${geoData.country ?? "?"}, ISP: ${geoData.isp ?? "?"}, AS: ${geoData.as ?? "?"}, Flags: ${suspiciousFlags.length > 0 ? suspiciousFlags.join(", ") : "none"}`,
+        categories: suspiciousFlags,
         detectedAt: new Date(),
         raw: geoData,
       });
@@ -457,8 +483,9 @@ export async function checkIPReputation(ip: string): Promise<IPReputationResult>
   const isMalicious = results.some((r) => r.malicious);
   const abuseScore = abuseResult.confidence;
   const countryResult = results.find((r) => r.source === "IPVOID");
-  const country = (countryResult?.raw as any)?.countryCode ?? null;
-  const isp = (countryResult?.raw as any)?.isp ?? null;
+  const geoRaw = countryResult?.raw as any;
+  const country = geoRaw?.countryCode ?? null;
+  const isp = geoRaw?.isp ?? null;
 
   const result: IPReputationResult = {
     ip,
@@ -467,6 +494,11 @@ export async function checkIPReputation(ip: string): Promise<IPReputationResult>
     abuseScore,
     country,
     isp,
+    isProxy: geoRaw?.proxy === true,
+    isHosting: geoRaw?.hosting === true,
+    isMobile: geoRaw?.mobile === true,
+    city: geoRaw?.city ?? null,
+    region: geoRaw?.regionName ?? null,
     scannedAt: new Date(),
   };
 
