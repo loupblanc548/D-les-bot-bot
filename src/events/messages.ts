@@ -145,6 +145,52 @@ export function handleMessageEvents(client: Client) {
     try {
       if (!message.guild || message.author.bot) return;
 
+      // ── Détection demande d'ajout Discord ───────────────────────────
+      const lowerContent = message.content.toLowerCase();
+      const friendRequestPatterns = [
+        "tu peux m'ajouter",
+        "tu peux m ajouter",
+        "tu peut m'ajouter",
+        "tu peut m ajouter",
+        "ajoute moi",
+        "ajoute-moi",
+        "ajoute moi sur discord",
+        "on peut jouer ensemble",
+        "on peut jouer",
+        "c'est quoi ton pseudo",
+        "c est quoi ton pseudo",
+        "c'est quoi ton discord",
+        "c est quoi ton discord",
+        "donne ton discord",
+        "donne ton pseudo",
+        "ton pseudo discord",
+        "ajoute mon discord",
+        "voici mon discord",
+        "mon discord c'est",
+        "mon discord c est",
+        "ajoute moi sur ps",
+        "ajoute moi sur xbox",
+        "ajoute moi sur steam",
+        "donne ton id discord",
+        "tu veux jouer avec moi",
+        "on joue ensemble",
+        "tu joues à quoi",
+        "tu joue a quoi",
+        "ajoute",
+        "on peut etre ami",
+        "on peut être ami",
+        "devient mon ami",
+      ];
+      for (const pattern of friendRequestPatterns) {
+        if (lowerContent.includes(pattern)) {
+          await message.reply({
+            content: `<@${message.author.id}> 🚫 Je n'ajoute personne sur Discord, je suis un bot ! Pas la peine de demander mon pseudo ou de vouloir jouer ensemble. 🤖`,
+            allowedMentions: { repliedUser: true },
+          });
+          return;
+        }
+      }
+
       // ── Détection spam proactive ──────────────────────────────────
       void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
 
