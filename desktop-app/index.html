@@ -109,20 +109,35 @@
             <div class="bento-value" id="bento-guilds-val">--</div>
             <div class="bento-label">Discord actifs</div>
           </div>
-          <div class="bento-cell bento-cell--sm bento-cell--cyan" id="bento-logs">
-            <div class="bento-title">Commandes</div>
-            <div class="bento-value" id="bento-logs-val">--</div>
-            <div class="bento-label">Total exécutées</div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan" id="bento-members">
+            <div class="bento-title">Membres</div>
+            <div class="bento-value" id="bento-members-val">--</div>
+            <div class="bento-label">Utilisateurs touchés</div>
           </div>
           <div class="bento-cell bento-cell--sm bento-cell--success" id="bento-uptime">
             <div class="bento-title">Uptime</div>
             <div class="bento-value" id="bento-uptime-val">--</div>
-            <div class="bento-label">En ligne</div>
+            <div class="bento-label" id="bento-status-label">En ligne</div>
           </div>
-          <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-sanctions">
+          <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-ping">
+            <div class="bento-title">Latence</div>
+            <div class="bento-value" id="bento-ping-val">--</div>
+            <div class="bento-label">Discord WS</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-ram">
             <div class="bento-title">RAM</div>
-            <div class="bento-value" id="bento-sanctions-val">--</div>
+            <div class="bento-value" id="bento-ram-val">--</div>
             <div class="bento-label">Consommation</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-cmds">
+            <div class="bento-title">Commandes</div>
+            <div class="bento-value" id="bento-cmds-val">--</div>
+            <div class="bento-label">Slash enregistrées</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-cpu">
+            <div class="bento-title">CPU</div>
+            <div class="bento-value" id="bento-cpu-val">--</div>
+            <div class="bento-label">Usage process</div>
           </div>
           <div class="bento-cell bento-cell--md bento-cell--neutral" id="bento-activity">
             <div class="bento-title">Activité récente</div>
@@ -131,7 +146,7 @@
             </div>
           </div>
           <div class="bento-cell bento-cell--md bento-cell--neutral" id="bento-alerts">
-            <div class="bento-title">Alertes</div>
+            <div class="bento-title">Alertes système</div>
             <div class="alert-list" id="alert-list">
               <div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div>Aucune alerte</div>
             </div>
@@ -197,23 +212,42 @@
         <div class="row-header">
           <h2>🎮 Fortnite</h2>
           <div class="actions">
-            <button class="btn btn-sm" onclick="refreshFortnite()">↻ Actualiser</button>
-            <button class="btn btn-sm" onclick="testFortniteDetection()">🧪 Test détection</button>
+            <button class="btn btn-sm btn-magnetic" onclick="refreshFortnite()">↻ Actualiser</button>
+            <button class="btn btn-sm btn-magnetic" onclick="testFortniteDetection()">🧪 Test détection</button>
           </div>
         </div>
-        <div class="stats-grid" id="fortnite-stats" style="margin-bottom:16px">
-          <div class="stat-card skeleton" style="height:88px"></div>
-        </div>
-        <div class="two-col">
-          <div class="card">
-            <div class="card-header">📡 Détections récentes</div>
-            <div class="activity-list" id="fortnite-feed">
+        <div class="bento-grid" id="fortnite-bento">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Tweets</div>
+            <div class="bento-value" id="fn-tweets">--</div>
+            <div class="bento-label">Traités au total</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">News</div>
+            <div class="bento-value" id="fn-news">--</div>
+            <div class="bento-label">Articles détectés</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Skins</div>
+            <div class="bento-value" id="fn-skins">--</div>
+            <div class="bento-label">Cosmétiques suivis</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Comptes</div>
+            <div class="bento-value" id="fn-accounts">--</div>
+            <div class="bento-label">Sources suivies</div>
+          </div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">📡 Détections récentes</div>
+            <div class="activity-list" id="fortnite-feed" style="margin-top:8px;max-height:200px;overflow-y:auto">
               <div class="empty-state"><div class="empty-icon">🎮</div>En attente...</div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-header">🛒 Shop</div>
-            <div id="fortnite-shop-preview" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">🛒 Shop du jour</div>
+            <div id="fortnite-shop-preview" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+              <div class="empty-state"><div class="empty-icon">🛒</div>Chargement...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -259,6 +293,39 @@
       <div id="tab-control" class="tab">
         <div class="row-header">
           <h2>🎛 Contrôle du Bot</h2>
+        </div>
+
+        <div class="bento-grid" style="margin-bottom:16px">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Statut</div>
+            <div class="bento-value" id="ctrl-status">--</div>
+            <div class="bento-label" id="ctrl-status-label">--</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Serveurs</div>
+            <div class="bento-value" id="ctrl-guilds">--</div>
+            <div class="bento-label">Discord actifs</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Membres</div>
+            <div class="bento-value" id="ctrl-members">--</div>
+            <div class="bento-label">Utilisateurs</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Uptime</div>
+            <div class="bento-value" id="ctrl-uptime">--</div>
+            <div class="bento-label">En ligne</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral">
+            <div class="bento-title">Ping</div>
+            <div class="bento-value" id="ctrl-ping">--</div>
+            <div class="bento-label">Discord WS</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral">
+            <div class="bento-title">RAM</div>
+            <div class="bento-value" id="ctrl-ram">--</div>
+            <div class="bento-label">Consommation</div>
+          </div>
         </div>
 
         <div class="card" style="padding:24px">
@@ -365,15 +432,66 @@
               </select>
             </div>
           </div>
+          <div class="settings-section">
+            <div class="settings-title">🔔 Notifications</div>
+            <div class="setting-row">
+              <div><div class="setting-label">Alertes CPU/RAM</div><div class="setting-desc">Notifications quand les ressources sont élevées</div></div>
+              <label class="toggle"><input type="checkbox" id="setting-alerts-resources" checked onchange="Notifications.toggle('resources', this.checked)"><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Alertes modération</div><div class="setting-desc">Notifications pour sanctions et auto-mod</div></div>
+              <label class="toggle"><input type="checkbox" id="setting-alerts-moderation" checked onchange="Notifications.toggle('moderation', this.checked)"><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Alertes sécurité</div><div class="setting-desc">Notifications pour alt detection et raids</div></div>
+              <label class="toggle"><input type="checkbox" id="setting-alerts-security" checked onchange="Notifications.toggle('security', this.checked)"><span class="slider"></span></label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">📦 À propos</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+              <div style="font-size:12px;color:var(--text-muted)">Version: <b style="color:var(--text)">v1.1.0</b></div>
+              <div style="font-size:12px;color:var(--text-muted)">Electron: <b style="color:var(--text)" id="settings-electron-ver">--</b></div>
+              <div style="font-size:12px;color:var(--text-muted)">Node: <b style="color:var(--text)" id="settings-node-ver">--</b></div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- TAB: Alerts -->
       <div id="tab-alerts" class="tab">
-        <div class="row-header"><h2>⚠ Alertes</h2></div>
-        <div class="card" style="padding:20px">
-          <div class="alert-list" id="alert-list">
-            <div class="alert-card info"><div class="alert-icon">ℹ</div><div class="alert-content"><div class="alert-title">Aucune alerte</div><div class="alert-desc">Système opérationnel</div></div></div>
+        <div class="row-header">
+          <h2>⚠ Alertes</h2>
+          <div class="actions">
+            <button class="btn btn-sm btn-magnetic" onclick="Dashboard._renderHealth(Store.get('health'))">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Système</div>
+            <div class="bento-value" id="alerts-sys-count">--</div>
+            <div class="bento-label">Alertes actives</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Services OK</div>
+            <div class="bento-value" id="alerts-ok-count">--</div>
+            <div class="bento-label">Services opérationnels</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Warnings</div>
+            <div class="bento-value" id="alerts-warn-count">--</div>
+            <div class="bento-label">Avertissements</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Erreurs</div>
+            <div class="bento-value" id="alerts-err-count">--</div>
+            <div class="bento-label">Erreurs critiques</div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Détails des services</div>
+            <div id="alerts-detail-list" style="margin-top:8px">
+              <div class="empty-state"><div class="empty-icon">⚠</div>Chargement...</div>
+            </div>
           </div>
         </div>
       </div>
