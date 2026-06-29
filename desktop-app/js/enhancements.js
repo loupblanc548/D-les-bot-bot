@@ -31,11 +31,6 @@ const Enhancements = {
         e.preventDefault();
         this.toggleSearch();
       }
-      // Ctrl+L: lock panel
-      if (e.ctrlKey && e.key === "l") {
-        e.preventDefault();
-        if (window.AuthGuard) AuthGuard.logout();
-      }
       // Escape: close search
       if (e.key === "Escape") {
         this.closeSearch();
