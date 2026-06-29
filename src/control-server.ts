@@ -149,6 +149,7 @@ export async function startControlServer(port: number, client: Client): Promise<
           guilds: guilds.size,
           members: guilds.reduce((acc, g) => acc + g.memberCount, 0),
           memoryMb: (process.memoryUsage().rss / 1048576).toFixed(1),
+          cpuPercent: process.cpuUsage().user / 1000000,
           commands: client.application?.commands.cache.size || 0,
         });
         return;

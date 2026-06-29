@@ -1,4 +1,4 @@
-...00000/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
    dev-mode.js — Mock data pour développement et tests visuels hors Electron
    S'exécute uniquement si window.electronAPI n'est pas déjà défini.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -99,7 +99,7 @@ if (!window.electronAPI) {
     },
 
     // Logs
-    getLogs: function () { return Promise.resolve({ total: 0, logs: [] }); },
+    getLogs: function () { return Promise.resolve([]); },
     clearLogs: function () { return Promise.resolve(); },
 
     // WebSocket (mock — pas de vraie connexion)
