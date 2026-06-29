@@ -148,6 +148,25 @@ export function handleMessageEvents(client: Client) {
       // ── Détection spam proactive ──────────────────────────────────
       void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
 
+      // ── Salon de rapports manuels : ping auto ──────────────────────
+      if (message.channel.id === "1515767173740757112" && !message.author.bot) {
+        const REPORT_ROLE_ID = "1402362014264983762";
+        try {
+          await message.reply({
+            content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
+            allowedMentions: { roles: [REPORT_ROLE_ID] },
+          });
+        } catch {
+          // Fallback: send in channel directly
+          try {
+            await (message.channel as TextChannel).send({
+              content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
+              allowedMentions: { roles: [REPORT_ROLE_ID] },
+            });
+          } catch {}
+        }
+      }
+
       // ── FILTRE DE MOTS INTERDITS (avant tout le reste) ─────────────
       const matchedWord = await checkWordFilter(message);
       if (matchedWord) {
