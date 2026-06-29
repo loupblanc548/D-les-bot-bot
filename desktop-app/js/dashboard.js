@@ -213,7 +213,12 @@ const Dashboard = {
       if (logs && Array.isArray(logs)) {
         Store.update("logs", logs);
       }
-    } catch {}
+    } catch {
+      if (window.__mockFallback) {
+        const logs = window.__mockFallback.getLogs();
+        if (logs && Array.isArray(logs)) Store.update("logs", logs);
+      }
+    }
   },
 
   _renderStatus(data) {
@@ -275,6 +280,31 @@ const Dashboard = {
     set("bento-logs-val", d.online ? Utils.formatNumber(d.commands || 0) : "--");
     set("bento-uptime-val", d.online ? Utils.formatUptime(d.uptime) : "--");
     set("bento-sanctions-val", d.online ? (d.memMb ? d.memMb + " MB" : "--") : "--");
+
+    const healthCell = document.getElementById("bento-health");
+    if (healthCell) {
+      const statusEl = healthCell.querySelector(".bento-label");
+      if (statusEl) statusEl.textContent = d.online ? "En ligne" : "Hors ligne";
+    }
+
+    const alertsEl = document.getElementById("alert-list");
+    if (alertsEl) {
+      if (d.online) {
+        const alerts = [];
+        if (d.cpu && d.cpu > 80) alerts.push({ icon: "🔥", msg: "CPU élevé: " + d.cpu + "%" });
+        if (d.ping >= 0 && d.ping > 200) alerts.push({ icon: "📡", msg: "Latence élevée: " + d.ping + "ms" });
+        if (d.memMb && d.memMb > 500) alerts.push({ icon: "💾", msg: "RAM élevée: " + d.memMb + " MB" });
+        if (!alerts.length) {
+          alertsEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div>Aucune alerte</div>';
+        } else {
+          alertsEl.innerHTML = alerts.map(a =>
+            '<div class="activity-item"><span class="activity-dot" style="background:var(--warning)">' + a.icon + '</span><span class="activity-msg">' + a.msg + '</span></div>'
+          ).join("");
+        }
+      } else {
+        alertsEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">❌</div>Bot hors ligne</div>';
+      }
+    }
   },
 
   _renderActivity() {
