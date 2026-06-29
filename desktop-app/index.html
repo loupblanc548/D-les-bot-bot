@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bot Control Panel</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BotPanel">
+  <meta name="description" content="Panneau de contrôle pour bot Discord">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/visual-fx.css">
   <link rel="stylesheet" href="css/components.css">
@@ -797,10 +804,35 @@
       window.switchTheme = function(theme) {
         document.documentElement.setAttribute("data-theme", theme);
         localStorage.setItem("bot-theme", theme);
+        localStorage.setItem("bot-theme-manual", "true");
         document.querySelectorAll(".theme-chip").forEach((c) => {
           c.classList.toggle("active", c.dataset.theme === theme);
         });
       };
+
+      // Auto-detect system theme on first visit
+      (function() {
+        var saved = localStorage.getItem("bot-theme");
+        if (!saved) {
+          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          saved = prefersDark ? "carbon" : "glass";
+          localStorage.setItem("bot-theme", saved);
+        }
+        document.documentElement.setAttribute("data-theme", saved);
+      })();
+
+      // Listen for system theme changes
+      if (window.matchMedia) {
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(e) {
+          if (!localStorage.getItem("bot-theme-manual")) {
+            var theme = e.matches ? "carbon" : "glass";
+            document.documentElement.setAttribute("data-theme", theme);
+            document.querySelectorAll(".theme-chip").forEach((c) => {
+              c.classList.toggle("active", c.dataset.theme === theme);
+            });
+          }
+        });
+      }
 
       // Hide splash after load (faster — 1.2s)
       setTimeout(() => {
