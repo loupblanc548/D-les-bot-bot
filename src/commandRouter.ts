@@ -189,6 +189,9 @@ import {
   commands as ticketGroupCommands,
   handleCommand as handleTicketGroup,
 } from "./commands/ticketGroup.js";
+import { commands as pollCommands, handleCommand as handlePolls } from "./commands/polls.js";
+import { commands as autoThreadCommands, handleCommand as handleAutoThread } from "./commands/autoThread.js";
+import { commands as customCmdCommands, handleCommand as handleCustomCmd } from "./commands/customCommands.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -471,6 +474,10 @@ export const allCommands = [
   ...musicGroupCommands,
   ...economyGroupCommands,
   ...ticketGroupCommands,
+  // Commandes standalone
+  ...pollCommands,
+  ...autoThreadCommands,
+  ...customCmdCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -516,6 +523,10 @@ export function buildCommandRouter(): void {
   registerGroup(["music"], handleMusicGroup);
   registerGroup(["economy"], handleEconomyGroup);
   registerGroup(["ticket"], handleTicketGroup);
+  // ─── Commandes standalone ───
+  registerGroup(["poll"], handlePolls);
+  registerGroup(["autothread"], handleAutoThread);
+  registerGroup(["customcmd"], handleCustomCmd);
 }
 
 export function applyCommandMiddleware(): void {

@@ -19,6 +19,8 @@ import { dedupCache } from "./utils/deduplicationCache.js";
 import { runHealthCheck } from "./services/healthcheck.js";
 import { buildCommandRouter, applyCommandMiddleware, registerCommands } from "./commandRouter.js";
 import { attachInteractionHandlers } from "./interactionHandler.js";
+import { attachAutoThread } from "./commands/autoThread.js";
+import { startProactiveHealthCheck, startAutoBackup } from "./services/proactiveHealthCheck.js";
 import { attachStartupLogic } from "./startup.js";
 import { attachShutdownHandlers, registerDestroyClient } from "./shutdown.js";
 import { attachProcessHandlers } from "./processHandlers.js";
@@ -261,6 +263,9 @@ async function main(): Promise<void> {
 
   // Handlers d'interactions (commandes, boutons, menus, autocomplete)
   attachInteractionHandlers(client);
+  attachAutoThread(client);
+  startProactiveHealthCheck(client);
+  startAutoBackup(24);
 
   // Logique de démarrage (ClientReady)
   attachStartupLogic(client, healthResults);
