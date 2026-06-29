@@ -19,6 +19,11 @@ const Dashboard = {
     Store.on("logs", () => { LogConsole.render(); this._renderActivity(); });
     Store.on("fortnite", (data) => data && this._renderFortnite(data));
     Store.update("init", true);
+
+    const verEl = document.getElementById("settings-electron-ver");
+    const nodeEl = document.getElementById("settings-node-ver");
+    if (verEl) verEl.textContent = (window.electronAPI && window.electronAPI.versions?.electron) || "N/A";
+    if (nodeEl) nodeEl.textContent = (window.electronAPI && window.electronAPI.versions?.node) || navigator.userAgent.match(/Node\.js\/([\d.]+)/)?.[1] || "N/A";
   },
 
   _setupSettings() {
@@ -261,6 +266,15 @@ const Dashboard = {
     this._updateGauge(cpu);
     Charts.record(cpu, memMb, Math.max(0, ping), this._eventsCounter);
     this._eventsCounter = 0;
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("ctrl-status", data.online ? "✅ Online" : "❌ Offline");
+    set("ctrl-status-label", data.online ? "Bot opérationnel" : "Bot injoignable");
+    set("ctrl-guilds", data.online ? Utils.formatNumber(guilds) : "--");
+    set("ctrl-members", data.online ? Utils.formatNumber(members) : "--");
+    set("ctrl-uptime", data.online ? Utils.formatUptime(data.uptime) : "--");
+    set("ctrl-ping", data.online ? (ping >= 0 ? ping + "ms" : "--") : "--");
+    set("ctrl-ram", data.online ? (memMb ? memMb + " MB" : "--") : "--");
   },
 
   _updateGauge(score) {
@@ -277,28 +291,41 @@ const Dashboard = {
   _updateBento(d) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set("bento-guilds-val", d.online ? Utils.formatNumber(d.guilds) : "--");
-    set("bento-logs-val", d.online ? Utils.formatNumber(d.commands || 0) : "--");
+    set("bento-members-val", d.online ? Utils.formatNumber(d.members) : "--");
     set("bento-uptime-val", d.online ? Utils.formatUptime(d.uptime) : "--");
-    set("bento-sanctions-val", d.online ? (d.memMb ? d.memMb + " MB" : "--") : "--");
+    set("bento-ping-val", d.online ? (d.ping >= 0 ? d.ping + "ms" : "--") : "--");
+    set("bento-ram-val", d.online ? (d.memMb ? d.memMb + " MB" : "--") : "--");
+    set("bento-cmds-val", d.online ? Utils.formatNumber(d.commands || 0) : "--");
+    set("bento-cpu-val", d.online ? (d.cpu ? d.cpu.toFixed(1) + "%" : "--") : "--");
+
+    const statusLabel = document.getElementById("bento-status-label");
+    if (statusLabel) {
+      statusLabel.textContent = d.online ? "En ligne" : "Hors ligne";
+      statusLabel.style.color = d.online ? "var(--success)" : "var(--danger)";
+    }
 
     const healthCell = document.getElementById("bento-health");
     if (healthCell) {
-      const statusEl = healthCell.querySelector(".bento-label");
-      if (statusEl) statusEl.textContent = d.online ? "En ligne" : "Hors ligne";
+      healthCell.classList.toggle("bento-cell--accent", d.online);
+      healthCell.classList.toggle("bento-cell--neutral", !d.online);
     }
 
     const alertsEl = document.getElementById("alert-list");
     if (alertsEl) {
       if (d.online) {
         const alerts = [];
-        if (d.cpu && d.cpu > 80) alerts.push({ icon: "🔥", msg: "CPU élevé: " + d.cpu + "%" });
-        if (d.ping >= 0 && d.ping > 200) alerts.push({ icon: "📡", msg: "Latence élevée: " + d.ping + "ms" });
-        if (d.memMb && d.memMb > 500) alerts.push({ icon: "💾", msg: "RAM élevée: " + d.memMb + " MB" });
+        if (d.cpu && d.cpu > 80) alerts.push({ icon: "🔥", msg: "CPU élevé: " + d.cpu.toFixed(1) + "%", level: "error" });
+        if (d.cpu && d.cpu > 50 && d.cpu <= 80) alerts.push({ icon: "⚠", msg: "CPU modéré: " + d.cpu.toFixed(1) + "%", level: "warn" });
+        if (d.ping >= 0 && d.ping > 200) alerts.push({ icon: "📡", msg: "Latence élevée: " + d.ping + "ms", level: "warn" });
+        if (d.memMb && d.memMb > 500) alerts.push({ icon: "💾", msg: "RAM élevée: " + d.memMb + " MB", level: "warn" });
+        if (d.uptime && d.uptime < 300) alerts.push({ icon: "🔄", msg: "Bot récemment redémarré (< 5min)", level: "info" });
         if (!alerts.length) {
-          alertsEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div>Aucune alerte</div>';
+          alertsEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div>Système opérationnel</div>';
         } else {
           alertsEl.innerHTML = alerts.map(a =>
-            '<div class="activity-item"><span class="activity-dot" style="background:var(--warning)">' + a.icon + '</span><span class="activity-msg">' + a.msg + '</span></div>'
+            '<div class="activity-item"><span class="activity-dot" style="background:' +
+            (a.level === "error" ? "var(--danger)" : a.level === "warn" ? "var(--warning)" : "var(--accent)") +
+            '">' + a.icon + '</span><span class="activity-msg">' + a.msg + '</span></div>'
           ).join("");
         }
       } else {
@@ -346,16 +373,44 @@ const Dashboard = {
   },
 
   _renderHealth(checks) {
-    let alerts = (checks || []).filter((c) => c.status === "error" || c.status === "warning");
-    if (!alerts.length) {
-      document.getElementById("alert-list").innerHTML = '<div class="alert-card info"><div class="alert-icon">ℹ</div><div class="alert-content"><div class="alert-title">Aucune alerte</div><div class="alert-desc">Système opérationnel</div></div></div>';
-      return;
+    const all = checks || [];
+    const errors = all.filter((c) => c.status === "error");
+    const warnings = all.filter((c) => c.status === "warning");
+    const oks = all.filter((c) => c.status === "ok");
+    const totalAlerts = errors.length + warnings.length;
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("alerts-sys-count", totalAlerts);
+    set("alerts-ok-count", oks.length);
+    set("alerts-warn-count", warnings.length);
+    set("alerts-err-count", errors.length);
+
+    const detailEl = document.getElementById("alerts-detail-list");
+    if (detailEl) {
+      if (!all.length) {
+        detailEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠</div>Aucune donnée de santé</div>';
+      } else {
+        detailEl.innerHTML = all.map((a) => {
+          const level = a.status === "error" ? "error" : a.status === "warning" ? "warn" : "ok";
+          const icon = a.status === "error" ? "✕" : a.status === "warning" ? "⚠" : "✓";
+          const color = a.status === "error" ? "var(--danger)" : a.status === "warning" ? "var(--warning)" : "var(--success)";
+          return '<div class="activity-item"><span class="activity-dot" style="background:' + color + '">' + icon + '</span><span class="activity-msg"><b>' + Utils.escapeHtml(a.name) + '</b> — ' + Utils.escapeHtml(a.message || "") + '</span></div>';
+        }).join("");
+      }
     }
-    document.getElementById("alert-list").innerHTML = alerts.map((a) => {
-      const level = a.status === "error" ? "critical" : "warning";
-      const icon = a.status === "error" ? "✕" : "⚠";
-      return '<div class="alert-card ' + level + '"><div class="alert-icon">' + icon + '</div><div class="alert-content"><div class="alert-title">' + Utils.escapeHtml(a.name) + '</div><div class="alert-desc">' + Utils.escapeHtml(a.message) + '</div></div></div>';
-    }).join("");
+
+    const overviewAlerts = document.getElementById("alert-list");
+    if (overviewAlerts) {
+      if (!totalAlerts) {
+        overviewAlerts.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">✅</div>Système opérationnel</div>';
+      } else {
+        overviewAlerts.innerHTML = all.filter((c) => c.status !== "ok").map((a) => {
+          const icon = a.status === "error" ? "✕" : "⚠";
+          const color = a.status === "error" ? "var(--danger)" : "var(--warning)";
+          return '<div class="activity-item"><span class="activity-dot" style="background:' + color + '">' + icon + '</span><span class="activity-msg"><b>' + Utils.escapeHtml(a.name) + '</b> — ' + Utils.escapeHtml(a.message || "") + '</span></div>';
+        }).join("");
+      }
+    }
   },
 
   _loadServers() {
@@ -379,34 +434,22 @@ const Dashboard = {
   },
 
   _renderFortnite(data) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
     if (!data) {
-      document.getElementById("fortnite-stats").innerHTML = [
-        { icon: "🐦", label: "Tweets", value: "0" },
-        { icon: "📰", label: "News", value: "0" },
-        { icon: "💎", label: "Skins", value: "0" },
-        { icon: "👤", label: "Comptes", value: "0" },
-        { icon: "🛒", label: "Shop", value: "0" },
-        { icon: "🎯", label: "Cosmétiques", value: "0" },
-      ].map(function(s) {
-        return '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label + '</span></div><span class="stat-value">' + s.value + '</span></div>';
-      }).join("");
+      set("fn-tweets", "0");
+      set("fn-news", "0");
+      set("fn-skins", "0");
+      set("fn-accounts", "0");
       document.getElementById("fortnite-feed").innerHTML = '<div class="empty-state"><div class="empty-icon">🎮</div>En attente des données...</div>';
       document.getElementById("fortnite-shop-preview").innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Shop non disponible</div>';
       return;
     }
 
-    var statsEl = document.getElementById("fortnite-stats");
-    if (!statsEl) return;
-    statsEl.innerHTML = [
-      { icon: "🐦", label: "Tweets", key: "tweets", raw: data.tweets || 0 },
-      { icon: "📰", label: "News", key: "news", raw: data.news || 0 },
-      { icon: "💎", label: "Skins", key: "skins", raw: data.skins || 0 },
-      { icon: "👤", label: "Comptes", key: "accounts", raw: (data.accounts?.length || 0) },
-      { icon: "🛒", label: "Shop", key: "shop", raw: (data.shopItemsTotal || data.shop?.length || 0) },
-      { icon: "🎯", label: "Cosmétiques", key: "cosmetics", raw: data.cosmeticsTracked || 0 },
-    ].map(function(s) {
-      return '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label + '</span></div><span class="stat-value" data-fn-key="' + s.key + '">' + Utils.formatNumber(s.raw) + '</span></div>';
-    }).join("");
+    set("fn-tweets", Utils.formatNumber(data.tweets || 0));
+    set("fn-news", Utils.formatNumber(data.news || 0));
+    set("fn-skins", Utils.formatNumber(data.skins || 0));
+    set("fn-accounts", Utils.formatNumber(data.accounts?.length || 0));
 
     if (data.detections?.length) {
       document.getElementById("fortnite-feed").innerHTML = data.detections.slice(0, 15).map((d) => {

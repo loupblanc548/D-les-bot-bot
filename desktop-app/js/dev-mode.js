@@ -8,6 +8,7 @@ if (!window.electronAPI) {
 
   window.electronAPI = {
     _apiBase: "http://localhost:3002",
+    versions: { electron: "28.0.0", node: "20.10.0", chrome: "120.0.0" },
     // Dashboard
     getStatus: function () {
       return Promise.resolve({

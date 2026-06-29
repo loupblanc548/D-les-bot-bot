@@ -74,4 +74,10 @@ const Notifications = {
   error(msg) { this._show("error", msg, "✕"); },
   warning(msg) { this._show("warning", msg, "⚠"); },
   info(msg) { this._show("info", msg, "ℹ"); },
+
+  _enabled: { resources: true, moderation: true, security: true },
+  toggle(category, enabled) {
+    this._enabled[category] = enabled;
+    this.info("Notifications " + category + ": " + (enabled ? "activées" : "désactivées"));
+  },
 };
