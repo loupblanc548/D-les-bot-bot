@@ -63,6 +63,9 @@
         <button class="nav-btn" data-tab="fortnite"><span class="nav-icon">🎮</span> Fortnite<span class="nav-badge fn-badge" id="fn-badge" style="display:none">0</span></button>
         <div class="sidebar-section">Outils</div>
         <button class="nav-btn" data-tab="control"><span class="nav-icon">🎛</span> Contrôle</button>
+        <button class="nav-btn" data-tab="moderation"><span class="nav-icon">🔨</span> Modération</button>
+        <button class="nav-btn" data-tab="security"><span class="nav-icon">🛡</span> Sécurité</button>
+        <button class="nav-btn" data-tab="music"><span class="nav-icon">🎵</span> Musique</button>
         <div class="sidebar-section">Configuration</div>
         <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙</span> Paramètres</button>
         <button class="nav-btn" data-tab="alerts"><span class="nav-icon">⚠</span> Alertes</button>
@@ -490,6 +493,147 @@
         </div>
       </div>
 
+      <!-- TAB: Moderation -->
+      <div id="tab-moderation" class="tab">
+        <div class="row-header">
+          <h2>Modération</h2>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm btn-magnetic" onclick="Moderation.refresh()">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Warns (24h)</div>
+            <div class="bento-value" id="mod-warns-count">--</div>
+            <div class="bento-label">Avertissements</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Mutes actifs</div>
+            <div class="bento-value" id="mod-mutes-count">--</div>
+            <div class="bento-label">Timeouts en cours</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Bans (24h)</div>
+            <div class="bento-value" id="mod-bans-count">--</div>
+            <div class="bento-label">Bannissements</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Auto-mod</div>
+            <div class="bento-value" id="mod-automod-count">--</div>
+            <div class="bento-label">Actions auto (24h)</div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Sanctions récentes</div>
+            <div id="mod-recent-sanctions" style="margin-top:8px">
+              <div class="empty-state"><div class="empty-icon">📋</div>Chargement...</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">Auto-modération (temps réel)</div>
+            <div id="mod-automod-feed" style="margin-top:8px;max-height:200px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">🛡</div>En attente...</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">Tempbans actifs</div>
+            <div id="mod-tempbans" style="margin-top:8px;max-height:200px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">⏳</div>Aucun tempban</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Security -->
+      <div id="tab-security" class="tab">
+        <div class="row-header">
+          <h2>Sécurité</h2>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm btn-magnetic" onclick="Security.refresh()">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Risk Score moyen</div>
+            <div class="bento-value" id="sec-risk-avg">--</div>
+            <div class="bento-label">Score global</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Alts détectés</div>
+            <div class="bento-value" id="sec-alts-count">--</div>
+            <div class="bento-label">Comptes suspects</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Events sécurité</div>
+            <div class="bento-value" id="sec-events-count">--</div>
+            <div class="bento-label">24 dernières heures</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Shadow bans</div>
+            <div class="bento-value" id="sec-shadow-count">--</div>
+            <div class="bento-label">Utilisateurs shadow</div>
+          </div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">Utilisateurs à risque</div>
+            <div id="sec-risky-users" style="margin-top:8px;max-height:250px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">⚠</div>Chargement...</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--md bento-cell--neutral">
+            <div class="bento-title">Events de sécurité récents</div>
+            <div id="sec-events-feed" style="margin-top:8px;max-height:250px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">🔐</div>En attente...</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Audit OSINT</div>
+            <div id="sec-osint-results" style="margin-top:8px">
+              <div class="empty-state"><div class="empty-icon">🔍</div>Aucun audit récent</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Music -->
+      <div id="tab-music" class="tab">
+        <div class="row-header">
+          <h2>Musique</h2>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.refresh()">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--lg bento-cell--accent" id="music-nowplaying-cell">
+            <div class="bento-title">Now Playing</div>
+            <div id="music-nowplaying" style="margin-top:12px">
+              <div class="empty-state"><div class="empty-icon">🎵</div>Aucune musique en cours</div>
+            </div>
+            <div id="music-controls" style="display:none;margin-top:16px;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.control('pause')">⏸ Pause</button>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.control('resume')">▶ Resume</button>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.control('skip')">⏭ Skip</button>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.control('stop')">⏹ Stop</button>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Music.control('shuffle')">🔀 Shuffle</button>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Salons vocaux</div>
+            <div class="bento-value" id="music-voice-count">--</div>
+            <div class="bento-label">Connectés</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">File d'attente</div>
+            <div class="bento-value" id="music-queue-count">--</div>
+            <div class="bento-label">Titres en attente</div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">File d'attente</div>
+            <div id="music-queue-list" style="margin-top:8px;max-height:300px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">📋</div>File vide</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -503,6 +647,9 @@
   <script src="js/charts.js"></script>
   <script src="js/logs.js"></script>
   <script src="js/studio.js"></script>
+  <script src="js/moderation.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/music.js"></script>
   <script src="js/dashboard.js"></script>
 
   <script>
@@ -535,6 +682,9 @@
       Charts.init();
       LogConsole.init();
       Studio.init();
+      Moderation.init();
+      Security.init();
+      Music.init();
       Dashboard.init();
       WS.connect();
     });

@@ -177,6 +177,18 @@ ipcMain.handle("api:dm-history", () => apiFetch("/api/dm/history"));
 // Servers
 ipcMain.handle("api:servers", () => apiFetch("/api/servers"));
 
+// Moderation
+ipcMain.handle("api:moderation", () => apiFetch("/api/moderation"));
+
+// Security
+ipcMain.handle("api:security", () => apiFetch("/api/security"));
+
+// Music
+ipcMain.handle("api:music", () => apiFetch("/api/music"));
+ipcMain.handle("api:music-control", (_e, { action, guildId }) =>
+  apiFetch("/api/music/control", { method: "POST", body: JSON.stringify({ action, guildId }) })
+);
+
 // Generic fetch — restricted to allowlisted API paths only
 const ALLOWED_API_PREFIXES = ["/api/", "/ws"];
 ipcMain.handle("api:fetch", (_e, { endpoint, options }) => {

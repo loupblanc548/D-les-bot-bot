@@ -524,6 +524,160 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
 
+      // ─── Moderation ─────────────────────────────────────────────────
+      if (path === "/api/moderation" && req.method === "GET") {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [warns, mutes, bans, automod, recentSanctions, tempbans] = await Promise.all([
+          prisma.sanction.count({ where: { type: "WARN", createdAt: { gte: since } } }).catch(() => 0),
+          prisma.sanction.count({ where: { type: "MUTE", createdAt: { gte: since } } }).catch(() => 0),
+          prisma.sanction.count({ where: { type: "BAN", createdAt: { gte: since } } }).catch(() => 0),
+          prisma.log.count({ where: { type: "automod", createdAt: { gte: since } } }).catch(() => 0),
+          prisma.sanction.findMany({
+            where: { createdAt: { gte: since } },
+            orderBy: { createdAt: "desc" },
+            take: 20,
+          }).catch(() => []),
+          prisma.log.findMany({
+            where: { type: "tempban" },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          }).catch(() => []),
+        ]);
+        const automodFeed = logBuffer.filter((l) => l.message?.includes("[AutoMod]") || l.message?.includes("automod")).slice(-15).reverse();
+        sendJson(res, 200, {
+          stats: { warns, mutes, bans, automod },
+          recentSanctions: recentSanctions.map((s) => ({
+            id: s.id, type: s.type, userId: s.userId, reason: s.reason,
+            moderatorId: s.moderatorId, createdAt: s.createdAt,
+          })),
+          tempbans: tempbans.map((t) => ({
+            id: t.id, userId: t.userId, action: t.action, createdAt: t.createdAt,
+          })),
+          automodFeed: automodFeed.map((l) => ({
+            timestamp: l.timestamp, level: l.level, message: l.message,
+          })),
+        });
+        return;
+      }
+
+      // ─── Security ───────────────────────────────────────────────────
+      if (path === "/api/security" && req.method === "GET") {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [securityEvents, riskyUsers, shadowBans, osintLogs] = await Promise.all([
+          prisma.log.count({ where: { type: "security", createdAt: { gte: since } } }).catch(() => 0),
+          prisma.log.findMany({
+            where: { type: "security", createdAt: { gte: since } },
+            orderBy: { createdAt: "desc" },
+            take: 15,
+            distinct: ["userId"],
+          }).catch(() => []),
+          prisma.log.count({ where: { type: "shadowban" } }).catch(() => 0),
+          prisma.log.findMany({
+            where: { type: "osint" },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          }).catch(() => []),
+        ]);
+        const eventsFeed = logBuffer.filter((l) => l.message?.includes("[Security]") || l.message?.includes("[Risk]") || l.message?.includes("[Alt]")).slice(-15).reverse();
+        sendJson(res, 200, {
+          stats: {
+            riskAvg: 0,
+            altsCount: riskyUsers.length,
+            eventsCount: securityEvents,
+            shadowCount: shadowBans,
+          },
+          riskyUsers: riskyUsers.map((u) => ({
+            id: u.id, userId: u.userId, action: u.action, details: u.details, createdAt: u.createdAt,
+          })),
+          eventsFeed: eventsFeed.map((l) => ({
+            timestamp: l.timestamp, level: l.level, message: l.message,
+          })),
+          osintResults: osintLogs.map((o) => ({
+            id: o.id, userId: o.userId, action: o.action, details: o.details, createdAt: o.createdAt,
+          })),
+        });
+        return;
+      }
+
+      // ─── Music ──────────────────────────────────────────────────────
+      if (path === "/api/music" && req.method === "GET") {
+        try {
+          const { getDisTube } = await import("./services/musicService.js");
+          const dt = getDisTube();
+          if (!dt) {
+            sendJson(res, 200, { stats: { voiceCount: 0, queueCount: 0 }, nowPlaying: null, queues: [] });
+            return;
+          }
+          const client = (globalThis as Record<string, unknown>).__client as { guilds?: { cache: { map: (fn: (g: { id: string; name: string }) => { id: string; name: string }) } } } | undefined;
+          const guilds = client?.guilds?.cache?.map((g) => ({ id: g.id, name: g.name })) || [];
+          const queues: unknown[] = [];
+          let voiceCount = 0;
+          let nowPlaying: { title: string; url: string; duration: string; guild: string } | null = null;
+          for (const g of guilds) {
+            const queue = dt.getQueue(g.id);
+            if (queue) {
+              voiceCount++;
+              const songs = queue.songs || [];
+              if (songs[0] && !nowPlaying) {
+                nowPlaying = {
+                  title: songs[0].name || songs[0].url || "Unknown",
+                  url: songs[0].url || "",
+                  duration: songs[0].formattedDuration || "",
+                  guild: g.name,
+                };
+              }
+              queues.push({
+                guild: g.name,
+                songs: songs.slice(0, 10).map((s: { name?: string; url?: string; formattedDuration?: string }) => ({
+                  title: s.name || s.url || "Unknown",
+                  url: s.url || "",
+                  duration: s.formattedDuration || "",
+                })),
+                volume: queue.volume || 50,
+                loop: queue.repeatMode,
+                playing: queue.playing,
+              });
+            }
+          }
+          const totalQueue = queues.reduce((acc: number, q: unknown) => acc + ((q as { songs?: unknown[] }).songs?.length || 0), 0);
+          sendJson(res, 200, {
+            stats: { voiceCount, queueCount: totalQueue },
+            nowPlaying,
+            queues,
+          });
+        } catch {
+          sendJson(res, 200, { stats: { voiceCount: 0, queueCount: 0 }, nowPlaying: null, queues: [] });
+        }
+        return;
+      }
+
+      if (path === "/api/music/control" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const action = (body.action as string) || "";
+          const guildId = (body.guildId as string) || "";
+          const { getDisTube } = await import("./services/musicService.js");
+          const dt = getDisTube();
+          if (!dt || !guildId) {
+            sendJson(res, 200, { success: false, error: "No music system or guild" });
+            return;
+          }
+          const queue = dt.getQueue(guildId);
+          switch (action) {
+            case "pause": if (queue) { queue.pause(); } break;
+            case "resume": if (queue) { queue.resume(); } break;
+            case "skip": if (queue) { await dt.skip(guildId); } break;
+            case "stop": if (queue) { await dt.stop(guildId); } break;
+            case "shuffle": if (queue) { queue.shuffle(); } break;
+            default: sendJson(res, 200, { success: false, error: "Unknown action" }); return;
+          }
+          sendJson(res, 200, { success: true });
+        } catch (err) {
+          sendJson(res, 200, { success: false, error: String(err) });
+        }
+        return;
+      }
+
       sendJson(res, 404, { error: "Route non trouvée: " + path });
     } catch (err) {
       logger.error("[ControlServer] Error:", err);

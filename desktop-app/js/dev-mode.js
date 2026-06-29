@@ -59,6 +59,69 @@ if (!window.electronAPI) {
       ]);
     },
 
+    // Moderation — mock data
+    getModeration: function () {
+      return Promise.resolve({
+        stats: { warns: 12, mutes: 3, bans: 1, automod: 28 },
+        recentSanctions: [
+          { id: 1, type: "WARN", userId: "111", reason: "Spam répété", moderatorId: "222", createdAt: new Date(Date.now() - 3600000).toISOString() },
+          { id: 2, type: "MUTE", userId: "333", reason: "Caps excessif", moderatorId: "222", createdAt: new Date(Date.now() - 7200000).toISOString() },
+          { id: 3, type: "BAN", userId: "444", reason: "NSFW", moderatorId: "222", createdAt: new Date(Date.now() - 10800000).toISOString() },
+        ],
+        tempbans: [
+          { id: 10, userId: "555", action: "Tempban 2h — Insultes", createdAt: new Date(Date.now() - 1800000).toISOString() },
+        ],
+        automodFeed: [
+          { timestamp: Date.now() - 60000, level: "info", message: "[AutoMod] Word blacklist: User#1234 — 'badword'" },
+          { timestamp: Date.now() - 120000, level: "debug", message: "[AutoMod] Anti-caps: User#5678 (85%)" },
+          { timestamp: Date.now() - 180000, level: "info", message: "[AutoMod] Mass mention: User#9012 (6 mentions)" },
+        ],
+      });
+    },
+
+    // Security — mock data
+    getSecurity: function () {
+      return Promise.resolve({
+        stats: { riskAvg: 23, altsCount: 2, eventsCount: 15, shadowCount: 1 },
+        riskyUsers: [
+          { id: 1, userId: "666", action: "Alt account detected", details: "Linked to User#1234", createdAt: new Date(Date.now() - 3600000).toISOString() },
+          { id: 2, userId: "777", action: "Mass join detected", details: "5 accounts in 2min", createdAt: new Date(Date.now() - 7200000).toISOString() },
+        ],
+        eventsFeed: [
+          { timestamp: Date.now() - 30000, level: "warn", message: "[Security] Alt detection: User#666 linked to User#1234" },
+          { timestamp: Date.now() - 90000, level: "info", message: "[Risk] User#777 risk score: 45/100" },
+          { timestamp: Date.now() - 150000, level: "error", message: "[Security] Raid attempt blocked — 5 accounts" },
+        ],
+        osintResults: [
+          { id: 1, userId: "888", action: "OSINT lookup", details: "3 social profiles found", createdAt: new Date(Date.now() - 86400000).toISOString() },
+        ],
+      });
+    },
+
+    // Music — mock data
+    getMusic: function () {
+      return Promise.resolve({
+        stats: { voiceCount: 1, queueCount: 3 },
+        nowPlaying: {
+          title: "Lofi Hip Hop Radio — Beats to Relax/Study",
+          url: "https://youtube.com/watch?v=jfKfPfyJRdk",
+          duration: "1:59:42",
+          guild: "Serveur de test",
+        },
+        queues: [{
+          guild: "Serveur de test",
+          playing: true,
+          volume: 65,
+          songs: [
+            { title: "Lofi Hip Hop Radio — Beats to Relax/Study", url: "https://youtube.com/watch?v=jfKfPfyJRdk", duration: "1:59:42" },
+            { title: "Chillhop Yearmix 2024", url: "https://youtube.com/watch?v=abc", duration: "42:18" },
+            { title: "Nujabes — Aruarian Dance", url: "https://youtube.com/watch?v=def", duration: "4:25" },
+          ],
+        }],
+      });
+    },
+    musicControl: function () { return Promise.resolve({ success: true }); },
+
     // Fortnite — données mockées riches pour tester les animations
     getFortnite: function () {
       mockTweets += Math.floor(Math.random() * 3);
