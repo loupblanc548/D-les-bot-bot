@@ -219,27 +219,16 @@ if (!window.electronAPI) {
     },
     clearLogs: function () { return Promise.resolve(); },
 
-    // WebSocket (mock — pas de vraie connexion)
+    // WebSocket (mock — no fake events to avoid duplicate notifications)
     connectWebSocket: function () {
-      return Promise.resolve({ ok: true });
+      return Promise.reject(new Error("WebSocket not available in browser mode"));
     },
     disconnectWebSocket: function () { return Promise.resolve(); },
     onWsMessage: function (callback) {
-      // Simuler des événements périodiques
-      setInterval(function () {
-        callback({ type: "log", level: "info", message: "[DEV] " + new Date().toLocaleTimeString() + " — Bot opérationnel", timestamp: new Date().toISOString() });
-      }, 8000);
-      // Simuler une détection Fortnite toutes les 15s
-      setInterval(function () {
-        callback({ type: "fortnite-update", tweets: 1, skins: 2 });
-      }, 15000);
-      // Simuler platform-update
-      setInterval(function () {
-        callback({ type: "platform-update", platforms: [] });
-      }, 30000);
+      // No simulated events — polling fallback handles data refresh
     },
     onWsStatus: function (callback) {
-      setTimeout(function () { callback("connected"); }, 500);
+      setTimeout(function () { callback("disconnected"); }, 500);
     },
 
     // Settings — use localStorage in browser mode

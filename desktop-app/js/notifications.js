@@ -27,6 +27,23 @@ const Notifications = {
 
   _show(level, message, icon, duration = 4000) {
     this._ensureContainer();
+
+    // Dedup: skip if same message was shown in last 3 seconds
+    var dedupKey = level + ":" + message;
+    var now = Date.now();
+    if (this._lastShown && this._lastShown[dedupKey] && (now - this._lastShown[dedupKey]) < 3000) {
+      return;
+    }
+    if (!this._lastShown) this._lastShown = {};
+    this._lastShown[dedupKey] = now;
+
+    // Clean old dedup entries
+    if (this._lastShown) {
+      for (var key in this._lastShown) {
+        if (now - this._lastShown[key] > 10000) delete this._lastShown[key];
+      }
+    }
+
     const id = "toast-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
     const colors = {
       success: "var(--success)",
