@@ -61,6 +61,11 @@
   to { transform: translateX(120%); opacity: 0; }
 }
 
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 /* ─── Spinner ────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }

@@ -64,6 +64,19 @@ const Dashboard = {
       Notifications.success("Paramètres sauvegardés. Reconnexion...");
       setTimeout(() => { WS.connect(); API.fetchStatus().catch(() => {}); }, 1000);
     };
+
+    window.changePanelPassword = () => {
+      const pw = document.getElementById("setting-panel-password")?.value?.trim();
+      if (!pw || pw.length < 4) {
+        Notifications.error("Le mot de passe doit faire au moins 4 caractères");
+        return;
+      }
+      if (window.AuthGuard) {
+        AuthGuard.changePassword(pw);
+        Notifications.success("Mot de passe changé");
+        document.getElementById("setting-panel-password").value = "";
+      }
+    };
   },
 
   _setupTabs() {
