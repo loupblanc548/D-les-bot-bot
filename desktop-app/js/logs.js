@@ -22,7 +22,7 @@ const LogConsole = {
       this.render();
     });
 
-    document.querySelectorAll(".log-filter").forEach((btn) => {
+    document.querySelectorAll(".filter-tag").forEach((btn) => {
       btn.addEventListener("click", () => {
         const level = btn.dataset.level;
         this._filters[level] = !this._filters[level];
