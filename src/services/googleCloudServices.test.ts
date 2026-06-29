@@ -13,6 +13,9 @@ import {
   detectLanguage,
   analyzeImage,
   analyzeText,
+  searchYouTube,
+  getYouTubeVideo,
+  checkYouTubeVideoSafety,
   isGoogleCloudConfigured,
   clearGoogleCloudCache,
 } from "./googleCloudServices.js";
@@ -68,6 +71,30 @@ describe("Google Cloud Services", () => {
       await translateText("test", "fr");
       // Pas d'erreur = succès (deuxième appel utilise le cache)
       expect(true).toBe(true);
+    });
+  });
+
+  describe("searchYouTube", () => {
+    it("retourne un résultat vide sans clé API", async () => {
+      const result = await searchYouTube("test query", 5);
+      expect(result.videos).toHaveLength(0);
+      expect(result.totalResults).toBe(0);
+    });
+  });
+
+  describe("getYouTubeVideo", () => {
+    it("retourne null sans clé API", async () => {
+      const result = await getYouTubeVideo("dQw4w9WgXcQ");
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("checkYouTubeVideoSafety", () => {
+    it("retourne non suspect sans clé API", async () => {
+      const result = await checkYouTubeVideoSafety("dQw4w9WgXcQ");
+      expect(result.video).toBeNull();
+      expect(result.isSuspicious).toBe(false);
+      expect(result.reasons).toHaveLength(0);
     });
   });
 });

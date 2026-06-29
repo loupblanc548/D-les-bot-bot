@@ -419,3 +419,233 @@ export function clearGoogleCloudCache(): void {
 export function getGoogleCloudCacheSize(): number {
   return cache.size;
 }
+
+// ─── 4. YouTube Data API v3 ──────────────────────────────────────────────────
+
+export interface YouTubeVideoResult {
+  videoId: string;
+  title: string;
+  description: string;
+  channelId: string;
+  channelTitle: string;
+  publishedAt: string;
+  thumbnail: string;
+  duration: string | null;
+  viewCount: number | null;
+  likeCount: number | null;
+  commentCount: number | null;
+  tags: string[];
+  isLive: boolean;
+}
+
+export interface YouTubeSearchResult {
+  query: string;
+  totalResults: number;
+  videos: YouTubeVideoResult[];
+  scannedAt: Date;
+}
+
+/**
+ * Recherche des vidéos YouTube.
+ * Endpoint: https://www.googleapis.com/youtube/v3/search
+ */
+export async function searchYouTube(
+  query: string,
+  maxResults: number = 5,
+): Promise<YouTubeSearchResult> {
+  const cacheKey = `yt_search_${query}_${maxResults}`;
+  const cached = getCached<YouTubeSearchResult>(cacheKey);
+  if (cached) return cached;
+
+  const result: YouTubeSearchResult = {
+    query,
+    totalResults: 0,
+    videos: [],
+    scannedAt: new Date(),
+  };
+
+  if (!GOOGLE_API_KEY) {
+    logger.warn("[GoogleCloud] YouTube: no API key configured");
+    return result;
+  }
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&key=${GOOGLE_API_KEY}`,
+      { signal: AbortSignal.timeout(10000) },
+    );
+
+    if (!res.ok) {
+      logger.warn(`[GoogleCloud] YouTube search HTTP ${res.status}`);
+      return result;
+    }
+
+    const data = (await res.json()) as any;
+    result.totalResults = data?.pageInfo?.totalResults ?? 0;
+
+    const videoIds = (data?.items ?? []).map((item: any) => item?.id?.videoId).filter(Boolean);
+
+    // Fetch video details (statistics, content details)
+    const videoDetails: Record<string, any> = {};
+    if (videoIds.length > 0) {
+      const detailsRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${videoIds.join(",")}&key=${GOOGLE_API_KEY}`,
+        { signal: AbortSignal.timeout(10000) },
+      );
+      if (detailsRes.ok) {
+        const detailsData = (await detailsRes.json()) as any;
+        for (const item of detailsData?.items ?? []) {
+          videoDetails[item.id] = item;
+        }
+      }
+    }
+
+    result.videos = (data?.items ?? []).map((item: any) => {
+      const id = item?.id?.videoId ?? "";
+      const details = videoDetails[id];
+      const snippet = details?.snippet ?? item?.snippet ?? {};
+
+      return {
+        videoId: id,
+        title: snippet?.title ?? "",
+        description: (snippet?.description ?? "").slice(0, 500),
+        channelId: snippet?.channelId ?? "",
+        channelTitle: snippet?.channelTitle ?? "",
+        publishedAt: snippet?.publishedAt ?? "",
+        thumbnail: snippet?.thumbnails?.medium?.url ?? snippet?.thumbnails?.default?.url ?? "",
+        duration: details?.contentDetails?.duration ?? null,
+        viewCount: details?.statistics?.viewCount ? parseInt(details.statistics.viewCount) : null,
+        likeCount: details?.statistics?.likeCount ? parseInt(details.statistics.likeCount) : null,
+        commentCount: details?.statistics?.commentCount
+          ? parseInt(details.statistics.commentCount)
+          : null,
+        tags: details?.snippet?.tags ?? [],
+        isLive: snippet?.liveBroadcastContent === "live",
+      };
+    });
+
+    setCached(cacheKey, result);
+    logger.info(`[GoogleCloud] YouTube: ${result.videos.length} videos for "${query}"`);
+  } catch (error) {
+    logger.warn(
+      `[GoogleCloud] YouTube search error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Récupère les détails d'une vidéo YouTube par son ID.
+ */
+export async function getYouTubeVideo(videoId: string): Promise<YouTubeVideoResult | null> {
+  const cacheKey = `yt_video_${videoId}`;
+  const cached = getCached<YouTubeVideoResult>(cacheKey);
+  if (cached) return cached;
+
+  if (!GOOGLE_API_KEY) return null;
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoId}&key=${GOOGLE_API_KEY}`,
+      { signal: AbortSignal.timeout(10000) },
+    );
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as any;
+    const item = data?.items?.[0];
+    if (!item) return null;
+
+    const snippet = item.snippet ?? {};
+    const stats = item.statistics ?? {};
+    const content = item.contentDetails ?? {};
+
+    const result: YouTubeVideoResult = {
+      videoId,
+      title: snippet.title ?? "",
+      description: (snippet.description ?? "").slice(0, 500),
+      channelId: snippet.channelId ?? "",
+      channelTitle: snippet.channelTitle ?? "",
+      publishedAt: snippet.publishedAt ?? "",
+      thumbnail: snippet.thumbnails?.medium?.url ?? snippet.thumbnails?.default?.url ?? "",
+      duration: content.duration ?? null,
+      viewCount: stats.viewCount ? parseInt(stats.viewCount) : null,
+      likeCount: stats.likeCount ? parseInt(stats.likeCount) : null,
+      commentCount: stats.commentCount ? parseInt(stats.commentCount) : null,
+      tags: snippet.tags ?? [],
+      isLive: snippet.liveBroadcastContent === "live",
+    };
+
+    setCached(cacheKey, result);
+    return result;
+  } catch (error) {
+    logger.warn(
+      `[GoogleCloud] YouTube video error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Vérifie si une vidéo YouTube contient du contenu suspect (scam, spam, phishing).
+ * Détecte les mots-clés suspects dans le titre et la description.
+ */
+export async function checkYouTubeVideoSafety(videoId: string): Promise<{
+  video: YouTubeVideoResult | null;
+  isSuspicious: boolean;
+  reasons: string[];
+}> {
+  const video = await getYouTubeVideo(videoId);
+  if (!video) {
+    return { video: null, isSuspicious: false, reasons: [] };
+  }
+
+  const reasons: string[] = [];
+  const text = `${video.title} ${video.description}`.toLowerCase();
+
+  const suspiciousPatterns = [
+    "free nitro",
+    "free discord nitro",
+    "steam gift",
+    "free steam",
+    "click my link",
+    "subscribe for",
+    "giveaway click",
+    "bit.ly",
+    "shorturl",
+    "tinyurl",
+    "free robux",
+    "free vbucks",
+    "paypal money",
+    "free money",
+    "crypto giveaway",
+    "bitcoin giveaway",
+    "dm me",
+    "add me",
+    "whatsapp me",
+    "click link in description",
+  ];
+
+  for (const pattern of suspiciousPatterns) {
+    if (text.includes(pattern)) {
+      reasons.push(`Mot-clé suspect: "${pattern}"`);
+    }
+  }
+
+  // Vues très basses avec beaucoup de tags = possible spam
+  if (video.viewCount !== null && video.viewCount < 100 && video.tags.length > 15) {
+    reasons.push("Vues très basses avec beaucoup de tags (spam possible)");
+  }
+
+  // Description très courte avec lien = possible scam
+  if (video.description.length < 50 && text.includes("http")) {
+    reasons.push("Description très courte avec lien (scam possible)");
+  }
+
+  return {
+    video,
+    isSuspicious: reasons.length > 0,
+    reasons,
+  };
+}
