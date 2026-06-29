@@ -61,6 +61,7 @@ const Dashboard = {
       const token = document.getElementById("setting-api-token")?.value || "";
       await window.electronAPI.saveSettings({ apiUrl, token });
       Store.update("settings", { ...Store.get("settings"), apiUrl, token });
+      if (window.Enhancements) Enhancements.logAction("settings", "Parametres API sauvegardes");
       Notifications.success("Paramètres sauvegardés. Reconnexion...");
       setTimeout(() => { WS.connect(); API.fetchStatus().catch(() => {}); }, 1000);
     };
@@ -142,6 +143,7 @@ const Dashboard = {
     };
     window.controlAction = async (action) => {
       try {
+        if (window.Enhancements) Enhancements.logAction(action, "Action control: " + action);
         switch (action) {
           case "restart":
             if (!confirm("Vraiment redémarrer le bot ?")) return;

@@ -52,7 +52,10 @@
       <div class="status-item"><span class="status-dot ok" id="sb-db"></span> Base</div>
       <div class="status-item"><span class="status-dot ok" id="sb-rss"></span> Flux</div>
       <div class="status-item"><span class="status-dot ok" id="sb-apis"></span> APIs</div>
-      <span id="sb-ping">Ping: --</span>
+      <span id="sb-ping" style="margin-left:auto;display:flex;gap:12px;align-items:center">
+        <span style="cursor:pointer;opacity:0.6" title="Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh | Ctrl+L: verrouiller" onclick="Notifications.info('Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh | Ctrl+L: verrouiller')">⌨</span>
+        <span>Ping: --</span>
+      </span>
     </div>
 
     <!-- Sidebar -->
@@ -478,6 +481,30 @@
               <button class="btn btn-warn btn-sm" onclick="AuthGuard.logout()">🚪 Verrouiller le panneau</button>
             </div>
           </div>
+          <div class="settings-section">
+            <div class="settings-title">🛠 Outils avancés</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <button class="btn btn-sm btn-magnetic" onclick="Enhancements.exportConfig()">📤 Exporter config</button>
+              <button class="btn btn-sm btn-magnetic" onclick="document.getElementById('import-config-file').click()">📥 Importer config</button>
+              <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="Enhancements.importConfig(this.files[0])">
+              <button class="btn btn-sm btn-magnetic" onclick="Enhancements.clearAuditLog()">🧹 Vider audit log</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">📊 Heatmap d'activité</div>
+            <div id="heatmap-container" style="margin-top:8px"></div>
+            <script>setTimeout(function(){ if(window.Enhancements) Enhancements.renderHeatmap('heatmap-container'); }, 2000);</script>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">📋 Audit log</div>
+            <div id="audit-log-container" style="margin-top:8px"></div>
+            <script>setTimeout(function(){ if(window.Enhancements) Enhancements.renderAuditLog('audit-log-container'); }, 2000);</script>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">🤖 Multi-bot</div>
+            <div id="multi-bot-list" style="margin-top:8px"></div>
+            <script>setTimeout(function(){ if(window.Enhancements) Enhancements.renderBotSelector('multi-bot-list'); }, 2000);</script>
+          </div>
         </div>
       </div>
 
@@ -793,6 +820,7 @@
   <script src="js/moderation.js"></script>
   <script src="js/security.js"></script>
   <script src="js/music.js"></script>
+  <script src="js/enhancements.js"></script>
   <script src="js/dashboard.js"></script>
 
   <script>
@@ -848,6 +876,7 @@
 
     document.addEventListener("DOMContentLoaded", function() {
       if (window.AuthGuard) AuthGuard.injectLoginScreen();
+      if (window.Enhancements) Enhancements.init();
       Charts.init();
       LogConsole.init();
       Studio.init();
