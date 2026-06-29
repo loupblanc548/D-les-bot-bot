@@ -38,6 +38,7 @@ import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
 import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceService.js";
 import { initDisTube } from "./services/musicService.js";
+import { startYouTubeLiveChat } from "./services/youtubeLiveChat.js";
 
 const client = new Client({
   intents: [
@@ -251,6 +252,9 @@ async function main(): Promise<void> {
   handleModerationEvents(client);
   startMapCleanup();
   startMemoryOptimizer();
+
+  // YouTube Live Chat Bot (détecte les demandes d'ajout dans le chat YouTube Live)
+  startYouTubeLiveChat();
 
   // Salons vocaux temporaires
   client.on("voiceStateUpdate", (oldState, newState) => {

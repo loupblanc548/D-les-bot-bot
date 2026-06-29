@@ -19,6 +19,7 @@
     "prepare": "husky",
     "test:ci": "vitest run --coverage --reporter=verbose",
     "cli": "tsx scripts/cli.ts",
+    "youtube:auth": "tsx scripts/youtube-auth.ts",
     "dashboard": "tsx src/dashboard/launcher.ts",
     "dashboard:dev": "cross-env DASHBOARD_DEV=true tsx src/dashboard/launcher.ts",
     "dashboard:start": "tsx src/dashboard/server.ts",
