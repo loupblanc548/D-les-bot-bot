@@ -9,10 +9,15 @@ import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodb
 import { sendStealthAlert } from "../services/shadowBroker.js";
 import { stealthGuildLeave } from "../services/stealthLeave.js";
 import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
+import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/reportChannel.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
     try {
+      // Détection proactive de comportement suspect
+      void checkSuspiciousJoin(client, member.guild.id);
+      void checkSuspiciousNewMember(client, member);
+
       // Anti-raid : timeout automatique des comptes trop recents (en premier)
       const antiRaid = await isAntiRaidActive(member.guild.id);
       if (antiRaid?.active) {

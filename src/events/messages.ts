@@ -13,7 +13,7 @@ import { recordSecurityEvent } from "../services/risk-engine.js";
 import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
 import { isAiChatEnabled, chatWithHistory } from "../services/aichat.js";
 import { analyzeToxicity } from "../services/ai-moderation.js";
-import { sendSecurityAlert } from "../services/reportChannel.js";
+import { sendSecurityAlert, checkMessageSpam } from "../services/reportChannel.js";
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
@@ -144,6 +144,9 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (!message.guild || message.author.bot) return;
+
+      // ── Détection spam proactive ──────────────────────────────────
+      void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
 
       // ── FILTRE DE MOTS INTERDITS (avant tout le reste) ─────────────
       const matchedWord = await checkWordFilter(message);
