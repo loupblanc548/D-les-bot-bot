@@ -8,6 +8,7 @@ import { checkMemberProfile } from "../services/serverRules.js";
 import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
 import { sendStealthAlert } from "../services/shadowBroker.js";
 import { stealthGuildLeave } from "../services/stealthLeave.js";
+import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -94,6 +95,9 @@ export function handleMemberEvents(client: Client) {
 
       // ── Vérification du profil selon le règlement ──
       await checkMemberProfile(member);
+
+      // ── Security Integration: auto-quarantine, geo-block ──
+      handleMemberSecurityIntegration(client, member).catch(() => {});
 
       // ── Message de bienvenue (si configuré et activé) ──
       await sendWelcomeMessage(member);

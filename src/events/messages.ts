@@ -31,6 +31,7 @@ import {
 import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
 import { addXp } from "../services/xpService.js";
+import { handleSecurityIntegration } from "../services/securityIntegration.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -176,6 +177,9 @@ export function handleMessageEvents(client: Client) {
 
       await handleContextualAiChat(message, client);
       await handleSecurityModules(message, spamTracker, client);
+
+      // ── Security Integration: threatIntel, Google Vision, YouTube check, sentiment ──
+      handleSecurityIntegration(client, message).catch(() => {});
 
       // ── Auto-react (après sécurité, non bloquant) ──
       await processAutoReact(message);
