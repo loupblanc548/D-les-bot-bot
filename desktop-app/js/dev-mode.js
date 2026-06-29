@@ -162,7 +162,21 @@ if (!window.electronAPI) {
     },
 
     // Logs
-    getLogs: function () { return Promise.resolve([]); },
+    getLogs: function () {
+      var now = Date.now();
+      return Promise.resolve([
+        { level: "info", message: "Bot connecté — 18 serveurs, 45200 membres", timestamp: now - 5000 },
+        { level: "info", message: "[AutoMod] Slowmode auto activé sur #general (22 msg/min)", timestamp: now - 15000 },
+        { level: "warn", message: "[Security] Alt detection: User#666 linked to User#1234", timestamp: now - 30000 },
+        { level: "info", message: "[Fortnite] Nouveau skin détecté: Shadow Midas", timestamp: now - 60000 },
+        { level: "error", message: "[API] Rate limit hit on Twitter endpoint — retry in 60s", timestamp: now - 120000 },
+        { level: "info", message: "[Music] Lofi Hip Hop Radio ajouté à la file — Serveur de test", timestamp: now - 180000 },
+        { level: "warn", message: "[AutoMod] Word blacklist: User#1234 — 'badword'", timestamp: now - 240000 },
+        { level: "info", message: "[Risk] User#777 risk score: 45/100", timestamp: now - 300000 },
+        { level: "info", message: "Commande /mod ban exécutée par Admin#0001", timestamp: now - 360000 },
+        { level: "info", message: "[Health] Discord Gateway: OK, Prisma: OK, Plateformes: 1 en pause", timestamp: now - 420000 },
+      ]);
+    },
     clearLogs: function () { return Promise.resolve(); },
 
     // WebSocket (mock — pas de vraie connexion)

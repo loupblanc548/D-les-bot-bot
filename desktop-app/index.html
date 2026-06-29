@@ -110,9 +110,9 @@
             <div class="bento-label">Discord actifs</div>
           </div>
           <div class="bento-cell bento-cell--sm bento-cell--cyan" id="bento-logs">
-            <div class="bento-title">Logs (24h)</div>
+            <div class="bento-title">Commandes</div>
             <div class="bento-value" id="bento-logs-val">--</div>
-            <div class="bento-label">Entrées totales</div>
+            <div class="bento-label">Total exécutées</div>
           </div>
           <div class="bento-cell bento-cell--sm bento-cell--success" id="bento-uptime">
             <div class="bento-title">Uptime</div>
@@ -120,9 +120,9 @@
             <div class="bento-label">En ligne</div>
           </div>
           <div class="bento-cell bento-cell--sm bento-cell--neutral" id="bento-sanctions">
-            <div class="bento-title">Sanctions</div>
+            <div class="bento-title">RAM</div>
             <div class="bento-value" id="bento-sanctions-val">--</div>
-            <div class="bento-label">Total appliquées</div>
+            <div class="bento-label">Consommation</div>
           </div>
           <div class="bento-cell bento-cell--md bento-cell--neutral" id="bento-activity">
             <div class="bento-title">Activité récente</div>
@@ -637,7 +637,8 @@
     </main>
   </div>
 
-  <!-- JavaScript Modules (dev-mode first for fallback) -->
+  <!-- JavaScript Modules (mock-fallback first, then dev-mode for non-Electron) -->
+  <script src="js/mock-fallback.js"></script>
   <script src="js/dev-mode.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/store.js"></script>

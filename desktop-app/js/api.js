@@ -29,6 +29,11 @@ const API = {
       Store.update("status", data);
       return data;
     } catch (e) {
+      if (window.__mockFallback) {
+        const mock = window.__mockFallback.getStatus();
+        Store.update("status", mock);
+        return mock;
+      }
       Store.update("status", null);
       throw e;
     }
@@ -40,6 +45,11 @@ const API = {
       Store.update("platforms", platforms);
       return platforms;
     } catch (e) {
+      if (window.__mockFallback) {
+        const mock = window.__mockFallback.getPlatforms();
+        Store.update("platforms", mock);
+        return mock;
+      }
       throw e;
     }
   },
@@ -50,6 +60,11 @@ const API = {
       Store.update("health", checks);
       return checks;
     } catch (e) {
+      if (window.__mockFallback) {
+        const mock = window.__mockFallback.getHealth();
+        Store.update("health", mock);
+        return mock;
+      }
       throw e;
     }
   },
@@ -60,6 +75,11 @@ const API = {
       Store.update("fortnite", data);
       return data;
     } catch (e) {
+      if (window.__mockFallback) {
+        const mock = window.__mockFallback.getFortnite();
+        Store.update("fortnite", mock);
+        return mock;
+      }
       Store.update("fortnite", null);
       throw e;
     }
