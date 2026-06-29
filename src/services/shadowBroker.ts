@@ -542,6 +542,118 @@ export async function detectSuspiciousPatterns(
   });
 }
 
+// ─── Fonction simple d'interrogation OSINT ───────────────────────────────────
+
+export type ShadowBrokerQueryType = "intel" | "network" | "patterns" | "report";
+
+export interface ShadowBrokerResult {
+  success: boolean;
+  type: ShadowBrokerQueryType;
+  data: unknown;
+  durationMs: number;
+  error?: string;
+}
+
+const QUERY_TIMEOUT_MS = 15_000;
+const MAX_CONCURRENT_QUERIES = 3;
+let activeQueries = 0;
+
+/**
+ * Interroge Shadow Broker depuis le code avec gestion d'erreurs, timeouts
+ * et limite de requêtes concurrentes.
+ *
+ * @param client - Client Discord
+ * @param type - Type de requête OSINT
+ * @param options - Options (userId, guildId)
+ * @returns Résultat structuré avec data, durée, et erreur éventuelle
+ */
+export async function queryShadowBroker(
+  client: Client,
+  type: ShadowBrokerQueryType,
+  options: { userId?: string; guildId?: string },
+): Promise<ShadowBrokerResult> {
+  const startTime = Date.now();
+  logger.info(`[ShadowBroker] queryShadowBroker("${type}") démarrée`);
+
+  if (activeQueries >= MAX_CONCURRENT_QUERIES) {
+    logger.warn(
+      `[ShadowBroker] Requête "${type}" rejetée — limite concurrente atteinte (${activeQueries}/${MAX_CONCURRENT_QUERIES})`,
+    );
+    return {
+      success: false,
+      type,
+      data: null,
+      durationMs: Date.now() - startTime,
+      error: "Limite de requêtes concurrentes atteinte",
+    };
+  }
+
+  activeQueries++;
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), QUERY_TIMEOUT_MS),
+    );
+
+    const queryPromise = (async () => {
+      switch (type) {
+        case "intel": {
+          if (!options.userId || !options.guildId) {
+            throw new Error("userId et guildId requis pour 'intel'");
+          }
+          const guild = await client.guilds.fetch(options.guildId);
+          const member = await guild.members.fetch(options.userId);
+          return getMemberIntel(member);
+        }
+        case "network": {
+          if (!options.userId || !options.guildId) {
+            throw new Error("userId et guildId requis pour 'network'");
+          }
+          const guild = await client.guilds.fetch(options.guildId);
+          const member = await guild.members.fetch(options.userId);
+          return getMemberNetwork(member);
+        }
+        case "patterns": {
+          if (!options.guildId) {
+            throw new Error("guildId requis pour 'patterns'");
+          }
+          return detectSuspiciousPatterns(client, options.guildId);
+        }
+        case "report": {
+          if (!options.guildId) {
+            throw new Error("guildId requis pour 'report'");
+          }
+          return generateIntelReport(client, options.guildId);
+        }
+        default:
+          throw new Error(`Type de requête inconnu: ${type}`);
+      }
+    })();
+
+    const data = await Promise.race([queryPromise, timeoutPromise]);
+
+    const durationMs = Date.now() - startTime;
+    logger.info(`[ShadowBroker] queryShadowBroker("${type}") réussie en ${durationMs}ms`);
+
+    return { success: true, type, data, durationMs };
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error(
+      `[ShadowBroker] queryShadowBroker("${type}") échouée en ${durationMs}ms: ${errorMsg}`,
+    );
+    return {
+      success: false,
+      type,
+      data: null,
+      durationMs,
+      error: errorMsg,
+    };
+  } finally {
+    activeQueries--;
+  }
+}
+
 // ─── Rapport global d'intelligence ───────────────────────────────────────────
 
 export async function generateIntelReport(
