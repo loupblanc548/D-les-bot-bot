@@ -198,11 +198,14 @@ const Dashboard = {
     API.fetchFortnite().catch(() => {});
     API.fetchHealth().catch(() => {});
     this._fetchLogs();
-    setInterval(() => API.fetchStatus().catch(() => {}), 10000);
+    this._refreshInterval = setInterval(() => API.fetchStatus().catch(() => {}), 10000);
     setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
     setInterval(() => API.fetchFortnite().catch(() => {}), 60000);
     setInterval(() => this._fetchLogs(), 5000);
   },
+
+  _apiRetryCount: 0,
+  _maxRetries: 999,
 
   async _fetchLogs() {
     try {
@@ -214,6 +217,9 @@ const Dashboard = {
   },
 
   _renderStatus(data) {
+    const wsIndicator = document.getElementById("ws-indicator");
+    const wsStatus = document.getElementById("ws-status");
+
     if (!data) {
       const dot = document.getElementById("titlebar-dot");
       if (dot) dot.className = "offline";
@@ -231,11 +237,23 @@ const Dashboard = {
       ).join("");
       document.getElementById("sb-ping").textContent = "Ping: --";
       this._updateGauge(0);
+
+      // Update status bar dots
+      document.querySelectorAll(".status-dot").forEach((d) => d.classList.remove("ok"));
+      if (wsIndicator) wsIndicator.className = "ws-indicator offline";
+      if (wsStatus) wsStatus.textContent = "Bot injoignable — retry en cours...";
       return;
     }
 
     const dot = document.getElementById("titlebar-dot");
     if (dot) dot.className = data.online ? "" : "offline";
+
+    // Update status bar dots to ok when online
+    if (data.online) {
+      document.querySelectorAll(".status-dot").forEach((d) => d.classList.add("ok"));
+      if (wsIndicator) wsIndicator.className = "ws-indicator connected";
+      if (wsStatus) wsStatus.textContent = "Connecté";
+    }
 
     const memMb = data.memoryMb || data.memoryMB || 0;
     const guilds = data.guilds ?? data.guildCount ?? 0;

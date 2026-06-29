@@ -386,11 +386,11 @@
         });
       };
 
-      // Hide splash after load
+      // Hide splash after load (faster — 1.2s)
       setTimeout(() => {
         const splash = document.getElementById("splash");
         if (splash) splash.classList.add("hidden");
-      }, 2200);
+      }, 1200);
     })();
 
     document.addEventListener("DOMContentLoaded", function() {
