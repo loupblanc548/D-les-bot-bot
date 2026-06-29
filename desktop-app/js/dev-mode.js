@@ -11,21 +11,22 @@ if (!window.electronAPI) {
     versions: { electron: "28.0.0", node: "20.10.0", chrome: "120.0.0" },
     // Dashboard
     getStatus: function () {
-      return Promise.resolve({
-        online: true, uptime: 84200, memoryMb: 245.6, cpuPercent: 34,
-        ping: 42,
-        guilds: 18, members: 45200,
-        commands: 24
+      var self = this;
+      return self.apiFetch("/api/status").catch(function () {
+        return { online: true, uptime: 84200, memoryMb: 245.6, cpuPercent: 34, ping: 42, guilds: 18, members: 45200, commands: 24 };
       });
     },
 
     getPlatforms: function () {
-      return Promise.resolve([
-        { id: "twitter", name: "Twitter / X", platform: "twitter", active: true, lastFetch: new Date().toISOString() },
-        { id: "youtube", name: "YouTube", platform: "youtube", active: true, lastFetch: new Date().toISOString() },
-        { id: "rss", name: "RSS News", platform: "rss", active: true, lastFetch: new Date().toISOString() },
-        { id: "patch-notes", name: "Patch notes", platform: "rss", active: false, lastFetch: null },
-      ]);
+      var self = this;
+      return self.apiFetch("/api/platforms").catch(function () {
+        return [
+          { id: "twitter", name: "Twitter / X", platform: "twitter", active: true, lastFetch: new Date().toISOString() },
+          { id: "youtube", name: "YouTube", platform: "youtube", active: true, lastFetch: new Date().toISOString() },
+          { id: "rss", name: "RSS News", platform: "rss", active: true, lastFetch: new Date().toISOString() },
+          { id: "patch-notes", name: "Patch notes", platform: "rss", active: false, lastFetch: null },
+        ];
+      });
     },
 
     getCache: function () { return Promise.resolve({ total: 3200, stats: {} }); },
@@ -35,29 +36,55 @@ if (!window.electronAPI) {
 
     // Health & Activity
     getHealth: function () {
-      return Promise.resolve([
-        { name: "Discord", status: "ok", message: "Gateway connecté", passed: true },
-        { name: "Base de données", status: "ok", message: "Prisma connecté", passed: true },
-        { name: "Plateformes", status: "warning", message: "1 flux en pause", passed: true },
-      ]);
+      var self = this;
+      return self.apiFetch("/api/health").catch(function () {
+        return [
+          { name: "Discord", status: "ok", message: "Gateway connecté", passed: true },
+          { name: "Base de données", status: "ok", message: "Prisma connecté", passed: true },
+          { name: "Plateformes", status: "warning", message: "1 flux en pause", passed: true },
+        ];
+      });
     },
     getActivity: function () { return Promise.resolve({ events: [] }); },
     getDiscord: function () { return Promise.resolve({ ping: 42, guildCount: 18 }); },
     getStats: function () { return Promise.resolve({ messagesEnvoyes: 1450, alertes: 12, erreurs: 3, detections: 890 }); },
 
-    // Generic API fetch (for controlAction)
+    // Generic API fetch — in browser mode, do real HTTP requests to the bot API
     apiFetch: function (endpoint, options) {
-      console.log("[DEV] apiFetch:", endpoint, options);
-      return Promise.resolve({ success: true });
+      var settings = {};
+      try { settings = JSON.parse(localStorage.getItem("botSettings") || "{}"); } catch {}
+      var baseUrl = (settings.apiUrl || "http://localhost:3002").replace(/\/$/, "");
+      var token = settings.token || "";
+      var url = baseUrl + endpoint;
+      var fetchOpts = Object.assign({}, options, {
+        headers: Object.assign({
+          "Content-Type": "application/json",
+        }, options && options.headers || {}),
+      });
+      if (token) fetchOpts.headers["Authorization"] = "Bearer " + token;
+      return fetch(url, fetchOpts).then(function (res) {
+        if (!res.ok) throw new Error("API error " + res.status);
+        return res.json();
+      }).catch(function (e) {
+        console.warn("[Browser] apiFetch failed:", endpoint, e.message);
+        throw e;
+      });
     },
     // DM
-    sendDM: function () { return Promise.resolve({ success: true }); },
-    getDMHistory: function () { return Promise.resolve([]); },
-    // Servers
+    sendDM: function (userId, message) {
+      return this.apiFetch("/api/dm/send", { method: "POST", body: JSON.stringify({ userId: userId, message: message }) });
+    },
+    getDMHistory: function () {
+      return this.apiFetch("/api/dm/history").catch(function () { return []; });
+    },
+    // Servers — try real API first, fallback to mock
     getServers: function () {
-      return Promise.resolve([
-        { id: "123456789", name: "Serveur de test", memberCount: 42, ownerName: "Admin", iconURL: null }
-      ]);
+      var self = this;
+      return self.apiFetch("/api/servers").catch(function () {
+        return [
+          { id: "123456789", name: "Serveur de test", memberCount: 42, ownerName: "Admin", iconURL: null }
+        ];
+      });
     },
 
     // Moderation — mock data
@@ -123,60 +150,72 @@ if (!window.electronAPI) {
     },
     musicControl: function () { return Promise.resolve({ success: true }); },
 
-    // Fortnite — données mockées riches pour tester les animations
+    // Fortnite — try real API first, fallback to mock
     getFortnite: function () {
-      mockTweets += Math.floor(Math.random() * 3);
-      mockNews += Math.floor(Math.random() * 2);
-      mockSkins += Math.floor(Math.random() * 5);
-      var now = new Date().toISOString();
-      return Promise.resolve({
-        tweets: mockTweets,
-        news: mockNews,
-        skins: mockSkins,
-        accounts: [
-          { name: "FortniteFR", platform: "Twitter/X", type: "Fortnite News", lastDetection: now, active: true },
-          { name: "FortniteGame", platform: "Twitter/X", type: "Fortnite News", lastDetection: now, active: true },
-          { name: "HYPEX", platform: "Twitter/X", type: "Leaks", lastDetection: now, active: true },
-          { name: "ShiinaBR", platform: "Twitter/X", type: "Leaks", lastDetection: now, active: true },
-          { name: "Fortnite", platform: "YouTube", type: "Vidéos", lastDetection: now, active: true },
-        ],
-        detections: [
-          { type: "tweets", time: now, message: "Tweet Fortnite: Nouvelle mise à jour v34.20 disponible !" },
-          { type: "skins", time: now, message: "3 skin(s) trouvé(s) en wishlist" },
-          { type: "news", time: now, message: "Fortnite Chapter 6 dévoilé" },
-          { type: "tweets", time: now, message: "Tweet Fortnite: Collaboration Marvel annoncée" },
-        ],
-        shop: [
-          { name: "Renegade Raider", rarity: "legendary", price: 1200, icon: "💀" },
-          { name: "Aerial Assault Trooper", rarity: "epic", price: 1500, icon: "🪖" },
-          { name: "Skull Trooper", rarity: "legendary", price: 1500, icon: "💀" },
-          { name: "Ghoul Trooper", rarity: "epic", price: 1500, icon: "👻" },
-          { name: "Black Knight", rarity: "legendary", price: 2000, icon: "⚔️" },
-          { name: "Sparkle Specialist", rarity: "rare", price: 1200, icon: "✨" },
-        ],
-        shopDate: new Date().toISOString().split("T")[0],
-        shopItemsTotal: 6,
-        cosmeticsTracked: 4521,
-        aggregationError: false,
-        aggregatedAt: now
+      var self = this;
+      return self.apiFetch("/api/fortnite").catch(function () {
+        mockTweets += Math.floor(Math.random() * 3);
+        mockNews += Math.floor(Math.random() * 2);
+        mockSkins += Math.floor(Math.random() * 5);
+        var now = new Date().toISOString();
+        return {
+          tweets: mockTweets,
+          news: mockNews,
+          skins: mockSkins,
+          accounts: [
+            { name: "FortniteFR", platform: "Twitter/X", type: "Fortnite News", lastDetection: now, active: true },
+            { name: "FortniteGame", platform: "Twitter/X", type: "Fortnite News", lastDetection: now, active: true },
+            { name: "HYPEX", platform: "Twitter/X", type: "Leaks", lastDetection: now, active: true },
+            { name: "ShiinaBR", platform: "Twitter/X", type: "Leaks", lastDetection: now, active: true },
+            { name: "Fortnite", platform: "YouTube", type: "Vidéos", lastDetection: now, active: true },
+          ],
+          detections: [
+            { type: "tweets", time: now, message: "Tweet Fortnite: Nouvelle mise à jour v34.20 disponible !" },
+            { type: "skins", time: now, message: "3 skin(s) trouvé(s) en wishlist" },
+            { type: "news", time: now, message: "Fortnite Chapter 6 dévoilé" },
+            { type: "tweets", time: now, message: "Tweet Fortnite: Collaboration Marvel annoncée" },
+          ],
+          shop: [
+            { name: "Renegade Raider", rarity: "legendary", price: 1200, icon: "💀" },
+            { name: "Aerial Assault Trooper", rarity: "epic", price: 1500, icon: "🪖" },
+            { name: "Skull Trooper", rarity: "legendary", price: 1500, icon: "💀" },
+            { name: "Ghoul Trooper", rarity: "epic", price: 1500, icon: "👻" },
+            { name: "Black Knight", rarity: "legendary", price: 2000, icon: "⚔️" },
+            { name: "Sparkle Specialist", rarity: "rare", price: 1200, icon: "✨" },
+          ],
+          shopDate: new Date().toISOString().split("T")[0],
+          shopItemsTotal: 6,
+          cosmeticsTracked: 4521,
+          aggregationError: false,
+          aggregatedAt: now
+        };
       });
     },
 
-    // Logs
-    getLogs: function () {
-      var now = Date.now();
-      return Promise.resolve([
-        { level: "info", message: "Bot connecté — 18 serveurs, 45200 membres", timestamp: now - 5000 },
-        { level: "info", message: "[AutoMod] Slowmode auto activé sur #general (22 msg/min)", timestamp: now - 15000 },
-        { level: "warn", message: "[Security] Alt detection: User#666 linked to User#1234", timestamp: now - 30000 },
-        { level: "info", message: "[Fortnite] Nouveau skin détecté: Shadow Midas", timestamp: now - 60000 },
-        { level: "error", message: "[API] Rate limit hit on Twitter endpoint — retry in 60s", timestamp: now - 120000 },
-        { level: "info", message: "[Music] Lofi Hip Hop Radio ajouté à la file — Serveur de test", timestamp: now - 180000 },
-        { level: "warn", message: "[AutoMod] Word blacklist: User#1234 — 'badword'", timestamp: now - 240000 },
-        { level: "info", message: "[Risk] User#777 risk score: 45/100", timestamp: now - 300000 },
-        { level: "info", message: "Commande /mod ban exécutée par Admin#0001", timestamp: now - 360000 },
-        { level: "info", message: "[Health] Discord Gateway: OK, Prisma: OK, Plateformes: 1 en pause", timestamp: now - 420000 },
-      ]);
+    // Logs — try real API first, fallback to mock
+    getLogs: function (params) {
+      var self = this;
+      var qs = "";
+      if (params && typeof params === "object") {
+        var parts = [];
+        for (var k in params) { if (params[k] !== undefined) parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(params[k])); }
+        qs = parts.length ? "?" + parts.join("&") : "";
+      }
+      return self.apiFetch("/api/logs" + qs).catch(function () {
+        var now = Date.now();
+        return [
+          { level: "info", message: "Bot connecté — 18 serveurs, 45200 membres", timestamp: now - 5000 },
+          { level: "info", message: "[AutoMod] Slowmode auto activé sur #general (22 msg/min)", timestamp: now - 15000 },
+          { level: "warn", message: "[Security] Alt detection: User#666 linked to User#1234", timestamp: now - 30000 },
+          { level: "info", message: "[Fortnite] Nouveau skin détecté: Shadow Midas", timestamp: now - 60000 },
+          { level: "error", message: "[API] Rate limit hit on Twitter endpoint — retry in 60s", timestamp: now - 120000 },
+          { level: "info", message: "[Music] Lofi Hip Hop Radio ajouté à la file — Serveur de test", timestamp: now - 180000 },
+          { level: "warn", message: "[AutoMod] Word blacklist: User#1234 — 'badword'", timestamp: now - 240000 },
+          { level: "info", message: "[Risk] User#777 risk score: 45/100", timestamp: now - 300000 },
+          { level: "info", message: "Commande /mod ban exécutée par Admin#0001", timestamp: now - 360000 },
+          { level: "info", message: "[Health] Discord Gateway: OK, Prisma: OK, Plateformes: 1 en pause", timestamp: now - 420000 },
+        ];
+      });
     },
     clearLogs: function () { return Promise.resolve(); },
 
@@ -203,9 +242,23 @@ if (!window.electronAPI) {
       setTimeout(function () { callback("connected"); }, 500);
     },
 
-    // Settings
-    loadSettings: function () { return Promise.resolve({ token: "****", port: 3002, theme: "dark", refreshInterval: 5 }); },
-    saveSettings: function () { return Promise.resolve(); },
+    // Settings — use localStorage in browser mode
+    loadSettings: function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("botSettings") || "{}");
+        return Promise.resolve(s);
+      } catch {
+        return Promise.resolve({});
+      }
+    },
+    saveSettings: function (newSettings) {
+      try {
+        var existing = JSON.parse(localStorage.getItem("botSettings") || "{}");
+        var merged = Object.assign({}, existing, newSettings);
+        localStorage.setItem("botSettings", JSON.stringify(merged));
+      } catch {}
+      return Promise.resolve();
+    },
 
     // Window controls (no-op en mode dev)
     minimizeWindow: function () {},
