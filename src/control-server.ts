@@ -25,6 +25,7 @@ import { Client } from "discord.js";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { config } from "./config.js";
+import { getFortniteState } from "./services/fortnite-broadcast.js";
 
 let server: http.Server | null = null;
 const logBuffer: { timestamp: number; level: string; message: string }[] = [];
@@ -169,23 +170,143 @@ export async function startControlServer(port: number, client: Client): Promise<
       if (path === "/api/platforms" && req.method === "GET") {
         try {
           const sources = await prisma.source.findMany();
-          sendJson(
-            res,
-            200,
-            sources.map((s: any) => ({
-              id: s.id,
-              name: s.urlOrHandle,
-              platform: s.type,
-              active: true,
-              url: s.urlOrHandle,
-              lastFetch: null,
-            })),
-          );
+          // Enrichir avec les infos de config .env
+          const platformList = [
+            {
+              id: "twitter-fortnite",
+              name: "Twitter Fortnite",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "twitter-playstation",
+              name: "Twitter PlayStation",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_PLAYSTATION_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "twitter-xbox",
+              name: "Twitter Xbox",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_XBOX_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "twitter-nintendo",
+              name: "Twitter Nintendo",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_NINTENDO_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "twitter-instant",
+              name: "Twitter Instant Gaming",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_INSTANT_GAMING_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "youtube-fortnite",
+              name: "YouTube Fortnite",
+              platform: "youtube",
+              active: !!process.env.YOUTUBE_FORTNITE_CHANNELS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "youtube-playstation",
+              name: "YouTube PlayStation",
+              platform: "youtube",
+              active: !!process.env.YOUTUBE_PLAYSTATION_CHANNELS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "youtube-xbox",
+              name: "YouTube Xbox",
+              platform: "youtube",
+              active: !!process.env.YOUTUBE_XBOX_CHANNELS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-fortnite",
+              name: "RSS Fortnite",
+              platform: "rss",
+              active: !!process.env.PATCH_FORTNITE_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-playstation",
+              name: "RSS PlayStation",
+              platform: "rss",
+              active: !!process.env.PATCH_PLAYSTATION_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-xbox",
+              name: "RSS Xbox",
+              platform: "rss",
+              active: !!process.env.PATCH_XBOX_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-nintendo",
+              name: "RSS Nintendo",
+              platform: "rss",
+              active: !!process.env.PATCH_NINTENDO_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-steam",
+              name: "RSS Steam/Epic",
+              platform: "rss",
+              active: !!process.env.PATCH_STEAM_EPIC_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-instant",
+              name: "RSS Instant Gaming",
+              platform: "rss",
+              active: !!process.env.PATCH_INSTANT_GAMING_RSS,
+              lastFetch: new Date().toISOString(),
+            },
+          ];
+          // Ajouter les sources Prisma si elles existent
+          if (sources.length > 0) {
+            for (const s of sources) {
+              platformList.push({
+                id: String(s.id),
+                name: s.urlOrHandle,
+                platform: s.type,
+                active: true,
+                lastFetch: new Date().toISOString(),
+              });
+            }
+          }
+          sendJson(res, 200, platformList);
         } catch {
           sendJson(res, 200, [
-            { id: "twitter", name: "Twitter/X", platform: "twitter", active: true },
-            { id: "youtube", name: "YouTube", platform: "youtube", active: true },
-            { id: "rss", name: "RSS News", platform: "rss", active: true },
+            {
+              id: "twitter-fortnite",
+              name: "Twitter Fortnite",
+              platform: "twitter",
+              active: !!process.env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "youtube-fortnite",
+              name: "YouTube Fortnite",
+              platform: "youtube",
+              active: !!process.env.YOUTUBE_FORTNITE_CHANNELS,
+              lastFetch: new Date().toISOString(),
+            },
+            {
+              id: "rss-fortnite",
+              name: "RSS Fortnite",
+              platform: "rss",
+              active: !!process.env.PATCH_FORTNITE_RSS,
+              lastFetch: new Date().toISOString(),
+            },
           ]);
         }
         return;
@@ -265,22 +386,62 @@ export async function startControlServer(port: number, client: Client): Promise<
 
       if (path === "/api/fortnite" && req.method === "GET") {
         try {
-          const posts = await prisma.processedTweets.findMany({
-            orderBy: { id: "desc" },
-            take: 20,
-          });
-          sendJson(res, 200, {
-            tweets: posts.length,
-            news: 0,
-            recent: posts.map((p: any) => ({
-              title: p.tweetId,
-              platform: "twitter",
-              date: null,
-              url: null,
+          // Récupérer l'état Fortnite enrichi depuis le module broadcast
+          const fnState = getFortniteState();
+
+          // Compter les tweets traités en base
+          const tweetCount = await prisma.processedTweets.count().catch(() => 0);
+
+          // Compter les comptes suivis
+          const accountsRaw = process.env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS || "";
+          const accounts = accountsRaw
+            .split(",")
+            .map((a) => a.trim())
+            .filter(Boolean);
+
+          // Compter les cosmétiques trackés dans la wishlist
+          const cosmeticsTracked = await prisma.wishlist.count().catch(() => 0);
+
+          // Récupérer les détections récentes
+          const recentPosts = await prisma.processedTweets
+            .findMany({
+              orderBy: { id: "desc" },
+              take: 15,
+            })
+            .catch(() => []);
+
+          // Mapper les détections
+          const detections = [
+            ...(fnState.detections || []),
+            ...recentPosts.map((p: any) => ({
+              type: "tweets",
+              time: p.createdAt?.toISOString?.() || new Date().toISOString(),
+              message: `Tweet traité: ${p.tweetId}`,
             })),
+          ].slice(0, 15);
+
+          sendJson(res, 200, {
+            tweets: fnState.tweets || tweetCount,
+            news: fnState.news || 0,
+            skins: fnState.skins || 0,
+            accounts,
+            shop: fnState.shop || [],
+            shopItemsTotal: (fnState.shop || []).length,
+            cosmeticsTracked,
+            detections,
           });
-        } catch {
-          sendJson(res, 200, { tweets: 0, news: 0, recent: [] });
+        } catch (err) {
+          logger.warn("[ControlServer] Fortnite endpoint error:", err);
+          sendJson(res, 200, {
+            tweets: 0,
+            news: 0,
+            skins: 0,
+            accounts: [],
+            shop: [],
+            shopItemsTotal: 0,
+            cosmeticsTracked: 0,
+            detections: [],
+          });
         }
         return;
       }
@@ -297,15 +458,20 @@ export async function startControlServer(port: number, client: Client): Promise<
       }
 
       if (path === "/api/metrics" && req.method === "GET") {
-        const [totalGuilds, totalLogs, totalSanctions] = await Promise.all([
-          prisma.guildConfig.count().catch(() => 0),
-          prisma.log.count().catch(() => 0),
-          prisma.sanction.count().catch(() => 0),
-        ]);
+        const [totalGuilds, totalLogs, totalSanctions, totalTweets, totalWishlistItems] =
+          await Promise.all([
+            prisma.guildConfig.count().catch(() => 0),
+            prisma.log.count().catch(() => 0),
+            prisma.sanction.count().catch(() => 0),
+            prisma.processedTweets.count().catch(() => 0),
+            prisma.wishlist.count().catch(() => 0),
+          ]);
         sendJson(res, 200, {
           totalGuilds,
           totalLogs,
           totalSanctions,
+          totalTweets,
+          totalWishlistItems,
           uptime: process.uptime(),
           memoryMb: (process.memoryUsage().rss / 1048576).toFixed(1),
           logCount: logBuffer.length,

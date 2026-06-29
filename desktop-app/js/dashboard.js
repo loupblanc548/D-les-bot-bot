@@ -16,7 +16,7 @@ const Dashboard = {
     Store.on("status", (data) => this._renderStatus(data));
     Store.on("platforms", (data) => data && this._renderPlatforms(data));
     Store.on("health", (data) => data && this._renderHealth(data));
-    Store.on("logs", () => LogConsole.render());
+    Store.on("logs", () => { LogConsole.render(); this._renderActivity(); });
     Store.on("fortnite", (data) => data && this._renderFortnite(data));
     Store.update("init", true);
   },
@@ -196,9 +196,21 @@ const Dashboard = {
     API.fetchStatus().catch(() => {});
     API.fetchPlatforms().catch(() => {});
     API.fetchFortnite().catch(() => {});
+    API.fetchHealth().catch(() => {});
+    this._fetchLogs();
     setInterval(() => API.fetchStatus().catch(() => {}), 10000);
     setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
     setInterval(() => API.fetchFortnite().catch(() => {}), 60000);
+    setInterval(() => this._fetchLogs(), 5000);
+  },
+
+  async _fetchLogs() {
+    try {
+      const logs = await window.electronAPI.getLogs({ limit: 100 });
+      if (logs && Array.isArray(logs)) {
+        Store.update("logs", logs);
+      }
+    } catch {}
   },
 
   _renderStatus(data) {
@@ -262,18 +274,42 @@ const Dashboard = {
     document.getElementById("gauge-value").textContent = score + "%";
   },
 
+  _renderActivity() {
+    const logs = Store.get("logs");
+    const el = document.getElementById("activity-feed");
+    if (!el) return;
+    if (!logs || !logs.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div>En attente des données...</div>';
+      return;
+    }
+    const recent = logs.slice(0, 15);
+    el.innerHTML = recent.map((l) => {
+      const time = new Date(l.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const levelIcon = l.level === "error" ? "✕" : l.level === "warn" ? "⚠" : "●";
+      return '<div class="activity-item"><span class="activity-time">' + time + '</span><span class="activity-dot" style="background:' + (l.level === "error" ? "var(--danger)" : l.level === "warn" ? "var(--warning)" : "var(--success)") + '">' + levelIcon + '</span><span class="activity-msg">' + Utils.escapeHtml(l.message?.substring(0, 100)) + '</span></div>';
+    }).join("");
+  },
+
   _renderPlatforms(platforms) {
-    if (!platforms?.length) return;
-    document.getElementById("flux-table-body").innerHTML = platforms.map((p) =>
-      '<tr><td><strong>' + Utils.escapeHtml(p.name || p.label || p.id) + '</strong></td>' +
+    if (!platforms?.length) {
+      document.getElementById("flux-table-body").innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📡</div>Aucune plateforme configurée</div></td></tr>';
+      return;
+    }
+    document.getElementById("flux-table-body").innerHTML = platforms.map((p) => {
+      var lastFetch = p.lastFetch || p.lastRun || "--";
+      try {
+        var d = new Date(lastFetch);
+        if (d instanceof Date && !isNaN(d)) lastFetch = d.toLocaleTimeString("fr-FR");
+      } catch {}
+      return '<tr><td><strong>' + Utils.escapeHtml(p.name || p.label || p.id) + '</strong></td>' +
       '<td><div class="flux-status"><span class="dot ' + (p.active ? "on" : "off") + '"></span>' + (p.active ? "Actif" : "Inactif") + '</div></td>' +
       '<td style="font-size:11px;color:var(--text-muted)">' + Utils.escapeHtml(p.platform || p.type || "—") + '</td>' +
-      '<td style="font-size:11px;color:var(--text-muted)">' + (p.lastFetch || p.lastRun || "--") + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + lastFetch + '</td>' +
       '<td><div class="flux-actions">' +
       '<label class="toggle"><input type="checkbox" ' + (p.active ? "checked" : "") +
       ' onchange="togglePlatform(\'' + p.id + '\', this.checked)"><span class="slider"></span></label>' +
-      '</div></td></tr>'
-    ).join("");
+      '</div></td></tr>';
+    }).join("");
   },
 
   _renderHealth(checks) {
@@ -311,39 +347,33 @@ const Dashboard = {
 
   _renderFortnite(data) {
     if (!data) {
-      document.getElementById("fortnite-stats").innerHTML = '<div class="stat-card" style="grid-column:1/-1"><span class="stat-label">Connexion</span><span class="stat-value offline">OFFLINE</span></div>';
+      document.getElementById("fortnite-stats").innerHTML = [
+        { icon: "🐦", label: "Tweets", value: "0" },
+        { icon: "📰", label: "News", value: "0" },
+        { icon: "💎", label: "Skins", value: "0" },
+        { icon: "👤", label: "Comptes", value: "0" },
+        { icon: "🛒", label: "Shop", value: "0" },
+        { icon: "🎯", label: "Cosmétiques", value: "0" },
+      ].map(function(s) {
+        return '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label + '</span></div><span class="stat-value">' + s.value + '</span></div>';
+      }).join("");
+      document.getElementById("fortnite-feed").innerHTML = '<div class="empty-state"><div class="empty-icon">🎮</div>En attente des données...</div>';
+      document.getElementById("fortnite-shop-preview").innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Shop non disponible</div>';
       return;
     }
 
     var statsEl = document.getElementById("fortnite-stats");
-    if (!statsEl.querySelector('.stat-value')) {
-      // Premier rendu : construire le DOM
-      statsEl.innerHTML = [
-        { icon: "🐦", label: "Tweets", key: "tweets", raw: data.tweets || 0 },
-        { icon: "📰", label: "News", key: "news", raw: data.news || 0 },
-        { icon: "💎", label: "Skins", key: "skins", raw: data.skins || 0 },
-        { icon: "👤", label: "Comptes", key: "accounts", raw: (data.accounts?.length || 0) },
-        { icon: "🛒", label: "Shop", key: "shop", raw: (data.shopItemsTotal || data.shop?.length || 0) },
-        { icon: "🎯", label: "Cosmetiques", key: "cosmetics", raw: data.cosmeticsTracked || 0 },
-      ].map(function(s) {
-        return '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label +
-        '</span></div><span class="stat-value" data-fn-key="' + s.key + '">' + Utils.formatNumber(s.raw) + '</span></div>';
-      }).join("");
-    } else {
-      // Mise a jour : animer les valeurs existantes
-      var items = [
-        { key: "tweets", raw: data.tweets || 0 },
-        { key: "news", raw: data.news || 0 },
-        { key: "skins", raw: data.skins || 0 },
-        { key: "accounts", raw: (data.accounts?.length || 0) },
-        { key: "shop", raw: (data.shopItemsTotal || data.shop?.length || 0) },
-        { key: "cosmetics", raw: data.cosmeticsTracked || 0 },
-      ];
-      for (var i = 0; i < items.length; i++) {
-        var el = statsEl.querySelector('[data-fn-key="' + items[i].key + '"]');
-        if (el) Utils.animateNumber(el, items[i].raw);
-      }
-    }
+    if (!statsEl) return;
+    statsEl.innerHTML = [
+      { icon: "🐦", label: "Tweets", key: "tweets", raw: data.tweets || 0 },
+      { icon: "📰", label: "News", key: "news", raw: data.news || 0 },
+      { icon: "💎", label: "Skins", key: "skins", raw: data.skins || 0 },
+      { icon: "👤", label: "Comptes", key: "accounts", raw: (data.accounts?.length || 0) },
+      { icon: "🛒", label: "Shop", key: "shop", raw: (data.shopItemsTotal || data.shop?.length || 0) },
+      { icon: "🎯", label: "Cosmétiques", key: "cosmetics", raw: data.cosmeticsTracked || 0 },
+    ].map(function(s) {
+      return '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label + '</span></div><span class="stat-value" data-fn-key="' + s.key + '">' + Utils.formatNumber(s.raw) + '</span></div>';
+    }).join("");
 
     if (data.detections?.length) {
       document.getElementById("fortnite-feed").innerHTML = data.detections.slice(0, 15).map((d) => {
@@ -351,13 +381,17 @@ const Dashboard = {
         const typeCls = "fn-type-" + d.type;
         return '<div class="activity-item"><span class="activity-time">' + time + '</span><span class="activity-dot ' + typeCls + '"></span><span class="activity-msg">' + Utils.escapeHtml(d.message) + '</span></div>';
       }).join("");
+    } else {
+      document.getElementById("fortnite-feed").innerHTML = '<div class="empty-state"><div class="empty-icon">🎮</div>Aucune détection récente</div>';
     }
 
     if (data.shop?.length) {
       document.getElementById("fortnite-shop-preview").innerHTML = data.shop.slice(0, 6).map((item, i) => {
         const color = Utils.getRarityColor(item.rarity);
-        return '<div class="fn-shop-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-tertiary);border-radius:var(--radius-sm);animation:slideIn 0.3s ease ' + (i * 0.05) + 's both"><span style="font-size:20px">' + item.icon + '</span><div style="flex:1"><div style="font-weight:600;font-size:12px">' + Utils.escapeHtml(item.name) + '</div><span style="font-size:10px;color:var(--text-muted)">' + (item.rarity || 'common') + '</span></div><span style="font-weight:700;font-size:12px;color:' + color + '">' + (item.price || '—') + ' V-Bucks</span></div>';
+        return '<div class="fn-shop-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-tertiary);border-radius:var(--radius-sm);animation:slideIn 0.3s ease ' + (i * 0.05) + 's both"><span style="font-size:20px">' + (item.icon || '🎮') + '</span><div style="flex:1"><div style="font-weight:600;font-size:12px">' + Utils.escapeHtml(item.name) + '</div><span style="font-size:10px;color:var(--text-muted)">' + (item.rarity || 'common') + '</span></div><span style="font-weight:700;font-size:12px;color:' + color + '">' + (item.price || '—') + ' V-Bucks</span></div>';
       }).join("");
+    } else {
+      document.getElementById("fortnite-shop-preview").innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Shop non disponible — en attente de données</div>';
     }
   },
 };
