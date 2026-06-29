@@ -254,7 +254,10 @@ const Studio = {
     if (container) {
       let html = '<div class="moodboard-grid">';
       for (let i = 0; i < 8; i++) {
-        html += '<div class="moodboard-cell" style="background:' + colors[i] + ';animation:slideIn 0.3s ease ' + (i * 0.08) + 's both"><span style="font-size:36px">' + emojis[i] + '</span><span style="font-size:10px;opacity:0.7;margin-top:4px">' + keyword + '</span></div>';
+        const safeColor = String(colors[i]).replace(/["<>]/g, '');
+        const safeEmoji = String(emojis[i]).replace(/["<>]/g, '');
+        const safeKeyword = String(keyword).replace(/["<>]/g, '');
+        html += '<div class="moodboard-cell" style="background:' + safeColor + ';animation:slideIn 0.3s ease ' + (i * 0.08) + 's both"><span style="font-size:36px">' + safeEmoji + '</span><span style="font-size:10px;opacity:0.7;margin-top:4px">' + safeKeyword + '</span></div>';
       }
       html += "</div>";
       container.innerHTML = html;
@@ -760,9 +763,12 @@ const Studio = {
 
     const container = document.getElementById("studio-contrast-results");
     if (container) {
+      const safeBg = String(bg).replace(/["<>]/g, '');
+      const safeFg = String(fg).replace(/["<>]/g, '');
+      const safeRatio = ratio.toFixed(2);
       container.innerHTML =
-        '<div class="contrast-preview" style="background:' + bg + ";color:" + fg + ';padding:20px;border-radius:var(--radius);margin-bottom:12px;font-size:18px">Le rapide renard brun saute par-dessus le chien paresseux. 1234567890</div>' +
-        '<div class="contrast-stats"><div class="contrast-stat ' + (ratio >= 4.5 ? "pass" : "fail") + '"><span class="contrast-label">Ratio</span><span class="contrast-value">' + ratio.toFixed(2) + ":1</span></div>" +
+        '<div class="contrast-preview" style="background:' + safeBg + ";color:" + safeFg + ';padding:20px;border-radius:var(--radius);margin-bottom:12px;font-size:18px">Le rapide renard brun saute par-dessus le chien paresseux. 1234567890</div>' +
+        '<div class="contrast-stats"><div class="contrast-stat ' + (ratio >= 4.5 ? "pass" : "fail") + '"><span class="contrast-label">Ratio</span><span class="contrast-value">' + safeRatio + ":1</span></div>" +
         '<div class="contrast-stat ' + (wcagAA === "PASS" ? "pass" : "fail") + '"><span class="contrast-label">WCAG AA</span><span class="contrast-value">' + wcagAA + "</span></div>" +
         '<div class="contrast-stat ' + (wcagAALarge === "PASS" ? "pass" : "fail") + '"><span class="contrast-label">WCAG AA Large</span><span class="contrast-value">' + wcagAALarge + "</span></div>" +
         '<div class="contrast-stat ' + (wcagAAA === "PASS" ? "pass" : "fail") + '"><span class="contrast-label">WCAG AAA</span><span class="contrast-value">' + wcagAAA + "</span></div></div>";

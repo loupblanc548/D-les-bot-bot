@@ -36,13 +36,13 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
     keywords: [
       /steam/i,
       /\bpc\b/i,
-      /gog/i,
-      /epic\s*games/i,
+      /\bgog\b/i,
+      /\bepic\s*games\b/i,
       /\bepic\b/i,
       /\bdeck\b/i,
-      /linux/i,
-      /itch\.io/i,
-      /humble/i,
+      /\blinux\b/i,
+      /\bitch\.io\b/i,
+      /\bhumble\b/i,
     ],
     envChannelKey: "STEAM_EPIC_CHANNEL_ID",
     color: 0x1b2838, // Noir/bleu sombre Steam

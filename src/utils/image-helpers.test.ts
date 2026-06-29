@@ -682,7 +682,7 @@ describe("Pipeline complet flux Twitter (integration live)", () => {
     const tweetImg = await getTweetImage(firstTweet.url);
     // Peut etre null si le tweet na pas dimage, ou une URL twimg
     if (tweetImg) {
-      expect(tweetImg).toMatch(/pbs\.twimg\.com|video\.twimg\.com/);
+      expect(tweetImg).toMatch(/^(https?:\/\/[^/]*\.)?pbs\.twimg\.com|^(https?:\/\/[^/]*\.)?video\.twimg\.com/);
     }
   }, 20_000);
 });

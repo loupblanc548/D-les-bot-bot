@@ -54,9 +54,9 @@ async function getWordBlacklist(guildId: string): Promise<string[]> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getCapsRatio(text: string): number {
-  const letters = text.replace(/[^a-zA-Zà-ÿÀ-Ÿ]/g, "");
+  const letters = text.replace(/[^\p{L}]/gu, "");
   if (letters.length < CAPS_MIN_LENGTH) return 0;
-  const upper = letters.replace(/[^A-ZÀ-Ÿ]/g, "");
+  const upper = letters.replace(/[^\p{Lu}]/gu, "");
   return upper.length / letters.length;
 }
 

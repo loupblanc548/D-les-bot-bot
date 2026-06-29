@@ -375,7 +375,7 @@ export async function startControlServer(port: number, client: Client): Promise<
           });
           sendJson(res, 500, {
             error: "Échec envoi DM",
-            details: err instanceof Error ? err.message : String(err),
+            details: "Internal error",
           });
         }
         return;

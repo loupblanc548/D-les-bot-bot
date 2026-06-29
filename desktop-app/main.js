@@ -115,10 +115,15 @@ function getApiBase() {
 // ─── API Helper ─────────────────────────────────────────────────────────
 
 async function apiFetch(endpoint, options = {}) {
+  const token = getToken();
+  // Validate token format before sending (prevent injection via malformed stored token)
+  if (token && !/^[a-zA-Z0-9_\-.]{0,256}$/.test(token)) {
+    throw new Error("Invalid token format");
+  }
   const res = await fetch(getApiBase() + endpoint, {
     ...options,
     headers: {
-      Authorization: "Bearer " + getToken(),
+      Authorization: "Bearer " + token,
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
@@ -222,7 +227,12 @@ ipcMain.handle("ws:connect", () => {
 
   return new Promise((resolve) => {
     const apiBase = getApiBase();
-    const wsUrl = apiBase.replace(/^http/, "ws") + "/ws?token=" + getToken();
+    const wsToken = getToken();
+    if (wsToken && !/^[a-zA-Z0-9_\-.]{0,256}$/.test(wsToken)) {
+      resolve({ ok: false, error: "Invalid token format" });
+      return;
+    }
+    const wsUrl = apiBase.replace(/^http/, "ws") + "/ws?token=" + encodeURIComponent(wsToken);
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

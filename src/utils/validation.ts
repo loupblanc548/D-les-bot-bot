@@ -47,11 +47,24 @@ export function sanitizeString(input: string): string {
     return '';
   }
 
-  return input
+  let sanitized = input
     .replace(/[<>]/g, '') // Remove potential HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
     .trim()
     .substring(0, 1000); // Limit length
+
+  // Remove javascript: and other dangerous protocols using URL parsing
+  try {
+    const parsed = new URL(sanitized);
+    const proto = parsed.protocol.toLowerCase();
+    if (proto === 'javascript:' || proto === 'data:' || proto === 'vbscript:') {
+      sanitized = sanitized.replace(/^(javascript|data|vbscript):/gi, '');
+    }
+  } catch {
+    // Not a URL — remove dangerous protocol prefixes manually
+    sanitized = sanitized.replace(/^(javascript|vbscript):/gi, '');
+  }
+
+  return sanitized;
 }
 
 /**

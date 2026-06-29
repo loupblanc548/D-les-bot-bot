@@ -243,6 +243,11 @@ if (!window.electronAPI) {
     saveSettings: function (newSettings) {
       try {
         var existing = JSON.parse(localStorage.getItem("botSettings") || "{}");
+        // Move token to sessionStorage, keep non-sensitive in localStorage
+        if (newSettings.token !== undefined) {
+          try { sessionStorage.setItem("botPanelToken", newSettings.token); } catch {}
+          delete newSettings.token;
+        }
         var merged = Object.assign({}, existing, newSettings);
         localStorage.setItem("botSettings", JSON.stringify(merged));
       } catch {}

@@ -256,9 +256,12 @@ export async function applyPatch(client: Client, patchId: string): Promise<Patch
     }
     patch.backupPath = backupPath;
 
-    // 2. Écriture du fichier patché
+    // 2. Écriture du fichier patché (atomic write via temp + rename)
     await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, patch.patchedContent, "utf8");
+    const tempPath = filePath + ".tmp-" + Date.now();
+    await writeFile(tempPath, patch.patchedContent, { encoding: "utf8", mode: 0o600 });
+    const { rename } = await import("fs/promises");
+    await rename(tempPath, filePath);
 
     patch.status = "APPLIED";
     patch.appliedAt = new Date();

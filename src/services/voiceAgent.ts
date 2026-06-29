@@ -250,9 +250,9 @@ async function playTTSMessage(client: Client, alert: VoiceAlert): Promise<void> 
 
   // Sauvegarder en fichier temporaire (createAudioResource nécessite un path ou Readable)
   const ttsDir = join(tmpdir(), "bot-voiceagent");
-  await mkdir(ttsDir, { recursive: true });
+  await mkdir(ttsDir, { recursive: true, mode: 0o700 });
   const filepath = join(ttsDir, `va-${randomUUID()}.mp3`);
-  await writeFile(filepath, audioBuffer);
+  await writeFile(filepath, audioBuffer, { mode: 0o600 });
 
   const player = createAudioPlayer({
     behaviors: { noSubscriber: NoSubscriberBehavior.Pause },
