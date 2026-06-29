@@ -443,6 +443,10 @@
           <div class="settings-section">
             <div class="settings-title">🔔 Notifications</div>
             <div class="setting-row">
+              <div><div class="setting-label">Mode silencieux</div><div class="setting-desc">Supprime toutes les notifications sauf les erreurs</div></div>
+              <label class="toggle"><input type="checkbox" id="setting-quiet-mode" onchange="Notifications.setQuietMode(this.checked)"><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
               <div><div class="setting-label">Alertes CPU/RAM</div><div class="setting-desc">Notifications quand les ressources sont élevées</div></div>
               <label class="toggle"><input type="checkbox" id="setting-alerts-resources" checked onchange="Notifications.toggle('resources', this.checked)"><span class="slider"></span></label>
             </div>
