@@ -608,8 +608,8 @@ export async function startControlServer(port: number, client: Client): Promise<
             sendJson(res, 200, { stats: { voiceCount: 0, queueCount: 0 }, nowPlaying: null, queues: [] });
             return;
           }
-          const client = (globalThis as Record<string, unknown>).__client as { guilds?: { cache: { map: (fn: (g: { id: string; name: string }) => { id: string; name: string }) } } } | undefined;
-          const guilds = client?.guilds?.cache?.map((g) => ({ id: g.id, name: g.name })) || [];
+          const client = (globalThis as any).__client as any;
+          const guilds: { id: string; name: string }[] = client?.guilds?.cache?.map((g: any) => ({ id: g.id, name: g.name })) || [];
           const queues: unknown[] = [];
           let voiceCount = 0;
           let nowPlaying: { title: string; url: string; duration: string; guild: string } | null = null;
