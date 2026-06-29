@@ -223,18 +223,7 @@ const Dashboard = {
     if (!data) {
       const dot = document.getElementById("titlebar-dot");
       if (dot) dot.className = "offline";
-      document.getElementById("stats-grid").innerHTML = [
-        { icon: "⬤", label: "Statut", value: "OFFLINE", cls: "offline" },
-        { icon: "⏱", label: "Uptime", value: "--", cls: "" },
-        { icon: "⚡", label: "Ping Discord", value: "--", cls: "" },
-        { icon: "", label: "RAM", value: "--", cls: "" },
-        { icon: "🏠", label: "Serveurs", value: "--", cls: "" },
-        { icon: "👥", label: "Utilisateurs", value: "--", cls: "" },
-        { icon: "📡", label: "Commandes", value: "--", cls: "" },
-      ].map((s) =>
-        '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label +
-        '</span></div><span class="stat-value ' + s.cls + '">' + s.value + '</span></div>'
-      ).join("");
+      this._updateBento({ online: false, uptime: 0, ping: -1, memMb: 0, guilds: 0, members: 0, commands: 0, cpu: 0 });
       document.getElementById("sb-ping").textContent = "Ping: --";
       this._updateGauge(0);
 
@@ -261,19 +250,7 @@ const Dashboard = {
     const ping = data.ping ?? -1;
     const cpu = data.cpuPercent ?? 0;
 
-    document.getElementById("stats-grid").innerHTML = [
-      { icon: "⬤", label: "Statut", value: data.online ? "ONLINE" : "OFFLINE", cls: data.online ? "" : "offline" },
-      { icon: "⏱", label: "Uptime", value: Utils.formatUptime(data.uptime), cls: "" },
-      { icon: "⚡", label: "Ping Discord", value: (ping >= 0 ? ping : "--") + "ms", cls: "" },
-      { icon: "", label: "RAM", value: memMb + " MB", cls: "" },
-      { icon: "🏠", label: "Serveurs", value: Utils.formatNumber(guilds), cls: "" },
-      { icon: "👥", label: "Utilisateurs", value: Utils.formatNumber(members), cls: "" },
-      { icon: "📡", label: "Commandes", value: data.commands || 0, cls: "" },
-    ].map((s) =>
-      '<div class="stat-card"><div class="stat-header"><span class="stat-icon">' + s.icon + '</span><span class="stat-label">' + s.label +
-      '</span></div><span class="stat-value ' + s.cls + '">' + s.value + '</span></div>'
-    ).join("");
-
+    this._updateBento({ online: data.online, uptime: data.uptime, ping, memMb, guilds, members, commands: data.commands || 0, cpu });
     document.getElementById("sb-ping").textContent = "Ping: " + (ping >= 0 ? ping + "ms" : "--");
 
     this._updateGauge(cpu);
@@ -290,6 +267,14 @@ const Dashboard = {
     circle.style.strokeDashoffset = offset;
     circle.style.stroke = score >= 80 ? "var(--danger)" : score >= 50 ? "var(--warning)" : "var(--success)";
     document.getElementById("gauge-value").textContent = score + "%";
+  },
+
+  _updateBento(d) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("bento-guilds-val", d.online ? Utils.formatNumber(d.guilds) : "--");
+    set("bento-logs-val", d.online ? Utils.formatNumber(d.commands || 0) : "--");
+    set("bento-uptime-val", d.online ? Utils.formatUptime(d.uptime) : "--");
+    set("bento-sanctions-val", d.online ? (d.memMb ? d.memMb + " MB" : "--") : "--");
   },
 
   _renderActivity() {
