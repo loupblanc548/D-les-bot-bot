@@ -35,6 +35,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Servers
   getServers: () => ipcRenderer.invoke("api:servers"),
 
+  // Moderation
+  getModeration: () => ipcRenderer.invoke("api:moderation"),
+
+  // Security
+  getSecurity: () => ipcRenderer.invoke("api:security"),
+
+  // Music
+  getMusic: () => ipcRenderer.invoke("api:music"),
+  musicControl: (action, guildId) => ipcRenderer.invoke("api:music-control", { action, guildId }),
+
   // Generic API fetch — endpoint validated in main process
   apiFetch: (endpoint, options) => {
     if (typeof endpoint !== "string" || endpoint.length > 500) {
