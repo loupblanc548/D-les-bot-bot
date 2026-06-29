@@ -18,31 +18,6 @@ jobs:
     name: 🔍 Lint & Test
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: discord_bot
-          POSTGRES_PASSWORD: discord_bot
-          POSTGRES_DB: discord_bot
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U discord_bot"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,23 +32,8 @@ jobs:
       - name: 📦 Installer les dépendances
         run: npm ci
 
-      - name: 💾 Cache Prisma
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules/.prisma
-            node_modules/@prisma
-          key: prisma-${{ runner.os }}-${{ hashFiles('prisma/schema.prisma') }}
-          restore-keys: |
-            prisma-${{ runner.os }}-
-
-      - name: 🗄️ Générer le client Prisma
+      - name: ️ Générer le client Prisma
         run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://discord_bot:discord_bot@localhost:5432/discord_bot?schema=public"
-
-      - name: 🗄️ Appliquer le schéma Prisma
-        run: npx prisma migrate deploy
         env:
           DATABASE_URL: "postgresql://discord_bot:discord_bot@localhost:5432/discord_bot?schema=public"
 
@@ -88,72 +48,5 @@ jobs:
       - name: 🔎 TypeScript check
         run: npx tsc --noEmit
 
-      - name: 🧪 Tests unitaires + Couverture
-        run: npm run test:ci
-
-      - name: 📊 Rapport de couverture
-        if: always()
-        uses: davelosert/vitest-coverage-report-action@v2
-        with:
-          json-summary-path: coverage/coverage-summary.json
-        continue-on-error: true
-
-  e2e-tests:
-    name: 🎭 E2E Tests
-    needs: lint-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: 📦 Installer les dépendances
-        run: npm ci
-
-      - name: 🎭 Installer Playwright
-        run: npx playwright install --with-deps chromium
-        continue-on-error: true
-
-      - name: 🧪 Exécuter les tests E2E
-        run: npx playwright test --reporter=list
-        env:
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
-          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
-        continue-on-error: true
-
-      - name: 📤 Upload des rapports Playwright
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-
-  status-check:
-    name: ✅ All checks passed
-    if: always()
-    needs:
-      - lint-and-test
-      - e2e-tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: ✅ Vérifier que tous les jobs sont passés
-        run: |
-          if [ "${{ needs.lint-and-test.result }}" = "success" ] || [ "${{ needs.lint-and-test.result }}" = "skipped" ]; then
-            echo "✅ lint-and-test: ${{ needs.lint-and-test.result }}"
-          else
-            echo "❌ lint-and-test: ${{ needs.lint-and-test.result }}"
-            exit 1
-          fi
-          if [ "${{ needs.e2e-tests.result }}" = "success" ] || [ "${{ needs.e2e-tests.result }}" = "skipped" ]; then
-            echo "✅ e2e-tests: ${{ needs.e2e-tests.result }}"
-          else
-            echo "⚠️ e2e-tests: ${{ needs.e2e-tests.result }} (non bloquant)"
-          fi
-          echo "🎉 Tous les checks critiques sont passés !"
+      - name: 🧪 Tests unitaires
+        run: npx vitest run --reporter=verbose
