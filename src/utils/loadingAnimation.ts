@@ -12,7 +12,7 @@
  *   await anim.stop(embed); // ou anim.stop("Texte final")
  */
 
-import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, Message } from "discord.js";
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -24,6 +24,7 @@ export class LoadingAnimation {
   private detail = "";
   private progress = 0;
   private started = false;
+  private followUpMessage: Message | null = null;
 
   constructor(interaction: ChatInputCommandInteraction, title: string) {
     this.interaction = interaction;
@@ -34,10 +35,16 @@ export class LoadingAnimation {
     if (this.started) return;
     this.started = true;
 
-    // If interaction was already replied (e.g. after requestConfirmation),
-    // use editReply instead of deferReply to avoid InteractionHasAlreadyReplied error
     if (!this.interaction.deferred && !this.interaction.replied) {
+      // Interaction fraiche : deferReply classique
       await this.interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+    } else if (this.interaction.replied) {
+      // Interaction déjà replied (ex: après requestConfirmation) :
+      // créer un nouveau message via followUp qu'on pourra éditer
+      this.followUpMessage = await this.interaction.followUp({
+        content: `${FRAMES[0]} **${this.title}**`,
+        flags: [MessageFlags.Ephemeral],
+      });
     }
 
     this.interval = setInterval(async () => {
@@ -61,7 +68,9 @@ export class LoadingAnimation {
     const text = `${frame} **${this.title}**\n${bar} ${this.progress}%${this.detail ? `\n\`${this.detail}\`` : ""}`;
 
     try {
-      if (this.interaction.deferred || this.interaction.replied) {
+      if (this.followUpMessage) {
+        await this.followUpMessage.edit({ content: text });
+      } else if (this.interaction.deferred || this.interaction.replied) {
         await this.interaction.editReply({ content: text });
       }
     } catch {
@@ -82,7 +91,13 @@ export class LoadingAnimation {
     }
 
     try {
-      if (this.interaction.deferred || this.interaction.replied) {
+      if (this.followUpMessage) {
+        if (finalContent instanceof EmbedBuilder) {
+          await this.followUpMessage.edit({ content: "", embeds: [finalContent] });
+        } else {
+          await this.followUpMessage.edit({ content: finalContent });
+        }
+      } else if (this.interaction.deferred || this.interaction.replied) {
         if (finalContent instanceof EmbedBuilder) {
           await this.interaction.editReply({ content: "", embeds: [finalContent] });
         } else {
