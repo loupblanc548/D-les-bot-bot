@@ -53,7 +53,7 @@
       <div class="status-item"><span class="status-dot ok" id="sb-rss"></span> Flux</div>
       <div class="status-item"><span class="status-dot ok" id="sb-apis"></span> APIs</div>
       <span id="sb-ping" style="margin-left:auto;display:flex;gap:12px;align-items:center">
-        <span style="cursor:pointer;opacity:0.6" title="Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh | Ctrl+L: verrouiller" onclick="Notifications.info('Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh | Ctrl+L: verrouiller')">⌨</span>
+        <span style="cursor:pointer;opacity:0.6" title="Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh" onclick="Notifications.info('Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh')">⌨</span>
         <span>Ping: --</span>
       </span>
     </div>
@@ -472,14 +472,7 @@
           </div>
           <div class="settings-section">
             <div class="settings-title">🔐 Sécurité</div>
-            <div class="setting-desc" style="margin-bottom:8px">Changer le mot de passe d'accès au panneau</div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="password" id="setting-panel-password" placeholder="Nouveau mot de passe" style="flex:1;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
-              <button class="btn btn-primary btn-sm" onclick="changePanelPassword()">💾</button>
-            </div>
-            <div style="margin-top:12px">
-              <button class="btn btn-warn btn-sm" onclick="AuthGuard.logout()">🚪 Verrouiller le panneau</button>
-            </div>
+            <div class="setting-desc">Le panneau s'ouvre sans mot de passe.</div>
           </div>
           <div class="settings-section">
             <div class="settings-title">🛠 Outils avancés</div>
