@@ -62,6 +62,8 @@
         <div class="sidebar-section">Configuration</div>
         <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙</span> Paramètres</button>
         <button class="nav-btn" data-tab="alerts"><span class="nav-icon">⚠</span> Alertes</button>
+        <div class="sidebar-section">Créatif</div>
+        <button class="nav-btn" data-tab="studio"><span class="nav-icon">🎨</span> Studio</button>
       </div>
       <div class="sidebar-footer">
         <span class="ws-indicator" id="ws-indicator"></span>
@@ -353,6 +355,121 @@
         </div>
       </div>
 
+      <!-- TAB: Studio -->
+      <div id="tab-studio" class="tab">
+        <div class="row-header"><h2>🎨 Creative Studio</h2></div>
+
+        <!-- Upload Zone -->
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div id="studio-dropzone" style="border:2px dashed var(--border);border-radius:var(--radius);padding:30px;text-align:center;cursor:pointer;transition:border-color 0.2s">
+            <div style="font-size:40px">📁</div>
+            <div style="margin-top:8px;font-size:14px;color:var(--text-muted)">Glisse une image ici ou clique pour importer</div>
+            <input type="file" id="studio-file-input" accept="image/*" style="display:none">
+          </div>
+          <div id="studio-image-preview" style="margin-top:12px;text-align:center"></div>
+        </div>
+
+        <!-- Section 1: Analyse & Direction Artistique -->
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div class="card-header">🎨 Analyse & Direction Artistique</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px">
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioExtractColors()"><span style="font-size:22px">🎨</span><span>Color Extraction</span></button>
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioGeneratePalette()"><span style="font-size:22px">🌈</span><span>Palette Generation</span></button>
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioFontMatch()"><span style="font-size:22px">🔤</span><span>Font Matching</span></button>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <input type="text" id="studio-moodboard-keyword" placeholder="Mot-clé (ex: nature, tech, fashion)" style="padding:6px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px">
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioMoodboard()"><span style="font-size:18px">🖼️</span><span>Moodboarding</span></button>
+            </div>
+          </div>
+          <div id="studio-color-results" style="margin-top:12px"></div>
+          <div id="studio-palette-results" style="margin-top:12px"></div>
+          <div id="studio-font-results" style="margin-top:12px"></div>
+          <div id="studio-moodboard-results" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Section 2: Édition & Traitement d'Image -->
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div class="card-header">✂️ Édition & Traitement d'Image</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px">
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioRemoveBg()"><span style="font-size:22px">🪄</span><span>Background Removal</span></button>
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioVectorize()"><span style="font-size:22px">📐</span><span>Raster → Vector</span></button>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-upscale-factor" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="2">x2</option><option value="3">x3</option><option value="4">x4</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioUpscale()"><span style="font-size:18px">🔍</span><span>Upscaling</span></button>
+            </div>
+            <button class="btn" style="padding:12px;flex-direction:column;gap:6px;height:80px" onclick="studioInpaint()"><span style="font-size:22px">🔧</span><span>Inpainting</span></button>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-outpaint-dir" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="all">Toutes directions</option><option value="left">Gauche</option><option value="right">Droite</option><option value="top">Haut</option><option value="bottom">Bas</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioOutpaint()"><span style="font-size:18px">↔️</span><span>Outpainting</span></button>
+            </div>
+          </div>
+          <div id="studio-bg-results" style="margin-top:12px"></div>
+          <div id="studio-vector-results" style="margin-top:12px"></div>
+          <div id="studio-upscale-results" style="margin-top:12px"></div>
+          <div id="studio-inpaint-results" style="margin-top:12px"></div>
+          <div id="studio-outpaint-results" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Section 3: Composition & Layout -->
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div class="card-header">📐 Composition & Layout</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px">
+            <div style="display:flex;flex-direction:column;gap:6px;grid-column:span 2">
+              <input type="text" id="studio-prompt-input" placeholder="Ton prompt (ex: a futuristic city at sunset)" style="padding:6px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px">
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioPromptExpand()"><span style="font-size:18px">✨</span><span>Prompt Expansion</span></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-resize-format" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="1080x1080">1080x1080</option><option value="1920x1080">1920x1080</option><option value="1080x1920">1080x1920</option><option value="1200x630">1200x630</option><option value="800x800">800x800</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioSmartResize()"><span style="font-size:18px">📐</span><span>Smart Resize</span></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <input type="text" id="studio-layout-text" placeholder="Texte à placer" style="padding:6px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px">
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioAutoLayout()"><span style="font-size:18px">📋</span><span>Auto Layout</span></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-mockup-support" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="phone">Téléphone</option><option value="laptop">Laptop</option><option value="poster">Poster</option><option value="tshirt">T-shirt</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioMockup()"><span style="font-size:18px">📸</span><span>Mockup Engine</span></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-style-select" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="anime">Anime</option><option value="oil">Peinture à l'huile</option><option value="sketch">Croquis</option><option value="vintage">Vintage</option><option value="neon">Néon</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioStyleTransfer()"><span style="font-size:18px">🎭</span><span>Style Transfer</span></button>
+            </div>
+          </div>
+          <div id="studio-prompt-results" style="margin-top:12px"></div>
+          <div id="studio-resize-results" style="margin-top:12px"></div>
+          <div id="studio-layout-results" style="margin-top:12px"></div>
+          <div id="studio-mockup-results" style="margin-top:12px"></div>
+          <div id="studio-style-results" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Section 4: Contrôle & Validation -->
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div class="card-header">✅ Contrôle & Validation</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px">
+            <div style="display:flex;flex-direction:column;gap:6px;grid-column:span 2">
+              <div style="display:flex;gap:8px;align-items:center">
+                <label style="font-size:12px;color:var(--text-muted)">FG:</label>
+                <input type="color" id="studio-contrast-fg" value="#ffffff" style="width:40px;height:30px;border:none;border-radius:var(--radius-sm);cursor:pointer">
+                <label style="font-size:12px;color:var(--text-muted)">BG:</label>
+                <input type="color" id="studio-contrast-bg" value="#000000" style="width:40px;height:30px;border:none;border-radius:var(--radius-sm);cursor:pointer">
+                <button class="btn btn-sm btn-primary" onclick="studioContrastCheck()">Vérifier</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <select id="studio-safezone-format" style="padding:4px 8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px"><option value="instagram">Instagram 1:1</option><option value="story">Story 9:16</option><option value="twitter">Twitter 3:1</option><option value="youtube">YouTube 16:9</option></select>
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioSafeZone()"><span style="font-size:18px">🛡️</span><span>Safe Zone</span></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;grid-column:span 2">
+              <input type="text" id="studio-brief-input" placeholder="Brief initial (optionnel)" style="padding:6px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px">
+              <button class="btn" style="padding:8px;flex-direction:column;gap:4px;height:44px" onclick="studioCompliance()"><span style="font-size:18px">📋</span><span>Compliance Audit</span></button>
+            </div>
+          </div>
+          <div id="studio-contrast-results" style="margin-top:12px"></div>
+          <div id="studio-safezone-results" style="margin-top:12px"></div>
+          <div id="studio-compliance-results" style="margin-top:12px"></div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -365,6 +482,7 @@
   <script src="js/websocket.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/logs.js"></script>
+  <script src="js/studio.js"></script>
   <script src="js/dashboard.js"></script>
 
   <script>
@@ -396,6 +514,7 @@
     document.addEventListener("DOMContentLoaded", function() {
       Charts.init();
       LogConsole.init();
+      Studio.init();
       Dashboard.init();
       WS.connect();
     });

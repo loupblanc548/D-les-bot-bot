@@ -451,6 +451,50 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
 
+      if (path === "/api/studio/analyze" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          // Placeholder — would integrate Google Vision API
+          sendJson(res, 200, {
+            text: "",
+            labels: [],
+            faces: 0,
+            colors: [],
+            note: "Studio analyze endpoint — connect Google Vision API for full features",
+          });
+        } catch {
+          sendJson(res, 200, { text: "", labels: [], faces: 0, colors: [] });
+        }
+        return;
+      }
+
+      if (path === "/api/studio/prompt-expand" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const prompt = (body.prompt as string) || "";
+          const qualityKeywords = [
+            "ultra-detailed",
+            "hyperrealistic",
+            "photorealistic",
+            "8K resolution",
+          ];
+          const styleKeywords = [
+            "cinematic lighting",
+            "dramatic composition",
+            "depth of field",
+            "bokeh",
+            "trending on artstation",
+          ];
+          const expanded =
+            prompt + ", " + qualityKeywords.join(", ") + ", " + styleKeywords.join(", ");
+          const tags = ["high-quality", "professional", "detailed", "cinematic"];
+          sendJson(res, 200, { expanded, tags });
+        } catch {
+          sendJson(res, 200, { expanded: "", tags: [] });
+        }
+        return;
+      }
+
       if (path === "/api/restart" && req.method === "POST") {
         logger.info("[ControlServer] Redémarrage demandé via API");
         sendJson(res, 200, { success: true, message: "Redémarrage en cours..." });
