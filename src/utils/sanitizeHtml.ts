@@ -1,13 +1,8 @@
 /**
  * sanitizeHtml.ts — Nettoyage HTML pour embeds et dashboard
  *
- * Inspiré de sanitize-html :
- * - Whitelist de tags/attributs/styles autorisés
- * - Suppression des scripts, event handlers, javascript: URLs
- * - Conversion HTML → markdown pour embeds Discord
- * - Escape HTML pour affichage dashboard
- *
- * Sans dépendance externe — implementation pure TypeScript.
+ * Utilise un parser caractère par caractère (pas de regex pour le HTML)
+ * pour éviter les bypass de sanitisation.
  */
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -47,11 +42,11 @@ const ALLOWED_STYLES = new Set([
 
 const SELF_CLOSING_TAGS = new Set(["br", "img", "hr", "input"]);
 
-// ─── Sanitization principale ──────────────────────────────────────────────────
+// ─── Parser caractère par caractère ───────────────────────────────────────────
 
 /**
  * Nettoie du HTML en gardant uniquement les tags/attributs autorisés.
- * Supprime les scripts, event handlers, et URLs dangereuses.
+ * Utilise un parser caractère par caractère au lieu de regex.
  */
 export function sanitizeHtml(html: string, options?: {
   allowedTags?: string[];
@@ -62,42 +57,82 @@ export function sanitizeHtml(html: string, options?: {
     : ALLOWED_TAGS;
   const escapeMode = options?.disallowedTagsMode ?? "discard";
 
-  // Supprimer les commentaires HTML et les scripts/style
-  let result = html
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
+  let result = "";
+  let i = 0;
+  const len = html.length;
 
-  // Parser les tags restants
-  result = result.replace(/<\/?([a-zA-Z0-9]+)([^>]*?)\/?>/g, (match, tag: string, attrs: string) => {
-    const lowerTag = tag.toLowerCase();
+  while (i < len) {
+    // Trouver le prochain '<'
+    const ltIdx = html.indexOf("<", i);
+    if (ltIdx === -1) {
+      result += html.slice(i);
+      break;
+    }
 
-    if (!allowedTags.has(lowerTag)) {
+    // Ajouter le texte avant le tag
+    result += html.slice(i, ltIdx);
+
+    // Vérifier si c'est un commentaire
+    if (html.startsWith("<!--", ltIdx)) {
+      const endComment = html.indexOf("-->", ltIdx + 4);
+      i = endComment === -1 ? len : endComment + 3;
+      continue;
+    }
+
+    // Vérifier si c'est un script/style/noscript
+    const afterLt = html.slice(ltIdx + 1);
+    const isClosing = afterLt.startsWith("/");
+    const tagStart = isClosing ? ltIdx + 2 : ltIdx + 1;
+
+    // Extraire le nom du tag
+    let tagEnd = tagStart;
+    while (tagEnd < len && /[a-zA-Z0-9]/.test(html[tagEnd])) {
+      tagEnd++;
+    }
+    const tagName = html.slice(tagStart, tagEnd).toLowerCase();
+
+    // Supprimer script/style/noscript entièrement
+    if (tagName === "script" || tagName === "style" || tagName === "noscript") {
+      const closeTag = `</${tagName}`;
+      const closeIdx = html.toLowerCase().indexOf(closeTag, tagEnd);
+      i = closeIdx === -1 ? len : html.indexOf(">", closeIdx) + 1;
+      if (i === 0) i = len;
+      continue;
+    }
+
+    // Trouver la fin du tag '>'
+    const gtIdx = html.indexOf(">", tagEnd);
+    if (gtIdx === -1) {
+      // Tag malformé — escape
+      result += "&lt;" + html.slice(ltIdx + 1);
+      break;
+    }
+
+    const fullTag = html.slice(ltIdx, gtIdx + 1);
+    const attrsStr = html.slice(tagEnd, gtIdx).replace(/\/$/, "").trim();
+
+    if (!allowedTags.has(tagName)) {
       if (escapeMode === "escape") {
-        return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        result += fullTag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
       }
-      return "";
+      i = gtIdx + 1;
+      continue;
     }
 
-    // Nettoyer les attributs
-    const cleanAttrs = sanitizeAttributes(lowerTag, attrs);
-    const isSelfClosing = SELF_CLOSING_TAGS.has(lowerTag);
-    const isClosing = match.startsWith("</");
-
+    // Tag autorisé — nettoyer les attributs
     if (isClosing) {
-      return `</${lowerTag}>`;
+      result += `</${tagName}>`;
+    } else {
+      const cleanAttrs = sanitizeAttributes(tagName, attrsStr);
+      const isSelfClosing = SELF_CLOSING_TAGS.has(tagName);
+      const close = isSelfClosing ? " /" : "";
+      result += cleanAttrs
+        ? "<" + tagName + " " + cleanAttrs + close + ">"
+        : "<" + tagName + close + ">";
     }
 
-    return cleanAttrs
-      ? `<${lowerTag} ${cleanAttrs}${isSelfClosing ? " /" : ""}>`
-      : `<${lowerTag}${isSelfClosing ? " /" : ""}>`;
-  });
-
-  // Nettoyer les attributs restants dans les tags autorisés (event handlers)
-  result = result.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "");
-  result = result.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
-  result = result.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "");
+    i = gtIdx + 1;
+  }
 
   return result;
 }
@@ -142,13 +177,19 @@ function sanitizeAttributes(tag: string, attrs: string): string {
  * Vérifie si une URL est dangereuse (javascript:, data:, vbscript:).
  */
 function isDangerousUrl(url: string): boolean {
+  const trimmed = url.trim().toLowerCase();
+  // Reject dangerous protocols by checking the scheme prefix
+  const dangerousSchemes = ["javascript:", "data:", "vbscript:", "file:"];
+  for (const scheme of dangerousSchemes) {
+    if (trimmed.startsWith(scheme)) return true;
+  }
+  // Also check via URL parsing for obfuscated protocols
   try {
-    const parsed = new URL(url.trim(), "http://safe.invalid");
+    const parsed = new URL(trimmed, "http://safe.invalid");
     const proto = parsed.protocol.toLowerCase();
     return proto === "javascript:" || proto === "data:" || proto === "vbscript:" || proto === "file:";
   } catch {
-    const trimmed = url.trim().toLowerCase();
-    return trimmed.startsWith("javascript:") || trimmed.startsWith("vbscript:");
+    return false;
   }
 }
 
@@ -305,15 +346,36 @@ export function escapeHtml(str: unknown): string {
  * Strip toutes les balises HTML — retourne uniquement le texte.
  */
 export function stripAllHtml(html: string): string {
-  // First strip all HTML tags, then decode entities ONCE (no double escaping)
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Strip HTML tags using the character parser approach
+  let text = "";
+  let i = 0;
+  const len = html.length;
+  while (i < len) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      text += html.slice(i);
+      break;
+    }
+    text += html.slice(i, lt);
+    const gt = html.indexOf(">", lt);
+    if (gt === -1) {
+      text += html.slice(lt);
+      break;
+    }
+    i = gt + 1;
+  }
+  // Decode entities once
+  const entityMap: Record<string, string> = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&#039;": "'",
+    "&#39;": "'",
+  };
+  for (const [entity, char] of Object.entries(entityMap)) {
+    text = text.split(entity).join(char);
+  }
+  return text.replace(/\s+/g, " ").trim();
 }
