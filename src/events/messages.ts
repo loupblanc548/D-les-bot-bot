@@ -191,6 +191,15 @@ export function handleMessageEvents(client: Client) {
         }
       }
 
+      // ── Détection du mot "discord" → partage le lien du serveur ────
+      if (lowerContent.includes("discord") && !message.author.bot) {
+        await message.reply({
+          content: `<@${message.author.id}> 📌 Voici le lien du serveur Discord : https://discord.gg/hAVqWmpGV`,
+          allowedMentions: { repliedUser: true },
+        });
+        return;
+      }
+
       // ── Détection spam proactive ──────────────────────────────────
       void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
 
