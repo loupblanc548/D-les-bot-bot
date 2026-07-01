@@ -298,5 +298,5 @@ Pour le support, rejoignez le serveur Discord ou ouvrez une issue sur GitHub.
 
 - Discord.js pour la librairie Discord
 - Prisma pour l'ORM
-- OpenRouter pour l'IA
+- devin GLM.5.2 et freebfuff deepseekv4 pro 
 - La communauté pour le suppor
