@@ -486,7 +486,7 @@ async function checkAndNotify(client: Client) {
             source.guildId,
             contentText,
             notifUrl,
-            source.type as Platform,
+            source.type.toLowerCase() as Platform,
           );
 
           if (!resultAuto.success) {
@@ -744,7 +744,7 @@ export async function runDbSourcesRetrospective(client: Client) {
           source.guildId,
           item.title,
           item.url,
-          source.type as Platform,
+          source.type.toLowerCase() as Platform,
         );
 
         if (!resultAuto.success) {
