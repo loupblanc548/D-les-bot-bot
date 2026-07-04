@@ -78,6 +78,8 @@ describe("interactionHandler", () => {
         commandName: "start",
         replied: false,
         deferred: false,
+        deferReply: vi.fn().mockResolvedValue(undefined),
+        editReply: vi.fn().mockResolvedValue(undefined),
       };
 
       await handler(interaction);
@@ -109,6 +111,8 @@ describe("interactionHandler", () => {
         isChatInputCommand: () => true,
         commandName: "start",
         reply: vi.fn().mockResolvedValue(undefined),
+        deferReply: vi.fn().mockResolvedValue(undefined),
+        editReply: vi.fn().mockResolvedValue(undefined),
         replied: false,
         deferred: false,
       };

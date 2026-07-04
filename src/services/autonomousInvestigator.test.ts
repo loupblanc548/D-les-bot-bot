@@ -81,11 +81,42 @@ vi.mock("./alert-service.js", () => ({
   }),
   sendAlertToChannel: vi.fn().mockResolvedValue(undefined),
   notifyOwners: vi.fn().mockResolvedValue(undefined),
+  resolveAlert: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock logs
 vi.mock("./logs.js", () => ({
   createLog: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock prisma
+vi.mock("../prisma.js", () => ({
+  default: {
+    sanction: { create: vi.fn().mockResolvedValue({}) },
+    riskProfile: { updateMany: vi.fn().mockResolvedValue({}) },
+  },
+}));
+
+// Mock ai
+vi.mock("./ai.js", () => ({
+  getOpenAIClient: vi.fn().mockReturnValue({
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [{ message: { content: "{\"action\":\"WATCH\",\"confidence\":75,\"reasoning\":\"Surveillance recommandée\"}" } }],
+        }),
+      },
+    },
+  }),
+}));
+
+// Mock config
+vi.mock("../config.js", () => ({
+  config: {
+    openRouterModel: "test-model",
+    autonomousAgentMode: "autonomous",
+    autonomousAgentConfidenceThreshold: 70,
+  },
 }));
 
 import {
@@ -363,6 +394,7 @@ describe("Autonomous Investigator", () => {
         summary: "Test summary",
         markdownReport: "",
         durationMs: 500,
+        aiDecision: null,
       } as any;
 
       const embed = buildInvestigationEmbed(report);

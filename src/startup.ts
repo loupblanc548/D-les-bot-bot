@@ -59,6 +59,7 @@ import { attachDramaPrediction } from "./services/dramaPrediction.js";
 import { startToxicityScanCron } from "./cron/toxicityScan.js";
 import { startLogRetention } from "./cron/logRetention.js";
 import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
+import { startLogChannelCleanup } from "./cron/logChannelCleanup.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -138,6 +139,7 @@ async function initSchedulers(client: Client): Promise<void> {
   startHourlyMaintenance(client);
   startBoutiqueCron(client);
   startShadowBrokerCron(client);
+  startLogChannelCleanup(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 

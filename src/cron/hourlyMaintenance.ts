@@ -141,13 +141,25 @@ async function deleteDuplicateMessages(
   return { channel: String(channelsScanned), deleted: totalDeleted };
 }
 
-// Envoie un rapport en DM à l'owner + dans le salon de log
+// Envoie un rapport Discord UNIQUEMENT si une action a été effectuée.
+// Si tout est à 0 (rien à signaler), log local uniquement — pas de spam Discord.
 async function sendReport(
   client: Client,
   voiceLeft: number,
   duplicates: { channel: string; deleted: number },
   oldNotifsCleaned: number,
 ): Promise<void> {
+  const hasAction = voiceLeft > 0 || duplicates.deleted > 0 || oldNotifsCleaned > 0;
+
+  // Log local dans tous les cas
+  logger.info(
+    `[HourlyMaint] Rapport — voix: ${voiceLeft}, doublons: ${duplicates.deleted} (${duplicates.channel} salons), notifs: ${oldNotifsCleaned}` +
+      (hasAction ? "" : " — tout OK, pas d'alerte Discord"),
+  );
+
+  // Pas d'action = pas de spam Discord
+  if (!hasAction) return;
+
   const embed = new EmbedBuilder()
     .setTitle("🧹 Maintenance Horaire — Rapport")
     .setColor(0x3498db)
@@ -232,9 +244,9 @@ async function runHourlyMaintenance(client: Client): Promise<void> {
 }
 
 export function startHourlyMaintenance(client: Client): void {
-  cron.schedule("0 * * * *", () => {
+  cron.schedule("0 */6 * * *", () => {
     void runHourlyMaintenance(client);
   });
 
-  logger.info("[HourlyMaint] Cron maintenance horaire démarré (chaque heure pile)");
+  logger.info("[HourlyMaint] Cron maintenance démarré (toutes les 6 heures)");
 }

@@ -15,6 +15,7 @@
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import jwt from "jsonwebtoken";
 import axios from "axios";
 import * as path from "path";
@@ -26,6 +27,9 @@ import logger from "../utils/logger.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID().replace(/-/g, "");
+if (!process.env.JWT_SECRET) {
+  logger.warn("[Dashboard] JWT_SECRET non défini — sessions invalidées à chaque redémarrage. Définissez JWT_SECRET dans .env");
+}
 const SESSION_COOKIE_NAME = "sb_session";
 
 // ─── Rate limiting (simple in-memory) ─────────────────────────────────────────
@@ -128,14 +132,18 @@ export async function startDashboardServer(port: number): Promise<number> {
   }));
   app.use(express.json({ limit: "1mb" }));
 
-  // Security headers
-  app.use((_req, res, next) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    next();
-  });
+  // Security headers (helmet + custom)
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+      },
+    },
+  }));
 
   // Rate limiting on all API routes
   app.use("/api", rateLimit);

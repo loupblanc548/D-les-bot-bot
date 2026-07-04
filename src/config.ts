@@ -155,6 +155,10 @@ export const config = {
   alertThreshold: parseInt(env.ALERT_THRESHOLD, 10),
   ownerNotifyEnabled: env.OWNER_NOTIFY_ENABLED === "true",
 
+  // Agent IA autonome : "off" | "advisory" | "autonomous"
+  autonomousAgentMode: env.AUTONOMOUS_AGENT_MODE as "off" | "advisory" | "autonomous",
+  autonomousAgentConfidenceThreshold: parseInt(env.AUTONOMOUS_AGENT_CONFIDENCE_THRESHOLD, 10),
+
   // Database
   databaseUrl: env.DATABASE_URL,
 

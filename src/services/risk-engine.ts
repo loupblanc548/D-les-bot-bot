@@ -9,6 +9,22 @@ export { RiskLevel };
 export type SanctionType = "WARN" | "TIMEOUT" | "KICK" | "TEMPBAN" | "BAN" | "SOFTBAN";
 export type EventType = "ANTI_RAID" | "ANTI_SPAM" | "ANTI_PHISHING" | "SUSPICIOUS_ACCOUNT" | "AI_MODERATION";
 
+// ============================================================
+// Callback pour investigation autonome
+// ============================================================
+
+type RiskCallback = (profile: RiskProfile) => void;
+let riskCallback: RiskCallback | null = null;
+
+/**
+ * Définit le callback appelé après chaque mise à jour du risk score.
+ * Utilisé par bot.ts pour câbler l'investigation autonome OSINT.
+ */
+export function setRiskCallback(cb: RiskCallback): void {
+  riskCallback = cb;
+  logger.info("[RiskEngine] Callback d'investigation autonome configuré");
+}
+
 export interface RiskProfile {
   userId: string;
   guildId: string;
@@ -179,7 +195,18 @@ export async function recordSanction(
 
   logger.info(`[RiskEngine] Score mis \u00E0 jour pour ${userId}: ${score} (${riskLevel})`);
 
-  return { ...updated, riskScore: score, riskLevel } as unknown as RiskProfile;
+  const finalProfile = { ...updated, riskScore: score, riskLevel } as unknown as RiskProfile;
+
+  // Déclencher l'investigation autonome si le profil le justifie
+  if (riskCallback) {
+    try {
+      riskCallback(finalProfile);
+    } catch (err) {
+      logger.error(`[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return finalProfile;
 }
 
 // ============================================================
@@ -202,7 +229,18 @@ export async function recordSecurityEvent(
 
   logger.info(`[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`);
 
-  return { ...profile, riskScore: currentScore, riskLevel } as unknown as RiskProfile;
+  const finalProfile = { ...profile, riskScore: currentScore, riskLevel } as unknown as RiskProfile;
+
+  // Déclencher l'investigation autonome si le profil le justifie
+  if (riskCallback) {
+    try {
+      riskCallback(finalProfile);
+    } catch (err) {
+      logger.error(`[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return finalProfile;
 }
 
 // ============================================================

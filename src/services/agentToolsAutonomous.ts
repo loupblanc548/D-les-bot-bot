@@ -1,0 +1,1076 @@
+/**
+ * agentToolsAutonomous.ts — 20 Tools autonomes pour l'agent IA
+ *
+ * REASON → ACT → OBSERVE → REPLY
+ *
+ * Catégories:
+ *  1. MODERATION & SENTIMENT (5 tools)
+ *  2. OSINT & THREAT INTELLIGENCE (6 tools)
+ *  3. GAMING & PROACTIVITY (5 tools)
+ *  4. AUTOMAINTENANCE & COGNITION (4 tools)
+ *
+ * Memory-efficient: native fetch, regex, direct Prisma/Discord calls.
+ * Zero heavy third-party packages.
+ */
+
+import { ChannelType, PermissionFlagsBits } from "discord.js";
+import { createHash } from "crypto";
+import { readFile } from "fs/promises";
+import { existsSync } from "fs";
+import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
+import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+
+// ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
+
+export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
+  // ═══ 1. MODERATION & SENTIMENT PROFILING ═══
+  {
+    type: "function",
+    function: {
+      name: "get_user_moderation_history",
+      description: "Récupère l'historique de modération d'un utilisateur : warns, timeouts, kicks, bans. Via Prisma.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+        },
+        required: ["userId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "scrape_urban_slang",
+      description: "Scrape Urban Dictionary via fetch + regex pour définir un terme d'argot. Aucune clé API.",
+      parameters: {
+        type: "object",
+        properties: {
+          word: { type: "string", description: "Terme à définir" },
+        },
+        required: ["word"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "evaluate_channel_velocity",
+      description: "Analyse le taux de messages dans un salon sur les dernières 60 secondes. Détecte les pics d'activité (raid potentiel).",
+      parameters: {
+        type: "object",
+        properties: {
+          channelId: { type: "string", description: "ID du salon à analyser" },
+        },
+        required: ["channelId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "calculate_server_panic_index",
+      description: "Calcule un indice de panique serveur combinant vélocité des messages + sentiment récent. Évalue le risque de raid.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "emergency_channel_freeze",
+      description: "Verrouille instantanément un salon : retire la permission d'envoyer des messages à @everyone. Action d'urgence anti-raid.",
+      parameters: {
+        type: "object",
+        properties: {
+          channelId: { type: "string", description: "ID du salon à verrouiller" },
+        },
+        required: ["channelId"],
+      },
+    },
+  },
+  // ═══ 2. OSINT & THREAT INTELLIGENCE ═══
+  {
+    type: "function",
+    function: {
+      name: "verify_link_safety",
+      description: "Vérifie la sécurité d'une URL via scraping de URLVoid. Détecte phishing, malware, réputation.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à vérifier" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "detect_disposable_email",
+      description: "Détecte si un email est jetable/temporaire en matchant contre une liste publique GitHub. Aucune API.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Email à vérifier" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "scrape_steamrep_status",
+      description: "Scrape steamrep.com pour vérifier si un Steam ID a des bans communautaires (SR, CA, T). Aucune clé API.",
+      parameters: {
+        type: "object",
+        properties: {
+          steamId: { type: "string", description: "Steam ID 64 (ex: 765611980...)" },
+        },
+        required: ["steamId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "detect_typosquatting",
+      description: "Détecte le typosquatting : domaines qui imitent des sites connus (discord→d1scord, steam→stearn). Logique heuristique.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à analyser" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "track_avatar_hash",
+      description: "Calcule le hash MD5 de l'avatar d'un utilisateur et le sauvegarde en base. Détecte les évadés de ban qui changent de pseudo mais gardent le même avatar.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+        },
+        required: ["userId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "expose_ghost_pinger",
+      description: "Détecte les ghost pings : messages contenant des mentions qui ont été supprimés récemment. Utilise le cache local des messages.",
+      parameters: {
+        type: "object",
+        properties: {
+          channelId: { type: "string", description: "ID du salon à inspecter" },
+        },
+        required: ["channelId"],
+      },
+    },
+  },
+  // ═══ 3. GAMING & PROACTIVITY ═══
+  {
+    type: "function",
+    function: {
+      name: "match_fortnite_shop_wishlist",
+      description: "Compare les wishlists Fortnite en base avec le shop actuel. Retourne les items wishlistés disponibles aujourd'hui.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "scrape_epic_free_countdown",
+      description: "Scrape le feed Epic Games Store pour les jeux gratuits actuels et à venir. Aucune clé API.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_community_streams",
+      description: "Vérifie si un streamer Twitch est en live en scrapant le HTML de sa page (isLive flag). Aucune clé API Twitch.",
+      parameters: {
+        type: "object",
+        properties: {
+          channelName: { type: "string", description: "Nom de la chaîne Twitch" },
+        },
+        required: ["channelName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "fetch_game_patchnotes",
+      description: "Récupère les derniers patch notes d'un jeu via les flux RSS/Steam officiels. Aucune clé API.",
+      parameters: {
+        type: "object",
+        properties: {
+          game: { type: "string", description: "Nom du jeu (ex: helldivers, valorant, cs2)" },
+        },
+        required: ["game"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_galactic_war_status",
+      description: "Récupère le statut de la guerre galactique Helldivers 2 : planètes, libération, défense. Pour l'immersion RP.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  // ═══ 4. AUTOMAINTENANCE & COGNITION ═══
+  {
+    type: "function",
+    function: {
+      name: "monitor_ram_health",
+      description: "Retourne l'état de la RAM du bot : RSS, heap used/total, external. Lecture seule, aucun effet de bord.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "enforce_garbage_collection",
+      description: "Déclenche un garbage collection manuel (global.gc) si disponible. Nettoyage proactif de la RAM.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "self_inspect_logs",
+      description: "Lit les 20 dernières lignes du fichier de logs d'erreurs. Utile pour diagnostiquer un problème interne.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "upsert_user_memory",
+      description: "Sauvegarde ou met à jour un fait sur un utilisateur en mémoire long-terme (Prisma). Pour la cohérence des futures interactions.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+          fact: { type: "string", description: "Fait à sauvegarder (ex: 'préfère les jeux FPS', 'a déjà été warn pour spam')" },
+        },
+        required: ["userId", "fact"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "retrieve_user_memory",
+      description: "Récupère les faits stockés en mémoire long-terme sur un utilisateur. Retourne l'historique des interactions notables.",
+      parameters: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+        },
+        required: ["userId"],
+      },
+    },
+  },
+];
+
+// ─── 2. TOOL IMPLEMENTATIONS ─────────────────────────────────────────────────
+
+const MB = 1024 * 1024;
+
+// ── Cache for disposable email list (loaded once) ──
+let disposableEmailList: Set<string> | null = null;
+
+// ── Short-lived ghost ping cache (in-memory, 60s TTL) ──
+const ghostPingCache = new Map<string, { content: string; authorTag: string; ts: number }[]>();
+const GHOST_PING_TTL_MS = 60_000;
+
+// Track messages with mentions for ghost ping detection
+export function trackMessageForGhostPings(channelId: string, content: string, authorTag: string): void {
+  if (!content.includes("<@")) return;
+  const entries = ghostPingCache.get(channelId) ?? [];
+  entries.push({ content, authorTag, ts: Date.now() });
+  // Keep only last 50 entries
+  if (entries.length > 50) entries.shift();
+  ghostPingCache.set(channelId, entries);
+}
+
+// ═══ 1. MODERATION & SENTIMENT ═══
+
+async function tGetUserModerationHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const userId = String(args.userId);
+  try {
+    const sanctions = await prisma.sanction.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { type: true, reason: true, createdAt: true, moderatorId: true },
+    });
+
+    const profile = await prisma.riskProfile.findFirst({
+      where: { userId },
+      select: { riskScore: true, riskLevel: true, totalSanctions: true, warnCount: true, timeoutCount: true, kickCount: true, banCount: true },
+    });
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        userId,
+        profile: profile || { riskScore: 0, riskLevel: "NONE", totalSanctions: 0, warnCount: 0, timeoutCount: 0, kickCount: 0, banCount: 0 },
+        recentSanctions: sanctions,
+        totalFound: sanctions.length,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tScrapeUrbanSlang(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const word = String(args.word).slice(0, 50).replace(/[^a-zA-Z0-9\s-]/g, "");
+  try {
+    const res = await fetch(`https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const html = await res.text();
+    const defMatch = html.match(/<div class="meaning"[^>]*>([\s\S]*?)<\/div>/i);
+    const exampleMatch = html.match(/<div class="example"[^>]*>([\s\S]*?)<\/div>/i);
+    if (!defMatch) return { success: false, data: "Terme non trouvé" };
+
+    const stripTags = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").trim();
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        word,
+        definition: stripTags(defMatch[1]).slice(0, 500),
+        example: exampleMatch ? stripTags(exampleMatch[1]).slice(0, 300) : null,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur scrape: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tEvaluateChannelVelocity(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+  const channelId = String(args.channelId);
+  try {
+    const channel = ctx.client.channels.cache.get(channelId);
+    if (!channel?.isTextBased()) return { success: false, data: "Salon non textuel" };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messages = await (channel as any).messages.fetch({ limit: 50 });
+    const now = Date.now();
+    const recent = [...messages.values()].filter((m) => now - m.createdTimestamp < 60_000);
+    const uniqueAuthors = new Set(recent.map((m) => m.author.id));
+    const botCount = recent.filter((m) => m.author.bot).length;
+
+    const velocity = recent.length;
+    const isRaid = velocity > 20 && uniqueAuthors.size > 5;
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        channelId,
+        messagesLast60s: velocity,
+        uniqueAuthors: uniqueAuthors.size,
+        botMessages: botCount,
+        humanMessages: velocity - botCount,
+        raidRisk: isRaid ? "HIGH" : velocity > 10 ? "MEDIUM" : "LOW",
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tCalculateServerPanicIndex(ctx: ToolContext): Promise<ToolCallResult> {
+  try {
+    const guild = ctx.client.guilds.cache.get(ctx.guildId);
+    if (!guild) return { success: false, data: "Serveur introuvable" };
+
+    // Check recent sanctions in last 10 min
+    const since = new Date(Date.now() - 10 * 60 * 1000);
+    const recentSanctions = await prisma.sanction.count({
+      where: { guildId: ctx.guildId, createdAt: { gte: since } },
+    });
+
+    // Check recent security events
+    const recentLogs = await prisma.log.count({
+      where: { type: { in: ["antiphishing", "ANTI_SPAM", "ANTI_PHISHING"] }, createdAt: { gte: since } },
+    });
+
+    // Check member join velocity
+    const recentJoins = await prisma.log.count({
+      where: { type: "member_join", createdAt: { gte: since } },
+    });
+
+    // Panic index formula: weighted combination
+    const panicScore = Math.min(100, recentSanctions * 10 + recentLogs * 15 + recentJoins * 5);
+    const level = panicScore >= 70 ? "CRITICAL" : panicScore >= 40 ? "HIGH" : panicScore >= 20 ? "MEDIUM" : panicScore >= 5 ? "LOW" : "CALM";
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        guildId: ctx.guildId,
+        panicScore,
+        level,
+        factors: { recentSanctions, recentSecurityEvents: recentLogs, recentJoins },
+        recommendation: level === "CRITICAL" ? "Verrouiller les salons et alerter les modérateurs" : level === "HIGH" ? "Surveiller activement" : "RAS",
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tEmergencyChannelFreeze(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+  const channelId = String(args.channelId);
+  try {
+    const guild = ctx.client.guilds.cache.get(ctx.guildId);
+    if (!guild) return { success: false, data: "Serveur introuvable" };
+
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel) return { success: false, data: "Salon introuvable" };
+    if (channel.type !== ChannelType.GuildText) return { success: false, data: "Salon non textuel" };
+
+    const everyoneRole = guild.roles.everyone;
+    await channel.permissionOverwrites.edit(everyoneRole, {
+      SendMessages: false,
+      AddReactions: false,
+      SendMessagesInThreads: false,
+    });
+
+    logger.warn(`[AgentTools] 🚨 Channel freeze: #${(channel as { name?: string }).name} by AI agent`);
+
+    return {
+      success: true,
+      data: JSON.stringify({ channelId, channelName: (channel as { name?: string }).name, frozen: true, action: "SEND_MESSAGES + ADD_REACTIONS revoked for @everyone" }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur freeze: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 2. OSINT & THREAT INTELLIGENCE ═══
+
+async function tVerifyLinkSafety(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url).slice(0, 500);
+  try {
+    const domain = new URL(url).hostname;
+    const res = await fetch(`https://www.urlvoid.com/scan/${domain}/`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const html = await res.text();
+
+    const isClean = /class="label label-success"/i.test(html);
+    const isFlagged = /class="label label-danger"/i.test(html);
+    const detections = [...html.matchAll(/<td>(.*?)<\/td>/g)].map((m) => m[1].replace(/<[^>]+>/g, "").trim()).filter((s) => s.length > 3 && s.length < 100).slice(0, 10);
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        domain,
+        safe: isClean && !isFlagged,
+        flagged: isFlagged,
+        detections: isFlagged ? detections.slice(0, 5) : [],
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tDetectDisposableEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const email = String(args.email).toLowerCase().trim();
+  const domain = email.split("@")[1];
+  if (!domain) return { success: false, data: "Email invalide" };
+
+  try {
+    // Load list once and cache
+    if (!disposableEmailList) {
+      const res = await fetch("https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf", {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        disposableEmailList = new Set(text.split("\n").map((s) => s.trim()).filter(Boolean));
+      } else {
+        return { success: false, data: "Impossible de charger la liste" };
+      }
+    }
+
+    const isDisposable = disposableEmailList.has(domain);
+    return {
+      success: true,
+      data: JSON.stringify({ email, domain, isDisposable, listSize: disposableEmailList?.size ?? 0 }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tScrapeSteamrepStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const steamId = String(args.steamId).replace(/[^0-9]/g, "").slice(0, 20);
+  if (steamId.length < 17) return { success: false, data: "Steam ID invalide (doit faire 17 chiffres)" };
+
+  try {
+    const res = await fetch(`https://steamrep.com/profiles/${steamId}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const html = await res.text();
+
+    const hasSRBan = /SteamRep.*BANNED/i.test(html);
+    const hasCABan = /CA.*BANNED/i.test(html);
+    const hasTradeBan = /TRADE.*BANNED/i.test(html);
+    const nameMatch = html.match(/<title>(.*?)<\/title>/i);
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        steamId,
+        profileName: nameMatch ? nameMatch[1].replace(/SteamRep - /i, "").trim() : "unknown",
+        steamRepBanned: hasSRBan,
+        communityBanned: hasCABan,
+        tradeBanned: hasTradeBan,
+        clean: !hasSRBan && !hasCABan && !hasTradeBan,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tDetectTyposquatting(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url).slice(0, 500);
+  try {
+    const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+
+    // Known legit domains
+    const legitDomains = [
+      "discord.com", "discord.gg", "discordapp.com",
+      "steamcommunity.com", "steampowered.com", "store.steampowered.com",
+      "epicgames.com", "store.epicgames.com",
+      "twitch.tv", "youtube.com", "github.com",
+      "paypal.com", "amazon.com", "google.com",
+      "twitter.com", "x.com", "instagram.com", "facebook.com",
+      "riotgames.com", "playstation.com", "xbox.com",
+    ];
+
+    // Typosquatting patterns
+    const typosquatPatterns: { legit: string; pattern: RegExp }[] = [
+      { legit: "discord", pattern: /d[1i]scord|disc0rd|d[i1]scor[dt]/i },
+      { legit: "steam", pattern: /st[e3]am|st[e3]rn|st[e3]m/i },
+      { legit: "epicgames", pattern: /ep[1i]c|epicgam[e3]s/i },
+      { legit: "twitch", pattern: /tw[1i]tch|tw[i1]tch|twich/i },
+      { legit: "paypal", pattern: /p[a4]yp[a4]l|paypa[1l]/i },
+      { legit: "amazon", pattern: /am[a4]z[o0]n|amaz[o0]n/i },
+      { legit: "google", pattern: /g[o0][o0]gle|g00gle/i },
+      { legit: "github", pattern: /g[1i]thub|g[i1]th[uü]b/i },
+    ];
+
+    const matches: string[] = [];
+    for (const { legit, pattern } of typosquatPatterns) {
+      if (pattern.test(domain) && !legitDomains.some((l) => domain === l || domain.endsWith(`.${l}`))) {
+        matches.push(legit);
+      }
+    }
+
+    // Check for suspicious TLDs
+    const suspiciousTLDs = [".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".click", ".country"];
+    const hasSuspiciousTLD = suspiciousTLDs.some((tld) => domain.endsWith(tld));
+
+    // Check for IDN homograph (non-ASCII chars in domain)
+    const hasIDN = /[^\x00-\x7F]/.test(domain);
+
+    const isTyposquat = matches.length > 0 || (hasSuspiciousTLD && domain.length < 15);
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        domain,
+        isTyposquat,
+        impersonating: matches,
+        hasSuspiciousTLD,
+        hasIDNHomograph: hasIDN,
+        riskLevel: isTyposquat ? "HIGH" : hasSuspiciousTLD ? "MEDIUM" : "LOW",
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tTrackAvatarHash(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+  const userId = String(args.userId);
+  try {
+    const user = await ctx.client.users.fetch(userId).catch(() => null);
+    if (!user) return { success: false, data: "Utilisateur introuvable" };
+
+    const avatarURL = user.displayAvatarURL({ size: 256, extension: "png" });
+    const res = await fetch(avatarURL, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return { success: false, data: "Impossible de télécharger l'avatar" };
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const hash = createHash("md5").update(buffer).digest("hex");
+
+    // Check previous hashes
+    const previous = await prisma.avatarHistory.findFirst({
+      where: { userId, guildId: ctx.guildId },
+      orderBy: { changedAt: "desc" },
+    });
+
+    let isNewAvatar = true;
+    let previousHash = null;
+    if (previous) {
+      previousHash = previous.newHash;
+      isNewAvatar = previous.newHash !== hash;
+    }
+
+    if (isNewAvatar) {
+      await prisma.avatarHistory.create({
+        data: {
+          userId,
+          guildId: ctx.guildId,
+          oldHash: previousHash || "",
+          newHash: hash,
+        },
+      });
+    }
+
+    // Check if this hash matches any other user (ban evader detection)
+    const matchingUsers = await prisma.avatarHistory.findMany({
+      where: { newHash: hash, userId: { not: userId } },
+      select: { userId: true, guildId: true },
+      distinct: ["userId"],
+      take: 5,
+    });
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        userId,
+        avatarHash: hash,
+        isNewAvatar,
+        previousHash,
+        possibleBanEvaders: matchingUsers.map((m) => m.userId),
+        matchCount: matchingUsers.length,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tExposeGhostPinger(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const channelId = String(args.channelId);
+  try {
+    const entries = ghostPingCache.get(channelId) ?? [];
+    const now = Date.now();
+    const recent = entries.filter((e) => now - e.ts < GHOST_PING_TTL_MS);
+
+    // Clean expired entries
+    if (entries.length !== recent.length) {
+      ghostPingCache.set(channelId, recent.length > 0 ? recent : []);
+    }
+
+    if (recent.length === 0) {
+      return { success: true, data: JSON.stringify({ channelId, ghostPings: [], message: "Aucun ghost ping détecté dans les 60 dernières secondes" }) };
+    }
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        channelId,
+        ghostPings: recent.map((e) => ({
+          author: e.authorTag,
+          contentPreview: e.content.slice(0, 100),
+          ageSeconds: Math.round((now - e.ts) / 1000),
+        })),
+        count: recent.length,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 3. GAMING & PROACTIVITY ═══
+
+async function tMatchFortniteShopWishlist(): Promise<ToolCallResult> {
+  try {
+    const wishlists = await prisma.wishlist.findMany({
+      where: { platform: "fortnite" },
+      select: { userId: true, itemName: true, guildId: true },
+      take: 100,
+    });
+
+    if (wishlists.length === 0) {
+      return { success: true, data: JSON.stringify({ matched: [], totalWishlists: 0, message: "Aucune wishlist Fortnite en base" }) };
+    }
+
+    // Try to get current shop items from the fortnite API
+    try {
+      const { fetchShop } = await import("./fortnite-api.js");
+      const shopData = await fetchShop();
+      const shopItems = [...(shopData?.featured ?? []), ...(shopData?.daily ?? [])];
+      const shopNames = new Set(shopItems.map((item) => item.displayName.toLowerCase()));
+
+      const matched = wishlists.filter((w) => shopNames.has(w.itemName.toLowerCase()));
+
+      return {
+        success: true,
+        data: JSON.stringify({
+          totalWishlists: wishlists.length,
+          shopItemsCount: shopItems.length,
+          matched: matched.map((m) => ({ userId: m.userId, itemName: m.itemName, guildId: m.guildId })),
+          matchedCount: matched.length,
+        }),
+      };
+    } catch {
+      return { success: true, data: JSON.stringify({ totalWishlists: wishlists.length, matched: [], matchedCount: 0, message: "Shop API indisponible" }) };
+    }
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tScrapeEpicFreeCountdown(): Promise<ToolCallResult> {
+  try {
+    const res = await fetch("https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const data = await res.json() as { data?: { Catalog?: { searchStore?: unknown[] } } };
+
+    const games = data?.data?.Catalog?.searchStore ?? [];
+    const now = new Date();
+    const freeNow: string[] = [];
+    const freeSoon: string[] = [];
+
+    for (const game of games) {
+      const g = game as { title?: string; promotions?: { promotionalOffers?: { startDate?: string; endDate?: string }[] } };
+      const promos = g.promotions?.promotionalOffers ?? [];
+      for (const promo of promos) {
+        const start = promo.startDate ? new Date(promo.startDate) : null;
+        const end = promo.endDate ? new Date(promo.endDate) : null;
+        if (start && end) {
+          if (now >= start && now <= end) {
+            freeNow.push(g.title || "Unknown");
+          } else if (start > now) {
+            freeSoon.push(`${g.title} (${start.toISOString().slice(0, 10)})`);
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: JSON.stringify({ freeNow, freeSoon, checkedAt: now.toISOString() }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tCheckCommunityStreams(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const channelName = String(args.channelName).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+  try {
+    const res = await fetch(`https://www.twitch.tv/${channelName}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept-Language": "en-US" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const html = await res.text();
+
+    const isLive = /"isLive":true/i.test(html) || /isLiveBroadcast/i.test(html);
+    const titleMatch = html.match(/"streamTitle":"(.*?)"/i);
+    const viewersMatch = html.match(/"viewersCount":(\d+)/i);
+    const gameMatch = html.match(/"gameName":"(.*?)"/i);
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        channel: channelName,
+        isLive,
+        title: titleMatch ? titleMatch[1] : null,
+        viewers: viewersMatch ? parseInt(viewersMatch[1], 10) : null,
+        game: gameMatch ? gameMatch[1] : null,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tFetchGamePatchnotes(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const game = String(args.game).toLowerCase().slice(0, 30);
+  try {
+    // Steam news RSS for games
+    const steamAppIds: Record<string, number> = {
+      helldivers: 553850,
+      cs2: 730,
+      valorant: 0, // Not on Steam, skip
+      dota2: 570,
+      pubg: 578080,
+      rust: 252490,
+    };
+
+    const appId = steamAppIds[game];
+    if (!appId) {
+      // Try generic Steam search
+      const searchRes = await fetch(`https://store.steampowered.com/api/storesearch?term=${encodeURIComponent(game)}&l=fr&cc=FR`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (searchRes.ok) {
+        const searchData = await searchRes.json() as { items?: { id: number; name: string }[] };
+        const found = searchData.items?.[0];
+        if (found) {
+          return await fetchSteamNews(found.id, game);
+        }
+      }
+      return { success: false, data: `Jeu "${game}" non trouvé. Essayez: helldivers, cs2, dota2, pubg, rust` };
+    }
+
+    return await fetchSteamNews(appId, game);
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function fetchSteamNews(appId: number, gameName: string): Promise<ToolCallResult> {
+  const res = await fetch(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appId}&count=3&maxlength=500&format=json`, {
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+  const data = await res.json() as { appnews?: { newsitems?: { title: string; url: string; date: number; contents: string }[] } };
+  const items = data.appnews?.newsitems ?? [];
+
+  return {
+    success: true,
+    data: JSON.stringify({
+      game: gameName,
+      appId,
+      patchNotes: items.slice(0, 3).map((item) => ({
+        title: item.title,
+        url: item.url,
+        date: new Date(item.date * 1000).toISOString().slice(0, 10),
+        preview: item.contents.slice(0, 200).replace(/\\n/g, " "),
+      })),
+    }),
+  };
+}
+
+async function tGetGalacticWarStatus(): Promise<ToolCallResult> {
+  try {
+    const res = await fetch("https://api.helldivers2.dev/api/v1/war", {
+      headers: { "User-Agent": "HelldiversBot/1.0" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const data = await res.json() as {
+      warId?: string;
+      time?: number;
+      impactMultiplier?: number;
+      campaignSum?: number;
+      defenseSum?: number;
+    };
+
+    // Also fetch current campaigns
+    let campaigns: unknown[] = [];
+    try {
+      const campRes = await fetch("https://api.helldivers2.dev/api/v1/campaigns", {
+        headers: { "User-Agent": "HelldiversBot/1.0" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (campRes.ok) campaigns = await campRes.json() as unknown[];
+    } catch { /* non-critical */ }
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        warId: data.warId,
+        impactMultiplier: data.impactMultiplier,
+        activeCampaigns: campaigns.length,
+        campaigns: campaigns.slice(0, 5),
+        timestamp: new Date().toISOString(),
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 4. AUTOMAINTENANCE & COGNITION ═══
+
+async function tMonitorRamHealth(): Promise<ToolCallResult> {
+  const mem = process.memoryUsage();
+  return {
+    success: true,
+    data: JSON.stringify({
+      rssMB: Math.round(mem.rss / MB),
+      heapUsedMB: Math.round(mem.heapUsed / MB),
+      heapTotalMB: Math.round(mem.heapTotal / MB),
+      externalMB: Math.round(mem.external / MB),
+      arrayBuffersMB: Math.round(mem.arrayBuffers / MB),
+      uptimeSeconds: Math.round(process.uptime()),
+      gcAvailable: typeof global.gc === "function",
+    }),
+  };
+}
+
+async function tEnforceGarbageCollection(): Promise<ToolCallResult> {
+  const before = process.memoryUsage();
+  const beforeHeap = Math.round(before.heapUsed / MB);
+
+  if (typeof global.gc === "function") {
+    global.gc();
+    const after = process.memoryUsage();
+    const afterHeap = Math.round(after.heapUsed / MB);
+    const saved = beforeHeap - afterHeap;
+    logger.info(`[AgentTools] 🧹 GC enforced by agent: ${beforeHeap}MB → ${afterHeap}MB (-${saved}MB)`);
+    return {
+      success: true,
+      data: JSON.stringify({ triggered: true, heapBeforeMB: beforeHeap, heapAfterMB: afterHeap, savedMB: saved }),
+    };
+  }
+  return {
+    success: true,
+    data: JSON.stringify({ triggered: false, reason: "GC non disponible (lancer avec --expose-gc)", heapUsedMB: beforeHeap }),
+  };
+}
+
+async function tSelfInspectLogs(): Promise<ToolCallResult> {
+  try {
+    // Try common log file locations
+    const logPaths = ["logs/error.log", "logs/combined.log", "./error.log"];
+    for (const path of logPaths) {
+      if (existsSync(path)) {
+        const content = await readFile(path, "utf-8");
+        const lines = content.split("\n").filter((l) => l.trim().length > 0);
+        const last20 = lines.slice(-20);
+        return {
+          success: true,
+          data: JSON.stringify({ logFile: path, totalLines: lines.length, lastLines: last20 }),
+        };
+      }
+    }
+    return { success: true, data: JSON.stringify({ message: "Aucun fichier de log trouvé. Les logs vont vers stdout/stderr." }) };
+  } catch (e) {
+    return { success: false, data: `Erreur lecture logs: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tUpsertUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const userId = String(args.userId);
+  const fact = String(args.fact).slice(0, 500);
+  try {
+    // Ensure UserMemory exists
+    await prisma.userMemory.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
+
+    // Save the fact — use key/value model
+    const key = `agent_${Date.now()}`;
+    await prisma.memoryFact.create({
+      data: {
+        userId,
+        key,
+        value: fact,
+        category: "agent_observation",
+        weight: 0.9,
+      },
+    });
+
+    return { success: true, data: JSON.stringify({ userId, saved: true, fact: fact.slice(0, 100) }) };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tRetrieveUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const userId = String(args.userId);
+  try {
+    const facts = await prisma.memoryFact.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { value: true, category: true, createdAt: true, key: true, weight: true },
+    });
+
+    return {
+      success: true,
+      data: JSON.stringify({
+        userId,
+        facts: facts.map((f) => ({ fact: f.value, category: f.category, key: f.key, date: f.createdAt.toISOString().slice(0, 10) })),
+        count: facts.length,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ─── 3. DISPATCHER ───────────────────────────────────────────────────────────
+
+export async function executeAutonomousTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult | null> {
+  logger.info(`[AgentToolsAuto] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
+
+  try {
+    switch (toolName) {
+      // 1. Moderation & Sentiment
+      case "get_user_moderation_history": return await tGetUserModerationHistory(args);
+      case "scrape_urban_slang": return await tScrapeUrbanSlang(args);
+      case "evaluate_channel_velocity": return await tEvaluateChannelVelocity(args, ctx);
+      case "calculate_server_panic_index": return await tCalculateServerPanicIndex(ctx);
+      case "emergency_channel_freeze": return await tEmergencyChannelFreeze(args, ctx);
+      // 2. OSINT & Threat Intelligence
+      case "verify_link_safety": return await tVerifyLinkSafety(args);
+      case "detect_disposable_email": return await tDetectDisposableEmail(args);
+      case "scrape_steamrep_status": return await tScrapeSteamrepStatus(args);
+      case "detect_typosquatting": return await tDetectTyposquatting(args);
+      case "track_avatar_hash": return await tTrackAvatarHash(args, ctx);
+      case "expose_ghost_pinger": return await tExposeGhostPinger(args);
+      // 3. Gaming & Proactivity
+      case "match_fortnite_shop_wishlist": return await tMatchFortniteShopWishlist();
+      case "scrape_epic_free_countdown": return await tScrapeEpicFreeCountdown();
+      case "check_community_streams": return await tCheckCommunityStreams(args);
+      case "fetch_game_patchnotes": return await tFetchGamePatchnotes(args);
+      case "get_galactic_war_status": return await tGetGalacticWarStatus();
+      // 4. Automaintenance & Cognition
+      case "monitor_ram_health": return await tMonitorRamHealth();
+      case "enforce_garbage_collection": return await tEnforceGarbageCollection();
+      case "self_inspect_logs": return await tSelfInspectLogs();
+      case "upsert_user_memory": return await tUpsertUserMemory(args);
+      case "retrieve_user_memory": return await tRetrieveUserMemory(args);
+      default: return null;
+    }
+  } catch (error) {
+    logger.error(`[AgentToolsAuto] Erreur ${toolName}: ${error instanceof Error ? error.message : String(error)}`);
+    return {
+      success: false,
+      data: `Erreur: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}

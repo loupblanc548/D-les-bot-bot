@@ -20,6 +20,7 @@ import {
   handleCommand as handleMain,
   handleSelectMenu as handleMainSelectMenu,
 } from "./commands/main.js";
+
 import { commands as sourceCommands } from "./commands/sources.js";
 import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin.js";
 import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai.js";
@@ -50,17 +51,14 @@ import {
   commands as wishlistCommands,
   handleCommand as handleWishlist,
 } from "./commands/fun/wishlist.js";
-import {
-  commands as boutiqueCommands,
-  handleCommand as handleBoutique,
-} from "./commands/fun/boutique.js";
+// Phase 1: Removed boutique (keep only fortnite features)
 import {
   commands as alertcenterCommands,
   handleCommand as handleAlertcenter,
 } from "./commands/alertcenter.js";
 import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
 import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
-import { commands as profileCommands, handleCommand as handleProfile } from "./commands/profile.js";
+// Phase 1: Removed profile commands
 import { handleReactionRoleAdd, handleReactionRoleRemove } from "./commands/reactionRoles.js";
 import {
   commands as rechercheCommands,
@@ -74,15 +72,12 @@ import {
   commands as maintenanceCommands,
   handleCommand as handleMaintenance,
 } from "./commands/maintenance.js";
-import { commands as userinfoCommands } from "./commands/userinfo.js";
+// Phase 1: Removed userinfo commands
 import {
   commands as advancedCommands,
   handleCommand as handleAdvanced,
 } from "./commands/advanced.js";
-import {
-  commands as communityExtraCommands,
-  handleCommand as handleCommunityExtra,
-} from "./commands/communityExtra.js";
+// Phase 1: Removed communityExtra commands
 import { commands as dashboardCommands } from "./commands/dashboard.js";
 import { commands as aiCmdCommands } from "./commands/aiCommands.js";
 import {
@@ -161,35 +156,13 @@ import {
   commands as gameGroupCommands,
   handleCommand as handleGameGroup,
 } from "./commands/gameGroup.js";
-import {
-  commands as toolsGroupCommands,
-  handleCommand as handleToolsGroup,
-} from "./commands/toolsGroup.js";
-import {
-  commands as communityGroupCommands,
-  handleCommand as handleCommunityGroup,
-} from "./commands/communityGroup.js";
-import {
-  commands as funGroupCommands,
-  handleCommand as handleFunGroup,
-} from "./commands/funGroup.js";
-import {
-  commands as game2GroupCommands,
-  handleCommand as handleGame2Group,
-} from "./commands/game2Group.js";
-import {
-  commands as musicGroupCommands,
-  handleCommand as handleMusicGroup,
-} from "./commands/musicGroup.js";
-import {
-  commands as economyGroupCommands,
-  handleCommand as handleEconomyGroup,
-} from "./commands/economyGroup.js";
+// Phase 1: Removed fun, game2, music, economy groups (legacy cleanup)
 import {
   commands as ticketGroupCommands,
   handleCommand as handleTicketGroup,
 } from "./commands/ticketGroup.js";
 import { commands as pollCommands, handleCommand as handlePolls } from "./commands/polls.js";
+// Phase 1: Removed poll commands (legacy)
 import { commands as autoThreadCommands, handleCommand as handleAutoThread } from "./commands/autoThread.js";
 import { commands as customCmdCommands, handleCommand as handleCustomCmd } from "./commands/customCommands.js";
 
@@ -429,8 +402,7 @@ const REMOVED_COMMANDS = new Set([
   "wishlist-stats",
   "wishlist-notify",
   "boutique",
-  "fortnite-wishlist",
-  "fortnite-shop-preview",
+  // fortnite-wishlist & fortnite-shop-preview are KEPT (not removed)
   "xbox",
   "twitch",
   "psn",
@@ -449,35 +421,64 @@ const REMOVED_COMMANDS = new Set([
   "audio-effects",
   "radio-stop",
   "track",
+  // ─── Phase 1: Additional deprecated commands ───
+  "fun",
+  "trivia",
+  "joke",
+  "advice",
+  "quote",
+  "meme",
+  "dog",
+  "number-fact",
+  "shop",
+  "echo-tds",
+  "password-gen",
+  "username-gen",
+  "base64",
+  "hex",
+  "bio",
+  "badge",
+  "badges",
+  "level",
+  "xp-config",
+  "social",
+  "instagram",
+  "insta-deep",
+  "server-boost",
+  "member-count",
+  "roles",
+  "birthday-config",
+  "giveaway-list",
+  "giveaway-reroll",
+  "community",
+  "tools",
+  "economy",
+  "music",
+  "game2",
 ]);
 
 export const allCommands = [
-  // Groupes (commandes avec sous-commandes)
+  // ── 4 Root Commands (Phase 2 architecture) ──
+  ...modGroupCommands,       // /mod (user, channel, server, stats)
+  ...adminGroupCommands,     // /admin (system, config, database, roles/channels)
+  ...securityGroupCommands,  // /security (audit, network, intel)
+  ...aiGroupCommands,        // /ai (chat, config, features)
+  // ── Groupes conservés ──
   ...botGroupCommands,
   ...sourcesGroupCommands,
-  ...adminGroupCommands,
-  ...aiGroupCommands,
   ...alertGroupCommands,
-  ...modGroupCommands,
   ...modAdminCommands,
   ...debugGroupCommands,
-  ...securityGroupCommands,
   ...shadowCommands,
   ...osintCommands,
   ...reportCommands,
   ...gameGroupCommands,
-  ...communityGroupCommands,
-  ...toolsGroupCommands,
   ...casierGroupCommands,
-  ...funGroupCommands,
-  ...game2GroupCommands,
-  ...musicGroupCommands,
-  ...economyGroupCommands,
   ...ticketGroupCommands,
-  // Commandes standalone
-  ...pollCommands,
+  // ── Standalone conservées ──
   ...autoThreadCommands,
   ...customCmdCommands,
+  // Phase 1: Removed fun, economy, polls, community, tools, game2, music groups
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -501,32 +502,27 @@ function registerGroup(
 }
 
 export function buildCommandRouter(): void {
-  // ─── Commandes groupées (subcommands) ───
+  // ─── 4 Root Commands (Phase 2) ───
+  registerGroup(["mod"], handleModGroup);
+  registerGroup(["admin"], handleAdminGroup);
+  registerGroup(["security"], handleSecurityGroup);
+  registerGroup(["ai"], handleAiGroup);
+  // ─── Groupes conservés ───
   registerGroup(["bot"], handleBotGroup);
   registerGroup(["sources"], handleSourcesGroup);
-  registerGroup(["admin"], handleAdminGroup);
-  registerGroup(["ai"], handleAiGroup);
   registerGroup(["alert"], handleAlertGroup);
-  registerGroup(["mod"], handleModGroup);
   registerGroup(["modadmin"], handleModAdmin);
   registerGroup(["debug"], handleDebugGroup);
-  registerGroup(["security"], handleSecurityGroup);
   registerGroup(["shadow"], handleShadow);
   registerGroup(["osint"], handleOsint);
   registerGroup(["report"], handleReport);
   registerGroup(["game"], handleGameGroup);
-  registerGroup(["community"], handleCommunityGroup);
-  registerGroup(["tools"], handleToolsGroup);
   registerGroup(["casier"], handleCasierGroup);
-  registerGroup(["fun"], handleFunGroup);
-  registerGroup(["game2"], handleGame2Group);
-  registerGroup(["music"], handleMusicGroup);
-  registerGroup(["economy"], handleEconomyGroup);
   registerGroup(["ticket"], handleTicketGroup);
-  // ─── Commandes standalone ───
-  registerGroup(["poll"], handlePolls);
+  // ─── Standalone ───
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
+  // Phase 1: Removed fun, economy, polls, community, tools, game2, music
 }
 
 export function applyCommandMiddleware(): void {
@@ -542,16 +538,43 @@ export async function registerCommands(): Promise<void> {
   try {
     const rest = new REST({ version: "10" }).setToken(config.token);
     logger.info("Enregistrement des commandes slash...");
+
     if (config.guildId) {
+      // Enregistrer les commandes pour la guilde
       await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
         body: allCommands,
       });
       logger.info(
         `✓ ${allCommands.length} commandes enregistrees pour la guilde ${config.guildId}`,
       );
+
+      // Nettoyer les anciennes commandes globales (sinon Discord les garde en cache)
+      try {
+        await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
+        logger.info("✓ Commandes globales obsolètes nettoyées");
+      } catch (err) {
+        logger.warn(
+          `Nettoyage commandes globales échoué: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     } else {
+      // Enregistrer globalement + nettoyer les commandes de guilde
       await rest.put(Routes.applicationCommands(config.clientId), { body: allCommands });
       logger.info(`✓ ${allCommands.length} commandes enregistrees globalement`);
+
+      // Nettoyer les anciennes commandes de guilde
+      if (config.guildId) {
+        try {
+          await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
+            body: [],
+          });
+          logger.info("✓ Commandes de guilde obsolètes nettoyées");
+        } catch (err) {
+          logger.warn(
+            `Nettoyage commandes guilde échoué: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
     }
   } catch (error) {
     logger.error(

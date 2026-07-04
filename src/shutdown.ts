@@ -26,6 +26,9 @@ import { closeBrowser } from "./managers/ScraperManager.js";
 import { disconnectRedis } from "./utils/redis.js";
 import { stopAutoCleanup } from "./services/auto-cleanup.js";
 import { stopLogRetention } from "./cron/logRetention.js";
+import { stopLogChannelCleanup } from "./cron/logChannelCleanup.js";
+import { stopAgentBrain } from "./services/agentBrain.js";
+import { stopPersonalityEngine } from "./services/personalityEngine.js";
 import type { Client } from "discord.js";
 
 export type ClientDestroyFn = () => void;
@@ -61,6 +64,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopMapCleanup,
     stopAutoCleanup,
     stopLogRetention,
+    stopLogChannelCleanup,
+    stopAgentBrain,
+    stopPersonalityEngine,
   ];
 
   for (const fn of stopFns) {
