@@ -4,68 +4,65 @@ import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "./memoryConfi
 describe("memoryConfig", () => {
   describe("MEMORY_CONFIG", () => {
     it("has correct values", () => {
-      expect(MEMORY_CONFIG.GC_THRESHOLD_MB).toBe(300);
+      expect(MEMORY_CONFIG.GC_THRESHOLD_MB).toBe(450);
+      expect(MEMORY_CONFIG.CRITICAL_THRESHOLD_MB).toBe(490);
       expect(MEMORY_CONFIG.V8_HEAP_LIMIT_MB).toBe(448);
       expect(MEMORY_CONFIG.RAILWAY_RAM_MB).toBe(512);
-      expect(MEMORY_CONFIG.LEVELS.CRITICAL).toBe(100);
-      expect(MEMORY_CONFIG.LEVELS.WARNING).toBe(85);
-      expect(MEMORY_CONFIG.LEVELS.SURVEILLANCE).toBe(70);
+      expect(MEMORY_CONFIG.LEVELS.CRITICAL).toBe(490);
+      expect(MEMORY_CONFIG.LEVELS.WARNING).toBe(450);
+      expect(MEMORY_CONFIG.LEVELS.SURVEILLANCE).toBe(350);
     });
   });
 
   describe("getMemoryLevel", () => {
-    it("returns OK below 70% of GC threshold", () => {
+    it("returns OK below 350MB", () => {
       expect(getMemoryLevel(0)).toBe("OK");
       expect(getMemoryLevel(100)).toBe("OK");
-      expect(getMemoryLevel(209)).toBe("OK"); // 69.67%
-    });
-
-    it("returns SURVEILLANCE at 70-85% of GC threshold", () => {
-      expect(getMemoryLevel(210)).toBe("SURVEILLANCE"); // 70%
-      expect(getMemoryLevel(240)).toBe("SURVEILLANCE"); // 80%
-      expect(getMemoryLevel(254)).toBe("SURVEILLANCE"); // 84.67%
-    });
-
-    it("returns WARNING at 85-100% of GC threshold", () => {
-      expect(getMemoryLevel(255)).toBe("WARNING"); // 85%
-      expect(getMemoryLevel(280)).toBe("WARNING"); // 93.33%
-      expect(getMemoryLevel(299)).toBe("WARNING"); // 99.67%
-    });
-
-    it("returns CRITICAL at >= 100% of GC threshold", () => {
-      expect(getMemoryLevel(300)).toBe("CRITICAL"); // 100%
-      expect(getMemoryLevel(350)).toBe("CRITICAL");
-      expect(getMemoryLevel(500)).toBe("CRITICAL");
-    });
-
-    it("does NOT alert at 200MB RSS (the false positive case)", () => {
-      // 200/300 = 66.67% → OK (no alert)
       expect(getMemoryLevel(200)).toBe("OK");
+      expect(getMemoryLevel(349)).toBe("OK");
     });
 
-    it("does NOT alert at 133MB RSS (the false positive case)", () => {
-      // 133/400 = 33.25% → OK
-      expect(getMemoryLevel(133)).toBe("OK");
+    it("returns SURVEILLANCE between 350-449MB", () => {
+      expect(getMemoryLevel(350)).toBe("SURVEILLANCE");
+      expect(getMemoryLevel(400)).toBe("SURVEILLANCE");
+      expect(getMemoryLevel(449)).toBe("SURVEILLANCE");
+    });
+
+    it("returns WARNING between 450-489MB", () => {
+      expect(getMemoryLevel(450)).toBe("WARNING");
+      expect(getMemoryLevel(470)).toBe("WARNING");
+      expect(getMemoryLevel(489)).toBe("WARNING");
+    });
+
+    it("returns CRITICAL at >= 490MB", () => {
+      expect(getMemoryLevel(490)).toBe("CRITICAL");
+      expect(getMemoryLevel(500)).toBe("CRITICAL");
+      expect(getMemoryLevel(512)).toBe("CRITICAL");
+    });
+
+    it("does NOT alert at 355MB RSS (the false positive case from old 350 threshold)", () => {
+      // 355MB → SURVEILLANCE (not CRITICAL)
+      expect(getMemoryLevel(355)).toBe("SURVEILLANCE");
     });
   });
 
   describe("formatMemoryReport", () => {
     it("formats report with all values", () => {
-      const report = formatMemoryReport(220, 150, 160);
-      expect(report).toContain("RSS : 220 MB / 512 MB");
+      const report = formatMemoryReport(400, 150, 160);
+      expect(report).toContain("RSS : 400 MB / 512 MB");
       expect(report).toContain("Heap : 150 MB / 448 MB");
-      expect(report).toContain("Seuil GC : 300 MB");
+      expect(report).toContain("Seuil GC : 450 MB");
       expect(report).toContain("Utilisation du seuil GC");
       expect(report).toContain(": SURVEILLANCE");
     });
 
-    it("shows SURVEILLANCE level correctly", () => {
-      const report = formatMemoryReport(220, 150, 160);
-      expect(report).toContain(": SURVEILLANCE");
+    it("shows WARNING level correctly", () => {
+      const report = formatMemoryReport(460, 250, 270);
+      expect(report).toContain(": WARNING");
     });
 
     it("shows CRITICAL level correctly", () => {
-      const report = formatMemoryReport(300, 250, 270);
+      const report = formatMemoryReport(495, 300, 320);
       expect(report).toContain(": CRITICAL");
     });
   });

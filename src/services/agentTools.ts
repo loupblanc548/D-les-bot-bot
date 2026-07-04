@@ -758,6 +758,18 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
+/**
+ * Fetches HTML from a Response, extracts text, then releases the raw buffer.
+ * The html variable goes out of scope when the function returns, allowing
+ * V8 GC to reclaim the underlying ArrayBuffer immediately.
+ */
+async function extractTextFromHtml(res: Response): Promise<string> {
+  const html = await res.text();
+  const text = stripAllHtml(html).replace(/\s+/g, " ").trim().slice(0, 3000);
+  // html goes out of scope here — buffer eligible for GC
+  return text || "(page vide ou contenu non-texte)";
+}
+
 async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
@@ -777,9 +789,11 @@ async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResul
 
     if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
 
-    const html = await res.text();
-    const text = stripAllHtml(html).replace(/\s+/g, " ").trim().slice(0, 3000);
-    const output = text || "(page vide ou contenu non-texte)";
+    // Extract text from HTML then release the raw buffer immediately.
+    // The raw HTML string can be several MB for large pages — by extracting
+    // in a separate async function, the html variable goes out of scope
+    // before we continue, allowing V8 GC to reclaim the buffer.
+    const output = await extractTextFromHtml(res);
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {

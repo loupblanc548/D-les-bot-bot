@@ -13,7 +13,7 @@ import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memo
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const LATENCY_THRESHOLD_MS = 500; // alerte si > 500ms
-const MEMORY_ALERT_THRESHOLD_MB = 300; // alerte si RSS > 300MB
+const MEMORY_ALERT_THRESHOLD_MB = 450; // alerte si RSS > 450MB (matches GC_THRESHOLD)
 
 let intervalId: NodeJS.Timeout | null = null;
 let lastAlertTime = 0;
