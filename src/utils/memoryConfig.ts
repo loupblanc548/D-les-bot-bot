@@ -6,10 +6,10 @@
  * GC triggers at 350MB RSS to leave headroom before the 448MB V8 limit.
  *
  * Alert levels (based on % of GC_THRESHOLD_MB):
- *   < 70%  → OK          (< 245 MB)
- *   70-90% → Surveillance (245–315 MB)
- *   90-100% → Warning    (315–350 MB)
- *   ≥ 100% → Critical    (≥ 350 MB)
+ *   < 80%  → OK          (< 320 MB)
+ *   80-95% → Surveillance (320–380 MB)
+ *   95-100% → Warning    (380–400 MB)
+ *   ≥ 100% → Critical    (≥ 400 MB)
  */
 
 export const MEMORY_CONFIG = {
@@ -19,18 +19,18 @@ export const MEMORY_CONFIG = {
   /** V8 heap limit set via --max-old-space-size */
   V8_HEAP_LIMIT_MB: 448,
 
-  /** RSS threshold (in MB) at which GC is forced */
-  GC_THRESHOLD_MB: 350,
+  /** RSS threshold (in MB) at which GC is forced — ultra-aggressive: 300MB */
+  GC_THRESHOLD_MB: 300,
 
-  /** Check interval in ms */
-  CHECK_INTERVAL_MS: 3 * 60 * 1000, // 3 min
+  /** Check interval in ms — every 60 seconds */
+  CHECK_INTERVAL_MS: 60 * 1000, // 1 min
 
   /** Alert level percentages of GC_THRESHOLD_MB */
   LEVELS: {
     OK: 0,
-    SURVEILLANCE: 70,
-    WARNING: 90,
-    CRITICAL: 100,
+    SURVEILLANCE: 70,   // 210 MB
+    WARNING: 85,        // 255 MB
+    CRITICAL: 100,      // 300 MB
   },
 } as const;
 

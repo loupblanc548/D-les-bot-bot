@@ -85,6 +85,7 @@ export const CATEGORIES: Category[] = [
       "`/admin cooldown-config - Configuration cooldowns`\n" +
       "`/admin channel-routing - Routage des salons`\n" +
       "`/admin purge-content - Purge de contenu`\n" +
+      "`/admin purge-range [de] [a] - Supprime entre 2 IDs de messages`\n" +
       "`/admin api-status - Statut des APIs`\n" +
       "`/admin bot-health - Health check`\n" +
       "`/admin healthz - Endpoint health`\n" +

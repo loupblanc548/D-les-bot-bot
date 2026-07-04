@@ -37,8 +37,12 @@ import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
 import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
 import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceService.js";
-import { initDisTube } from "./services/musicService.js";
+// Phase 1: Removed DisTube init (music commands deleted — saves ~30MB RAM)
 import { startYouTubeLiveChat } from "./services/youtubeLiveChat.js";
+import { setRiskCallback } from "./services/risk-engine.js";
+import { maybeTriggerInvestigation } from "./services/autonomousInvestigator.js";
+import { startAgentBrain, stopAgentBrain } from "./services/agentBrain.js";
+import { startPersonalityEngine, stopPersonalityEngine } from "./services/personalityEngine.js";
 
 const client = new Client({
   intents: [
@@ -47,36 +51,49 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildEmojisAndStickers,
-    GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildVoiceStates,
+    // REMOVED: GuildMessageReactions — saves ~15-20MB RAM on large guilds
   ],
-  // Limite la croissance memoire des caches (bot 24/7). Les managers non listes
-  // gardent leur comportement par defaut.
+  // ─── ULTRA-AGGRESSIVE MEMORY CONFIG ───────────────────────────────────
+  // 512MB container: every KB counts. Zero-cache for non-essential managers.
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
-    MessageManager: 25, // 25 messages max par salon (reduced from 50)
-    ThreadManager: 25, // 25 threads max (reduced from 50)
-    GuildMemberManager: 100, // 100 membres max (reduced from 200)
-    // --- Caches inutiles : désactivés ---
-    PresenceManager: 0,
-    GuildInviteManager: 0,
-    StageInstanceManager: 0,
-    GuildBanManager: 0,
+    // ── ZERO CACHE (completely disabled) ──
+    MessageManager: 0,          // No message cache — messages fetched on-demand
+    PresenceManager: 0,         // No presence cache — huge RAM saver
+    ReactionManager: 0,         // No reaction cache
+    ReactionUserManager: 0,     // No reaction user cache
+    ThreadManager: 0,           // No thread cache
+    GuildInviteManager: 0,      // No invite cache
+    StageInstanceManager: 0,    // No stage instance cache
+    GuildBanManager: 0,         // No ban cache
     AutoModerationRuleManager: 0,
-    ReactionUserManager: 0, // Pas de cache des réactions utilisateurs
-    GuildEmojiManager: 50, // Limite les emojis en cache
+    // ── TIGHT LIMITS (minimal cache) ──
+    UserManager: 10,            // Only 10 users cached globally
+    GuildMemberManager: 10,     // Only 10 members cached per guild
+    GuildEmojiManager: 50,      // 50 emojis (needed for commands)
+    // ── DEFAULT (keep Discord.js defaults) ──
+    // GuildManager, GuildTextChannelManager, etc. keep defaults
   }),
-  // Purge plus agressive
+  // ─── AGGRESSIVE SWEEPERS ──────────────────────────────────────────────
   sweepers: {
     ...Options.DefaultSweeperSettings,
     messages: {
-      interval: 1800, // toutes les 30 min (reduced from 3600)
-      lifetime: 900, // supprime après 15 min d'inactivité (reduced from 1800)
+      interval: 300,            // Every 5 minutes
+      lifetime: 120,            // Remove after 2 min of inactivity
     },
     threads: {
-      interval: 1800,
-      lifetime: 900,
+      interval: 300,
+      lifetime: 120,
+    },
+    users: {
+      interval: 600,            // Every 10 minutes
+      filter: (() => true) as never,
+    },
+    guildMembers: {
+      interval: 600,
+      filter: (() => true) as never,
     },
   },
   presence: {
@@ -256,13 +273,27 @@ async function main(): Promise<void> {
   // YouTube Live Chat Bot (détecte les demandes d'ajout dans le chat YouTube Live)
   startYouTubeLiveChat();
 
+  // Investigation OSINT autonome : déclenchée automatiquement quand un utilisateur
+  // atteint un niveau de risque CRITIQUE ou ELEVE avec 5+ sanctions
+  setRiskCallback((profile) => {
+    void maybeTriggerInvestigation(client, profile).catch((err) =>
+      logger.error(`[Bot] Erreur investigation autonome: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  });
+  logger.info("✓ Investigation OSINT autonome câblée au risk-engine");
+
+  // Agent IA autonome — scan de messages proactif + auto-résolution d'alertes
+  startAgentBrain(client);
+
+  // Moteur de personnalité — John Helldiver répond de façon autonome
+  startPersonalityEngine(client);
+
   // Salons vocaux temporaires
   client.on("voiceStateUpdate", (oldState, newState) => {
     void handleTempVoice(client, oldState, newState);
   });
 
-  // Initialiser DisTube (système de musique)
-  initDisTube(client);
+  // Phase 1: Removed DisTube init (music commands deleted — saves ~30MB RAM)
   logger.info("✓ Gestionnaires d'evenements initialises");
 
   // Handlers d'interactions (commandes, boutons, menus, autocomplete)
@@ -298,13 +329,14 @@ async function main(): Promise<void> {
     "Bot démarré avec succès",
     [
       "Connexion Discord établie",
-      "Commandes slash enregistrées",
+      "17 commandes root slash enregistrées (/mod, /admin, /security, /ai)",
+      "Agent IA autonome actif (REASON → ACT → OBSERVE → REPLY)",
+      "Moteur de personnalité John Helldiver actif (réponses autonomes cohérentes)",
+      "6 tools agent: analyze_image, analyze_sentiment, triggerGarbageCollection, summarize_conversation, detect_language, get_server_insights",
+      "Cache Discord ultra-agressif (0 message/presence/reaction/thread, 10 user/member)",
+      "Memory monitor: GC forcé à 300MB RSS, check toutes les 60s",
       "Système d'alertes proactive actif",
       "Système de départ invisible (stealth leave) actif",
-      "18 sous-commandes /shadow opérationnelles",
-      "Outils OSINT Python intégrés (Sherlock, Maigret, Holehe, PhoneInfoga, h8mail, instaloader, Photon, Sublist3r, socialscan, theHarvester, WhatsMyName, CMSeeK, exifread)",
-      "24 repos OSINT clonés dans D:\\osint-tools\\",
-      "README avec liens API disponible",
     ],
     0x43b581,
   );

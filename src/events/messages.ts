@@ -8,6 +8,7 @@ import {
   TextChannel,
   EmbedBuilder,
 } from "discord.js";
+import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
 import { recordSecurityEvent } from "../services/risk-engine.js";
 import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
@@ -18,6 +19,9 @@ import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
+import { handleAgentMessageScan } from "../services/agentBrain.js";
+import { handlePersonalityMessage } from "../services/personalityEngine.js";
+import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -146,7 +150,13 @@ export function handleMessageEvents(client: Client) {
 
   client.on("messageCreate", async (message) => {
     try {
-      if (!message.guild || message.author.bot) return;
+      if (message.author.bot) return;
+
+      // ── DM (Message Privé) → l'agent IA répond directement ──
+      if (!message.guild) {
+        await handleDMMessage(message, client);
+        return;
+      }
 
       // ── Détection demande d'ajout Discord ───────────────────────────
       const lowerContent = message.content.toLowerCase();
@@ -284,6 +294,20 @@ export function handleMessageEvents(client: Client) {
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
     }
+
+    // ── Agent IA autonome — scan de messages proactif ───────────────
+    try {
+      await handleAgentMessageScan(client, message);
+    } catch (agentErr) {
+      logger.warn(`[MessageEvents] AgentBrain: ${agentErr instanceof Error ? agentErr.message : String(agentErr)}`);
+    }
+
+    // ── Moteur de personnalité — réponses autonomes de John Helldiver ──
+    try {
+      await handlePersonalityMessage(client, message);
+    } catch (personalityErr) {
+      logger.debug(`[MessageEvents] Personality: ${personalityErr instanceof Error ? personalityErr.message : String(personalityErr)}`);
+    }
   });
 }
 
@@ -358,28 +382,38 @@ async function handleAiChatMention(
       message.guildId || undefined,
     );
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://discord-bot.com",
-        "X-Title": "John Helldiver - Discord Bot",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
-        messages,
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
+    // ── AGENT LOOP : Think → Act → Observe → Respond ──
+    // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
+    // puis synthétise sa réponse finale.
+    let aiResponse: string;
+    try {
+      aiResponse = await runAgentLoop(message as Message, cleanedContent);
+    } catch (loopError) {
+      // Fallback : si l'agent loop échoue (ex: modèle sans function calling),
+      // on retombe sur le simple fetch OpenRouter
+      logger.warn(`[AIChat] AgentLoop échoué, fallback simple: ${loopError instanceof Error ? loopError.message : String(loopError)}`);
+      const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://discord-bot.com",
+          "X-Title": "John Helldiver - Discord Bot",
+        },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
+          messages,
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!fallbackResponse.ok) throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`);
+      const fallbackData = (await fallbackResponse.json()) as { choices: Array<{ message: { content: string } }> };
+      aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+    }
 
-    if (!response.ok) throw new Error(`OpenRouter HTTP error: ${response.status}`);
-    const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
-
-    if (data.choices?.[0]?.message?.content) {
-      let aiResponse = data.choices[0].message.content.trim();
+    if (aiResponse) {
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
       await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
 
@@ -394,14 +428,99 @@ async function handleAiChatMention(
       // ── Maintenir la conversation active ──
       touchConversation(message.author.id);
 
-      logger.info(`[AIChat] IA -> ${message.author.tag}`);
+      // ── Extraire et sauvegarder les faits importants en mémoire long-terme ──
+      void extractAndSaveMemory(message.author.id, cleanedContent, aiResponse).catch(() => {});
+
+      logger.info(`[AIChat] Agent IA -> ${message.author.tag}`);
     } else {
-      throw new Error("OpenRouter response invalid");
+      throw new Error("Agent loop: réponse vide");
     }
   } catch (error) {
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
     await message.reply({
       content: "\u{1f985} *Static* - Communications brouill\u00e9es ! R\u00e9essaie.",
+      allowedMentions: { repliedUser: false },
+    });
+  }
+}
+
+// ── Handler pour les Messages Privés (DM) ───────────────────────────────────
+
+async function handleDMMessage(
+  message: OmitPartialGroupDMChannel<Message<boolean>>,
+  client: Client,
+): Promise<void> {
+  try {
+    const content = message.content.trim();
+    if (!content) return;
+
+    // Rate limiting sur les DMs
+    const rateLimitCheck = checkRateLimit(message.author.id, "ai_chat", undefined);
+    if (!rateLimitCheck.allowed) {
+      await message.reply({
+        content: "Tu parles trop vite ! Attends quelques secondes. 🦉",
+        allowedMentions: { repliedUser: false },
+      });
+      return;
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      await message.reply({
+        content: "Circuits non configurés ! OPENROUTER_API_KEY manquant. 🦉",
+        allowedMentions: { repliedUser: false },
+      });
+      return;
+    }
+
+    // Indicateur de frappe
+    await message.channel.sendTyping();
+
+    // Lancer l'agent loop (Think → Act → Observe → Respond)
+    // En DM, guildId est vide — les tools Discord seront limités mais les tools web/APIs fonctionnent
+    let aiResponse: string;
+    try {
+      aiResponse = await runAgentLoop(message as Message, content);
+    } catch (loopError) {
+      // Fallback simple fetch si l'agent loop échoue
+      logger.warn(`[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`);
+      const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://discord-bot.com",
+          "X-Title": "John Helldiver - Discord Bot",
+        },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
+          messages: [
+            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français, sois concis et naturel." },
+            { role: "user", content: `${message.author.username}: ${content}` },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!fallbackResponse.ok) throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`);
+      const fallbackData = (await fallbackResponse.json()) as { choices: Array<{ message: { content: string } }> };
+      aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+    }
+
+    if (aiResponse) {
+      if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
+      await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
+
+      // Sauvegarder en mémoire conversation + extraire faits long-terme
+      void extractAndSaveMemory(message.author.id, content, aiResponse).catch(() => {});
+
+      logger.info(`[DM] Agent IA -> ${message.author.tag}`);
+    }
+  } catch (error) {
+    logger.error(`[DM] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+    await message.reply({
+      content: "🦉 *Static* - Communications brouillées ! Réessaie.",
       allowedMentions: { repliedUser: false },
     });
   }

@@ -133,6 +133,11 @@ const envSchema = z.object({
   ALERT_THRESHOLD: z.string().default("30"),
   OWNER_NOTIFY_ENABLED: z.string().default("false"),
 
+  // Agent IA autonome (investigation OSINT + décision de modération)
+  // off = désactivé, advisory = décision IA mais alerte humaine requise, autonomous = exécution automatique si confiance suffisante
+  AUTONOMOUS_AGENT_MODE: z.string().default("autonomous"),
+  AUTONOMOUS_AGENT_CONFIDENCE_THRESHOLD: z.string().default("70"),
+
   // Database
   DATABASE_URL: z
     .string()

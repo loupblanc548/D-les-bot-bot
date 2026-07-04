@@ -10,6 +10,7 @@ import { handleCommand as handleCleanDuplicates } from "./clean-duplicates.js";
 import { handleCommand as handleMaintenance } from "./maintenance.js";
 import { handleCommand as handleChannelRouting } from "./channelRouting.js";
 import { handleCommand as handlePurgeContent } from "./purgeContent.js";
+import { handleCommand as handlePurgeRange } from "./purgeRange.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleAdminExtra } from "./stubHandlers.js";
 
@@ -48,6 +49,13 @@ export const commands = [
     )
     .addSubcommand((sc) => sc.setName("channel-routing").setDescription("Routage des salons"))
     .addSubcommand((sc) => sc.setName("purge-content").setDescription("Purge de contenu"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("purge-range")
+        .setDescription("Supprime tous les messages entre deux IDs (inclus)")
+        .addStringOption((o) => o.setName("de").setDescription("ID du premier message").setRequired(true))
+        .addStringOption((o) => o.setName("a").setDescription("ID du dernier message").setRequired(true)),
+    )
     .addSubcommand((sc) => sc.setName("api-status").setDescription("Statut des APIs externes"))
     .addSubcommand((sc) => sc.setName("bot-health").setDescription("Health check du bot"))
     .addSubcommand((sc) => sc.setName("healthz").setDescription("Endpoint health"))
@@ -147,6 +155,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleChannelRouting(interaction);
   } else if (action === "purge-content") {
     await handlePurgeContent(interaction);
+  } else if (action === "purge-range") {
+    await handlePurgeRange(interaction);
   } else if (EXTRA_SUBS.includes(action)) {
     await handleExtraCmd(interaction, dc);
   } else {

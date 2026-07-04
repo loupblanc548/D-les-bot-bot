@@ -121,21 +121,21 @@ export function initProactiveAlerts(client: Client): void {
     );
   });
 
-  // 7. Détection mémoire critique (toutes les 2 min)
+  // 7. Détection mémoire critique (toutes les 5 min — DM uniquement en CRITICAL)
   const _memInterval = setInterval(
     () => {
       void checkMemoryUsage();
     },
-    2 * 60 * 1000,
+    5 * 60 * 1000,
   );
   if (_memInterval.unref) _memInterval.unref();
 
-  // 8. Vérification santé périodique (toutes les 10 min)
+  // 8. Vérification santé périodique (hebdomadaire — lundi 08:00)
   const _healthInterval = setInterval(
     () => {
       void checkBotHealth();
     },
-    10 * 60 * 1000,
+    7 * 24 * 60 * 60 * 1000, // 7 jours
   );
   if (_healthInterval.unref) _healthInterval.unref();
 
@@ -181,26 +181,19 @@ async function checkMemoryUsage(): Promise<void> {
   const rssMB = memUsage.rss / (1024 * 1024);
 
   const level = getMemoryLevel(rssMB);
-  const report = formatMemoryReport(rssMB, heapUsedMB, heapTotalMB);
 
+  // DM uniquement en CRITICAL — le memoryOptimizer log déjà le reste
   if (level === "CRITICAL") {
+    const report = formatMemoryReport(rssMB, heapUsedMB, heapTotalMB);
     await sendProactiveAlert(
       "memory_critical",
       "🧠 Mémoire critique",
       `${report}\n\nLe bot consomme beaucoup de mémoire. Redémarrage recommandé.`,
       0xff3344,
-      30 * 60 * 1000, // 30 min cooldown
-    );
-  } else if (level === "WARNING") {
-    await sendProactiveAlert(
-      "memory_warning",
-      "🧠 Mémoire élevée",
-      report,
-      0xffaa00,
-      60 * 60 * 1000, // 1h cooldown
+      2 * 60 * 60 * 1000, // 2h cooldown
     );
   }
-  // OK and SURVEILLANCE: no alert sent
+  // WARNING et SURVEILLANCE: pas de DM — le memoryOptimizer s'en occupe dans les logs
 }
 
 // ─── Vérification santé bot ──────────────────────────────────────────────────

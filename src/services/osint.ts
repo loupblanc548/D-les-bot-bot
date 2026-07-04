@@ -11,10 +11,10 @@
  */
 
 import logger from "../utils/logger.js";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -440,8 +440,9 @@ export interface SherlockResult {
 
 export async function runSherlock(username: string): Promise<SherlockResult> {
   try {
-    const { stdout } = await execAsync(
-      `sherlock "${username.replace(/"/g, "")}" --timeout 8 --print-found --json`,
+    const { stdout } = await execFileAsync(
+      "sherlock",
+      [username, "--timeout", "8", "--print-found", "--json"],
       { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -497,8 +498,9 @@ export interface MaigretResult {
 
 export async function runMaigret(username: string): Promise<MaigretResult> {
   try {
-    const { stdout } = await execAsync(
-      `maigret "${username.replace(/"/g, "")}" --timeout 8 --no-color --json --filter-found`,
+    const { stdout } = await execFileAsync(
+      "maigret",
+      [username, "--timeout", "8", "--no-color", "--json", "--filter-found"],
       { timeout: 180000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -568,8 +570,9 @@ export interface HoleheResult {
 
 export async function runHolehe(email: string): Promise<HoleheResult> {
   try {
-    const { stdout } = await execAsync(
-      `holehe --only-used --no-color "${email.replace(/"/g, "")}"`,
+    const { stdout } = await execFileAsync(
+      "holehe",
+      ["--only-used", "--no-color", email],
       { timeout: 120000, maxBuffer: 5 * 1024 * 1024 },
     );
 
@@ -612,7 +615,7 @@ export interface PhoneInfogaResult {
 
 export async function runPhoneInfoga(phone: string): Promise<PhoneInfogaResult> {
   try {
-    const { stdout } = await execAsync(`phoneinfoga scan -n "${phone.replace(/"/g, "")}" --json`, {
+    const { stdout } = await execFileAsync("phoneinfoga", ["scan", "-n", phone, "--json"], {
       timeout: 30000,
       maxBuffer: 2 * 1024 * 1024,
     });
@@ -668,8 +671,9 @@ export interface WhoisResult {
 
 export async function runWhois(domain: string): Promise<WhoisResult> {
   try {
-    const { stdout } = await execAsync(
-      `python -c "import whois; w=whois.whois('${domain.replace(/'/g, "")}'); import json; print(json.dumps({k:str(v) for k,v in w.items() if v}))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import whois; w=whois.whois('${domain.replace(/'/g, "")}'); import json; print(json.dumps({k:str(v) for k,v in w.items() if v}))`],
       { timeout: 15000, maxBuffer: 1024 * 1024 },
     );
 
@@ -706,8 +710,9 @@ export interface Sublist3rResult {
 
 export async function runSublist3r(domain: string): Promise<Sublist3rResult> {
   try {
-    const { stdout } = await execAsync(
-      `python "D:\\osint-tools\\sublist3r\\sublist3r.py" -d "${domain.replace(/"/g, "")}" -j`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["D:\\osint-tools\\sublist3r\\sublist3r.py", "-d", domain, "-j"],
       { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
     );
 
@@ -735,7 +740,7 @@ export interface H8mailResult {
 
 export async function runH8mail(email: string): Promise<H8mailResult> {
   try {
-    const { stdout } = await execAsync(`h8mail -t "${email.replace(/"/g, "")}" --json`, {
+    const { stdout } = await execFileAsync("h8mail", ["-t", email, "--json"], {
       timeout: 60000,
       maxBuffer: 5 * 1024 * 1024,
     });
@@ -776,8 +781,9 @@ export interface InstagramResult {
 
 export async function runInstaloader(username: string): Promise<InstagramResult> {
   try {
-    const { stdout } = await execAsync(
-      `python -c "import instaloader; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); import json; print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import instaloader; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); import json; print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))`],
       { timeout: 30000, maxBuffer: 2 * 1024 * 1024 },
     );
 
@@ -807,8 +813,9 @@ export interface PhotonResult {
 
 export async function runPhoton(url: string): Promise<PhotonResult> {
   try {
-    const { stdout } = await execAsync(
-      `python "D:\\osint-tools\\photon\\photon.py" -u "${url.replace(/"/g, "")}" -l 3 --json`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["D:\\osint-tools\\photon\\photon.py", "-u", url, "-l", "3", "--json"],
       { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -861,8 +868,9 @@ export interface DnsResult {
 
 export async function runDnsLookup(domain: string): Promise<DnsResult> {
   try {
-    const { stdout } = await execAsync(
-      `python -c "import dns.resolver; import json; r=dns.resolver.Resolver(); results={}; [results.setdefault('A',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','A',lifetime=5)] if True else None; [results.setdefault('MX',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','MX',lifetime=5)] if True else None; [results.setdefault('TXT',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','TXT',lifetime=5)] if True else None; [results.setdefault('NS',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','NS',lifetime=5)] if True else None; print(json.dumps(results))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import dns.resolver; import json; r=dns.resolver.Resolver(); results={}; [results.setdefault('A',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','A',lifetime=5)] if True else None; [results.setdefault('MX',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','MX',lifetime=5)] if True else None; [results.setdefault('TXT',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','TXT',lifetime=5)] if True else None; [results.setdefault('NS',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','NS',lifetime=5)] if True else None; print(json.dumps(results))`],
       { timeout: 20000, maxBuffer: 1024 * 1024 },
     );
 
@@ -902,8 +910,9 @@ export interface SocialScanResult {
 
 export async function runSocialScan(query: string): Promise<SocialScanResult> {
   try {
-    const { stdout } = await execAsync(
-      `python -c "import socialscan; import json; r=socialscan.execute(['${query.replace(/'/g, "")}'], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import socialscan; import json; r=socialscan.execute(['${query.replace(/'/g, "")}'], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))`],
       { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
     );
 
@@ -941,8 +950,9 @@ export interface HarvesterResult {
 
 export async function runHarvester(domain: string): Promise<HarvesterResult> {
   try {
-    const { stdout } = await execAsync(
-      `python "D:\\osint-tools\\theharvester\\theHarvester\\__main__.py" -d "${domain.replace(/"/g, "")}" -b all -f "D:\\osint-tools\\harvester_output.json"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["D:\\osint-tools\\theharvester\\theHarvester\\__main__.py", "-d", domain, "-b", "all", "-f", "D:\\osint-tools\\harvester_output.json"],
       { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -984,8 +994,9 @@ export interface WhatsMyNameResult {
 export async function runWhatsMyName(username: string): Promise<WhatsMyNameResult> {
   try {
     // WhatsMyName utilise un fichier JSON de sources
-    const { stdout } = await execAsync(
-      `python "D:\\osint-tools\\whatsmyname\\whatsmyname.py" -u "${username.replace(/"/g, "")}" -j`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["D:\\osint-tools\\whatsmyname\\whatsmyname.py", "-u", username, "-j"],
       { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -1028,8 +1039,9 @@ export interface ExifResult {
 export async function runExifExtract(imageUrl: string): Promise<ExifResult> {
   try {
     // Télécharger l'image puis extraire les EXIF
-    const { stdout } = await execAsync(
-      `python -c "import exifread, urllib.request, io, json; f=urllib.request.urlopen('${imageUrl.replace(/'/g, "")}'); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import exifread, urllib.request, io, json; f=urllib.request.urlopen('${imageUrl.replace(/'/g, "")}'); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))`],
       { timeout: 30000, maxBuffer: 5 * 1024 * 1024 },
     );
 
@@ -1079,8 +1091,9 @@ export interface CmseekResult {
 
 export async function runCmseek(url: string): Promise<CmseekResult> {
   try {
-    const { stdout } = await execAsync(
-      `python "D:\\osint-tools\\cmseek\\cmseek.py" -u "${url.replace(/"/g, "")}" --batch`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["D:\\osint-tools\\cmseek\\cmseek.py", "-u", url, "--batch"],
       { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
     );
 
@@ -1144,8 +1157,9 @@ export interface OsintgramResult {
 export async function runOsintgram(username: string): Promise<OsintgramResult> {
   try {
     // Utiliser instaloader pour des données plus profondes
-    const { stdout } = await execAsync(
-      `python -c "import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))"`,
+    const { stdout } = await execFileAsync(
+      "python",
+      ["-c", `import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))`],
       { timeout: 45000, maxBuffer: 5 * 1024 * 1024 },
     );
 

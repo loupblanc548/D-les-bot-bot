@@ -93,14 +93,24 @@ export function startProactiveHealthCheck(client: Client, intervalMs = 30000): v
     const status = getHealthStatus(client);
     const isOk = status.ok && status.ping < 10000;
 
+    // Notifier seulement en cas de changement de statut (online ↔ offline)
     if (isOk !== lastHealthOk) {
       await notifyStatusChange(client, isOk);
       lastHealthOk = isOk;
     }
 
-    // Log health every 5 minutes
+    // Alerte mémoire si > 300MB (seuil configuré)
+    if (status.memoryMb >= 300) {
+      logger.warn(
+        `[HealthCheck] ⚠️ Memory ${status.memoryMb}MB ≥ 300MB threshold — ${status.guildCount} guilds, ${status.ping}ms`,
+      );
+    }
+
+    // Log local toutes les 5 minutes (pas de spam Discord)
     if (Math.floor(Date.now() / 1000) % 300 === 0) {
-      logger.info(`[HealthCheck] OK — ${status.guildCount} guilds, ${status.ping}ms, ${status.memoryMb}MB`);
+      logger.info(
+        `[HealthCheck] OK — ${status.guildCount} guilds, ${status.ping}ms, ${status.memoryMb}MB. No alert sent.`,
+      );
     }
   }, intervalMs);
 

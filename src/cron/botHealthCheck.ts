@@ -13,10 +13,11 @@ import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memo
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const LATENCY_THRESHOLD_MS = 500; // alerte si > 500ms
+const MEMORY_ALERT_THRESHOLD_MB = 300; // alerte si RSS > 300MB
 
 let intervalId: NodeJS.Timeout | null = null;
 let lastAlertTime = 0;
-const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 min entre alertes
+const ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2h entre alertes
 
 export function startBotHealthCheck(client: Client): void {
   if (intervalId) {
@@ -39,9 +40,9 @@ export function startBotHealthCheck(client: Client): void {
 
         const issues: string[] = [];
         const memLevel = getMemoryLevel(rssMB);
-        if (memLevel === "WARNING" || memLevel === "CRITICAL")
+        if (rssMB >= MEMORY_ALERT_THRESHOLD_MB)
           issues.push(
-            `⚠️ Memory: ${heapMB}MB (seuil GC: ${MEMORY_CONFIG.GC_THRESHOLD_MB}MB, niveau: ${memLevel})`,
+            `⚠️ Memory: ${heapMB}MB heap / ${rssMB}MB RSS (seuil alerte: ${MEMORY_ALERT_THRESHOLD_MB}MB, niveau: ${memLevel})`,
           );
         if (ping > LATENCY_THRESHOLD_MS)
           issues.push(`⚠️ Latence: ${ping}ms (seuil: ${LATENCY_THRESHOLD_MS}ms)`);
@@ -54,13 +55,13 @@ export function startBotHealthCheck(client: Client): void {
             const channel = await client.channels.fetch(logChannelId);
             if (channel?.isTextBased()) {
               const embed = new EmbedBuilder()
-                .setTitle("🩺 Bot Health Check")
-                .setColor(memLevel === "CRITICAL" ? 0xff3344 : 0xff9900)
+                .setTitle("🩺 Bot Health Check — Alerte")
+                .setColor(rssMB >= MEMORY_ALERT_THRESHOLD_MB ? 0xff3344 : 0xff9900)
                 .setDescription(issues.join("\n"))
                 .addFields(
                   {
                     name: "Memory",
-                    value: `${heapMB}MB / ${MEMORY_CONFIG.V8_HEAP_LIMIT_MB}MB`,
+                    value: `${heapMB}MB heap / ${rssMB}MB RSS (seuil: ${MEMORY_ALERT_THRESHOLD_MB}MB)`,
                     inline: true,
                   },
                   { name: "Latence", value: `${ping}ms`, inline: true },
@@ -68,17 +69,17 @@ export function startBotHealthCheck(client: Client): void {
                   { name: "Serveurs", value: `${guildCount}`, inline: true },
                 )
                 .setTimestamp()
-                .setFooter({ text: "Monitoring automatique" });
+                .setFooter({ text: "Monitoring automatique — alerte seule" });
               await (channel as TextChannel).send({ embeds: [embed] });
             }
           }
           logger.warn(`[BotHealth] Alerte: ${issues.join(", ")}`);
+        } else {
+          // Tout va bien — log local uniquement, pas de spam Discord
+          logger.info(
+            `[BotHealth] OK — ${heapMB}MB heap / ${rssMB}MB RSS, ${ping}ms, ${guildCount} guilds, ${Math.round(uptime / 60)}min uptime. No alert sent.`,
+          );
         }
-
-        // Log debug périodique
-        logger.debug(
-          `[BotHealth] OK — ${heapMB}MB, ${ping}ms, ${guildCount} guilds, ${Math.round(uptime / 60)}min uptime`,
-        );
       } catch (error) {
         logger.error("[BotHealth] Erreur:", error);
       }

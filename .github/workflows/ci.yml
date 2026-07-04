@@ -39,15 +39,12 @@ jobs:
 
       - name: ✨ Vérifier le formatage (Prettier)
         run: npm run format:check
-        continue-on-error: true
 
       - name: 🔍 Linter (ESLint)
         run: npm run lint
-        continue-on-error: true
 
       - name: 🔎 TypeScript check
         run: npx tsc --noEmit
 
       - name: 🧪 Tests unitaires
         run: npx vitest run --reporter=verbose
-        continue-on-error: true

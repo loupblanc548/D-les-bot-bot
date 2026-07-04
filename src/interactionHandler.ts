@@ -31,7 +31,23 @@ export function attachInteractionHandlers(client: Client): void {
     const handler = commandRouter[interaction.commandName];
     if (handler) {
       try {
+        // Defer reply on ALL slash commands to prevent Discord 3s timeout
+        if (!interaction.deferred && !interaction.replied) {
+          await interaction.deferReply().catch(() => {});
+        }
+
+        // Timeout fallback: if handler doesn't complete in 15s, send a message
+        const timeout = setTimeout(() => {
+          if (!interaction.replied && !interaction.deferred) return;
+          if (interaction.deferred && !interaction.replied) {
+            interaction.editReply({
+              content: "⏱️ La commande prend plus de temps que prévu. Réessaie dans un instant.",
+            }).catch(() => {});
+          }
+        }, 15_000);
+
         await handler(interaction, client);
+        clearTimeout(timeout);
       } catch (error) {
         logger.error(
           `Erreur commande /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`,
@@ -47,6 +63,13 @@ export function attachInteractionHandlers(client: Client): void {
           flags: [MessageFlags.Ephemeral],
         }).catch(() => {});
       }
+    } else {
+      // Commande non trouvée — probablement une ancienne commande standalone migrée en sous-commande
+      logger.warn(`[Interaction] Commande /${interaction.commandName} non trouvée dans le router`);
+      await interaction.reply({
+        content: `⚠️ La commande \`/${interaction.commandName}\` n'existe plus. Elle a été regroupée — essaie \`/bot help\` pour voir les commandes disponibles.`,
+        flags: [MessageFlags.Ephemeral],
+      }).catch(() => {});
     }
   });
 

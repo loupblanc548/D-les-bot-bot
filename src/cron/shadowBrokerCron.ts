@@ -2,9 +2,9 @@
  * shadowBrokerCron.ts — Cron Shadow Broker
  *
  * Envoie automatiquement au propriétaire (en DM) :
- *  1. Rapport d'intelligence périodique (toutes les 6h)
- *  2. Alertes temps réel sur événements suspects
- *  3. Résumé quotidien complet (à 22:00)
+ *  1. Rapport d'intelligence périodique (toutes les semaines — lundi 10:00)
+ *  2. Alertes temps réel sur événements suspects (toutes les 5 min)
+ *  3. Résumé hebdomadaire complet (vendredi 22:00)
  *
  * Toutes les stats "Intelligence serveur" sont envoyées en DM.
  */
@@ -31,7 +31,7 @@ function alertHash(type: string, userId: string): string {
   return `${type}:${userId}`;
 }
 
-// ─── Rapport périodique (toutes les 6h) ──────────────────────────────────────
+// ─── Rapport périodique (hebdomadaire — lundi 10:00) ─────────────────────────
 
 async function sendPeriodicReport(client: Client): Promise<void> {
   try {
@@ -121,7 +121,7 @@ async function sendPeriodicReport(client: Client): Promise<void> {
   }
 }
 
-// ─── Résumé quotidien complet (22:00) ────────────────────────────────────────
+// ─── Résumé hebdomadaire complet (vendredi 22:00) ────────────────────────────
 
 async function sendDailySummary(client: Client): Promise<void> {
   try {
@@ -301,15 +301,15 @@ async function checkRealTimeAlerts(client: Client): Promise<void> {
 // ─── Démarrage ───────────────────────────────────────────────────────────────
 
 export function startShadowBrokerCron(client: Client): void {
-  // Rapport périodique toutes les 6h
-  reportCron = cron.schedule("0 */6 * * *", () => {
-    logger.info("[ShadowBrokerCron] Génération rapport périodique...");
+  // Rapport périodique hebdomadaire — lundi 10:00
+  reportCron = cron.schedule("0 10 * * 1", () => {
+    logger.info("[ShadowBrokerCron] Génération rapport hebdomadaire...");
     void sendPeriodicReport(client);
   });
 
-  // Résumé quotidien à 22:00
-  dailyCron = cron.schedule("0 22 * * *", () => {
-    logger.info("[ShadowBrokerCron] Génération résumé quotidien...");
+  // Résumé hebdomadaire — vendredi 22:00
+  dailyCron = cron.schedule("0 22 * * 5", () => {
+    logger.info("[ShadowBrokerCron] Génération résumé hebdomadaire...");
     void sendDailySummary(client);
   });
 
@@ -323,7 +323,7 @@ export function startShadowBrokerCron(client: Client): void {
   if (alertInterval.unref) alertInterval.unref();
 
   logger.info(
-    "[ShadowBrokerCron] Crons démarrés: rapport (6h), résumé quotidien (22:00), alertes temps réel (5min)",
+    "[ShadowBrokerCron] Crons démarrés: rapport hebdo (lun 10:00), résumé hebdo (ven 22:00), alertes temps réel (5min)",
   );
 }
 
