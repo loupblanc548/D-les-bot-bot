@@ -208,10 +208,18 @@ export async function dispatchToChannels(
   // Construire l'embed pour chaque plateforme et envoyer
   for (const channelId of article.channelIds) {
     try {
-      const channel = await client.channels.fetch(channelId);
+      let channel;
+      try {
+        channel = await client.channels.fetch(channelId);
+      } catch {
+        // Channel deleted or bot lacks access — skip silently with warning
+        result.errors.push(`Channel ${channelId} introuvable (supprimé ou inaccessible)`);
+        logger.warn(`[ChannelRouter] Channel ${channelId} introuvable — ignoré`);
+        continue;
+      }
       if (!channel || !channel.isTextBased()) {
         result.errors.push(`Channel ${channelId} introuvable ou non textuel`);
-        logger.error(`[ChannelRouter] Channel invalide: ${channelId}`);
+        logger.warn(`[ChannelRouter] Channel invalide: ${channelId}`);
         continue;
       }
 
