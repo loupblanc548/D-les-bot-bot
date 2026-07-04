@@ -13,7 +13,7 @@
  * Zero heavy third-party packages.
  */
 
-import { ChannelType, PermissionFlagsBits } from "discord.js";
+import { ChannelType } from "discord.js";
 import { createHash } from "crypto";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -596,7 +596,7 @@ async function tDetectTyposquatting(args: Record<string, unknown>): Promise<Tool
     const hasSuspiciousTLD = suspiciousTLDs.some((tld) => domain.endsWith(tld));
 
     // Check for IDN homograph (non-ASCII chars in domain)
-    const hasIDN = /[^\x00-\x7F]/.test(domain);
+    const hasIDN = /[^\u0000-\u007F]/.test(domain);
 
     const isTyposquat = matches.length > 0 || (hasSuspiciousTLD && domain.length < 15);
 

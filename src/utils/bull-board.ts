@@ -32,7 +32,7 @@ export function startBullBoard(port = parseInt(process.env.BULL_BOARD_PORT || "3
       new BullMQAdapter(notificationQueue),
       new BullMQAdapter(reminderQueue),
     ],
-    serverAdapter,
+    serverAdapter: serverAdapter as unknown as Parameters<typeof createBullBoard>[0]["serverAdapter"],
   });
 
   app.use("/admin/queues", serverAdapter.getRouter());

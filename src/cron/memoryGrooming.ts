@@ -7,7 +7,7 @@
  * et générer un résumé condensé du profil sémantique de chaque utilisateur actif.
  */
 
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import { Client } from "discord.js";
 import * as Sentry from "@sentry/node";
 import prisma from "../prisma.js";
@@ -42,7 +42,7 @@ interface ConsolidationPlan {
   linksToMerge: Array<{ keepId: string; removeIds: string[] }>;
 }
 
-let cronJob: cron.ScheduledTask | null = null;
+let cronJob: ScheduledTask | null = null;
 
 /**
  * Récupère les utilisateurs actifs dans les dernières 24h.
