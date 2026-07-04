@@ -9,7 +9,7 @@
  * via cron (configurable, défaut: 18h00 chaque jour).
  */
 
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import {
   Client,
   Guild,
@@ -45,7 +45,7 @@ const TTS_DIR = join(tmpdir(), "bot-radio");
 const JINGLE_PATH = join(__dirname, "..", "..", "assets", "sounds", "jingle.mp3");
 const RADIO_CHANNEL_ENV = "RADIO_VOICE_CHANNEL_ID";
 
-let cronJob: cron.ScheduledTask | null = null;
+let cronJob: ScheduledTask | null = null;
 
 interface GamingData {
   freeGames: string[];
