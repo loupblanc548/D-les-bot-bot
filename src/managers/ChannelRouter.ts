@@ -161,6 +161,8 @@ export function buildPlatformEmbed(
 
   if (article.image) {
     embed.setImage(article.image);
+  } else {
+    embed.setImage("https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f3ae.png");
   }
 
   embed.setFooter({
