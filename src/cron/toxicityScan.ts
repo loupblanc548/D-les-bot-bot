@@ -16,8 +16,8 @@ import * as Sentry from "@sentry/node";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
-const SCAN_CRON_EXPRESSION = "0 22 * * *"; // 22h00 tous les jours
-const HOURS_WINDOW = 24;
+const SCAN_CRON_EXPRESSION = "0 22 * * 1"; // 22h00 tous les lundis — hebdomadaire
+const HOURS_WINDOW = 168; // 7 jours
 const MAX_CHANNELS = 15;
 const MAX_MESSAGES_PER_CHANNEL = 200;
 

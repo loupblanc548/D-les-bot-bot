@@ -11,12 +11,14 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 
-const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — check interne
+const WEEKLY_REPORT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours — rapport Discord
 const LATENCY_THRESHOLD_MS = 500; // alerte si > 500ms
-const MEMORY_ALERT_THRESHOLD_MB = 450; // alerte si RSS > 450MB (matches GC_THRESHOLD)
+const MEMORY_ALERT_THRESHOLD_MB = 400; // alerte si RSS > 400MB (matches GC_THRESHOLD)
 
 let intervalId: NodeJS.Timeout | null = null;
 let lastAlertTime = 0;
+let lastWeeklyReportTime = 0;
 const ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2h entre alertes
 
 export function startBotHealthCheck(client: Client): void {
@@ -74,6 +76,29 @@ export function startBotHealthCheck(client: Client): void {
             }
           }
           logger.warn(`[BotHealth] Alerte: ${issues.join(", ")}`);
+        } else if (Date.now() - lastWeeklyReportTime > WEEKLY_REPORT_INTERVAL_MS) {
+          // Rapport hebdomadaire — tout va bien, résumé de santé
+          lastWeeklyReportTime = Date.now();
+          const logChannelId = config.logChannel;
+          if (logChannelId) {
+            const channel = await client.channels.fetch(logChannelId);
+            if (channel?.isTextBased()) {
+              const embed = new EmbedBuilder()
+                .setTitle("🩺 Bot Health Check — Rapport hebdomadaire")
+                .setColor(0x00aa44)
+                .setDescription("✅ Tout va bien — résumé de la semaine")
+                .addFields(
+                  { name: "Memory", value: `${heapMB}MB heap / ${rssMB}MB RSS`, inline: true },
+                  { name: "Latence", value: `${ping}ms`, inline: true },
+                  { name: "Uptime", value: `${Math.round(uptime / 3600)}h`, inline: true },
+                  { name: "Serveurs", value: `${guildCount}`, inline: true },
+                )
+                .setTimestamp()
+                .setFooter({ text: "Monitoring automatique — rapport hebdomadaire" });
+              await (channel as TextChannel).send({ embeds: [embed] });
+            }
+          }
+          logger.info(`[BotHealth] Rapport hebdomadaire envoyé — OK`);
         } else {
           // Tout va bien — log local uniquement, pas de spam Discord
           logger.info(

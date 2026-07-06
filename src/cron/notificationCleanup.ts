@@ -58,12 +58,12 @@ export function startNotificationCleanup(_client: Client): void {
     return;
   }
 
-  // Tous les jours à 4h00 du matin
-  cronJob = cron.schedule("0 4 * * *", () => {
+  // Tous les lundis à 4h00 du matin — une fois par semaine
+  cronJob = cron.schedule("0 4 * * 1", () => {
     runNotificationCleanup().catch((err) => logger.error("[Cleanup] Erreur cron:", err));
   });
 
-  logger.info("[Cleanup] Purge automatique planifiée (quotidienne à 04:00)");
+  logger.info("[Cleanup] Purge automatique planifiée (hebdomadaire, lundi 04:00)");
 }
 
 export function stopNotificationCleanup(): void {

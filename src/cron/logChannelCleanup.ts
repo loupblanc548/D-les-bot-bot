@@ -74,14 +74,14 @@ export function startLogChannelCleanup(client: Client): void {
     return;
   }
 
-  cronJob = cron.schedule("0 */6 * * *", () => {
+  cronJob = cron.schedule("0 5 * * 1", () => {
     void runLogChannelCleanup(client);
   });
 
   // Premier run après 2 min
   setTimeout(() => void runLogChannelCleanup(client), 2 * 60 * 1000);
 
-  logger.info(`[LogCleanup] Nettoyage du salon de log programmé (toutes les 6h, messages > ${RETENTION_HOURS}h supprimés)`);
+  logger.info(`[LogCleanup] Nettoyage du salon de log programmé (hebdomadaire, lundi 05:00, messages > ${RETENTION_HOURS}h supprimés)`);
 }
 
 export function stopLogChannelCleanup(): void {
