@@ -8,7 +8,7 @@ import { syncBackupsToCloud } from "../../utils/rcloneSync.js";
 const execFileAsync = promisify(execFile);
 
 const BACKUP_DIR = join(process.cwd(), "backups");
-const BACKUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
+const BACKUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 jours — hebdomadaire
 const MAX_BACKUPS = 7; // Garder 7 jours de backups
 
 interface BackupStats {

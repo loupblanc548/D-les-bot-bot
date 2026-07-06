@@ -3,19 +3,17 @@ import logger from "../../utils/logger.js";
 import prisma from "../../prisma.js";
 import { ensureConnected } from "../../utils/redisClient.js";
 
-const DIAGNOSTIC_INTERVAL = 24 * 60 * 60 * 1000; // 24 heures
+const DIAGNOSTIC_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 jours — hebdomadaire
 
 export function startSystemDiagnostic(client: Client): void {
-  logger.info("[SystemDiagnostic] Starting daily system diagnostic");
+  logger.info("[SystemDiagnostic] Starting weekly system diagnostic");
 
   const _diagInterval = setInterval(async () => {
     await runDiagnostic(client);
   }, DIAGNOSTIC_INTERVAL);
   if (_diagInterval.unref) _diagInterval.unref();
 
-  setTimeout(async () => {
-    await runDiagnostic(client);
-  }, 5000);
+  // Pas de run au démarrage — seulement hebdomadaire
 }
 
 async function runDiagnostic(client: Client): Promise<void> {
