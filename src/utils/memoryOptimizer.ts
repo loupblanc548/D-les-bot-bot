@@ -11,7 +11,6 @@ export function startMemoryOptimizer(): NodeJS.Timeout {
     const rssMB = Math.round(mem.rss / MB);
     const level = getMemoryLevel(rssMB);
 
-    // Log status only when worth it (SURVEILLANCE+)
     if (level !== "OK") {
       logger.info(
         `[Memory] RSS: ${rssMB}MB | Heap: ${heapUsedMB}/${heapTotalMB}MB | Level: ${level}`,
@@ -20,7 +19,7 @@ export function startMemoryOptimizer(): NodeJS.Timeout {
 
     if (rssMB > MEMORY_CONFIG.GC_THRESHOLD_MB) {
       logger.warn(
-        `[Memory] ⚠️ RSS ${rssMB}MB > seuil ${MEMORY_CONFIG.GC_THRESHOLD_MB}MB — forçage GC`,
+        `[Memory] ⚠️ RSS ${rssMB}MB > seuil ${MEMORY_CONFIG.GC_THRESHOLD_MB}MB — forçage GC + purge caches`,
       );
 
       if (global.gc) {
@@ -33,6 +32,16 @@ export function startMemoryOptimizer(): NodeJS.Timeout {
         logger.info(
           `[Memory] ✅ GC forcé — RSS: ${rssMB}MB→${afterRSS}MB (-${savedRSS}MB) | Heap: ${heapUsedMB}MB→${afterHeap}MB (-${savedHeap}MB)`,
         );
+
+        if (afterRSS > MEMORY_CONFIG.CRITICAL_THRESHOLD_MB) {
+          logger.error(
+            `[Memory] 🚨 RSS ${afterRSS}MB > CRITICAL ${MEMORY_CONFIG.CRITICAL_THRESHOLD_MB}MB — purge agressive déclenchée`,
+          );
+          purgeAllCaches();
+          global.gc();
+          const finalRSS = Math.round(process.memoryUsage().rss / MB);
+          logger.info(`[Memory] Post-purge RSS: ${finalRSS}MB`);
+        }
       } else {
         logger.warn(
           `[Memory] ❌ GC non disponible — relancer avec --expose-gc pour activer le forçage`,
@@ -43,4 +52,23 @@ export function startMemoryOptimizer(): NodeJS.Timeout {
 
   if (interval.unref) interval.unref();
   return interval;
+}
+
+async function purgeAllCaches(): Promise<void> {
+  try {
+    const { dedupCache } = await import("./deduplicationCache.js");
+    dedupCache.clearMemory?.();
+  } catch {}
+
+  try {
+    const mod = await import("./image-helpers.js");
+    mod.clearAllCaches?.();
+  } catch {}
+
+  try {
+    const mod = await import("./image-fallback.js");
+    mod.clearImageCache?.();
+  } catch {}
+
+  logger.info("[Memory] Caches purgés (dedup, images, fallback)");
 }

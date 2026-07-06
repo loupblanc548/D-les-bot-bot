@@ -22,7 +22,7 @@ RUN apk add --no-cache dumb-init chromium openssl libc6-compat
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=448
+ENV NODE_OPTIONS=--max-old-space-size=384
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV CHROMIUM_PATH=/usr/bin/chromium-browser
 
