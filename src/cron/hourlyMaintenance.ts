@@ -1,10 +1,11 @@
 import cron from "node-cron";
-import { Client, EmbedBuilder, TextChannel, ChannelType } from "discord.js";
+import { Client, EmbedBuilder, TextChannel, ChannelType, DMChannel } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
-const FOOTER = { text: "Maintenance Hebdomadaire • Iskan Auto-Clean" };
+const FOOTER = { text: "Maintenance Bi-hebdomadaire • Iskan Auto-Clean" };
+const MESSAGE_RETENTION_DAYS = 14; // Supprimer les anciens rapports après 2 semaines
 
 // Lock anti-concurrence
 let isRunning = false;
@@ -27,9 +28,9 @@ async function leaveAllVoiceChannels(client: Client): Promise<number> {
     try {
       await me.voice.disconnect("Maintenance horaire automatique");
       leftCount++;
-      logger.info(`[WeeklyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`);
+      logger.info(`[BiWeeklyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`);
     } catch (err) {
-      logger.error(`[WeeklyMaint] Erreur déconnexion vocale ${guild.name}:`, String(err));
+      logger.error(`[BiWeeklyMaint] Erreur déconnexion vocale ${guild.name}:`, String(err));
     }
   }
   return leftCount;
@@ -110,7 +111,7 @@ async function deleteDuplicateMessages(
 
           if (recentMsgs.length > 1) {
             await textChannel.bulkDelete(recentMsgs).catch((err) => {
-              logger.error(`[WeeklyMaint] Erreur bulkDelete ${textChannel.name}:`, String(err));
+              logger.error(`[BiWeeklyMaint] Erreur bulkDelete ${textChannel.name}:`, String(err));
             });
             totalDeleted += recentMsgs.length;
           } else {
@@ -133,12 +134,54 @@ async function deleteDuplicateMessages(
           }
         }
       } catch (err) {
-        logger.error(`[WeeklyMaint] Erreur scan ${textChannel.name}:`, String(err));
+        logger.error(`[BiWeeklyMaint] Erreur scan ${textChannel.name}:`, String(err));
       }
     }
   }
 
   return { channel: String(channelsScanned), deleted: totalDeleted };
+}
+
+// Supprime les messages du bot contenant certains mots-clés et plus anciens que N jours
+// Fonctionne sur les DMs et les salons textuels
+async function deleteOldBotMessages(
+  channel: TextChannel | DMChannel,
+  retentionDays: number,
+  titleKeywords: string[],
+): Promise<void> {
+  try {
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const toDelete = messages.filter((msg) => {
+      if (!msg.author.bot) return false;
+      if (msg.createdTimestamp > cutoff) return false;
+      const hasKeyword = msg.embeds.some((e) =>
+        e.data.title && titleKeywords.some((kw) => e.data.title?.includes(kw)),
+      );
+      return hasKeyword;
+    });
+
+    if (toDelete.size === 0) return;
+
+    // bulkDelete fonctionne pour < 14 jours, sinon suppression individuelle
+    const recent = toDelete.filter((m) => Date.now() - m.createdTimestamp < 14 * 24 * 60 * 60 * 1000);
+    const old = toDelete.filter((m) => Date.now() - m.createdTimestamp >= 14 * 24 * 60 * 60 * 1000);
+
+    if (channel instanceof TextChannel && recent.size > 1) {
+      await channel.bulkDelete(recent).catch(() => {});
+    } else {
+      for (const msg of recent.values()) {
+        await msg.delete().catch(() => {});
+      }
+    }
+    for (const msg of old.values()) {
+      await msg.delete().catch(() => {});
+    }
+
+    logger.info(`[BiWeeklyMaint] ${toDelete.size} ancien(s) rapport(s) supprimé(s) (${channel instanceof DMChannel ? "DM" : `#${(channel as TextChannel).name}`})`);
+  } catch (err) {
+    logger.debug(`[BiWeeklyMaint] Erreur suppression anciens messages: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // Envoie un rapport Discord UNIQUEMENT si une action a été effectuée.
@@ -153,7 +196,7 @@ async function sendReport(
 
   // Log local dans tous les cas
   logger.info(
-    `[WeeklyMaint] Rapport — voix: ${voiceLeft}, doublons: ${duplicates.deleted} (${duplicates.channel} salons), notifs: ${oldNotifsCleaned}` +
+    `[BiWeeklyMaint] Rapport — voix: ${voiceLeft}, doublons: ${duplicates.deleted} (${duplicates.channel} salons), notifs: ${oldNotifsCleaned}` +
       (hasAction ? "" : " — tout OK, pas d'alerte Discord"),
   );
 
@@ -161,7 +204,7 @@ async function sendReport(
   if (!hasAction) return;
 
   const embed = new EmbedBuilder()
-    .setTitle("🧹 Maintenance Hebdomadaire — Rapport")
+    .setTitle("🧹 Maintenance Bi-hebdomadaire — Rapport")
     .setColor(0x3498db)
     .setFooter(FOOTER)
     .setTimestamp()
@@ -188,22 +231,28 @@ async function sendReport(
       },
     );
 
-  // DM à l'owner
+  // DM à l'owner — nettoyer les anciens puis envoyer
   if (config.ownerId) {
     const owner = await client.users.fetch(config.ownerId).catch(() => null);
     if (owner) {
+      await deleteOldBotMessages(owner.dmChannel ?? await owner.createDM(), MESSAGE_RETENTION_DAYS, [
+        "Maintenance", "Bot Health Check",
+      ]);
       await owner.send({ embeds: [embed] }).catch(() => {
-        logger.warn("[WeeklyMaint] Impossible de DM l'owner");
+        logger.warn("[BiWeeklyMaint] Impossible de DM l'owner");
       });
     }
   }
 
-  // Salon de log
+  // Salon de log — nettoyer les anciens puis envoyer
   if (config.logChannel) {
     const logChannel = await client.channels.fetch(config.logChannel).catch(() => null);
     if (logChannel && logChannel.type === ChannelType.GuildText) {
+      await deleteOldBotMessages(logChannel as TextChannel, MESSAGE_RETENTION_DAYS, [
+        "Maintenance", "Bot Health Check",
+      ]);
       await (logChannel as TextChannel).send({ embeds: [embed] }).catch(() => {
-        logger.warn("[WeeklyMaint] Impossible d'envoyer dans le salon de log");
+        logger.warn("[BiWeeklyMaint] Impossible d'envoyer dans le salon de log");
       });
     }
   }
@@ -211,43 +260,43 @@ async function sendReport(
 
 async function runHourlyMaintenance(client: Client): Promise<void> {
   if (isRunning) {
-    logger.warn("[WeeklyMaint] Déjà en cours, skip");
+    logger.warn("[BiWeeklyMaint] Déjà en cours, skip");
     return;
   }
   isRunning = true;
-  logger.info("[WeeklyMaint] Démarrage de la maintenance hebdomadaire...");
+  logger.info("[BiWeeklyMaint] Démarrage de la maintenance bi-hebdomadaire...");
 
   try {
     // 1. Nettoyer les anciens enregistrements NotifiedMessage
     const oldNotifsCleaned = await cleanupOldNotifiedMessages();
-    logger.info(`[WeeklyMaint] ${oldNotifsCleaned} anciens enregistrements nettoyés`);
+    logger.info(`[BiWeeklyMaint] ${oldNotifsCleaned} anciens enregistrements nettoyés`);
 
     // 2. Quitter tous les salons vocaux
     const voiceLeft = await leaveAllVoiceChannels(client);
-    logger.info(`[WeeklyMaint] ${voiceLeft} salon(s) vocal(aux) quitté(s)`);
+    logger.info(`[BiWeeklyMaint] ${voiceLeft} salon(s) vocal(aux) quitté(s)`);
 
     // 3. Supprimer les doublons dans les salons textuels
     const duplicates = await deleteDuplicateMessages(client);
     logger.info(
-      `[WeeklyMaint] ${duplicates.channel} salons scannés, ${duplicates.deleted} doublons supprimés`,
+      `[BiWeeklyMaint] ${duplicates.channel} salons scannés, ${duplicates.deleted} doublons supprimés`,
     );
 
     // 4. Envoyer le rapport (DM owner + salon de log)
     await sendReport(client, voiceLeft, duplicates, oldNotifsCleaned);
 
-    logger.info("[WeeklyMaint] Maintenance hebdomadaire terminée");
+    logger.info("[BiWeeklyMaint] Maintenance bi-hebdomadaire terminée");
   } catch (err) {
-    logger.error("[WeeklyMaint] Erreur:", String(err));
+    logger.error("[BiWeeklyMaint] Erreur:", String(err));
   } finally {
     isRunning = false;
   }
 }
 
 export function startHourlyMaintenance(client: Client): void {
-  // Tous les lundis à 4h00 du matin — une fois par semaine
-  cron.schedule("0 4 * * 1", () => {
+  // Les 1er et 15 du mois à 4h00 — toutes les 2 semaines
+  cron.schedule("0 4 1,15 * *", () => {
     void runHourlyMaintenance(client);
   });
 
-  logger.info("[WeeklyMaint] Cron maintenance démarré (tous les lundis à 4h00)");
+  logger.info("[BiWeeklyMaint] Cron maintenance démarré (1er et 15 du mois à 04:00)");
 }
