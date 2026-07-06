@@ -139,6 +139,18 @@ vi.mock("./services/price-alerts", () => ({ startPriceAlertsMonitoring: vi.fn() 
 vi.mock("./services/game-updates", () => ({ startGameUpdatesMonitoring: vi.fn() }));
 vi.mock("./services/reportScheduler", () => ({ startReportScheduler: vi.fn() }));
 vi.mock("./utils/smart-alerts", () => ({ enableSmartAlerts: vi.fn() }));
+vi.mock("./services/tiktokAlerts", () => ({ startTikTokMonitoring: vi.fn() }));
+vi.mock("./services/kickAlerts", () => ({ startKickMonitoring: vi.fn() }));
+vi.mock("./services/vodNotifications", () => ({ startVodMonitoring: vi.fn() }));
+vi.mock("./services/clipForwarding", () => ({ startClipForwarding: vi.fn() }));
+vi.mock("./services/scheduledMessages", () => ({ startScheduledMessages: vi.fn() }));
+vi.mock("./services/onboardingFlow", () => ({ startOnboardingFlow: vi.fn() }));
+vi.mock("./services/reactionRoles", () => ({ startReactionRoles: vi.fn() }));
+vi.mock("./services/ticketSystem", () => ({ startTicketSystem: vi.fn() }));
+vi.mock("./services/faqAutoResponder", () => ({ startFaqAutoResponder: vi.fn() }));
+vi.mock("./services/creatorRoleSync", () => ({ startCreatorRoleSync: vi.fn() }));
+vi.mock("./services/rateLimitDashboard", () => ({ startRateLimitDashboard: vi.fn() }));
+vi.mock("./services/commandAnalytics", () => ({ startCommandAnalytics: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";

@@ -30,6 +30,16 @@ enum Platform {
   humble_bundle
   green_man_gaming
   xbox_game_pass
+  tiktok
+  kick
+  vods
+  clips
+  scheduled
+  tickets
+  onboarding
+  reaction_roles
+  polls
+  faq
 }
 
 enum SanctionType {

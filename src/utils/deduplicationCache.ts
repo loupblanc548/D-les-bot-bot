@@ -25,7 +25,17 @@ export type PlatformKey =
   | "free_games"
   | "patch_notes"
   | "game_updates"
-  | "blogs";
+  | "blogs"
+  | "tiktok"
+  | "kick"
+  | "vods"
+  | "clips"
+  | "scheduled"
+  | "tickets"
+  | "onboarding"
+  | "reaction_roles"
+  | "polls"
+  | "faq";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
@@ -44,6 +54,16 @@ const ALL_PLATFORMS: PlatformKey[] = [
   "patch_notes",
   "game_updates",
   "blogs",
+  "tiktok",
+  "kick",
+  "vods",
+  "clips",
+  "scheduled",
+  "tickets",
+  "onboarding",
+  "reaction_roles",
+  "polls",
+  "faq",
 ];
 
 // ─── Cache Singleton ────────────────────────────────────────────────────────

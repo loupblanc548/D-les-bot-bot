@@ -67,6 +67,18 @@ import { startPriceAlertsMonitoring } from "./services/price-alerts.js";
 import { startGameUpdatesMonitoring } from "./services/game-updates.js";
 import { startReportScheduler } from "./services/reportScheduler.js";
 import { enableSmartAlerts } from "./utils/smart-alerts.js";
+import { startTikTokMonitoring } from "./services/tiktokAlerts.js";
+import { startKickMonitoring } from "./services/kickAlerts.js";
+import { startVodMonitoring } from "./services/vodNotifications.js";
+import { startClipForwarding } from "./services/clipForwarding.js";
+import { startScheduledMessages } from "./services/scheduledMessages.js";
+import { startOnboardingFlow } from "./services/onboardingFlow.js";
+import { startReactionRoles } from "./services/reactionRoles.js";
+import { startTicketSystem } from "./services/ticketSystem.js";
+import { startFaqAutoResponder } from "./services/faqAutoResponder.js";
+import { startCreatorRoleSync } from "./services/creatorRoleSync.js";
+import { startRateLimitDashboard } from "./services/rateLimitDashboard.js";
+import { startCommandAnalytics } from "./services/commandAnalytics.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -276,6 +288,18 @@ export function attachStartupLogic(
       () => startGameUpdatesMonitoring(client),
       () => startReportScheduler(client),
       () => enableSmartAlerts(client),
+      () => startTikTokMonitoring(client),
+      () => startKickMonitoring(client),
+      () => startVodMonitoring(client),
+      () => startClipForwarding(client),
+      () => startScheduledMessages(client),
+      () => startOnboardingFlow(client),
+      () => startReactionRoles(client),
+      () => startTicketSystem(client),
+      () => startFaqAutoResponder(client),
+      () => startCreatorRoleSync(client),
+      () => startRateLimitDashboard(client),
+      () => startCommandAnalytics(client),
     ];
     for (const start of services) {
       try {
