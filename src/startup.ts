@@ -61,6 +61,12 @@ import { startLogRetention } from "./cron/logRetention.js";
 import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
 import { startLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { startBrokenImageCleanup } from "./cron/brokenImageCleanup.js";
+import { startSecurityIntegration } from "./services/securityIntegration.js";
+import { initHoneypotMonitoring } from "./services/cyberDefense.js";
+import { startPriceAlertsMonitoring } from "./services/price-alerts.js";
+import { startGameUpdatesMonitoring } from "./services/game-updates.js";
+import { startReportScheduler } from "./services/reportScheduler.js";
+import { enableSmartAlerts } from "./utils/smart-alerts.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -264,6 +270,12 @@ export function attachStartupLogic(
       () => attachDramaPrediction(client),
       () => startToxicityScanCron(client),
       () => startLogRetention(),
+      () => startSecurityIntegration(client),
+      () => initHoneypotMonitoring(client),
+      () => startPriceAlertsMonitoring(client),
+      () => startGameUpdatesMonitoring(client),
+      () => startReportScheduler(client),
+      () => enableSmartAlerts(client),
     ];
     for (const start of services) {
       try {

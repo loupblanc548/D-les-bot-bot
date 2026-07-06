@@ -133,6 +133,12 @@ vi.mock("./cron/autoEscalation", () => ({ startAutoEscalation: vi.fn() }));
 vi.mock("./cron/miscCrons", () => ({ startMiscCrons: vi.fn() }));
 vi.mock("./cron/commandAutomation", () => ({ startCommandAutomation: vi.fn() }));
 vi.mock("./cron/brokenImageCleanup", () => ({ startBrokenImageCleanup: vi.fn() }));
+vi.mock("./services/securityIntegration", () => ({ startSecurityIntegration: vi.fn() }));
+vi.mock("./services/cyberDefense", () => ({ initHoneypotMonitoring: vi.fn() }));
+vi.mock("./services/price-alerts", () => ({ startPriceAlertsMonitoring: vi.fn() }));
+vi.mock("./services/game-updates", () => ({ startGameUpdatesMonitoring: vi.fn() }));
+vi.mock("./services/reportScheduler", () => ({ startReportScheduler: vi.fn() }));
+vi.mock("./utils/smart-alerts", () => ({ enableSmartAlerts: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";

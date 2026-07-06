@@ -43,6 +43,8 @@ import { setRiskCallback } from "./services/risk-engine.js";
 import { maybeTriggerInvestigation } from "./services/autonomousInvestigator.js";
 import { startAgentBrain, stopAgentBrain } from "./services/agentBrain.js";
 import { startPersonalityEngine, stopPersonalityEngine } from "./services/personalityEngine.js";
+import { initVoiceMonitoring } from "./services/voiceAgent.js";
+import { initTelegramNotifications } from "./services/telegram-notifications.js";
 
 const client = new Client({
   intents: [
@@ -293,6 +295,9 @@ async function main(): Promise<void> {
     void handleTempVoice(client, oldState, newState);
   });
 
+  // Détection de raids vocaux (5+ connexions en 30s)
+  initVoiceMonitoring(client);
+
   // Phase 1: Removed DisTube init (music commands deleted — saves ~30MB RAM)
   logger.info("✓ Gestionnaires d'evenements initialises");
 
@@ -301,6 +306,9 @@ async function main(): Promise<void> {
   attachAutoThread(client);
   startProactiveHealthCheck(client);
   startAutoBackup(24);
+
+  // Notifications Telegram (parallèle à Discord, si configuré)
+  initTelegramNotifications();
 
   // Logique de démarrage (ClientReady)
   attachStartupLogic(client, healthResults);
