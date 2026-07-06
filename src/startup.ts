@@ -79,6 +79,15 @@ import { startFaqAutoResponder } from "./services/faqAutoResponder.js";
 import { startCreatorRoleSync } from "./services/creatorRoleSync.js";
 import { startRateLimitDashboard } from "./services/rateLimitDashboard.js";
 import { startCommandAnalytics } from "./services/commandAnalytics.js";
+import { startReleaseCalendar } from "./services/releaseCalendar.js";
+import { startHotTopicsDetector } from "./services/hotTopicsDetector.js";
+import { startConversationSummarizer } from "./services/conversationSummarizer.js";
+import { startChurnPrediction } from "./services/churnPrediction.js";
+import { startLFGMatchmaker } from "./services/lfgMatchmaker.js";
+import { startActivityHeatmap } from "./services/activityHeatmap.js";
+import { startPinRotation } from "./services/pinRotation.js";
+import { startPresenceTracker } from "./services/presenceTracker.js";
+import { startDealFusion } from "./services/dealFusion.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -300,6 +309,15 @@ export function attachStartupLogic(
       () => startCreatorRoleSync(client),
       () => startRateLimitDashboard(client),
       () => startCommandAnalytics(client),
+      () => startReleaseCalendar(client),
+      () => startHotTopicsDetector(client),
+      () => startConversationSummarizer(client),
+      () => startChurnPrediction(client),
+      () => startLFGMatchmaker(client),
+      () => startActivityHeatmap(client),
+      () => startPinRotation(client),
+      () => startPresenceTracker(client),
+      () => startDealFusion(client),
     ];
     for (const start of services) {
       try {

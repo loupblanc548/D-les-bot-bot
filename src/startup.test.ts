@@ -151,6 +151,15 @@ vi.mock("./services/faqAutoResponder", () => ({ startFaqAutoResponder: vi.fn() }
 vi.mock("./services/creatorRoleSync", () => ({ startCreatorRoleSync: vi.fn() }));
 vi.mock("./services/rateLimitDashboard", () => ({ startRateLimitDashboard: vi.fn() }));
 vi.mock("./services/commandAnalytics", () => ({ startCommandAnalytics: vi.fn() }));
+vi.mock("./services/releaseCalendar", () => ({ startReleaseCalendar: vi.fn() }));
+vi.mock("./services/hotTopicsDetector", () => ({ startHotTopicsDetector: vi.fn() }));
+vi.mock("./services/conversationSummarizer", () => ({ startConversationSummarizer: vi.fn() }));
+vi.mock("./services/churnPrediction", () => ({ startChurnPrediction: vi.fn() }));
+vi.mock("./services/lfgMatchmaker", () => ({ startLFGMatchmaker: vi.fn() }));
+vi.mock("./services/activityHeatmap", () => ({ startActivityHeatmap: vi.fn() }));
+vi.mock("./services/pinRotation", () => ({ startPinRotation: vi.fn() }));
+vi.mock("./services/presenceTracker", () => ({ startPresenceTracker: vi.fn() }));
+vi.mock("./services/dealFusion", () => ({ startDealFusion: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";
