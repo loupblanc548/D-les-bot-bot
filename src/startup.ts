@@ -60,6 +60,7 @@ import { startToxicityScanCron } from "./cron/toxicityScan.js";
 import { startLogRetention } from "./cron/logRetention.js";
 import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
 import { startLogChannelCleanup } from "./cron/logChannelCleanup.js";
+import { startBrokenImageCleanup } from "./cron/brokenImageCleanup.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -140,6 +141,7 @@ async function initSchedulers(client: Client): Promise<void> {
   startBoutiqueCron(client);
   startShadowBrokerCron(client);
   startLogChannelCleanup(client);
+  startBrokenImageCleanup(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
