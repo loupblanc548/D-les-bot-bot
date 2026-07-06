@@ -160,8 +160,8 @@ export async function autoBackup(): Promise<void> {
   }
 }
 
-export function startAutoBackup(scheduleHours = 24): void {
+export function startAutoBackup(scheduleHours = 168): void {
   const intervalMs = scheduleHours * 60 * 60 * 1000;
   setInterval(() => { void autoBackup(); }, intervalMs);
-  logger.info(`[Backup] Auto-backup scheduled every ${scheduleHours}h`);
+  logger.info(`[Backup] Auto-backup scheduled every ${scheduleHours}h (hebdomadaire)`);
 }

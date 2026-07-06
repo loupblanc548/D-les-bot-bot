@@ -110,6 +110,7 @@ const client = new Client({
 });
 
 let healthResults: import("./services/healthcheck.js").CheckResult[] = [];
+let startupNotificationSent = false;
 
 async function main(): Promise<void> {
   logger.info("=== Discord Surveillance Bot ===");
@@ -305,7 +306,7 @@ async function main(): Promise<void> {
   attachInteractionHandlers(client);
   attachAutoThread(client);
   startProactiveHealthCheck(client);
-  startAutoBackup(24);
+  startAutoBackup(168);
 
   // Notifications Telegram (parallèle à Discord, si configuré)
   initTelegramNotifications();
@@ -332,25 +333,24 @@ async function main(): Promise<void> {
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
 
-  // Notification de démarrage à l'owner
-  await sendDeploymentNotification(
-    "Bot démarré avec succès",
-    [
-      "Connexion Discord établie",
-      "17 commandes root slash enregistrées (/mod, /admin, /security, /ai)",
-      "Agent IA autonome actif (REASON → ACT → OBSERVE → REPLY)",
-      "Moteur de personnalité John Helldiver actif (réponses autonomes cohérentes)",
-      "6 tools agent: analyze_image, analyze_sentiment, triggerGarbageCollection, summarize_conversation, detect_language, get_server_insights",
-      "Cache Discord ultra-agressif (0 message/presence/reaction/thread, 10 user/member)",
-      "Memory monitor: GC forcé à 300MB RSS, check toutes les 60s",
-      "Système d'alertes proactive actif",
-      "Système de départ invisible (stealth leave) actif",
-    ],
-    0x43b581,
-  );
+  // Notification de démarrage à l'owner — UNE SEULE FOIS par process
+  if (!startupNotificationSent) {
+    startupNotificationSent = true;
+    await sendDeploymentNotification(
+      "Bot démarré avec succès",
+      [
+        "Connexion Discord établie",
+        "Système d'alertes proactive actif",
+        "Système de départ invisible (stealth leave) actif",
+      ],
+      0x43b581,
+    );
 
-  // Rapport de statut après 5 secondes (le temps que les guildes se chargent)
-  setTimeout(() => void sendStatusReport(), 5000);
+    // Rapport de statut après 5 secondes (le temps que les guildes se chargent)
+    setTimeout(() => void sendStatusReport(), 5000);
+  } else {
+    logger.info("[Bot] Reconnexion — skip notification de démarrage (déjà envoyé)");
+  }
 }
 
 // Point d'entrée : la fonction main est appelée depuis index.ts
