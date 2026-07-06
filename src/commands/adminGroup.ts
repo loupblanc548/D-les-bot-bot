@@ -12,7 +12,6 @@ import { handleCommand as handleChannelRouting } from "./channelRouting.js";
 import { handleCommand as handlePurgeContent } from "./purgeContent.js";
 import { handleCommand as handlePurgeRange } from "./purgeRange.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
-import { handleCommand as handleFixBrokenImages } from "./fixBrokenImages.js";
 import { handleAdminExtra } from "./stubHandlers.js";
 
 export const commands = [
@@ -119,25 +118,6 @@ export const commands = [
         .addChannelOption((o) => o.setName("salon").setDescription("Salon du webhook").setRequired(true))
         .addStringOption((o) => o.setName("action").setDescription("Action (create/delete/list)").setRequired(true)),
     )
-    .addSubcommand((sc) =>
-      sc
-        .setName("fix-broken-images")
-        .setDescription("Scan et répare les embeds avec images brisées (5 barres noires)")
-        .addChannelOption((o) =>
-          o
-            .setName("salon")
-            .setDescription("Salon à nettoyer (défaut: tous les salons de notifications)")
-            .setRequired(false),
-        )
-        .addIntegerOption((o) =>
-          o
-            .setName("limite")
-            .setDescription("Max messages à scanner par salon (défaut: 100)")
-            .setRequired(false)
-            .setMinValue(10)
-            .setMaxValue(1000),
-        ),
-    )
     .toJSON(),
 ];
 
@@ -177,8 +157,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handlePurgeContent(interaction);
   } else if (action === "purge-range") {
     await handlePurgeRange(interaction);
-  } else if (action === "fix-broken-images") {
-    await handleFixBrokenImages(interaction, dc);
   } else if (EXTRA_SUBS.includes(action)) {
     await handleExtraCmd(interaction, dc);
   } else {
