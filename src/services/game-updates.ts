@@ -31,7 +31,18 @@ const TRACKED_GAMES = [
   { id: "578080", name: "PUBG: Battlegrounds", platform: "steam" },
   { id: "1091500", name: "Cyberpunk 2077", platform: "steam" },
   { id: "1245620", name: "ELDEN RING", platform: "steam" },
+  { id: "fortnite", name: "Fortnite", platform: "epic" },
+  { id: "rocket-league", name: "Rocket League", platform: "epic" },
 ];
+
+const PLATFORM_CHANNELS: Record<string, { channelId: string; color: number; emoji: string; label: string }> = {
+  steam: { channelId: config.steamEpicChannel, color: 0x1b2838, emoji: "🎮", label: "Steam" },
+  epic: { channelId: config.steamEpicChannel, color: 0x2a2a2a, emoji: "📦", label: "Epic Games" },
+  playstation: { channelId: config.playstationChannel, color: 0x003791, emoji: "🎮", label: "PlayStation" },
+  xbox: { channelId: config.xboxChannel, color: 0x107c10, emoji: "🎮", label: "Xbox" },
+  nintendo: { channelId: config.nintendoChannel, color: 0xe60012, emoji: "🎮", label: "Nintendo" },
+  fortnite: { channelId: config.fortniteChannel, color: 0x9147ff, emoji: "🎯", label: "Fortnite" },
+};
 
 let updateCheckInterval: NodeJS.Timeout | null = null;
 const CHECK_INTERVAL_MS = 3600000; // 1 heure
@@ -107,55 +118,62 @@ async function markUpdateProcessed(updateId: string): Promise<void> {
  * Envoie une notification de mise à jour
  */
 async function sendUpdateNotification(client: Client, update: GameUpdate): Promise<void> {
-  if (!config.logChannel) {
-    logger.error("[GameUpdates] Channel de logs non configuré");
+  const platformCfg = PLATFORM_CHANNELS[update.platform];
+  const channelId = platformCfg?.channelId || config.logChannel || "";
+
+  if (!channelId) {
+    logger.warn(`[GameUpdates] Aucun salon configuré pour la plateforme ${update.platform}`);
     return;
   }
 
-  const channel = client.channels.cache.get(config.logChannel) as TextChannel;
+  const channel = client.channels.cache.get(channelId) as TextChannel;
   if (!channel || !channel.isTextBased()) {
-    logger.error("[GameUpdates] Channel de logs non disponible");
+    logger.warn(`[GameUpdates] Salon ${channelId} non disponible`);
     return;
   }
 
-  const colors = {
+  const updateColors = {
     patch: 0x00ff00,
     maintenance: 0xffaa00,
     hotfix: 0xff6600,
     announcement: 0x00aaff,
   };
 
-  const emojis = {
+  const updateEmojis = {
     patch: "🔧",
     maintenance: "🔨",
     hotfix: "⚡",
     announcement: "📢",
   };
 
+  const platformEmoji = platformCfg?.emoji || "🎮";
+  const platformLabel = platformCfg?.label || update.platform.toUpperCase();
+
   const embed = new EmbedBuilder()
     .setTitle(
-      `${emojis[update.updateType]} ${update.gameName} - ${update.updateType.toUpperCase()}`,
+      `${updateEmojis[update.updateType]} ${update.gameName} - ${update.updateType.toUpperCase()}`,
     )
     .setDescription(update.title)
-    .setColor(colors[update.updateType])
+    .setColor(platformCfg?.color ?? updateColors[update.updateType])
     .addFields(
       {
         name: "Plateforme",
-        value: update.platform.toUpperCase(),
+        value: `${platformEmoji} ${platformLabel}`,
         inline: true,
       },
       {
         name: "Type",
-        value: update.updateType.toUpperCase(),
+        value: updateEmojis[update.updateType] + " " + update.updateType.toUpperCase(),
         inline: true,
       },
       {
         name: "Publié le",
-        value: update.publishedAt.toLocaleString(),
+        value: update.publishedAt.toLocaleString("fr-FR"),
         inline: true,
       },
     )
     .setURL(update.url)
+    .setFooter({ text: `Surveillance System • Game Updates • ${platformLabel}` })
     .setTimestamp();
 
   if (update.description) {
@@ -168,7 +186,7 @@ async function sendUpdateNotification(client: Client, update: GameUpdate): Promi
 
   try {
     await channel.send({ embeds: [embed] });
-    logger.info(`[GameUpdates] Notification envoyée pour ${update.gameName}`);
+    logger.info(`[GameUpdates] Notification envoyée pour ${update.gameName} (${platformLabel}) dans #${channel.name}`);
   } catch (error) {
     logger.error("[GameUpdates] Erreur lors de l'envoi de la notification:", error);
   }
