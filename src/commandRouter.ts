@@ -165,6 +165,10 @@ import { commands as pollCommands, handleCommand as handlePolls } from "./comman
 // Phase 1: Removed poll commands (legacy)
 import { commands as autoThreadCommands, handleCommand as handleAutoThread } from "./commands/autoThread.js";
 import { commands as customCmdCommands, handleCommand as handleCustomCmd } from "./commands/customCommands.js";
+import {
+  commands as manageGroupCommands,
+  handleCommand as handleManageGroup,
+} from "./commands/manageGroup.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -478,6 +482,7 @@ export const allCommands = [
   // ── Standalone conservées ──
   ...autoThreadCommands,
   ...customCmdCommands,
+  ...manageGroupCommands,
   // Phase 1: Removed fun, economy, polls, community, tools, game2, music groups
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
@@ -522,6 +527,7 @@ export function buildCommandRouter(): void {
   // ─── Standalone ───
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
+  registerGroup(["manage"], handleManageGroup);
   // Phase 1: Removed fun, economy, polls, community, tools, game2, music
 }
 
