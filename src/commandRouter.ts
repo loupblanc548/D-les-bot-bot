@@ -161,7 +161,6 @@ import {
   commands as ticketGroupCommands,
   handleCommand as handleTicketGroup,
 } from "./commands/ticketGroup.js";
-import { commands as pollCommands, handleCommand as handlePolls } from "./commands/polls.js";
 // Phase 1: Removed poll commands (legacy)
 import { commands as autoThreadCommands, handleCommand as handleAutoThread } from "./commands/autoThread.js";
 import { commands as customCmdCommands, handleCommand as handleCustomCmd } from "./commands/customCommands.js";

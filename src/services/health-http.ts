@@ -43,8 +43,9 @@ export function startHealthServer(port = 3000): void {
     const path = url.pathname;
 
     try {
-      // CORS headers
-      res.setHeader("Access-Control-Allow-Origin", "*");
+      // CORS headers — restrict to configured origin
+      const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:3721";
+      res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
       res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 

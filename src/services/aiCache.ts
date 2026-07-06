@@ -23,7 +23,7 @@ const MAX_CACHE_SIZE = 100; // Reduced for memory optimization
  */
 function generateCacheKey(message: string, context?: string): string {
   const data = context ? `${message}:${context}` : message;
-  return crypto.createHash("md5").update(data).digest("hex");
+  return crypto.createHash("sha256").update(data).digest("hex");
 }
 
 /**

@@ -673,8 +673,8 @@ export async function runWhois(domain: string): Promise<WhoisResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import whois; w=whois.whois('${domain.replace(/'/g, "")}'); import json; print(json.dumps({k:str(v) for k,v in w.items() if v}))`],
-      { timeout: 15000, maxBuffer: 1024 * 1024 },
+      ["-c", `import os,whois,json; w=whois.whois(os.environ['OSINT_INPUT']); print(json.dumps({k:str(v) for k,v in w.items() if v}))`],
+      { timeout: 15000, maxBuffer: 1024 * 1024, env: { ...process.env, OSINT_INPUT: domain } },
     );
 
     try {
@@ -783,8 +783,8 @@ export async function runInstaloader(username: string): Promise<InstagramResult>
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import instaloader; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); import json; print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))`],
-      { timeout: 30000, maxBuffer: 2 * 1024 * 1024 },
+      ["-c", `import os,instaloader,json; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, os.environ['OSINT_INPUT']); print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))`],
+      { timeout: 30000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: username } },
     );
 
     try {
@@ -912,8 +912,8 @@ export async function runSocialScan(query: string): Promise<SocialScanResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import socialscan; import json; r=socialscan.execute(['${query.replace(/'/g, "")}'], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))`],
-      { timeout: 60000, maxBuffer: 5 * 1024 * 1024 },
+      ["-c", `import os,socialscan,json; r=socialscan.execute([os.environ['OSINT_INPUT']], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))`],
+      { timeout: 60000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: query } },
     );
 
     try {
@@ -1038,11 +1038,10 @@ export interface ExifResult {
 
 export async function runExifExtract(imageUrl: string): Promise<ExifResult> {
   try {
-    // Télécharger l'image puis extraire les EXIF
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import exifread, urllib.request, io, json; f=urllib.request.urlopen('${imageUrl.replace(/'/g, "")}'); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))`],
-      { timeout: 30000, maxBuffer: 5 * 1024 * 1024 },
+      ["-c", `import os,exifread,urllib.request,io,json; f=urllib.request.urlopen(os.environ['OSINT_INPUT']); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))`],
+      { timeout: 30000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: imageUrl } },
     );
 
     try {

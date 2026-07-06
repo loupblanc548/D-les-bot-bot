@@ -84,7 +84,8 @@ export async function setCache(key: string, value: unknown, ttlInSeconds: number
     } else {
       localCache.set(key, serialized, ttlInSeconds);
     }
-  } catch {
+  } catch (err) {
+    logger.debug(`[Redis] setCache fallback for key "${key}": ${err instanceof Error ? err.message : String(err)}`);
     localCache.set(key, serialized, ttlInSeconds);
   }
 }
@@ -100,8 +101,8 @@ export async function getCache<T = unknown>(key: string): Promise<T | null> {
       if (!raw) return null;
       return JSON.parse(raw) as T;
     }
-  } catch {
-    // Redis error → fallback to local
+  } catch (err) {
+    logger.debug(`[Redis] getCache fallback for key "${key}": ${err instanceof Error ? err.message : String(err)}`);
   }
   const local = localCache.get<string>(key);
   if (local) return JSON.parse(local) as T;
@@ -114,10 +115,9 @@ export async function getCache<T = unknown>(key: string): Promise<T | null> {
 export async function deleteCache(key: string): Promise<void> {
   try {
     if (redis) await redis.del(key);
-  } catch {
-    // Silently ignore
+  } catch (err) {
+    logger.debug(`[Redis] deleteCache error for key "${key}": ${err instanceof Error ? err.message : String(err)}`);
   }
-  localCache.del(key);
 }
 
 /**
@@ -131,8 +131,8 @@ export async function deleteCachePattern(pattern: string): Promise<void> {
         await redis.del(...keys);
       }
     }
-  } catch {
-    // Silently ignore
+  } catch (err) {
+    logger.debug(`[Redis] deleteCachePattern error for pattern "${pattern}": ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
