@@ -4,7 +4,7 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
-const FOOTER = { text: "Maintenance Horaire • Iskan Auto-Clean" };
+const FOOTER = { text: "Maintenance Hebdomadaire • Iskan Auto-Clean" };
 
 // Lock anti-concurrence
 let isRunning = false;
@@ -27,9 +27,9 @@ async function leaveAllVoiceChannels(client: Client): Promise<number> {
     try {
       await me.voice.disconnect("Maintenance horaire automatique");
       leftCount++;
-      logger.info(`[HourlyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`);
+      logger.info(`[WeeklyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`);
     } catch (err) {
-      logger.error(`[HourlyMaint] Erreur déconnexion vocale ${guild.name}:`, String(err));
+      logger.error(`[WeeklyMaint] Erreur déconnexion vocale ${guild.name}:`, String(err));
     }
   }
   return leftCount;
@@ -110,7 +110,7 @@ async function deleteDuplicateMessages(
 
           if (recentMsgs.length > 1) {
             await textChannel.bulkDelete(recentMsgs).catch((err) => {
-              logger.error(`[HourlyMaint] Erreur bulkDelete ${textChannel.name}:`, String(err));
+              logger.error(`[WeeklyMaint] Erreur bulkDelete ${textChannel.name}:`, String(err));
             });
             totalDeleted += recentMsgs.length;
           } else {
@@ -133,7 +133,7 @@ async function deleteDuplicateMessages(
           }
         }
       } catch (err) {
-        logger.error(`[HourlyMaint] Erreur scan ${textChannel.name}:`, String(err));
+        logger.error(`[WeeklyMaint] Erreur scan ${textChannel.name}:`, String(err));
       }
     }
   }
@@ -153,7 +153,7 @@ async function sendReport(
 
   // Log local dans tous les cas
   logger.info(
-    `[HourlyMaint] Rapport — voix: ${voiceLeft}, doublons: ${duplicates.deleted} (${duplicates.channel} salons), notifs: ${oldNotifsCleaned}` +
+    `[WeeklyMaint] Rapport — voix: ${voiceLeft}, doublons: ${duplicates.deleted} (${duplicates.channel} salons), notifs: ${oldNotifsCleaned}` +
       (hasAction ? "" : " — tout OK, pas d'alerte Discord"),
   );
 
@@ -161,7 +161,7 @@ async function sendReport(
   if (!hasAction) return;
 
   const embed = new EmbedBuilder()
-    .setTitle("🧹 Maintenance Horaire — Rapport")
+    .setTitle("🧹 Maintenance Hebdomadaire — Rapport")
     .setColor(0x3498db)
     .setFooter(FOOTER)
     .setTimestamp()
@@ -193,7 +193,7 @@ async function sendReport(
     const owner = await client.users.fetch(config.ownerId).catch(() => null);
     if (owner) {
       await owner.send({ embeds: [embed] }).catch(() => {
-        logger.warn("[HourlyMaint] Impossible de DM l'owner");
+        logger.warn("[WeeklyMaint] Impossible de DM l'owner");
       });
     }
   }
@@ -203,7 +203,7 @@ async function sendReport(
     const logChannel = await client.channels.fetch(config.logChannel).catch(() => null);
     if (logChannel && logChannel.type === ChannelType.GuildText) {
       await (logChannel as TextChannel).send({ embeds: [embed] }).catch(() => {
-        logger.warn("[HourlyMaint] Impossible d'envoyer dans le salon de log");
+        logger.warn("[WeeklyMaint] Impossible d'envoyer dans le salon de log");
       });
     }
   }
@@ -211,42 +211,43 @@ async function sendReport(
 
 async function runHourlyMaintenance(client: Client): Promise<void> {
   if (isRunning) {
-    logger.warn("[HourlyMaint] Déjà en cours, skip");
+    logger.warn("[WeeklyMaint] Déjà en cours, skip");
     return;
   }
   isRunning = true;
-  logger.info("[HourlyMaint] Démarrage de la maintenance horaire...");
+  logger.info("[WeeklyMaint] Démarrage de la maintenance hebdomadaire...");
 
   try {
     // 1. Nettoyer les anciens enregistrements NotifiedMessage
     const oldNotifsCleaned = await cleanupOldNotifiedMessages();
-    logger.info(`[HourlyMaint] ${oldNotifsCleaned} anciens enregistrements nettoyés`);
+    logger.info(`[WeeklyMaint] ${oldNotifsCleaned} anciens enregistrements nettoyés`);
 
     // 2. Quitter tous les salons vocaux
     const voiceLeft = await leaveAllVoiceChannels(client);
-    logger.info(`[HourlyMaint] ${voiceLeft} salon(s) vocal(aux) quitté(s)`);
+    logger.info(`[WeeklyMaint] ${voiceLeft} salon(s) vocal(aux) quitté(s)`);
 
     // 3. Supprimer les doublons dans les salons textuels
     const duplicates = await deleteDuplicateMessages(client);
     logger.info(
-      `[HourlyMaint] ${duplicates.channel} salons scannés, ${duplicates.deleted} doublons supprimés`,
+      `[WeeklyMaint] ${duplicates.channel} salons scannés, ${duplicates.deleted} doublons supprimés`,
     );
 
     // 4. Envoyer le rapport (DM owner + salon de log)
     await sendReport(client, voiceLeft, duplicates, oldNotifsCleaned);
 
-    logger.info("[HourlyMaint] Maintenance horaire terminée");
+    logger.info("[WeeklyMaint] Maintenance hebdomadaire terminée");
   } catch (err) {
-    logger.error("[HourlyMaint] Erreur:", String(err));
+    logger.error("[WeeklyMaint] Erreur:", String(err));
   } finally {
     isRunning = false;
   }
 }
 
 export function startHourlyMaintenance(client: Client): void {
-  cron.schedule("0 */6 * * *", () => {
+  // Tous les lundis à 4h00 du matin — une fois par semaine
+  cron.schedule("0 4 * * 1", () => {
     void runHourlyMaintenance(client);
   });
 
-  logger.info("[HourlyMaint] Cron maintenance démarré (toutes les 6 heures)");
+  logger.info("[WeeklyMaint] Cron maintenance démarré (tous les lundis à 4h00)");
 }
