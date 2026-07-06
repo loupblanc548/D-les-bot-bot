@@ -156,7 +156,7 @@ export async function runAgentLoop(
     "- detect_disposable_email : détecte les emails jetables\n" +
     "- scrape_steamrep_status : vérifie les bans Steam d'un profil\n" +
     "- detect_typosquatting : détecte les domaines frauduleux (d1scord, stean)\n" +
-    "- track_avatar_hash : hash MD5 avatar pour détecter les évadés de ban\n" +
+    "- track_avatar_hash : hash SHA-256 avatar pour détecter les évadés de ban\n" +
     "- expose_ghost_pinger : détecte les ghost pings (mentions supprimées)\n" +
     "- match_fortnite_shop_wishlist : compare wishlists avec le shop Fortnite\n" +
     "- scrape_epic_free_countdown : jeux gratuits Epic Games actuels/à venir\n" +

@@ -26,8 +26,10 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID().replace(/-/g, "");
-if (!process.env.JWT_SECRET) {
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production"
+  ? (() => { throw new Error("JWT_SECRET must be set in production. Define it in .env"); })()
+  : crypto.randomUUID().replace(/-/g, ""));
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "production") {
   logger.warn("[Dashboard] JWT_SECRET non défini — sessions invalidées à chaque redémarrage. Définissez JWT_SECRET dans .env");
 }
 const SESSION_COOKIE_NAME = "sb_session";

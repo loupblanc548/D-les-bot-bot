@@ -150,7 +150,7 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "track_avatar_hash",
-      description: "Calcule le hash MD5 de l'avatar d'un utilisateur et le sauvegarde en base. Détecte les évadés de ban qui changent de pseudo mais gardent le même avatar.",
+      description: "Calcule le hash SHA-256 de l'avatar d'un utilisateur et le sauvegarde en base. Détecte les évadés de ban qui changent de pseudo mais gardent le même avatar.",
       parameters: {
         type: "object",
         properties: {
@@ -626,7 +626,7 @@ async function tTrackAvatarHash(args: Record<string, unknown>, ctx: ToolContext)
     const res = await fetch(avatarURL, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return { success: false, data: "Impossible de télécharger l'avatar" };
     const buffer = Buffer.from(await res.arrayBuffer());
-    const hash = createHash("md5").update(buffer).digest("hex");
+    const hash = createHash("sha256").update(buffer).digest("hex");
 
     // Check previous hashes
     const previous = await prisma.avatarHistory.findFirst({
