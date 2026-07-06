@@ -14,8 +14,8 @@ export function startBackupService(client: Client) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
     logger.info("[Backup] Dossier ./backups/ cree");
   }
-  cron.schedule("0 0 * * *", () => { performBackup(client); });
-  logger.info("[Backup] Service de sauvegarde programme (minuit chaque jour)");
+  cron.schedule("0 2 * * 1", () => { performBackup(client); });
+  logger.info("[Backup] Service de sauvegarde programmé (lundi 02:00, hebdomadaire)");
 }
 
 async function performBackup(client: Client) {

@@ -15,7 +15,7 @@ let cronJob: ScheduledTask | null = null;
 
 export async function runAlertDigest(client: Client): Promise<void> {
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     // Compter les logs par type
     const logs = await prisma.log.groupBy({
@@ -25,7 +25,7 @@ export async function runAlertDigest(client: Client): Promise<void> {
     });
 
     if (logs.length === 0) {
-      logger.debug("[AlertDigest] Aucune alerte dans les dernières 24h");
+      logger.debug("[AlertDigest] Aucune alerte dans les 7 derniers jours");
       return;
     }
 
@@ -47,12 +47,12 @@ export async function runAlertDigest(client: Client): Promise<void> {
       }));
 
     const embed = new EmbedBuilder()
-      .setTitle("📊 Digest des alertes (24h)")
+      .setTitle("📊 Digest des alertes (7 jours)")
       .setColor(0x2f3136)
-      .setDescription(`**${totalAlerts}** événements enregistrés dans les dernières 24h`)
+      .setDescription(`**${totalAlerts}** événements enregistrés dans les 7 derniers jours`)
       .addFields(...fields)
       .setTimestamp()
-      .setFooter({ text: "Digest automatique quotidien" });
+      .setFooter({ text: "Digest automatique hebdomadaire" });
 
     await (channel as TextChannel).send({ embeds: [embed] });
     logger.info(`[AlertDigest] Digest envoyé: ${totalAlerts} alertes`);
@@ -67,12 +67,12 @@ export function startAlertDigest(client: Client): void {
     return;
   }
 
-  // Tous les jours à 08:00
-  cronJob = cron.schedule("0 8 * * *", () => {
+  // Tous les lundis à 08:00 — une fois par semaine
+  cronJob = cron.schedule("0 8 * * 1", () => {
     runAlertDigest(client).catch((err) => logger.error("[AlertDigest] Erreur cron:", err));
   });
 
-  logger.info("[AlertDigest] Digest quotidien planifié à 08:00");
+  logger.info("[AlertDigest] Digest hebdomadaire planifié (lundi 08:00)");
 }
 
 export function stopAlertDigest(): void {

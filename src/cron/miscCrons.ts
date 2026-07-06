@@ -200,12 +200,12 @@ export function startMiscCrons(client: Client): void {
     checkBirthdays(client).catch((err) => logger.error("[Birthday] Erreur:", err));
   });
 
-  // CRON-27: AI server health — daily at 23:00
-  healthCron = cron.schedule("0 23 * * *", () => {
+  // CRON-27: AI server health — hebdomadaire lundi 23:00
+  healthCron = cron.schedule("0 23 * * 1", () => {
     runAiServerHealth(client).catch((err) => logger.error("[AiHealth] Erreur:", err));
   });
 
-  logger.info("[MiscCrons] Crons activés: milestone (10min), birthday (09:00), ai-health (23:00)");
+  logger.info("[MiscCrons] Crons activés: milestone (10min), birthday (09:00), ai-health (lun 23:00)");
 }
 
 export function stopMiscCrons(): void {

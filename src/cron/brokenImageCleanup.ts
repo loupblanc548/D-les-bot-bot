@@ -5,7 +5,7 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { FALLBACK_EMBED_IMAGE } from "../utils/image-helpers.js";
 
-const SCAN_CRON_EXPRESSION = "0 */6 * * *";
+const SCAN_CRON_EXPRESSION = "0 3 * * 1";
 const SCAN_LIMIT = 50;
 const DELETE_DELAY_MS = 500;
 

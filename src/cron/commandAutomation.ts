@@ -381,13 +381,13 @@ let cmdStatsCron: ScheduledTask | null = null;
 let trendPredictCron: ScheduledTask | null = null;
 
 export function startCommandAutomation(client: Client): void {
-  // Trend report — toutes les 6h
-  trendCron = cron.schedule("0 */6 * * *", () => {
+  // Trend report — hebdomadaire lundi 06:00
+  trendCron = cron.schedule("0 6 * * 1", () => {
     runTrendReport(client).catch((err) => logger.error("[CmdAuto] Trend error:", err));
   });
 
-  // Scraper status — quotidien 06:00
-  scraperCron = cron.schedule("0 6 * * *", () => {
+  // Scraper status — hebdomadaire lundi 07:00
+  scraperCron = cron.schedule("0 7 * * 1", () => {
     runScraperStatus(client).catch((err) => logger.error("[CmdAuto] Scraper error:", err));
   });
 
@@ -401,13 +401,13 @@ export function startCommandAutomation(client: Client): void {
     runSecurityAudit(client).catch((err) => logger.error("[CmdAuto] SecurityAudit error:", err));
   });
 
-  // Command stats report — quotidien 23:59
-  cmdStatsCron = cron.schedule("59 23 * * *", () => {
+  // Command stats report — hebdomadaire lundi 23:59
+  cmdStatsCron = cron.schedule("59 23 * * 1", () => {
     runCommandStatsReport(client).catch((err) => logger.error("[CmdAuto] CmdStats error:", err));
   });
 
-  // Trend predict IA — toutes les 6h (décalé de 30min vs trend report)
-  trendPredictCron = cron.schedule("30 */6 * * *", () => {
+  // Trend predict IA — hebdomadaire lundi 06:30
+  trendPredictCron = cron.schedule("30 6 * * 1", () => {
     runTrendPredict(client).catch((err) => logger.error("[CmdAuto] TrendPredict error:", err));
   });
 
@@ -416,7 +416,7 @@ export function startCommandAutomation(client: Client): void {
   handleAutoDebug(client);
 
   logger.info(
-    "[CmdAuto] Automatisation activée: trend(6h), scraper(06h), sourceStats(lun), securityAudit(dim), snipe(event), debug(event), cmdStats(23h59), trendPredict(6h30)",
+    "[CmdAuto] Automatisation activée: trend(lun 06h), scraper(lun 07h), sourceStats(lun 09h), securityAudit(dim 23h), snipe(event), debug(event), cmdStats(lun 23h59), trendPredict(lun 06h30)",
   );
 }
 
