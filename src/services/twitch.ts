@@ -119,7 +119,8 @@ async function checkTwitchStreams(client: Client) {
               `**Spectateurs :** ${stream.viewer_count.toLocaleString()}`,
           )
           .setImage(
-            stream.thumbnail_url?.replace("{width}", "1280").replace("{height}", "720") || "",
+            stream.thumbnail_url?.replace("{width}", "1280").replace("{height}", "720") ||
+              "https://static-cdn.jtvnw.net/ttv-static/404_preview.jpg",
           )
           .setFooter({ text: "Surveillance System • Twitch" })
           .setTimestamp();

@@ -1,6 +1,7 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import logger from "../../utils/logger.js";
 import { ensureConnected } from "../../utils/redisClient.js";
+import { safeSetImage } from "../../utils/image-helpers.js";
 
 const EPIC_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions";
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
@@ -124,7 +125,7 @@ async function processGame(client: Client, game: EpicGame): Promise<void> {
         { name: "📅 Jusqu'au", value: formatDate(game.endDate) },
         { name: "🔗 Lien", value: game.url },
       )
-      .setImage(game.image)
+      .setImage(game.image || "https://cdn2.unrealengine.com/epicgames-logo-940x530.png")
       .setColor(0x00d4ff)
       .setFooter({ text: "John Helldiver • Super Earth Command" })
       .setTimestamp();

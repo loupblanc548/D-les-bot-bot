@@ -2,6 +2,38 @@
 // Utilisés par feeds.ts, monitor.ts, patchNotes.ts
 
 import * as cheerio from "cheerio";
+import type { EmbedBuilder } from "discord.js";
+
+// Fallback universel : image générique gaming (PNG valide, hébergée sur CDN)
+export const FALLBACK_EMBED_IMAGE =
+  "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f3ae.png";
+
+const VALID_IMAGE_EXT = /\.(png|jpe?g|gif|webp)(\?|#|$)/i;
+
+/**
+ * Valide qu'une URL est utilisable comme setImage() dans un embed Discord.
+ * - Doit être http(s)://
+ * - Doit avoir une extension d'image valide (png/jpg/jpeg/gif/webp)
+ * - Exclut les favicons .ico (non supportées par Discord embeds)
+ */
+export function isValidEmbedImageUrl(url: unknown): url is string {
+  if (typeof url !== "string" || url.length === 0) return false;
+  if (!/^https?:\/\//i.test(url)) return false;
+  if (/\.ico(\?|#|$)/i.test(url)) return false;
+  return VALID_IMAGE_EXT.test(url);
+}
+
+/**
+ * Définit l'image d'un embed de manière sécurisée.
+ * Si l'URL est invalide/absente, utilise le fallback universel.
+ * Évite le glyphe "5 barres noires" de Discord quand setImage("") est appelé.
+ */
+export function safeSetImage(embed: EmbedBuilder, url: string | null | undefined): EmbedBuilder {
+  if (isValidEmbedImageUrl(url)) {
+    return embed.setImage(url);
+  }
+  return embed.setImage(FALLBACK_EMBED_IMAGE);
+}
 
 // Cache simple (Map) avec TTL de 10 minutes pour éviter de refetch la même URL
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes

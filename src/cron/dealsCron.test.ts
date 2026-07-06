@@ -181,6 +181,11 @@ vi.mock("../utils/deduplicationCache", () => ({
 
 vi.mock("../utils/image-helpers", () => ({
   getOgImage: vi.fn().mockResolvedValue(null),
+  safeSetImage: vi.fn(function (this: any, embed: any, _url: string | null | undefined) {
+    return embed;
+  }),
+  isValidEmbedImageUrl: vi.fn().mockReturnValue(true),
+  FALLBACK_EMBED_IMAGE: "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f3ae.png",
 }));
 
 vi.mock("../utils/image-optimizer", () => ({

@@ -10,7 +10,7 @@ import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
-import { getOgImage } from "../utils/image-helpers.js";
+import { getOgImage, safeSetImage, isValidEmbedImageUrl, FALLBACK_EMBED_IMAGE } from "../utils/image-helpers.js";
 import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
 import { generateStableId } from "../utils/url-cleaner.js";
 
@@ -44,49 +44,49 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
     channelId: config.steamEpicChannel,
     color: 0x2a2a2a,
     name: "Epic Games",
-    defaultImage: "https://store.epicgames.com/favicon.ico",
+    defaultImage: "https://cdn2.unrealengine.com/epicgames-logo-940x530.png",
   },
   {
     keywords: ["[Steam]", "Steam", "[GOG]"],
     channelId: config.steamEpicChannel,
     color: 0x000080,
     name: "Steam",
-    defaultImage: "https://store.steampowered.com/favicon.ico",
+    defaultImage: "https://store.steampowered.com/images/store_page/steam_logo.png",
   },
   {
     keywords: ["[PlayStation]", "PS4", "PS5", "PSN"],
     channelId: config.playstationChannel,
     color: 0x003791,
     name: "PlayStation",
-    defaultImage: "https://www.playstation.com/favicon.ico",
+    defaultImage: "https://www.playstation.com/etc.clientlibs/globalpleasure/clientlibs/base/resources/favicon/icon-228.png",
   },
   {
     keywords: ["[Xbox]", "XBL", "Xbox Series", "Xbox One", "Microsoft"],
     channelId: config.xboxChannel,
     color: 0x107c10,
     name: "Xbox",
-    defaultImage: "https://www.xbox.com/favicon.ico",
+    defaultImage: "https://www.xbox.com/xbox_logo.png",
   },
   {
     keywords: ["[Nintendo]", "Switch", "eShop"],
     channelId: config.nintendoChannel,
     color: 0xe60012,
     name: "Nintendo",
-    defaultImage: "https://www.nintendo.com/favicon.ico",
+    defaultImage: "https://www.nintendo.com/images/logo/nintendo-logo-128x128.png",
   },
   {
     keywords: ["Fortnite", "FN", "Battle Royale"],
     channelId: config.fortniteChannel,
     color: 0x9147ff,
     name: "Fortnite",
-    defaultImage: "https://static-assets-prod.epicgames.com/fortnite/favicon.ico",
+    defaultImage: "https://static-assets-prod.epicgames.com/fortnite/static/webpack/0e82483a46e9c0f6d127.png",
   },
   {
     keywords: ["[Instant Gaming]", "Instant Gaming", "InstantGaming"],
     channelId: config.instantGamingChannel,
     color: 0xcd7f32,
     name: "Instant Gaming",
-    defaultImage: "https://www.instant-gaming.com/favicon.ico",
+    defaultImage: "https://www.instant-gaming.com/assets/images/ig-logo.png",
   },
 ];
 
@@ -249,7 +249,7 @@ async function sendDealEmbed(
 
     // Optimiser l'image avec Sharp si c'est une URL d'image valide
     let sendOptions: { embeds: EmbedBuilder[]; files?: AttachmentBuilder[] } = { embeds: [embed] };
-    if (imageUrl && isOptimizableImageUrl(imageUrl) && imageUrl !== platform.defaultImage) {
+    if (imageUrl && isValidEmbedImageUrl(imageUrl) && isOptimizableImageUrl(imageUrl) && imageUrl !== platform.defaultImage) {
       try {
         const optimized = await fetchAndOptimizeImage(imageUrl);
         if (optimized) {
@@ -257,13 +257,13 @@ async function sendDealEmbed(
           embed.setImage("attachment://deal.jpg");
           sendOptions = { embeds: [embed], files: [attachment] };
         } else {
-          embed.setImage(imageUrl);
+          safeSetImage(embed, imageUrl);
         }
       } catch {
-        embed.setImage(imageUrl);
+        safeSetImage(embed, imageUrl);
       }
     } else {
-      embed.setImage(imageUrl);
+      safeSetImage(embed, imageUrl);
     }
 
     await (channel as TextChannel).send(sendOptions);
