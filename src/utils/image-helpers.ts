@@ -91,6 +91,10 @@ export function extractMediaThumbnail(item: Record<string, unknown>): string | u
   return undefined;
 }
 
+export function clearAllCaches(): void {
+  urlCache.clear();
+}
+
 export async function getYouTubeThumbnail(url: string): Promise<string | null> {
   return withCache("yt:" + url, async () => {
     try {

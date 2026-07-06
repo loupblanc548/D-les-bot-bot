@@ -17,23 +17,23 @@ export const MEMORY_CONFIG = {
   RAILWAY_RAM_MB: 512,
 
   /** V8 heap limit set via --max-old-space-size */
-  V8_HEAP_LIMIT_MB: 448,
+  V8_HEAP_LIMIT_MB: 384,
 
   /** RSS threshold (in MB) at which GC is forced */
-  GC_THRESHOLD_MB: 450,
+  GC_THRESHOLD_MB: 400,
 
   /** CRITICAL threshold (in MB) — near-absolute limit */
-  CRITICAL_THRESHOLD_MB: 490,
+  CRITICAL_THRESHOLD_MB: 470,
 
-  /** Check interval in ms — every 60 seconds */
-  CHECK_INTERVAL_MS: 60 * 1000, // 1 min
+  /** Check interval in ms — every 30 seconds */
+  CHECK_INTERVAL_MS: 30 * 1000, // 30s
 
   /** Alert level thresholds in absolute MB */
   LEVELS: {
     OK: 0,
-    SURVEILLANCE: 350,   // 350 MB
-    WARNING: 450,        // 450 MB (= GC threshold)
-    CRITICAL: 490,       // 490 MB (near 512 hard limit)
+    SURVEILLANCE: 300,   // 300 MB
+    WARNING: 400,        // 400 MB (= GC threshold)
+    CRITICAL: 470,       // 470 MB (near 512 hard limit)
   },
 } as const;
 

@@ -279,6 +279,13 @@ class DeduplicationCache {
     logger.info("[DedupCache] Cache Neon réinitialisé");
   }
 
+  /** Vide uniquement le cache mémoire (urgence mémoire — sans toucher la DB). */
+  clearMemory(): void {
+    const total = [...this.memoryCache.values()].reduce((sum, s) => sum + s.size, 0);
+    this.memoryCache.clear();
+    logger.info(`[DedupCache] Cache mémoire vidé (${total} IDs libérés)`);
+  }
+
   /**
    * Vérifie si nous sommes le 15 du mois (pour la maintenance).
    * Compare avec le dernier nettoyage stocké dans AppState.
