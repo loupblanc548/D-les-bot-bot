@@ -210,6 +210,18 @@ async function runAgentLoopInternal(
     "- bilibili_search : recherche de vidéos Bilibili (gratuit, pas de login)\n" +
     "- jina_read_reddit : lit un subreddit via Jina Reader (sans clé API Reddit)\n" +
     "- jina_read_twitter : lit un profil Twitter/X via Jina Reader (sans clé API Twitter)\n" +
+    "### Analytics & Business Intelligence (auto-use)\n" +
+    "- guild_analytics : stats serveur (membres actifs, messages, commandes, modération)\n" +
+    "- bot_health : métriques bot (uptime, RAM, guilds, erreurs)\n" +
+    "- message_trend : tendance d'activité (hausse/baisse/stable)\n" +
+    "- top_commands : top 10 commandes utilisées\n" +
+    "- moderation_stats : stats modération par type d'action\n" +
+    "### Rich Embeds (auto-use)\n" +
+    "- build_rich_embed : crée un embed Discord personnalisé (titre, couleur, fields, image, footer)\n" +
+    "### Multi-Platform Notifications (auto-use)\n" +
+    "- send_telegram : envoie un message Telegram\n" +
+    "- send_slack : envoie un message Slack\n" +
+    "- broadcast_notification : notifie sur toutes les plateformes configurées\n" +
     "### Discord\n" +
     "- deleteMessages, timeoutUser, warnUser, kickUser, banUser : modération\n" +
     "- addRole, removeRole, createChannel, deleteChannel, lockChannel, unlockChannel\n" +
