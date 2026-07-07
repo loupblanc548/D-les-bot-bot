@@ -295,7 +295,7 @@ export async function searchGame(query: string): Promise<RawgGame[]> {
   }
 }
 
-// ─── 5. NewsAPI → RSS feeds gaming (sans clé) ────────────────────────────────
+// ─── 5. NewsAPI → RSS feeds gaming ───────────────────────────────────────────
 
 const newsRssFeeds = [
   "https://www.reddit.com/r/gaming/.rss",
@@ -303,7 +303,55 @@ const newsRssFeeds = [
   "https://www.instant-gaming.com/fr/rss/news.xml",
 ];
 
+const NEWSAPI_GAMING_QUERY = "gaming OR jeux vidéo OR game release OR patch notes";
+
 export async function getGamingNews(maxArticles = 5): Promise<NewsArticle[]> {
+  // 1. Essayer NewsAPI en priorité si la clé est configurée
+  if (config.newsApiKey) {
+    try {
+      const params = new URLSearchParams({
+        q: NEWSAPI_GAMING_QUERY,
+        language: "fr",
+        sortBy: "publishedAt",
+        pageSize: String(maxArticles),
+        apiKey: config.newsApiKey,
+      });
+
+      const res = await fetch(`https://newsapi.org/v2/everything?${params}`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as {
+          articles?: Array<{
+            title: string;
+            url: string;
+            source?: { name?: string };
+            publishedAt: string;
+            urlToImage?: string | null;
+            description?: string | null;
+          }>;
+        };
+
+        if (data.articles && data.articles.length > 0) {
+          return data.articles.map((a) => ({
+            title: a.title,
+            url: a.url,
+            source: a.source?.name ?? "NewsAPI",
+            publishedAt: a.publishedAt,
+            imageUrl: a.urlToImage ?? null,
+            description: a.description ?? null,
+          }));
+        }
+      }
+    } catch (error) {
+      logger.warn(
+        `[ExternalAPI] NewsAPI error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  // 2. Fallback : flux RSS (Reddit, Instant Gaming)
   try {
     const allArticles: NewsArticle[] = [];
 
@@ -325,7 +373,6 @@ export async function getGamingNews(maxArticles = 5): Promise<NewsArticle[]> {
       }
     }
 
-    // Trier par date décroissante et limiter
     allArticles.sort(
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
