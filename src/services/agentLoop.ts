@@ -203,6 +203,13 @@ async function runAgentLoopInternal(
     "- reddit_get_posts : posts d'un subreddit (hot, new, top)\n" +
     "- reddit_search : recherche sur Reddit par mot-clé\n" +
     "- reddit_trending : subreddits populaires du moment\n" +
+    "### Agent Reach — Zero-API web access (auto-use, gratuit)\n" +
+    "- jina_read_url : lit n'importe quelle page web via Jina Reader (gratuit, pas de clé)\n" +
+    "- youtube_transcript : transcript de vidéo YouTube via Jina Reader (gratuit)\n" +
+    "- exa_web_search : recherche sémantique web via Exa (gratuit, pas de clé)\n" +
+    "- bilibili_search : recherche de vidéos Bilibili (gratuit, pas de login)\n" +
+    "- jina_read_reddit : lit un subreddit via Jina Reader (sans clé API Reddit)\n" +
+    "- jina_read_twitter : lit un profil Twitter/X via Jina Reader (sans clé API Twitter)\n" +
     "### Discord\n" +
     "- deleteMessages, timeoutUser, warnUser, kickUser, banUser : modération\n" +
     "- addRole, removeRole, createChannel, deleteChannel, lockChannel, unlockChannel\n" +

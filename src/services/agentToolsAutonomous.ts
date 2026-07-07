@@ -24,6 +24,7 @@ import { stripHtml } from "../utils/stripHtml.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, getRecentTweets as getTwitterTweets, searchTweets, isTwitterConfigured } from "./twitter.js";
 import { getSubredditPosts, searchReddit, getTrendingSubreddits } from "./reddit.js";
+import { readUrlViaJina, getYouTubeTranscript, exaSearch, searchBilibili, readRedditViaJina, readTwitterViaJina } from "./agentReach.js";
 
 // ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
 
@@ -382,6 +383,94 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
       name: "reddit_trending",
       description: "Récupère les subreddits populaires/tendance du moment. Gratuit, pas de clé.",
       parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  // ═══ 8. AGENT REACH — Zero-API web access (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "jina_read_url",
+      description: "Lit le contenu de n'importe quelle page web via Jina Reader. Gratuit, pas de clé API. Retourne titre + contenu markdown. Utilise cet outil pour lire un article, un post, une page web.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL complète de la page à lire (ex: https://example.com/article)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "youtube_transcript",
+      description: "Récupère le transcript/sous-titres d'une vidéo YouTube. Gratuit via Jina Reader. Retourne le texte complet de la vidéo.",
+      parameters: {
+        type: "object",
+        properties: {
+          videoId: { type: "string", description: "ID YouTube ou URL complète (ex: dQw4w9WgXcQ ou https://youtube.com/watch?v=...)" },
+        },
+        required: ["videoId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "exa_web_search",
+      description: "Recherche sémantique sur tout le web via Exa. Gratuit, pas de clé API. Retourne titres, URLs et extraits. Utilise cet outil pour des recherches web globales.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Requête de recherche (ex: 'best LLM frameworks 2024')" },
+          numResults: { type: "number", description: "Nombre de résultats (défaut 5, max 10)" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bilibili_search",
+      description: "Recherche des vidéos sur Bilibili (B站). Gratuit, pas de login. Retourne titre, BVID, auteur, vues.",
+      parameters: {
+        type: "object",
+        properties: {
+          keyword: { type: "string", description: "Mot-clé de recherche" },
+          limit: { type: "number", description: "Nombre de résultats (défaut 5, max 10)" },
+        },
+        required: ["keyword"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "jina_read_reddit",
+      description: "Lit le contenu d'un subreddit via Jina Reader (sans clé API Reddit). Retourne les posts visibles en markdown.",
+      parameters: {
+        type: "object",
+        properties: {
+          subreddit: { type: "string", description: "Nom du subreddit sans r/" },
+          sort: { type: "string", description: "Tri: hot, new, top (défaut: hot)" },
+        },
+        required: ["subreddit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "jina_read_twitter",
+      description: "Lit le profil/tweets récents d'un utilisateur Twitter/X via Jina Reader. Gratuit, pas de clé API Twitter. Retourne le contenu de la page en markdown.",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "Nom d'utilisateur Twitter sans @" },
+        },
+        required: ["username"],
+      },
     },
   },
 ];
@@ -1177,6 +1266,13 @@ export async function executeAutonomousTool(
       case "reddit_get_posts": return await tRedditGetPosts(args);
       case "reddit_search": return await tRedditSearch(args);
       case "reddit_trending": return await tRedditTrending();
+      // 8. Agent Reach — Zero-API web access
+      case "jina_read_url": return await tJinaReadUrl(args);
+      case "youtube_transcript": return await tYouTubeTranscript(args);
+      case "exa_web_search": return await tExaSearch(args);
+      case "bilibili_search": return await tBilibiliSearch(args);
+      case "jina_read_reddit": return await tJinaReadReddit(args);
+      case "jina_read_twitter": return await tJinaReadTwitter(args);
       default: return null;
     }
   } catch (error) {
@@ -1278,5 +1374,75 @@ async function tRedditTrending(): Promise<ToolCallResult> {
     return { success: true, data: JSON.stringify({ count: trending.length, trending }) };
   } catch (e) {
     return { success: false, data: `Erreur Reddit trending: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 8. AGENT REACH — Zero-API web access ═══
+
+async function tJinaReadUrl(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url).slice(0, 500);
+  if (!url.startsWith("http")) return { success: false, data: "URL invalide (doit commencer par http)" };
+  try {
+    const result = await readUrlViaJina(url);
+    if (!result) return { success: false, data: "Lecture échouée" };
+    return { success: true, data: JSON.stringify({ url: result.url, title: result.title, content: result.content.slice(0, 6000), links: result.links.slice(0, 10) }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Jina Reader: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tYouTubeTranscript(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const videoId = String(args.videoId).slice(0, 200);
+  try {
+    const result = await getYouTubeTranscript(videoId);
+    if (!result) return { success: false, data: "Transcript indisponible pour cette vidéo" };
+    return { success: true, data: JSON.stringify({ videoId: result.videoId, title: result.title, channel: result.channel, transcript: result.transcript.slice(0, 6000) }) };
+  } catch (e) {
+    return { success: false, data: `Erreur YouTube transcript: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tExaSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query).slice(0, 200);
+  const num = Math.min(Number(args.numResults) || 5, 10);
+  try {
+    const results = await exaSearch(query, num);
+    return { success: true, data: JSON.stringify({ query, count: results.length, results }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Exa search: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBilibiliSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const keyword = String(args.keyword).slice(0, 100);
+  const limit = Math.min(Number(args.limit) || 5, 10);
+  try {
+    const results = await searchBilibili(keyword, limit);
+    return { success: true, data: JSON.stringify({ keyword, count: results.length, results }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Bilibili: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tJinaReadReddit(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const subreddit = String(args.subreddit).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+  const sort = String(args.sort || "hot");
+  try {
+    const result = await readRedditViaJina(subreddit, sort);
+    if (!result) return { success: false, data: "Lecture du subreddit échouée" };
+    return { success: true, data: JSON.stringify({ subreddit, sort, title: result.title, content: result.content.slice(0, 5000) }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Jina Reddit: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tJinaReadTwitter(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const username = String(args.username).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+  try {
+    const result = await readTwitterViaJina(username);
+    if (!result) return { success: false, data: "Lecture du profil Twitter échouée" };
+    return { success: true, data: JSON.stringify({ username, title: result.title, content: result.content.slice(0, 5000) }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Jina Twitter: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
