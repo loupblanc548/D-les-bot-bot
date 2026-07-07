@@ -518,3 +518,34 @@ export function parseJsonResponse<T>(content: string): T | null {
     return null;
   }
 }
+
+// ─── Prompt 8: Quick Sentiment (fast path, 5 dimensions) ─────────────
+
+export interface QuickSentimentResult {
+  sentiment: "très_positif" | "positif" | "neutre" | "négatif" | "très_négatif";
+  toxicity: number;
+  urgency: number;
+  confidence: number;
+  engagement: number;
+  summary: string;
+}
+
+export const SENTIMENT_PROMPT = `Tu es un expert en analyse de sentiment.
+
+MESSAGE: "{message}"
+CONTEXTE: {context}
+
+Analyse sur 5 dimensions (0-10):
+1. Positivité
+2. Toxicité
+3. Urgence
+4. Confiance
+5. Engagement
+
+Réponds en JSON: {sentiment, toxicity, urgency, confidence, engagement, summary}`;
+
+export function buildQuickSentimentPrompt(message: string, context?: string): string {
+  return SENTIMENT_PROMPT
+    .replace("{message}", message.slice(0, 2000))
+    .replace("{context}", context ?? "serveur Discord gaming francophone");
+}
