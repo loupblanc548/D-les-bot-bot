@@ -25,6 +25,23 @@ import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
 
 export function attachInteractionHandlers(client: Client): void {
+  // ── 0. Context Menus (clic droit) ──────────────────────────────────
+  client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+    if (!interaction.isContextMenuCommand()) return;
+    const handler = commandRouter[interaction.commandName];
+    if (handler) {
+      try {
+        await handler(interaction, client);
+      } catch (error) {
+        logger.error(`[ContextMenu] /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`);
+        const reply = interaction.replied || interaction.deferred
+          ? interaction.followUp.bind(interaction)
+          : interaction.reply.bind(interaction);
+        await reply({ content: "❌ Une erreur est survenue.", flags: [MessageFlags.Ephemeral] }).catch(() => {});
+      }
+    }
+  });
+
   // ── 1. Commandes slash ──────────────────────────────────────────────
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
     if (!interaction.isChatInputCommand()) return;
