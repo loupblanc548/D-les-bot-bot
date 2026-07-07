@@ -46,6 +46,40 @@ CONTRAINTES:
 - Les liens discord.gg/ sont légitimes sauf s'ils mènent à un serveur de scam
 - Le langage familier/gaming n'est PAS du spam
 
+EXEMPLES DE CLASSIFICATION:
+
+Exemple 1:
+Message: "Hey tu veux t'amuser?"
+Classification: CLEAN
+
+Exemple 2:
+Message: "CLICK HERE NOW!!! FREE MONEY!!!"
+Classification: SPAM
+
+Exemple 3:
+Message: "discord.gg/scam"
+Classification: PHISHING
+
+Exemple 4:
+Message: "GG bien joué les gars, on les a eu"
+Classification: CLEAN
+
+Exemple 5:
+Message: "Free Nitro! Claim now at discord-nitro-free.xyz"
+Classification: PHISHING
+
+Exemple 6:
+Message: "SPAM SPAM SPAM SPAM SPAM"
+Classification: SPAM
+
+Exemple 7:
+Message: "T'es nul à ce jeu frérot"
+Classification: CLEAN
+
+Exemple 8:
+Message: "Clique ici pour gagner un iPhone 15 → bit.ly/free-iphone"
+Classification: PHISHING
+
 FORMAT SORTIE (JSON strict):
 {
   "verdict": "spam|phishing|clean",
@@ -57,8 +91,9 @@ FORMAT SORTIE (JSON strict):
 export function buildSpamPhishingPrompt(message: string, _context?: string): string {
   return `${SPAM_PHISHING_PROMPT}
 
-MESSAGE À ANALYSER:
-"${message.slice(0, 2000)}"`;
+Maintenant classe ce message:
+Message: "${message.slice(0, 2000)}"
+Classification:`;
 }
 
 // ─── Prompt 2: Deep Sentiment Analysis (5 dimensions) ────────────────
@@ -82,6 +117,28 @@ RÈGLES:
 - Le trash talk gaming léger n'est PAS de l'agressivité
 - Les insultes entre amis qui se connaissent ne sont PAS du harcèlement
 
+EXEMPLES D'ANALYSE:
+
+Exemple 1:
+Message: "GG bien joué!"
+Sentiment: positif | Agressivité: 0 | Spam: 0 | Phishing: 0 | Harcèlement: 0
+
+Exemple 2:
+Message: "T'es vraiment le pire joueur que j'ai jamais vu, dégage"
+Sentiment: négatif | Agressivité: 7 | Spam: 0 | Phishing: 0 | Harcèlement: 6
+
+Exemple 3:
+Message: "Free Nitro! Claim now!"
+Sentiment: neutre | Agressivité: 0 | Spam: 9 | Phishing: 8 | Harcèlement: 0
+
+Exemple 4:
+Message: "Lol t'es mauvais frérot"
+Sentiment: neutre | Agressivité: 2 | Spam: 0 | Phishing: 0 | Harcèlement: 1
+
+Exemple 5:
+Message: "Je vais te trouver IRL et te faire payer"
+Sentiment: très_négatif | Agressivité: 10 | Spam: 0 | Phishing: 0 | Harcèlement: 10
+
 FORMAT RÉPONSE (JSON strict):
 {
   "sentiment": "très_positif|positif|neutre|négatif|très_négatif",
@@ -102,8 +159,8 @@ export function buildDeepSentimentPrompt(message: string, context?: string): str
   const ctx = context ? `\nCONTEXTE ADDITIONNEL: ${context}` : "";
   return `${DEEP_SENTIMENT_PROMPT}
 
-MESSAGE À ANALYSER:
-"${message.slice(0, 2000)}"${ctx}`;
+Maintenant analyse ce message:
+Message: "${message.slice(0, 2000)}"${ctx}`;
 }
 
 // ─── Prompt 3: Threat Detection & User Risk Assessment (7 factors) ──
