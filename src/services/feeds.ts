@@ -19,6 +19,7 @@ import {
   getPlatformLabel,
 } from "../utils/notificationCards.js";
 import { alertApiFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
+import { fetchRetry } from "../utils/fetchRetry.js";
 import {
   RSS_HEADERS,
   PLATFORM_COLORS,
@@ -116,7 +117,12 @@ async function cachedFetchRss(url: string, needHeaders: boolean): Promise<string
     return Promise.resolve(cached.data);
   }
   try {
-    const response = await fetch(url, needHeaders ? { headers: RSS_HEADERS } : undefined);
+    const response = await fetchRetry(url, {
+      headers: needHeaders ? RSS_HEADERS : undefined,
+      retries: 2,
+      retryDelayMs: 1500,
+      timeoutMs: 12_000,
+    });
     if (!response.ok) {
       rssCache.set(key, { data: null, ts: Date.now() });
       return null;
