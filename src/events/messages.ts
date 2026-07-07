@@ -46,9 +46,6 @@ const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
 const SPAM_MUTE_MS = 5 * 60 * 1000;
 
-const discordLinkCooldown = new Map<string, number>();
-const DISCORD_LINK_COOLDOWN_MS = 10_000;
-
 // ─── Relances humoristiques quand @mention sans message ──────────────────────
 
 const HELPDIVER_EMPTY_MENTION_REPLIES = [
@@ -156,78 +153,6 @@ export function handleMessageEvents(client: Client) {
       if (!message.guild) {
         await handleDMMessage(message, client);
         return;
-      }
-
-      // ── Détection demande d'ajout Discord ───────────────────────────
-      const lowerContent = message.content.toLowerCase();
-      const friendRequestPatterns = [
-        "tu peux m'ajouter",
-        "tu peux m ajouter",
-        "tu peut m'ajouter",
-        "tu peut m ajouter",
-        "ajoute moi",
-        "ajoute-moi",
-        "ajoute moi sur discord",
-        "ajoute moi sur ps",
-        "ajoute moi sur xbox",
-        "ajoute moi sur steam",
-        "on peut jouer ensemble",
-        "on peut jouer",
-        "c'est quoi ton pseudo",
-        "c est quoi ton pseudo",
-        "c'est quoi ton discord",
-        "c est quoi ton discord",
-        "donne ton discord",
-        "donne ton pseudo",
-        "ton pseudo discord",
-        "ajoute mon discord",
-        "voici mon discord",
-        "mon discord c'est",
-        "mon discord c est",
-        "donne ton id discord",
-        "tu veux jouer avec moi",
-        "on joue ensemble",
-        "tu joues à quoi",
-        "tu joue a quoi",
-        "on peut etre ami",
-        "on peut être ami",
-        "devient mon ami",
-      ];
-      for (const pattern of friendRequestPatterns) {
-        if (lowerContent.includes(pattern)) {
-          await message.reply({
-            content: `<@${message.author.id}> 🚫 Je n'ajoute personne sur Discord, je suis un bot ! Pas la peine de demander mon pseudo ou de vouloir jouer ensemble. 🤖`,
-            allowedMentions: { repliedUser: true },
-          });
-          return;
-        }
-      }
-
-      // ── Détection du mot "discord" → partage le lien du serveur seulement si demandé ──
-      const discordLinkPatterns = [
-        "lien du serveur",
-        "lien discord",
-        "le serveur discord",
-        "rejoindre le serveur",
-        "comment rejoindre",
-        "le lien du discord",
-        "tu as un discord",
-        "ton serveur discord",
-        "le discord du bot",
-        "discord du serveur",
-      ];
-      const wantsDiscordLink = discordLinkPatterns.some((p) => lowerContent.includes(p));
-      if (wantsDiscordLink && !message.author.bot) {
-        const now = Date.now();
-        const lastTime = discordLinkCooldown.get(message.channel.id) ?? 0;
-        if (now - lastTime >= DISCORD_LINK_COOLDOWN_MS) {
-          discordLinkCooldown.set(message.channel.id, now);
-          await message.reply({
-            content: `<@${message.author.id}> 📌 Voici le lien du serveur Discord : https://discord.gg/hAVqWmpGV`,
-            allowedMentions: { repliedUser: true },
-          });
-          return;
-        }
       }
 
       // ── Détection spam proactive ──────────────────────────────────
