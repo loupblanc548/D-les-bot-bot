@@ -222,6 +222,18 @@ async function runAgentLoopInternal(
     "- send_telegram : envoie un message Telegram\n" +
     "- send_slack : envoie un message Slack\n" +
     "- broadcast_notification : notifie sur toutes les plateformes configurées\n" +
+    "### Auto-Translation (auto-use)\n" +
+    "- auto_translate : traduit automatiquement (Google → LibreTranslate fallback, 29 langues)\n" +
+    "- detect_language : détecte la langue d'un texte\n" +
+    "### Anomaly Detection (auto-use)\n" +
+    "- detect_anomalies : détecte pics de messages/erreurs/modération, flood de nouveaux membres (raid)\n" +
+    "### Advanced Embeds (auto-use)\n" +
+    "- build_rich_embed : embed personnalisé générique\n" +
+    "- build_comparison_embed : tableau de comparaison (colonnes/lignes)\n" +
+    "- build_leaderboard_embed : classement avec médailles 🥇🥈🥉\n" +
+    "- build_progress_embed : barres de progression visuelles █░\n" +
+    "- build_timeline_embed : timeline chronologique\n" +
+    "- build_stat_cards_embed : cartes de statistiques avec icônes\n" +
     "### Discord\n" +
     "- deleteMessages, timeoutUser, warnUser, kickUser, banUser : modération\n" +
     "- addRole, removeRole, createChannel, deleteChannel, lockChannel, unlockChannel\n" +
