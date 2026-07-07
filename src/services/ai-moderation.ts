@@ -6,6 +6,7 @@ import {
   buildDeepSentimentPrompt,
   buildLinkSafetyPrompt,
   buildThreatDetectionPrompt,
+  buildCodeReviewPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
@@ -227,5 +228,31 @@ export async function assessThreat(profile: UserProfile): Promise<ThreatAssessme
       confidence: 0,
       reasoning: "Erreur API",
     };
+  }
+}
+
+// ─── Code Review IA ───────────────────────────────────────────────────
+
+export async function reviewCode(
+  code: string,
+  context?: { framework?: string; version?: string; environment?: string },
+): Promise<string> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildCodeReviewPrompt(code, context);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en code review. Réponds en Markdown structuré." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 2000,
+      temperature: 0.2,
+    }, { timeout: 30_000 });
+
+    return completion.choices[0]?.message?.content || "❌ Analyse impossible.";
+  } catch (error) {
+    logger.error("[AI-Moderation] reviewCode:", String(error));
+    return "❌ Erreur lors de l'analyse de code.";
   }
 }

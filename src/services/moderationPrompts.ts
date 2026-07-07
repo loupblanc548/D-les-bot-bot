@@ -254,6 +254,65 @@ MESSAGE CIBLE À ANALYSER:
 "${targetMessage.slice(0, 2000)}"`;
 }
 
+// ─── Prompt 6: Code Review IA ────────────────────────────────────────
+
+export const CODE_REVIEW_PROMPT = `Tu es un expert en code review avec 20 ans d'expérience en sécurité.
+
+TÂCHE:
+Analyser ce code TypeScript/JavaScript pour:
+1. Failles de sécurité
+2. Performance issues
+3. Code smell
+4. Best practices violations
+5. Bugs potentiels
+
+RÈGLES:
+- Sois très critique
+- Priorise les failles de sécurité
+- Suggère des solutions concrètes
+- Donne du code d'exemple pour chaque correction
+- Considère le contexte (framework, version, environnement)
+- Vérifie: injection, XSS, CSRF, hardcoded secrets, eval, prototype pollution, ReDoS, memory leaks
+
+FORMAT RÉPONSE (Markdown):
+# Code Review
+
+## 🔴 Sécurité (Critiques)
+- Issue: [description]
+  Correction: [code ou explication]
+
+## 🟠 Performance
+- Issue: [description]
+  Correction: [code ou explication]
+
+## 🟡 Code Quality
+- Issue: [description]
+  Correction: [code ou explication]
+
+## 🟢 Suggestions
+- Suggestion: [description]`;
+
+export function buildCodeReviewPrompt(
+  code: string,
+  context: { framework?: string; version?: string; environment?: string } = {},
+): string {
+  const ctx = [
+    context.framework ? `- Framework: ${context.framework}` : null,
+    context.version ? `- Version: ${context.version}` : null,
+    context.environment ? `- Environnement: ${context.environment}` : null,
+  ].filter(Boolean).join("\n");
+
+  return `${CODE_REVIEW_PROMPT}
+
+CONTEXTE:
+${ctx || "- Projet Discord.js/TypeScript"}
+
+CODE À ANALYSER:
+\`\`\`
+${code.slice(0, 4000)}
+\`\`\``;
+}
+
 // ─── Helper: Parse JSON from LLM response ─────────────────────────────
 
 export function parseJsonResponse<T>(content: string): T | null {
