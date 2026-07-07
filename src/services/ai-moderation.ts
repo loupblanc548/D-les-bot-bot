@@ -109,9 +109,9 @@ export async function detectSpamPhishing(message: string): Promise<ModerationVer
         { role: "system", content: "Tu es un modérateur Discord expert. Réponds UNIQUEMENT en JSON valide." },
         { role: "user", content: prompt },
       ],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.1,
-    }, { timeout: 10_000 });
+    }, { timeout: 15_000 });
 
     const raw = completion.choices[0]?.message?.content || "";
     const parsed = parseJsonResponse<ModerationVerdict>(raw);
@@ -137,9 +137,9 @@ export async function deepSentimentAnalysis(message: string, context?: string): 
         { role: "system", content: "Tu es un expert en psychologie et analyse de sentiment. Réponds UNIQUEMENT en JSON valide." },
         { role: "user", content: prompt },
       ],
-      max_tokens: 500,
+      max_tokens: 800,
       temperature: 0.2,
-    }, { timeout: 15_000 });
+    }, { timeout: 20_000 });
 
     const raw = completion.choices[0]?.message?.content || "";
     const parsed = parseJsonResponse<DeepSentimentResult>(raw);
