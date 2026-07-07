@@ -9,6 +9,7 @@ import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
 import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from "../services/ai-moderation.js";
+import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -1055,6 +1056,27 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
+    case "ai-context": {
+      const sujet = interaction.options.getString("sujet") ?? interaction.options.getString("context");
+      await interaction.deferReply({ ephemeral: true });
+      if (!sujet) {
+        await interaction.editReply({ content: "❌ Aucun sujet fourni." });
+        break;
+      }
+      const pipeline = await runReasoningPipeline<ModerationPipelineSolution>(sujet, { maxAspects: 5, timeoutPerStep: 12_000 });
+      const embed = new EmbedBuilder()
+        .setTitle("🧠 Analyse multi-étapes")
+        .setColor(0x5865f2)
+        .setDescription(`Pipeline: ${pipeline.steps} étapes en ${pipeline.durationMs}ms`)
+        .addFields(
+          { name: "📋 Aspects identifiés", value: pipeline.aspects.length > 0 ? pipeline.aspects.map((a, i) => `${i + 1}. ${a}`).join("\n") : "Aucun", inline: false },
+          { name: "🔍 Analyses", value: pipeline.analyses.map(a => `**${a.aspect}**: ${a.result.analysis.slice(0, 200)}${a.result.severity !== undefined ? ` (${a.result.severity}/10)` : ""}`).join("\n\n").slice(0, 1024) || "Aucune", inline: false },
+          { name: "✅ Solution", value: JSON.stringify(pipeline.solution, null, 2).slice(0, 1024), inline: false },
+        )
+        .setTimestamp();
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
     case "ai-profile":
     case "ai-suggest":
     case "ai-mood":
@@ -1065,7 +1087,6 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "ai-moderation-config":
     case "ai-history":
     case "ai-chat-export":
-    case "ai-context":
     case "ai-temperature":
     case "ai-model-select":
     case "ai-token-usage":
