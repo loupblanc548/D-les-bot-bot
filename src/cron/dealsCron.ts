@@ -186,6 +186,11 @@ async function sendDealEmbed(
 
     // Nettoyer le HTML de la description avant traduction
     const cleanHtmlContent = (item.contentSnippet || item.content || "")
+      // Remove <table>...</table> blocks (price/currency tables from Fanatical etc.)
+      .replace(/<table[\s\S]*?<\/table>/gi, "")
+      // Remove style/script blocks
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<[^>]*>/g, " ")
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, "&")
