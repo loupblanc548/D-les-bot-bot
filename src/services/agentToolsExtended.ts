@@ -1460,7 +1460,7 @@ async function tAnalyzeImage(args: Record<string, unknown>): Promise<ToolCallRes
       ],
       max_tokens: 500,
       temperature: 0.3,
-    });
+    }, { timeout: 15_000 });
 
     const description = response.choices[0]?.message?.content || "Analyse impossible";
     return {
@@ -1569,7 +1569,7 @@ async function tSummarizeConversation(args: Record<string, unknown>, ctx: ToolCo
       ],
       max_tokens: 500,
       temperature: 0.3,
-    });
+    }, { timeout: 15_000 });
 
     const summary = response.choices[0]?.message?.content || "Résumé impossible";
     return {
