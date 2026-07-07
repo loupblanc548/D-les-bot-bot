@@ -722,7 +722,7 @@ export async function generateNotificationCard(data: CardData): Promise<Buffer |
     const font = await loadFont();
     const node = selectTemplate(data);
 
-    const svg = await satori(node, {
+    const svg = await satori(node as any, {
       width: 600,
       height: data.type === "deal" || data.type === "freegame" ? 400 : 340,
       fonts: font.length > 0 ? [{ name: "Inter", data: font, weight: 700, style: "normal" }] : [],
