@@ -18,6 +18,7 @@ import { sendSecurityAlert, checkMessageSpam } from "../services/reportChannel.j
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
+import { simulateHumanTyping } from "../utils/humanTyping.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
@@ -271,8 +272,8 @@ async function handleAiChatMention(
       return;
     }
 
-    // Déclencher l'indicateur de frappe
-    await message.channel.sendTyping();
+    // Déclencher l'indicateur de frappe réaliste
+    await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
 
     // ── Vérifier les conversations expirées avant de continuer ──
     await checkExpiredConversations();
@@ -413,8 +414,8 @@ async function handleDMMessage(
       return;
     }
 
-    // Indicateur de frappe
-    await message.channel.sendTyping();
+    // Indicateur de frappe réaliste
+    await simulateHumanTyping(message.channel as TextChannel, content.length);
 
     // Lancer l'agent loop (Think → Act → Observe → Respond)
     // En DM, guildId est vide — les tools Discord seront limités mais les tools web/APIs fonctionnent
@@ -535,7 +536,7 @@ async function handleContextualAiChat(
     }
     aichatCooldown.set(message.author.id, Date.now());
 
-    await message.channel.sendTyping();
+    await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
     const reply = await chatWithHistory(
       message.channelId,
       cleanedContent,
