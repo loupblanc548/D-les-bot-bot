@@ -42,6 +42,9 @@ import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
 import { addXp } from "../services/xpService.js";
 import { handleSecurityIntegration } from "../services/securityIntegration.js";
+import { shouldBlock as checkAbuseFilter, checkMessage as getAbuseMatches } from "../services/abuseFilter.js";
+import { recordMessage as recordSpamMessage, analyzeSpam, getUserScore as getSpamScore } from "../services/spamDetector.js";
+import { analyzeToxicity as analyzePerspectiveToxicity, isPerspectiveConfigured } from "../services/perspectiveApi.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -163,6 +166,89 @@ export function handleMessageEvents(client: Client) {
 
       // ── Détection spam proactive ──────────────────────────────────
       void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
+
+      // ── Enregistrement pour le spam detector ML ───────────────────
+      recordSpamMessage(message.author.id, message.content, message.channel.id);
+
+      // ── Abuse Filter : patterns malveillants (scam, IP logger, raid...) ──
+      if (!("member" in message) || !message.member) return;
+      const abuseMember = message.member as GuildMember;
+      if (!abuseMember.permissions.has("Administrator") && !abuseMember.permissions.has("ModerateMembers")) {
+        const abuseResult = checkAbuseFilter(message.content);
+        if (abuseResult.block) {
+          try {
+            await message.delete();
+            const abuseAlert = await message.channel.send({
+              content: `⚠️ ${message.author} message supprimé: **${abuseResult.reason}**`,
+            });
+            setTimeout(() => abuseAlert.delete().catch(() => {}), 8000);
+
+            if (abuseResult.action === "ban" && message.guild) {
+              await message.guild.members.ban(message.author, { reason: `AbuseFilter: ${abuseResult.reason}` }).catch(() => {});
+            } else if (abuseResult.action === "timeout" && abuseMember.moderatable) {
+              await abuseMember.timeout(5 * 60 * 1000, `AbuseFilter: ${abuseResult.reason}`).catch(() => {});
+            }
+
+            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => {});
+            await createLog({
+              type: "automod",
+              action: `AbuseFilter (${abuseResult.action}) par ${message.author.tag}: ${abuseResult.reason}`,
+              userId: message.author.id,
+              details: message.content.slice(0, 200),
+            });
+            logger.info(`[AbuseFilter] ${message.author.tag}: ${abuseResult.reason} → ${abuseResult.action}`);
+            await sendSecurityAlert(client, {
+              type: "ABUSE_FILTER",
+              userId: message.author.id,
+              userTag: message.author.tag,
+              guildId: message.guild.id,
+              reason: `AbuseFilter: ${abuseResult.reason}`,
+              details: abuseResult.action,
+              messageContent: message.content.slice(0, 500),
+              messageUrl: message.url,
+            }).catch(() => {});
+            return;
+          } catch (err) {
+            logger.error("[AbuseFilter] Erreur:", err);
+          }
+        }
+
+        // ── Spam Detector ML : analyse heuristique ──────────────────
+        const spamResult = analyzeSpam(message.author.id, message.channel.id);
+        if (spamResult.isSpam) {
+          try {
+            await message.delete();
+            if (abuseMember.moderatable) {
+              await abuseMember.timeout(10 * 60 * 1000, `SpamDetector: score ${spamResult.score}`);
+            }
+            const spamAlert = await message.channel.send({
+              content: `🚫 ${message.author} timeout automatique (spam détecté: score ${spamResult.score})`,
+            });
+            setTimeout(() => spamAlert.delete().catch(() => {}), 10000);
+            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => {});
+            await createLog({
+              type: "automod",
+              action: `SpamDetector par ${message.author.tag}: score ${spamResult.score} (${spamResult.reasons.join(", ")})`,
+              userId: message.author.id,
+              details: message.content.slice(0, 200),
+            });
+            logger.info(`[SpamDetector] ${message.author.tag}: score ${spamResult.score} — ${spamResult.reasons.join(", ")}`);
+            await sendSecurityAlert(client, {
+              type: "SPAM_DETECTOR",
+              userId: message.author.id,
+              userTag: message.author.tag,
+              guildId: message.guild.id,
+              reason: `Spam ML: score ${spamResult.score}`,
+              details: spamResult.reasons.join(", "),
+              messageContent: message.content.slice(0, 500),
+              messageUrl: message.url,
+            }).catch(() => {});
+            return;
+          } catch (err) {
+            logger.error("[SpamDetector] Erreur:", err);
+          }
+        }
+      }
 
       // ── Salon de rapports manuels : ping auto ──────────────────────
       if (message.channel.id === "1515767173740757112" && !message.author.bot) {
@@ -614,6 +700,40 @@ async function handleSecurityModules(
 
   if (message.content.length > 10 && message.content.length < 1500) {
     if (!message.guild) return;
+
+    // ── Perspective API (Google) : toxicité en complément de l'IA ──
+    if (isPerspectiveConfigured()) {
+      const perspectiveResult = await analyzePerspectiveToxicity(message.content).catch(() => null);
+      if (perspectiveResult && (perspectiveResult.recommendedAction === "remove" || perspectiveResult.recommendedAction === "timeout")) {
+        try {
+          await message.delete();
+          const pAlert = await message.channel.send({
+            content: `⚠️ ${message.author} message supprimé (toxicité: ${Math.round(perspectiveResult.overallScore * 100)}%)`,
+          });
+          setTimeout(() => pAlert.delete().catch(() => {}), 8000);
+          if (perspectiveResult.recommendedAction === "timeout" && member.moderatable) {
+            await member.timeout(5 * 60 * 1000, `Perspective API: toxicité ${perspectiveResult.overallScore}`);
+          }
+          await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION").catch(() => {});
+          logger.info(`[Perspective] ${message.author.tag}: toxicité ${Math.round(perspectiveResult.overallScore * 100)}% → ${perspectiveResult.recommendedAction}`);
+          await sendSecurityAlert(client, {
+            type: "PERSPECTIVE_MOD",
+            userId: message.author.id,
+            userTag: message.author.tag,
+            guildId: message.guild.id,
+            reason: `Perspective API: toxicité ${Math.round(perspectiveResult.overallScore * 100)}%`,
+            details: `Action: ${perspectiveResult.recommendedAction}`,
+            messageContent: message.content.slice(0, 500),
+            messageUrl: message.url,
+          }).catch(() => {});
+          return;
+        } catch (err) {
+          logger.error("[Perspective] Erreur:", err);
+        }
+      }
+    }
+
+    // ── AI Moderation (OpenRouter) ────────────────────────────────
     withCache(`guild:${message.guild.id}:config`, 30, () =>
       prisma.guildConfig.findUnique({ where: { guildId: message.guild!.id } }),
     )

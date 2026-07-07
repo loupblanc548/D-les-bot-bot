@@ -4,6 +4,8 @@ import logger from "../utils/logger.js";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2";
 
+export const OLLAMA_STANDBY = true;
+
 export async function isOllamaAvailable(): Promise<boolean> {
   try { const res = await axios.get(`${OLLAMA_BASE_URL}/api/tags`, { timeout: 3000 }); return res.status === 200; } catch { return false; }
 }
