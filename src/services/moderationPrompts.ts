@@ -242,6 +242,13 @@ RÈGLES:
 - Le contexte gaming permet une tolérance au trash talk
 - Considère la récidive vs première offense
 
+CONTRAINTES DE FORMAT:
+- EXACTEMENT 5 points clés dans le reasoning
+- Langage technique mais compréhensible
+- Action recommandée explicite (pas de "peut-être")
+- Pas de jargon obscur sans explication
+- Chaque facteur doit avoir une justification courte
+
 FORMAT SORTIE (JSON strict):
 {
   "risk_score": 0-100,
@@ -324,6 +331,12 @@ CONTRAINTES:
 - Considère le ton de la conversation
 - Une escalade soudaine est un signal d'alarme
 - Le sarcasme peut être toxique selon le contexte
+
+CONTRAINTES DE FORMAT:
+- EXACTEMENT 3 points dans l'explication (contexte, analyse, verdict)
+- Action recommandée explicite (pas de "peut-être")
+- Langage technique mais compréhensible
+- Pas de jargon obscur
 
 FORMAT SORTIE (JSON strict):
 {
@@ -456,6 +469,14 @@ RÈGLES:
 - Recommande des actions de sécurité
 - Si tu n'as pas de données réelles, indique "données limitées" et base-toi sur les patterns connus
 - Les domaines de gaming connus (steam, discord, twitch) sont sûrs par défaut
+
+CONTRAINTES DE FORMAT:
+- EXACTEMENT 3 paragraphes dans reputation (contexte, analyse, conclusion)
+- Pas plus de 5 actions_recommended
+- Langage technique mais compréhensible
+- Action recommandée explicite (pas de "peut-être")
+- Pas de jargon obscur sans explication
+- Chaque finding doit être factuel ou clairement marqué comme estimation
 
 FORMAT RÉPONSE (JSON strict):
 {
