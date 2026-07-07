@@ -1,76 +1,72 @@
 /**
- * huggingFace.ts — Integration Hugging Face Inference API (fallback AI gratuit).
+ * huggingFace.ts — Integration Hugging Face (fallback AI gratuit).
  *
- * Utilise des modeles open-source heberges par Hugging Face.
- * Plan gratuit: 1000 requetes/jour, pas de cle requise pour les modeles publics.
+ * Utilise le HF Router (OpenAI-compatible) pour le chat LLM.
+ * Utilise l'Inference API pour les modeles specialises (sentiment, toxicite).
  *
- * Si HF_API_TOKEN est configure, utilise le token pour des limites plus elevees.
- * Utilise comme fallback ultime si OpenRouter est down.
+ * Plan gratuit: 1000 requetes/jour avec token.
+ * Utilise comme fallback ultime si OpenRouter + Groq + Gemini sont down.
  */
 
+import OpenAI from "openai";
 import logger from "./logger.js";
+import { config } from "../config.js";
 
-const API_TOKEN = process.env.HF_API_TOKEN || "";
-const BASE_URL = "https://api-inference.huggingface.co/models";
+const HF_ROUTER_URL = "https://router.huggingface.co/v1";
+const HF_INFERENCE_URL = "https://api-inference.huggingface.co/models";
 
-// Modeles gratuits pour differents cas d'usage
-const MODELS = {
-  chat: "mistralai/Mistral-7B-Instruct-v0.3",
+const CHAT_MODEL = "moonshotai/Kimi-K2-Instruct-0905";
+
+const INFERENCE_MODELS = {
   sentiment: "cardiffnlp/twitter-roberta-base-sentiment-latest",
   toxicity: "unitary/toxic-bert",
 } as const;
 
-interface HFResponse {
+function getRouterClient(): OpenAI | null {
+  if (!config.hfApiKey) return null;
+  return new OpenAI({
+    baseURL: HF_ROUTER_URL,
+    apiKey: config.hfApiKey,
+    timeout: 15_000,
+    maxRetries: 1,
+  });
+}
+
+interface HFInferenceResponse {
   generated_text?: string;
   label?: string;
   score?: number;
 }
 
 /**
- * Genere une reponse de chat via un modele open-source (Mistral-7B).
+ * Genere une reponse de chat via le HF Router (OpenAI-compatible).
  * Retourne null si l'API echoue.
  */
 export async function chatWithHF(
   message: string,
   systemPrompt: string = "Tu es un assistant Discord utile et amical.",
 ): Promise<string | null> {
-  const model = MODELS.chat;
-  const prompt = `<s>[INST] ${systemPrompt}\n\n${message} [/INST]`;
+  const client = getRouterClient();
+  if (!client) {
+    logger.debug("[HuggingFace] Pas de cle HF_API_KEY configuree");
+    return null;
+  }
 
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (API_TOKEN) {
-      headers["Authorization"] = `Bearer ${API_TOKEN}`;
-    }
-
-    const response = await fetch(`${BASE_URL}/${model}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 200,
-          temperature: 0.7,
-          return_full_text: false,
-        },
-      }),
-      signal: AbortSignal.timeout(15_000),
+    const completion = await client.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message },
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
-    if (!response.ok) {
-      logger.warn(`[HuggingFace] HTTP ${response.status} pour ${model}`);
-      return null;
-    }
-
-    const data = (await response.json()) as HFResponse[];
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      return data[0].generated_text.trim();
-    }
-    return null;
+    const text = completion.choices[0]?.message?.content;
+    return text?.trim() || null;
   } catch (err) {
-    logger.debug(`[HuggingFace] Erreur chat: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(`[HuggingFace] Chat error: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -82,26 +78,22 @@ export async function chatWithHF(
 export async function analyzeSentiment(
   text: string,
 ): Promise<{ label: string; score: number } | null> {
-  const model = MODELS.sentiment;
+  if (!config.hfApiKey) return null;
 
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (API_TOKEN) {
-      headers["Authorization"] = `Bearer ${API_TOKEN}`;
-    }
-
-    const response = await fetch(`${BASE_URL}/${model}`, {
+    const response = await fetch(`${HF_INFERENCE_URL}/${INFERENCE_MODELS.sentiment}`, {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${config.hfApiKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ inputs: text }),
       signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) return null;
 
-    const data = (await response.json()) as HFResponse[];
+    const data = (await response.json()) as HFInferenceResponse[];
     if (Array.isArray(data) && data[0]) {
       return { label: data[0].label || "unknown", score: data[0].score || 0 };
     }
@@ -116,26 +108,22 @@ export async function analyzeSentiment(
  * Retourne null si l'API echoue.
  */
 export async function detectToxicity(text: string): Promise<number | null> {
-  const model = MODELS.toxicity;
+  if (!config.hfApiKey) return null;
 
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (API_TOKEN) {
-      headers["Authorization"] = `Bearer ${API_TOKEN}`;
-    }
-
-    const response = await fetch(`${BASE_URL}/${model}`, {
+    const response = await fetch(`${HF_INFERENCE_URL}/${INFERENCE_MODELS.toxicity}`, {
       method: "POST",
-      headers,
+      headers: {
+        Authorization: `Bearer ${config.hfApiKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ inputs: text }),
       signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) return null;
 
-    const data = (await response.json()) as HFResponse[];
+    const data = (await response.json()) as HFInferenceResponse[];
     if (Array.isArray(data) && data[0]) {
       return data[0].score ?? 0;
     }
