@@ -8,12 +8,14 @@ import {
   buildThreatDetectionPrompt,
   buildCodeReviewPrompt,
   buildThreatIntelPrompt,
+  buildQuickSentimentPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
   type ThreatAssessment,
   type UserProfile,
   type ThreatIntelResult,
+  type QuickSentimentResult,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -256,6 +258,34 @@ export async function reviewCode(
   } catch (error) {
     logger.error("[AI-Moderation] reviewCode:", String(error));
     return "❌ Erreur lors de l'analyse de code.";
+  }
+}
+
+// ─── Quick Sentiment (fast path, 5 dimensions) ────────────────────────
+
+export async function quickSentiment(message: string, context?: string): Promise<QuickSentimentResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildQuickSentimentPrompt(message, context);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en analyse de sentiment. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 200,
+      temperature: 0.1,
+    }, { timeout: 8_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<QuickSentimentResult>(raw);
+    if (!parsed) {
+      return { sentiment: "neutre", toxicity: 0, urgency: 0, confidence: 0, engagement: 0, summary: "Parse error" };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] quickSentiment:", String(error));
+    return { sentiment: "neutre", toxicity: 0, urgency: 0, confidence: 0, engagement: 0, summary: "Erreur API" };
   }
 }
 
