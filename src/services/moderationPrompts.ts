@@ -313,6 +313,77 @@ ${code.slice(0, 4000)}
 \`\`\``;
 }
 
+// ─── Prompt 7: Threat Intelligence (IP/Domain) ───────────────────────
+
+export interface ThreatIntelResult {
+  target: string;
+  threat_level: "none" | "low" | "medium" | "high" | "critical";
+  findings: {
+    reputation: string;
+    location: string;
+    associated_ips: string[];
+    malware_detections: string[];
+    phishing_reports: string[];
+    ssl_info?: string;
+    abuse_history?: string;
+  };
+  actions_recommended: string[];
+  confidence: number;
+}
+
+export const THREAT_INTEL_PROMPT = `Tu es un expert en cyber-sécurité et threat intelligence avec spécialité en discord/web threats.
+
+TÂCHE:
+Analyser une IP ou un domaine pour évaluer son niveau de menace.
+
+RECHERCHE:
+1. Historique connu d'abus
+2. Réputation auprès des blocklists
+3. Localisation et ISP
+4. Associated domains/IPs
+5. Malware/Phishing patterns
+6. Abuse history
+7. SSL certificate info
+
+BASES DE DONNÉES À VÉRIFIER VIRTUELLEMENT:
+- AbuseIPDB
+- VirusTotal
+- MalwareBytes
+- URLhaus
+- PhishTank
+
+RÈGLES:
+- Sois précis sur les faits
+- Distingue certitude/probabilité
+- Donne des sources quand possible
+- Recommande des actions de sécurité
+- Si tu n'as pas de données réelles, indique "données limitées" et base-toi sur les patterns connus
+- Les domaines de gaming connus (steam, discord, twitch) sont sûrs par défaut
+
+FORMAT RÉPONSE (JSON strict):
+{
+  "target": "...",
+  "threat_level": "none|low|medium|high|critical",
+  "findings": {
+    "reputation": "...",
+    "location": "...",
+    "associated_ips": [],
+    "malware_detections": [],
+    "phishing_reports": [],
+    "ssl_info": "...",
+    "abuse_history": "..."
+  },
+  "actions_recommended": ["block", "investigate", "monitor"],
+  "confidence": 0-100
+}`;
+
+export function buildThreatIntelPrompt(ipOrDomain: string): string {
+  return `${THREAT_INTEL_PROMPT}
+
+IP/DOMAINE À ANALYSER:
+${ipOrDomain}`;
+}
+
 // ─── Helper: Parse JSON from LLM response ─────────────────────────────
 
 export function parseJsonResponse<T>(content: string): T | null {

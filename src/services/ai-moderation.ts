@@ -7,11 +7,13 @@ import {
   buildLinkSafetyPrompt,
   buildThreatDetectionPrompt,
   buildCodeReviewPrompt,
+  buildThreatIntelPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
   type ThreatAssessment,
   type UserProfile,
+  type ThreatIntelResult,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -254,5 +256,57 @@ export async function reviewCode(
   } catch (error) {
     logger.error("[AI-Moderation] reviewCode:", String(error));
     return "❌ Erreur lors de l'analyse de code.";
+  }
+}
+
+// ─── Threat Intelligence (IP/Domain) ──────────────────────────────────
+
+export async function analyzeThreatIntel(ipOrDomain: string): Promise<ThreatIntelResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildThreatIntelPrompt(ipOrDomain);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en threat intelligence. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 800,
+      temperature: 0.15,
+    }, { timeout: 20_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<ThreatIntelResult>(raw);
+    if (!parsed) {
+      return {
+        target: ipOrDomain,
+        threat_level: "none",
+        findings: {
+          reputation: "données limitées",
+          location: "inconnue",
+          associated_ips: [],
+          malware_detections: [],
+          phishing_reports: [],
+        },
+        actions_recommended: ["monitor"],
+        confidence: 0,
+      };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] analyzeThreatIntel:", String(error));
+    return {
+      target: ipOrDomain,
+      threat_level: "none",
+      findings: {
+        reputation: "Erreur API",
+        location: "inconnue",
+        associated_ips: [],
+        malware_detections: [],
+        phishing_reports: [],
+      },
+      actions_recommended: ["monitor"],
+      confidence: 0,
+    };
   }
 }

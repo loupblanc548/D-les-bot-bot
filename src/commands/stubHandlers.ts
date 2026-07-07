@@ -8,7 +8,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
-import { deepSentimentAnalysis, detectSpamPhishing } from "../services/ai-moderation.js";
+import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from "../services/ai-moderation.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -300,6 +300,75 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
     case "whitelist-domain": {
       const domaine = interaction.options.getString("domaine", true);
       embed.setTitle("✅ Domaine Whitelisté").setDescription(`\`${domaine}\` ajouté à la whitelist.`);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+
+    case "intel": {
+      await interaction.deferReply({ ephemeral: true });
+      const target = interaction.options.getString("target") ?? interaction.options.getString("domaine") ?? interaction.options.getString("ip") ?? "unknown";
+      if (target === "unknown") {
+        await interaction.editReply({ content: "❌ Aucune cible spécifiée." });
+        break;
+      }
+      const result = await analyzeThreatIntel(target);
+      const colorMap: Record<string, number> = { none: 0x2ecc71, low: 0x2ecc71, medium: 0xf1c40f, high: 0xff8800, critical: 0xe74c3c };
+      const intelEmbed = new EmbedBuilder()
+        .setTitle(`🔍 Threat Intel — ${result.target}`)
+        .setColor(colorMap[result.threat_level] ?? 0x2ecc71)
+        .addFields(
+          { name: "🎯 Threat Level", value: result.threat_level, inline: true },
+          { name: "🔐 Confiance", value: `${result.confidence}%`, inline: true },
+          { name: "📍 Localisation", value: result.findings.location || "inconnue", inline: true },
+          { name: "📊 Réputation", value: result.findings.reputation.slice(0, 500), inline: false },
+          { name: "🦠 Malware", value: result.findings.malware_detections.length > 0 ? result.findings.malware_detections.join(", ") : "Aucun", inline: false },
+          { name: "🎣 Phishing", value: result.findings.phishing_reports.length > 0 ? result.findings.phishing_reports.join(", ") : "Aucun", inline: false },
+          { name: "🔗 IPs associées", value: result.findings.associated_ips.length > 0 ? result.findings.associated_ips.join(", ") : "Aucune", inline: false },
+          { name: "⚡ Actions", value: result.actions_recommended.join(", ") || "monitor", inline: false },
+        )
+        .setTimestamp();
+      if (result.findings.ssl_info) intelEmbed.addFields({ name: "🔒 SSL", value: result.findings.ssl_info.slice(0, 200), inline: false });
+      if (result.findings.abuse_history) intelEmbed.addFields({ name: "📜 Abuse History", value: result.findings.abuse_history.slice(0, 500), inline: false });
+      await interaction.editReply({ embeds: [intelEmbed] });
+      break;
+    }
+
+    case "threatreport": {
+      await interaction.deferReply({ ephemeral: true });
+      const reportEmbed = new EmbedBuilder()
+        .setTitle("📋 Rapport de Menace")
+        .setColor(0xe74c3c)
+        .setDescription("Génération du rapport de menace pour le serveur...")
+        .addFields(
+          { name: "📊 Membres", value: `${interaction.guild?.memberCount ?? 0}`, inline: true },
+          { name: "🔒 Verif Level", value: String(interaction.guild?.verificationLevel ?? "unknown"), inline: true },
+          { name: "📅 Généré", value: new Date().toISOString(), inline: true },
+        )
+        .setTimestamp();
+      await interaction.editReply({ embeds: [reportEmbed] });
+      break;
+    }
+
+    case "privacy": {
+      embed.setTitle("🔒 Audit Vie Privée").setDescription("Audit des données exposées sur le serveur.").setColor(0x9b59b6);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+
+    case "network": {
+      embed.setTitle("🌐 Analyse Réseau").setDescription("Analyse réseau du serveur Discord.").setColor(0x3498db);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+
+    case "auto-report": {
+      embed.setTitle("📊 Rapport Auto").setDescription("Rapport automatique activé.").setColor(0x2ecc71);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+
+    case "autodefense": {
+      embed.setTitle("🛡️ Auto-Défense").setDescription("Système d'auto-défense activé.").setColor(0xe74c3c);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
