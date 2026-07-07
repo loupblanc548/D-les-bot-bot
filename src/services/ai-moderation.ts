@@ -9,6 +9,7 @@ import {
   buildCodeReviewPrompt,
   buildThreatIntelPrompt,
   buildQuickSentimentPrompt,
+  buildModerationPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
@@ -16,6 +17,7 @@ import {
   type UserProfile,
   type ThreatIntelResult,
   type QuickSentimentResult,
+  type ModerationResult,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -286,6 +288,38 @@ export async function quickSentiment(message: string, context?: string): Promise
   } catch (error) {
     logger.error("[AI-Moderation] quickSentiment:", String(error));
     return { sentiment: "neutre", toxicity: 0, urgency: 0, confidence: 0, engagement: 0, summary: "Erreur API" };
+  }
+}
+
+// ─── General Moderation (rule violation) ──────────────────────────────
+
+export async function moderateContent(
+  content: string,
+  context?: string,
+  serverType?: string,
+): Promise<ModerationResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildModerationPrompt(content, context, serverType);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un modérateur Discord expert. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 300,
+      temperature: 0.1,
+    }, { timeout: 10_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<ModerationResult>(raw);
+    if (!parsed) {
+      return { violation: false, severity: "aucune", action: "rien", details: "Parse error" };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] moderateContent:", String(error));
+    return { violation: false, severity: "aucune", action: "rien", details: "Erreur API" };
   }
 }
 

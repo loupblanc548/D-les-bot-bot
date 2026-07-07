@@ -549,3 +549,37 @@ export function buildQuickSentimentPrompt(message: string, context?: string): st
     .replace("{message}", message.slice(0, 2000))
     .replace("{context}", context ?? "serveur Discord gaming francophone");
 }
+
+// ─── Prompt 9: General Moderation (rule violation) ───────────────────
+
+export interface ModerationResult {
+  violation: boolean;
+  severity: "aucune" | "faible" | "moyenne" | "élevée" | "critique";
+  action: "rien" | "warn" | "timeout" | "kick" | "ban" | "delete";
+  details: string;
+}
+
+export const MODERATION_PROMPT = `Tu es un modérateur Discord expert.
+
+CONTENU: "{content}"
+CONTEXTE: {context}
+SERVEUR_TYPE: {server_type}
+
+Évalue:
+1. Violation des règles?
+2. Niveau de sévérité
+3. Action recommandée
+4. Détails
+
+Réponds en JSON: {violation, severity, action, details}`;
+
+export function buildModerationPrompt(
+  content: string,
+  context?: string,
+  serverType?: string,
+): string {
+  return MODERATION_PROMPT
+    .replace("{content}", content.slice(0, 2000))
+    .replace("{context}", context ?? "message isolé")
+    .replace("{server_type}", serverType ?? "gaming francophone");
+}
