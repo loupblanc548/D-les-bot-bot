@@ -63,7 +63,7 @@ export async function setUserReportChannel(guildId: string, channelId: string | 
 }
 
 export interface SecurityAlert {
-  type: "AI_MODERATION" | "ANTI_PHISHING" | "ANTI_SPAM" | "USER_REPORT" | "SUSPICIOUS";
+  type: "AI_MODERATION" | "ANTI_PHISHING" | "ANTI_SPAM" | "USER_REPORT" | "SUSPICIOUS" | "ABUSE_FILTER" | "SPAM_DETECTOR" | "PERSPECTIVE_MOD";
   userId: string;
   userTag: string;
   guildId: string;
@@ -100,6 +100,9 @@ function buildAlertEmbed(alert: SecurityAlert): EmbedBuilder {
     ANTI_SPAM: { label: "Anti-Spam", emoji: "🚫", color: 0xff9500 },
     USER_REPORT: { label: "Signalement Utilisateur", emoji: "📢", color: 0x3498db },
     SUSPICIOUS: { label: "Activité Suspecte", emoji: "⚠️", color: 0xf39c12 },
+    ABUSE_FILTER: { label: "Abuse Filter", emoji: "🔍", color: 0xe74c3c },
+    SPAM_DETECTOR: { label: "Spam Detector ML", emoji: "🚨", color: 0xe67e22 },
+    PERSPECTIVE_MOD: { label: "Perspective API", emoji: "📊", color: 0x9b59b6 },
   };
 
   const info = typeLabels[alert.type];

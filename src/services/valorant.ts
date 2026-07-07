@@ -4,6 +4,8 @@ import logger from "../utils/logger.js";
 const VALORANT_API_KEY = process.env.VALORANT_API_KEY || "";
 const BASE_URL = "https://api.henrikdev.xyz/valorant";
 
+export const VALORANT_STANDBY = true;
+
 export interface ValorantPlayer {
   puuid: string; gameName: string; tagLine: string; region: string; accountLevel: number;
 }

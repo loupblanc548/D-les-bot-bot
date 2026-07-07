@@ -1,6 +1,8 @@
 import logger from "../utils/logger.js";
 import { generate as ollamaGenerate, chat as ollamaChat, isOllamaAvailable } from "./ollama.js";
 
+export const AI_CHARACTERS_STANDBY = true;
+
 export interface AICharacter {
   id: string; name: string; personality: string; systemPrompt: string;
   speakingStyle: string; catchphrases: string[]; language: "fr" | "en";

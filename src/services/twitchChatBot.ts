@@ -4,6 +4,8 @@ import logger from "../utils/logger.js";
 
 const TWITCH_OAUTH_TOKEN = process.env.TWITCH_OAUTH_TOKEN || "";
 
+export const TWITCH_STANDBY = true;
+
 export interface TwitchChatMessage {
   channel: string; username: string; message: string; displayName: string;
   badges: string[]; bits: number; isMod: boolean; isSub: boolean; isBroadcaster: boolean; timestamp: Date;

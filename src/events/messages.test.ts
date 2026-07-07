@@ -78,6 +78,72 @@ vi.mock("../services/wordFilter", () => ({
   enforceFilter: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../services/abuseFilter", () => ({
+  shouldBlock: vi.fn().mockReturnValue({ block: false, action: "allow", reason: "" }),
+  checkMessage: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock("../services/spamDetector", () => ({
+  recordMessage: vi.fn(),
+  analyzeSpam: vi.fn().mockReturnValue({ isSpam: false, score: 0, reasons: [] }),
+  getUserScore: vi.fn().mockReturnValue(0),
+}));
+
+vi.mock("../services/perspectiveApi", () => ({
+  analyzeToxicity: vi.fn().mockResolvedValue(null),
+  isPerspectiveConfigured: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock("../services/reportChannel", () => ({
+  sendSecurityAlert: vi.fn().mockResolvedValue(undefined),
+  checkMessageSpam: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/serverRules", () => ({
+  enforceServerRules: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock("../services/autoReact", () => ({
+  processAutoReact: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/xpService", () => ({
+  addXp: vi.fn().mockResolvedValue({ leveledUp: false, newLevel: 0 }),
+}));
+
+vi.mock("../services/securityIntegration", () => ({
+  handleSecurityIntegration: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/agentBrain", () => ({
+  handleAgentMessageScan: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/personalityEngine", () => ({
+  handlePersonalityMessage: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/agentLoop", () => ({
+  runAgentLoop: vi.fn().mockResolvedValue(""),
+  extractAndSaveMemory: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/aiConversation", () => ({
+  touchConversation: vi.fn(),
+  checkExpiredConversations: vi.fn().mockResolvedValue(undefined),
+  buildConversationContext: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../utils/humanTyping", () => ({
+  simulateHumanTyping: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../utils/humanBehavior", () => ({
+  getSpontaneousReaction: vi.fn().mockReturnValue(null),
+  getUltraShortReply: vi.fn().mockReturnValue(null),
+  sendMultiMessage: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../utils/logger", () => ({
   default: {
     error: vi.fn(),
