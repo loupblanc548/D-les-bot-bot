@@ -183,7 +183,7 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
       ],
       max_tokens: 50,
       temperature: 0.3,
-    });
+    }, { timeout: 8_000 });
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -198,7 +198,8 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
     };
   } catch (error) {
     logger.debug(`[Personality] Relevance check failed: ${error instanceof Error ? error.message : String(error)}`);
-    return null;
+    // Fallback: if API fails, default to responding (better to respond than stay silent)
+    return { shouldRespond: true, emotion: "neutre", reason: "API fallback" };
   }
 }
 
@@ -266,7 +267,7 @@ async function generateHumanResponse(
       temperature: 0.85,
       presence_penalty: 0.6,
       frequency_penalty: 0.3,
-    });
+    }, { timeout: 15_000 });
 
     let response = completion.choices[0]?.message?.content?.trim() ?? "";
     if (!response || response.length < 2) return null;
@@ -283,7 +284,20 @@ async function generateHumanResponse(
     return response.slice(0, 2000);
   } catch (error) {
     logger.error(`[Personality] Generate failed: ${error instanceof Error ? error.message : String(error)}`);
-    return null;
+    // Fallback: generate a simple contextual response without AI
+    const fallbackResponses = [
+      "ouf",
+      "vrai ça",
+      "mdrr",
+      "ça va le faire",
+      "intéressant ça",
+      "je suis d'accord",
+      "pas faux",
+      "bref",
+      "ok",
+      "graves",
+    ];
+    return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
   }
 }
 
@@ -430,7 +444,7 @@ async function generateProactiveMessage(client: Client): Promise<string | null> 
       ],
       max_tokens: 150,
       temperature: 0.9,
-    });
+    }, { timeout: 12_000 });
 
     return completion.choices[0]?.message?.content?.trim() ?? null;
   } catch {

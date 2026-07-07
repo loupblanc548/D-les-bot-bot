@@ -266,7 +266,7 @@ async function analyzeWithAI(
       ],
       max_tokens: 350,
       temperature: 0.3,
-    });
+    }, { timeout: 12_000 });
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

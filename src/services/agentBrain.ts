@@ -105,7 +105,7 @@ async function analyzeMessage(message: Message): Promise<MessageAnalysis | null>
       ],
       max_tokens: 200,
       temperature: 0.2,
-    });
+    }, { timeout: 10_000 });
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -409,7 +409,7 @@ async function analyzeAlertWithAI(
       ],
       max_tokens: 200,
       temperature: 0.3,
-    });
+    }, { timeout: 10_000 });
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
