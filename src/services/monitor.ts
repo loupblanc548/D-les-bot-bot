@@ -537,6 +537,10 @@ async function checkAndNotify(client: Client) {
               } else if (source.type === "BLUESKY" && result.content.url) {
                 const og = await getOgImage(result.content.url);
                 if (og) embed.setImage(og);
+              } else if (source.type === "REDDIT" && result.content.url) {
+                // Reddit : extraire og:image depuis la page du post
+                const og = await getOgImage(result.content.url);
+                if (og) embed.setImage(og);
               }
             } catch {
               // Ignore image fetch errors
@@ -820,6 +824,9 @@ export async function runDbSourcesRetrospective(client: Client) {
             } else if (source.type === "TWITCH") {
               if (item.thumbnail) embed.setImage(item.thumbnail);
             } else if (source.type === "BLUESKY") {
+              const og = await getOgImage(item.url);
+              if (og) embed.setImage(og);
+            } else if (source.type === "REDDIT") {
               const og = await getOgImage(item.url);
               if (og) embed.setImage(og);
             }

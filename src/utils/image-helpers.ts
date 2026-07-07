@@ -290,6 +290,7 @@ export async function getBlogImage(url: string): Promise<string | null> {
 
 // Extraction d'images Twitter : scrape les <img> du contenu du tweet sur xcancel
 // Les images de tweets sont hébergées sur pbs.twimg.com
+// Fallback : og:image meta tag
 export async function getTweetImage(url: string): Promise<string | null> {
   return withCache("tweet:" + url, async () => {
     try {
@@ -301,21 +302,35 @@ export async function getTweetImage(url: string): Promise<string | null> {
       const html = await res.text();
       const $ = cheerio.load(html);
 
-      // Chercher les images pbs.twimg.com (images de tweets)
+      // Étape 1 : og:image (plus fiable pour Discord)
+      const ogImage = $('meta[property="og:image"]').attr("content");
+      if (ogImage && isValidEmbedImageUrl(ogImage)) {
+        try { return new URL(ogImage, url).href; } catch { return ogImage; }
+      }
+
+      // Étape 2 : images pbs.twimg.com (images de tweets)
       let tweetImage: string | null = null;
       $('img[src*="pbs.twimg.com"]').each((_, el) => {
         if (tweetImage) return;
-        tweetImage = $(el).attr("src") || null;
+        const src = $(el).attr("src");
+        if (src && isValidEmbedImageUrl(src)) tweetImage = src;
       });
       if (tweetImage) return tweetImage;
 
-      // Fallback : miniature vidéo Twitter (video.twimg.com)
+      // Étape 3 : miniature vidéo Twitter (video.twimg.com)
       let videoThumb: string | null = null;
       $('img[src*="video.twimg.com"]').each((_, el) => {
         if (videoThumb) return;
-        videoThumb = $(el).attr("src") || null;
+        const src = $(el).attr("src");
+        if (src && isValidEmbedImageUrl(src)) videoThumb = src;
       });
       if (videoThumb) return videoThumb;
+
+      // Étape 4 : twitter:image meta
+      const twitterImage = $('meta[name="twitter:image"]').attr("content");
+      if (twitterImage && isValidEmbedImageUrl(twitterImage)) {
+        try { return new URL(twitterImage, url).href; } catch { return twitterImage; }
+      }
 
       return null;
     } catch {
