@@ -193,6 +193,16 @@ async function runAgentLoopInternal(
     "- enforce_garbage_collection : force le GC (nettoyage RAM)\n" +
     "- self_inspect_logs : lit les dernières lignes de logs d'erreurs\n" +
     "- upsert_user_memory / retrieve_user_memory : mémoire long-terme utilisateurs\n" +
+    "### OSINT & Threat Intelligence (auto-use)\n" +
+    "- osint_scan : scan OSINT complet (IP, domaine, email) — combine Shodan + DNS + WHOIS + risk scoring\n" +
+    "- shodan_search : recherche d'appareils/services exposés sur Internet\n" +
+    "### Twitter/X (auto-use)\n" +
+    "- twitter_get_user : profil Twitter d'un utilisateur (bio, followers, vérification)\n" +
+    "- twitter_search : recherche de tweets récents par mot-clé\n" +
+    "### Reddit (auto-use, gratuit)\n" +
+    "- reddit_get_posts : posts d'un subreddit (hot, new, top)\n" +
+    "- reddit_search : recherche sur Reddit par mot-clé\n" +
+    "- reddit_trending : subreddits populaires du moment\n" +
     "### Discord\n" +
     "- deleteMessages, timeoutUser, warnUser, kickUser, banUser : modération\n" +
     "- addRole, removeRole, createChannel, deleteChannel, lockChannel, unlockChannel\n" +
