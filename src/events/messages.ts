@@ -19,6 +19,11 @@ import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { simulateHumanTyping } from "../utils/humanTyping.js";
+import {
+  getSpontaneousReaction,
+  getUltraShortReply,
+  sendMultiMessage,
+} from "../utils/humanBehavior.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
@@ -272,6 +277,29 @@ async function handleAiChatMention(
       return;
     }
 
+    // ── Réaction emoji spontanée pour messages simples (40% du temps) ──
+    const reaction = getSpontaneousReaction(cleanedContent);
+    if (reaction) {
+      await message.react(reaction).catch(() => {});
+      // 50% de chance de quand même répondre court, 50% juste la réaction
+      if (Math.random() > 0.5) return;
+      const shortReply = getUltraShortReply(cleanedContent);
+      if (shortReply) {
+        await simulateHumanTyping(message.channel as TextChannel, shortReply.length);
+        await message.reply({ content: shortReply, allowedMentions: { repliedUser: false } });
+        return;
+      }
+      return; // Juste la réaction, pas de réponse
+    }
+
+    // ── Réponse ultra-courte pour messages simples (salut, ok, merci...) ──
+    const ultraShort = getUltraShortReply(cleanedContent);
+    if (ultraShort) {
+      await simulateHumanTyping(message.channel as TextChannel, ultraShort.length);
+      await message.reply({ content: ultraShort, allowedMentions: { repliedUser: false } });
+      return;
+    }
+
     // Déclencher l'indicateur de frappe réaliste
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
 
@@ -353,7 +381,9 @@ async function handleAiChatMention(
 
     if (aiResponse) {
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
-      await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
+
+      // ── Envoyer en plusieurs messages si la réponse est longue ──
+      await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
 
       // ── Sauvegarder la réponse dans la conversation ──
       await addMessageToConversation(
@@ -451,7 +481,9 @@ async function handleDMMessage(
 
     if (aiResponse) {
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
-      await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false } });
+
+      // ── Envoyer en plusieurs messages si la réponse est longue ──
+      await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
 
       // Sauvegarder en mémoire conversation + extraire faits long-terme
       void extractAndSaveMemory(message.author.id, content, aiResponse).catch(() => {});
@@ -536,6 +568,28 @@ async function handleContextualAiChat(
     }
     aichatCooldown.set(message.author.id, Date.now());
 
+    // ── Réaction emoji spontanée pour messages simples ──
+    const ctxReaction = getSpontaneousReaction(cleanedContent);
+    if (ctxReaction) {
+      await message.react(ctxReaction).catch(() => {});
+      if (Math.random() > 0.5) return;
+      const ctxShort = getUltraShortReply(cleanedContent);
+      if (ctxShort) {
+        await simulateHumanTyping(message.channel as TextChannel, ctxShort.length);
+        await message.reply({ content: ctxShort, allowedMentions: { repliedUser: false } });
+        return;
+      }
+      return;
+    }
+
+    // ── Réponse ultra-courte pour messages simples ──
+    const ctxUltraShort = getUltraShortReply(cleanedContent);
+    if (ctxUltraShort) {
+      await simulateHumanTyping(message.channel as TextChannel, ctxUltraShort.length);
+      await message.reply({ content: ctxUltraShort, allowedMentions: { repliedUser: false } });
+      return;
+    }
+
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
     const reply = await chatWithHistory(
       message.channelId,
@@ -543,7 +597,7 @@ async function handleContextualAiChat(
       message.author.username,
       message.guildId || undefined,
     );
-    await message.reply({ content: reply.slice(0, 2000), allowedMentions: { repliedUser: false } });
+    await sendMultiMessage(message.channel as TextChannel, reply.slice(0, 2000), message as Message);
   } catch (err) {
     logger.error("[AIChat] Erreur contextuelle:", err);
   }
