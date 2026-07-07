@@ -8,6 +8,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
+import { deepSentimentAnalysis, detectSpamPhishing } from "../services/ai-moderation.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -876,6 +877,77 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.editReply({ embeds: [embed] });
       break;
     }
+    case "ai-sentiment": {
+      const messageId = interaction.options.getString("message_id", true);
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const channel = interaction.channel;
+        if (!channel || !channel.isTextBased()) {
+          await interaction.editReply({ content: "❌ Salon invalide." });
+          break;
+        }
+        const msg = await channel.messages.fetch(messageId).catch(() => null);
+        if (!msg) {
+          await interaction.editReply({ content: "❌ Message introuvable." });
+          break;
+        }
+        const result = await deepSentimentAnalysis(msg.content || "");
+        const dim = result.dimensions;
+        const sentimentEmoji = result.sentiment === "très_positif" ? "😄" : result.sentiment === "positif" ? "🙂" : result.sentiment === "neutre" ? "😐" : result.sentiment === "négatif" ? "😠" : "🤬";
+        const embed = new EmbedBuilder()
+          .setTitle(`${sentimentEmoji} Analyse de sentiment — ${result.sentiment}`)
+          .setColor(result.risque_global > 60 ? 0xe74c3c : result.risque_global > 30 ? 0xff8800 : 0x2ecc71)
+          .addFields(
+            { name: "Positivité", value: `${dim.positivité}/10`, inline: true },
+            { name: "Agressivité", value: `${dim.agressivité}/10`, inline: true },
+            { name: "Spam", value: `${dim.spam}/10`, inline: true },
+            { name: "Phishing", value: `${dim.phishing}/10`, inline: true },
+            { name: "Harcèlement", value: `${dim.harcèlement}/10`, inline: true },
+            { name: "Risque global", value: `${result.risque_global}/100`, inline: true },
+          )
+          .setDescription(result.explication)
+          .setFooter({ text: `Action recommandée: ${result.action_recommandée}${result.flags.length > 0 ? ` | Flags: ${result.flags.join(", ")}` : ""}` })
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+      } catch (err) {
+        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+      }
+      break;
+    }
+    case "ai-spam-analysis": {
+      const salon = interaction.options.getChannel("salon");
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const channel = salon ?? interaction.channel;
+        if (!channel || !("isTextBased" in channel) || !channel.isTextBased()) {
+          await interaction.editReply({ content: "❌ Salon invalide." });
+          break;
+        }
+        const textChannel = channel as import("discord.js").TextBasedChannel;
+        const messages = await textChannel.messages.fetch({ limit: 20 });
+        const recentContent = messages.map(m => m.content).filter(c => c.length > 0).slice(0, 10);
+        if (recentContent.length === 0) {
+          await interaction.editReply({ content: "❌ Aucun message récent à analyser." });
+          break;
+        }
+        const combined = recentContent.join("\n---\n");
+        const result = await detectSpamPhishing(combined);
+        const embed = new EmbedBuilder()
+          .setTitle("🔍 Analyse spam/phishing")
+          .setColor(result.verdict === "clean" ? 0x2ecc71 : result.verdict === "spam" ? 0xff8800 : 0xe74c3c)
+          .addFields(
+            { name: "Verdict", value: result.verdict, inline: true },
+            { name: "Confiance", value: `${result.confidence}%`, inline: true },
+            { name: "Action", value: result.action, inline: true },
+          )
+          .setDescription(result.raison)
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+      } catch (err) {
+        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+      }
+      break;
+    }
     case "ai-profile":
     case "ai-suggest":
     case "ai-mood":
@@ -885,7 +957,6 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "ai-image":
     case "ai-moderation-config":
     case "ai-history":
-    case "ai-sentiment":
     case "ai-chat-export":
     case "ai-prompt-templates":
     case "ai-persona":
