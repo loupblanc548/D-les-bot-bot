@@ -311,8 +311,26 @@ export async function sendToChannel(
       }
     }
     if (channel?.isTextBased()) {
-      await channel.send({ embeds: [embed] });
-      return true;
+      try {
+        await channel.send({ embeds: [embed] });
+        return true;
+      } catch (sendErr) {
+        // Si l'embed est rejeté (image invalide, etc.), retry sans image
+        const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
+          try {
+            embed.setImage(null);
+            embed.setThumbnail(null);
+            await channel.send({ embeds: [embed] });
+            logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
+            return true;
+          } catch (retryErr) {
+            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          }
+        }
+        logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
+        return false;
+      }
     }
     logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
@@ -340,8 +358,14 @@ export async function sendToChannelWithAttachment(
       }
     }
     if (channel?.isTextBased()) {
-      await channel.send({ embeds: [embed], files: [attachment] });
-      return true;
+      try {
+        await channel.send({ embeds: [embed], files: [attachment] });
+        return true;
+      } catch (sendErr) {
+        // Si l'envoi avec attachment échoue, logger l'erreur réelle
+        logger.error(`[Feeds] Discord API error (attachment) on ${channelId}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`);
+        return false;
+      }
     }
     logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
