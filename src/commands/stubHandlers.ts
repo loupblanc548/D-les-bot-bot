@@ -9,6 +9,7 @@ import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
 import { deepSentimentAnalysis, detectSpamPhishing } from "../services/ai-moderation.js";
+import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -948,6 +949,43 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       }
       break;
     }
+    case "ai-persona": {
+      const personaName = interaction.options.getString("persona", true);
+      const persona = getPersona(personaName);
+      if (!persona) {
+        const list = listPersonas().map(p => `${p.emoji} \`${p.key}\` — ${p.name} (${p.tone})`).join("\n");
+        await interaction.reply({
+          content: `❌ Persona \"${personaName}\" introuvable.\n\n**Personas disponibles:**\n${list}`,
+          ephemeral: true,
+        });
+        break;
+      }
+      const embed = new EmbedBuilder()
+        .setTitle(`${persona.emoji} Persona: ${persona.name}`)
+        .setColor(persona.color)
+        .addFields(
+          { name: "🎭 Personnalité", value: persona.personality, inline: false },
+          { name: "🗣️ Ton", value: persona.tone, inline: true },
+          { name: "🎨 Style", value: persona.writingStyle.slice(0, 200), inline: false },
+          { name: "❤️ Intérêts", value: persona.interests.join(", "), inline: false },
+          { name: "🚫 Limites", value: persona.limits.join("\n"), inline: false },
+        )
+        .setFooter({ text: `Persona ${personaName} configuré. Le bot utilisera cette personnalité.` })
+        .setTimestamp();
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+    case "ai-prompt-templates": {
+      const personas = listPersonas();
+      const embed = new EmbedBuilder()
+        .setTitle("📋 Personas disponibles")
+        .setColor(0x9b59b6)
+        .setDescription(personas.map(p => `${p.emoji} **${p.name}** (\`/ai advanced persona ${p.key}\`) — ${p.tone}`).join("\n"))
+        .setFooter({ text: "Utilise /ai advanced persona <nom> pour sélectionner" })
+        .setTimestamp();
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
     case "ai-profile":
     case "ai-suggest":
     case "ai-mood":
@@ -958,8 +996,6 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "ai-moderation-config":
     case "ai-history":
     case "ai-chat-export":
-    case "ai-prompt-templates":
-    case "ai-persona":
     case "ai-context":
     case "ai-temperature":
     case "ai-model-select":
