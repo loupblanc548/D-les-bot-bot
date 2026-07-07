@@ -112,15 +112,21 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
       });
       if (existing) continue;
 
-      await prisma.notification.create({
-        data: {
-          sourceId: "epic-games",
-          platform: "epicgames" as Platform,
-          content: game.title,
-          url: game.url,
-        },
-      });
-      newGames.push(game);
+      try {
+        await prisma.notification.upsert({
+          where: { url: game.url },
+          update: {},
+          create: {
+            sourceId: "epic-games",
+            platform: "epicgames" as Platform,
+            content: game.title,
+            url: game.url,
+          },
+        });
+        newGames.push(game);
+      } catch {
+        // Doublon (race condition) — skip silencieux
+      }
     }
 
     if (newGames.length > 0) {

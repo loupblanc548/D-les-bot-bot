@@ -182,8 +182,10 @@ async function checkAllFeeds(client: Client) {
         const channel = await client.channels.fetch(feed.channelId);
         if (channel?.isTextBased()) {
           await (channel as TextChannel).send({ embeds: [embed] });
-          await prisma.notification.create({
-            data: {
+          await prisma.notification.upsert({
+            where: { url: patchNote.url },
+            update: {},
+            create: {
               sourceId: "patch-" + feed.game,
               platform: "patch_notes",
               content: patchNote.title,
