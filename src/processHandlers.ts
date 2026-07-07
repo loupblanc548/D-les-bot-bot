@@ -51,7 +51,9 @@ export function attachProcessHandlers(): void {
       msg.includes("ECONNRESET") ||
       msg.includes("EPIPE") ||
       msg.includes("socket hang up") ||
-      msg.includes("ETIMEDOUT")
+      msg.includes("ETIMEDOUT") ||
+      msg.includes("client is destroyed") ||
+      msg.includes("ClientDestroyedError")
     );
   }
 
