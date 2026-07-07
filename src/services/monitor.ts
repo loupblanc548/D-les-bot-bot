@@ -715,8 +715,10 @@ async function ensureSourceAndInsertNotification(
         skipped: true,
       };
     }
-    await prisma.notification.create({
-      data: {
+    await prisma.notification.upsert({
+      where: { url: cleanedUrl },
+      update: {},
+      create: {
         sourceId: String(source.id),
         platform,
         content,

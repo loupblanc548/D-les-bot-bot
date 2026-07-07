@@ -82,6 +82,7 @@ vi.mock("../prisma", () => ({
     notification: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      upsert: vi.fn(),
       create: vi.fn(),
     },
   },
@@ -414,7 +415,7 @@ describe("runDbSourcesRetrospective", () => {
     // No existing notifications → all 3 should be created
     (prisma.notification.findFirst as any).mockResolvedValue(null);
     (prisma.notification.findUnique as any).mockResolvedValue(null);
-    (prisma.notification.create as any).mockResolvedValue({});
+    (prisma.notification.upsert as any).mockResolvedValue({});
 
     // Mock a valid text channel
     const mockSend = vi.fn().mockResolvedValue(undefined);
@@ -430,15 +431,15 @@ describe("runDbSourcesRetrospective", () => {
     await runDbSourcesRetrospective(client);
 
     // All 3 notifications should be created
-    expect(prisma.notification.create).toHaveBeenCalledTimes(3);
+    expect(prisma.notification.upsert).toHaveBeenCalledTimes(3);
     // All 3 messages should be sent
     expect(mockSend).toHaveBeenCalledTimes(3);
 
     // Verify notification content
-    const createCalls = (prisma.notification.create as any).mock.calls;
-    expect(createCalls[0][0].data.content).toBe("Video 1");
-    expect(createCalls[1][0].data.content).toBe("Video 2");
-    expect(createCalls[2][0].data.content).toBe("Video 3");
+    const createCalls = (prisma.notification.upsert as any).mock.calls;
+    expect(createCalls[0][0].create.content).toBe("Video 1");
+    expect(createCalls[1][0].create.content).toBe("Video 2");
+    expect(createCalls[2][0].create.content).toBe("Video 3");
   });
 
   it("should stop processing when MAX_RETRO_POSTS cap is reached", async () => {
@@ -473,7 +474,7 @@ describe("runDbSourcesRetrospective", () => {
 
     (prisma.notification.findFirst as any).mockResolvedValue(null);
     (prisma.notification.findUnique as any).mockResolvedValue(null);
-    (prisma.notification.create as any).mockResolvedValue({});
+    (prisma.notification.upsert as any).mockResolvedValue({});
 
     const mockSend = vi.fn().mockResolvedValue(undefined);
     const client = {
@@ -492,7 +493,7 @@ describe("runDbSourcesRetrospective", () => {
     await runDbSourcesRetrospective(client);
 
     // Should have created exactly 2 notifications (the cap)
-    expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+    expect(prisma.notification.upsert).toHaveBeenCalledTimes(2);
 
     // Should have logged the cap message
     expect(logger.info).toHaveBeenCalled();
@@ -528,9 +529,7 @@ describe("runDbSourcesRetrospective", () => {
 
     // Item already has a notification (findUnique returns existing → skip)
     (prisma.notification.findUnique as any).mockResolvedValue({ id: 999 });
-    let _callCount = 0;
-    (prisma.notification.create as any).mockImplementation(() => {
-      _callCount++;
+    (prisma.notification.upsert as any).mockImplementation(() => {
       const err = new Error("Unique constraint failed");
       (err as any).code = "P2002";
       throw err;
@@ -548,8 +547,8 @@ describe("runDbSourcesRetrospective", () => {
 
     await runDbSourcesRetrospective(client);
 
-    // Should NOT have called create (findUnique found existing notification → skip)
-    expect(prisma.notification.create).not.toHaveBeenCalled();
+    // Should NOT have called upsert (findUnique found existing notification → skip)
+    expect(prisma.notification.upsert).not.toHaveBeenCalled();
     // Should NOT have sent any message (because notification already exists)
     expect(mockSend).not.toHaveBeenCalled();
   });
@@ -583,11 +582,11 @@ describe("runDbSourcesRetrospective", () => {
     (prisma.notification.findFirst as any).mockResolvedValue(null);
     (prisma.notification.findUnique as any).mockResolvedValue(null);
 
-    // First create fails, second succeeds
-    let createCallCount = 0;
-    (prisma.notification.create as any).mockImplementation(() => {
-      createCallCount++;
-      if (createCallCount === 1) {
+    // First upsert fails, second succeeds
+    let upsertCallCount = 0;
+    (prisma.notification.upsert as any).mockImplementation(() => {
+      upsertCallCount++;
+      if (upsertCallCount === 1) {
         throw new Error("DB error");
       }
       return {};
@@ -606,8 +605,8 @@ describe("runDbSourcesRetrospective", () => {
 
     await runDbSourcesRetrospective(client);
 
-    // Should have attempted 2 creates
-    expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+    // Should have attempted 2 upserts
+    expect(prisma.notification.upsert).toHaveBeenCalledTimes(2);
     // Should have sent 1 notification (from GoodChannel)
     expect(mockSend).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalled();
