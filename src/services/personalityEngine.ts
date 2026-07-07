@@ -24,6 +24,7 @@ import { Client, Message, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
+import { chatWithGroq, chatWithGroqJSON, isGroqAvailable } from "./groq.js";
 import prisma from "../prisma.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -155,8 +156,6 @@ interface RelevanceDecision {
 
 async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDecision | null> {
   try {
-    const client = getOpenAIClient();
-
     const recentMessages = await message.channel.messages.fetch({ limit: 5 }).catch(() => null);
     const context = recentMessages
       ? [...recentMessages.values()]
@@ -174,6 +173,27 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
       `- NO si: spam, lien seul, commande bot, conversation privée entre deux personnes, hors sujet\n` +
       `- Sois sélectif (environ 1 sur 4)\n\n` +
       `Réponds en JSON: {"respond": true/false, "emotion": "joie|colère|tristesse|neutre|excitation|humour|sérieux", "reason": "5 mots max"}`;
+
+    // Try Groq first (ultra-fast, ~500 tokens/s)
+    if (isGroqAvailable()) {
+      const groqResult = await chatWithGroqJSON({
+        systemPrompt: "Tu réponds uniquement en JSON valide. Sois rapide.",
+        userMessage: prompt,
+        maxTokens: 50,
+        temperature: 0.3,
+      });
+      if (groqResult) {
+        const respond = groqResult.respond;
+        return {
+          shouldRespond: respond === true || respond === "true",
+          emotion: (groqResult.emotion as string) || "neutre",
+          reason: (groqResult.reason as string) || "",
+        };
+      }
+    }
+
+    // Fallback: OpenRouter
+    const client = getOpenAIClient();
 
     const completion = await client.chat.completions.create({
       model: config.openRouterModel,
@@ -231,8 +251,6 @@ async function generateHumanResponse(
   userMemory: string,
 ): Promise<string | null> {
   try {
-    const client = getOpenAIClient();
-
     const recentMessages = await message.channel.messages.fetch({ limit: 10 }).catch(() => null);
     const conversation = recentMessages
       ? [...recentMessages.values()]
@@ -256,6 +274,28 @@ async function generateHumanResponse(
       `Réponds naturellement comme John le ferait. Sois concis, humain, authentique. ` +
       `Si le message ne mérite qu'une réponse courte ("mdrr", "vrai", "ok"), fais-le. ` +
       `Si ça mérite une vraie réponse avec ton avis, fais-le. Mais reste naturel.`;
+
+    // Try Groq first (ultra-fast response generation)
+    if (isGroqAvailable()) {
+      const groqResponse = await chatWithGroq({
+        systemPrompt: HUMAN_SYSTEM_PROMPT,
+        userMessage: userPrompt,
+        maxTokens: 400,
+        temperature: 0.85,
+      });
+      if (groqResponse && groqResponse.length >= 2) {
+        let response = groqResponse
+          .replace(/\*\*/g, "")
+          .replace(/^John Helldiver:\s*/i, "")
+          .replace(/^John:\s*/i, "")
+          .replace(/^(En tant que|Je suis là pour|N'hésitez pas)/i, "")
+          .trim();
+        if (response.length >= 2) return response.slice(0, 2000);
+      }
+    }
+
+    // Fallback: OpenRouter
+    const client = getOpenAIClient();
 
     const completion = await client.chat.completions.create({
       model: config.openRouterModel,
