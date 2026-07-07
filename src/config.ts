@@ -46,8 +46,15 @@ export const config = {
   geminiApiKey: env.GEMINI_API_KEY || "",
   geminiModel: env.GEMINI_MODEL,
   braveSearchApiKey: env.BRAVE_SEARCH_API_KEY || "",
+  braveAutosuggestApiKey: env.BRAVE_AUTOSUGGEST_API_KEY || "",
+  braveSpellcheckApiKey: env.BRAVE_SPELLCHECK_API_KEY || "",
+  braveAnswersApiKey: env.BRAVE_ANSWERS_API_KEY || "",
   assemblyAiApiKey: env.ASSEMBLYAI_API_KEY || "",
   cohereApiKey: env.COHERE_API_KEY || "",
+
+  // Google Cloud
+  googleCloudProjectId: env.GOOGLE_CLOUD_PROJECT_ID || "",
+  googleCloudApiKey: env.GOOGLE_CLOUD_API_KEY || "",
 
   // Twitter multi-platform routing (account → channel)
   twitterPlatformRouting: [

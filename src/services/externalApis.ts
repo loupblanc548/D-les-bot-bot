@@ -435,7 +435,7 @@ export async function getPriceHistory(
   }
 }
 
-// ─── 7. Screenshot via Playwright (sans clé API) ────────────────────────────
+// ─── 7. Screenshot via ScreenshotOne API → Playwright fallback ──────────────
 
 let playwrightBrowser: import("playwright").Browser | null = null;
 
@@ -454,6 +454,35 @@ async function getPlaywrightBrowser(): Promise<import("playwright").Browser | nu
 }
 
 export async function takeScreenshot(targetUrl: string): Promise<Buffer | null> {
+  // 1. ScreenshotOne API si clé configurée
+  if (config.screenshotApiKey) {
+    try {
+      const params = new URLSearchParams({
+        url: targetUrl,
+        access_key: config.screenshotApiKey,
+        format: "png",
+        viewport_width: "1280",
+        viewport_height: "720",
+        delay: "2",
+      });
+
+      const res = await fetch(`https://api.screenshotone.com/take?${params}`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+      logger.warn(`[ExternalAPI] ScreenshotOne HTTP ${res.status}`);
+    } catch (error) {
+      logger.warn(
+        `[ExternalAPI] ScreenshotOne error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  // 2. Fallback : Playwright
   const browser = await getPlaywrightBrowser();
   if (!browser) return null;
 
@@ -602,15 +631,27 @@ export async function getRedditPosts(
 export function getApiStatus(): Record<string, boolean> {
   return {
     tenor: true,
-    youtube: true,
+    youtube: !!config.youtubeApiKey,
     spotify: !!config.spotifyClientId && !!config.spotifyClientSecret,
-    steamStore: true,
+    steamStore: !!config.steamApiKey,
+    steamApi: !!config.steamApiKey,
     rssNews: true,
     cheapshark: true,
-    screenshot: true,
+    screenshot: !!config.screenshotApiKey,
+    screenshotone: !!config.screenshotApiKey,
     huggingface: !!config.hfApiKey,
     lastfm: !!config.lastfmApiKey,
     sinkingYachts: true,
     redditRss: true,
+    newsapi: !!config.newsApiKey,
+    rawg: !!config.rawgApiKey,
+    giphy: !!config.giphyApiKey,
+    braveSearch: !!config.braveSearchApiKey,
+    groq: !!config.groqApiKey,
+    gemini: !!config.geminiApiKey,
+    cohere: !!config.cohereApiKey,
+    assemblyai: !!config.assemblyAiApiKey,
+    openrouter: !!config.openRouterApiKey,
+    googleCloud: !!config.googleCloudApiKey,
   };
 }
