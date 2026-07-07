@@ -10,6 +10,7 @@ import {
   buildThreatIntelPrompt,
   buildQuickSentimentPrompt,
   buildModerationPrompt,
+  buildRiskAssessmentPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
@@ -18,6 +19,7 @@ import {
   type ThreatIntelResult,
   type QuickSentimentResult,
   type ModerationResult,
+  type RiskAssessmentResult,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -320,6 +322,38 @@ export async function moderateContent(
   } catch (error) {
     logger.error("[AI-Moderation] moderateContent:", String(error));
     return { violation: false, severity: "aucune", action: "rien", details: "Erreur API" };
+  }
+}
+
+// ─── Quick Risk Assessment (fast path) ────────────────────────────────
+
+export async function quickRiskAssessment(
+  userData: string,
+  activityLog: string,
+  serverInfo?: string,
+): Promise<RiskAssessmentResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildRiskAssessmentPrompt(userData, activityLog, serverInfo);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en détection de menaces. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 250,
+      temperature: 0.1,
+    }, { timeout: 10_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<RiskAssessmentResult>(raw);
+    if (!parsed) {
+      return { risk_score: 0, level: "très_bas", factors: [], recommendation: "rien" };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] quickRiskAssessment:", String(error));
+    return { risk_score: 0, level: "très_bas", factors: [], recommendation: "rien" };
   }
 }
 

@@ -583,3 +583,37 @@ export function buildModerationPrompt(
     .replace("{context}", context ?? "message isolé")
     .replace("{server_type}", serverType ?? "gaming francophone");
 }
+
+// ─── Prompt 10: Quick Risk Assessment (fast path) ────────────────────
+
+export interface RiskAssessmentResult {
+  risk_score: number;
+  level: "très_bas" | "bas" | "moyen" | "élevé" | "critique";
+  factors: string[];
+  recommendation: "rien" | "monitor" | "warn" | "timeout" | "kick" | "ban";
+}
+
+export const RISK_ASSESSMENT_PROMPT = `Tu es un expert en détection de menaces.
+
+UTILISATEUR: {user_data}
+ACTIVITÉ: {activity_log}
+SERVEUR: {server_info}
+
+Calcule le risque utilisateur (0-100) en analysant:
+1. Patterns suspects
+2. Historique
+3. Comportement actuel
+4. Alignement raid/spam
+
+Réponds en JSON: {risk_score, level, factors, recommendation}`;
+
+export function buildRiskAssessmentPrompt(
+  userData: string,
+  activityLog: string,
+  serverInfo?: string,
+): string {
+  return RISK_ASSESSMENT_PROMPT
+    .replace("{user_data}", userData.slice(0, 1000))
+    .replace("{activity_log}", activityLog.slice(0, 1500))
+    .replace("{server_info}", serverInfo ?? "serveur Discord gaming francophone");
+}
