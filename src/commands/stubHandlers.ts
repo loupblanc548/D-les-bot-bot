@@ -12,6 +12,7 @@ import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from ".
 import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
+import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase } from "../services/promptTesting.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -1130,12 +1131,32 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.editReply({ embeds: [embed] });
       break;
     }
+    case "ai-moderation-config": {
+      const suite = interaction.options.getString("suite") ?? "spam";
+      await interaction.deferReply({ ephemeral: true });
+      const promptA = "Analyse ce message et classifie-le. Réponds en JSON: {verdict, confidence, raison, action}";
+      const promptB = "Tu es un modérateur expert. Analyse ce message avec few-shot. Réponds en JSON: {verdict, confidence, raison, action}";
+      const testCases: PromptTestCase[] = suite === "sentiment" ? SENTIMENT_TEST_CASES : SPAM_TEST_CASES;
+      const result = await testPrompts(promptA, promptB, testCases, { maxTokens: 200, timeout: 10_000 });
+      const embed = new EmbedBuilder()
+        .setTitle("🧪 A/B Test de Prompts")
+        .setColor(result.winner === "A" ? 0x3498db : result.winner === "B" ? 0x2ecc71 : 0xf1c40f)
+        .setDescription(`**Winner: ${result.winner === "tie" ? "Égalité" : `Prompt ${result.winner}`}** | Suite: ${suite} | ${testCases.length} cas`)
+        .addFields(
+          { name: "📊 Accuracy", value: `A: ${result.accuracyA}% | B: ${result.accuracyB}%`, inline: true },
+          { name: "⏱️ Temps moyen", value: `A: ${result.timeA}ms | B: ${result.timeB}ms`, inline: true },
+          { name: "💰 Tokens", value: `A: ${result.costA} | B: ${result.costB}`, inline: true },
+          { name: "📋 Détails par cas", value: result.details.map(d => `Cas ${d.case}: A=${d.scoreA}% (${d.timeA}ms) vs B=${d.scoreB}% (${d.timeB}ms)`).join("\n").slice(0, 1024), inline: false },
+        )
+        .setTimestamp();
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
     case "ai-profile":
     case "ai-channel-summary":
     case "ai-fun":
     case "ai-translate-custom":
     case "ai-image":
-    case "ai-moderation-config":
     case "ai-history":
     case "ai-chat-export":
     case "ai-temperature":
