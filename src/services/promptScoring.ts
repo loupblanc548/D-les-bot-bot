@@ -132,3 +132,103 @@ export function gradeEmoji(grade: string): string {
     default: return "⚪";
   }
 }
+
+// ─── 10 Best Practices Validator ──────────────────────────────────────
+
+export interface BestPracticeCheck {
+  id: number;
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface BestPracticesReport {
+  checks: BestPracticeCheck[];
+  passedCount: number;
+  totalCount: number;
+  score: number;        // 0-100
+  grade: "A" | "B" | "C" | "D" | "F";
+  missing: string[];
+  summary: string;
+}
+
+export function validateBestPractices(prompt: string): BestPracticesReport {
+  const checks: BestPracticeCheck[] = [
+    {
+      id: 1,
+      name: "Spécifique et détaillé",
+      passed: prompt.length > 200,
+      detail: prompt.length > 200 ? `Prompt de ${prompt.length} chars` : `Trop court (${prompt.length} chars), manque de détails`,
+    },
+    {
+      id: 2,
+      name: "Contexte complet",
+      passed: /CONTEXTE[:\s]|CONTEXT[:\s]/i.test(prompt) || prompt.length > 500,
+      detail: /CONTEXTE[:\s]|CONTEXT[:\s]/i.test(prompt) ? "Section CONTEXTE présente" : prompt.length > 500 ? "Contexte implicite (longueur suffisante)" : "Manque de contexte",
+    },
+    {
+      id: 3,
+      name: "Format structuré (JSON)",
+      passed: /JSON/i.test(prompt) && /[{}[\]]/.test(prompt),
+      detail: /JSON/i.test(prompt) && /[{}[\]]/.test(prompt) ? "Format JSON spécifié avec structure" : /JSON/i.test(prompt) ? "JSON mentionné mais sans structure" : "Aucun format structuré spécifié",
+    },
+    {
+      id: 4,
+      name: "Exemples fournis",
+      passed: /Exemple/i.test(prompt) || /Example/i.test(prompt),
+      detail: /Exemple/i.test(prompt) || /Example/i.test(prompt) ? "Exemples few-shot présents" : "Aucun exemple fourni (few-shot manquant)",
+    },
+    {
+      id: 5,
+      name: "Rôle clairement défini",
+      passed: /Tu es/i.test(prompt) || /You are/i.test(prompt),
+      detail: /Tu es/i.test(prompt) || /You are/i.test(prompt) ? "Rôle explicite défini" : "Aucun rôle défini ('Tu es...')",
+    },
+    {
+      id: 6,
+      name: "Contraintes spécifiées",
+      passed: /CONTRAINTES[:\s]|RÈGLES[:\s]|CONSTRAINTS[:\s]|RULES[:\s]/i.test(prompt),
+      detail: /CONTRAINTES[:\s]|RÈGLES[:\s]|CONSTRAINTS[:\s]|RULES[:\s]/i.test(prompt) ? "Contraintes/Règles présentes" : "Aucune contrainte explicite",
+    },
+    {
+      id: 7,
+      name: "Divisé en étapes",
+      passed: /\d+\.\s|étape|step|Réfléchis étape/i.test(prompt),
+      detail: /\d+\.\s|étape|step|Réfléchis étape/i.test(prompt) ? "Étapes numérotées ou chain-of-thought" : "Pas de division en étapes",
+    },
+    {
+      id: 8,
+      name: "Testable et itérable",
+      passed: /Exemple/i.test(prompt) && /JSON/i.test(prompt),
+      detail: /Exemple/i.test(prompt) && /JSON/i.test(prompt) ? "Exemples + JSON = testable" : "Manque exemples ou JSON pour tester",
+    },
+    {
+      id: 9,
+      name: "Délimiteurs utilisés",
+      passed: /---|###|```|\|/.test(prompt),
+      detail: /---|###|```|\|/.test(prompt) ? "Délimiteurs structurés présents" : "Aucun délimiteur (---, ###, ```)",
+    },
+    {
+      id: 10,
+      name: "Concis mais complet",
+      passed: prompt.length > 200 && prompt.length < 5000,
+      detail: prompt.length > 200 && prompt.length < 5000 ? `Longueur optimale (${prompt.length} chars)` : prompt.length <= 200 ? "Trop concis" : "Trop long (>5000 chars)",
+    },
+  ];
+
+  const passedCount = checks.filter((c) => c.passed).length;
+  const totalCount = checks.length;
+  const score = Math.round((passedCount / totalCount) * 100);
+  const grade: BestPracticesReport["grade"] =
+    score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 40 ? "D" : "F";
+  const missing = checks.filter((c) => !c.passed).map((c) => `#${c.id} ${c.name}`);
+
+  const summary = [
+    `${passedCount}/${totalCount} best practices respectées`,
+    `Score: ${score}/100 (Grade ${grade})`,
+    missing.length > 0 ? `Manquantes: ${missing.join(", ")}` : "Toutes les best practices sont respectées!",
+  ].join("\n");
+
+  return { checks, passedCount, totalCount, score, grade, missing, summary };
+}
+

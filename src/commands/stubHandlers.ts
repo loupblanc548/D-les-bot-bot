@@ -13,7 +13,7 @@ import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSol
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
 import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase } from "../services/promptTesting.js";
-import { scorePromptDetailed, scorePromptsBatch, gradeEmoji } from "../services/promptScoring.js";
+import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices } from "../services/promptScoring.js";
 import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
@@ -1177,6 +1177,16 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       const worst = scores.sort((a, b) => a.score - b.score)[0];
       if (worst && worst.score < 80) {
         embed.addFields({ name: "⚠️ Améliorations — " + worst.name, value: worst.suggestions.slice(0, 3).join("\n"), inline: false });
+      }
+      // Best practices validation sur le prompt le plus faible
+      const worstPrompt = prompts.sort((a, b) => scorePromptDetailed(a.prompt).total - scorePromptDetailed(b.prompt).total)[0];
+      if (worstPrompt) {
+        const bp = validateBestPractices(worstPrompt.prompt);
+        embed.addFields({
+          name: `${gradeEmoji(bp.grade)} Best Practices — ${worstPrompt.name} (${bp.passedCount}/${bp.totalCount})`,
+          value: bp.checks.map(c => `${c.passed ? "✅" : "❌"} #${c.id} ${c.name}`).join("\n").slice(0, 1024),
+          inline: false,
+        });
       }
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
