@@ -168,6 +168,9 @@ export function handleMessageEvents(client: Client) {
         "ajoute moi",
         "ajoute-moi",
         "ajoute moi sur discord",
+        "ajoute moi sur ps",
+        "ajoute moi sur xbox",
+        "ajoute moi sur steam",
         "on peut jouer ensemble",
         "on peut jouer",
         "c'est quoi ton pseudo",
@@ -181,15 +184,11 @@ export function handleMessageEvents(client: Client) {
         "voici mon discord",
         "mon discord c'est",
         "mon discord c est",
-        "ajoute moi sur ps",
-        "ajoute moi sur xbox",
-        "ajoute moi sur steam",
         "donne ton id discord",
         "tu veux jouer avec moi",
         "on joue ensemble",
         "tu joues à quoi",
         "tu joue a quoi",
-        "ajoute",
         "on peut etre ami",
         "on peut être ami",
         "devient mon ami",
@@ -204,8 +203,21 @@ export function handleMessageEvents(client: Client) {
         }
       }
 
-      // ── Détection du mot "discord" → partage le lien du serveur (cooldown 10s) ──
-      if (lowerContent.includes("discord") && !message.author.bot) {
+      // ── Détection du mot "discord" → partage le lien du serveur seulement si demandé ──
+      const discordLinkPatterns = [
+        "lien du serveur",
+        "lien discord",
+        "le serveur discord",
+        "rejoindre le serveur",
+        "comment rejoindre",
+        "le lien du discord",
+        "tu as un discord",
+        "ton serveur discord",
+        "le discord du bot",
+        "discord du serveur",
+      ];
+      const wantsDiscordLink = discordLinkPatterns.some((p) => lowerContent.includes(p));
+      if (wantsDiscordLink && !message.author.bot) {
         const now = Date.now();
         const lastTime = discordLinkCooldown.get(message.channel.id) ?? 0;
         if (now - lastTime >= DISCORD_LINK_COOLDOWN_MS) {
@@ -437,10 +449,13 @@ async function handleAiChatMention(
     }
   } catch (error) {
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
-    await message.reply({
-      content: "\u{1f985} *Static* - Communications brouill\u00e9es ! R\u00e9essaie.",
-      allowedMentions: { repliedUser: false },
-    });
+    // Ne pas spammer l'utilisateur avec une erreur à chaque fois — 1 chance sur 3
+    if (Math.random() < 0.33) {
+      await message.reply({
+        content: "\u{1f985} *Static* - Communications brouill\u00e9es ! R\u00e9essaie.",
+        allowedMentions: { repliedUser: false },
+      });
+    }
   }
 }
 
@@ -519,10 +534,12 @@ async function handleDMMessage(
     }
   } catch (error) {
     logger.error(`[DM] Erreur: ${error instanceof Error ? error.message : String(error)}`);
-    await message.reply({
-      content: "🦉 *Static* - Communications brouillées ! Réessaie.",
-      allowedMentions: { repliedUser: false },
-    });
+    if (Math.random() < 0.33) {
+      await message.reply({
+        content: "🦉 *Static* - Communications brouillées ! Réessaie.",
+        allowedMentions: { repliedUser: false },
+      });
+    }
   }
 }
 
