@@ -18,9 +18,15 @@ export async function uploadToCloud(filePath: string, key?: string): Promise<boo
     const fileBuffer = await readFile(filePath);
     const fileName = key || `backups/${basename(filePath)}`;
     const endpoint = ENDPOINT || `https://${BUCKET}.s3.${REGION}.amazonaws.com`;
-    const url = `${endpoint}/${fileName}`;
+    const url = `${endpoint}/${encodeURIComponent(fileName)}`;
 
-    const res = await fetch(url, {
+    // Validate URL is HTTPS to prevent SSRF
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== "https:") {
+      throw new Error("S3 endpoint must be HTTPS");
+    }
+
+    const res = await fetch(parsedUrl.href, {
       method: "PUT",
       headers: {
         "Content-Type": "application/octet-stream",

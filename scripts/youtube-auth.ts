@@ -3,7 +3,6 @@ dotenv.config();
 
 import http from "http";
 import { writeFileSync, readFileSync } from "fs";
-import { escapeHtml, sanitizeForLog } from "../src/utils/stripHtml.js";
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
@@ -41,10 +40,12 @@ const server = http.createServer(async (req, res) => {
   const error = url.searchParams.get("error");
 
   if (error) {
-    const safeError = escapeHtml(String(error).slice(0, 200));
+    // Validate against known OAuth error codes — don't reflect arbitrary user input
+    const KNOWN_ERRORS = ["access_denied", "invalid_request", "invalid_scope", "server_error", "temporarily_unavailable"];
+    const isValidError = KNOWN_ERRORS.includes(String(error));
     res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
     res.end(`<h1>❌ Erreur d'authentification</h1>`);
-    console.error(`❌ Erreur OAuth: ${sanitizeForLog(String(error))}`);
+    console.error(`❌ Erreur OAuth: ${isValidError ? String(error) : "unknown_error"}`);
     server.close();
     process.exit(1);
   }

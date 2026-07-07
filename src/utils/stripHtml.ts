@@ -3,17 +3,13 @@ import * as cheerio from "cheerio";
 /**
  * Strip HTML tags safely using cheerio parser (not regex).
  * Also decodes HTML entities (&amp;, &lt;, &gt;, &nbsp;, &quot;, &#39;).
- * Replaces <table>, <style>, <script> blocks with empty string before stripping.
+ * Removes <table>, <style>, <script> blocks entirely before extracting text.
  */
 export function stripHtml(text: string): string {
   if (!text) return "";
-  // Remove table/style/script blocks entirely
-  const cleaned = text
-    .replace(/<table[\s\S]*?<\/table>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "");
-  // Use cheerio to strip tags and decode entities
-  const $ = cheerio.load(`<div id="__root">${cleaned}</div>`);
+  const $ = cheerio.load(`<div id="__root">${text}</div>`);
+  // Remove table/style/script blocks entirely using cheerio (not regex)
+  $("#__root table, #__root style, #__root script").remove();
   return $("#__root").text().trim();
 }
 
