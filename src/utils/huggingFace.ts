@@ -132,3 +132,40 @@ export async function detectToxicity(text: string): Promise<number | null> {
     return null;
   }
 }
+
+/**
+ * Genere une image a partir d'un prompt texte via FLUX.1-dev.
+ * Retourne un Buffer PNG ou null si l'API echoue.
+ *
+ * @param prompt Description de l'image a generer
+ * @returns Buffer PNG ou null
+ */
+export async function textToImage(prompt: string): Promise<Buffer | null> {
+  if (!config.hfApiKey) return null;
+
+  try {
+    const response = await fetch(
+      `${HF_INFERENCE_URL}/black-forest-labs/FLUX.1-dev`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.hfApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: prompt }),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+
+    if (!response.ok) {
+      logger.warn(`[HuggingFace] textToImage HTTP ${response.status}`);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    logger.warn(`[HuggingFace] textToImage error: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
