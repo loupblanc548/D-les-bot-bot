@@ -6,6 +6,12 @@
  */
 
 export interface ModerationVerdict {
+  reasoning?: {
+    step1_patterns: string;
+    step2_match: string;
+    step3_context: string;
+    step4_verdict: string;
+  };
   verdict: "spam" | "phishing" | "clean";
   confidence: number;
   raison: string;
@@ -13,6 +19,12 @@ export interface ModerationVerdict {
 }
 
 export interface DeepSentimentResult {
+  reasoning?: {
+    step1_dimensions: string;
+    step2_evidence: string;
+    step3_context: string;
+    step4_conclusion: string;
+  };
   sentiment: "très_positif" | "positif" | "neutre" | "négatif" | "très_négatif";
   dimensions: {
     positivité: number;
@@ -82,6 +94,12 @@ Classification: PHISHING
 
 FORMAT SORTIE (JSON strict):
 {
+  "reasoning": {
+    "step1_patterns": "Quels patterns de spam typiques sont présents?",
+    "step2_match": "Ce message contient-il ces patterns?",
+    "step3_context": "Y a-t-il du contexte qui change l'analyse?",
+    "step4_verdict": "Verdict final et justification"
+  },
   "verdict": "spam|phishing|clean",
   "confidence": 0-100,
   "raison": "...",
@@ -91,9 +109,15 @@ FORMAT SORTIE (JSON strict):
 export function buildSpamPhishingPrompt(message: string, _context?: string): string {
   return `${SPAM_PHISHING_PROMPT}
 
-Maintenant classe ce message:
-Message: "${message.slice(0, 2000)}"
-Classification:`;
+Réfléchis étape par étape:
+1. Quels sont les patterns de spam typiques pertinents ici?
+2. Ce message contient-il ces patterns?
+3. Y a-t-il du contexte qui change l'analyse?
+4. Quel est ton verdict final?
+
+Réponds en détail pour chaque étape, puis donne le JSON final.
+
+Message: "${message.slice(0, 2000)}"`;
 }
 
 // ─── Prompt 2: Deep Sentiment Analysis (5 dimensions) ────────────────
@@ -141,6 +165,12 @@ Sentiment: très_négatif | Agressivité: 10 | Spam: 0 | Phishing: 0 | Harcèlem
 
 FORMAT RÉPONSE (JSON strict):
 {
+  "reasoning": {
+    "step1_dimensions": "Quelles dimensions sont pertinentes pour ce message?",
+    "step2_evidence": "Quelles preuves textuelles supportent chaque score?",
+    "step3_context": "Le contexte gaming change-t-il l'analyse?",
+    "step4_conclusion": "Synthèse et niveau de risque"
+  },
   "sentiment": "très_positif|positif|neutre|négatif|très_négatif",
   "dimensions": {
     "positivité": -10 à +10,
@@ -159,7 +189,14 @@ export function buildDeepSentimentPrompt(message: string, context?: string): str
   const ctx = context ? `\nCONTEXTE ADDITIONNEL: ${context}` : "";
   return `${DEEP_SENTIMENT_PROMPT}
 
-Maintenant analyse ce message:
+Réfléchis étape par étape:
+1. Quelles dimensions sont pertinentes pour ce message?
+2. Quelles preuves textuelles supportent chaque score?
+3. Le contexte gaming change-t-il l'analyse?
+4. Quelle est ta synthèse et le niveau de risque final?
+
+Réponds en détail pour chaque étape, puis donne le JSON final.
+
 Message: "${message.slice(0, 2000)}"${ctx}`;
 }
 
