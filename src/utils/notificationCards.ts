@@ -753,6 +753,10 @@ export async function generateCardAttachment(
   data: CardData,
   filename: string = "notification",
 ): Promise<{ attachment: Buffer; name: string } | null> {
+  // Si pas d'image valide, ne pas générer de carte — l'embed sera envoyé sans carte
+  if (!data.imageUrl || !data.imageUrl.startsWith("http")) {
+    return null;
+  }
   const png = await generateNotificationCard(data);
   if (!png) return null;
   return {
