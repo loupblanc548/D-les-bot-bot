@@ -91,11 +91,11 @@ const client = new Client({
     },
     users: {
       interval: 600,            // Every 10 minutes
-      filter: (() => true) as never,
+      filter: () => () => true, // Sweep all cached users
     },
     guildMembers: {
       interval: 600,
-      filter: (() => true) as never,
+      filter: () => () => true, // Sweep all cached members
     },
   },
   presence: {
