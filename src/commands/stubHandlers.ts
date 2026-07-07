@@ -10,6 +10,7 @@ import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js
 import { generateRankCard } from "../services/imageService.js";
 import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from "../services/ai-moderation.js";
 import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
+import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -1077,9 +1078,39 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.editReply({ embeds: [embed] });
       break;
     }
+    case "ai-mood": {
+      const messageId = interaction.options.getString("message_id");
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        let messageContent = "";
+        if (messageId && interaction.channel && "isTextBased" in interaction.channel && interaction.channel.isTextBased()) {
+          const msg = await interaction.channel.messages.fetch(messageId).catch(() => null);
+          if (msg) messageContent = msg.content;
+        }
+        if (!messageContent) {
+          await interaction.editReply({ content: "❌ Message introuvable ou vide." });
+          break;
+        }
+        const consensus = await getMultiExpertConsensus(messageContent);
+        const moodEmoji = consensus.unanimity ? "🟢" : "🟡";
+        const embed = new EmbedBuilder()
+          .setTitle(`${moodEmoji} Consensus multi-experts — ${consensus.final_verdict}`)
+          .setColor(consensus.final_verdict === "clean" ? 0x2ecc71 : consensus.final_verdict === "warning" ? 0xf1c40f : consensus.final_verdict === "violation" ? 0xff8800 : 0xe74c3c)
+          .setDescription(`Action: **${consensus.final_action}** | Confiance: **${consensus.confidence}%** | Méthode: ${consensus.decision_method}`)
+          .addFields(
+            { name: "🗳️ Votes", value: consensus.votes.map(v => `${v.verdict}: ${v.count}`).join(" | "), inline: false },
+            { name: "🔍 Avis des experts", value: consensus.opinions.map(o => `**${o.expert}**: ${o.verdict} (${o.confidence}%) — ${o.reasoning.slice(0, 150)}`).join("\n\n").slice(0, 1024), inline: false },
+          )
+          .setFooter({ text: consensus.unanimity ? "Unanimité totale" : "Consensus par vote" })
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+      } catch (err) {
+        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+      }
+      break;
+    }
     case "ai-profile":
     case "ai-suggest":
-    case "ai-mood":
     case "ai-channel-summary":
     case "ai-fun":
     case "ai-translate-custom":
