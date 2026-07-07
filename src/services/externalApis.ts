@@ -655,7 +655,6 @@ export function getApiStatus(): Record<string, boolean> {
     googleCloud: !!config.googleCloudApiKey,
     igdb: !!config.igdbClientId && !!config.igdbClientSecret,
     steamgriddb: !!config.steamgriddbApiKey,
-    hibp: !!config.hibpApiKey,
     uptimeRobot: !!config.uptimeRobotApiKey,
     wikipedia: true,
   };

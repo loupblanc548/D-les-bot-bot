@@ -44,7 +44,6 @@ export const config = {
   igdbClientId: env.IGDB_CLIENT_ID || "",
   igdbClientSecret: env.IGDB_CLIENT_SECRET || "",
   steamgriddbApiKey: env.STEAMGRIDDB_API_KEY || "",
-  hibpApiKey: env.HIBP_API_KEY || "",
   uptimeRobotApiKey: env.UPTIMEROBOT_API_KEY || "",
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────

@@ -106,7 +106,6 @@ const envSchema = z.object({
   IGDB_CLIENT_ID: z.string().optional(),
   IGDB_CLIENT_SECRET: z.string().optional(),
   STEAMGRIDDB_API_KEY: z.string().optional(),
-  HIBP_API_KEY: z.string().optional(),
   UPTIMEROBOT_API_KEY: z.string().optional(),
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
