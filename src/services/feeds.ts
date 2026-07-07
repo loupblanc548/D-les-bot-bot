@@ -294,13 +294,24 @@ export async function sendToChannel(
   embed: EmbedBuilder,
 ): Promise<boolean> {
   try {
-    const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    let channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    // Fetch from API if not in cache
+    if (!channel) {
+      try {
+        channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
+      } catch (fetchErr) {
+        logger.error(`[Feeds] Channel ${channelId} introuvable: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+        return false;
+      }
+    }
     if (channel?.isTextBased()) {
       await channel.send({ embeds: [embed] });
       return true;
     }
+    logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
-  } catch {
+  } catch (err) {
+    logger.error(`[Feeds] Erreur envoi channel ${channelId}: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -312,13 +323,24 @@ export async function sendToChannelWithAttachment(
   attachment: { attachment: Buffer; name: string },
 ): Promise<boolean> {
   try {
-    const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    let channel = client.channels.cache.get(channelId) as TextChannel | undefined;
+    // Fetch from API if not in cache
+    if (!channel) {
+      try {
+        channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
+      } catch (fetchErr) {
+        logger.error(`[Feeds] Channel ${channelId} introuvable (attachment): ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+        return false;
+      }
+    }
     if (channel?.isTextBased()) {
       await channel.send({ embeds: [embed], files: [attachment] });
       return true;
     }
+    logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
-  } catch {
+  } catch (err) {
+    logger.error(`[Feeds] Erreur envoi channel ${channelId} (attachment): ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -350,10 +372,16 @@ async function sendToChannelWithCard(
 
     if (cardAttachment) {
       embed.setImage(`attachment://${cardAttachment.name}`);
-      return await sendToChannelWithAttachment(client, channelId, embed, cardAttachment);
+      const sent = await sendToChannelWithAttachment(client, channelId, embed, cardAttachment);
+      if (sent) return true;
+      // Attachment send failed — clear the attachment:// image and retry with plain embed
+      embed.setImage(null);
     }
     return await sendToChannel(client, channelId, embed);
-  } catch {
+  } catch (err) {
+    logger.warn(`[Feeds] Card generation failed for ${platform}/${handle}: ${err instanceof Error ? err.message : String(err)}`);
+    // Clear any attachment:// image that would be invalid without the file
+    try { embed.setImage(null); } catch {}
     return await sendToChannel(client, channelId, embed);
   }
 }
