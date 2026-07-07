@@ -30,13 +30,13 @@ const tempChannels = new Map<string, string>();
  */
 export async function setHubChannel(guildId: string, channelId: string): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      INSERT INTO temp_voice_config (guild_id, hub_channel_id)
-      VALUES (${guildId}, ${channelId})
-      ON CONFLICT (guild_id) DO UPDATE SET hub_channel_id = ${channelId}
-    `;
-  } catch {
-    // Table peut ne pas exister encore — fallback en mémoire
+    await prisma.tempVoiceConfig.upsert({
+      where: { guildId },
+      update: { hubChannelId: channelId },
+      create: { guildId, hubChannelId: channelId },
+    });
+  } catch (err) {
+    logger.error(`[TempVoice] Erreur setHubChannel: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -45,10 +45,11 @@ export async function setHubChannel(guildId: string, channelId: string): Promise
  */
 export async function getHubChannel(guildId: string): Promise<string | null> {
   try {
-    const result = await prisma.$queryRaw<{ hub_channel_id: string }[]>`
-      SELECT hub_channel_id FROM temp_voice_config WHERE guild_id = ${guildId}
-    `;
-    return result[0]?.hub_channel_id ?? null;
+    const config = await prisma.tempVoiceConfig.findUnique({
+      where: { guildId },
+      select: { hubChannelId: true },
+    });
+    return config?.hubChannelId ?? null;
   } catch {
     return null;
   }
