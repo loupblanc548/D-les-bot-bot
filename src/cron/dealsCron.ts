@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import cron from "node-cron";
 import axios from "axios";
+import { stripHtml } from "../utils/stripHtml.js";
 import { config } from "../config.js";
 import { retry } from "../utils/retry.js";
 import { dbCache } from "../utils/cache.js";
@@ -185,20 +186,7 @@ async function sendDealEmbed(
     }
 
     // Nettoyer le HTML de la description avant traduction
-    const cleanHtmlContent = (item.contentSnippet || item.content || "")
-      // Remove <table>...</table> blocks (price/currency tables from Fanatical etc.)
-      .replace(/<table[\s\S]*?<\/table>/gi, "")
-      // Remove style/script blocks
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/\s+/g, " ")
-      .trim();
+    const cleanHtmlContent = stripHtml(item.contentSnippet || item.content || "").replace(/\s+/g, " ").trim();
 
     // Traduire le titre si nécessaire
     let translatedTitle = item.title;

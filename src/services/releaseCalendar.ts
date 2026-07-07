@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { stripHtml } from "../utils/stripHtml.js";
 import Parser from "rss-parser";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -45,7 +46,7 @@ async function fetchReleases(platform: string, feedUrl: string): Promise<GameRel
           platform,
           releaseDate: pubDate,
           url: link,
-          description: content.replace(/<[^>]*>/g, "").substring(0, 300),
+          description: stripHtml(content).substring(0, 300),
         });
       }
     }

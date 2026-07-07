@@ -47,7 +47,13 @@ function getNotificationChannelIds(): string[] {
 
 function resolveYoutubeThumb(url: string | undefined): string | null {
   if (!url) return null;
-  if (!url.includes("youtube.com") && !url.includes("youtu.be")) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host !== "youtube.com" && host !== "www.youtube.com" && host !== "youtu.be" && host !== "m.youtube.com") return null;
+  } catch {
+    return null;
+  }
   const match = url.match(
     /(?:youtube\.com\/watch\?(?:.*[?&])?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
   );

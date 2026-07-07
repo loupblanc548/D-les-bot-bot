@@ -1,5 +1,6 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { sanitizeForLog } from "../utils/stripHtml.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
@@ -54,7 +55,7 @@ async function checkTikTokAccount(username: string): Promise<TikTokVideo[]> {
       if (videos.length >= 3) break;
     }
   } catch (err) {
-    logger.debug(`[TikTok] Erreur fetch @${username}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(`[TikTok] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
   }
   return videos;
 }
@@ -86,9 +87,9 @@ async function checkTikTokVideos(client: Client): Promise<void> {
       try {
         await channel.send({ embeds: [embed] });
         await dedupCache.markAsProcessed("tiktok", dedupKey);
-        logger.info(`[TikTok] Notification envoyée pour @${username} — vidéo ${video.videoId}`);
+        logger.info(`[TikTok] Notification envoyée — vidéo ${sanitizeForLog(video.videoId)}`);
       } catch (err) {
-        logger.error(`[TikTok] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(`[TikTok] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
       }
     }
   }

@@ -3,6 +3,7 @@ dotenv.config();
 
 import http from "http";
 import { writeFileSync, readFileSync } from "fs";
+import { escapeHtml, sanitizeForLog } from "../src/utils/stripHtml.js";
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
@@ -40,9 +41,10 @@ const server = http.createServer(async (req, res) => {
   const error = url.searchParams.get("error");
 
   if (error) {
+    const safeError = escapeHtml(String(error).slice(0, 200));
     res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(`<h1>❌ Erreur: ${error}</h1>`);
-    console.error(`❌ Erreur OAuth: ${error}`);
+    res.end(`<h1>❌ Erreur d'authentification</h1>`);
+    console.error(`❌ Erreur OAuth: ${sanitizeForLog(String(error))}`);
     server.close();
     process.exit(1);
   }
@@ -93,10 +95,10 @@ const server = http.createServer(async (req, res) => {
     if (envContent.includes("YOUTUBE_REFRESH_TOKEN=")) {
       envContent = envContent.replace(
         /YOUTUBE_REFRESH_TOKEN=.*/,
-        `YOUTUBE_REFRESH_TOKEN=${tokenData.refresh_token}`,
+        `YOUTUBE_REFRESH_TOKEN=${String(tokenData.refresh_token).replace(/[\r\n]/g, "")}`,
       );
     } else {
-      envContent += `\nYOUTUBE_REFRESH_TOKEN=${tokenData.refresh_token}\n`;
+      envContent += `\nYOUTUBE_REFRESH_TOKEN=${String(tokenData.refresh_token).replace(/[\r\n]/g, "")}\n`;
     }
     writeFileSync(envPath, envContent, "utf-8");
 

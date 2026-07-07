@@ -1,5 +1,6 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { sanitizeForLog } from "../utils/stripHtml.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
@@ -56,7 +57,7 @@ async function fetchRecentVods(streamerName: string): Promise<TwitchVod[]> {
       });
     }
   } catch (err) {
-    logger.debug(`[VODs] Erreur fetch ${streamerName}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(`[VODs] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
   }
   return vods;
 }
@@ -96,9 +97,9 @@ async function checkVods(client: Client): Promise<void> {
 
       try {
         await channel.send({ embeds: [embed] });
-        logger.info(`[VODs] VOD notifié pour ${streamer}: ${vod.title}`);
+        logger.info(`[VODs] VOD notifié: ${sanitizeForLog(vod.title)}`);
       } catch (err) {
-        logger.error(`[VODs] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(`[VODs] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
       }
     }
   }

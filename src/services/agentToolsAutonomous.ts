@@ -20,6 +20,7 @@ import { existsSync } from "fs";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { stripHtml } from "../utils/stripHtml.js";
 
 // ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
 
@@ -348,7 +349,7 @@ async function tScrapeUrbanSlang(args: Record<string, unknown>): Promise<ToolCal
     const exampleMatch = html.match(/<div class="example"[^>]*>([\s\S]*?)<\/div>/i);
     if (!defMatch) return { success: false, data: "Terme non trouvé" };
 
-    const stripTags = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").trim();
+    const stripTags = (s: string) => stripHtml(s);
 
     return {
       success: true,
@@ -478,7 +479,7 @@ async function tVerifyLinkSafety(args: Record<string, unknown>): Promise<ToolCal
 
     const isClean = /class="label label-success"/i.test(html);
     const isFlagged = /class="label label-danger"/i.test(html);
-    const detections = [...html.matchAll(/<td>(.*?)<\/td>/g)].map((m) => m[1].replace(/<[^>]+>/g, "").trim()).filter((s) => s.length > 3 && s.length < 100).slice(0, 10);
+    const detections = [...html.matchAll(/<td>(.*?)<\/td>/g)].map((m) => stripHtml(m[1])).filter((s) => s.length > 3 && s.length < 100).slice(0, 10);
 
     return {
       success: true,

@@ -1,5 +1,6 @@
 import { EmbedBuilder, AttachmentBuilder } from "discord.js";
 import { getBlogImage, resolveImageUrl, createImageAttachment, isValidEmbedImageUrl } from "../../utils/image-helpers.js";
+import { stripHtml } from "../../utils/stripHtml.js";
 
 interface RSSItem {
   title: string;
@@ -116,20 +117,5 @@ export function createNintendoEmbed(item: RSSItem): EmbedBuilder {
 }
 
 function cleanHTML(text: string): string {
-  return text
-    // Remove <table>...</table> blocks entirely (price/currency tables from Fanatical etc.)
-    .replace(/<table[\s\S]*?<\/table>/gi, "")
-    // Remove other known noisy blocks
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    // Strip remaining HTML tags
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  return stripHtml(text).replace(/\s+/g, " ").trim();
 }

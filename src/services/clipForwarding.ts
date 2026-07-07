@@ -1,5 +1,6 @@
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
+import { sanitizeForLog } from "../utils/stripHtml.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 
@@ -55,7 +56,7 @@ async function fetchRecentClips(streamerName: string): Promise<TwitchClip[]> {
       });
     }
   } catch (err) {
-    logger.debug(`[Clips] Erreur fetch ${streamerName}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(`[Clips] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
   }
   return clips;
 }
@@ -95,9 +96,9 @@ async function checkClips(client: Client): Promise<void> {
 
       try {
         await channel.send({ embeds: [embed] });
-        logger.info(`[Clips] Clip notifié pour ${streamer}: ${clip.title}`);
+        logger.info(`[Clips] Clip notifié: ${sanitizeForLog(clip.title)}`);
       } catch (err) {
-        logger.error(`[Clips] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(`[Clips] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
       }
     }
   }
