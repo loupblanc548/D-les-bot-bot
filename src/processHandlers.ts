@@ -43,11 +43,27 @@ export function attachProcessHandlers(): void {
     );
   }
 
+  function isTransientSocketError(err: Error): boolean {
+    const msg = String(err.message || err.name);
+    return (
+      msg.includes("other side closed") ||
+      msg.includes("UND_ERR_SOCKET") ||
+      msg.includes("ECONNRESET") ||
+      msg.includes("EPIPE") ||
+      msg.includes("socket hang up") ||
+      msg.includes("ETIMEDOUT")
+    );
+  }
+
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     // Erreurs Redis non-fatals — ne pas crasher le bot
     if (isRedisError(err)) {
       logger.warn(`[PROCESS] Redis rejection (non-fatal): ${err.message || err.name}`);
+      return;
+    }
+    if (isTransientSocketError(err)) {
+      logger.warn(`[PROCESS] Transient socket rejection (non-fatal): ${err.message || err.name}`);
       return;
     }
     logger.error(`[PROCESS] Unhandled Rejection at: ${promise}, reason: ${err.message}`, {
@@ -71,6 +87,10 @@ export function attachProcessHandlers(): void {
     // Erreurs Redis non-fatals — ne pas crasher le bot
     if (isRedisError(error)) {
       logger.warn(`[PROCESS] Redis error (non-fatal): ${error.message || error.name}`);
+      return;
+    }
+    if (isTransientSocketError(error)) {
+      logger.warn(`[PROCESS] Transient socket error (non-fatal): ${error.message || error.name}`);
       return;
     }
     logger.error(`[PROCESS] ⚠️ Uncaught Exception: ${error.message}`, { stack: error.stack });

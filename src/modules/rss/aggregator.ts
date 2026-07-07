@@ -11,6 +11,7 @@ import {
 } from "./themedEmbeds.js";
 import { cleanUrl } from "../../utils/url-cleaner.js";
 import { dedupCache } from "../../utils/deduplicationCache.js";
+import { fetchRetry } from "../../utils/fetchRetry.js";
 
 const parser = new Parser();
 const RSS_POSTED_KEY_PREFIX = "rss:posted:";
@@ -92,7 +93,19 @@ async function checkAllFeeds(client: Client): Promise<void> {
 
 async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<void> {
   try {
-    const feedData = await parser.parseURL(url);
+    // Use fetchRetry instead of parser.parseURL to handle transient socket errors
+    const response = await fetchRetry(url, {
+      headers: { "User-Agent": "DiscordBot/1.0 (+https://discord.com)" },
+      retries: 2,
+      retryDelayMs: 1500,
+      timeoutMs: 12_000,
+    });
+    if (!response.ok) {
+      logger.warn(`[RSSAggregator] HTTP ${response.status} for ${feed.name} (${url})`);
+      return;
+    }
+    const xmlText = await response.text();
+    const feedData = await parser.parseString(xmlText);
 
     if (!feedData.items || feedData.items.length === 0) {
       return;
