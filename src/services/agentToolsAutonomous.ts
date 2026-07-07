@@ -21,6 +21,9 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import { stripHtml } from "../utils/stripHtml.js";
+import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
+import { getUser as getTwitterUser, getRecentTweets as getTwitterTweets, searchTweets, isTwitterConfigured } from "./twitter.js";
+import { getSubredditPosts, searchReddit, getTrendingSubreddits } from "./reddit.js";
 
 // ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
 
@@ -280,6 +283,105 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
         },
         required: ["userId"],
       },
+    },
+  },
+  // ═══ 5. OSINT TOOLKIT (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "osint_scan",
+      description: "Lance un scan OSINT complet sur une cible (IP, domaine, ou email). Combine Shodan, DNS, WHOIS, sécurité email, scoring de risque. Utilise cet outil quand un utilisateur demande des infos sur une IP, un domaine, ou un email suspect.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP, domaine, ou email à analyser" },
+        },
+        required: ["target"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "shodan_search",
+      description: "Recherche Shodan d'appareils/services exposés sur Internet. Nécessite SHODAN_API_KEY. Retourne top 5 résultats.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Requête Shodan (ex: 'apache country:FR', 'port:22 has_ssh')" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  // ═══ 6. TWITTER API (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "twitter_get_user",
+      description: "Récupère le profil Twitter/X d'un utilisateur : bio, followers, tweets count, vérification. Nécessite TWITTER_BEARER_TOKEN.",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "Nom d'utilisateur Twitter sans @" },
+        },
+        required: ["username"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "twitter_search",
+      description: "Recherche des tweets récents par mot-clé. Retourne texte, likes, retweets. Nécessite TWITTER_BEARER_TOKEN.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Requête de recherche" },
+          maxResults: { type: "number", description: "Nombre max (défaut 5, max 20)" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  // ═══ 7. REDDIT API (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "reddit_get_posts",
+      description: "Récupère les posts d'un subreddit (hot, new, top). Gratuit, pas de clé API.",
+      parameters: {
+        type: "object",
+        properties: {
+          subreddit: { type: "string", description: "Nom du subreddit sans r/" },
+          sort: { type: "string", description: "Tri: hot, new, top, rising (défaut: hot)" },
+          limit: { type: "number", description: "Nombre de posts (défaut 5, max 10)" },
+        },
+        required: ["subreddit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reddit_search",
+      description: "Recherche sur Reddit par mot-clé. Retourne posts pertinents avec score et commentaires. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Requête de recherche" },
+          limit: { type: "number", description: "Nombre de résultats (défaut 5, max 10)" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reddit_trending",
+      description: "Récupère les subreddits populaires/tendance du moment. Gratuit, pas de clé.",
+      parameters: { type: "object", properties: {}, required: [] },
     },
   },
 ];
@@ -1065,6 +1167,16 @@ export async function executeAutonomousTool(
       case "self_inspect_logs": return await tSelfInspectLogs();
       case "upsert_user_memory": return await tUpsertUserMemory(args);
       case "retrieve_user_memory": return await tRetrieveUserMemory(args);
+      // 5. OSINT Toolkit
+      case "osint_scan": return await tOsintScan(args);
+      case "shodan_search": return await tShodanSearch(args);
+      // 6. Twitter
+      case "twitter_get_user": return await tTwitterGetUser(args);
+      case "twitter_search": return await tTwitterSearch(args);
+      // 7. Reddit
+      case "reddit_get_posts": return await tRedditGetPosts(args);
+      case "reddit_search": return await tRedditSearch(args);
+      case "reddit_trending": return await tRedditTrending();
       default: return null;
     }
   } catch (error) {
@@ -1073,5 +1185,98 @@ export async function executeAutonomousTool(
       success: false,
       data: `Erreur: ${error instanceof Error ? error.message : String(error)}`,
     };
+  }
+}
+
+// ═══ 5. OSINT TOOLKIT ═══
+
+async function tOsintScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target).slice(0, 200);
+  try {
+    const report = await runOsintScan(target);
+    return {
+      success: true,
+      data: JSON.stringify({
+        target: report.target, type: report.type,
+        shodan: report.shodan,
+        dns: report.dns,
+        whois: report.whois,
+        emailSecurity: report.emailSecurity,
+        riskScore: report.riskScore,
+        riskReasons: report.riskReasons,
+      }),
+    };
+  } catch (e) {
+    return { success: false, data: `Erreur OSINT: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tShodanSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query).slice(0, 200);
+  try {
+    const result = await quickShodanSearch(query);
+    return { success: true, data: JSON.stringify(result) };
+  } catch (e) {
+    return { success: false, data: `Erreur Shodan: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 6. TWITTER API ═══
+
+async function tTwitterGetUser(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const username = String(args.username).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+  if (!isTwitterConfigured()) return { success: false, data: "Twitter API non configuré (TWITTER_BEARER_TOKEN manquant)" };
+  try {
+    const user = await getTwitterUser(username);
+    if (!user) return { success: false, data: `Utilisateur @${username} introuvable` };
+    return { success: true, data: JSON.stringify(user) };
+  } catch (e) {
+    return { success: false, data: `Erreur Twitter: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tTwitterSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query).slice(0, 200);
+  const max = Math.min(Number(args.maxResults) || 5, 20);
+  if (!isTwitterConfigured()) return { success: false, data: "Twitter API non configuré" };
+  try {
+    const tweets = await searchTweets(query, max);
+    return { success: true, data: JSON.stringify({ query, count: tweets.length, tweets }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Twitter search: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 7. REDDIT API ═══
+
+async function tRedditGetPosts(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const subreddit = String(args.subreddit).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50);
+  const sort = String(args.sort || "hot") as "hot" | "new" | "top" | "rising";
+  const limit = Math.min(Number(args.limit) || 5, 10);
+  try {
+    const posts = await getSubredditPosts(subreddit, sort, limit);
+    return { success: true, data: JSON.stringify({ subreddit, sort, count: posts.length, posts }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Reddit: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tRedditSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query).slice(0, 200);
+  const limit = Math.min(Number(args.limit) || 5, 10);
+  try {
+    const posts = await searchReddit(query, limit);
+    return { success: true, data: JSON.stringify({ query, count: posts.length, posts }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Reddit search: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tRedditTrending(): Promise<ToolCallResult> {
+  try {
+    const trending = await getTrendingSubreddits();
+    return { success: true, data: JSON.stringify({ count: trending.length, trending }) };
+  } catch (e) {
+    return { success: false, data: `Erreur Reddit trending: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
