@@ -655,16 +655,36 @@ async function ensureSourceAndInsertNotification(
       source.createdAt.getTime() === Date.now() - (source.createdAt.getTime() % 1000);
 
     // Étape 2 : Insertion de la notification avec le sourceId garanti.
-    // On utilise `create` (et non `upsert`) pour qu'un éventuel doublon
-    // (contrainte d'unicité sur l'URL) propage une P2002 — l'appelant la
-    // traitera comme « notification déjà existante » et sautera l'item,
-    // ce qui évite le spam de canaux Discord au démarrage.
+    // On utilise `upsert` pour éviter l'erreur P2002 (unique constraint) que
+    // Prisma log même quand on la catch. Si l'URL existe déjà, l'upsert ne
+    // fait rien (update vide) et on détecte le doublon via le count.
+    const cleanedUrl = cleanUrl(url);
+    if (!cleanedUrl) {
+      return {
+        success: false,
+        sourceCreated: false,
+        notificationInserted: false,
+        error: "URL invalide",
+      };
+    }
+    const existingNotif = await prisma.notification.findUnique({
+      where: { url: cleanedUrl },
+      select: { id: true },
+    });
+    if (existingNotif) {
+      return {
+        success: false,
+        sourceCreated: false,
+        notificationInserted: false,
+        skipped: true,
+      };
+    }
     await prisma.notification.create({
       data: {
         sourceId: String(source.id),
         platform,
         content,
-        url: cleanUrl(url) || null,
+        url: cleanedUrl,
       },
     });
 

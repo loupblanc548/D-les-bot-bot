@@ -81,6 +81,7 @@ vi.mock("../prisma", () => ({
     },
     notification: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
     },
   },
@@ -412,6 +413,7 @@ describe("runDbSourcesRetrospective", () => {
 
     // No existing notifications → all 3 should be created
     (prisma.notification.findFirst as any).mockResolvedValue(null);
+    (prisma.notification.findUnique as any).mockResolvedValue(null);
     (prisma.notification.create as any).mockResolvedValue({});
 
     // Mock a valid text channel
@@ -470,6 +472,7 @@ describe("runDbSourcesRetrospective", () => {
     );
 
     (prisma.notification.findFirst as any).mockResolvedValue(null);
+    (prisma.notification.findUnique as any).mockResolvedValue(null);
     (prisma.notification.create as any).mockResolvedValue({});
 
     const mockSend = vi.fn().mockResolvedValue(undefined);
@@ -523,7 +526,8 @@ describe("runDbSourcesRetrospective", () => {
         </feed>`) as any,
     );
 
-    // Item already has a notification (simulate P2002 unique constraint violation)
+    // Item already has a notification (findUnique returns existing → skip)
+    (prisma.notification.findUnique as any).mockResolvedValue({ id: 999 });
     let _callCount = 0;
     (prisma.notification.create as any).mockImplementation(() => {
       _callCount++;
@@ -544,8 +548,8 @@ describe("runDbSourcesRetrospective", () => {
 
     await runDbSourcesRetrospective(client);
 
-    // Should have attempted to create a notification (but got P2002 error)
-    expect(prisma.notification.create).toHaveBeenCalled();
+    // Should NOT have called create (findUnique found existing notification → skip)
+    expect(prisma.notification.create).not.toHaveBeenCalled();
     // Should NOT have sent any message (because notification already exists)
     expect(mockSend).not.toHaveBeenCalled();
   });
@@ -577,6 +581,7 @@ describe("runDbSourcesRetrospective", () => {
 
     // No existing notifications
     (prisma.notification.findFirst as any).mockResolvedValue(null);
+    (prisma.notification.findUnique as any).mockResolvedValue(null);
 
     // First create fails, second succeeds
     let createCallCount = 0;
