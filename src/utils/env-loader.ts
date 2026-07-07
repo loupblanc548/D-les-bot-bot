@@ -108,8 +108,15 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
   BRAVE_SEARCH_API_KEY: z.string().optional(),
+  BRAVE_AUTOSUGGEST_API_KEY: z.string().optional(),
+  BRAVE_SPELLCHECK_API_KEY: z.string().optional(),
+  BRAVE_ANSWERS_API_KEY: z.string().optional(),
   ASSEMBLYAI_API_KEY: z.string().optional(),
   COHERE_API_KEY: z.string().optional(),
+
+  // Google Cloud
+  GOOGLE_CLOUD_PROJECT_ID: z.string().optional(),
+  GOOGLE_CLOUD_API_KEY: z.string().optional(),
 
   // API Base URLs (with defaults)
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
