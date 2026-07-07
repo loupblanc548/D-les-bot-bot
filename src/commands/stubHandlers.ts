@@ -11,6 +11,7 @@ import { generateRankCard } from "../services/imageService.js";
 import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from "../services/ai-moderation.js";
 import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
+import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -1109,8 +1110,27 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       }
       break;
     }
+    case "ai-suggest": {
+      const sujet = interaction.options.getString("sujet") ?? interaction.options.getString("probleme");
+      await interaction.deferReply({ ephemeral: true });
+      if (!sujet) {
+        await interaction.editReply({ content: "❌ Aucun sujet fourni." });
+        break;
+      }
+      const result = await thinkTree<ModerationToTResult>(sujet, { timeoutPerStep: 12_000 });
+      const embed = new EmbedBuilder()
+        .setTitle("🌳 Tree of Thought")
+        .setColor(0x2ecc71)
+        .setDescription(`3 approches en parallèle • ${result.durationMs}ms${result.best_branch ? ` • Meilleure: **${result.best_branch}**` : ""}`)
+        .addFields(
+          { name: "🌿 Branches", value: result.branches.map(b => `**${b.name}**${b.score !== undefined ? ` (${b.score}/10)` : ""}: ${b.analysis.slice(0, 200)}`).join("\n\n").slice(0, 1024), inline: false },
+          { name: "✅ Synthèse", value: JSON.stringify(result.synthesis, null, 2).slice(0, 1024), inline: false },
+        )
+        .setTimestamp();
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
     case "ai-profile":
-    case "ai-suggest":
     case "ai-channel-summary":
     case "ai-fun":
     case "ai-translate-custom":
