@@ -5,9 +5,12 @@ import {
   buildSpamPhishingPrompt,
   buildDeepSentimentPrompt,
   buildLinkSafetyPrompt,
+  buildThreatDetectionPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
+  type ThreatAssessment,
+  type UserProfile,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -182,5 +185,47 @@ export async function checkLinkSafety(url: string): Promise<{
   } catch (error) {
     logger.error("[AI-Moderation] checkLinkSafety:", String(error));
     return { sûr: true, confiance: 0, type_menace: "aucun", raison: "Erreur API", action: "autoriser" };
+  }
+}
+
+// ─── Threat Detection (7 factors) ─────────────────────────────────────
+
+export async function assessThreat(profile: UserProfile): Promise<ThreatAssessment> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildThreatDetectionPrompt(profile);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en détection de menaces cyber. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 500,
+      temperature: 0.15,
+    }, { timeout: 15_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<ThreatAssessment>(raw);
+    if (!parsed) {
+      return {
+        risk_score: 0,
+        risk_level: "très_bas",
+        factors: { new_account: 0, message_rate: 0, raid_pattern: 0, phishing: 0, spam: 0, harassment: 0, malware: 0 },
+        action: "monitor",
+        confidence: 0,
+        reasoning: "Parse error",
+      };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] assessThreat:", String(error));
+    return {
+      risk_score: 0,
+      risk_level: "très_bas",
+      factors: { new_account: 0, message_rate: 0, raid_pattern: 0, phishing: 0, spam: 0, harassment: 0, malware: 0 },
+      action: "monitor",
+      confidence: 0,
+      reasoning: "Erreur API",
+    };
   }
 }

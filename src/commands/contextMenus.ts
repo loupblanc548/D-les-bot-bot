@@ -9,6 +9,7 @@ import { getOrCreateRiskProfile } from "../services/risk-engine.js";
 import { handleCommand as handleAI } from "./ai.js";
 import { autoTranslateIfNeeded } from "../services/libreTranslate.js";
 import { buildTranslationEmbed } from "../services/embedBuilder.js";
+import { assessThreat } from "../services/ai-moderation.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
@@ -150,15 +151,28 @@ async function handleUserContextMenu(
       }).catch(() => []);
       const activityScore = userLogs.length;
       const sanctionScore = sanctions.length;
-      const riskLevel = sanctionScore > 5 ? "🔴 Élevé" : sanctionScore > 2 ? "🟡 Moyen" : "🟢 Faible";
+      const accountAgeDays = Math.floor((Date.now() - target.createdTimestamp) / 86_400_000);
+      const suspiciousBehaviors = sanctions.map(s => s.action);
+      const history = userLogs.map(l => l.activity);
+      const threat = await assessThreat({
+        accountAgeDays,
+        messageCount: activityScore,
+        violations: sanctionScore,
+        suspiciousBehaviors,
+        history,
+        sanctions: sanctionScore,
+      });
+      const riskColor = threat.risk_score > 70 ? 0xe74c3c : threat.risk_score > 40 ? 0xff8800 : threat.risk_score > 20 ? 0xf1c40f : 0x2ecc71;
       const embed = new EmbedBuilder()
         .setTitle(`🤖 Analyse IA — ${target.tag}`)
-        .setColor(0x5865f2)
+        .setColor(riskColor)
         .addFields(
-          { name: "📊 Activité", value: `${activityScore} actions loggées`, inline: true },
-          { name: "⚖️ Sanctions", value: `${sanctionScore} sanctions`, inline: true },
-          { name: "🎯 Niveau de risque", value: riskLevel, inline: true },
-          { name: "📝 Résumé", value: `Utilisateur avec ${activityScore} actions et ${sanctionScore} sanctions. ${sanctionScore > 3 ? "Surveillance recommandée." : "Comportement normal."}`, inline: false },
+          { name: "🎯 Risk Score", value: `${threat.risk_score}/100`, inline: true },
+          { name: "📊 Niveau", value: threat.risk_level, inline: true },
+          { name: "⚡ Action", value: threat.action, inline: true },
+          { name: "🔍 Facteurs", value: Object.entries(threat.factors).map(([k, v]) => `${k}: ${v}/10`).join("\n"), inline: false },
+          { name: "📝 Raisonnement", value: threat.reasoning.slice(0, 1024), inline: false },
+          { name: "🔐 Confiance", value: `${threat.confidence}%`, inline: true },
         )
         .setTimestamp();
       await interaction.editReply({ embeds: [embed] });

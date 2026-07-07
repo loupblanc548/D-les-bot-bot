@@ -106,45 +106,86 @@ MESSAGE À ANALYSER:
 "${message.slice(0, 2000)}"${ctx}`;
 }
 
-// ─── Prompt 3: User Risk Assessment ──────────────────────────────────
+// ─── Prompt 3: Threat Detection & User Risk Assessment (7 factors) ──
 
-export const USER_RISK_PROMPT = `Tu es un analyste de sécurité Discord expert.
-Tu évalues le niveau de risque d'un utilisateur basé sur son historique.
+export interface ThreatAssessment {
+  risk_score: number;
+  risk_level: "très_bas" | "bas" | "moyen" | "élevé" | "très_élevé" | "critique";
+  factors: {
+    new_account: number;
+    message_rate: number;
+    raid_pattern: number;
+    phishing: number;
+    spam: number;
+    harassment: number;
+    malware: number;
+  };
+  action: "monitor" | "warn" | "timeout" | "kick" | "ban" | "investigate";
+  confidence: number;
+  reasoning: string;
+}
+
+export const THREAT_DETECTION_PROMPT = `Tu es un expert en détection de menaces cyber et social engineering.
 
 TÂCHE:
-Analyser le profil et l'historique de l'utilisateur pour déterminer son niveau de risque.
+Analyser le profil d'un utilisateur et calculer son niveau de risque sur 7 dimensions.
 
-CONTRAINTES:
+CALCULER LE RISQUE SUR:
+1. Nouveau compte (age < 7 jours)
+2. Taux de messages anormal
+3. Patterns de raid
+4. Phishing/Scam attempts
+5. Spam/Flood
+6. Harcèlement
+7. Contenu malveillant
+
+RÈGLES:
+- Pèse lourd les comportements coordonnés
+- Considère les tendances long-terme
+- Regarde les anomalies temporelles
 - Basé uniquement sur les faits fournis
 - Pas de profilage discriminatoire
+- Le contexte gaming permet une tolérance au trash talk
 - Considère la récidive vs première offense
-- Le contexte gaming permet une certaine tolérance au trash talk
 
 FORMAT SORTIE (JSON strict):
 {
-  "niveau_risque": "faible|moyen|élevé|critique",
-  "score": 0-100,
-  "facteurs_risque": ["facteur1", "facteur2"],
-  "facteurs_atténuants": ["facteur1"],
-  "recommandation": "surveillance|aucune_action|timeout|ban",
-  "explication": "..."
+  "risk_score": 0-100,
+  "risk_level": "très_bas|bas|moyen|élevé|très_élevé|critique",
+  "factors": {
+    "new_account": 0-10,
+    "message_rate": 0-10,
+    "raid_pattern": 0-10,
+    "phishing": 0-10,
+    "spam": 0-10,
+    "harassment": 0-10,
+    "malware": 0-10
+  },
+  "action": "monitor|warn|timeout|kick|ban|investigate",
+  "confidence": 0-100,
+  "reasoning": "..."
 }`;
 
-export function buildUserRiskPrompt(userHistory: {
-  sanctions: number;
-  warnings: number;
-  recentActions: string[];
+export interface UserProfile {
   accountAgeDays: number;
   messageCount: number;
-}): string {
-  return `${USER_RISK_PROMPT}
+  violations: number;
+  suspiciousBehaviors: string[];
+  history: string[];
+  sanctions?: number;
+  warnings?: number;
+  recentActions?: string[];
+}
 
-DONNÉES UTILISATEUR:
-- Sanctions: ${userHistory.sanctions}
-- Avertissements: ${userHistory.warnings}
-- Actions récentes: ${userHistory.recentActions.slice(0, 10).join(", ")}
-- Âge du compte: ${userHistory.accountAgeDays} jours
-- Messages total: ${userHistory.messageCount}`;
+export function buildThreatDetectionPrompt(profile: UserProfile): string {
+  return `${THREAT_DETECTION_PROMPT}
+
+PROFIL UTILISATEUR À ANALYSER:
+- Compte age: ${profile.accountAgeDays} jours
+- Messages: ${profile.messageCount}
+- Violations précédentes: ${profile.violations}
+- Comportement suspect: ${profile.suspiciousBehaviors.join(", ") || "aucun"}
+- Historique: ${profile.history.slice(0, 15).join(", ") || "vide"}${profile.sanctions !== undefined ? `\n- Sanctions: ${profile.sanctions}` : ""}${profile.warnings !== undefined ? `\n- Avertissements: ${profile.warnings}` : ""}`;
 }
 
 // ─── Prompt 4: Link Safety Analysis ──────────────────────────────────
