@@ -13,6 +13,8 @@ import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSol
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
 import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase } from "../services/promptTesting.js";
+import { scorePromptDetailed, scorePromptsBatch, gradeEmoji } from "../services/promptScoring.js";
+import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
@@ -1152,6 +1154,33 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.editReply({ embeds: [embed] });
       break;
     }
+    case "ai-temperature": {
+      const prompts = [
+        { name: "Spam/Phishing", prompt: SPAM_PHISHING_PROMPT },
+        { name: "Deep Sentiment", prompt: DEEP_SENTIMENT_PROMPT },
+        { name: "Threat Intel", prompt: THREAT_INTEL_PROMPT },
+        { name: "Code Review", prompt: CODE_REVIEW_PROMPT },
+        { name: "Moderation", prompt: MODERATION_PROMPT },
+        { name: "Quick Sentiment", prompt: SENTIMENT_PROMPT },
+        { name: "Risk Assessment", prompt: RISK_ASSESSMENT_PROMPT },
+      ];
+      const scores = scorePromptsBatch(prompts);
+      const avgScore = Math.round(scores.reduce((sum, s) => sum + s.score, 0) / scores.length);
+      const embed = new EmbedBuilder()
+        .setTitle("📊 Scoring des Prompts IA")
+        .setColor(avgScore >= 75 ? 0x2ecc71 : avgScore >= 60 ? 0xf1c40f : 0xff8800)
+        .setDescription(`Score moyen: **${avgScore}/100** | ${prompts.length} prompts évalués`)
+        .addFields(
+          { name: "📝 Scores par prompt", value: scores.map(s => `${gradeEmoji(s.grade)} **${s.name}**: ${s.score}/100 (Grade ${s.grade})`).join("\n"), inline: false },
+        )
+        .setTimestamp();
+      const worst = scores.sort((a, b) => a.score - b.score)[0];
+      if (worst && worst.score < 80) {
+        embed.addFields({ name: "⚠️ Améliorations — " + worst.name, value: worst.suggestions.slice(0, 3).join("\n"), inline: false });
+      }
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
     case "ai-profile":
     case "ai-channel-summary":
     case "ai-fun":
@@ -1159,7 +1188,6 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "ai-image":
     case "ai-history":
     case "ai-chat-export":
-    case "ai-temperature":
     case "ai-model-select":
     case "ai-token-usage":
     case "ai-summarize-user":
