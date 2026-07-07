@@ -28,6 +28,9 @@ import { readUrlViaJina, getYouTubeTranscript, exaSearch, searchBilibili, readRe
 import { getGuildAnalytics, getBotHealthMetrics, getMessageTrend, getTopCommands, getModerationStats } from "./analytics.js";
 import { buildRichEmbed, buildAnalyticsEmbed, buildOsintEmbed, buildSocialEmbed, buildSearchResultsEmbed, buildHealthEmbed } from "./embedBuilder.js";
 import { sendTelegramMessage, sendSlackMessage, broadcastNotification, isTelegramConfigured, isSlackConfigured } from "./notifications.js";
+import { translateAny, detectLanguageAuto, autoTranslateIfNeeded, SUPPORTED_LANGUAGES } from "./libreTranslate.js";
+import { detectAnomalies, detectSpike, simpleMovingAverage } from "./anomalyDetector.js";
+import { buildComparisonEmbed, buildProgressEmbed, buildLeaderboardEmbed, buildTimelineEmbed, buildStatCardsEmbed, buildInfoCardEmbed, buildWarningEmbed, buildSuccessEmbed, buildErrorEmbed, buildTranslationEmbed, buildSearchCardEmbed } from "./embedBuilder.js";
 
 // ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
 
@@ -608,6 +611,131 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
           text: { type: "string", description: "Texte de la notification" },
         },
         required: ["text"],
+      },
+    },
+  },
+  // ═══ 12. AUTO-TRANSLATION (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "auto_translate",
+      description: "Traduit automatiquement un texte vers une langue cible. Détecte la langue source automatiquement. Utilise Google Translate en priorité, LibreTranslate en fallback (gratuit). Utilise cet outil quand un utilisateur parle une autre langue ou demande une traduction.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à traduire" },
+          targetLang: { type: "string", description: "Langue cible (ex: fr, en, es, de, ja, zh, ar). Défaut: fr" },
+          sourceLang: { type: "string", description: "Langue source (auto-détection si omis)" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "detect_language",
+      description: "Détecte la langue d'un texte. Utilise Google Cloud puis LibreTranslate en fallback.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  // ═══ 13. ANOMALY DETECTION (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "detect_anomalies",
+      description: "Détecte les anomalies sur un serveur Discord : pics de messages, pics d'erreurs, pics de modération, flood de nouveaux membres (raid). Utilise cet outil quand tu suspectes une activité anormale ou pour le monitoring proactif.",
+      parameters: {
+        type: "object",
+        properties: {
+          guildId: { type: "string", description: "ID du serveur Discord" },
+        },
+        required: ["guildId"],
+      },
+    },
+  },
+  // ═══ 14. ADVANCED EMBEDS (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "build_comparison_embed",
+      description: "Crée un embed tableau de comparaison avec colonnes et lignes. Utilise cet outil pour comparer des éléments côte à côte.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre" },
+          columns: { type: "array", items: { type: "string" }, description: "Noms des colonnes" },
+          rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Lignes de données" },
+          color: { type: "string", description: "Couleur hex" },
+        },
+        required: ["title", "columns", "rows"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "build_leaderboard_embed",
+      description: "Crée un embed classement (leaderboard) avec médailles. Utilise cet outil pour afficher un top des utilisateurs.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre du classement" },
+          entries: { type: "array", items: { type: "object", properties: { rank: { type: "number" }, name: { type: "string" }, score: { type: "number" }, extra: { type: "string" } } }, description: "Entrées du classement" },
+          unit: { type: "string", description: "Unité du score (ex: pts, messages)" },
+        },
+        required: ["title", "entries"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "build_progress_embed",
+      description: "Crée un embed avec barres de progression visuelles (█░). Utilise cet outil pour afficher des progrès, objectifs, quotas.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre" },
+          items: { type: "array", items: { type: "object", properties: { label: { type: "string" }, current: { type: "number" }, max: { type: "number" }, unit: { type: "string" } } }, description: "Items avec progression" },
+        },
+        required: ["title", "items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "build_timeline_embed",
+      description: "Crée un embed timeline chronologique avec horodatage. Utilise cet outil pour afficher une séquence d'événements.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre" },
+          events: { type: "array", items: { type: "object", properties: { time: { type: "string" }, title: { type: "string" }, description: { type: "string" } } }, description: "Événements chronologiques" },
+        },
+        required: ["title", "events"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "build_stat_cards_embed",
+      description: "Crée un embed avec cartes de statistiques (icône + label + valeur + tendance). Utilise cet outil pour des dashboards visuels.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre" },
+          cards: { type: "array", items: { type: "object", properties: { icon: { type: "string" }, label: { type: "string" }, value: { type: "string" }, trend: { type: "string" } } }, description: "Cartes de stats" },
+        },
+        required: ["title", "cards"],
       },
     },
   },
@@ -1423,6 +1551,17 @@ export async function executeAutonomousTool(
       case "send_telegram": return await tSendTelegram(args);
       case "send_slack": return await tSendSlack(args);
       case "broadcast_notification": return await tBroadcastNotification(args);
+      // 12. Auto-translation
+      case "auto_translate": return await tAutoTranslate(args);
+      case "detect_language": return await tDetectLanguage(args);
+      // 13. Anomaly detection
+      case "detect_anomalies": return await tDetectAnomalies(args);
+      // 14. Advanced embeds
+      case "build_comparison_embed": return await tBuildComparisonEmbed(args);
+      case "build_leaderboard_embed": return await tBuildLeaderboardEmbed(args);
+      case "build_progress_embed": return await tBuildProgressEmbed(args);
+      case "build_timeline_embed": return await tBuildTimelineEmbed(args);
+      case "build_stat_cards_embed": return await tBuildStatCardsEmbed(args);
       default: return null;
     }
   } catch (error) {
@@ -1708,5 +1847,112 @@ async function tBroadcastNotification(args: Record<string, unknown>): Promise<To
     return { success: true, data: JSON.stringify(result) };
   } catch (e) {
     return { success: false, data: `Erreur broadcast: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 12. AUTO-TRANSLATION ═══
+
+async function tAutoTranslate(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text).slice(0, 5000);
+  const targetLang = String(args.targetLang || "fr").slice(0, 5);
+  const sourceLang = args.sourceLang ? String(args.sourceLang).slice(0, 5) : undefined;
+  try {
+    const result = await translateAny(text, targetLang, sourceLang);
+    return { success: true, data: JSON.stringify(result) };
+  } catch (e) {
+    return { success: false, data: `Erreur traduction: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tDetectLanguage(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text).slice(0, 1000);
+  try {
+    const result = await detectLanguageAuto(text);
+    return { success: true, data: JSON.stringify(result) };
+  } catch (e) {
+    return { success: false, data: `Erreur détection langue: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 13. ANOMALY DETECTION ═══
+
+async function tDetectAnomalies(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const guildId = String(args.guildId).slice(0, 50);
+  try {
+    const report = await detectAnomalies(guildId);
+    return { success: true, data: JSON.stringify(report) };
+  } catch (e) {
+    return { success: false, data: `Erreur anomaly detection: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 14. ADVANCED EMBEDS ═══
+
+async function tBuildComparisonEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  const columns = Array.isArray(args.columns) ? (args.columns as unknown[]).map(c => String(c)) : [];
+  const rows = Array.isArray(args.rows) ? (args.rows as unknown[]).map(r => Array.isArray(r) ? r.map((c: unknown) => String(c)) : []) : [];
+  if (!title || columns.length === 0) return { success: false, data: "Titre et colonnes requis" };
+  try {
+    const embed = buildComparisonEmbed({ title, columns, rows, color: args.color ? String(args.color) : undefined });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur comparison embed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBuildLeaderboardEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  const entries = Array.isArray(args.entries) ? (args.entries as Record<string, unknown>[]).map(e => ({
+    rank: Number(e.rank) || 0, name: String(e.name || ""), score: Number(e.score) || 0, extra: e.extra ? String(e.extra) : undefined,
+  })) : [];
+  if (!title || entries.length === 0) return { success: false, data: "Titre et entrées requis" };
+  try {
+    const embed = buildLeaderboardEmbed({ title, entries, unit: args.unit ? String(args.unit) : undefined });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur leaderboard embed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBuildProgressEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  const items = Array.isArray(args.items) ? (args.items as Record<string, unknown>[]).map(i => ({
+    label: String(i.label || ""), current: Number(i.current) || 0, max: Number(i.max) || 0, unit: i.unit ? String(i.unit) : undefined,
+  })) : [];
+  if (!title || items.length === 0) return { success: false, data: "Titre et items requis" };
+  try {
+    const embed = buildProgressEmbed({ title, items });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur progress embed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBuildTimelineEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  const events = Array.isArray(args.events) ? (args.events as Record<string, unknown>[]).map(e => ({
+    time: String(e.time || ""), title: String(e.title || ""), description: e.description ? String(e.description) : undefined,
+  })) : [];
+  if (!title || events.length === 0) return { success: false, data: "Titre et événements requis" };
+  try {
+    const embed = buildTimelineEmbed({ title, events });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur timeline embed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBuildStatCardsEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  const cards = Array.isArray(args.cards) ? (args.cards as Record<string, unknown>[]).map(c => ({
+    icon: String(c.icon || "📊"), label: String(c.label || ""), value: String(c.value || ""), trend: c.trend ? String(c.trend) : undefined,
+  })) : [];
+  if (!title || cards.length === 0) return { success: false, data: "Titre et cartes requis" };
+  try {
+    const embed = buildStatCardsEmbed({ title, cards });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur stat cards embed: ${e instanceof Error ? e.message : String(e)}` };
   }
 }

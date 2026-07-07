@@ -125,3 +125,158 @@ export function buildHealthEmbed(data: {
     footer: { text: "Health Monitor" },
   });
 }
+
+// ═══ ADVANCED EMBED TEMPLATES ═══
+
+export function buildComparisonEmbed(data: {
+  title: string; columns: string[]; rows: string[][];
+  color?: string; footer?: string;
+}): EmbedBuilder {
+  const fields = data.columns.map((col, i) => {
+    const values = data.rows.map(row => row[i] ?? "—").join("\n");
+    return { name: col, value: values.slice(0, 1024), inline: true };
+  });
+  return buildRichEmbed({
+    title: data.title, color: data.color || "#5865F2", fields, timestamp: true,
+    footer: { text: data.footer || "Comparison Table" },
+  });
+}
+
+export function buildProgressEmbed(data: {
+  title: string; items: { label: string; current: number; max: number; unit?: string }[];
+  color?: string;
+}): EmbedBuilder {
+  const bar = (cur: number, max: number) => {
+    const pct = max > 0 ? Math.min(Math.round((cur / max) * 10), 10) : 0;
+    return "█".repeat(pct) + "░".repeat(10 - pct);
+  };
+  const fields = data.items.map(item => ({
+    name: item.label,
+    value: `${bar(item.current, item.max)} ${item.current}/${item.max}${item.unit || ""}`,
+    inline: false,
+  }));
+  return buildRichEmbed({
+    title: data.title, color: data.color || "#00d4aa", fields, timestamp: true,
+    footer: { text: "Progress Dashboard" },
+  });
+}
+
+export function buildLeaderboardEmbed(data: {
+  title: string; entries: { rank: number; name: string; score: number; extra?: string }[];
+  color?: string; unit?: string;
+}): EmbedBuilder {
+  const medals = ["🥇", "🥈", "🥉"];
+  const fields = data.entries.slice(0, 10).map(e => ({
+    name: `${medals[e.rank - 1] || `#${e.rank}`} ${e.name}`,
+    value: `${e.score}${data.unit || ""}${e.extra ? ` — ${e.extra}` : ""}`,
+    inline: false,
+  }));
+  return buildRichEmbed({
+    title: `🏆 ${data.title}`, color: data.color || "#ffd700", fields, timestamp: true,
+    footer: { text: `Leaderboard — ${data.entries.length} participants` },
+  });
+}
+
+export function buildTimelineEmbed(data: {
+  title: string; events: { time: string; title: string; description?: string }[];
+  color?: string;
+}): EmbedBuilder {
+  const fields = data.events.slice(0, 12).map(e => ({
+    name: `🕐 ${e.time} — ${e.title}`,
+    value: (e.description || "—").slice(0, 500),
+    inline: false,
+  }));
+  return buildRichEmbed({
+    title: data.title, color: data.color || "#7289da", fields, timestamp: true,
+    footer: { text: "Timeline" },
+  });
+}
+
+export function buildStatCardsEmbed(data: {
+  title: string; cards: { icon: string; label: string; value: string; trend?: string }[];
+  color?: string;
+}): EmbedBuilder {
+  const fields = data.cards.slice(0, 12).map(c => ({
+    name: `${c.icon} ${c.label}`,
+    value: `${c.value}${c.trend ? `\n${c.trend}` : ""}`,
+    inline: true,
+  }));
+  return buildRichEmbed({
+    title: data.title, color: data.color || "#5865F2", fields, timestamp: true,
+    footer: { text: "Stats Dashboard" },
+  });
+}
+
+export function buildInfoCardEmbed(data: {
+  title: string; description: string; fields?: { name: string; value: string }[];
+  thumbnail?: string; color?: string; url?: string;
+}): EmbedBuilder {
+  return buildRichEmbed({
+    title: `ℹ️ ${data.title}`, description: data.description, color: data.color || "#3498db",
+    thumbnail: data.thumbnail, url: data.url,
+    fields: data.fields, timestamp: true,
+    footer: { text: "Info Card" },
+  });
+}
+
+export function buildWarningEmbed(data: {
+  title: string; description: string; fields?: { name: string; value: string }[];
+}): EmbedBuilder {
+  return buildRichEmbed({
+    title: `⚠️ ${data.title}`, description: data.description, color: "#ff8800",
+    fields: data.fields, timestamp: true,
+    footer: { text: "Warning" },
+  });
+}
+
+export function buildSuccessEmbed(data: {
+  title: string; description: string; fields?: { name: string; value: string }[];
+}): EmbedBuilder {
+  return buildRichEmbed({
+    title: `✅ ${data.title}`, description: data.description, color: "#2ecc71",
+    fields: data.fields, timestamp: true,
+    footer: { text: "Success" },
+  });
+}
+
+export function buildErrorEmbed(data: {
+  title: string; description: string; fields?: { name: string; value: string }[];
+}): EmbedBuilder {
+  return buildRichEmbed({
+    title: `❌ ${data.title}`, description: data.description, color: "#e74c3c",
+    fields: data.fields, timestamp: true,
+    footer: { text: "Error" },
+  });
+}
+
+export function buildTranslationEmbed(data: {
+  original: string; translated: string; sourceLang: string; targetLang: string; provider: string;
+}): EmbedBuilder {
+  const langNames: Record<string, string> = { fr: "Français", en: "English", es: "Español", de: "Deutsch", it: "Italiano", pt: "Português", ru: "Русский", ja: "日本語", zh: "中文", ar: "العربية" };
+  return buildRichEmbed({
+    title: "🌐 Traduction automatique",
+    color: "#00b4d8",
+    fields: [
+      { name: `Original (${langNames[data.sourceLang] || data.sourceLang})`, value: data.original.slice(0, 1024), inline: false },
+      { name: `Traduction (${langNames[data.targetLang] || data.targetLang})`, value: data.translated.slice(0, 1024), inline: false },
+      { name: "Provider", value: data.provider, inline: true },
+    ],
+    timestamp: true,
+    footer: { text: "Auto-Translation" },
+  });
+}
+
+export function buildSearchCardEmbed(data: {
+  query: string; platform: string; results: { title: string; url: string; snippet?: string; score?: number }[];
+}): EmbedBuilder {
+  const fields = data.results.slice(0, 8).map((r, i) => ({
+    name: `${i + 1}. ${r.title.slice(0, 120)}`,
+    value: `${r.snippet ? r.snippet.slice(0, 200) + "\n" : ""}[🔗 Ouvrir](${r.url})${r.score ? ` | Score: ${r.score}` : ""}`,
+    inline: false,
+  }));
+  return buildRichEmbed({
+    title: `🔎 ${data.platform} — "${data.query}"`,
+    color: "#5865F2", fields, timestamp: true,
+    footer: { text: `${data.results.length} résultats trouvés` },
+  });
+}
