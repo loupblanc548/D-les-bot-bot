@@ -1,6 +1,14 @@
 import logger from "../utils/logger.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
+import {
+  buildSpamPhishingPrompt,
+  buildDeepSentimentPrompt,
+  buildLinkSafetyPrompt,
+  parseJsonResponse,
+  type ModerationVerdict,
+  type DeepSentimentResult,
+} from "./moderationPrompts.js";
 
 export interface ToxicityResult {
   isToxic: boolean;
@@ -80,5 +88,99 @@ export async function analyzeToxicity(content: string): Promise<ToxicityResult> 
     return { isToxic: false, category: "normal", confidence: 0, explanation: "Erreur API" };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+// ─── Spam/Phishing Detection (structured prompt) ──────────────────────
+
+export async function detectSpamPhishing(message: string): Promise<ModerationVerdict> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildSpamPhishingPrompt(message);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un modérateur Discord expert. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 300,
+      temperature: 0.1,
+    }, { timeout: 10_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<ModerationVerdict>(raw);
+    if (!parsed) {
+      return { verdict: "clean", confidence: 0, raison: "Parse error", action: "none" };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] detectSpamPhishing:", String(error));
+    return { verdict: "clean", confidence: 0, raison: "Erreur API", action: "none" };
+  }
+}
+
+// ─── Deep Sentiment Analysis (5 dimensions) ───────────────────────────
+
+export async function deepSentimentAnalysis(message: string, context?: string): Promise<DeepSentimentResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildDeepSentimentPrompt(message, context);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en psychologie et analyse de sentiment. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 500,
+      temperature: 0.2,
+    }, { timeout: 15_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<DeepSentimentResult>(raw);
+    if (!parsed) {
+      return {
+        sentiment: "neutre",
+        dimensions: { positivité: 0, agressivité: 0, spam: 0, phishing: 0, harcèlement: 0 },
+        risque_global: 0, flags: [], action_recommandée: "rien", explication: "Parse error",
+      };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] deepSentimentAnalysis:", String(error));
+    return {
+      sentiment: "neutre",
+      dimensions: { positivité: 0, agressivité: 0, spam: 0, phishing: 0, harcèlement: 0 },
+      risque_global: 0, flags: [], action_recommandée: "rien", explication: "Erreur API",
+    };
+  }
+}
+
+// ─── Link Safety Check ────────────────────────────────────────────────
+
+export async function checkLinkSafety(url: string): Promise<{
+  sûr: boolean; confiance: number; type_menace: string; raison: string; action: string;
+}> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildLinkSafetyPrompt(url);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un expert en cybersécurité. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 200,
+      temperature: 0.1,
+    }, { timeout: 10_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<{ sûr: boolean; confiance: number; type_menace: string; raison: string; action: string }>(raw);
+    if (!parsed) {
+      return { sûr: true, confiance: 0, type_menace: "aucun", raison: "Parse error", action: "autoriser" };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] checkLinkSafety:", String(error));
+    return { sûr: true, confiance: 0, type_menace: "aucun", raison: "Erreur API", action: "autoriser" };
   }
 }
