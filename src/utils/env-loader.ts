@@ -102,6 +102,13 @@ const envSchema = z.object({
   REDDIT_CLIENT_SECRET: z.string().optional(),
   REDDIT_USER_AGENT: z.string().optional(),
 
+  // ─── Gaming/Media extras ──────────────────────────────────────────────────
+  IGDB_CLIENT_ID: z.string().optional(),
+  IGDB_CLIENT_SECRET: z.string().optional(),
+  STEAMGRIDDB_API_KEY: z.string().optional(),
+  HIBP_API_KEY: z.string().optional(),
+  UPTIMEROBOT_API_KEY: z.string().optional(),
+
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),

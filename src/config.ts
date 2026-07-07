@@ -40,6 +40,13 @@ export const config = {
   redditClientSecret: env.REDDIT_CLIENT_SECRET || "",
   redditUserAgent: env.REDDIT_USER_AGENT || "",
 
+  // ─── Gaming/Media extras ──────────────────────────────────────────────────
+  igdbClientId: env.IGDB_CLIENT_ID || "",
+  igdbClientSecret: env.IGDB_CLIENT_SECRET || "",
+  steamgriddbApiKey: env.STEAMGRIDDB_API_KEY || "",
+  hibpApiKey: env.HIBP_API_KEY || "",
+  uptimeRobotApiKey: env.UPTIMEROBOT_API_KEY || "",
+
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
   groqApiKey: env.GROQ_API_KEY || "",
   groqModel: env.GROQ_MODEL,
