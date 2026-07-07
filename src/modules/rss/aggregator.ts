@@ -132,10 +132,16 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
         continue;
       }
 
-      const embed = createThemedEmbed(feed.type, item);
+      const embedResult = createThemedEmbed(feed.type, item);
 
       try {
-        await channel.send({ embeds: [embed] });
+        if (embedResult instanceof EmbedBuilder) {
+          await channel.send({ embeds: [embedResult] });
+        } else {
+          // Async embed (e.g. PlayStation with image attachment)
+          const { embed, files } = await embedResult;
+          await channel.send({ embeds: [embed], files: files || [] });
+        }
         postedCount++;
       } catch (sendError) {
         logger.error(`[RSSAggregator] Erreur envoi ${feed.name}: ${sendError}`);
@@ -160,7 +166,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
   }
 }
 
-function createThemedEmbed(type: string, item: any): EmbedBuilder {
+function createThemedEmbed(type: string, item: any): EmbedBuilder | Promise<{ embed: EmbedBuilder; files?: import("discord.js").AttachmentBuilder[] }> {
   const rssItem = {
     title: item.title || "Sans titre",
     description: item.contentSnippet || item.description || "Sans description",

@@ -22,6 +22,10 @@ import prisma from "../prisma.js";
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 15;
 const MAX_MEMORY_FACTS = 5;
+const AGENT_LOOP_TIMEOUT_MS = 30_000; // 30s max for the entire agent loop
+
+// Per-user concurrency lock: prevents the same user from triggering multiple agent loops
+const activeAgentLoops = new Set<string>();
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +96,28 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
  * @returns La réponse finale de l'IA
  */
 export async function runAgentLoop(
+  message: Message,
+  userMessage: string,
+): Promise<string> {
+  // Concurrency lock: prevent the same user from running multiple agent loops
+  if (activeAgentLoops.has(message.author.id)) {
+    return "⏳ Je traite déjà ton message précédent, soldat ! Patiente un instant.";
+  }
+  activeAgentLoops.add(message.author.id);
+
+  try {
+    return await Promise.race([
+      runAgentLoopInternal(message, userMessage),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error("AgentLoop timeout (30s)")), AGENT_LOOP_TIMEOUT_MS),
+      ),
+    ]);
+  } finally {
+    activeAgentLoops.delete(message.author.id);
+  }
+}
+
+async function runAgentLoopInternal(
   message: Message,
   userMessage: string,
 ): Promise<string> {
@@ -204,7 +230,7 @@ export async function runAgentLoop(
       max_tokens: 800,
       temperature: 0.7,
       parallel_tool_calls: true,
-    });
+    }, { timeout: 15_000 });
 
     const choice = response.choices[0];
     if (!choice) break;
@@ -297,7 +323,7 @@ export async function extractAndSaveMemory(
       ],
       max_tokens: 200,
       temperature: 0.3,
-    });
+    }, { timeout: 10_000 });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
