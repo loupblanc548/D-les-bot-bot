@@ -504,10 +504,25 @@ export async function runGamingFeeds(client: Client) {
           logger.info("[Feeds] OK " + feed.channelName + " <- @" + source.handle);
         }
       } catch (err) {
-        const errMsg = String(err);
-        logger.error("[Feeds] ERR " + feed.channelName + "/" + source.handle + ": " + errMsg);
-        void alertNotificationFailure(feed.channelName + "/" + source.handle, errMsg);
-        await logError(client, "Feeds/" + feed.channelName + "/" + source.handle, errMsg);
+        const errMsg = String(err instanceof Error ? err.message : String(err));
+        // Erreurs transitoires (Nitter down, RSS timeout, socket) — log seulement, pas d'alerte
+        const isTransient = errMsg.includes("fetch") ||
+          errMsg.includes("timeout") ||
+          errMsg.includes("socket") ||
+          errMsg.includes("ECONNREFUSED") ||
+          errMsg.includes("ETIMEDOUT") ||
+          errMsg.includes("ENOTFOUND") ||
+          errMsg.includes("aborted") ||
+          errMsg.includes("Nitter") ||
+          errMsg.toLowerCase().includes("rss");
+
+        if (isTransient) {
+          logger.warn(`[Feeds] Transitoire ${feed.channelName}/${source.handle}: ${errMsg}`);
+        } else {
+          logger.error("[Feeds] ERR " + feed.channelName + "/" + source.handle + ": " + errMsg);
+          void alertNotificationFailure(feed.channelName + "/" + source.handle, errMsg);
+          await logError(client, "Feeds/" + feed.channelName + "/" + source.handle, errMsg);
+        }
       }
     }
   }

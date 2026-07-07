@@ -565,17 +565,49 @@ async function checkAndNotify(client: Client) {
 
             if (cardAttachment) {
               embed.setImage(`attachment://${cardAttachment.name}`);
-              await channel.send({ embeds: [embed], files: [cardAttachment] });
+              try {
+                await channel.send({ embeds: [embed], files: [cardAttachment] });
+              } catch (sendErr) {
+                // Retry sans la carte si Discord rejette l'embed
+                embed.setImage(null);
+                try { embed.setThumbnail(null); } catch {}
+                await channel.send({ embeds: [embed] });
+                logger.warn(`[Monitor] Carte rejetée, envoi sans carte pour @${source.urlOrHandle}`);
+              }
             } else {
-              await channel.send({ embeds: [embed] });
+              try {
+                await channel.send({ embeds: [embed] });
+              } catch (sendErr) {
+                // Retry sans image si Discord rejette l'embed
+                const sendMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+                if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
+                  embed.setImage(null);
+                  try { embed.setThumbnail(null); } catch {}
+                  await channel.send({ embeds: [embed] });
+                  logger.warn(`[Monitor] Embed sans image pour @${source.urlOrHandle}`);
+                } else {
+                  throw sendErr;
+                }
+              }
             }
             logger.info(`[Monitor] Notification envoyée pour @${source.urlOrHandle}`);
           }
         }
       } catch (err) {
-        const errMsg = String(err);
-        logger.error(`[Monitor] Erreur source ${source.urlOrHandle}:`, errMsg);
-        await logError(client, `Monitor/DB/${source.urlOrHandle}`, errMsg);
+        const errMsg = String(err instanceof Error ? err.message : String(err));
+        const isTransient = errMsg.includes("fetch") ||
+          errMsg.includes("timeout") ||
+          errMsg.includes("socket") ||
+          errMsg.includes("ECONNREFUSED") ||
+          errMsg.includes("ETIMEDOUT") ||
+          errMsg.includes("ENOTFOUND") ||
+          errMsg.includes("aborted");
+        if (isTransient) {
+          logger.warn(`[Monitor] Transitoire source ${source.urlOrHandle}: ${errMsg}`);
+        } else {
+          logger.error(`[Monitor] Erreur source ${source.urlOrHandle}:`, errMsg);
+          await logError(client, `Monitor/DB/${source.urlOrHandle}`, errMsg);
+        }
       }
     }
 
