@@ -653,5 +653,77 @@ export function getApiStatus(): Record<string, boolean> {
     assemblyai: !!config.assemblyAiApiKey,
     openrouter: !!config.openRouterApiKey,
     googleCloud: !!config.googleCloudApiKey,
+    igdb: !!config.igdbClientId && !!config.igdbClientSecret,
+    steamgriddb: !!config.steamgriddbApiKey,
+    hibp: !!config.hibpApiKey,
+    uptimeRobot: !!config.uptimeRobotApiKey,
+    wikipedia: true,
   };
+}
+
+// ─── 12. Wikipedia API (sans clé) ────────────────────────────────────────────
+
+export interface WikipediaResult {
+  title: string;
+  extract: string;
+  url: string;
+  thumbnail: string | null;
+}
+
+export async function searchWikipedia(
+  query: string,
+  language = "fr",
+): Promise<WikipediaResult | null> {
+  try {
+    const params = new URLSearchParams({
+      action: "query",
+      format: "json",
+      prop: "extracts|pageimages",
+      exintro: "1",
+      explaintext: "1",
+      piprop: "thumbnail",
+      pithumbsize: "400",
+      redirects: "1",
+      titles: query,
+    });
+
+    const res = await fetch(
+      `https://${language}.wikipedia.org/w/api.php?${params}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      query?: {
+        pages?: Record<
+          string,
+          {
+            title: string;
+            extract?: string;
+            thumbnail?: { source: string };
+            missing?: boolean;
+          }
+        >;
+      };
+    };
+
+    const pages = data.query?.pages;
+    if (!pages) return null;
+
+    const page = Object.values(pages)[0];
+    if (!page || page.missing || !page.extract) return null;
+
+    return {
+      title: page.title,
+      extract: page.extract.slice(0, 1500),
+      url: `https://${language}.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+      thumbnail: page.thumbnail?.source ?? null,
+    };
+  } catch (error) {
+    logger.warn(
+      `[ExternalAPI] Wikipedia error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
 }
