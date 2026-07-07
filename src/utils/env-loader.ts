@@ -102,6 +102,15 @@ const envSchema = z.object({
   REDDIT_CLIENT_SECRET: z.string().optional(),
   REDDIT_USER_AGENT: z.string().optional(),
 
+  // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
+  BRAVE_SEARCH_API_KEY: z.string().optional(),
+  ASSEMBLYAI_API_KEY: z.string().optional(),
+  COHERE_API_KEY: z.string().optional(),
+
   // API Base URLs (with defaults)
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
   TWITTER_API_BASE_URL: z.string().default("https://api.twitch.tv/helix"),

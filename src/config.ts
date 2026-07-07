@@ -40,6 +40,15 @@ export const config = {
   redditClientSecret: env.REDDIT_CLIENT_SECRET || "",
   redditUserAgent: env.REDDIT_USER_AGENT || "",
 
+  // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
+  groqApiKey: env.GROQ_API_KEY || "",
+  groqModel: env.GROQ_MODEL,
+  geminiApiKey: env.GEMINI_API_KEY || "",
+  geminiModel: env.GEMINI_MODEL,
+  braveSearchApiKey: env.BRAVE_SEARCH_API_KEY || "",
+  assemblyAiApiKey: env.ASSEMBLYAI_API_KEY || "",
+  cohereApiKey: env.COHERE_API_KEY || "",
+
   // Twitter multi-platform routing (account → channel)
   twitterPlatformRouting: [
     {

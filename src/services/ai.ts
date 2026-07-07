@@ -2,6 +2,8 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import OpenAI from "openai";
 import { chatWithHF } from "../utils/huggingFace.js";
+import { chatWithGroq, isGroqAvailable } from "./groq.js";
+import { chatWithGemini, isGeminiAvailable } from "./gemini.js";
 
 let openai: OpenAI | null = null;
 
@@ -45,10 +47,41 @@ export async function chatWithAI(message: string, username?: string): Promise<st
   } catch (error) {
     logger.error("OpenRouter API error:", String(error));
     if ((error as Error).name === "AbortError") {
-      return "❌ La reponse de l'IA a pris trop de temps. Reessayez.";
+      // Try Groq as fast fallback before giving up
     }
 
-    // Fallback: essayer un modele plus leger/rapide
+    // Fallback 1: Groq (ultra-fast, free)
+    if (isGroqAvailable()) {
+      try {
+        logger.warn("[AI] Tentative de fallback Groq...");
+        const groqResponse = await chatWithGroq({
+          systemPrompt: config.aiSystemPrompt,
+          userMessage: contextMessage,
+          maxTokens: 800,
+          temperature: 0.7,
+        });
+        if (groqResponse) return groqResponse;
+      } catch (groqErr) {
+        logger.error("[AI] Groq fallback échoué:", String(groqErr));
+      }
+    }
+
+    // Fallback 2: Gemini (free, multimodal)
+    if (isGeminiAvailable()) {
+      try {
+        logger.warn("[AI] Tentative de fallback Gemini...");
+        const geminiResponse = await chatWithGemini(
+          config.aiSystemPrompt,
+          contextMessage,
+          800,
+        );
+        if (geminiResponse) return geminiResponse;
+      } catch (geminiErr) {
+        logger.error("[AI] Gemini fallback échoué:", String(geminiErr));
+      }
+    }
+
+    // Fallback 3: OpenRouter with lighter model
     try {
       logger.warn("[AI] Tentative de fallback avec modele leger...");
       const client = getOpenAIClient();

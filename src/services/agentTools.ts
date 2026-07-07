@@ -17,6 +17,10 @@ import { config } from "../config.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
+import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
+import { rerankDocuments, isCohereAvailable } from "./cohere.js";
+import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
+import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -374,6 +378,46 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "transcribeAudio",
+      description:
+        "Transcrit un fichier audio (message vocal Discord, MP3, WAV, etc.) en texte via AssemblyAI. Utilise cet outil quand un utilisateur envoie un message vocal ou un fichier audio.",
+      parameters: {
+        type: "object",
+        properties: {
+          audioUrl: {
+            type: "string",
+            description: "URL du fichier audio à transcrire",
+          },
+        },
+        required: ["audioUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "analyzeImageGemini",
+      description:
+        "Analyse une image avec Google Gemini Vision (multimodal). Plus précis que analyze_image pour les détails complexes, textes dans l'image, schémas, etc. Retourne une description détaillée en français.",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: {
+            type: "string",
+            description: "URL de l'image à analyser",
+          },
+          question: {
+            type: "string",
+            description: "Question ou instruction sur l'image (défaut: 'Décris cette image en détail')",
+          },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
 ];
 
 // Fusionner avec les tools étendus (APIs gratuites + Discord + bot features)
@@ -428,6 +472,10 @@ export async function executeTool(
         return await toolTranslateText(args);
       case "getTechNews":
         return await toolGetTechNews(args);
+      case "transcribeAudio":
+        return await toolTranscribeAudio(args);
+      case "analyzeImageGemini":
+        return await toolAnalyzeImageGemini(args);
       default: {
         // Essayer les tools étendus
         const extResult = await executeExtendedTool(toolName, args, ctx);
@@ -706,7 +754,28 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
   if (cached) return { success: true, data: cached };
 
   try {
-    // 1. DuckDuckGo Instant Answer
+    // 1. Brave Search API (if configured) — proper search API with rich results
+    if (isBraveSearchAvailable()) {
+      const braveResults = await braveWebSearch(query, 8);
+      if (braveResults.length > 0) {
+        // Optional: rerank results with Cohere for better relevance
+        if (isCohereAvailable()) {
+          const docs = braveResults.map((r) => `${r.title}. ${r.description}`);
+          const reranked = await rerankDocuments(query, docs, 5);
+          if (reranked.length > 0) {
+            const rerankedResults = reranked.map((r) => braveResults[r.index]).filter(Boolean);
+            const output = JSON.stringify({ provider: "brave+cohere", results: rerankedResults });
+            setCached(cacheKey, output);
+            return { success: true, data: output };
+          }
+        }
+        const output = JSON.stringify({ provider: "brave", results: braveResults });
+        setCached(cacheKey, output);
+        return { success: true, data: output };
+      }
+    }
+
+    // 2. DuckDuckGo Instant Answer (fallback)
     const iaUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1&kl=${lang}-${lang}`;
     const iaRes = await fetch(iaUrl, {
       headers: { "User-Agent": "DiscordBot/1.0" },
@@ -719,7 +788,7 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
       if (iaData.Abstract) abstract = iaData.Abstract;
     }
 
-    // 2. DuckDuckGo HTML scraping
+    // 3. DuckDuckGo HTML scraping
     const htmlUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${lang}-${lang}`;
     const htmlRes = await fetch(htmlUrl, {
       headers: {
@@ -750,7 +819,7 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
       }
     }
 
-    const output = JSON.stringify({ abstract, results });
+    const output = JSON.stringify({ abstract, results, provider: "duckduckgo" });
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
@@ -1045,6 +1114,53 @@ async function toolTranslateText(args: Record<string, unknown>): Promise<ToolCal
     };
   } catch (error) {
     return { success: false, data: `Erreur traduction: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+async function toolTranscribeAudio(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const audioUrl = String(args.audioUrl);
+  if (!audioUrl.startsWith("http")) {
+    return { success: false, data: "URL audio invalide" };
+  }
+  if (!isAssemblyAiAvailable()) {
+    return { success: false, data: "AssemblyAI non configuré. Set ASSEMBLYAI_API_KEY dans .env" };
+  }
+
+  try {
+    const transcript = await transcribeAudio(audioUrl);
+    if (transcript) {
+      return {
+        success: true,
+        data: JSON.stringify({ audioUrl, transcript, length: transcript.length }),
+      };
+    }
+    return { success: false, data: "Transcription échouée ou audio silencieux" };
+  } catch (error) {
+    return { success: false, data: `Erreur transcription: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+async function toolAnalyzeImageGemini(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imageUrl = String(args.imageUrl);
+  const question = String(args.question || "Décris cette image en détail");
+  if (!imageUrl.startsWith("http")) {
+    return { success: false, data: "URL image invalide" };
+  }
+  if (!isGeminiAvailable()) {
+    return { success: false, data: "Gemini non configuré. Set GEMINI_API_KEY dans .env" };
+  }
+
+  try {
+    const analysis = await analyzeImageWithGemini(imageUrl, question);
+    if (analysis) {
+      return {
+        success: true,
+        data: JSON.stringify({ imageUrl, question, analysis }),
+      };
+    }
+    return { success: false, data: "Analyse d'image échouée" };
+  } catch (error) {
+    return { success: false, data: `Erreur analyse image: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 
