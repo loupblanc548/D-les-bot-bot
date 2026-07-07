@@ -67,14 +67,15 @@ describe("interactionHandler", () => {
     });
   });
 
-  describe("Slash command handler (1er event)", () => {
+  describe("Slash command handler (2ème event)", () => {
     it("exécute le handler de la commande via le commandRouter", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate);
+      const handler = extractHandler(Events.InteractionCreate, 1);
       expect(handler).toBeDefined();
 
       const interaction = {
         isChatInputCommand: () => true,
+        isContextMenuCommand: () => false,
         commandName: "start",
         replied: false,
         deferred: false,
@@ -89,10 +90,11 @@ describe("interactionHandler", () => {
 
     it("ignore les interactions qui ne sont pas des commandes slash", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate);
+      const handler = extractHandler(Events.InteractionCreate, 1);
 
       const interaction = {
         isChatInputCommand: () => false,
+        isContextMenuCommand: () => false,
       };
 
       await handler(interaction);
@@ -105,10 +107,11 @@ describe("interactionHandler", () => {
       mockCommandRouter.start.mockRejectedValueOnce(new Error("Command error"));
 
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate);
+      const handler = extractHandler(Events.InteractionCreate, 1);
 
       const interaction = {
         isChatInputCommand: () => true,
+        isContextMenuCommand: () => false,
         commandName: "start",
         reply: vi.fn().mockResolvedValue(undefined),
         deferReply: vi.fn().mockResolvedValue(undefined),
@@ -128,13 +131,14 @@ describe("interactionHandler", () => {
     });
   });
 
-  describe("Button + Select menu handler (2ème event)", () => {
+  describe("Button + Select menu handler (3ème event)", () => {
     it("délègue les boutons à handleVerifButton", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate, 1);
+      const handler = extractHandler(Events.InteractionCreate, 2);
 
       const interaction = {
         isChatInputCommand: () => false,
+        isContextMenuCommand: () => false,
         isButton: () => true,
         isStringSelectMenu: () => false,
       };
@@ -146,7 +150,7 @@ describe("interactionHandler", () => {
 
     it("délègue le select menu help_category_select à handleMainSelectMenu", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate, 1);
+      const handler = extractHandler(Events.InteractionCreate, 2);
 
       const interaction = {
         isChatInputCommand: () => false,
@@ -163,7 +167,7 @@ describe("interactionHandler", () => {
     });
   });
 
-  describe("Autocomplete handler (3ème event)", () => {
+  describe("Autocomplete handler (4ème event)", () => {
     it("gère l'autocomplete removesource via Prisma", async () => {
       mockPrisma.source.findMany.mockResolvedValue([
         { urlOrHandle: "@testuser", type: "twitter" },
@@ -171,7 +175,7 @@ describe("interactionHandler", () => {
       ]);
 
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate, 2);
+      const handler = extractHandler(Events.InteractionCreate, 3);
 
       const interaction = {
         isChatInputCommand: () => false,
@@ -195,7 +199,7 @@ describe("interactionHandler", () => {
 
     it("gère l'autocomplete untrack-game", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate, 2);
+      const handler = extractHandler(Events.InteractionCreate, 3);
 
       const interaction = {
         isChatInputCommand: () => false,
@@ -212,10 +216,13 @@ describe("interactionHandler", () => {
 
     it("gère l'autocomplete mp3", async () => {
       attachInteractionHandlers(mockClient);
-      const handler = extractHandler(Events.InteractionCreate, 2);
+      const handler = extractHandler(Events.InteractionCreate, 3);
 
       const interaction = {
         isChatInputCommand: () => false,
+        isContextMenuCommand: () => false,
+        isButton: () => false,
+        isStringSelectMenu: () => false,
         isAutocomplete: () => true,
         commandName: "mp3",
         options: { getFocused: vi.fn() },

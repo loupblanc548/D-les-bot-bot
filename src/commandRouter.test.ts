@@ -74,6 +74,8 @@ vi.mock("./commands/trackGroup", () => ({ commands: [], handleCommand: vi.fn() }
 vi.mock("./commands/casierGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/alertGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/aiGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/helpSystem", () => ({ commands: [{ name: "help" }, { name: "commands" }], handleCommand: vi.fn() }));
+vi.mock("./commands/contextMenus", () => ({ contextMenuCommands: [{ name: "👤 Voir profil" }], handleContextMenu: vi.fn() }));
 
 // IMPORTANT: mockReturnValue pour éviter le probleme "new" avec les arrow functions
 vi.mock("discord.js", () => ({
@@ -104,6 +106,14 @@ vi.mock("discord.js", () => ({
       toJSON: vi.fn().mockReturnValue({}),
     };
   }),
+  ContextMenuCommandBuilder: vi.fn().mockImplementation(function () {
+    return {
+      setName: vi.fn().mockReturnThis(),
+      setType: vi.fn().mockReturnThis(),
+      toJSON: vi.fn().mockReturnValue({}),
+    };
+  }),
+  ApplicationCommandType: { User: 2, Message: 3 },
 }));
 
 import {

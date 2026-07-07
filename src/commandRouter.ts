@@ -168,6 +168,8 @@ import {
   commands as manageGroupCommands,
   handleCommand as handleManageGroup,
 } from "./commands/manageGroup.js";
+import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
+import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -461,28 +463,26 @@ const REMOVED_COMMANDS = new Set([
 ]);
 
 export const allCommands = [
-  // ── 4 Root Commands (Phase 2 architecture) ──
-  ...modGroupCommands,       // /mod (user, channel, server, stats)
-  ...adminGroupCommands,     // /admin (system, config, database, roles/channels)
-  ...securityGroupCommands,  // /security (audit, network, intel)
-  ...aiGroupCommands,        // /ai (chat, config, features)
-  // ── Groupes conservés ──
-  ...botGroupCommands,
-  ...sourcesGroupCommands,
-  ...alertGroupCommands,
-  ...modAdminCommands,
-  ...debugGroupCommands,
-  ...shadowCommands,
-  ...osintCommands,
-  ...reportCommands,
-  ...gameGroupCommands,
-  ...casierGroupCommands,
-  ...ticketGroupCommands,
-  // ── Standalone conservées ──
-  ...autoThreadCommands,
-  ...customCmdCommands,
-  ...manageGroupCommands,
-  // Phase 1: Removed fun, economy, polls, community, tools, game2, music groups
+  // ── 15 Slash Commands (Phase 1 architecture) ──
+  ...modGroupCommands,       // 1. /mod (warn, kick, ban, mute, config...)
+  ...securityGroupCommands,  // 2. /security (osint, audit, config...)
+  ...aiGroupCommands,        // 3. /ai (chat, image, translate, config...)
+  ...gameGroupCommands,      // 4. /game (track, news, free-games, steam...)
+  ...adminGroupCommands,     // 5. /admin (config, database, roles...)
+  ...botGroupCommands,       // 6. /bot (help, status, uptime, dashboard...)
+  ...sourcesGroupCommands,   // 7. /sources (add, remove, list, health...)
+  ...alertGroupCommands,     // 8. /alert (rules, ack, digest, test...)
+  ...casierGroupCommands,    // 9. /casier (view, clear...)
+  ...ticketGroupCommands,    // 10. /ticket (setup, close, transcript...)
+  ...manageGroupCommands,    // 11. /manage (roles, channels, emojis...)
+  ...helpCommands,           // 12. /help + /commands
+  // ── Groupes conservés (standalone) ──
+  ...modAdminCommands,       // 13. /modadmin
+  ...osintCommands,          // 14. /osint (scan, dns, whois...)
+  ...autoThreadCommands,     // 15. /autothread
+  ...customCmdCommands,      // /customcmd
+  // ── Context Menus (clic droit) ──
+  ...contextMenuCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -506,28 +506,26 @@ function registerGroup(
 }
 
 export function buildCommandRouter(): void {
-  // ─── 4 Root Commands (Phase 2) ───
+  // ─── 15 Slash Commands (Phase 1) ───
   registerGroup(["mod"], handleModGroup);
-  registerGroup(["admin"], handleAdminGroup);
   registerGroup(["security"], handleSecurityGroup);
   registerGroup(["ai"], handleAiGroup);
-  // ─── Groupes conservés ───
+  registerGroup(["game"], handleGameGroup);
+  registerGroup(["admin"], handleAdminGroup);
   registerGroup(["bot"], handleBotGroup);
   registerGroup(["sources"], handleSourcesGroup);
   registerGroup(["alert"], handleAlertGroup);
-  registerGroup(["modadmin"], handleModAdmin);
-  registerGroup(["debug"], handleDebugGroup);
-  registerGroup(["shadow"], handleShadow);
-  registerGroup(["osint"], handleOsint);
-  registerGroup(["report"], handleReport);
-  registerGroup(["game"], handleGameGroup);
   registerGroup(["casier"], handleCasierGroup);
   registerGroup(["ticket"], handleTicketGroup);
-  // ─── Standalone ───
+  registerGroup(["manage"], handleManageGroup);
+  registerGroup(["help", "commands"], handleHelp);
+  registerGroup(["modadmin"], handleModAdmin);
+  registerGroup(["osint"], handleOsint);
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
-  registerGroup(["manage"], handleManageGroup);
-  // Phase 1: Removed fun, economy, polls, community, tools, game2, music
+  // ─── Context Menus ───
+  registerGroup(["👤 Voir profil", "📋 Voir casier", "🤖 Analyser IA", "⚠️ Risque score", "🚩 Signaler",
+    "🌐 Traduire", "📊 Analyser sentiment", "📦 Extraire", "🚩 Rapporter", "🔍 Snipe"], handleContextMenu as unknown as Function);
 }
 
 export function applyCommandMiddleware(): void {
