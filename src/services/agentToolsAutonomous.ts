@@ -25,6 +25,9 @@ import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, getRecentTweets as getTwitterTweets, searchTweets, isTwitterConfigured } from "./twitter.js";
 import { getSubredditPosts, searchReddit, getTrendingSubreddits } from "./reddit.js";
 import { readUrlViaJina, getYouTubeTranscript, exaSearch, searchBilibili, readRedditViaJina, readTwitterViaJina } from "./agentReach.js";
+import { getGuildAnalytics, getBotHealthMetrics, getMessageTrend, getTopCommands, getModerationStats } from "./analytics.js";
+import { buildRichEmbed, buildAnalyticsEmbed, buildOsintEmbed, buildSocialEmbed, buildSearchResultsEmbed, buildHealthEmbed } from "./embedBuilder.js";
+import { sendTelegramMessage, sendSlackMessage, broadcastNotification, isTelegramConfigured, isSlackConfigured } from "./notifications.js";
 
 // ─── 1. TOOL DEFINITIONS (JSON Schema for LLM) ───────────────────────────────
 
@@ -470,6 +473,141 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
           username: { type: "string", description: "Nom d'utilisateur Twitter sans @" },
         },
         required: ["username"],
+      },
+    },
+  },
+  // ═══ 9. ANALYTICS & BI (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "guild_analytics",
+      description: "Récupère les analytics d'un serveur Discord : membres actifs, messages 7j, commandes utilisées, actions de modération, tendances. Utilise cet outil quand on te demande des stats sur le serveur.",
+      parameters: {
+        type: "object",
+        properties: {
+          guildId: { type: "string", description: "ID du serveur Discord" },
+        },
+        required: ["guildId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bot_health",
+      description: "Récupère les métriques de santé du bot : uptime, mémoire RAM, guilds, users, commandes, erreurs. Utilise cet outil pour le monitoring.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "message_trend",
+      description: "Analyse la tendance d'activité d'un serveur (messages sur N jours). Retourne si l'activité monte, descend, ou est stable.",
+      parameters: {
+        type: "object",
+        properties: {
+          guildId: { type: "string", description: "ID du serveur" },
+          days: { type: "number", description: "Période en jours (défaut 7)" },
+        },
+        required: ["guildId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "top_commands",
+      description: "Top 10 des commandes les plus utilisées sur un serveur. Utilise cet outil pour l'analytique business.",
+      parameters: {
+        type: "object",
+        properties: {
+          guildId: { type: "string", description: "ID du serveur" },
+          days: { type: "number", description: "Période en jours (défaut 7)" },
+        },
+        required: ["guildId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "moderation_stats",
+      description: "Statistiques de modération d'un serveur : nombre d'actions par type (ban, kick, timeout, warn). Utilise cet outil pour le reporting modération.",
+      parameters: {
+        type: "object",
+        properties: {
+          guildId: { type: "string", description: "ID du serveur" },
+          days: { type: "number", description: "Période en jours (défaut 30)" },
+        },
+        required: ["guildId"],
+      },
+    },
+  },
+  // ═══ 10. RICH EMBEDS (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "build_rich_embed",
+      description: "Crée un embed Discord riche et personnalisé avec titre, description, couleur, fields, thumbnail, image, footer, author. Utilise cet outil pour faire des embeds beaux et professionnels.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre de l'embed (max 256)" },
+          description: { type: "string", description: "Description (max 4096)" },
+          color: { type: "string", description: "Couleur hex (ex: #FF5733)" },
+          thumbnail: { type: "string", description: "URL du thumbnail" },
+          image: { type: "string", description: "URL de l'image" },
+          url: { type: "string", description: "URL cliquable du titre" },
+          fields: { type: "array", items: { type: "object", properties: { name: { type: "string" }, value: { type: "string" }, inline: { type: "boolean" } } } },
+          footerText: { type: "string", description: "Texte du footer" },
+          authorName: { type: "string", description: "Nom de l'auteur" },
+          timestamp: { type: "boolean", description: "Ajouter timestamp actuel" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  // ═══ 11. MULTI-PLATFORM NOTIFICATIONS (auto-use) ═══
+  {
+    type: "function",
+    function: {
+      name: "send_telegram",
+      description: "Envoie un message Telegram. Nécessite TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID. Utilise cet outil pour notifier sur Telegram.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte du message (Markdown supporté, max 4096)" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_slack",
+      description: "Envoie un message Slack via webhook. Nécessite SLACK_WEBHOOK_URL. Utilise cet outil pour notifier sur Slack.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte du message" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "broadcast_notification",
+      description: "Envoie une notification sur toutes les plateformes configurées (Telegram, Slack, Discord webhook). Utilise cet outil pour les alertes importantes multi-plateformes.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte de la notification" },
+        },
+        required: ["text"],
       },
     },
   },
@@ -1273,6 +1411,18 @@ export async function executeAutonomousTool(
       case "bilibili_search": return await tBilibiliSearch(args);
       case "jina_read_reddit": return await tJinaReadReddit(args);
       case "jina_read_twitter": return await tJinaReadTwitter(args);
+      // 9. Analytics & BI
+      case "guild_analytics": return await tGuildAnalytics(args);
+      case "bot_health": return await tBotHealth();
+      case "message_trend": return await tMessageTrend(args);
+      case "top_commands": return await tTopCommands(args);
+      case "moderation_stats": return await tModerationStats(args);
+      // 10. Rich Embeds
+      case "build_rich_embed": return await tBuildRichEmbed(args);
+      // 11. Multi-platform notifications
+      case "send_telegram": return await tSendTelegram(args);
+      case "send_slack": return await tSendSlack(args);
+      case "broadcast_notification": return await tBroadcastNotification(args);
       default: return null;
     }
   } catch (error) {
@@ -1444,5 +1594,119 @@ async function tJinaReadTwitter(args: Record<string, unknown>): Promise<ToolCall
     return { success: true, data: JSON.stringify({ username, title: result.title, content: result.content.slice(0, 5000) }) };
   } catch (e) {
     return { success: false, data: `Erreur Jina Twitter: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 9. ANALYTICS & BI ═══
+
+async function tGuildAnalytics(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const guildId = String(args.guildId).slice(0, 50);
+  try {
+    const data = await getGuildAnalytics(guildId);
+    return { success: true, data: JSON.stringify(data) };
+  } catch (e) {
+    return { success: false, data: `Erreur analytics: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBotHealth(): Promise<ToolCallResult> {
+  try {
+    const data = await getBotHealthMetrics();
+    return { success: true, data: JSON.stringify(data) };
+  } catch (e) {
+    return { success: false, data: `Erreur health: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tMessageTrend(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const guildId = String(args.guildId).slice(0, 50);
+  const days = Math.min(Number(args.days) || 7, 90);
+  try {
+    const trend = await getMessageTrend(guildId, days);
+    return { success: true, data: JSON.stringify(trend) };
+  } catch (e) {
+    return { success: false, data: `Erreur trend: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tTopCommands(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const guildId = String(args.guildId).slice(0, 50);
+  const days = Math.min(Number(args.days) || 7, 90);
+  try {
+    const cmds = await getTopCommands(guildId, days);
+    return { success: true, data: JSON.stringify({ guildId, days, commands: cmds }) };
+  } catch (e) {
+    return { success: false, data: `Erreur top commands: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tModerationStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const guildId = String(args.guildId).slice(0, 50);
+  const days = Math.min(Number(args.days) || 30, 365);
+  try {
+    const stats = await getModerationStats(guildId, days);
+    return { success: true, data: JSON.stringify({ guildId, days, stats }) };
+  } catch (e) {
+    return { success: false, data: `Erreur mod stats: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 10. RICH EMBEDS ═══
+
+async function tBuildRichEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const title = String(args.title || "").slice(0, 256);
+  if (!title) return { success: false, data: "Titre requis" };
+  try {
+    const embed = buildRichEmbed({
+      title,
+      description: args.description ? String(args.description) : undefined,
+      color: args.color ? String(args.color) : undefined,
+      thumbnail: args.thumbnail ? String(args.thumbnail) : undefined,
+      image: args.image ? String(args.image) : undefined,
+      url: args.url ? String(args.url) : undefined,
+      fields: Array.isArray(args.fields) ? (args.fields as Record<string, unknown>[]).map(f => ({
+        name: String(f.name || ""), value: String(f.value || ""), inline: Boolean(f.inline),
+      })) : undefined,
+      footer: args.footerText ? { text: String(args.footerText) } : undefined,
+      author: args.authorName ? { name: String(args.authorName) } : undefined,
+      timestamp: Boolean(args.timestamp),
+    });
+    return { success: true, data: JSON.stringify({ embed: embed.toJSON() }) };
+  } catch (e) {
+    return { success: false, data: `Erreur embed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ═══ 11. MULTI-PLATFORM NOTIFICATIONS ═══
+
+async function tSendTelegram(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text).slice(0, 4096);
+  if (!isTelegramConfigured()) return { success: false, data: "Telegram non configuré (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID manquant)" };
+  try {
+    const ok = await sendTelegramMessage(text);
+    return { success: ok, data: ok ? "Message envoyé sur Telegram" : "Échec d'envoi" };
+  } catch (e) {
+    return { success: false, data: `Erreur Telegram: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tSendSlack(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text).slice(0, 3000);
+  if (!isSlackConfigured()) return { success: false, data: "Slack non configuré (SLACK_WEBHOOK_URL manquant)" };
+  try {
+    const ok = await sendSlackMessage(text);
+    return { success: ok, data: ok ? "Message envoyé sur Slack" : "Échec d'envoi" };
+  } catch (e) {
+    return { success: false, data: `Erreur Slack: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+async function tBroadcastNotification(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text).slice(0, 2000);
+  try {
+    const result = await broadcastNotification(text);
+    return { success: true, data: JSON.stringify(result) };
+  } catch (e) {
+    return { success: false, data: `Erreur broadcast: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
