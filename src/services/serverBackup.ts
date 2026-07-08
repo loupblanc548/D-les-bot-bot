@@ -1,33 +1,44 @@
 /**
- * serverBackup.ts — Server configuration backup & restore
+ * serverBackup.ts — Sauvgarde / restauration basique d'un serveur Discord
  *
- * Backs up roles, channels, categories to JSON. Can restore on disaster.
+ * Capture les rôles, salons textuels/vocaux et catégories d'un guild, les
+ * sérialise en JSON, et permet de les recréer sur un autre serveur.
+ * Conçu pour un admin : `restoreBackup` ne touche PAS aux salons/rôles
+ * existants — il AJOUTE par-dessus (pas de delete massif).
+ *
+ * Limitations assumées :
+ *   - Permissions sur salons (overwrites) : non sauvegardées.
+ *   - Threads, forums, stages, annonces : non sauvegardés (scope = guild
+ *     text / voice / category).
+ *   - Rate limits Discord : pas de sleep entre les créations — le caller
+ *     peut wrapping pour batch si le serveur a beaucoup d'éléments.
  */
 
-import { Guild, ChannelType, Role } from "discord.js";
+import { Guild, PermissionsBitField } from "discord.js";
 import logger from "../utils/logger.js";
 
-export interface BackupRole {
+// ─── Types ────────────────────────────────────────────────────────
+
+/** Permissions sérialisées en string base-10 pour rester JSON-safe. */
+export interface SerializedRole {
   name: string;
-  permissions: string[];
+  permissions: string;
   color: number;
   hoist: boolean;
   mentionable: boolean;
-  position: number;
 }
 
-export interface BackupChannel {
+/** `type` est un alias lisible : "text" | "voice" | "category". */
+export interface SerializedChannel {
   name: string;
   type: string;
   parentId?: string;
   topic?: string;
   position: number;
-  nsfw: boolean;
-  bitrate?: number;
-  userLimit?: number;
 }
 
-export interface BackupCategory {
+export interface SerializedCategory {
+  id?: string;
   name: string;
   position: number;
 }
@@ -35,190 +46,251 @@ export interface BackupCategory {
 export interface ServerBackup {
   id: string;
   guildId: string;
-  guildName: string;
   createdAt: Date;
-  roles: BackupRole[];
-  channels: BackupChannel[];
-  categories: BackupCategory[];
-  memberCount: number;
+  roles: SerializedRole[];
+  channels: SerializedChannel[];
+  categories: SerializedCategory[];
 }
 
+/** Forme minimale d'un salon créé, juste l'ID — évite `unknown` du type union discord.js. */
+interface CreatedChannelLike {
+  id: string;
+}
+
+// ─── Constantes ───────────────────────────────────────────────────
+
+/** Mapping interne → representation lisible dans le JSON. */
+const CHANNEL_TYPE_TO_STRING: Record<number, string> = {
+  0: "text",
+  2: "voice",
+  4: "category",
+};
+
+const STRING_TO_CHANNEL_TYPE: Record<string, number> = {
+  text: 0,
+  voice: 2,
+  category: 4,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+function isBotOrEveryoneRole(
+  role: { id: string; managed: boolean; name: string },
+  guildId: string,
+): boolean {
+  if (role.id === guildId) return true; // @everyone
+  if (role.managed) return true; // rôles gérés par bots/integrations
+  return false;
+}
+
+/** Nom du rôle @everyone selon le guild — Discord le renomme parfois. */
+function everyoneRoleName(guild: Guild): string {
+  return guild.roles.everyone?.name ?? "@everyone";
+}
+
+function serializePerms(perm: Readonly<PermissionsBitField>): string {
+  return perm.bitfield.toString();
+}
+
+function deserializePerms(stored: string): PermissionsBitField {
+  return new PermissionsBitField(BigInt(stored));
+}
+
+function mapChannelTypeToString(type: number): string {
+  return CHANNEL_TYPE_TO_STRING[type] ?? "text";
+}
+
+function mapStringToChannelType(name: string): number | null {
+  return STRING_TO_CHANNEL_TYPE[name] ?? null;
+}
+
+// ─── createBackup ─────────────────────────────────────────────────
+
+/**
+ * Snapshot des rôles (hors @everyone et rôles gérés), des salons
+ * textuels/vocaux et des catégories d'un guild. L'ID du backup combine
+ * `guildId` et timestamp pour rester unique et traçable.
+ */
 export async function createBackup(guild: Guild): Promise<ServerBackup> {
-  const backup: ServerBackup = {
-    id: `backup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    guildId: guild.id,
-    guildName: guild.name,
-    createdAt: new Date(),
-    roles: [],
-    channels: [],
-    categories: [],
-    memberCount: guild.memberCount,
-  };
+  if (!guild) {
+    throw new Error("[serverBackup] guild invalide");
+  }
 
-  // Backup roles (exclude @everyone and managed/bot roles)
-  const roles = guild.roles.cache
-    .filter((r: Role) => r.id !== guild.id && !r.managed)
-    .sort((a, b) => b.position - a.position);
+  const fetchedGuild = await guild.fetch().catch(() => guild);
 
-  for (const [, role] of roles) {
-    backup.roles.push({
+  // ── Rôles : on exclut @everyone et tous les rôles gérés (bots / integrations).
+  const roles = fetchedGuild.roles.cache
+    .filter((role) => !isBotOrEveryoneRole(role, fetchedGuild.id))
+    .map((role) => ({
       name: role.name,
-      permissions: role.permissions.toArray(),
+      permissions: serializePerms(role.permissions),
       color: role.color,
       hoist: role.hoist,
       mentionable: role.mentionable,
-      position: role.position,
-    });
-  }
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Backup categories first
-  const categories = guild.channels.cache
-    .filter((c) => c.type === ChannelType.GuildCategory)
+  // ── Catégories : on conserve l'id original pour le remap parentId lors
+  //     d'une restauration ultérieure.
+  const categories = fetchedGuild.channels.cache
+    .filter((c) => c.type === 4)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      position: c.position,
+    }))
     .sort((a, b) => a.position - b.position);
 
-  for (const [, cat] of categories) {
-    backup.categories.push({
-      name: cat.name,
-      position: cat.position,
-    });
-  }
-
-  // Backup channels (exclude categories, threads)
-  const channels = guild.channels.cache
-    .filter((c) =>
-      c.type === ChannelType.GuildText ||
-      c.type === ChannelType.GuildVoice ||
-      c.type === ChannelType.GuildAnnouncement ||
-      c.type === ChannelType.GuildStageVoice,
-    )
+  // ── Salons : text (0) et voice (2). On exclut les catégories.
+  const channels = fetchedGuild.channels.cache
+    .filter((c) => c.type === 0 || c.type === 2)
+    .map((c) => {
+      const channel: SerializedChannel = {
+        name: c.name,
+        type: mapChannelTypeToString(c.type),
+        position: c.position,
+      };
+      if (c.parentId) channel.parentId = c.parentId;
+      if ("topic" in c && typeof c.topic === "string" && c.topic.length > 0) {
+        channel.topic = c.topic;
+      }
+      return channel;
+    })
     .sort((a, b) => a.position - b.position);
 
-  for (const [, ch] of channels) {
-    const entry: BackupChannel = {
-      name: ch.name,
-      type: ChannelType[ch.type],
-      position: ch.position,
-      nsfw: (ch as { nsfw?: boolean }).nsfw ?? false,
-    };
+  const backup: ServerBackup = {
+    id: `${fetchedGuild.id}-${Date.now()}`,
+    guildId: fetchedGuild.id,
+    createdAt: new Date(),
+    roles,
+    channels,
+    categories,
+  };
 
-    if (ch.parentId) entry.parentId = ch.parentId;
-    if (ch.type === ChannelType.GuildText || ch.type === ChannelType.GuildAnnouncement) {
-      entry.topic = (ch as { topic?: string }).topic ?? undefined;
-    }
-    if (ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice) {
-      entry.bitrate = (ch as { bitrate?: number }).bitrate;
-      entry.userLimit = (ch as { userLimit?: number }).userLimit ?? 0;
-    }
-
-    backup.channels.push(entry);
-  }
-
-  logger.info(`[ServerBackup] Created backup for ${guild.name}: ${backup.roles.length} roles, ${backup.channels.length} channels, ${backup.categories.length} categories`);
+  logger.info(
+    `[serverBackup] Backup créé pour ${fetchedGuild.name} (${fetchedGuild.id}) — ` +
+      `${roles.length} rôle(s), ${categories.length} catégorie(s), ${channels.length} salon(s)`,
+  );
   return backup;
 }
 
-export function exportBackupJson(backup: ServerBackup): string {
+// ─── exportBackupJson ─────────────────────────────────────────────
+
+/**
+ * Sérialise un backup en chaîne JSON lisible (indentation 2 espaces).
+ */
+export async function exportBackupJson(backup: ServerBackup): Promise<string> {
   return JSON.stringify(backup, null, 2);
 }
 
+// ─── restoreBackup ────────────────────────────────────────────────
+
+/**
+ * Restaure un backup sur `guild`.
+ *
+ * Ordre de restauration explicite (important pour Discord) :
+ *   1. catégories — sans parent, on récolte leur nouvel ID pour remap.
+ *   2. salons — leur parentId est remappé via la table oldId→newId.
+ *   3. rôles — dernier pour ne pas perturber les permissions par défaut.
+ *
+ * Chaque élément est isolé dans un try/catch : un échec n'arrête pas la
+ * boucle. `@everyone` est défensivement filtré à la restore au cas où
+ * le backup serait mal formé.
+ *
+ * @returns `{ restored, failed }` — totaux par agrégat (catégories +
+ *   salons + rôles). Utile pour logs/UX.
+ */
 export async function restoreBackup(
   guild: Guild,
   backup: ServerBackup,
 ): Promise<{ restored: number; failed: number }> {
+  if (!guild) throw new Error("[serverBackup] guild invalide");
+  if (!backup) throw new Error("[serverBackup] backup invalide");
+
   let restored = 0;
   let failed = 0;
+  const idRemap = new Map<string, string>();
+  const everyoneName = everyoneRoleName(guild);
 
-  // Restore categories first
-  const categoryMap = new Map<string, string>(); // oldName -> newId
-
-  for (const cat of backup.categories) {
+  // ── 1. Catégories ──────────────────────────────────────────────
+  // Le remap est clée par ID original (pas par nom) — deux catégories
+  // peuvent porter le même nom, mais l'ID original est unique côté Discord.
+  for (const category of backup.categories) {
     try {
-      const created = await guild.channels.create({
-        name: cat.name,
-        type: ChannelType.GuildCategory,
-      });
-      categoryMap.set(cat.name, created.id);
-      await created.setPosition(cat.position).catch(() => {});
+      const created = (await guild.channels.create({
+        name: category.name,
+        type: 4, // GuildCategory
+        position: category.position,
+      })) as CreatedChannelLike;
+      if (category.id) idRemap.set(category.id, created.id);
       restored++;
     } catch (error) {
-      logger.error(`[ServerBackup] Failed to restore category ${cat.name}:`, String(error));
       failed++;
+      logger.warn(
+        `[serverBackup] Échec création catégorie "${category.name}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
-  // Restore channels
-  for (const ch of backup.channels) {
+  // ── 2. Salons (text + voice) ───────────────────────────────────
+  for (const channel of backup.channels) {
     try {
-      const typeMap: Record<string, ChannelType> = {
-        GuildText: ChannelType.GuildText,
-        GuildVoice: ChannelType.GuildVoice,
-        GuildAnnouncement: ChannelType.GuildAnnouncement,
-        GuildStageVoice: ChannelType.GuildStageVoice,
-      };
-
-      const channelType = typeMap[ch.type] ?? ChannelType.GuildText;
-      const createOptions: Record<string, unknown> = {
-        name: ch.name,
-        type: channelType,
-        nsfw: ch.nsfw,
-      };
-
-      if (ch.topic) createOptions.topic = ch.topic;
-      if (ch.bitrate) createOptions.bitrate = ch.bitrate;
-      if (ch.userLimit) createOptions.userLimit = ch.userLimit;
-
-      // Find parent category by name
-      if (ch.parentId) {
-        const oldCategory = backup.categories.find((c) => {
-          // Try to match by position or name
-          return c.position === backup.categories.findIndex((cat) => cat.name === ch.parentId);
-        });
-        if (oldCategory) {
-          const newParentId = categoryMap.get(oldCategory.name);
-          if (newParentId) createOptions.parent = newParentId;
-        }
+      const channelType = mapStringToChannelType(channel.type);
+      if (channelType === null) {
+        failed++;
+        logger.warn(`[serverBackup] Type de salon inconnu: "${channel.type}"`);
+        continue;
       }
-
-      const created = await guild.channels.create(createOptions as unknown as Parameters<typeof guild.channels.create>[0]);
-      await created.setPosition(ch.position).catch(() => {});
+      const parentRef =
+        channel.parentId !== undefined ? idRemap.get(channel.parentId) : undefined;
+      const created = (await guild.channels.create({
+        name: channel.name,
+        type: channelType,
+        topic: channel.topic,
+        parent: parentRef,
+        position: channel.position,
+      })) as CreatedChannelLike;
+      idRemap.set(channel.name, created.id);
       restored++;
     } catch (error) {
-      logger.error(`[ServerBackup] Failed to restore channel ${ch.name}:`, String(error));
       failed++;
+      logger.warn(
+        `[serverBackup] Échec création salon "${channel.name}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
-  // Restore roles
+  // ── 3. Rôles ───────────────────────────────────────────────────
   for (const role of backup.roles) {
     try {
+      // Filet de sécurité : on ne recrée jamais @everyone (existe nativement).
+      if (role.name === everyoneName) {
+        continue;
+      }
       await guild.roles.create({
         name: role.name,
-        permissions: role.permissions as unknown as bigint,
+        permissions: deserializePerms(role.permissions),
         color: role.color,
         hoist: role.hoist,
         mentionable: role.mentionable,
       });
       restored++;
     } catch (error) {
-      logger.error(`[ServerBackup] Failed to restore role ${role.name}:`, String(error));
       failed++;
+      logger.warn(
+        `[serverBackup] Échec création rôle "${role.name}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
-  logger.info(`[ServerBackup] Restore complete: ${restored} restored, ${failed} failed`);
+  logger.info(
+    `[serverBackup] Restauration terminée sur ${guild.name}: ${restored} créé(s), ${failed} échec(s)`,
+  );
   return { restored, failed };
-}
-
-export function generateBackupSummaryEmbed(backup: ServerBackup): { title: string; fields: { name: string; value: string; inline: boolean }[] } {
-  return {
-    title: `📦 Backup — ${backup.guildName}`,
-    fields: [
-      { name: "🆔 ID", value: backup.id, inline: false },
-      { name: "📅 Date", value: `<t:${Math.floor(backup.createdAt.getTime() / 1000)}:F>`, inline: true },
-      { name: "👥 Members", value: String(backup.memberCount), inline: true },
-      { name: "🎭 Roles", value: String(backup.roles.length), inline: true },
-      { name: "📝 Channels", value: String(backup.channels.length), inline: true },
-      { name: "📁 Categories", value: String(backup.categories.length), inline: true },
-    ],
-  };
 }
