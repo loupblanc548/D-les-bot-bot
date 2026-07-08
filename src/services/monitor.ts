@@ -668,6 +668,8 @@ async function ensureSourceAndInsertNotification(
   url: string,
   platform: Platform,
 ): Promise<AutoSourceResult> {
+  // Ensure platform is a valid Platform enum value (lowercase)
+  const safePlatform = (typeof platform === "string" ? platform.toLowerCase() : String(platform)) as Platform;
   try {
     // Étape 1 : Auto-création de la source si elle n'existe pas
     const source = await prisma.source.upsert({
@@ -720,7 +722,7 @@ async function ensureSourceAndInsertNotification(
       update: {},
       create: {
         sourceId: String(source.id),
-        platform,
+        platform: safePlatform,
         content,
         url: cleanedUrl,
       },
