@@ -218,11 +218,17 @@ async function main(): Promise<void> {
 
     // Sync schema — ensures new tables/columns exist on Railway deploys
     try {
-      const { execSync } = await import("child_process");
-      execSync("npx prisma db push --accept-data-loss", { stdio: "pipe", timeout: 30000 });
-      logger.info("✓ Schema DB synchronise (prisma db push)");
+      const { exec } = await import("child_process");
+      await new Promise<void>((resolve) => {
+        const child = exec("node node_modules/prisma/build/index.js db push --accept-data-loss", { timeout: 20000 }, (err) => {
+          if (err) logger.warn("prisma db push a échoué — continuation");
+          else logger.info("✓ Schema DB synchronise (prisma db push)");
+          resolve();
+        });
+        child.on("error", () => resolve());
+      });
     } catch {
-      logger.warn("prisma db push a échoué ou non nécessaire — continuation");
+      logger.warn("prisma db push non disponible — continuation");
     }
 
     try {
