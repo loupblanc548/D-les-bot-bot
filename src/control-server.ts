@@ -139,8 +139,14 @@ export async function startControlServer(port: number, client: Client): Promise<
     }
 
     if (path.startsWith("/webhook/")) {
+      logger.info(`[ControlServer] Webhook route matched: ${path}`);
       await handleWebhookRequest(req, res, client);
       return;
+    }
+
+    // Debug: log unmatched paths that look like webhook
+    if (path.includes("webhook")) {
+      logger.warn(`[ControlServer] Path contains 'webhook' but not matched: "${path}" (startsWith check: ${path.startsWith("/webhook/")})`);
     }
 
     if (!authCheck(req)) {
