@@ -17,6 +17,22 @@ import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractic
 import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 import { buildFromPreset, listPresets, getPreset } from "../services/promptBuilder.js";
+import { translateText, detectLanguage } from "../services/translateService.js";
+import { summarizeChannel } from "../services/channelSummary.js";
+import { saveAiHistory, getAiHistory, clearAiHistory, getAiStats } from "../services/aiHistory.js";
+import { exportChannelMessages, exportToJSON, exportToMarkdown, exportToCSV } from "../services/chatExport.js";
+import { selectModel, listModels, estimateCost, getModelById } from "../services/modelSelector.js";
+import { trackUsage, getUsageStats, getGlobalStats } from "../services/tokenTracker.js";
+import { generateUserSummary, generateUserEmbed } from "../services/userSummary.js";
+import { setAfk, getAfk, removeAfk, isAfk, handleMention as afkHandleMention } from "../services/afkSystem.js";
+import { setReminder, getUserReminders, cancelReminder } from "../services/reminderService.js";
+import { createPoll, endPoll, listActivePolls } from "../services/pollSystem.js";
+import { setThreshold as setStarThreshold, getStarboardStats } from "../services/starboard.js";
+import { createGiveaway, listActiveGiveaways, endGiveaway, rerollGiveaway } from "../services/giveawaySystem.js";
+import { getAntiNukeConfig, setAntiNukeConfig, generateAntiNukeStatusEmbed } from "../services/antiNuke.js";
+import { getCaptchaConfig, setCaptchaConfig, generateCaptchaStatusEmbed } from "../services/captchaVerify.js";
+import { enableRaidMode, disableRaidMode, generateRaidModeStatusEmbed } from "../services/raidMode.js";
+import { sendPaginatedEmbed } from "../services/paginationUtil.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -1250,17 +1266,119 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
-    case "ai-channel-summary":
-    case "ai-translate-custom":
+    case "ai-channel-summary": {
+      const channelId = interaction.channelId;
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const channel = interaction.channel;
+        if (!channel || !("messages" in channel)) {
+          await interaction.editReply("❌ Canal non lisible.");
+          break;
+        }
+        const messages = await channel.messages.fetch({ limit: 50 });
+        const contents = messages.map((m) => m.content).filter((c) => c.length > 0).reverse();
+        const summary = await summarizeChannel(contents, 30);
+        embed.setTitle("📋 Résumé du channel").setColor(0x5865f2).setDescription(summary.slice(0, 4000));
+        await interaction.editReply({ embeds: [embed] });
+      } catch {
+        await interaction.editReply("❌ Impossible de résumer le channel.");
+      }
+      break;
+    }
+    case "ai-translate-custom": {
+      const text = interaction.options.getString("texte", true);
+      const target = interaction.options.getString("langue", true);
+      await interaction.deferReply({ ephemeral: true });
+      const translated = await translateText(text, target);
+      const detected = await detectLanguage(text);
+      embed.setTitle("🌍 Traduction").setColor(0x5865f2)
+        .addFields(
+          { name: "Langue détectée", value: detected || "?", inline: true },
+          { name: "Cible", value: target, inline: true },
+        )
+        .setDescription(translated.slice(0, 4000));
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
     case "ai-image":
-    case "ai-history":
-    case "ai-chat-export":
-    case "ai-model-select":
-    case "ai-token-usage":
-    case "ai-summarize-user":
-      embed.setTitle("🤖 IA").setDescription(`Sous-commande \`${action}\` — en cours de développement.`);
+      embed.setTitle("🎨 Génération d'image").setDescription("⚠️ En cours de développement — nécessite une API d'image (DALL-E, Stable Diffusion).");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
+    case "ai-history": {
+      const subHist = interaction.options.getString("action") ?? "list";
+      if (subHist === "clear") {
+        await clearAiHistory(interaction.user.id);
+        await interaction.reply({ content: "✅ Historique IA effacé.", ephemeral: true });
+      } else if (subHist === "stats") {
+        const stats = await getAiStats(interaction.user.id);
+        embed.setTitle("📊 Stats IA").setColor(0x5865f2)
+          .addFields(
+            { name: "Requêtes", value: String(stats.totalRequests), inline: true },
+            { name: "Tokens", value: String(stats.totalTokens), inline: true },
+            { name: "Commande préférée", value: stats.mostUsedCommand, inline: true },
+          );
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+      } else {
+        const history = await getAiHistory(interaction.user.id, 20);
+        if (history.length === 0) {
+          await interaction.reply({ content: "Aucun historique IA.", ephemeral: true });
+        } else {
+          const items = history.map((h) => `**${h.command}** — ${h.timestamp.toDateString()} (${h.tokensUsed} tokens)`);
+          await sendPaginatedEmbed(interaction, { title: "📜 Historique IA", color: 0x5865f2, items, itemsPerPage: 10, ephemeral: true });
+        }
+      }
+      break;
+    }
+    case "ai-chat-export": {
+      const format = interaction.options.getString("format") ?? "json";
+      await interaction.deferReply({ ephemeral: true });
+      const channel = interaction.channel;
+      if (!channel || !("id" in channel)) {
+        await interaction.editReply("❌ Canal non valide.");
+        break;
+      }
+      const messages = await exportChannelMessages(channel.id, 50);
+      let content: string;
+      if (format === "markdown") content = exportToMarkdown(messages);
+      else if (format === "csv") content = exportToCSV(messages);
+      else content = exportToJSON(messages);
+      const attachment = new AttachmentBuilder(Buffer.from(content, "utf-8"), { name: `export.${format === "markdown" ? "md" : format === "csv" ? "csv" : "json"}` });
+      await interaction.editReply({ content: `📤 Export de ${messages.length} messages (${format})`, files: [attachment] });
+      break;
+    }
+    case "ai-model-select": {
+      const models = listModels();
+      const items = models.map((m) => `**${m.name}** — ${m.id}\nContexte: ${m.contextLength.toLocaleString()} | $${m.pricing.prompt}/${m.pricing.completion} per M tokens | ${m.capabilities.join(", ")}`);
+      await sendPaginatedEmbed(interaction, { title: "🤖 Modèles disponibles", color: 0x5865f2, items, itemsPerPage: 3, ephemeral: true });
+      break;
+    }
+    case "ai-token-usage": {
+      const stats = getUsageStats(interaction.user.id);
+      const global = getGlobalStats();
+      embed.setTitle("📊 Token Usage").setColor(0x5865f2)
+        .addFields(
+          { name: "Vos tokens", value: String(stats.totalTokens), inline: true },
+          { name: "Coût estimé", value: `$${stats.totalCost.toFixed(4)}`, inline: true },
+          { name: "Par commande", value: Object.entries(stats.byCommand).map(([k, v]) => `${k}: ${v}`).join("\n") || "Aucun", inline: false },
+          { name: "Global users", value: String(global.totalUsers), inline: true },
+          { name: "Global tokens", value: String(global.totalTokens), inline: true },
+        );
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+    case "ai-summarize-user": {
+      const targetUser = interaction.options.getUser("utilisateur") ?? interaction.user;
+      const guildId = interaction.guildId;
+      if (!guildId) {
+        await interaction.reply({ content: "❌ Serveur requis.", ephemeral: true });
+        break;
+      }
+      await interaction.deferReply({ ephemeral: true });
+      const summary = await generateUserSummary(targetUser.id, guildId);
+      const summaryEmbed = await generateUserEmbed(summary);
+      await interaction.editReply({ embeds: [summaryEmbed] });
+      break;
+    }
     default:
       await interaction.reply({ content: "❌ Non implémentée.", ephemeral: true });
   }
