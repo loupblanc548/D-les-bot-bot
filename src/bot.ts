@@ -216,21 +216,6 @@ async function main(): Promise<void> {
     await prisma.$connect();
     logger.info("✓ Base de donnees connectee (Neon)");
 
-    // Sync schema — ensures new tables/columns exist on Railway deploys
-    try {
-      const { exec } = await import("child_process");
-      await new Promise<void>((resolve) => {
-        const child = exec("node node_modules/prisma/build/index.js db push --accept-data-loss", { timeout: 20000 }, (err) => {
-          if (err) logger.warn("prisma db push a échoué — continuation");
-          else logger.info("✓ Schema DB synchronise (prisma db push)");
-          resolve();
-        });
-        child.on("error", () => resolve());
-      });
-    } catch {
-      logger.warn("prisma db push non disponible — continuation");
-    }
-
     try {
       await dedupCache.init();
       try {
