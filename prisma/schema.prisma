@@ -363,6 +363,8 @@ model GuildConfig {
   monitoringEnabled   Boolean? @default(true)
   monitoringIntervalMs Int?     @default(300000)
   maxRetroPosts       Int?     @default(10)
+  antiNukeConfig      String?
+  captchaConfig       String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
