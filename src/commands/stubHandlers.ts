@@ -16,6 +16,7 @@ import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase
 import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices, detectAntiPatterns } from "../services/promptScoring.js";
 import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
+import { buildFromPreset, listPresets, getPreset } from "../services/promptBuilder.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -1230,8 +1231,26 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.editReply({ embeds: [embed] });
       break;
     }
+    case "ai-fun": {
+      const presetKey = interaction.options.getString("preset") ?? "moderation";
+      const content = interaction.options.getString("content") ?? "Test message";
+      const preset = getPreset(presetKey);
+      if (!preset) {
+        const list = listPresets().map(p => `- \`${p.key}\` — ${p.name} (${p.domain})`).join("\n");
+        await interaction.reply({ content: `❌ Preset introuvable.\n\n**Presets disponibles:**\n${list}`, ephemeral: true });
+        break;
+      }
+      const prompt = buildFromPreset(preset, content);
+      const embed = new EmbedBuilder()
+        .setTitle(`🔧 Prompt Builder — ${presetKey}`)
+        .setColor(0x5865f2)
+        .setDescription(`\`\`\`\n${prompt.slice(0, 4000)}\n\`\``)
+        .setFooter({ text: `Domain: ${preset.domain} | Experience: ${preset.experience} ans` })
+        .setTimestamp();
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
     case "ai-channel-summary":
-    case "ai-fun":
     case "ai-translate-custom":
     case "ai-image":
     case "ai-history":
