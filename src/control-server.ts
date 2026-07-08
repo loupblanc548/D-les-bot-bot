@@ -695,8 +695,8 @@ export async function startControlServer(port: number, client: Client): Promise<
   });
 
   return new Promise((resolve) => {
-    server!.listen(port, () => {
-      logger.info(`[ControlServer] Écoute sur port ${port}`);
+    server!.listen(port, "0.0.0.0", () => {
+      logger.info(`[ControlServer] Écoute sur 0.0.0.0:${port}`);
       resolve();
     });
     server!.on("error", (err) => {
