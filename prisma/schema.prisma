@@ -1292,3 +1292,19 @@ model TempVoiceConfig {
 
   @@map("temp_voice_config")
 }
+
+model AiHistory {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String?
+  command     String
+  input       String
+  output      String
+  tokensUsed  Int      @default(0)
+  model       String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([guildId])
+  @@index([command])
+}
