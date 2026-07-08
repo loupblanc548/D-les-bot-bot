@@ -124,6 +124,7 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  logger.info("[VERSION] Code build: webhook-fix-v3");
   logger.info("Demarrage...");
 
   // Health check HTTP (Docker/monitoring)
