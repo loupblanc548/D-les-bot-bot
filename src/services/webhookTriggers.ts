@@ -19,8 +19,10 @@ import prisma from "../prisma.js";
 
 export interface WebhookTriggerConfig {
   id: string;
+  name: string;
   guildId: string;
   channelId: string;
+  discordWebhookUrl: string;
   provider: "github" | "gitlab" | "generic" | "discord";
   secret: string;
   events: string[];
@@ -36,7 +38,10 @@ export function registerTrigger(config: Omit<WebhookTriggerConfig, "id" | "creat
   const id = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const trigger: WebhookTriggerConfig = { ...config, id, createdAt: new Date() };
   triggers.set(trigger.secret, trigger);
-  logger.info(`[WebhookTriggers] Registered ${trigger.provider} trigger for #${trigger.channelId} (events: ${trigger.events.join(", ") || "all"})`);
+  // Create a WebhookClient for the Discord webhook URL
+  const whClient = new WebhookClient({ url: trigger.discordWebhookUrl });
+  webhookClients.set(trigger.secret, whClient);
+  logger.info(`[WebhookTriggers] Registered ${trigger.provider} trigger "${trigger.name}" → ${trigger.discordWebhookUrl.slice(0, 50)}... (events: ${trigger.events.join(", ") || "all"})`);
   return trigger;
 }
 
@@ -106,7 +111,7 @@ export async function handleWebhookRequest(
   try {
     const embed = buildEmbedForProvider(trigger.provider, eventType, payload, req.headers);
     if (embed) {
-      await sendToChannel(client, trigger, embed);
+      await sendViaWebhookUrl(trigger, embed);
     }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", event: eventType }));
@@ -117,17 +122,16 @@ export async function handleWebhookRequest(
   }
 }
 
-// ─── Send to Discord channel ──────────────────────────────────────────
+// ─── Send via Discord Webhook URL ────────────────────────────────────
 
-async function sendToChannel(client: Client, trigger: WebhookTriggerConfig, embed: EmbedBuilder): Promise<void> {
-  const guild = client.guilds.cache.get(trigger.guildId);
-  if (!guild) return;
-
-  const channel = guild.channels.cache.get(trigger.channelId);
-  if (!channel || !channel.isTextBased()) return;
-
-  await channel.send({ embeds: [embed] }).catch((err) => {
-    logger.error(`[WebhookTriggers] Failed to send to channel: ${String(err)}`);
+async function sendViaWebhookUrl(trigger: WebhookTriggerConfig, embed: EmbedBuilder): Promise<void> {
+  const whClient = webhookClients.get(trigger.secret);
+  if (!whClient) {
+    logger.error(`[WebhookTriggers] No WebhookClient for trigger "${trigger.name}"`);
+    return;
+  }
+  await whClient.send({ embeds: [embed] }).catch((err) => {
+    logger.error(`[WebhookTriggers] Failed to send via webhook URL for "${trigger.name}": ${String(err)}`);
   });
 }
 
