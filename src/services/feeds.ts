@@ -275,10 +275,12 @@ async function tryInsertNotification(
   if (!cleanedUrl) return false;
 
   try {
-    await prisma.notification.upsert({
+    const existing = await prisma.notification.findUnique({
       where: { url: cleanedUrl },
-      update: {},
-      create: {
+    });
+    if (existing) return false; // Doublon, déjà publié
+    await prisma.notification.create({
+      data: {
         sourceId,
         platform,
         content,
@@ -287,6 +289,8 @@ async function tryInsertNotification(
     });
     return true; // Nouveau contenu, insertion réussie
   } catch (err: unknown) {
+    const errCode = (err as { code?: string }).code;
+    if (errCode === "P2002") return false; // Doublon (contrainte unique)
     // Autre erreur : on laisse passer pour ne pas bloquer le flux
     logger.error(
       `[Feeds] Erreur insertion notification: ${err instanceof Error ? err.message : String(err)}`,
@@ -319,6 +323,9 @@ export async function sendToChannel(
       } catch (sendErr) {
         // Si l'embed est rejeté (image invalide, etc.), retry sans image
         const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        // Log full error for debugging
+        const rawErr = JSON.stringify(sendErr, Object.getOwnPropertyNames(sendErr), 2);
+        logger.error(`[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`);
         if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
           try {
             embed.setImage(null);
@@ -327,7 +334,9 @@ export async function sendToChannel(
             logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
             return true;
           } catch (retryErr) {
-            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+            const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+            const retryRaw = JSON.stringify(retryErr, Object.getOwnPropertyNames(retryErr), 2);
+            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`);
           }
         }
         logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
