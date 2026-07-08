@@ -8,7 +8,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
-import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel } from "../services/ai-moderation.js";
+import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel, advancedChat } from "../services/ai-moderation.js";
 import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
@@ -1200,7 +1200,36 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
-    case "ai-profile":
+    case "ai-profile": {
+      const message = interaction.options.getString("message");
+      const personaName = interaction.options.getString("persona") ?? "helldiver";
+      await interaction.deferReply({ ephemeral: true });
+      if (!message) {
+        await interaction.editReply({ content: "❌ Aucun message fourni." });
+        break;
+      }
+      const persona = getPersona(personaName);
+      const personaName2 = persona?.name ?? "John Helldiver";
+      const personality = persona?.personality ?? "direct, tactique, loyal";
+      const expertise = persona?.interests?.join(", ") ?? "gaming, modération, sécurité Discord";
+      const tone = persona?.tone ?? "amical mais professionnel";
+      const response = await advancedChat(message, {
+        botName: personaName2,
+        personality,
+        expertise,
+        tone,
+        username: interaction.user.username,
+        serverContext: interaction.guild?.name ?? "serveur Discord",
+      });
+      const embed = new EmbedBuilder()
+        .setTitle(`💬 ${personaName2}`)
+        .setColor(0x5865f2)
+        .setDescription(response.slice(0, 4000))
+        .setFooter({ text: `Persona: ${personaName} | ${tone}` })
+        .setTimestamp();
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
     case "ai-channel-summary":
     case "ai-fun":
     case "ai-translate-custom":
