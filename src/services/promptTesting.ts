@@ -320,3 +320,187 @@ export const SENTIMENT_TEST_CASES: PromptTestCase[] = [
     expectedContains: ["négatif", "harcèl"],
   },
 ];
+
+// ─── Response Quality Evaluator ───────────────────────────────────────
+
+export interface QualityBreakdown {
+  accuracy: number;
+  clarity: number;
+  relevance: number;
+  concision: number;
+  consistency: number;
+}
+
+export interface QualityReport {
+  score: number;
+  breakdown: QualityBreakdown;
+  grade: "A" | "B" | "C" | "D" | "F";
+  issues: string[];
+}
+
+function calculateAccuracy(response: string, expected: unknown): number {
+  if (!expected) return 50;
+  let score = 0;
+  let checks = 0;
+
+  if (typeof expected === "string") {
+    checks++;
+    if (response.toLowerCase().includes(expected.toLowerCase())) score += 100;
+  }
+
+  if (Array.isArray((expected as PromptTestCase).expectedContains)) {
+    for (const exp of (expected as PromptTestCase).expectedContains!) {
+      checks++;
+      if (response.toLowerCase().includes(exp.toLowerCase())) score += 100;
+    }
+  }
+
+  if ((expected as PromptTestCase).expectedJsonField && (expected as PromptTestCase).expectedJsonValue !== undefined) {
+    checks++;
+    const parsed = parseJsonResponse<Record<string, unknown>>(response);
+    if (parsed && parsed[(expected as PromptTestCase).expectedJsonField!] === (expected as PromptTestCase).expectedJsonValue) {
+      score += 100;
+    }
+  }
+
+  // Valid JSON bonus
+  checks++;
+  if (parseJsonResponse(response) !== null) score += 80;
+
+  return checks > 0 ? Math.round(score / checks) : 50;
+}
+
+function calculateClarity(response: string): number {
+  let score = 100;
+  const issues: string[] = [];
+
+  // Too short
+  if (response.trim().length < 10) {
+    score -= 40;
+    issues.push("Réponse trop courte");
+  }
+
+  // Too long (rambling)
+  if (response.length > 3000) {
+    score -= 20;
+    issues.push("Réponse trop longue");
+  }
+
+  // Repetition detection
+  const words = response.toLowerCase().split(/\s+/);
+  const unique = new Set(words);
+  if (words.length > 20 && unique.size / words.length < 0.5) {
+    score -= 25;
+    issues.push("Beaucoup de répétitions");
+  }
+
+  // Unclear markers
+  if (/\.\.\.|(\?{3})|(!{3})|enfin|bref|voilà/i.test(response) && response.length < 100) {
+    score -= 15;
+    issues.push("Marqueurs d'hésitation");
+  }
+
+  return Math.max(0, score);
+}
+
+function calculateRelevance(response: string, prompt: string): number {
+  let score = 100;
+
+  // Extract key terms from prompt
+  const promptWords = prompt.toLowerCase()
+    .replace(/[^a-zà-ÿ\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 4 && !["tache", "format", "reponds", "json", "contraintes", "regles"].includes(w));
+
+  const responseLower = response.toLowerCase();
+  const matched = promptWords.filter((w) => responseLower.includes(w));
+  const relevanceRatio = promptWords.length > 0 ? matched.length / promptWords.length : 0.5;
+
+  if (relevanceRatio < 0.1) score -= 50;
+  else if (relevanceRatio < 0.2) score -= 30;
+  else if (relevanceRatio < 0.3) score -= 15;
+
+  // Off-topic detection (response about something completely different)
+  if (response.length > 50 && relevanceRatio < 0.05) {
+    score -= 30;
+  }
+
+  return Math.max(0, Math.round(score));
+}
+
+function calculateConcision(response: string): number {
+  const length = response.trim().length;
+  if (length < 50) return 60;
+  if (length < 200) return 100;
+  if (length < 500) return 90;
+  if (length < 1000) return 75;
+  if (length < 2000) return 60;
+  return 40;
+}
+
+function calculateConsistency(response: string): number {
+  let score = 100;
+  const parsed = parseJsonResponse<Record<string, unknown>>(response);
+
+  if (parsed) {
+    // Check for contradictory fields in JSON
+    const keys = Object.keys(parsed);
+
+    // violation=false but action=ban (contradictory)
+    if (parsed.violation === false && parsed.action && parsed.action !== "none" && parsed.action !== "rien") {
+      score -= 40;
+    }
+
+    // severity=1 but action=ban (contradictory)
+    if (parsed.severity === 1 && parsed.action === "ban") {
+      score -= 30;
+    }
+
+    // confidence=0 but verdict given (contradictory)
+    if (parsed.confidence === 0 && parsed.verdict && parsed.verdict !== "clean" && parsed.verdict !== "neutre") {
+      score -= 25;
+    }
+
+    // risk_score=0 but level=critique (contradictory)
+    if (parsed.risk_score === 0 && parsed.level === "critique") {
+      score -= 30;
+    }
+  } else {
+    // Non-JSON: check for contradictions in text
+    if (/oui.*non|true.*false|clean.*violation/i.test(response)) {
+      score -= 20;
+    }
+  }
+
+  return Math.max(0, score);
+}
+
+export function evaluatePromptQuality(
+  prompt: string,
+  response: string,
+  expected?: unknown,
+): QualityReport {
+  const breakdown: QualityBreakdown = {
+    accuracy: calculateAccuracy(response, expected),
+    clarity: calculateClarity(response),
+    relevance: calculateRelevance(response, prompt),
+    concision: calculateConcision(response),
+    consistency: calculateConsistency(response),
+  };
+
+  const score = Math.round(
+    Object.values(breakdown).reduce((a, b) => a + b, 0) / Object.keys(breakdown).length,
+  );
+
+  const grade: QualityReport["grade"] =
+    score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 40 ? "D" : "F";
+
+  const issues: string[] = [];
+  if (breakdown.accuracy < 60) issues.push("Précision insuffisante — la réponse ne correspond pas à l'attendu");
+  if (breakdown.clarity < 60) issues.push("Clarté faible — réponse confuse ou mal structurée");
+  if (breakdown.relevance < 60) issues.push("Pertinence faible — réponse hors-sujet");
+  if (breakdown.concision < 50) issues.push("Verbosité excessive — réponse trop longue");
+  if (breakdown.consistency < 60) issues.push("Incohérences détectées — champs contradictoires");
+
+  return { score, breakdown, grade, issues: issues.length > 0 ? issues : ["Qualité excellente — aucun problème"] };
+}

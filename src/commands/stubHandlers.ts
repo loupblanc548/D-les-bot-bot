@@ -12,7 +12,7 @@ import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel, advanced
 import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
-import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase } from "../services/promptTesting.js";
+import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase, evaluatePromptQuality } from "../services/promptTesting.js";
 import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices, detectAntiPatterns } from "../services/promptScoring.js";
 import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
