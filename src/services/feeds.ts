@@ -275,10 +275,12 @@ async function tryInsertNotification(
   if (!cleanedUrl) return false;
 
   try {
-    await prisma.notification.upsert({
+    const existing = await prisma.notification.findUnique({
       where: { url: cleanedUrl },
-      update: {},
-      create: {
+    });
+    if (existing) return false; // Doublon, déjà publié
+    await prisma.notification.create({
+      data: {
         sourceId,
         platform,
         content,
@@ -287,6 +289,8 @@ async function tryInsertNotification(
     });
     return true; // Nouveau contenu, insertion réussie
   } catch (err: unknown) {
+    const errCode = (err as { code?: string }).code;
+    if (errCode === "P2002") return false; // Doublon (contrainte unique)
     // Autre erreur : on laisse passer pour ne pas bloquer le flux
     logger.error(
       `[Feeds] Erreur insertion notification: ${err instanceof Error ? err.message : String(err)}`,
@@ -319,6 +323,9 @@ export async function sendToChannel(
       } catch (sendErr) {
         // Si l'embed est rejeté (image invalide, etc.), retry sans image
         const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        // Log full error for debugging
+        const rawErr = JSON.stringify(sendErr, Object.getOwnPropertyNames(sendErr), 2);
+        logger.error(`[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`);
         if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
           try {
             embed.setImage(null);
@@ -327,7 +334,19 @@ export async function sendToChannel(
             logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
             return true;
           } catch (retryErr) {
-            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+            const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+            const retryRaw = JSON.stringify(retryErr, Object.getOwnPropertyNames(retryErr), 2);
+            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`);
+            // Dernier recours : envoyer en texte simple sans embed
+            try {
+              const title = embed.data.title || "Notification";
+              const url = embed.data.url || "";
+              await channel.send(`${title}${url ? " — " + url : ""}`);
+              logger.warn(`[Feeds] Texte simple envoyé sur ${channelId} (embed rejeté)`);
+              return true;
+            } catch (textErr) {
+              logger.error(`[Feeds] Texte simple échoué sur ${channelId}: ${textErr instanceof Error ? textErr.message : String(textErr)}`);
+            }
           }
         }
         logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
@@ -413,7 +432,7 @@ async function sendToChannelWithCard(
   } catch (err) {
     logger.warn(`[Feeds] Card generation failed for ${platform}/${handle}: ${err instanceof Error ? err.message : String(err)}`);
     // Clear any attachment:// image that would be invalid without the file
-    try { embed.setImage(null); } catch {}
+    try { embed.setImage(null); } catch { /* embed déjà sans image */ }
     return await sendToChannel(client, channelId, embed);
   }
 }
@@ -490,7 +509,9 @@ export async function runGamingFeeds(client: Client) {
             const img = await getBlogImage(result.url);
             if (img) embed.setImage(img);
           }
-        } catch {}
+        } catch (err) {
+          logger.debug(`[Feeds] Erreur image ${source.platform}/${source.handle}: ${err instanceof Error ? err.message : String(err)}`);
+        }
 
         const sent = await sendToChannelWithCard(
           client,
@@ -504,6 +525,8 @@ export async function runGamingFeeds(client: Client) {
         );
         if (sent) {
           logger.info("[Feeds] OK " + feed.channelName + " <- @" + source.handle);
+          // Délai anti-rate-limit
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       } catch (err) {
         const errMsg = String(err instanceof Error ? err.message : String(err));
@@ -609,6 +632,8 @@ export async function runStartupRetrospective(client: Client) {
               logger.info("[Retro] Cap global atteint (" + MAX_RETRO_POSTS + " publications)");
               break feedLoop;
             }
+            // Délai anti-rate-limit entre les envois rétro
+            await new Promise((resolve) => setTimeout(resolve, 2000));
           }
         }
         if (publishedForSource > 0) {

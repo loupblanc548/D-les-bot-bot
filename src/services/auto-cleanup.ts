@@ -156,6 +156,8 @@ async function runAutoCleanup(client: Client): Promise<void> {
     config.instantGamingChannel,
     config.gamingBlogChannel,
     config.twitterChannel,
+    // Salons définis en dur dans FEEDS (non présents dans config)
+    "1524219631047540826", // Créateurs
   ];
   for (const id of configChannels) {
     if (id && !channelIds.includes(id)) channelIds.push(id);
