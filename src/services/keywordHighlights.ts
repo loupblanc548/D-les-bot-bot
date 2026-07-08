@@ -27,13 +27,11 @@ export function addWatch(userId: string, guildId: string, keywords: string[]): v
   watchesByGuild.set(guildId, filtered);
 }
 
-export function removeWatch(userId: string, guildId: string): boolean {
+export function removeWatch(userId: string, guildId: string): void {
   const guildWatches = watchesByGuild.get(guildId);
-  if (!guildWatches) return false;
-  const before = guildWatches.length;
+  if (!guildWatches) return;
   const filtered = guildWatches.filter((w) => w.userId !== userId);
   watchesByGuild.set(guildId, filtered);
-  return filtered.length < before;
 }
 
 export function getWatches(guildId: string): KeywordWatch[] {
@@ -51,9 +49,9 @@ export async function checkMessage(
   authorTag: string,
   authorAvatar: string | null,
   client: Client,
-): Promise<number> {
+): Promise<void> {
   const watches = watchesByGuild.get(guildId);
-  if (!watches || watches.length === 0) return 0;
+  if (!watches || watches.length === 0) return;
 
   const lowerContent = messageContent.toLowerCase();
   let notifiedCount = 0;
@@ -91,8 +89,6 @@ export async function checkMessage(
   if (notifiedCount > 0) {
     logger.debug(`[KeywordHighlight] Notified ${notifiedCount} users in ${guildId}`);
   }
-
-  return notifiedCount;
 }
 
 export function clearWatches(guildId: string): void {

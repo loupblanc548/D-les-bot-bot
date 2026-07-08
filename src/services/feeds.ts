@@ -93,6 +93,15 @@ const FEEDS: ChannelFeed[] = [
       { platform: "blogs", handle: "RobloxBlog", blogUrl: "https://blog.roblox.com/feed/" },
     ],
   },
+  {
+    channelId: "1524219631047540826",
+    channelName: "Créateurs",
+    sources: [
+      { platform: "youtube", handle: "LaupokBazar" },
+      { platform: "youtube", handle: "Conkerax" },
+      { platform: "youtube", handle: "Lusty_Luxure" },
+    ],
+  },
 ];
 
 const FETCH_RSS_TTL_MS = config.rssCacheTtlMs;
