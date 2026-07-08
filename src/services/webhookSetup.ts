@@ -97,25 +97,33 @@ const WEBHOOK_SETUP: ChannelWebhookSetup[] = [
 export function setupAllWebhooks(): void {
   const baseUrl = process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;
 
-  logger.info("[WebhookSetup] Registering webhook triggers for all notification channels...");
+  try {
+    logger.info("[WebhookSetup] Registering webhook triggers for all notification channels...");
 
-  for (const setup of WEBHOOK_SETUP) {
-    registerTrigger({
-      name: setup.name,
-      guildId: process.env.GUILD_ID || "",
-      channelId: setup.channelId,
-      discordWebhookUrl: setup.discordWebhookUrl,
-      provider: setup.provider,
-      secret: setup.secret,
-      events: setup.events,
-    });
+    for (const setup of WEBHOOK_SETUP) {
+      try {
+        registerTrigger({
+          name: setup.name,
+          guildId: process.env.GUILD_ID || "",
+          channelId: setup.channelId,
+          discordWebhookUrl: setup.discordWebhookUrl,
+          provider: setup.provider,
+          secret: setup.secret,
+          events: setup.events,
+        });
 
-    const url = `${baseUrl}/webhook/${setup.secret}`;
-    logger.info(`  → ${setup.name.padEnd(16)} ${url}`);
+        const url = `${baseUrl}/webhook/${setup.secret}`;
+        logger.info(`  → ${setup.name.padEnd(16)} ${url}`);
+      } catch (err) {
+        logger.error(`[WebhookSetup] Failed to register "${setup.name}": ${String(err)}`);
+      }
+    }
+
+    logger.info(`[WebhookSetup] ${WEBHOOK_SETUP.length} webhook triggers registered.`);
+    logger.info("[WebhookSetup] Configure these URLs in GitHub Settings → Webhooks (or CI/CD).");
+  } catch (err) {
+    logger.error(`[WebhookSetup] Fatal error during setup: ${String(err)}`);
   }
-
-  logger.info(`[WebhookSetup] ${WEBHOOK_SETUP.length} webhook triggers registered.`);
-  logger.info("[WebhookSetup] Configure these URLs in GitHub Settings → Webhooks (or CI/CD).");
 }
 
 export function getWebhookUrls(): { name: string; url: string; provider: string; events: string[] }[] {

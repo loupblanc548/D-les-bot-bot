@@ -38,10 +38,15 @@ export function registerTrigger(config: Omit<WebhookTriggerConfig, "id" | "creat
   const id = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const trigger: WebhookTriggerConfig = { ...config, id, createdAt: new Date() };
   triggers.set(trigger.secret, trigger);
-  // Create a WebhookClient for the Discord webhook URL
-  const whClient = new WebhookClient({ url: trigger.discordWebhookUrl });
-  webhookClients.set(trigger.secret, whClient);
-  logger.info(`[WebhookTriggers] Registered ${trigger.provider} trigger "${trigger.name}" → ${trigger.discordWebhookUrl.slice(0, 50)}... (events: ${trigger.events.join(", ") || "all"})`);
+  // Create a WebhookClient for the Discord webhook URL — wrapped in try/catch
+  // to prevent a single bad URL from crashing the entire bot on startup.
+  try {
+    const whClient = new WebhookClient({ url: trigger.discordWebhookUrl });
+    webhookClients.set(trigger.secret, whClient);
+    logger.info(`[WebhookTriggers] Registered ${trigger.provider} trigger "${trigger.name}" (events: ${trigger.events.join(", ") || "all"})`);
+  } catch (err) {
+    logger.error(`[WebhookTriggers] Failed to create WebhookClient for "${trigger.name}": ${String(err)}`);
+  }
   return trigger;
 }
 
