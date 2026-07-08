@@ -85,15 +85,6 @@ const FEEDS: ChannelFeed[] = [
     ],
   },
   {
-    channelId: config.robloxChannel,
-    channelName: "Roblox",
-    sources: [
-      { platform: "twitter", handle: "Roblox" },
-      { platform: "youtube", handle: "Roblox" },
-      { platform: "blogs", handle: "RobloxBlog", blogUrl: "https://blog.roblox.com/feed/" },
-    ],
-  },
-  {
     channelId: "1524219631047540826",
     channelName: "Créateurs",
     sources: [

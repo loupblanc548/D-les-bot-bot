@@ -12,6 +12,7 @@ import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
 import logger from "./utils/logger.js";
 import { startHealthServer, setDiscordClient } from "./services/health-http.js";
+import { setupAllWebhooks } from "./services/webhookSetup.js";
 import { startMetricsServer } from "./services/metrics.js";
 import { startControlServer } from "./control-server.js";
 import { startDataPruning, pruneOldData } from "./services/data-pruning.js";
@@ -141,6 +142,7 @@ async function main(): Promise<void> {
     try {
       setDiscordClient(client);
       startHealthServer(3000);
+      setupAllWebhooks();
     } catch {
       logger.warn("Health server failed to start (port 3000 in use?)");
     }
