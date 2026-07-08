@@ -40,12 +40,12 @@ const server = http.createServer(async (req, res) => {
   const error = url.searchParams.get("error");
 
   if (error) {
-    // Validate against known OAuth error codes — don't reflect arbitrary user input
     const KNOWN_ERRORS = ["access_denied", "invalid_request", "invalid_scope", "server_error", "temporarily_unavailable"];
     const isValidError = KNOWN_ERRORS.includes(String(error));
+    const safeError = isValidError ? String(error) : "unknown_error";
     res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(`<h1>❌ Erreur d'authentification</h1>`);
-    console.error(`❌ Erreur OAuth: ${isValidError ? String(error) : "unknown_error"}`);
+    res.end(`<h1>Erreur d'authentification</h1><p>Code: ${safeError}</p>`);
+    console.error(`OAuth error: ${safeError}`);
     server.close();
     process.exit(1);
   }
@@ -72,10 +72,11 @@ const server = http.createServer(async (req, res) => {
     });
 
     if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
+      const rawErr = await tokenRes.text();
+      const safeErr = rawErr.replace(/<[^>]*>/g, "").replace(/[\r\n]/g, " ").slice(0, 200);
       res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(`<h1>❌ Erreur token: ${errText}</h1>`);
-      console.error(`❌ Erreur token: ${errText}`);
+      res.end(`<h1>Erreur token</h1><p>${safeErr}</p>`);
+      console.error(`Token error: ${safeErr}`);
       server.close();
       process.exit(1);
     }

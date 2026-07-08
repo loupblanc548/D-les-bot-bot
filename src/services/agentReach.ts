@@ -4,6 +4,20 @@ import logger from "../utils/logger.js";
 const JINA_READER_BASE = "https://r.jina.ai";
 const EXA_SEARCH_BASE = "https://api.exa.ai/search";
 
+function sanitizeHtml(input: string): string {
+  return input
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, "")
+    .replace(/&[a-zA-Z]+;/g, "")
+    .trim();
+}
+
 export interface WebContent {
   url: string; title: string; content: string; links: string[];
 }
@@ -77,7 +91,7 @@ export async function searchBilibili(keyword: string, limit = 5): Promise<Bilibi
       timeout: 10000,
     });
     return (res.data?.data?.result || []).slice(0, limit).map((v: Record<string, unknown>) => ({
-      title: String(v.title || "").replace(/<[^>]*>/g, ""),
+      title: sanitizeHtml(String(v.title || "")),
       bvid: String(v.bvid || ""),
       url: `https://www.bilibili.com/video/${String(v.bvid || "")}`,
       up: String(v.author || ""),
