@@ -1,10 +1,6 @@
 # ---- Build Stage ----
-# Force cache invalidation for psn-api ESM fix
 FROM node:22-alpine AS builder
-ARG CACHE_BUST=1
-RUN echo "Cache bust: $CACHE_BUST"
-
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat git
 
 WORKDIR /app
 
@@ -18,8 +14,6 @@ RUN npx prisma generate
 
 # ---- Production Stage ----
 FROM node:22-alpine
-ARG CACHE_BUST=1
-RUN echo "Prod cache bust: $CACHE_BUST"
 
 RUN apk add --no-cache dumb-init chromium openssl libc6-compat
 
@@ -37,6 +31,9 @@ COPY src ./src
 COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY .env.example ./.env.example
+
+# Force cache invalidation: write build timestamp
+RUN date > /app/BUILD_TIME.txt
 
 RUN npx prisma generate
 
