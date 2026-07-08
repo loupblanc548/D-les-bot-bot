@@ -137,6 +137,7 @@ async function main(): Promise<void> {
     startControlServer(railwayPort, client).catch(() =>
       logger.warn("[Startup] Control server failed to start on Railway PORT"),
     );
+    setupAllWebhooks();
   } else {
     // Local dev: start all servers on their own ports
     try {
