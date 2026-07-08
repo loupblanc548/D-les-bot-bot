@@ -37,16 +37,9 @@ COPY .env.example ./.env.example
 RUN npx prisma generate
 
 RUN addgroup -g 1001 botuser && adduser -u 1001 -G botuser -s /bin/sh -D botuser
-
-# Entrypoint: sync DB schema then start bot
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'node node_modules/prisma/build/index.js db push --accept-data-loss 2>/dev/null || true' >> /app/start.sh && \
-    echo 'exec node --expose-gc --import tsx src/index.ts' >> /app/start.sh && \
-    chmod +x /app/start.sh
-
 USER botuser
 
-EXPOSE 3000
+EXPOSE 8080
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["/app/start.sh"]
+CMD ["node", "--expose-gc", "--import", "tsx", "src/index.ts"]
