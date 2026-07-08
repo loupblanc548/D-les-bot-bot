@@ -24,13 +24,14 @@ ENV NODE_OPTIONS=--max-old-space-size=384
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV CHROMIUM_PATH=/usr/bin/chromium-browser
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-
+# Copy source FIRST (before node_modules) to bust cache on code changes
 COPY src ./src
 COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY .env.example ./.env.example
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
 
 # Force cache invalidation: write build timestamp
 RUN date > /app/BUILD_TIME.txt
