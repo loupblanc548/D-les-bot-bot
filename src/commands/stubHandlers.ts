@@ -13,7 +13,7 @@ import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSol
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
 import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
 import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase } from "../services/promptTesting.js";
-import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices } from "../services/promptScoring.js";
+import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices, detectAntiPatterns } from "../services/promptScoring.js";
 import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
 import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
 
@@ -1187,6 +1187,15 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
           value: bp.checks.map(c => `${c.passed ? "✅" : "❌"} #${c.id} ${c.name}`).join("\n").slice(0, 1024),
           inline: false,
         });
+        // Anti-patterns detection
+        const ap = detectAntiPatterns(worstPrompt.prompt);
+        if (!ap.clean) {
+          embed.addFields({
+            name: `🔴 Anti-Patterns — ${worstPrompt.name} (${ap.detectedCount} détectés, score ${ap.score}/100)`,
+            value: ap.checks.filter(c => c.detected).map(c => `${c.severity === "critical" ? "🔴" : c.severity === "warning" ? "🟠" : "🟡"} #${c.id} ${c.name}: ${c.fix}`).join("\n").slice(0, 1024),
+            inline: false,
+          });
+        }
       }
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;

@@ -232,3 +232,126 @@ export function validateBestPractices(prompt: string): BestPracticesReport {
   return { checks, passedCount, totalCount, score, grade, missing, summary };
 }
 
+// ─── 10 Anti-Patterns Detector ───────────────────────────────────────
+
+export interface AntiPatternCheck {
+  id: number;
+  name: string;
+  detected: boolean;
+  severity: "critical" | "warning" | "minor";
+  detail: string;
+  fix: string;
+}
+
+export interface AntiPatternReport {
+  checks: AntiPatternCheck[];
+  detectedCount: number;
+  criticalCount: number;
+  warningCount: number;
+  clean: boolean;
+  score: number;        // 100 - penalties
+  summary: string;
+}
+
+export function detectAntiPatterns(prompt: string): AntiPatternReport {
+  const checks: AntiPatternCheck[] = [
+    {
+      id: 1,
+      name: "Vague et général",
+      detected: prompt.length < 100 || /^(analyse|check|review|help|do)/i.test(prompt.trim()) && prompt.length < 150,
+      severity: "critical",
+      detail: prompt.length < 100 ? `Prompt trop court (${prompt.length} chars)` : "Instructions vagues sans détails",
+      fix: "Sois spécifique: ajoute TÂCHE, RÈGLES, et FORMAT avec des détails concrets",
+    },
+    {
+      id: 2,
+      name: "Pas de contexte",
+      detected: !/CONTEXTE|CONTEXT|serveur|discord|gaming|utilisateur|message/i.test(prompt) && prompt.length < 500,
+      severity: "warning",
+      detail: "Aucun contexte fourni sur l'environnement ou la situation",
+      fix: "Ajoute une section CONTEXTE: décrivant l'environnement et la situation",
+    },
+    {
+      id: 3,
+      name: "Format libre confus",
+      detected: !/JSON|format|markdown|structure|réponds en/i.test(prompt),
+      severity: "critical",
+      detail: "Aucun format de sortie spécifié",
+      fix: "Spécifie un format structuré: 'Réponds en JSON: {champ1, champ2}'",
+    },
+    {
+      id: 4,
+      name: "Pas d'exemples",
+      detected: !/Exemple|Example/i.test(prompt),
+      severity: "warning",
+      detail: "Aucun exemple few-shot fourni",
+      fix: "Ajoute 3-5 exemples concrets (input → output attendu)",
+    },
+    {
+      id: 5,
+      name: "Pas de rôle défini",
+      detected: !/Tu es|You are/i.test(prompt),
+      severity: "critical",
+      detail: "Aucun rôle ou persona défini pour l'IA",
+      fix: "Définis un rôle: 'Tu es un expert en... avec X ans d'expérience'",
+    },
+    {
+      id: 6,
+      name: "Pas de contraintes",
+      detected: !/CONTRAINTES|RÈGLES|CONSTRAINTS|RULES|ne pas|interdit|évite/i.test(prompt),
+      severity: "warning",
+      detail: "Aucune contrainte ou règle explicite",
+      fix: "Ajoute CONTRAINTES: ou RÈGLES: pour limiter le comportement de l'IA",
+    },
+    {
+      id: 7,
+      name: "Trop de tâches à la fois",
+      detected: (prompt.match(/\d+\.\s/g) || []).length > 10,
+      severity: "warning",
+      detail: `${(prompt.match(/\d+\.\s/g) || []).length} tâches numérotées — risque de surcharge`,
+      fix: "Divise en étapes séquentielles (max 5-7) ou utilise un pipeline multi-étapes",
+    },
+    {
+      id: 8,
+      name: "Pas de test",
+      detected: !/Exemple|Example|test|cas/i.test(prompt),
+      severity: "minor",
+      detail: "Pas de cas de test ou d'exemples pour valider",
+      fix: "Ajoute des exemples avec input/output attendu pour tester le prompt",
+    },
+    {
+      id: 9,
+      name: "Prompt trop long/court",
+      detected: prompt.length < 50 || prompt.length > 6000,
+      severity: prompt.length < 50 ? "critical" : "warning",
+      detail: prompt.length < 50 ? `Trop court (${prompt.length} chars)` : `Trop long (${prompt.length} chars)`,
+      fix: prompt.length < 50 ? "Ajoute du contexte et des détails (viser 200-5000 chars)" : "Divise en sous-prompts ou simplifie (viser 200-5000 chars)",
+    },
+    {
+      id: 10,
+      name: "Instructions contradictoires",
+      detected: /ne pas.*mais|sauf si.*toujours|jamais.*sauf|interdit.*mais/i.test(prompt),
+      severity: "critical",
+      detail: "Détection de patterns contradictoires dans les instructions",
+      fix: "Clarifie les priorités: utilise 'RÈGLE 1 (priorité haute)' et 'RÈGLE 2 (sauf si...)'",
+    },
+  ];
+
+  const detectedCount = checks.filter((c) => c.detected).length;
+  const criticalCount = checks.filter((c) => c.detected && c.severity === "critical").length;
+  const warningCount = checks.filter((c) => c.detected && c.severity === "warning").length;
+  const penalty = criticalCount * 15 + warningCount * 7 + checks.filter((c) => c.detected && c.severity === "minor").length * 3;
+  const score = Math.max(0, 100 - penalty);
+  const clean = detectedCount === 0;
+
+  const summary = clean
+    ? "Aucun anti-pattern détecté — prompt propre!"
+    : [
+        `${detectedCount} anti-patterns détectés (${criticalCount} critiques, ${warningCount} warnings)`,
+        `Score: ${score}/100`,
+        ...checks.filter((c) => c.detected && c.severity === "critical").map((c) => `🔴 #${c.id} ${c.name}: ${c.fix}`),
+      ].join("\n");
+
+  return { checks, detectedCount, criticalCount, warningCount, clean, score, summary };
+}
+
