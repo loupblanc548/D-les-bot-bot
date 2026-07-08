@@ -216,6 +216,15 @@ async function main(): Promise<void> {
     await prisma.$connect();
     logger.info("✓ Base de donnees connectee (Neon)");
 
+    // Sync schema — ensures new tables/columns exist on Railway deploys
+    try {
+      const { execSync } = await import("child_process");
+      execSync("npx prisma db push --accept-data-loss", { stdio: "pipe", timeout: 30000 });
+      logger.info("✓ Schema DB synchronise (prisma db push)");
+    } catch {
+      logger.warn("prisma db push a échoué ou non nécessaire — continuation");
+    }
+
     try {
       await dedupCache.init();
       try {
