@@ -171,7 +171,8 @@ async function tryFetchRss(url: string): Promise<string | null> {
       return response.data;
     }
     return null;
-  } catch {
+  } catch (err) {
+    logger.debug(`[TwitterCron] RSS fetch échoué: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -216,8 +217,8 @@ function parseTweetsFromRss(xml: string, account: string): TweetData[] {
 
       tweets.push({ tweetId, account, content, pubDate, link, imageUrl });
     }
-  } catch {
-    // Parse error
+  } catch (err) {
+    logger.debug(`[TwitterCron] RSS parse error pour ${account}: ${err instanceof Error ? err.message : String(err)}`);
   }
   return tweets;
 }
@@ -435,8 +436,8 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
         try {
           const fetched = await client.channels.fetch(cfg.channelId);
           if (fetched?.isTextBased()) channel = fetched as TextChannel;
-        } catch {
-          /* ignore */
+        } catch (fetchErr) {
+          logger.debug(`[TwitterCron] Fetch salon ${cfg.channelId} échoué: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
         }
         if (!channel) {
           logger.warn("[TwitterCron] Salon " + cfg.channelId + " indisponible pour " + cfg.label);
@@ -486,8 +487,8 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
           try {
             const tweetImg = await getTweetImage(tweet.link);
             if (tweetImg) embed.setImage(tweetImg);
-          } catch {
-            // Ignore image fetch errors
+          } catch (err) {
+            logger.debug(`[TwitterCron] Image fetch échoué pour ${tweet.link}: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
 
