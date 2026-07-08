@@ -16,14 +16,12 @@ RUN npx prisma generate
 # ---- Production Stage ----
 FROM node:22-alpine
 
-RUN apk add --no-cache dumb-init chromium openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=384
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-ENV CHROMIUM_PATH=/usr/bin/chromium-browser
+ENV NODE_OPTIONS=--max-old-space-size=256
 
 # Copy source FIRST to bust cache on code changes
 COPY src ./src
@@ -36,10 +34,6 @@ COPY --from=builder /app/package*.json ./
 
 RUN npx prisma generate
 
-RUN addgroup -g 1001 botuser && adduser -u 1001 -G botuser -s /bin/sh -D botuser
-USER botuser
-
 EXPOSE 8080
 
-ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "--expose-gc", "--import", "tsx", "src/index.ts"]
