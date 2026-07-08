@@ -64,7 +64,7 @@ export class TwitchChatBot extends EventEmitter {
   private parsePrivMsg(line: string): TwitchChatMessage | null {
     try {
       const tagMatch = line.match(/@([^ ]+) /); const tags: Record<string, string> = {};
-      if (tagMatch) for (const pair of tagMatch[1].split(";")) { const [k, v] = pair.split("="); tags[k] = v || ""; }
+      if (tagMatch) for (const pair of tagMatch[1].split(";")) { const [k, v] = pair.split("="); const safeKey = String(k || "").replace(/[^a-zA-Z0-9_-]/g, ""); const safeVal = String(v || ""); tags[safeKey] = safeVal; }
       const userMatch = line.match(/:([^!]+)!/); const chMatch = line.match(/PRIVMSG #([^ :]+)/); const msgMatch = line.match(/PRIVMSG #[^ ]+ :(.+)$/);
       if (!userMatch || !chMatch || !msgMatch) return null;
       const badges = (tags.badges || "").split(",").filter(Boolean);
@@ -81,7 +81,10 @@ export class TwitchChatBot extends EventEmitter {
     if (!msg.message.startsWith(this.prefix)) return;
     const parts = msg.message.slice(this.prefix.length).split(" ");
     const handler = this.commands.get(parts[0].toLowerCase());
-    if (handler) Promise.resolve(handler(msg, parts.slice(1))).catch((err) => logger.error(`[TwitchChatBot] Cmd error: ${err instanceof Error ? err.message : String(err)}`));
+    if (handler) {
+      if (typeof handler !== "function") { logger.warn(`[TwitchChatBot] Invalid handler for ${parts[0]}`); return; }
+      Promise.resolve(handler(msg, parts.slice(1))).catch((err) => logger.error(`[TwitchChatBot] Cmd error: ${err instanceof Error ? err.message : String(err)}`));
+    }
   }
 
   isConnected(): boolean { return this.connected; }
