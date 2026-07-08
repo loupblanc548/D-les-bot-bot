@@ -365,6 +365,9 @@ model GuildConfig {
   maxRetroPosts       Int?     @default(10)
   antiNukeConfig      String?
   captchaConfig       String?
+  modmailConfig       String?
+  suggestionConfig    String?
+  serverStatsConfig   String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
