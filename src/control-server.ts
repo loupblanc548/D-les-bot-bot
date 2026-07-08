@@ -26,6 +26,8 @@ import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { config } from "./config.js";
 import { getFortniteState } from "./services/fortnite-broadcast.js";
+import { handleWebhookRequest } from "./services/webhookTriggers.js";
+import { setupAllWebhooks } from "./services/webhookSetup.js";
 
 let server: http.Server | null = null;
 const logBuffer: { timestamp: number; level: string; message: string }[] = [];
@@ -133,6 +135,11 @@ export async function startControlServer(port: number, client: Client): Promise<
         res.writeHead(503, { "Content-Type": "text/plain" });
         res.end("Metrics unavailable");
       }
+      return;
+    }
+
+    if (path.startsWith("/webhook/")) {
+      await handleWebhookRequest(req, res, client);
       return;
     }
 
