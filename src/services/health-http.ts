@@ -2,6 +2,8 @@ import http from "http";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { runHealthCheck } from "./healthcheck.js";
+import { handleWebhookRequest } from "./webhookTriggers.js";
+import type { Client } from "discord.js";
 
 let server: http.Server | null = null;
 const _startTime = Date.now();
@@ -35,6 +37,12 @@ interface HealthResponse {
  * - GET /health/live - Liveness probe (process is running)
  * - GET /health/detailed - Full health check with all modules
  */
+let discordClient: Client | null = null;
+
+export function setDiscordClient(client: Client): void {
+  discordClient = client;
+}
+
 export function startHealthServer(port = 3000): void {
   if (server) return;
 
@@ -63,6 +71,14 @@ export function startHealthServer(port = 3000): void {
         await handleLivenessProbe(res);
       } else if (path === "/health/detailed") {
         await handleDetailedHealth(res);
+      } else if (path.startsWith("/webhook/")) {
+        if (!discordClient) {
+          res.writeHead(503, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Discord client not ready" }));
+          return;
+        }
+        await handleWebhookRequest(req, res, discordClient);
+        return;
       } else {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Not Found" }));
@@ -80,6 +96,7 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /health/ready - Readiness probe`);
     logger.info(`  - GET /health/live - Liveness probe`);
     logger.info(`  - GET /health/detailed - Full health check`);
+    logger.info(`  - POST /webhook/<secret> - External webhook triggers`);
   });
 }
 
