@@ -11,6 +11,7 @@ import {
   buildQuickSentimentPrompt,
   buildModerationPrompt,
   buildRiskAssessmentPrompt,
+  buildFullModerationPrompt,
   parseJsonResponse,
   type ModerationVerdict,
   type DeepSentimentResult,
@@ -20,6 +21,8 @@ import {
   type QuickSentimentResult,
   type ModerationResult,
   type RiskAssessmentResult,
+  type FullModerationResult,
+  type FullModerationContext,
 } from "./moderationPrompts.js";
 
 export interface ToxicityResult {
@@ -354,6 +357,55 @@ export async function quickRiskAssessment(
   } catch (error) {
     logger.error("[AI-Moderation] quickRiskAssessment:", String(error));
     return { risk_score: 0, level: "très_bas", factors: [], recommendation: "rien" };
+  }
+}
+
+// ─── Full Moderation (complete context) ───────────────────────────────
+
+export async function fullModeration(
+  message: string,
+  ctx?: FullModerationContext,
+): Promise<FullModerationResult> {
+  try {
+    const client = getOpenAIClient();
+    const prompt = buildFullModerationPrompt(message, ctx);
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        { role: "system", content: "Tu es un modérateur Discord professionnel. Réponds UNIQUEMENT en JSON valide." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 500,
+      temperature: 0.15,
+    }, { timeout: 15_000 });
+
+    const raw = completion.choices[0]?.message?.content || "";
+    const parsed = parseJsonResponse<FullModerationResult>(raw);
+    if (!parsed) {
+      return {
+        violation: false,
+        severity: 1,
+        rules_broken: [],
+        action: "none",
+        user_message: "",
+        mod_log: "Parse error",
+        confidence: 0,
+        notes: "Erreur de parsing",
+      };
+    }
+    return parsed;
+  } catch (error) {
+    logger.error("[AI-Moderation] fullModeration:", String(error));
+    return {
+      violation: false,
+      severity: 1,
+      rules_broken: [],
+      action: "none",
+      user_message: "",
+      mod_log: "Erreur API",
+      confidence: 0,
+      notes: String(error),
+    };
   }
 }
 

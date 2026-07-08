@@ -617,3 +617,78 @@ export function buildRiskAssessmentPrompt(
     .replace("{activity_log}", activityLog.slice(0, 1500))
     .replace("{server_info}", serverInfo ?? "serveur Discord gaming francophone");
 }
+
+// ─── Prompt 11: Full Moderation (complete context) ───────────────────
+
+export interface FullModerationResult {
+  violation: boolean;
+  severity: 1 | 2 | 3 | 4 | 5;
+  rules_broken: string[];
+  action: "none" | "warn" | "mute_5min" | "mute_1h" | "kick" | "ban";
+  user_message: string;
+  mod_log: string;
+  confidence: number;
+  notes: string;
+}
+
+export interface FullModerationContext {
+  serverType?: string;
+  serverRules?: string;
+  previousContext?: string;
+  accountAge?: string;
+  violations?: number;
+  riskScore?: number;
+}
+
+export const FULL_MOD_PROMPT = `Tu es un modérateur Discord professionnel avec 10+ ans d'expérience.
+
+CONTEXTE SERVEUR:
+- Type: {server_type}
+- Règles: {server_rules}
+- Précédents: {previous_context}
+
+MESSAGE À MODÉRER:
+"{message}"
+
+AUTEUR:
+- Account age: {account_age}
+- Previous violations: {violations}
+- Risk score: {risk_score}
+
+TÂCHE:
+1. Analyse si le message viole les règles
+2. Évalue la sévérité (1-5)
+3. Recommande une action
+4. Prépare un message au user
+
+RÈGLES DE MODÉRATION:
+- Tolère les erreurs de langue
+- Sois juste mais strict
+- Considère le contexte
+- Pas de modération excessive
+
+FORMAT RÉPONSE (JSON STRICT):
+{
+  "violation": true|false,
+  "severity": 1-5,
+  "rules_broken": ["rule1", "rule2"],
+  "action": "none|warn|mute_5min|mute_1h|kick|ban",
+  "user_message": "Message explicatif pour l'utilisateur",
+  "mod_log": "Entrée pour le log modération",
+  "confidence": 0-100,
+  "notes": "Notes additionnelles"
+}`;
+
+export function buildFullModerationPrompt(
+  message: string,
+  ctx: FullModerationContext = {},
+): string {
+  return FULL_MOD_PROMPT
+    .replace("{server_type}", ctx.serverType ?? "gaming francophone")
+    .replace("{server_rules}", ctx.serverRules ?? "pas de spam, pas d'insultes, pas de phishing, respect mutuel")
+    .replace("{previous_context}", ctx.previousContext ?? "aucun précédent")
+    .replace("{message}", message.slice(0, 2000))
+    .replace("{account_age}", ctx.accountAge ?? "inconnu")
+    .replace("{violations}", String(ctx.violations ?? 0))
+    .replace("{risk_score}", String(ctx.riskScore ?? 0));
+}

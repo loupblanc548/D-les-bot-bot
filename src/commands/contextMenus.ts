@@ -9,7 +9,7 @@ import { getOrCreateRiskProfile } from "../services/risk-engine.js";
 import { handleCommand as handleAI } from "./ai.js";
 import { autoTranslateIfNeeded } from "../services/libreTranslate.js";
 import { buildTranslationEmbed } from "../services/embedBuilder.js";
-import { assessThreat } from "../services/ai-moderation.js";
+import { assessThreat, fullModeration } from "../services/ai-moderation.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
@@ -162,6 +162,23 @@ async function handleUserContextMenu(
         history,
         sanctions: sanctionScore,
       });
+      // Full moderation analysis on user's recent messages if available
+      let modResult: Awaited<ReturnType<typeof fullModeration>> | null = null;
+      try {
+        const channel = interaction.channel;
+        if (channel && "isTextBased" in channel && channel.isTextBased()) {
+          const recentMsgs = await channel.messages.fetch({ limit: 50 });
+          const userMsg = recentMsgs.filter(m => m.author.id === target.id && m.content.length > 0).first();
+          if (userMsg) {
+            modResult = await fullModeration(userMsg.content, {
+              accountAge: `${accountAgeDays} jours`,
+              violations: sanctionScore,
+              riskScore: threat.risk_score,
+              previousContext: history.slice(0, 5).join(" | ") || "aucun",
+            });
+          }
+        }
+      } catch { /* channel not accessible */ }
       const riskColor = threat.risk_score > 70 ? 0xe74c3c : threat.risk_score > 40 ? 0xff8800 : threat.risk_score > 20 ? 0xf1c40f : 0x2ecc71;
       const embed = new EmbedBuilder()
         .setTitle(`🤖 Analyse IA — ${target.tag}`)
@@ -175,6 +192,16 @@ async function handleUserContextMenu(
           { name: "🔐 Confiance", value: `${threat.confidence}%`, inline: true },
         )
         .setTimestamp();
+      if (modResult && modResult.confidence > 0) {
+        embed.addFields(
+          { name: "⚖️ Modération complète", value: `Violation: ${modResult.violation ? "Oui" : "Non"} | Sévérité: ${modResult.severity}/5 | Action: ${modResult.action} | Confiance: ${modResult.confidence}%`, inline: false },
+          { name: "💬 Message à l'utilisateur", value: modResult.user_message.slice(0, 1024) || "N/A", inline: false },
+          { name: "📋 Mod log", value: modResult.mod_log.slice(0, 1024), inline: false },
+        );
+        if (modResult.rules_broken.length > 0) {
+          embed.addFields({ name: "📜 Règles enfreintes", value: modResult.rules_broken.join(", "), inline: false });
+        }
+      }
       await interaction.editReply({ embeds: [embed] });
       break;
     }
