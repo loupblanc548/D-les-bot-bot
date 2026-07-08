@@ -100,6 +100,8 @@ const FEEDS: ChannelFeed[] = [
       { platform: "youtube", handle: "LaupokBazar" },
       { platform: "youtube", handle: "Conkerax" },
       { platform: "youtube", handle: "Lusty_Luxure" },
+      { platform: "twitter", handle: "LaupokHF" },
+      { platform: "twitter", handle: "conkerax" },
     ],
   },
 ];
