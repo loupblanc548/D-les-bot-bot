@@ -336,6 +336,73 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
+  // ── Gaming Advanced ──
+  {
+    type: "function",
+    function: {
+      name: "getSteamDeals",
+      description: "Récupère les jeux en promo sur Steam (≥50% de réduction). Gratuit via Steam API.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getGameNews",
+      description: "Récupère les dernières news d'un jeu Steam via son App ID. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          appid: { type: "number", description: "Steam App ID (ex: 730 pour CS2, 1086940 pour BG3)" },
+          count: { type: "number", description: "Nombre de news (défaut 5, max 20)" },
+        },
+        required: ["appid"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getSpeedrunRecord",
+      description: "Récupère le record du monde speedrun d'un jeu. Gratuit via speedrun.com API.",
+      parameters: {
+        type: "object",
+        properties: {
+          game: { type: "string", description: "Nom du jeu ou abbreviation (ex: Portal, celeste, sm64)" },
+        },
+        required: ["game"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getGameReleases",
+      description: "Récupère les sorties de jeux à venir via IGDB. Nécessite une clé API.",
+      parameters: {
+        type: "object",
+        properties: {
+          platform: { type: "string", description: "Plateforme (ex: pc, playstation, xbox, switch, all)" },
+          count: { type: "number", description: "Nombre de résultats (défaut 10, max 20)" },
+        },
+        required: ["platform"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getSteamPlayerCount",
+      description: "Récupère le nombre de joueurs actuels sur un jeu Steam. Gratuit via Steam API.",
+      parameters: {
+        type: "object",
+        properties: {
+          appid: { type: "number", description: "Steam App ID" },
+        },
+        required: ["appid"],
+      },
+    },
+  },
   // ── Discord Native Tools ──
   {
     type: "function",
@@ -759,6 +826,11 @@ export async function executeExtendedTool(
       // Gaming
       case "getPokemon": return await tGetPokemon(args);
       case "getSteamGame": return await tGetSteamGame(args);
+      case "getSteamDeals": return await tGetSteamDeals();
+      case "getGameNews": return await tGetGameNews(args);
+      case "getSpeedrunRecord": return await tGetSpeedrunRecord(args);
+      case "getGameReleases": return await tGetGameReleases(args);
+      case "getSteamPlayerCount": return await tGetSteamPlayerCount(args);
       // Dev
       case "getNpmPackage": return await tGetNpmPackage(args);
       case "getPypiPackage": return await tGetPypiPackage(args);
@@ -1115,6 +1187,130 @@ async function tGetSteamGame(args: Record<string, unknown>): Promise<ToolCallRes
     });
     setCache(ck, output);
     return { success: true, data: output };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetSteamDeals(): Promise<ToolCallResult> {
+  try {
+    const res = await fetch("https://store.steampowered.com/api/featuredcategories", {
+      signal: AbortSignal.timeout(10000),
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    if (!res.ok) return { success: false, data: "Steam API indisponible" };
+    const data = (await res.json()) as Record<string, unknown>;
+    const specials = data.specials as { items: Array<{ id: number; name: string; discount_block?: string; discount_original_price?: number; discount_final_price?: number }> } | undefined;
+    if (!specials?.items) return { success: false, data: "Aucune promo trouvée" };
+    const deals = specials.items.slice(0, 10).map((item) => {
+      const discountMatch = item.discount_block?.match(/(\d+)%/);
+      return {
+        name: item.name,
+        originalPrice: item.discount_original_price ? (item.discount_original_price / 100).toFixed(2) + "€" : "N/A",
+        finalPrice: item.discount_final_price ? (item.discount_final_price / 100).toFixed(2) + "€" : "GRATUIT",
+        discount: discountMatch ? discountMatch[1] + "%" : "N/A",
+        url: `https://store.steampowered.com/app/${item.id}`,
+      };
+    });
+    return { success: true, data: JSON.stringify(deals) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetGameNews(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const appid = Number(args.appid);
+  const count = Math.min(Number(args.count) || 5, 20);
+  try {
+    const res = await fetch(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}&count=${count}&maxlength=500&format=json`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "Steam News API indisponible" };
+    const data = (await res.json()) as { appnews: { newsitems: Array<{ title: string; url: string; contents: string; date: number; author: string }> } };
+    const news = data.appnews.newsitems.map((n) => ({
+      title: n.title,
+      url: n.url,
+      author: n.author,
+      date: new Date(n.date * 1000).toISOString(),
+      excerpt: n.contents?.slice(0, 300),
+    }));
+    return { success: true, data: JSON.stringify(news) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetSpeedrunRecord(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const game = String(args.game).toLowerCase().trim();
+  try {
+    const res = await fetch(`https://www.speedrun.com/api/v1/games?name=${encodeURIComponent(game)}&max=1`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "speedrun.com API indisponible" };
+    const data = (await res.json()) as { data: Array<{ id: string; names: { international: string }; abbreviation: string }> };
+    if (!data.data?.length) return { success: false, data: `Jeu "${game}" introuvable sur speedrun.com` };
+    const g = data.data[0];
+    const recordsRes = await fetch(`https://www.speedrun.com/api/v1/games/${g.abbreviation}/records?top=1&max=1`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!recordsRes.ok) return { success: true, data: JSON.stringify({ game: g.names.international, message: "Aucun record trouvé" }) };
+    const recordsData = (await recordsRes.json()) as { data: Array<{ runs: Array<{ run: { times: { primary_t: number }; weblink: string; status: { status: string } } }> }> };
+    if (!recordsData.data?.length || !recordsData.data[0].runs?.length) {
+      return { success: true, data: JSON.stringify({ game: g.names.international, message: "Aucun record trouvé" }) };
+    }
+    const run = recordsData.data[0].runs[0].run;
+    const time = run.times.primary_t;
+    const minutes = Math.floor(time / 60);
+    const seconds = (time % 60).toFixed(0);
+    return {
+      success: true,
+      data: JSON.stringify({
+        game: g.names.international,
+        worldRecord: `${minutes}m ${seconds}s`,
+        url: run.weblink,
+        status: run.status.status,
+      }),
+    };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const platform = String(args.platform || "all").toLowerCase();
+  const count = Math.min(Number(args.count) || 10, 20);
+  const clientId = process.env.IGDB_CLIENT_ID;
+  const clientSecret = process.env.IGDB_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return { success: false, data: "IGDB non configuré (clés manquantes)" };
+  try {
+    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, { method: "POST", signal: AbortSignal.timeout(10000) });
+    if (!tokenRes.ok) return { success: false, data: "IGDB auth échouée" };
+    const token = (await tokenRes.json()) as { access_token: string };
+    const platformMap: Record<string, number> = { pc: 6, playstation: 48, xbox: 49, switch: 130, all: -1 };
+    const platformId = platformMap[platform] ?? -1;
+    const body = platformId >= 0
+      ? `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)} & platforms = (${platformId}); sort first_release_date asc; limit ${count};`
+      : `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)}; sort first_release_date asc; limit ${count};`;
+    const res = await fetch("https://api.igdb.com/v4/games", {
+      method: "POST",
+      headers: { "Client-ID": clientId, Authorization: `Bearer ${token.access_token}`, "Content-Type": "text/plain" },
+      body,
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "IGDB API erreur" };
+    const games = (await res.json()) as Array<{ name: string; first_release_date: number; platforms: Array<{ name: string }>; cover?: { url: string } }>;
+    const releases = games.map((g) => ({
+      name: g.name,
+      releaseDate: g.first_release_date ? new Date(g.first_release_date * 1000).toLocaleDateString("fr-FR") : "TBA",
+      platforms: g.platforms?.map((p) => p.name).join(", ") || "N/A",
+      cover: g.cover?.url ? `https:${g.cover.url}` : null,
+    }));
+    return { success: true, data: JSON.stringify(releases) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetSteamPlayerCount(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const appid = Number(args.appid);
+  try {
+    const res = await fetch(`https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appid}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "Steam API indisponible" };
+    const data = (await res.json()) as { response: { player_count: number; result: number } };
+    if (data.response.result !== 1) return { success: false, data: "Jeu introuvable" };
+    return { success: true, data: JSON.stringify({ appid, currentPlayers: data.response.player_count.toLocaleString("fr-FR") }) };
   } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
 }
 

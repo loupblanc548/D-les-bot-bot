@@ -29,26 +29,43 @@ interface TrackedRepo {
 // Repos à surveiller — modifiable via env ou directement ici
 const LOG_CHANNEL = process.env.LOG_CHANNEL_ID || "1504526701282197544";
 const TRACKED_REPOS: TrackedRepo[] = [
-  // Emulateurs / Outils gaming
+  // ── Emulateurs ──
   { owner: "PCSX2", repo: "pcsx2", platform: "playstation", label: "PCSX2 (PS2 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
   { owner: "RPCS3", repo: "rpcs3", platform: "playstation", label: "RPCS3 (PS3 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
   { owner: "RetroArch", repo: "RetroArch", platform: "nintendo", label: "RetroArch", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
   { owner: "dolphin-emu", repo: "dolphin", platform: "nintendo", label: "Dolphin (Wii/GC Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
   { owner: "cemu-project", repo: "Cemu", platform: "nintendo", label: "Cemu (Wii U Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
   { owner: "xenia-project", repo: "xenia", platform: "xbox", label: "Xenia (Xbox 360 Emulator)", channelId: LOG_CHANNEL, color: 0x107c10, emoji: "🎯" },
-  { owner: "ValveSoftware", repo: "source-sdk-2013", platform: "steam", label: "Valve Source SDK", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "yuzu-emu", repo: "yuzu", platform: "nintendo", label: "Yuzu (Switch Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "Ryujinx", repo: "Ryujinx", platform: "nintendo", label: "Ryujinx (Switch Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "melonDS-emu", repo: "melonDS", platform: "nintendo", label: "melonDS (DS Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "mupen64plus", repo: "mupen64plus-core", platform: "nintendo", label: "mupen64plus (N64)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
 
-  // Mods / Outils communautaires
-  { owner: "LavaGaming", repo: "MelonLoader", platform: "steam", label: "MelonLoader (Mod Loader)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "BepInEx", repo: "BepInEx", platform: "steam", label: "BepInEx (Mod Framework)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-
-  // Outils Discord / Bot
-  { owner: "discordjs", repo: "discord.js", platform: "general", label: "discord.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
-
-  // Projets gaming open source
+  // ── Moteurs de jeu open source ──
   { owner: "OpenRCT2", repo: "OpenRCT2", platform: "steam", label: "OpenRCT2 (RollerCoaster Tycoon)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
   { owner: "OpenMW", repo: "openmw", platform: "steam", label: "OpenMW (Morrowind)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
   { owner: "0ad", repo: "0ad", platform: "steam", label: "0 A.D. (RTS)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "OpenRA", repo: "OpenRA", platform: "steam", label: "OpenRA (C&C/Red Alert)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "minetest", repo: "minetest", platform: "steam", label: "Minetest (Voxel Sandbox)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "godotengine", repo: "godot", platform: "steam", label: "Godot Engine", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+
+  // ── Mods / Outils communautaires ──
+  { owner: "LavaGaming", repo: "MelonLoader", platform: "steam", label: "MelonLoader (Mod Loader)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "BepInEx", repo: "BepInEx", platform: "steam", label: "BepInEx (Mod Framework)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "ModOrganizer2", repo: "modorganizer", platform: "steam", label: "Mod Organizer 2", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+
+  // ── Outils Steam ──
+  { owner: "ValveSoftware", repo: "source-sdk-2013", platform: "steam", label: "Valve Source SDK", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "SteamRE", repo: "SteamKit", platform: "steam", label: "SteamKit (Steam API)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "SteamDatabase", repo: "steam-api", platform: "steam", label: "SteamDatabase", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+
+  // ── Outils Discord / Bot ──
+  { owner: "discordjs", repo: "discord.js", platform: "general", label: "discord.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
+  { owner: "prisma", repo: "prisma", platform: "general", label: "Prisma ORM", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
+
+  // ── Outils réseau ──
+  { owner: "axios", repo: "axios", platform: "general", label: "Axios (HTTP Client)", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🔧" },
+  { owner: "nodejs", repo: "node", platform: "general", label: "Node.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🔧" },
 ];
 
 interface GitHubRelease {
