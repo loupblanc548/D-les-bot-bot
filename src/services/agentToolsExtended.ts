@@ -403,6 +403,185 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── Utilities Advanced ──
+  {
+    type: "function",
+    function: {
+      name: "generatePassword",
+      description: "Génère un mot de passe sécurisé aléatoire. Paramètres: longueur, symboles, nombres.",
+      parameters: {
+        type: "object",
+        properties: {
+          length: { type: "number", description: "Longueur du mot de passe (défaut 16, max 64)" },
+          symbols: { type: "boolean", description: "Inclure des caractères spéciaux (défaut true)" },
+          numbers: { type: "boolean", description: "Inclure des chiffres (défaut true)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "solveMath",
+      description: "Résout une expression mathématique. Supporte +, -, *, /, ^, sqrt, sin, cos, tan, log, pi, e. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "Expression mathématique (ex: 2+2*3, sqrt(144), sin(pi/2))" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dnsLookup",
+      description: "Résolution DNS d'un domaine (A, AAAA, MX, TXT, CNAME, NS). Gratuit via Cloudflare DNS.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine à résoudre (ex: google.com)" },
+          type: { type: "string", description: "Type d'enregistrement (A, AAAA, MX, TXT, CNAME, NS, ALL)" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getHttpStatus",
+      description: "Vérifie le statut HTTP d'une URL (code, temps de réponse, headers). Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à vérifier (ex: https://google.com)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "testRegex",
+      description: "Teste une expression régulière contre un texte. Retourne les matches. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "Pattern regex (ex: \\d+ pour les nombres)" },
+          text: { type: "string", description: "Texte à tester" },
+          flags: { type: "string", description: "Flags regex (ex: gi pour global+insensible à la casse)" },
+        },
+        required: ["pattern", "text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convertUnits",
+      description: "Convertit entre unités: longueur, poids, température, volume, vitesse, données. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "Valeur à convertir" },
+          from: { type: "string", description: "Unité source (ex: km, mi, kg, lb, C, F, L, gal, MB, GB)" },
+          to: { type: "string", description: "Unité cible (ex: mi, km, lb, kg, F, C, gal, L, GB, MB)" },
+        },
+        required: ["value", "from", "to"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getColorInfo",
+      description: "Infos sur une couleur: conversion HEX/RGB/HSL, nom, complémentaire. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          color: { type: "string", description: "Couleur en HEX (ex: #FF5733) ou RGB (ex: 255,87,51)" },
+        },
+        required: ["color"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getRandomFact",
+      description: "Récupère un fait aléatoire intéressant (science, histoire, nature). Gratuit via Numbers API.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", description: "Type de fait: math, trivia, date, year (défaut: trivia)" },
+          number: { type: "number", description: "Nombre spécifique (optionnel, sinon aléatoire)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getHoroscope",
+      description: "Horoscope du jour pour un signe du zodiaque. Gratuit via Horoscope API.",
+      parameters: {
+        type: "object",
+        properties: {
+          sign: { type: "string", description: "Signe du zodiaque (aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces)" },
+        },
+        required: ["sign"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getUvIndex",
+      description: "Indice UV et météo pour une ville. Gratuit via Open-Meteo (pas de clé).",
+      parameters: {
+        type: "object",
+        properties: {
+          lat: { type: "number", description: "Latitude" },
+          lon: { type: "number", description: "Longitude" },
+        },
+        required: ["lat", "lon"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getGithubRepoInfo",
+      description: "Infos détaillées sur un repo GitHub: stars, forks, issues, langages, dernière release. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          owner: { type: "string", description: "Propriétaire du repo (ex: facebook)" },
+          repo: { type: "string", description: "Nom du repo (ex: react)" },
+        },
+        required: ["owner", "repo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getCryptoInfo",
+      description: "Infos détaillées sur une crypto: prix, market cap, volume, changement 24h. Gratuit via CoinGecko.",
+      parameters: {
+        type: "object",
+        properties: {
+          coin: { type: "string", description: "ID CoinGecko (ex: bitcoin, ethereum, solana) ou symbole (BTC, ETH)" },
+        },
+        required: ["coin"],
+      },
+    },
+  },
   // ── Discord Native Tools ──
   {
     type: "function",
@@ -831,6 +1010,19 @@ export async function executeExtendedTool(
       case "getSpeedrunRecord": return await tGetSpeedrunRecord(args);
       case "getGameReleases": return await tGetGameReleases(args);
       case "getSteamPlayerCount": return await tGetSteamPlayerCount(args);
+      // Utilities Advanced
+      case "generatePassword": return await tGeneratePassword(args);
+      case "solveMath": return await tSolveMath(args);
+      case "dnsLookup": return await tDnsLookup(args);
+      case "getHttpStatus": return await tGetHttpStatus(args);
+      case "testRegex": return await tTestRegex(args);
+      case "convertUnits": return await tConvertUnits(args);
+      case "getColorInfo": return await tGetColorInfo(args);
+      case "getRandomFact": return await tGetRandomFact(args);
+      case "getHoroscope": return await tGetHoroscope(args);
+      case "getUvIndex": return await tGetUvIndex(args);
+      case "getGithubRepoInfo": return await tGetGithubRepoInfo(args);
+      case "getCryptoInfo": return await tGetCryptoInfo(args);
       // Dev
       case "getNpmPackage": return await tGetNpmPackage(args);
       case "getPypiPackage": return await tGetPypiPackage(args);
@@ -1311,6 +1503,297 @@ async function tGetSteamPlayerCount(args: Record<string, unknown>): Promise<Tool
     const data = (await res.json()) as { response: { player_count: number; result: number } };
     if (data.response.result !== 1) return { success: false, data: "Jeu introuvable" };
     return { success: true, data: JSON.stringify({ appid, currentPlayers: data.response.player_count.toLocaleString("fr-FR") }) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+// ─── Utilities Advanced ──────────────────────────────────────────────────────
+
+async function tGeneratePassword(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const length = Math.min(Number(args.length) || 16, 64);
+  const useSymbols = args.symbols !== false;
+  const useNumbers = args.numbers !== false;
+  let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (useNumbers) chars += "0123456789";
+  if (useSymbols) chars += "!@#$%^&*()_+-=[]{}|;:,.<>?";
+  const crypto = await import("node:crypto");
+  const password = Array.from(crypto.randomBytes(length))
+    .map((b) => chars[b % chars.length])
+    .join("");
+  const strength = length >= 16 ? "fort" : length >= 12 ? "moyen" : "faible";
+  return { success: true, data: JSON.stringify({ password, length, strength, hasSymbols: useSymbols, hasNumbers: useNumbers }) };
+}
+
+async function tSolveMath(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const expr = String(args.expression).replace(/[^0-9+\-*/().^a-z\s,]/gi, "");
+  const safe = expr
+    .replace(/\^/g, "**")
+    .replace(/sqrt\(/g, "Math.sqrt(")
+    .replace(/sin\(/g, "Math.sin(")
+    .replace(/cos\(/g, "Math.cos(")
+    .replace(/tan\(/g, "Math.tan(")
+    .replace(/log\(/g, "Math.log(")
+    .replace(/pi/gi, "Math.PI")
+    .replace(/(?<![a-zA-Z])e(?![a-zA-Z])/g, "Math.E");
+  try {
+    const result = Function(`"use strict"; return (${safe})`)();
+    if (typeof result !== "number" || !isFinite(result)) {
+      return { success: false, data: "Résultat invalide" };
+    }
+    return { success: true, data: JSON.stringify({ expression: args.expression, result: Number(result.toFixed(10)) }) };
+  } catch (e) { return { success: false, data: `Expression invalide: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tDnsLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain).replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const type = String(args.type || "A").toUpperCase();
+  try {
+    const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${type}`, {
+      headers: { Accept: "application/dns-json" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "DNS lookup échoué" };
+    const data = (await res.json()) as { Answer: Array<{ name: string; type: number; TTL: number; data: string }>; Status: number };
+    if (data.Status !== 0 || !data.Answer) return { success: false, data: `Aucun enregistrement ${type} pour ${domain}` };
+    const records = data.Answer.map((a) => ({ name: a.name, type: a.type, ttl: a.TTL, data: a.data }));
+    return { success: true, data: JSON.stringify({ domain, type, records }) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetHttpStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  try {
+    const start = Date.now();
+    const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(10000), redirect: "follow" });
+    const elapsed = Date.now() - start;
+    const headers: Record<string, string> = {};
+    res.headers.forEach((v, k) => { headers[k] = v; });
+    return {
+      success: true,
+      data: JSON.stringify({ url, status: res.status, statusText: res.statusText, responseTimeMs: elapsed, finalUrl: res.url, server: headers["server"] || "N/A", contentType: headers["content-type"] || "N/A" }),
+    };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tTestRegex(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const pattern = String(args.pattern);
+  const text = String(args.text);
+  const flags = String(args.flags || "g");
+  try {
+    const regex = new RegExp(pattern, flags);
+    const matches: string[] = [];
+    let m: RegExpExecArray | null;
+    if (flags.includes("g")) {
+      while ((m = regex.exec(text)) !== null) {
+        matches.push(m[0]);
+        if (m.index === regex.lastIndex) regex.lastIndex++;
+      }
+    } else {
+      m = regex.exec(text);
+      if (m) matches.push(m[0]);
+    }
+    return { success: true, data: JSON.stringify({ pattern, flags, matchCount: matches.length, matches: matches.slice(0, 20) }) };
+  } catch (e) { return { success: false, data: `Regex invalide: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tConvertUnits(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = Number(args.value);
+  const from = String(args.from).toLowerCase();
+  const to = String(args.to).toLowerCase();
+
+  const conversions: Record<string, number> = {
+    // Length (to meters)
+    m: 1, km: 1000, cm: 0.01, mm: 0.001, mi: 1609.344, ft: 0.3048, in: 0.0254, yd: 0.9144,
+    // Weight (to grams)
+    g: 1, kg: 1000, mg: 0.001, lb: 453.592, oz: 28.3495, ton: 1000000,
+    // Volume (to liters)
+    l: 1, ml: 0.001, gal: 3.78541, qt: 0.946353, pt: 0.473176, cup: 0.236588, floz: 0.0295735,
+    // Data (to bytes)
+    b: 1, kb: 1024, mb: 1048576, gb: 1073741824, tb: 1099511627776,
+    // Speed (to m/s)
+    mps: 1, kmh: 0.277778, mph: 0.44704, knot: 0.514444,
+  };
+
+  // Temperature special case
+  const tempUnits = ["c", "f", "k"];
+  if (tempUnits.includes(from) && tempUnits.includes(to)) {
+    let celsius: number;
+    if (from === "c") celsius = value;
+    else if (from === "f") celsius = (value - 32) * 5 / 9;
+    else celsius = value - 273.15;
+    let result: number;
+    if (to === "c") result = celsius;
+    else if (to === "f") result = celsius * 9 / 5 + 32;
+    else result = celsius + 273.15;
+    return { success: true, data: JSON.stringify({ value, from: from.toUpperCase(), to: to.toUpperCase(), result: Number(result.toFixed(4)) }) };
+  }
+
+  const fromFactor = conversions[from];
+  const toFactor = conversions[to];
+  if (!fromFactor || !toFactor) return { success: false, data: `Unités non supportées. Disponibles: ${Object.keys(conversions).join(", ")} + C, F, K` };
+
+  const result = (value * fromFactor) / toFactor;
+  return { success: true, data: JSON.stringify({ value, from: from.toUpperCase(), to: to.toUpperCase(), result: Number(result.toFixed(6)) }) };
+}
+
+async function tGetColorInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.color).trim();
+  let r: number, g: number, b: number;
+  if (input.startsWith("#")) {
+    const hex = input.slice(1);
+    r = parseInt(hex.slice(0, 2), 16);
+    g = parseInt(hex.slice(2, 4), 16);
+    b = parseInt(hex.slice(4, 6), 16);
+  } else {
+    const parts = input.split(",").map((p) => parseInt(p.trim()));
+    [r, g, b] = parts;
+  }
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return { success: false, data: "Format invalide. Utilisez HEX (#FF5733) ou RGB (255,87,51)" };
+
+  const toHSL = (r: number, g: number, b: number) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0; const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  };
+
+  const hsl = toHSL(r, g, b);
+  const complement = `#${((255 - r) << 16 | (255 - g) << 8 | (255 - b)).toString(16).padStart(6, "0")}`;
+  const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+
+  return {
+    success: true,
+    data: JSON.stringify({ hex: hex.toUpperCase(), rgb: `${r}, ${g}, ${b}`, hsl: `${hsl.h}°, ${hsl.s}%, ${hsl.l}%`, complementary: complement.toUpperCase(), brightness: Math.round((r * 299 + g * 587 + b * 114) / 1000) }),
+  };
+}
+
+async function tGetRandomFact(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const type = String(args.type || "trivia").toLowerCase();
+  const number = args.number !== undefined ? Number(args.number) : "random";
+  try {
+    const url = `http://numbersapi.com/${number}/${type}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return { success: false, data: "Numbers API indisponible" };
+    const text = await res.text();
+    return { success: true, data: JSON.stringify({ type, number: number === "random" ? "aléatoire" : number, fact: text }) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetHoroscope(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const sign = String(args.sign).toLowerCase().trim();
+  try {
+    const res = await fetch(`https://horoscope-app-api.vercel.app/api/v1/get-horoscope/daily?sign=${sign}&day=TODAY`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "Horoscope API indisponible" };
+    const data = (await res.json()) as { data: { horoscope_data: string; date: string } };
+    return { success: true, data: JSON.stringify({ sign, date: data.data?.date || "aujourd'hui", horoscope: data.data?.horoscope_data || "N/A" }) };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetUvIndex(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const lat = Number(args.lat);
+  const lon = Number(args.lon);
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=uv_index_max,temperature_2m_max,temperature_2m_min&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { success: false, data: "Open-Meteo API indisponible" };
+    const data = (await res.json()) as { current: { temperature_2m: number; relative_humidity_2m: number; wind_speed_10m: number }; daily: { uv_index_max: number[]; temperature_2m_max: number[]; temperature_2m_min: number[] } };
+    const uv = data.daily.uv_index_max[0];
+    const uvLevel = uv <= 2 ? "Faible" : uv <= 5 ? "Modéré" : uv <= 7 ? "Élevé" : uv <= 10 ? "Très élevé" : "Extrême";
+    return {
+      success: true,
+      data: JSON.stringify({
+        uvIndex: uv, uvLevel,
+        currentTemp: data.current.temperature_2m + "°C",
+        humidity: data.current.relative_humidity_2m + "%",
+        windSpeed: data.current.wind_speed_10m + " km/h",
+        maxTemp: data.daily.temperature_2m_max[0] + "°C",
+        minTemp: data.daily.temperature_2m_min[0] + "°C",
+      }),
+    };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetGithubRepoInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const owner = String(args.owner);
+  const repo = String(args.repo);
+  const headers: Record<string, string> = { Accept: "application/vnd.github.v3+json", "User-Agent": "DiscordBot" };
+  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return { success: false, data: `Repo ${owner}/${repo} introuvable` };
+    const data = (await res.json()) as {
+      full_name: string; description: string; stargazers_count: number; forks_count: number;
+      open_issues_count: number; language: string; license: { name: string } | null;
+      created_at: string; updated_at: string; homepage: string; topics: string[];
+      size: number; default_branch: string; archived: boolean;
+    };
+    return {
+      success: true,
+      data: JSON.stringify({
+        name: data.full_name, description: data.description || "N/A",
+        stars: data.stargazers_count, forks: data.forks_count, issues: data.open_issues_count,
+        language: data.language || "N/A", license: data.license?.name || "N/A",
+        topics: data.topics?.slice(0, 10) || [], homepage: data.homepage || "N/A",
+        createdAt: data.created_at, updatedAt: data.updated_at,
+        size: (data.size / 1024).toFixed(1) + " MB", branch: data.default_branch, archived: data.archived,
+        url: `https://github.com/${owner}/${repo}`,
+      }),
+    };
+  } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
+}
+
+async function tGetCryptoInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  let coin = String(args.coin).toLowerCase().trim();
+  const symbolMap: Record<string, string> = { btc: "bitcoin", eth: "ethereum", sol: "solana", ada: "cardano", dot: "polkadot", doge: "dogecoin", xrp: "ripple", matic: "matic-network", link: "chainlink", avax: "avalanche-2" };
+  coin = symbolMap[coin] || coin;
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coin}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`, {
+      signal: AbortSignal.timeout(10000),
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return { success: false, data: `Crypto "${coin}" introuvable sur CoinGecko` };
+    const data = (await res.json()) as {
+      name: string; symbol: string; market_cap_rank: number;
+      market_data: {
+        current_price: { usd: number; eur: number };
+        market_cap: { usd: number; eur: number };
+        total_volume: { usd: number };
+        price_change_percentage_24h: number; price_change_percentage_7d: number;
+        high_24h: { usd: number }; low_24h: { usd: number };
+        circulating_supply: number; total_supply: number | null;
+      };
+      description: { en: string };
+      image: { small: string };
+    };
+    const md = data.market_data;
+    return {
+      success: true,
+      data: JSON.stringify({
+        name: data.name, symbol: data.symbol.toUpperCase(), rank: data.market_cap_rank,
+        priceUSD: md.current_price.usd, priceEUR: md.current_price.eur,
+        marketCapEUR: md.market_cap.eur?.toLocaleString("fr-FR"),
+        volume24h: md.total_volume.usd?.toLocaleString("fr-FR"),
+        change24h: md.price_change_percentage_24h?.toFixed(2) + "%",
+        change7d: md.price_change_percentage_7d?.toFixed(2) + "%",
+        high24h: md.high_24h.usd, low24h: md.low_24h.usd,
+        circulating: md.circulating_supply?.toLocaleString("fr-FR"),
+        total: md.total_supply?.toLocaleString("fr-FR") || "N/A",
+        description: data.description?.en?.slice(0, 500) || "N/A",
+        image: data.image?.small,
+      }),
+    };
   } catch (e) { return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` }; }
 }
 
