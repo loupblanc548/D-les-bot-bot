@@ -27,27 +27,28 @@ interface TrackedRepo {
 }
 
 // Repos à surveiller — modifiable via env ou directement ici
+const LOG_CHANNEL = process.env.LOG_CHANNEL_ID || "1504526701282197544";
 const TRACKED_REPOS: TrackedRepo[] = [
   // Emulateurs / Outils gaming
-  { owner: "PCSX2", repo: "pcsx2", platform: "playstation", label: "PCSX2 (PS2 Emulator)", channelId: process.env.PLAYSTATION_CHANNEL_ID || "", color: 0x003791, emoji: "🕹️" },
-  { owner: "RPCS3", repo: "rpcs3", platform: "playstation", label: "RPCS3 (PS3 Emulator)", channelId: process.env.PLAYSTATION_CHANNEL_ID || "", color: 0x003791, emoji: "🕹️" },
-  { owner: "RetroArch", repo: "RetroArch", platform: "nintendo", label: "RetroArch", channelId: process.env.NINTENDO_CHANNEL_ID || "", color: 0xe60012, emoji: "🎲" },
-  { owner: "dolphin-emu", repo: "dolphin", platform: "nintendo", label: "Dolphin (Wii/GC Emulator)", channelId: process.env.NINTENDO_CHANNEL_ID || "", color: 0xe60012, emoji: "🎲" },
-  { owner: "cemu-project", repo: "Cemu", platform: "nintendo", label: "Cemu (Wii U Emulator)", channelId: process.env.NINTENDO_CHANNEL_ID || "", color: 0xe60012, emoji: "🎲" },
-  { owner: "xenia-project", repo: "xenia", platform: "xbox", label: "Xenia (Xbox 360 Emulator)", channelId: process.env.XBOX_CHANNEL_ID || "", color: 0x107c10, emoji: "🎯" },
-  { owner: "ValveSoftware", repo: "source-sdk-2013", platform: "steam", label: "Valve Source SDK", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
+  { owner: "PCSX2", repo: "pcsx2", platform: "playstation", label: "PCSX2 (PS2 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
+  { owner: "RPCS3", repo: "rpcs3", platform: "playstation", label: "RPCS3 (PS3 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
+  { owner: "RetroArch", repo: "RetroArch", platform: "nintendo", label: "RetroArch", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "dolphin-emu", repo: "dolphin", platform: "nintendo", label: "Dolphin (Wii/GC Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "cemu-project", repo: "Cemu", platform: "nintendo", label: "Cemu (Wii U Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
+  { owner: "xenia-project", repo: "xenia", platform: "xbox", label: "Xenia (Xbox 360 Emulator)", channelId: LOG_CHANNEL, color: 0x107c10, emoji: "🎯" },
+  { owner: "ValveSoftware", repo: "source-sdk-2013", platform: "steam", label: "Valve Source SDK", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
 
   // Mods / Outils communautaires
-  { owner: "LavaGaming", repo: "MelonLoader", platform: "steam", label: "MelonLoader (Mod Loader)", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
-  { owner: "BepInEx", repo: "BepInEx", platform: "steam", label: "BepInEx (Mod Framework)", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
+  { owner: "LavaGaming", repo: "MelonLoader", platform: "steam", label: "MelonLoader (Mod Loader)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "BepInEx", repo: "BepInEx", platform: "steam", label: "BepInEx (Mod Framework)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
 
   // Outils Discord / Bot
-  { owner: "discordjs", repo: "discord.js", platform: "general", label: "discord.js", channelId: process.env.LOG_CHANNEL_ID || "", color: 0x5865f2, emoji: "🤖" },
+  { owner: "discordjs", repo: "discord.js", platform: "general", label: "discord.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
 
   // Projets gaming open source
-  { owner: "OpenRCT2", repo: "OpenRCT2", platform: "steam", label: "OpenRCT2 (RollerCoaster Tycoon)", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
-  { owner: "OpenMW", repo: "openmw", platform: "steam", label: "OpenMW (Morrowind)", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
-  { owner: "0ad", repo: "0ad", platform: "steam", label: "0 A.D. (RTS)", channelId: process.env.STEAM_EPIC_CHANNEL_ID || "", color: 0x1b2838, emoji: "🎮" },
+  { owner: "OpenRCT2", repo: "OpenRCT2", platform: "steam", label: "OpenRCT2 (RollerCoaster Tycoon)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "OpenMW", repo: "openmw", platform: "steam", label: "OpenMW (Morrowind)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
+  { owner: "0ad", repo: "0ad", platform: "steam", label: "0 A.D. (RTS)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
 ];
 
 interface GitHubRelease {
