@@ -148,20 +148,21 @@ async function fetchAllDeals(): Promise<Deal[]> {
 }
 
 async function checkDeals(client: Client): Promise<void> {
-  const channelId = process.env.FREE_GAMES_CHANNEL_ID || process.env.STEAM_EPIC_CHANNEL_ID || "";
-  if (!channelId) {
-    logger.warn("[MultiSiteDeals] Pas de canal configuré");
-    return;
-  }
+  try {
+    const channelId = process.env.FREE_GAMES_CHANNEL_ID || process.env.STEAM_EPIC_CHANNEL_ID || "";
+    if (!channelId) {
+      logger.warn("[MultiSiteDeals] Pas de canal configuré");
+      return;
+    }
 
-  const channel = client.channels.cache.get(channelId) as TextChannel;
-  if (!channel?.isTextBased()) return;
+    const channel = client.channels.cache.get(channelId) as TextChannel;
+    if (!channel?.isTextBased()) return;
 
-  const deals = await fetchAllDeals();
-  if (deals.length === 0) {
-    logger.debug("[MultiSiteDeals] Aucun deal trouvé");
-    return;
-  }
+    const deals = await fetchAllDeals();
+    if (deals.length === 0) {
+      logger.debug("[MultiSiteDeals] Aucun deal trouvé");
+      return;
+    }
 
   let postedCount = 0;
   for (const deal of deals) {
@@ -213,6 +214,14 @@ async function checkDeals(client: Client): Promise<void> {
 
   if (postedCount > 0) {
     logger.info(`[MultiSiteDeals] ${postedCount} deal(s) posté(s)`);
+  }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg.includes("Received one or more errors")) {
+      logger.debug("[MultiSiteDeals] Timeout API (normal si les stores sont lents)");
+    } else {
+      logger.error(`[MultiSiteDeals] erreur dans le tick : ${errMsg}`);
+    }
   }
 }
 
