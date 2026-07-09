@@ -160,6 +160,7 @@ vi.mock("./services/activityHeatmap", () => ({ startActivityHeatmap: vi.fn() }))
 vi.mock("./services/pinRotation", () => ({ startPinRotation: vi.fn() }));
 vi.mock("./services/presenceTracker", () => ({ startPresenceTracker: vi.fn() }));
 vi.mock("./services/dealFusion", () => ({ startDealFusion: vi.fn() }));
+vi.mock("./services/githubReleases", () => ({ startGitHubReleasesMonitor: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
 
 import { Events } from "discord.js";
