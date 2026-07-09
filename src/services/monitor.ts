@@ -569,9 +569,10 @@ async function checkAndNotify(client: Client) {
                 await channel.send({ embeds: [embed], files: [cardAttachment] });
               } catch (sendErr) {
                 // Retry sans la carte si Discord rejette l'embed
-                try { embed.setImage(null as unknown as string); } catch { /* ignore */ }
-                try { embed.setThumbnail(null as unknown as string); } catch { /* ignore */ }
-                await channel.send({ embeds: [embed] });
+                const cleanData = { ...embed.data };
+                delete (cleanData as Record<string, unknown>).image;
+                delete (cleanData as Record<string, unknown>).thumbnail;
+                await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
                 logger.warn(`[Monitor] Carte rejetée, envoi sans carte pour @${source.urlOrHandle}`);
               }
             } else {
@@ -581,9 +582,10 @@ async function checkAndNotify(client: Client) {
                 // Retry sans image si Discord rejette l'embed
                 const sendMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
                 if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
-                  try { embed.setImage(null as unknown as string); } catch { /* ignore */ }
-                  try { embed.setThumbnail(null as unknown as string); } catch { /* ignore */ }
-                  await channel.send({ embeds: [embed] });
+                  const cleanData = { ...embed.data };
+                  delete (cleanData as Record<string, unknown>).image;
+                  delete (cleanData as Record<string, unknown>).thumbnail;
+                  await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
                   logger.warn(`[Monitor] Embed sans image pour @${source.urlOrHandle}`);
                 } else {
                   throw sendErr;
