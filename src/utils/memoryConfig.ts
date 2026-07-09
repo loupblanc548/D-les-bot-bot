@@ -1,39 +1,40 @@
 /**
  * memoryConfig.ts — Single source of truth for all memory thresholds.
  *
- * Railway free tier: 512MB container RAM.
- * V8 heap limit: --max-old-space-size=448 (set in Dockerfile/package.json).
- * GC triggers at 450MB RSS — leaves ~62MB headroom before the 512MB hard limit.
- *
- * Alert levels (based on absolute RSS MB):
- *   < 350 MB  → OK           (normal operation)
- *   350–450   → SURVEILLANCE  (growing, keep an eye)
- *   450–490   → WARNING       (GC threshold reached, approaching limit)
- *   ≥ 490     → CRITICAL      (near 512MB hard limit — restart needed)
+ * Auto-detects available RAM and adjusts thresholds accordingly:
+ * - VPS (≤4GB RAM): conservative limits, 1.5GB heap
+ * - Local (≥8GB RAM): aggressive limits, 4GB heap
  */
 
+const totalRAMMB = Math.floor(require("os").totalmem() / (1024 * 1024));
+const isVPS = totalRAMMB <= 6144; // ≤6GB = VPS mode
+
 export const MEMORY_CONFIG = {
-  /** Local deployment — 32GB RAM available */
-  RAILWAY_RAM_MB: 8192,
+  /** Total system RAM detected */
+  TOTAL_RAM_MB: totalRAMMB,
+  IS_VPS: isVPS,
+
+  /** Effective RAM limit for the bot process */
+  RAILWAY_RAM_MB: isVPS ? 3072 : 8192,
 
   /** V8 heap limit set via --max-old-space-size */
-  V8_HEAP_LIMIT_MB: 4096,
+  V8_HEAP_LIMIT_MB: isVPS ? 1536 : 4096,
 
   /** RSS threshold (in MB) at which GC is forced */
-  GC_THRESHOLD_MB: 4096,
+  GC_THRESHOLD_MB: isVPS ? 1536 : 4096,
 
   /** CRITICAL threshold (in MB) — near-absolute limit */
-  CRITICAL_THRESHOLD_MB: 6144,
+  CRITICAL_THRESHOLD_MB: isVPS ? 2304 : 6144,
 
-  /** Check interval in ms — every 60 seconds (less aggressive on local) */
-  CHECK_INTERVAL_MS: 60 * 1000, // 60s
+  /** Check interval in ms */
+  CHECK_INTERVAL_MS: isVPS ? 30 * 1000 : 60 * 1000,
 
   /** Alert level thresholds in absolute MB */
   LEVELS: {
     OK: 0,
-    SURVEILLANCE: 2048,  // 2 GB
-    WARNING: 4096,       // 4 GB (= GC threshold)
-    CRITICAL: 6144,      // 6 GB
+    SURVEILLANCE: isVPS ? 768 : 2048,
+    WARNING: isVPS ? 1536 : 4096,
+    CRITICAL: isVPS ? 2304 : 6144,
   },
 } as const;
 
