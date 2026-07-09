@@ -30,6 +30,12 @@ const PLATFORM_RSS_FEEDS: { name: string; url: string; platform: string }[] = [
   { name: "Xbox Wire", url: "https://news.xbox.com/feed/", platform: "xbox" },
   { name: "Nintendo News", url: "https://www.nintendo.com/feed/", platform: "nintendo" },
   { name: "Epic Games", url: "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions", platform: "epic" },
+  // Sources gaming générales — détectées et routées par ChannelRouter
+  { name: "IGN", url: "https://feeds.feedburner.com/ign/games-all", platform: "general" },
+  { name: "GameSpot", url: "https://www.gamespot.com/feeds/mashup/news/", platform: "general" },
+  { name: "Eurogamer", url: "https://www.eurogamer.net/feed", platform: "general" },
+  { name: "PC Gamer", url: "https://www.pcgamer.com/rss/", platform: "general" },
+  { name: "Kotaku", url: "https://kotaku.com/rss", platform: "general" },
 ];
 // âââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -332,7 +338,7 @@ export function startGlobalPatchNotesMonitoring(client: Client): void {
     "[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes â toutes les 10 minutes",
   );
 
-  cronJob = cron.schedule("*/10 * * * *", () => {
+  cronJob = cron.schedule("*/5 * * * *", () => {
     if (isChecking) {
       logger.info("[GlobalPatchNotes] VÃ©rification dÃ©jÃ  en cours, ignorÃ©e");
       return;

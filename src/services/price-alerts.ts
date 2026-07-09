@@ -27,7 +27,7 @@ const TRACKED_GAMES = [
 ];
 
 let priceCheckInterval: NodeJS.Timeout | null = null;
-const CHECK_INTERVAL_MS = 7200000; // 2 heures
+const CHECK_INTERVAL_MS = parseInt(process.env.PRICE_ALERT_INTERVAL_MS || "1800000", 10); // 30 min
 const MIN_DISCOUNT_PERCENT = 50; // Alertes uniquement pour -50% ou plus
 
 /**

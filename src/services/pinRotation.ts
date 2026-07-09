@@ -3,7 +3,7 @@ import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 
 const MAX_PINS = 3;
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = parseInt(process.env.PIN_ROTATION_INTERVAL_MS || "3600000", 10); // 1h
 let rotationInterval: NodeJS.Timeout | null = null;
 
 async function rotatePins(client: Client): Promise<void> {

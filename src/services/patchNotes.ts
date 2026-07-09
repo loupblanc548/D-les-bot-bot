@@ -101,6 +101,16 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
 }
 
 async function summarizeWithAI(rawContent: string): Promise<string> {
+  // Plan A: Ollama local (GPU, gratuit)
+  try {
+    const { ollamaSummarize } = await import("../utils/ollama.js");
+    const summary = await ollamaSummarize(rawContent, 5);
+    if (summary && summary.trim().length > 0) return summary;
+  } catch {
+    // Ollama indisponible — fallback OpenRouter
+  }
+
+  // Plan B: OpenRouter API
   try {
     const client = getOpenAIClient();
     const completion = await client.chat.completions.create({

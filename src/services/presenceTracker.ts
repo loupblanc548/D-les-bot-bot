@@ -3,7 +3,7 @@ import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = parseInt(process.env.PRESENCE_TRACKER_INTERVAL_MS || "3600000", 10); // 1h
 let presenceInterval: NodeJS.Timeout | null = null;
 
 const PLATFORM_CHANNELS: Record<string, { channelId: string; keywords: string[]; label: string; color: number }> = {

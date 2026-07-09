@@ -203,6 +203,22 @@ export async function translateText(
     };
   }
 
+  // ── PLAN A0: Ollama local (GPU, gratuit, instantané) ─────────────────
+  try {
+    const { ollamaTranslate, ollamaDetectLanguage } = await import("./ollama.js");
+    const translated = await ollamaTranslate(text, targetLang);
+    if (translated && translated.trim().length > 0) {
+      const detected = await ollamaDetectLanguage(text);
+      logger.debug(`[Translator] Ollama ✓: "${text.slice(0, 30)}..." → "${translated.slice(0, 30)}..."`);
+      return {
+        translatedText: translated,
+        detectedLanguage: detected || "auto",
+      };
+    }
+  } catch {
+    // Ollama indisponible — fallback sur la chaîne existante
+  }
+
   // ── PLAN A: MyMemory API (avec Circuit Breaker) ──────────────────────
   const isBanned = checkCircuitBreaker();
 

@@ -526,7 +526,7 @@ export async function runGamingFeeds(client: Client) {
         if (sent) {
           logger.info("[Feeds] OK " + feed.channelName + " <- @" + source.handle);
           // Délai anti-rate-limit
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 800));
         }
       } catch (err) {
         const errMsg = String(err instanceof Error ? err.message : String(err));
@@ -633,7 +633,7 @@ export async function runStartupRetrospective(client: Client) {
               break feedLoop;
             }
             // Délai anti-rate-limit entre les envois rétro
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
         }
         if (publishedForSource > 0) {

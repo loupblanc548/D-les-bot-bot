@@ -6,7 +6,7 @@ import { dedupCache } from "../utils/deduplicationCache.js";
 import { stripHtml } from "../utils/stripHtml.js";
 import Parser from "rss-parser";
 
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = parseInt(process.env.RELEASE_CALENDAR_INTERVAL_MS || "3600000", 10); // 1h
 let calendarInterval: NodeJS.Timeout | null = null;
 
 const PLATFORM_FEEDS: { platform: string; url: string; channelId: string; color: number; emoji: string }[] = [
