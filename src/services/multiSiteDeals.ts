@@ -197,8 +197,12 @@ async function checkDeals(client: Client): Promise<void> {
       .setFooter({ text: `Multi-Site Deals • ${deal.store}` })
       .setTimestamp();
 
-    if (deal.image) {
-      embed.setThumbnail(deal.image);
+    if (deal.image && typeof deal.image === "string" && /^https?:\/\//.test(deal.image)) {
+      try {
+        embed.setThumbnail(deal.image);
+      } catch {
+        // URL image invalide — on ignore
+      }
     }
 
     try {
