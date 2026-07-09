@@ -1,3 +1,5 @@
+import os from "os";
+
 /**
  * memoryConfig.ts — Single source of truth for all memory thresholds.
  *
@@ -6,7 +8,7 @@
  * - Local (≥8GB RAM): aggressive limits, 4GB heap
  */
 
-const totalRAMMB = Math.floor(require("os").totalmem() / (1024 * 1024));
+const totalRAMMB = Math.floor(os.totalmem() / (1024 * 1024));
 const isVPS = totalRAMMB <= 6144; // ≤6GB = VPS mode
 
 export const MEMORY_CONFIG = {
