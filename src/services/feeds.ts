@@ -328,9 +328,10 @@ export async function sendToChannel(
         logger.error(`[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`);
         if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
           try {
-            embed.setImage(null);
-            embed.setThumbnail(null);
-            await channel.send({ embeds: [embed] });
+            const cleanEmbed = new EmbedBuilder(embed.data);
+            try { cleanEmbed.setImage(null as unknown as string); } catch { /* ignore */ }
+            try { cleanEmbed.setThumbnail(null as unknown as string); } catch { /* ignore */ }
+            await channel.send({ embeds: [cleanEmbed] });
             logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
             return true;
           } catch (retryErr) {
@@ -426,13 +427,13 @@ async function sendToChannelWithCard(
       const sent = await sendToChannelWithAttachment(client, channelId, embed, cardAttachment);
       if (sent) return true;
       // Attachment send failed — clear the attachment:// image and retry with plain embed
-      embed.setImage(null);
+      try { embed.setImage(null as unknown as string); } catch { /* ignore */ }
     }
     return await sendToChannel(client, channelId, embed);
   } catch (err) {
     logger.warn(`[Feeds] Card generation failed for ${platform}/${handle}: ${err instanceof Error ? err.message : String(err)}`);
     // Clear any attachment:// image that would be invalid without the file
-    try { embed.setImage(null); } catch { /* embed déjà sans image */ }
+    try { embed.setImage(null as unknown as string); } catch { /* embed déjà sans image */ }
     return await sendToChannel(client, channelId, embed);
   }
 }
