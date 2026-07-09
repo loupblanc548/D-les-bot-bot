@@ -4,6 +4,7 @@ import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { stripHtml } from "../utils/stripHtml.js";
+import { translateAutoToFrench } from "../utils/translator.js";
 import Parser from "rss-parser";
 
 const CHECK_INTERVAL_MS = parseInt(process.env.RELEASE_CALENDAR_INTERVAL_MS || "3600000", 10); // 1h
@@ -72,9 +73,25 @@ async function checkReleases(client: Client): Promise<void> {
         ? Math.ceil((release.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
         : null;
 
+      // Auto-traduction FR forcée
+      let displayTitle = release.title;
+      let displayDesc = release.description || "Nouvelle sortie à venir";
+      try {
+        const titleResult = await translateAutoToFrench(release.title);
+        if (titleResult && titleResult.detectedLanguage !== "fr") {
+          displayTitle = titleResult.translatedText;
+        }
+        const descResult = await translateAutoToFrench(displayDesc.slice(0, 500));
+        if (descResult && descResult.detectedLanguage !== "fr") {
+          displayDesc = descResult.translatedText;
+        }
+      } catch {
+        // Traduction échouée — texte original
+      }
+
       const embed = new EmbedBuilder()
-        .setTitle(`${feed.emoji} ${release.title}`)
-        .setDescription(release.description || "Nouvelle sortie à venir")
+        .setTitle(`${feed.emoji} ${displayTitle}`)
+        .setDescription(displayDesc)
         .setColor(feed.color)
         .setURL(release.url)
         .addFields(

@@ -2,6 +2,7 @@ import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../../utils/logger.js";
 import Parser from "rss-parser";
 import { ensureConnected } from "../../utils/redisClient.js";
+import { translateAutoToFrench } from "../../utils/translator.js";
 import {
   createEpicEmbed,
   createSteamEmbed,
@@ -145,7 +146,29 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
         continue;
       }
 
-      const embedResult = createThemedEmbed(feed.type, item);
+      // Auto-traduction FR forcée
+      let translatedTitle = item.title || "";
+      let translatedDescription = item.contentSnippet || item.content || item.description || "";
+
+      try {
+        if (translatedTitle && translatedTitle.length > 0) {
+          const titleResult = await translateAutoToFrench(translatedTitle);
+          if (titleResult && titleResult.detectedLanguage !== "fr") {
+            translatedTitle = titleResult.translatedText;
+          }
+        }
+        if (translatedDescription && translatedDescription.length > 10) {
+          const descResult = await translateAutoToFrench(translatedDescription.slice(0, 1000));
+          if (descResult && descResult.detectedLanguage !== "fr") {
+            translatedDescription = descResult.translatedText;
+          }
+        }
+      } catch {
+        // Traduction échouée — on garde le texte original
+      }
+
+      const translatedItem = { ...item, title: translatedTitle, description: translatedDescription, contentSnippet: translatedDescription };
+      const embedResult = createThemedEmbed(feed.type, translatedItem);
 
       try {
         if (embedResult instanceof EmbedBuilder) {
