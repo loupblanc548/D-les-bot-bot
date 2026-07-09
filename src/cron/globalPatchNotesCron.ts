@@ -22,6 +22,15 @@ import { generateStableId } from "../utils/url-cleaner.js";
 const DIRECT_REDDIT_RSS_URL = config.redditPatchNotesRss;
 // Fallback: rss2json (service tiers - utilise uniquement si Scrapling echoue)
 const RSS2JSON_FALLBACK_URL = `${config.rss2jsonBaseUrl}?rss_url=${encodeURIComponent(config.redditPatchNotesRss)}`;
+
+// Flux RSS officiels par plateforme — tous les jeux, toutes les news
+const PLATFORM_RSS_FEEDS: { name: string; url: string; platform: string }[] = [
+  { name: "Steam News", url: "https://store.steampowered.com/feeds/news.xml", platform: "steam" },
+  { name: "PlayStation Blog", url: "https://blog.playstation.com/feed/", platform: "playstation" },
+  { name: "Xbox Wire", url: "https://news.xbox.com/feed/", platform: "xbox" },
+  { name: "Nintendo News", url: "https://www.nintendo.com/feed/", platform: "nintendo" },
+  { name: "Epic Games", url: "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions", platform: "epic" },
+];
 // âââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface PatchNoteItem {
@@ -275,6 +284,41 @@ async function checkPatchNotes(client: Client): Promise<void> {
 
 // âââ Cron Management âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
+async function checkPlatformFeeds(client: Client): Promise<void> {
+  for (const feed of PLATFORM_RSS_FEEDS) {
+    try {
+      const response = await axios.get(feed.url, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        timeout: 15000,
+        maxRedirects: 5,
+        validateStatus: (s) => s < 400,
+      });
+
+      const raw = typeof response.data === "string" ? response.data : JSON.stringify(response.data);
+      if (!raw || raw.length < 50) continue;
+
+      const items = parseRssXmlItems(raw);
+      if (items.length === 0) continue;
+
+      let processed = 0;
+      for (const item of items.slice(0, 5)) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await processPatchNote(client, item as PatchNoteItem);
+          processed++;
+        } catch (err) {
+          logger.error(`[GlobalPatchNotes] Erreur traitement ${feed.name}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      if (processed > 0) {
+        logger.info(`[GlobalPatchNotes] ${feed.name}: ${processed} article(s) traite(s)`);
+      }
+    } catch (err) {
+      logger.debug(`[GlobalPatchNotes] Flux ${feed.name} indisponible: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
 let cronJob: ScheduledTask | null = null;
 let isChecking = false;
 
@@ -297,13 +341,16 @@ export function startGlobalPatchNotesMonitoring(client: Client): void {
     isChecking = true;
     logger.info("[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes");
 
-    checkPatchNotes(client)
-      .catch((err) =>
-        logger.error(
-          `[GlobalPatchNotes] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
-          { stack: err instanceof Error ? err.stack : undefined },
-        ),
-      )
+    Promise.allSettled([
+      checkPatchNotes(client),
+      checkPlatformFeeds(client),
+    ])
+      .then((results) => {
+        const rejected = results.filter((r) => r.status === "rejected");
+        if (rejected.length > 0) {
+          logger.error(`[GlobalPatchNotes] ${rejected.length} source(s) en erreur`);
+        }
+      })
       .finally(() => {
         isChecking = false;
       });
@@ -318,4 +365,4 @@ export function stopGlobalPatchNotesMonitoring(): void {
   }
 }
 
-export { checkPatchNotes };
+export { checkPatchNotes, checkPlatformFeeds };
