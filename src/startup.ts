@@ -89,6 +89,7 @@ import { startPinRotation } from "./services/pinRotation.js";
 import { startPresenceTracker } from "./services/presenceTracker.js";
 import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
+import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -320,6 +321,7 @@ export function attachStartupLogic(
       () => startPresenceTracker(client),
       () => startDealFusion(client),
       () => startGitHubReleasesMonitor(client),
+      () => startMultiSiteDealsMonitor(client),
     ];
     for (const start of services) {
       try {
