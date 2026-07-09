@@ -249,10 +249,10 @@ async function checkPatchNotes(client: Client): Promise<void> {
     }
 
     let processedCount = 0;
-    for (const item of items.slice(0, 10)) {
+    for (const item of items.slice(0, 20)) {
       try {
         // 🔒 Delai anti rate-limit (1s entre chaque item)
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         await processPatchNote(client, item as PatchNoteItem);
         processedCount++;
       } catch (error) {
@@ -301,9 +301,9 @@ async function checkPlatformFeeds(client: Client): Promise<void> {
       if (items.length === 0) continue;
 
       let processed = 0;
-      for (const item of items.slice(0, 5)) {
+      for (const item of items.slice(0, 15)) {
         try {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 800));
           await processPatchNote(client, item as PatchNoteItem);
           processed++;
         } catch (err) {

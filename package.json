@@ -5,8 +5,8 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "node --expose-gc --max-old-space-size=1024 --import tsx src/index.ts",
-    "dev": "node --expose-gc --max-old-space-size=1024 --import tsx --inspect src/index.ts",
+    "start": "node --expose-gc --max-old-space-size=4096 --import tsx src/index.ts",
+    "dev": "node --expose-gc --max-old-space-size=4096 --import tsx --inspect src/index.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",

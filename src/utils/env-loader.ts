@@ -167,7 +167,7 @@ const envSchema = z.object({
     .default("postgresql://discord_bot:discord_bot@localhost:5432/discord_bot?schema=public"),
 
   // Retrospective
-  MAX_RETRO_POSTS: z.string().default("25"),
+  MAX_RETRO_POSTS: z.string().default("50"),
 
   // Intervals & TTLs (ms) with defaults
   MONITORING_INTERVAL_MS: z.string().default("900000"),
