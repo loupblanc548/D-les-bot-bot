@@ -31,7 +31,7 @@ async function fetchReleases(platform: string, feedUrl: string): Promise<GameRel
     const parser = new Parser();
     const feed = await parser.parseURL(feedUrl);
 
-    for (const item of feed.items.slice(0, 10)) {
+    for (const item of feed.items.slice(0, 20)) {
       const title = item.title || "";
       const content = item.contentSnippet || item.content || "";
       const link = item.link || "";

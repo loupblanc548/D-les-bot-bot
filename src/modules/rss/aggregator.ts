@@ -15,8 +15,8 @@ import { fetchRetry } from "../../utils/fetchRetry.js";
 
 const parser = new Parser();
 const RSS_POSTED_KEY_PREFIX = "rss:posted:";
-const RSS_TTL = 7 * 24 * 60 * 60; // 7 days
-const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
+const RSS_TTL = 14 * 24 * 60 * 60; // 14 days
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 interface RSSFeed {
   name: string;
@@ -168,7 +168,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
       logger.info(`[RSSAggregator] Posted new ${feed.name} item: ${item.title}`);
 
       // Délai anti rate-limit
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     if (postedCount === 0) {

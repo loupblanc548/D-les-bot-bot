@@ -155,7 +155,7 @@ Fournis ta réponse au format JSON :
 
         if (!feed.items) continue;
 
-        for (const item of feed.items.slice(0, 5)) {
+        for (const item of feed.items.slice(0, 15)) {
           const content = await this.analyzeViralPotential({
             title: item.title || "",
             content: item.contentSnippet || item.content,
