@@ -693,6 +693,151 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
 
+      // ─── Universal AI Chat API ──────────────────────────────────────
+      // Accessible from any platform: curl, web app, mobile, Telegram, etc.
+      if (path === "/api/chat" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const message = (body.message as string)?.trim();
+          const sessionId = (body.sessionId as string) || "api-default";
+          const username = (body.username as string) || "API User";
+          const useTools = body.tools !== false; // default true
+          const stream = body.stream === true;
+
+          if (!message || message.length > 4000) {
+            sendJson(res, 400, { error: "Paramètre 'message' requis (max 4000 caractères)" });
+            return;
+          }
+
+          // Route 1: Full agent loop with tools (like ChatGPT with tools)
+          if (useTools) {
+            const { runAgentLoop } = await import("./services/agentLoop.js");
+            const { ALL_AGENT_TOOLS } = await import("./services/agentTools.js");
+
+            // Build a fake message-like object for the agent loop
+            const fakeMessage = {
+              author: { id: `api_${sessionId}`, username },
+              channel: {
+                messages: {
+                  fetch: async () => new Map(),
+                },
+                isTextBased: () => true,
+                send: async (opts: unknown) => ({ content: typeof opts === "string" ? opts : "" }),
+              },
+              channelId: `api_${sessionId}`,
+              guildId: "",
+              client: client,
+            } as any;
+
+            const response = await runAgentLoop(fakeMessage, message);
+            sendJson(res, 200, {
+              response,
+              sessionId,
+              toolsAvailable: ALL_AGENT_TOOLS.length,
+              model: config.openRouterModel,
+              timestamp: Date.now(),
+            });
+            return;
+          }
+
+          // Route 2: Simple chat (faster, no tools — like simple ChatGPT)
+          const { chatWithAI } = await import("./services/ai.js");
+          const response = await chatWithAI(message, username);
+          sendJson(res, 200, {
+            response,
+            sessionId,
+            model: config.openRouterModel,
+            timestamp: Date.now(),
+          });
+        } catch (err) {
+          logger.error("[ControlServer] /api/chat error:", err);
+          sendJson(res, 500, { error: "Erreur IA", details: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      // ─── List available tools ────────────────────────────────────────
+      if (path === "/api/tools" && req.method === "GET") {
+        try {
+          const { ALL_AGENT_TOOLS } = await import("./services/agentTools.js");
+          const { EXTENDED_TOOLS } = await import("./services/agentToolsExtended.js");
+          const tools = [
+            ...ALL_AGENT_TOOLS.map((t: any) => ({ name: t.function?.name, description: t.function?.description, type: "core" })),
+            ...EXTENDED_TOOLS.map((t: any) => ({ name: t.function?.name, description: t.function?.description, type: "extended" })),
+          ];
+          sendJson(res, 200, { count: tools.length, tools });
+        } catch (err) {
+          sendJson(res, 500, { error: "Erreur listing tools" });
+        }
+        return;
+      }
+
+      // ─── Execute a specific tool directly ────────────────────────────
+      if (path === "/api/tools/execute" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const toolName = (body.tool as string)?.trim();
+          const args = (body.args as Record<string, unknown>) || {};
+
+          if (!toolName) {
+            sendJson(res, 400, { error: "Paramètre 'tool' requis" });
+            return;
+          }
+
+          const { executeTool } = await import("./services/agentTools.js");
+          const sessionId = (body.sessionId as string) || "api-default";
+          const ctx = {
+            client: client,
+            message: null as any,
+            userId: `api_${sessionId}`,
+            guildId: "",
+            channelId: `api_${sessionId}`,
+          } as any;
+
+          const result = await executeTool(toolName, args, ctx);
+          sendJson(res, 200, { tool: toolName, success: result.success, data: result.data });
+        } catch (err) {
+          logger.error("[ControlServer] /api/tools/execute error:", err);
+          sendJson(res, 500, { error: "Erreur exécution tool", details: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      // ─── Bot capabilities summary ────────────────────────────────────
+      if (path === "/api/capabilities" && req.method === "GET") {
+        sendJson(res, 200, {
+          ai: {
+            agentLoop: true,
+            tools: true,
+            memory: true,
+            multiModel: true,
+            fallbacks: ["OpenRouter", "Groq", "Gemini", "HuggingFace"],
+          },
+          services: 65,
+          tools: 52,
+          githubRepos: 27,
+          platforms: {
+            discord: true,
+            api: true,
+            telegram: !!process.env.TELEGRAM_BOT_TOKEN,
+            webhooks: true,
+          },
+          endpoints: [
+            "POST /api/chat — Chat avec IA (tools optionnels)",
+            "GET /api/tools — Liste tous les outils disponibles",
+            "POST /api/tools/execute — Exécute un outil directement",
+            "GET /api/capabilities — Capacités du bot",
+            "GET /api/status — Statut du bot",
+            "GET /api/metrics — Métriques",
+            "GET /api/health — Health check",
+            "GET /api/logs — Logs récents",
+            "GET /api/servers — Serveurs Discord",
+            "POST /api/restart — Redémarrer le bot",
+          ],
+        });
+        return;
+      }
+
       sendJson(res, 404, { error: "Route non trouvée: " + path });
     } catch (err) {
       logger.error("[ControlServer] Error:", err);
