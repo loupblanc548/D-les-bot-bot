@@ -492,47 +492,29 @@ export async function registerCommands(): Promise<void> {
       `Déploiement: ${dynamicCommands.length} dynamiques + ${legacyFiltered.length} legacy = ${mergedCommands.length} total`,
     );
 
-    // ── Étape 1: Nettoyage complet (clean slate) ──
-    // Vider TOUTES les commandes existantes avant de redéployer.
-    // Évite les commandes fantômes / stale cache côté Discord.
-
-    // 1a. Supprimer toutes les commandes globales
-    try {
-      await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
-      logger.info("✓ Commandes globales supprimées");
-    } catch (err) {
-      logger.warn(
-        `Nettoyage commandes globales échoué: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-
-    // 1b. Supprimer toutes les commandes de guilde (si configurée)
-    if (config.guildId) {
-      try {
-        await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
-          body: [],
-        });
-        logger.info("✓ Commandes de guilde supprimées");
-      } catch (err) {
-        logger.warn(
-          `Nettoyage commandes guilde échoué: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-
-    // ── Étape 2: Déployer les commandes (guilde ou global) ──
+    // ── Déploiement en un seul PUT (bulk overwrite) ──
+    // Le PUT vers applicationGuildCommands/applicationCommands remplace
+    // TOUTES les commandes en une seule opération atomique.
+    // Pas besoin de supprimer d'abord — cela cause un flash "une par une".
     if (config.guildId) {
       // Mode guilde: déploiement instantané (1-2s vs 1h en global)
       await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
         body: mergedCommands,
       });
       logger.info(
-        `✓ ${mergedCommands.length} commandes enregistrees pour la guilde ${config.guildId}`,
+        `✓ ${mergedCommands.length} commandes enregistrées pour la guilde ${config.guildId}`,
       );
+
+      // Nettoyer les commandes globales orphelines (sans flash côté guilde)
+      try {
+        await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
+      } catch {
+        // Non critique — les commandes globales orphelines disparaissent d'elles-mêmes
+      }
     } else {
       // Mode global: déploiement partout (peut prendre jusqu'à 1h)
       await rest.put(Routes.applicationCommands(config.clientId), { body: mergedCommands });
-      logger.info(`✓ ${mergedCommands.length} commandes enregistrees globalement`);
+      logger.info(`✓ ${mergedCommands.length} commandes enregistrées globalement`);
     }
   } catch (error) {
     logger.error(
