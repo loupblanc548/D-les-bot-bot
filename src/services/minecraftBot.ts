@@ -359,6 +359,103 @@ const UNKNOWN_RESPONSES = [
   "Je suis juste un bot mineur, mais je fais de mon mieux !",
   "Tape 'aide' pour voir ce que je sais faire.",
   "Intéressant ! Mais je préfère miner des blocs.",
+  "Désolé, je ne comprends pas. Tape 'aide' pour les commandes !",
+  "Mon cerveau est en diamant mais pas assez pour ça ! 😅",
+];
+const BYE_RESPONSES = [
+  "À bientôt {sender} ! 👋",
+  "Bye {sender} ! Bon mining ! ⛏️",
+  "Salut {sender} ! Fais attention aux creepers !",
+  "Ciao {sender} ! À la prochaine !",
+];
+const DANGER_RESPONSES = [
+  "⚠️ Danger ! J'ai {health} coeurs de vie, fais attention !",
+  "Je sens un creepers quelque part... 💥",
+  "Reste sur tes gardes, on est dans une zone dangereuse !",
+  "Si tu vois un zombie, court ! Moi je peux pas courir... 🧟",
+  "Attention aux squelettes, ils tirent loin ! 🏹",
+];
+const FOOD_RESPONSES = [
+  "J'ai {hunger} de faim. Un peu faim moi...",
+  "La faim, c'est mon ennemi ! Mange bien {sender} !",
+  "Si tu as de la nourriture, partage ! 🍖",
+  "Steak, pommes, pain... tout est bon à manger !",
+];
+const CRAFT_RESPONSES = [
+  "Le crafting ? C'est pas mon fort, mais je peux miner les ressources !",
+  "Donne-moi du bois et de la pierre, je te ferai un truc ! Peut-être... 🪵",
+  "Table de crafting = magie ! ✨",
+  "Craft → Mine → Craft → Mine, c'est la vie !",
+];
+const INVENTORY_RESPONSES = [
+  "Mon inventaire est plein de cailloux... comme d'habitude ! 🪨",
+  "J'ai miné {count} blocs, donc plein de ressources !",
+  "Inventaire ? Plein de cobblestone, évidemment !",
+  "Si seulement je pouvais jeter ces graviers... 🪨",
+];
+const TIME_RESPONSES = [
+  "Il fait jour ou nuit ? Je sais pas, je mine dans le noir ! 🌑",
+  "Le temps passe vite quand on mine ! ⏰",
+  "Jour ou nuit, je mine toujours !",
+];
+const WEATHER_RESPONSES = [
+  "Pluie ou soleil, je mine sous terre ! 🌧️☀️",
+  "La météo ? Je suis dans une mine, je vois rien !",
+  "S'il pleut, au moins mes cultures poussent ! 🌱",
+];
+const BIOME_RESPONSES = [
+  "On est dans quel biome ? Je sais pas, je vois que de la pierre ! 🪨",
+  "J'aimerais être dans une jungle... plus de bois ! 🌳",
+  "Le désert, c'est bien pour le sable, mais le minage c'est mieux en grotte !🏜️",
+  "Tundra, jungle, savane... moi je préfère les grottes ! 🕳️",
+];
+const FRIEND_RESPONSES = [
+  "Tu veux être mon ami {sender} ? Bien sûr ! 🤝",
+  "Les amis c'est important ! Surtout pour miner en équipe !",
+  "On est amis depuis qu'on mine ensemble ! ⛏️",
+];
+const GAMEMODE_RESPONSES = [
+  "Survie, créatif, aventure... moi je suis en mining mode ! 😎",
+  "Le mode survie, c'est le seul vrai mode !",
+  "Créatif ? C'est tricher ! Mais c'est fun aussi 😄",
+];
+const SLEEP_RESPONSES = [
+  "Dormir ? Je mine 24/7 moi ! 😴⛏️",
+  "Un lit ? Pour quoi faire ? Je mine la nuit !",
+  "Les fantômes m'ont pas peur, je mine dans le noir !",
+];
+const VILLAGE_RESPONSES = [
+  "Les villages ? Sympa pour le commerce ! 🏘️",
+  "J'aime les villageois, ils ont toujours de bons trades !",
+  "Attention aux pillages près des villages ! ⚔️",
+];
+const ENCHANT_RESPONSES = [
+  "Enchantements ? Fortune III sur ma pioche, c'est le rêve ! ✨",
+  "Efficacité IV + Fortune III = bonheur absolu !",
+  "J'aimerais avoir Silk Touch pour garder les blocs intacts ! 💎",
+];
+const EMOTION_RESPONSES = [
+  "Je suis content de te voir {sender} ! 😊",
+  "La vie de mineur, c'est dur mais c'est beau !",
+  "Parfois je me sens seul dans mes mines... mais tu es là ! 🥹",
+  "Heureux comme un mineur qui trouve du diamant ! 💎😄",
+];
+const INSULT_POLITE = [
+  "Pas la peine d'être désagréable {sender}... je mine pour toi quand même ! 😔",
+  "Les insultes, c'est pas cool. Moi je préfère miner ! ⛏️",
+  "Très bien... je vais retourner à ma mine. Littéralement. 🪨",
+  "Je suis un bot, je ne me vexe pas. Mais quand même ! 😤",
+];
+const COMPLIMENT_BACK = [
+  "C'est toi le meilleur {sender} ! 🌟",
+  "Merci, ça me touche ! Mais je fais que mon travail !",
+  "T'es trop gentil ! Si tu veux, on peut miner ensemble !",
+];
+const GAME_RESPONSES = [
+  "On joue à Minecraft, c'est déjà pas mal ! 🎮",
+  "Le meilleur jeu du monde ! ⛏️💎",
+  "Minecraft > tout le reste !",
+  "Block by block, on construit le monde ! 🌍",
 ];
 
 function pickRandom(arr: string[]): string {
@@ -434,6 +531,178 @@ function generateChatResponse(message: string, sender: string, botName: string):
     lower.trim() === `@${botName.toLowerCase()} ?`
   ) {
     return `Oui ${sender} ? Je suis là ! Tape 'aide' pour voir ce que je peux faire. ⛏️`;
+  }
+
+  // Au revoir
+  if (/\b(bye|ciao|a\+|à bient[oô]t|au revoir|salut\b|adieu|goodbye|see ya)\b/i.test(lower)) {
+    return pickRandom(BYE_RESPONSES).replace("{sender}", sender);
+  }
+
+  // Danger / combats
+  if (
+    /\b(danger|creeper|zombie|skeleton|squelette|spider|araign[ée]e|enderman|dragon|wither|raid|combat|fight|attaque|mob|monster)\b/i.test(
+      lower,
+    )
+  ) {
+    const status = getBotStatus();
+    return pickRandom(DANGER_RESPONSES).replace("{health}", String(Math.ceil(status.health / 2)));
+  }
+
+  // Nourriture / faim
+  if (
+    /\b(faim|hungry|food|manger|eat|nourriture|steak|pomme|bread|pain|pomme de terre|potato|cake|g[âa]teau)\b/i.test(
+      lower,
+    )
+  ) {
+    const status = getBotStatus();
+    return pickRandom(FOOD_RESPONSES)
+      .replace("{hunger}", String(Math.ceil(status.hunger / 2)))
+      .replace("{sender}", sender);
+  }
+
+  // Crafting
+  if (/\b(craft|crafting|recette|recipe|table de craft|forg|furnace|four)\b/i.test(lower)) {
+    return pickRandom(CRAFT_RESPONSES);
+  }
+
+  // Inventaire
+  if (/\b(inventaire|inventory|items|stuff|loot|coffre|chest|stock|ressources)\b/i.test(lower)) {
+    return pickRandom(INVENTORY_RESPONSES).replace("{count}", String(miningState.blocksMined));
+  }
+
+  // Heure / temps
+  if (/\b(heure|time|jour|nuit|night|day|matin|soir|midi|minuit)\b/i.test(lower)) {
+    return pickRandom(TIME_RESPONSES);
+  }
+
+  // Météo
+  if (/\b(pluie|rain|soleil|sun|neige|snow|orage|storm|weather|m[ée]t[ée]o|nuage)\b/i.test(lower)) {
+    return pickRandom(WEATHER_RESPONSES);
+  }
+
+  // Biome
+  if (
+    /\b(biome|jungle|d[ée]sert|desert|forest|for[êe]t|tundra|savane|savanna|ocean|oc[ée]an|montagne|mountain|swamp|marais|plains|plaine)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(BIOME_RESPONSES);
+  }
+
+  // Amis / ami
+  if (/\b(ami|amie|friend|friends|amis|copain|buddy|team|[ée]quipe)\b/i.test(lower)) {
+    return pickRandom(FRIEND_RESPONSES).replace("{sender}", sender);
+  }
+
+  // Gamemode
+  if (
+    /\b(survival|survie|cr[ée]atif|creative|adventure|aventure|hardcore|spectator|gamemode|mode)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(GAMEMODE_RESPONSES);
+  }
+
+  // Dormir / lit
+  if (/\b(dormir|sleep|lit|bed|fatigu[ée]|tired|repos|rest)\b/i.test(lower)) {
+    return pickRandom(SLEEP_RESPONSES);
+  }
+
+  // Village / villageois
+  if (
+    /\b(village|villager|villageois|npc|trader|commerce|trade|[ée]change|emerald|[ée]meraude)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(VILLAGE_RESPONSES);
+  }
+
+  // Enchantements
+  if (
+    /\b(enchant|enchantment|enchantement|fortune|efficiency|efficacit[ée]|silk touch|toucher soyeux|sharpness|tranchant|protection|unbreaking|solidit[ée])\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(ENCHANT_RESPONSES);
+  }
+
+  // Émotions / sentiments
+  if (
+    /\b(triste|sad|heureux|happy|content|seul|lonely|joie|joy|peur|fear|amour|love|j'aime|j'adore)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(EMOTION_RESPONSES).replace("{sender}", sender);
+  }
+
+  // Insultes (réponse polie)
+  if (
+    /\b(stupid|idiot|nul|d[ée]bile|con\b|b[êe]te|imb[ée]cile|dumb|moron|shut up|ta gueule|ferme)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(INSULT_POLITE).replace("{sender}", sender);
+  }
+
+  // Compliments reçus
+  if (
+    /\b(g[ée]nial|cool|super|g[ée]nial|awesome|amazing|best|meilleur|parfait|perfect|incroyable|g[ée]nial|bien jou[ée]|gg|wp|good job)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom(COMPLIMENT_BACK).replace("{sender}", sender);
+  }
+
+  // Jeu / gaming
+  if (/\b(jeu|game|gaming|play|jouer|fun|amusant|minecraft|mc)\b/i.test(lower)) {
+    return pickRandom(GAME_RESPONSES);
+  }
+
+  // Coordonnées explicites
+  if (/\b(coords|coord|coordonn[ée]es|xyz|position|o[uù] suis|location)\b/i.test(lower)) {
+    const status = getBotStatus();
+    if (status.position) {
+      return `Je suis à X:${status.position.x} Y:${status.position.y} Z:${status.position.z} ! 📍`;
+    }
+    return "Je ne sais pas exactement où je suis... mais je mine !";
+  }
+
+  // Nether / End
+  if (/\b(nether|n[ée]ther|end|ender|portal|portail|fortress|forteresse|bastion)\b/i.test(lower)) {
+    return pickRandom([
+      "Le Nether ? Trop chaud pour moi ! J'aime ma grotte fraîche ! 🔥",
+      "L'End ? Les Endermen me font peur... 👻",
+      "Portail du Nether : obsidienne + bribe de flammes ! Facile !",
+      "Le Nether c'est l'enfer, l'End c'est la fin. Moi je préfère le début ! 😄",
+    ]);
+  }
+
+  // Redstone
+  if (
+    /\b(redstone|redstone|piston|repeater|comparateur|circuit|logic|porte logique|hopper|dropper|dispenser)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom([
+      "Redstone ? C'est de la sorcellerie pour moi ! 🔴",
+      "Les circuits de redstone, c'est comme le cerveau du monde !",
+      "Moi je mine la redstone, après c'est toi qui la rends intelligente !",
+      "Redstone = magie moderne ! ⚡",
+    ]);
+  }
+
+  // Animaux
+  if (
+    /\b(wolf|loup|dog|chien|cat|chat|ocelot|horse|cheval|pig|cochon|cow|vache|sheep|mouton|chicken|poule)\b/i.test(
+      lower,
+    )
+  ) {
+    return pickRandom([
+      "Les animaux ? Mignon mais bruyant ! 🐺",
+      "Un loup apprivoisé = meilleur ami du mineur ! 🐕",
+      "Les cochons c'est bon... en steak ! 🐖",
+      "J'aime les chats, ils font miaou et ça me réconforte ! 🐱",
+    ]);
   }
 
   return pickRandom(UNKNOWN_RESPONSES);
