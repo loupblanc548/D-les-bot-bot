@@ -58,7 +58,7 @@ export default {
       .setDescription("Bot Minecraft Bedrock (mining, follow, farm, inventory, serveur)");
 
     for (const sub of subcommands) {
-      builder.addSubcommand((sc) => sub.build(sc.setName(sub.name).setDescription("")));
+      builder.addSubcommand((sc) => sub.build(sc.setName(sub.name)));
     }
 
     return builder;

@@ -55,7 +55,7 @@ export default {
       .setDescription("Commandes principales du bot");
 
     for (const sub of subcommands) {
-      builder.addSubcommand((sc) => sub.build(sc.setName(sub.name).setDescription("")));
+      builder.addSubcommand((sc) => sub.build(sc.setName(sub.name)));
     }
 
     return builder;

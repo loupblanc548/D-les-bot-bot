@@ -488,6 +488,32 @@ export async function registerCommands(): Promise<void> {
     });
     const mergedCommands = [...dynamicCommands, ...legacyFiltered];
 
+    // Vérifier les doublons
+    const seenNames = new Map<string, number>();
+    for (const cmd of mergedCommands) {
+      const name = (cmd as { name?: string }).name;
+      if (name) {
+        seenNames.set(name, (seenNames.get(name) ?? 0) + 1);
+      }
+    }
+    const duplicates = [...seenNames.entries()].filter(([, count]) => count > 1);
+    if (duplicates.length > 0) {
+      logger.warn(`Doublons détectés: ${duplicates.map(([n, c]) => `${n}(${c}x)`).join(", ")}`);
+      // Garder seulement la première occurrence de chaque doublon
+      const deduped = new Map<string, unknown>();
+      for (const cmd of mergedCommands) {
+        const name = (cmd as { name?: string }).name;
+        if (name && !deduped.has(name)) {
+          deduped.set(name, cmd);
+        } else if (!name) {
+          deduped.set(`_no_name_${deduped.size}`, cmd);
+        }
+      }
+      mergedCommands.length = 0;
+      mergedCommands.push(...(Array.from(deduped.values()) as typeof mergedCommands));
+      logger.info(`Après dédoublonnage: ${mergedCommands.length} commandes`);
+    }
+
     logger.info(
       `Déploiement: ${dynamicCommands.length} dynamiques + ${legacyFiltered.length} legacy = ${mergedCommands.length} total`,
     );
