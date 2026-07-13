@@ -40,6 +40,7 @@ import {
   getLinkedProfile,
   fetchPlayerStats,
 } from "../services/minecraftLink.js";
+import { buildMinecraftLinkEmbed, buildMinecraftConnectEmbed } from "../utils/gameSetupEmbeds.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -260,7 +261,12 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
         offline: true,
       });
 
-      await interaction.editReply({ content: result.message });
+      if (result.success) {
+        const embed = buildMinecraftConnectEmbed(ip, port, pseudo);
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.editReply({ content: result.message });
+      }
       break;
     }
 
@@ -406,24 +412,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
       const result = await startLink(interaction.user.id, gamertag);
       if (result.success && result.code) {
-        const embed = new EmbedBuilder()
-          .setTitle("🔗 Liaison Minecraft — Étape 1/2")
-          .setColor(0x4a9b4a)
-          .setDescription(
-            `Liaison démarrée pour **${gamertag}**.\n\n` +
-              "**Étape 2 :** Rejoins un serveur Minecraft où le bot est connecté " +
-              "et tape dans le chat :\n\n" +
-              `\`\`\`\n/verify ${result.code}\n\`\`\`\n` +
-              `⏱️ Le code expire dans **10 minutes**.`,
-          )
-          .addFields(
-            { name: "Code", value: `\`${result.code}\``, inline: true },
-            { name: "Gamertag", value: gamertag, inline: true },
-          )
-          .setFooter({
-            text: "Le code est valide uniquement si ton pseudo Minecraft correspond au gamertag saisi.",
-          })
-          .setTimestamp();
+        const embed = buildMinecraftLinkEmbed(gamertag, result.code);
         await interaction.editReply({ embeds: [embed] });
       } else {
         await interaction.editReply({ content: result.message });

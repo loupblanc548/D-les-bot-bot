@@ -36,6 +36,7 @@ import {
 import { generateCardAttachment } from "../../utils/notificationCards.js";
 import { isValidEmbedImageUrl } from "../../utils/image-helpers.js";
 import logger from "../../utils/logger.js";
+import { buildFortniteSetupEmbed } from "../../utils/gameSetupEmbeds.js";
 
 // Types de cosmétiques supportés par le party bot
 type CosmeticType = "outfit" | "emote" | "backpack" | "pickaxe";
@@ -144,21 +145,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   // ─── bot-status ──────────────────────────────────────────────
   if (subcommand === "bot-status" || subcommand === "status") {
     const ready = isFortniteBotReady();
-    const embed = new EmbedBuilder()
-      .setTitle("🎮 Fortnite Party Bot — Statut")
-      .setColor(ready ? 0x00ff00 : 0xff6600)
-      .setDescription(
-        ready
-          ? "✅ Le bot Fortnite est connecté et prêt !"
-          : "❌ Le bot Fortnite n'est pas connecté.",
-      )
-      .addFields({
-        name: "Configuration",
-        value: ready
-          ? "Le bot accepte automatiquement les demandes d'amis et les invitations de party."
-          : "Utilisez `/game bot-login` avec un code d'autorisation pour connecter un compte.\nObtenez un code sur: https://www.epicgames.com/id/api/redirect?clientId=3446cd72694c4a4485d81b77adbb2141&responseType=code",
-      })
-      .setTimestamp();
+    const displayName = getBotDisplayName();
+    const embed = buildFortniteSetupEmbed(ready ? (displayName ?? undefined) : undefined);
     await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
     return;
   }
@@ -243,10 +231,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
       await connectFortniteBot(authCode);
-      await interaction.editReply({
-        content:
-          "✅ Connexion au compte Fortnite en cours... Le bot sera prêt dans quelques secondes.\nIl acceptera automatiquement les demandes d'amis et les invitations de party.",
-      });
+      const displayName = getBotDisplayName();
+      const embed = buildFortniteSetupEmbed(displayName ?? undefined);
+      await interaction.editReply({ embeds: [embed] });
       logger.info(`[FortniteParty] Bot-login initié par ${interaction.user.tag}`);
     } catch (err) {
       await interaction.editReply({
