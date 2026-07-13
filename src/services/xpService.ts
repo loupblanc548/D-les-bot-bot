@@ -14,7 +14,7 @@ import logger from "../utils/logger.js";
 const XP_COOLDOWN_MS = 60_000; // 1 minute entre chaque gain
 const XP_MIN = 15;
 const XP_MAX = 25;
-const BASE_XP = 100; // XP requis pour le niveau 2
+const _BASE_XP = 100; // XP requis pour le niveau 2
 
 /**
  * Formule : XP requis pour atteindre le niveau N
@@ -59,7 +59,7 @@ export function levelFromXp(totalXp: number): { level: number; xp: number; xpNee
  */
 export async function addXp(
   discordId: string,
-  guildId: string,
+  _guildId: string,
 ): Promise<{ leveledUp: boolean; newLevel: number; oldLevel: number }> {
   try {
     const user = await prisma.user.findUnique({ where: { discordId } });
@@ -98,7 +98,9 @@ export async function addXp(
 /**
  * Récupère l'XP et le niveau d'un utilisateur
  */
-export async function getUserXp(discordId: string): Promise<{ xp: number; level: number; rank: number } | null> {
+export async function getUserXp(
+  discordId: string,
+): Promise<{ xp: number; level: number; rank: number } | null> {
   try {
     const user = await prisma.user.findUnique({ where: { discordId } });
     if (!user) return null;
@@ -121,7 +123,9 @@ export async function getUserXp(discordId: string): Promise<{ xp: number; level:
 /**
  * Récupère le leaderboard d'une guilde (top 10)
  */
-export async function getLeaderboard(limit = 10): Promise<Array<{ discordId: string; xp: number; level: number }>> {
+export async function getLeaderboard(
+  limit = 10,
+): Promise<Array<{ discordId: string; xp: number; level: number }>> {
   try {
     const users = await prisma.user.findMany({
       where: { xp: { gt: 0 } },

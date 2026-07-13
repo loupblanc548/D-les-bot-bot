@@ -1,11 +1,9 @@
+import { ChatInputCommandInteraction, SlashCommandBuilder, Client } from "discord.js";
 import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  Client,
-  User,
-  EmbedBuilder,
-} from "discord.js";
-import { sendUserReport, setReportChannel, setUserReportChannel } from "../services/reportChannel.js";
+  sendUserReport,
+  setReportChannel,
+  setUserReportChannel,
+} from "../services/reportChannel.js";
 import logger from "../utils/logger.js";
 
 export const commands = [
@@ -16,28 +14,48 @@ export const commands = [
       sc
         .setName("user")
         .setDescription("Signale un utilisateur problématique")
-        .addUserOption((o) => o.setName("cible").setDescription("L'utilisateur à signaler").setRequired(true))
-        .addStringOption((o) => o.setName("raison").setDescription("Raison du signalement").setRequired(true))
-        .addStringOption((o) => o.setName("message-url").setDescription("Lien du message incriminé").setRequired(false)),
+        .addUserOption((o) =>
+          o.setName("cible").setDescription("L'utilisateur à signaler").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("raison").setDescription("Raison du signalement").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("message-url").setDescription("Lien du message incriminé").setRequired(false),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("message")
         .setDescription("Signale un message problématique (sans cibler un utilisateur précis)")
-        .addStringOption((o) => o.setName("raison").setDescription("Raison du signalement").setRequired(true))
-        .addStringOption((o) => o.setName("message-url").setDescription("Lien du message incriminé").setRequired(false)),
+        .addStringOption((o) =>
+          o.setName("raison").setDescription("Raison du signalement").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("message-url").setDescription("Lien du message incriminé").setRequired(false),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("set-channel")
         .setDescription("Définit le salon des alertes bot (admin)")
-        .addChannelOption((o) => o.setName("salon").setDescription("Salon où le bot envoie ses alertes de sécurité").setRequired(true)),
+        .addChannelOption((o) =>
+          o
+            .setName("salon")
+            .setDescription("Salon où le bot envoie ses alertes de sécurité")
+            .setRequired(true),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("set-user-channel")
         .setDescription("Définit le salon des signalements utilisateurs (admin)")
-        .addChannelOption((o) => o.setName("salon").setDescription("Salon où les utilisateurs peuvent signaler").setRequired(true)),
+        .addChannelOption((o) =>
+          o
+            .setName("salon")
+            .setDescription("Salon où les utilisateurs peuvent signaler")
+            .setRequired(true),
+        ),
     )
     .addSubcommand((sc) =>
       sc.setName("channel-info").setDescription("Affiche les salons de signalement configurés"),
@@ -50,7 +68,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 
   if (action === "set-channel") {
     if (!interaction.memberPermissions?.has("ManageGuild")) {
-      await interaction.reply({ content: "❌ Vous devez avoir la permission de gérer le serveur.", ephemeral: true });
+      await interaction.reply({
+        content: "❌ Vous devez avoir la permission de gérer le serveur.",
+        ephemeral: true,
+      });
       return;
     }
     const channel = interaction.options.getChannel("salon", true);
@@ -65,7 +86,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 
   if (action === "set-user-channel") {
     if (!interaction.memberPermissions?.has("ManageGuild")) {
-      await interaction.reply({ content: "❌ Vous devez avoir la permission de gérer le serveur.", ephemeral: true });
+      await interaction.reply({
+        content: "❌ Vous devez avoir la permission de gérer le serveur.",
+        ephemeral: true,
+      });
       return;
     }
     const channel = interaction.options.getChannel("salon", true);
@@ -101,11 +125,21 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     const messageUrl = interaction.options.getString("message-url") || undefined;
 
     if (target.id === interaction.user.id) {
-      await interaction.reply({ content: "❌ Vous ne pouvez pas vous signaler vous-même.", ephemeral: true });
+      await interaction.reply({
+        content: "❌ Vous ne pouvez pas vous signaler vous-même.",
+        ephemeral: true,
+      });
       return;
     }
 
-    await sendUserReport(client, interaction.guildId!, interaction.user, target, reason, messageUrl);
+    await sendUserReport(
+      client,
+      interaction.guildId!,
+      interaction.user,
+      target,
+      reason,
+      messageUrl,
+    );
     await interaction.reply({
       content: `✅ Signalement envoyé contre ${target.tag}. Les modérateurs ont été notifiés.`,
       ephemeral: true,

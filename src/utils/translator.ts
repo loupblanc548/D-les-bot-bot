@@ -209,7 +209,9 @@ export async function translateText(
     const translated = await ollamaTranslate(text, targetLang);
     if (translated && translated.trim().length > 0) {
       const detected = await ollamaDetectLanguage(text);
-      logger.debug(`[Translator] Ollama ✓: "${text.slice(0, 30)}..." → "${translated.slice(0, 30)}..."`);
+      logger.debug(
+        `[Translator] Ollama ✓: "${text.slice(0, 30)}..." → "${translated.slice(0, 30)}..."`,
+      );
       return {
         translatedText: translated,
         detectedLanguage: detected || "auto",
@@ -342,52 +344,70 @@ async function translateWithOpenRouter(
     sourceLang === "auto" ? "la langue détectée" : SUPPORTED_LANGUAGES[sourceLang] || sourceLang;
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://discord-bot.com",
-        "X-Title": "Discord Translation Bot",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.2-3b-instruct:free",
-        messages: [
-          {
-            role: "system",
-            content: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`,
-          },
-          {
-            role: "user",
-            content: text,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
+    // Retry sur 429 (rate limit) avec backoff exponentiel
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        const delay = 2000 * Math.pow(2, attempt - 1); // 2s, 4s
+        logger.warn(`[Translator] OpenRouter 429 — retry ${attempt + 1}/3 dans ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter HTTP error: ${response.status}`);
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://discord-bot.com",
+          "X-Title": "Discord Translation Bot",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.2-3b-instruct:free",
+          messages: [
+            {
+              role: "system",
+              content: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`,
+            },
+            {
+              role: "user",
+              content: text,
+            },
+          ],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (response.status === 429) {
+        lastError = new Error(`OpenRouter HTTP error: 429 (rate limit)`);
+        continue; // retry
+      }
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter HTTP error: ${response.status}`);
+      }
+
+      const data: OpenRouterResponse = (await response.json()) as OpenRouterResponse;
+
+      if (data.choices && data.choices[0]?.message?.content) {
+        const translatedText = data.choices[0].message.content.trim();
+
+        logger.debug(
+          `[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
+        );
+
+        return {
+          translatedText,
+          detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang,
+        };
+      } else {
+        throw new Error("OpenRouter response invalid");
+      }
     }
 
-    const data: OpenRouterResponse = (await response.json()) as OpenRouterResponse;
-
-    if (data.choices && data.choices[0]?.message?.content) {
-      const translatedText = data.choices[0].message.content.trim();
-
-      logger.debug(
-        `[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
-      );
-
-      return {
-        translatedText,
-        detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang,
-      };
-    } else {
-      throw new Error("OpenRouter response invalid");
-    }
+    // Tous les retries épuisés
+    throw lastError ?? new Error("OpenRouter: max retries exceeded");
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === "AbortError") {

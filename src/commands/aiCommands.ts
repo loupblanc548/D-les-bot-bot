@@ -61,7 +61,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   }
 }
 
-async function generateAIResponse(prompt: string, maxTokens: number = 500): Promise<string> {
+async function _generateAIResponse(prompt: string, maxTokens: number = 500): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return "API IA non configurée. Configurez OPENROUTER_API_KEY.";
 

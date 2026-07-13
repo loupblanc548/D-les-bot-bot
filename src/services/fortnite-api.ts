@@ -377,7 +377,7 @@ export async function checkWishlistMatches(client: Client): Promise<number> {
     );
 
     fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération des wishlists en base...");
-    const wishlistItems = await prisma.wishlist.findMany();
+    const wishlistItems = await prisma.wishlist.findMany({ take: 1000 });
     fortniteLogger.info(
       "\ud83d\udcca [Wishlist] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)",
     );
@@ -588,7 +588,7 @@ export async function runWishlistRetrospective(client: Client): Promise<number> 
     fortniteLogger.info(
       "\ud83d\udd0d [Wishlist Retrospective] Récupération des wishlists en base...",
     );
-    const wishlistItems = await prisma.wishlist.findMany();
+    const wishlistItems = await prisma.wishlist.findMany({ take: 1000 });
     fortniteLogger.info(
       "\ud83d\udcca [Wishlist Retrospective] " +
         wishlistItems.length +

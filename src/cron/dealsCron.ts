@@ -11,7 +11,7 @@ import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
-import { getOgImage, safeSetImage, isValidEmbedImageUrl, FALLBACK_EMBED_IMAGE } from "../utils/image-helpers.js";
+import { getOgImage, safeSetImage, isValidEmbedImageUrl } from "../utils/image-helpers.js";
 import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
 import { generateStableId } from "../utils/url-cleaner.js";
 
@@ -59,7 +59,8 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
     channelId: config.playstationChannel,
     color: 0x003791,
     name: "PlayStation",
-    defaultImage: "https://www.playstation.com/etc.clientlibs/globalpleasure/clientlibs/base/resources/favicon/icon-228.png",
+    defaultImage:
+      "https://www.playstation.com/etc.clientlibs/globalpleasure/clientlibs/base/resources/favicon/icon-228.png",
   },
   {
     keywords: ["[Xbox]", "XBL", "Xbox Series", "Xbox One", "Microsoft"],
@@ -80,7 +81,8 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
     channelId: config.fortniteChannel,
     color: 0x9147ff,
     name: "Fortnite",
-    defaultImage: "https://static-assets-prod.epicgames.com/fortnite/static/webpack/0e82483a46e9c0f6d127.png",
+    defaultImage:
+      "https://static-assets-prod.epicgames.com/fortnite/static/webpack/0e82483a46e9c0f6d127.png",
   },
   {
     keywords: ["[Instant Gaming]", "Instant Gaming", "InstantGaming"],
@@ -186,7 +188,9 @@ async function sendDealEmbed(
     }
 
     // Nettoyer le HTML de la description avant traduction
-    const cleanHtmlContent = stripHtml(item.contentSnippet || item.content || "").replace(/\s+/g, " ").trim();
+    const cleanHtmlContent = stripHtml(item.contentSnippet || item.content || "")
+      .replace(/\s+/g, " ")
+      .trim();
 
     // Traduire le titre si nécessaire
     let translatedTitle = item.title;
@@ -242,7 +246,12 @@ async function sendDealEmbed(
 
     // Optimiser l'image avec Sharp si c'est une URL d'image valide
     let sendOptions: { embeds: EmbedBuilder[]; files?: AttachmentBuilder[] } = { embeds: [embed] };
-    if (imageUrl && isValidEmbedImageUrl(imageUrl) && isOptimizableImageUrl(imageUrl) && imageUrl !== platform.defaultImage) {
+    if (
+      imageUrl &&
+      isValidEmbedImageUrl(imageUrl) &&
+      isOptimizableImageUrl(imageUrl) &&
+      imageUrl !== platform.defaultImage
+    ) {
       try {
         const optimized = await fetchAndOptimizeImage(imageUrl);
         if (optimized) {

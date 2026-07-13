@@ -12,15 +12,12 @@ import {
   TextChannel,
   ChannelType,
   PermissionFlagsBits,
-  MessageFlags,
 } from "discord.js";
 import {
   createPanel,
   listPanels,
   deletePanel,
-  createTicket,
   closeTicket,
-  claimTicket,
   addUserToTicket,
   listOpenTickets,
   getTicketTranscript,
@@ -41,10 +38,18 @@ export const commands = [
             .addChannelTypes(ChannelType.GuildText)
             .setRequired(true),
         )
-        .addStringOption((o) => o.setName("titre").setDescription("Titre du panneau").setRequired(false))
-        .addStringOption((o) => o.setName("description").setDescription("Description du panneau").setRequired(false))
-        .addStringOption((o) => o.setName("bouton").setDescription("Texte du bouton").setRequired(false))
-        .addStringOption((o) => o.setName("emoji").setDescription("Emoji du bouton").setRequired(false))
+        .addStringOption((o) =>
+          o.setName("titre").setDescription("Titre du panneau").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("description").setDescription("Description du panneau").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("bouton").setDescription("Texte du bouton").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("emoji").setDescription("Emoji du bouton").setRequired(false),
+        )
         .addChannelOption((o) =>
           o
             .setName("categorie")
@@ -52,8 +57,12 @@ export const commands = [
             .addChannelTypes(ChannelType.GuildCategory)
             .setRequired(false),
         )
-        .addRoleOption((o) => o.setName("staff").setDescription("Rôle staff qui voit les tickets").setRequired(false))
-        .addStringOption((o) => o.setName("bienvenue").setDescription("Message de bienvenue").setRequired(false)),
+        .addRoleOption((o) =>
+          o.setName("staff").setDescription("Rôle staff qui voit les tickets").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("bienvenue").setDescription("Message de bienvenue").setRequired(false),
+        ),
     )
     .addSubcommand((sc) => sc.setName("list").setDescription("Liste des tickets ouverts"))
     .addSubcommand((sc) => sc.setName("panels").setDescription("Liste des panneaux configurés"))
@@ -61,30 +70,41 @@ export const commands = [
       sc
         .setName("close")
         .setDescription("Ferme le ticket actuel (utilisable dans un ticket)")
-        .addStringOption((o) => o.setName("raison").setDescription("Raison de fermeture").setRequired(false)),
+        .addStringOption((o) =>
+          o.setName("raison").setDescription("Raison de fermeture").setRequired(false),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("add")
         .setDescription("Ajoute un utilisateur au ticket actuel")
-        .addUserOption((o) => o.setName("utilisateur").setDescription("L'utilisateur à ajouter").setRequired(true)),
+        .addUserOption((o) =>
+          o.setName("utilisateur").setDescription("L'utilisateur à ajouter").setRequired(true),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("transcript")
         .setDescription("Récupère le transcript d'un ticket fermé")
-        .addStringOption((o) => o.setName("ticket_id").setDescription("ID du ticket").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("ticket_id").setDescription("ID du ticket").setRequired(true),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("panel-delete")
         .setDescription("Supprime un panneau de tickets (admin)")
-        .addStringOption((o) => o.setName("panel_id").setDescription("ID du panneau").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("panel_id").setDescription("ID du panneau").setRequired(true),
+        ),
     )
     .toJSON(),
 ];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleCommand(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
 
   switch (action) {
@@ -121,19 +141,30 @@ async function handleSetup(interaction: ChatInputCommandInteraction): Promise<vo
   }
 
   const member = interaction.member;
-  if (!(member as { permissions?: { has: (p: bigint) => boolean } }).permissions?.has(PermissionFlagsBits.ManageGuild)) {
-    await interaction.reply({ content: "❌ Tu dois avoir la permission `Gérer le serveur`.", ephemeral: true });
+  if (
+    !(member as { permissions?: { has: (p: bigint) => boolean } }).permissions?.has(
+      PermissionFlagsBits.ManageGuild,
+    )
+  ) {
+    await interaction.reply({
+      content: "❌ Tu dois avoir la permission `Gérer le serveur`.",
+      ephemeral: true,
+    });
     return;
   }
 
   const channel = interaction.options.getChannel("salon", true) as TextChannel;
   const title = interaction.options.getString("titre") || "🎫 Support - Tickets";
-  const description = interaction.options.getString("description") || "Besoin d'aide ? Clique sur le bouton ci-dessous pour créer un ticket.";
+  const description =
+    interaction.options.getString("description") ||
+    "Besoin d'aide ? Clique sur le bouton ci-dessous pour créer un ticket.";
   const buttonLabel = interaction.options.getString("bouton") || "Créer un ticket";
   const buttonEmoji = interaction.options.getString("emoji") || "🎫";
   const category = interaction.options.getChannel("categorie");
   const staffRole = interaction.options.getRole("staff");
-  const welcomeMsg = interaction.options.getString("bienvenue") || "Bienvenue ! Décris ton problème, le staff va te répondre rapidement.";
+  const welcomeMsg =
+    interaction.options.getString("bienvenue") ||
+    "Bienvenue ! Décris ton problème, le staff va te répondre rapidement.";
 
   const embed = new EmbedBuilder()
     .setColor(0x00f0ff)
@@ -141,7 +172,8 @@ async function handleSetup(interaction: ChatInputCommandInteraction): Promise<vo
     .setDescription(description)
     .addFields({
       name: "📋 Règles",
-      value: "- Sois précis dans ta demande\n- Ne crée qu'un seul ticket à la fois\n- Reste courtois avec le staff",
+      value:
+        "- Sois précis dans ta demande\n- Ne crée qu'un seul ticket à la fois\n- Reste courtois avec le staff",
     })
     .setFooter({ text: interaction.guild.name });
 
@@ -210,7 +242,10 @@ async function handlePanels(interaction: ChatInputCommandInteraction): Promise<v
 
   const panels = await listPanels(interaction.guildId);
   if (panels.length === 0) {
-    await interaction.reply({ content: "📭 Aucun panneau configuré. Utilise `/ticket setup`.", ephemeral: true });
+    await interaction.reply({
+      content: "📭 Aucun panneau configuré. Utilise `/ticket setup`.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -232,21 +267,14 @@ async function handlePanels(interaction: ChatInputCommandInteraction): Promise<v
 async function handleClose(interaction: ChatInputCommandInteraction): Promise<void> {
   const channel = interaction.channel as TextChannel;
   if (!channel || !channel.name.startsWith("ticket-")) {
-    await interaction.reply({ content: "❌ Cette commande doit être utilisée dans un ticket.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande doit être utilisée dans un ticket.",
+      ephemeral: true,
+    });
     return;
   }
 
-  const reason = interaction.options.getString("raison") || "Aucune raison fournie";
-
   await interaction.deferReply();
-
-  const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("ticket_close")
-      .setLabel("Fermer")
-      .setEmoji("🔒")
-      .setStyle(ButtonStyle.Danger),
-  );
 
   // Simuler une ButtonInteraction pour réutiliser closeTicket
   const fakeInteraction = {
@@ -266,7 +294,10 @@ async function handleClose(interaction: ChatInputCommandInteraction): Promise<vo
 async function handleAdd(interaction: ChatInputCommandInteraction): Promise<void> {
   const channel = interaction.channel as TextChannel;
   if (!channel || !channel.name.startsWith("ticket-")) {
-    await interaction.reply({ content: "❌ Cette commande doit être utilisée dans un ticket.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande doit être utilisée dans un ticket.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -274,7 +305,9 @@ async function handleAdd(interaction: ChatInputCommandInteraction): Promise<void
   const added = await addUserToTicket(channel, user.id);
 
   await interaction.reply({
-    content: added ? `✅ ${user.toString()} ajouté au ticket.` : "❌ Impossible d'ajouter l'utilisateur.",
+    content: added
+      ? `✅ ${user.toString()} ajouté au ticket.`
+      : "❌ Impossible d'ajouter l'utilisateur.",
     ephemeral: true,
   });
 }
@@ -284,7 +317,10 @@ async function handleTranscript(interaction: ChatInputCommandInteraction): Promi
   const transcript = await getTicketTranscript(ticketId);
 
   if (!transcript) {
-    await interaction.reply({ content: "❌ Ticket introuvable ou aucun transcript.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Ticket introuvable ou aucun transcript.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -296,7 +332,12 @@ async function handleTranscript(interaction: ChatInputCommandInteraction): Promi
   } else {
     await interaction.reply({
       content: `📋 **Transcript du ticket \`${ticketId.slice(-8)}\`** (${transcript.length} caractères)`,
-      files: [{ name: `transcript-${ticketId.slice(-8)}.txt`, attachment: Buffer.from(transcript, "utf-8") }],
+      files: [
+        {
+          name: `transcript-${ticketId.slice(-8)}.txt`,
+          attachment: Buffer.from(transcript, "utf-8"),
+        },
+      ],
       ephemeral: true,
     });
   }
@@ -309,8 +350,15 @@ async function handlePanelDelete(interaction: ChatInputCommandInteraction): Prom
   }
 
   const member = interaction.member;
-  if (!(member as { permissions?: { has: (p: bigint) => boolean } }).permissions?.has(PermissionFlagsBits.ManageGuild)) {
-    await interaction.reply({ content: "❌ Permission `Gérer le serveur` requise.", ephemeral: true });
+  if (
+    !(member as { permissions?: { has: (p: bigint) => boolean } }).permissions?.has(
+      PermissionFlagsBits.ManageGuild,
+    )
+  ) {
+    await interaction.reply({
+      content: "❌ Permission `Gérer le serveur` requise.",
+      ephemeral: true,
+    });
     return;
   }
 

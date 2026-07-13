@@ -86,7 +86,7 @@ export interface PhishingResult {
 export async function searchGifs(query: string, limit = 8): Promise<GifResult[]> {
   try {
     const url = `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) throw new Error(`Tenor API ${res.status}`);
     const data = (await res.json()) as {
       results: Array<{
@@ -202,6 +202,7 @@ async function getSpotifyToken(): Promise<string | null> {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: "grant_type=client_credentials",
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) throw new Error(`Spotify token ${res.status}`);
     const data = (await res.json()) as { access_token: string; expires_in: number };
@@ -227,7 +228,10 @@ export async function searchSpotify(
 
   try {
     const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!res.ok) throw new Error(`Spotify API ${res.status}`);
     const data = (await res.json()) as {
       tracks: {
@@ -390,7 +394,7 @@ export async function getGamingNews(maxArticles = 5): Promise<NewsArticle[]> {
 export async function getSteamDeals(maxDeals = 10): Promise<CheapSharkDeal[]> {
   try {
     const url = `https://www.cheapshark.com/api/1.0/deals?storeID=1&sortBy=Deal%20Rating&pageSize=${maxDeals}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`CheapShark API ${res.status}`);
     const data = (await res.json()) as Array<{
       title: string;
@@ -423,7 +427,7 @@ export async function getPriceHistory(
 ): Promise<Array<{ price: number; date: string }>> {
   try {
     const url = `https://www.cheapshark.com/api/1.0/pricechart?appid=${appId}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`CheapShark pricechart ${res.status}`);
     const data = (await res.json()) as { prices: Array<{ price: string; date: string }> };
     return (data.prices ?? []).map((p) => ({ price: parseFloat(p.price), date: p.date }));
@@ -515,6 +519,7 @@ export async function hfClassifyText(
       method: "POST",
       headers: { Authorization: `Bearer ${config.hfApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ inputs: text }),
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`HF API ${res.status}`);
     const data = (await res.json()) as Array<{ label: string; score: number }>;
@@ -534,7 +539,7 @@ export async function getLastfmTopTracks(username: string, limit = 5): Promise<L
 
   try {
     const url = `https://ws.audioscrobbler.com/2.0/?method=user.gettoptracks&user=${encodeURIComponent(username)}&api_key=${config.lastfmApiKey}&format=json&limit=${limit}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) throw new Error(`Last.fm API ${res.status}`);
     const data = (await res.json()) as {
       toptracks: {
@@ -566,6 +571,7 @@ async function checkSinkingYachts(domain: string): Promise<boolean> {
   try {
     const res = await fetch(`https://phish.sinking.yachts/v2/check/${encodeURIComponent(domain)}`, {
       headers: { "X-Identity": "discord-bot-helldiver", Accept: "application/json" },
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) throw new Error(`Sinking Yachts API ${res.status}`);
     return ((await res.json()) as boolean) === true;
@@ -686,10 +692,9 @@ export async function searchWikipedia(
       titles: query,
     });
 
-    const res = await fetch(
-      `https://${language}.wikipedia.org/w/api.php?${params}`,
-      { signal: AbortSignal.timeout(10_000) },
-    );
+    const res = await fetch(`https://${language}.wikipedia.org/w/api.php?${params}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
 
     if (!res.ok) return null;
 

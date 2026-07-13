@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --expose-gc --import tsx src/index.ts",
+    "start:worker": "node --max-old-space-size=4096 --import tsx src/infrastructure/workerRuntime.ts",
     "dev": "node --expose-gc --max-old-space-size=4096 --import tsx --inspect src/index.ts",
     "build": "tsc",
     "test": "vitest run",
@@ -36,6 +37,7 @@
     "@sentry/node": "^10.57.0",
     "assemblyai": "^4.35.3",
     "axios": "^1.17.0",
+    "bedrock-protocol": "^3.57.0",
     "bullmq": "^5.79.0",
     "cheerio": "^1.2.0",
     "compromise": "^14.15.1",
@@ -49,6 +51,7 @@
     "express-session": "^1.19.0",
     "fast-xml-parser": "^5.8.0",
     "ffmpeg-static": "^5.3.0",
+    "fnbr": "^4.2.0",
     "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
@@ -62,6 +65,8 @@
     "play-dl": "^1.9.7",
     "playwright": "^1.60.0",
     "prism-media": "^1.3.5",
+    "prismarine-block": "^1.23.0",
+    "prismarine-world": "^3.7.0",
     "prom-client": "^15.1.3",
     "psn-api": "2.18.0",
     "qrcode": "^1.5.4",
@@ -106,6 +111,8 @@
     "vitest": "^4.1.10"
   },
   "allowScripts": {
-    "ffmpeg-static@5.3.0": true
+    "ffmpeg-static@5.3.0": true,
+    "raknet-native@1.2.3": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

@@ -18,7 +18,13 @@ export function stripHtml(text: string): string {
  * that could be used for log injection.
  */
 export function sanitizeForLog(text: string): string {
-  return text.replace(/[\r\n\t]/g, " ").replace(/\x1b\[[0-9;]*m/g, "").slice(0, 500);
+  return (
+    text
+      .replace(/[\r\n\t]/g, " ")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;]*m/g, "")
+      .slice(0, 500)
+  );
 }
 
 /**

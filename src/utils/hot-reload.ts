@@ -144,7 +144,7 @@ export async function reloadAllServices(): Promise<{ success: number; failed: nu
 /**
  * Recharge tout (commandes + services) et réenregistre les slash commands.
  */
-export async function fullReload(client: Client): Promise<{
+export async function fullReload(_client: Client): Promise<{
   commands: { success: number; failed: number };
   services: { success: number; failed: number };
   registered: boolean;
@@ -171,10 +171,9 @@ export async function fullReload(client: Client): Promise<{
       const { allCommands } = await import("../commandRouter.js?t=" + Date.now());
       const rest = new REST({ version: "10" }).setToken(config.token);
       if (config.guildId) {
-        await rest.put(
-          Routes.applicationGuildCommands(config.clientId, config.guildId),
-          { body: allCommands },
-        );
+        await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
+          body: allCommands,
+        });
       } else {
         await rest.put(Routes.applicationCommands(config.clientId), {
           body: allCommands,

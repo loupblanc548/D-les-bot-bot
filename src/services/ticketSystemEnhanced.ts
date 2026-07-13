@@ -21,7 +21,6 @@ import {
   ActionRowBuilder,
   AttachmentBuilder,
   PermissionFlagsBits,
-  User,
   Message,
 } from "discord.js";
 import logger from "../utils/logger.js";
@@ -114,13 +113,25 @@ export async function createEnhancedTicket(
 
     const permissionOverwrites = [
       { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+      {
+        id: userId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      },
     ];
 
     if (staffRoleId) {
       permissionOverwrites.push({
         id: staffRoleId,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels],
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
+        ],
       });
     }
 
@@ -146,7 +157,9 @@ export async function createEnhancedTicket(
     const embed = new EmbedBuilder()
       .setTitle(`${CATEGORY_LABELS[category]} — ${subject}`)
       .setColor(CATEGORY_COLORS[category])
-      .setDescription(`Bienvenue <@${userId}>!\n\nUn membre du staff va vous répondre rapidement. En attendant, décrivez votre demande en détail.`)
+      .setDescription(
+        `Bienvenue <@${userId}>!\n\nUn membre du staff va vous répondre rapidement. En attendant, décrivez votre demande en détail.`,
+      )
       .addFields(
         { name: "🆔 Ticket ID", value: ticketId, inline: true },
         { name: "📂 Catégorie", value: CATEGORY_LABELS[category], inline: true },
@@ -234,7 +247,11 @@ export async function closeEnhancedTicket(
           { name: "📂 Catégorie", value: CATEGORY_LABELS[ticket.category], inline: true },
           { name: "👤 Utilisateur", value: `<@${ticket.userId}>`, inline: true },
           { name: "🔒 Fermé par", value: `<@${closedBy}>`, inline: true },
-          { name: "⏱️ Durée", value: `${Math.round((Date.now() - ticket.createdAt.getTime()) / 60_000)}min`, inline: true },
+          {
+            name: "⏱️ Durée",
+            value: `${Math.round((Date.now() - ticket.createdAt.getTime()) / 60_000)}min`,
+            inline: true,
+          },
         )
         .setTimestamp();
 
@@ -252,21 +269,46 @@ export async function closeEnhancedTicket(
     const feedbackEmbed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle("🎫 Ticket fermé — Feedback")
-      .setDescription(`Votre ticket "${ticket.subject}" a été fermé.\n\nComment évalueriez-vous votre expérience?`)
+      .setDescription(
+        `Votre ticket "${ticket.subject}" a été fermé.\n\nComment évalueriez-vous votre expérience?`,
+      )
       .setTimestamp();
 
-    const rate1 = new ButtonBuilder().setCustomId(`ticket_fb_1_${ticket.id}`).setLabel("⭐").setStyle(ButtonStyle.Secondary);
-    const rate2 = new ButtonBuilder().setCustomId(`ticket_fb_2_${ticket.id}`).setLabel("⭐⭐").setStyle(ButtonStyle.Secondary);
-    const rate3 = new ButtonBuilder().setCustomId(`ticket_fb_3_${ticket.id}`).setLabel("⭐⭐⭐").setStyle(ButtonStyle.Secondary);
-    const rate4 = new ButtonBuilder().setCustomId(`ticket_fb_4_${ticket.id}`).setLabel("⭐⭐⭐⭐").setStyle(ButtonStyle.Secondary);
-    const rate5 = new ButtonBuilder().setCustomId(`ticket_fb_5_${ticket.id}`).setLabel("⭐⭐⭐⭐⭐").setStyle(ButtonStyle.Secondary);
+    const rate1 = new ButtonBuilder()
+      .setCustomId(`ticket_fb_1_${ticket.id}`)
+      .setLabel("⭐")
+      .setStyle(ButtonStyle.Secondary);
+    const rate2 = new ButtonBuilder()
+      .setCustomId(`ticket_fb_2_${ticket.id}`)
+      .setLabel("⭐⭐")
+      .setStyle(ButtonStyle.Secondary);
+    const rate3 = new ButtonBuilder()
+      .setCustomId(`ticket_fb_3_${ticket.id}`)
+      .setLabel("⭐⭐⭐")
+      .setStyle(ButtonStyle.Secondary);
+    const rate4 = new ButtonBuilder()
+      .setCustomId(`ticket_fb_4_${ticket.id}`)
+      .setLabel("⭐⭐⭐⭐")
+      .setStyle(ButtonStyle.Secondary);
+    const rate5 = new ButtonBuilder()
+      .setCustomId(`ticket_fb_5_${ticket.id}`)
+      .setLabel("⭐⭐⭐⭐⭐")
+      .setStyle(ButtonStyle.Secondary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(rate1, rate2, rate3, rate4, rate5);
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      rate1,
+      rate2,
+      rate3,
+      rate4,
+      rate5,
+    );
     await user.send({ embeds: [feedbackEmbed], components: [row] }).catch(() => {});
   }
 
   // Notify in channel then delete
-  await channel.send({ content: "🔒 Ticket fermé. Ce channel sera supprimé dans 5 secondes." }).catch(() => {});
+  await channel
+    .send({ content: "🔒 Ticket fermé. Ce channel sera supprimé dans 5 secondes." })
+    .catch(() => {});
   setTimeout(() => {
     channel.delete("Ticket closed").catch(() => {});
   }, 5000);
@@ -348,7 +390,12 @@ export function setFeedback(ticketId: string, rating: number, comment?: string):
 
 // ─── Stats ────────────────────────────────────────────────────────────
 
-export function getTicketStats(guildId: string): { open: number; claimed: number; closed: number; avgRating: number } {
+export function getTicketStats(guildId: string): {
+  open: number;
+  claimed: number;
+  closed: number;
+  avgRating: number;
+} {
   const all = Array.from(activeTickets.values()).filter((t) => t.guildId === guildId);
   const closed = all.filter((t) => t.status === "closed");
   const ratings = closed.filter((t) => t.feedback).map((t) => t.feedback!.rating);

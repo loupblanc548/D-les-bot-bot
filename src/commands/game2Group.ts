@@ -14,10 +14,9 @@
  * /game2 youtube     — Vidéos gaming YouTube (Invidious, sans clé)
  */
 
-import { ChatInputCommandInteraction, SlashCommandBuilder, Client, EmbedBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import { getSpeedrunRecords } from "../services/freeApis.js";
 import Parser from "rss-parser";
-import logger from "../utils/logger.js";
 
 const rssParser = new Parser();
 

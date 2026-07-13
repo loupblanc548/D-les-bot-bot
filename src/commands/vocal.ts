@@ -6,18 +6,12 @@ import {
   GuildMember,
   ChannelType,
 } from "discord.js";
-import {
-  joinVoiceChannel,
-  getVoiceConnection,
-  VoiceConnectionStatus,
-} from "@discordjs/voice";
+import { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } from "@discordjs/voice";
 import logger from "../utils/logger.js";
 import { requireAdmin } from "../services/permissions.js";
 import {
   setHubChannel,
-  getHubChannelCached,
   clearHubCache,
-  getTempVoiceOwner,
   lockTempVoice,
   unlockTempVoice,
   renameTempVoice,
@@ -68,7 +62,10 @@ export const commands = [
         .setMaxValue(99),
     )
     .addUserOption((o) =>
-      o.setName("utilisateur").setDescription("Nouveau propriétaire (pour temp-transfer)").setRequired(false),
+      o
+        .setName("utilisateur")
+        .setDescription("Nouveau propriétaire (pour temp-transfer)")
+        .setRequired(false),
     )
     .toJSON(),
 ];
@@ -139,7 +136,7 @@ async function handleJoin(interaction: ChatInputCommandInteraction) {
 
   const existing = getVoiceConnection(interaction.guildId!);
   if (existing) {
-      logger.info("[Vocal] Connexion précédente détruite pour rejoindre un autre salon");
+    logger.info("[Vocal] Connexion précédente détruite pour rejoindre un autre salon");
     if (existing.joinConfig.channelId === voiceChannel.id) {
       await interaction.editReply({
         content: `⚠️ Je suis déjà dans **${voiceChannel.name}** !`,
@@ -228,7 +225,10 @@ async function handleTempSetup(interaction: ChatInputCommandInteraction) {
 async function handleTempLock(interaction: ChatInputCommandInteraction) {
   const channelId = (interaction.member as GuildMember)?.voice?.channelId;
   if (!channelId) {
-    await interaction.reply({ content: "❌ Tu dois être dans un salon vocal.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu dois être dans un salon vocal.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -242,7 +242,10 @@ async function handleTempLock(interaction: ChatInputCommandInteraction) {
 async function handleTempUnlock(interaction: ChatInputCommandInteraction) {
   const channelId = (interaction.member as GuildMember)?.voice?.channelId;
   if (!channelId) {
-    await interaction.reply({ content: "❌ Tu dois être dans un salon vocal.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu dois être dans un salon vocal.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -257,13 +260,18 @@ async function handleTempRename(interaction: ChatInputCommandInteraction) {
   const channelId = (interaction.member as GuildMember)?.voice?.channelId;
   const name = interaction.options.getString("nom");
   if (!channelId || !name) {
-    await interaction.reply({ content: "❌ Tu dois être dans un salon vocal et spécifier un nom.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu dois être dans un salon vocal et spécifier un nom.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
   const success = await renameTempVoice(interaction.guild!, channelId, interaction.user.id, name);
   await interaction.reply({
-    content: success ? `✏️ Salon renommé en "${name}".` : "❌ Tu n'es pas le propriétaire de ce salon.",
+    content: success
+      ? `✏️ Salon renommé en "${name}".`
+      : "❌ Tu n'es pas le propriétaire de ce salon.",
     flags: [MessageFlags.Ephemeral],
   });
 }
@@ -272,13 +280,18 @@ async function handleTempLimit(interaction: ChatInputCommandInteraction) {
   const channelId = (interaction.member as GuildMember)?.voice?.channelId;
   const limit = interaction.options.getInteger("limite");
   if (!channelId || limit === null) {
-    await interaction.reply({ content: "❌ Tu dois être dans un salon vocal et spécifier une limite.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu dois être dans un salon vocal et spécifier une limite.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
   const success = await limitTempVoice(interaction.guild!, channelId, interaction.user.id, limit);
   await interaction.reply({
-    content: success ? `👥 Limite fixée à ${limit} utilisateurs.` : "❌ Tu n'es pas le propriétaire de ce salon.",
+    content: success
+      ? `👥 Limite fixée à ${limit} utilisateurs.`
+      : "❌ Tu n'es pas le propriétaire de ce salon.",
     flags: [MessageFlags.Ephemeral],
   });
 }
@@ -287,13 +300,18 @@ async function handleTempTransfer(interaction: ChatInputCommandInteraction) {
   const channelId = (interaction.member as GuildMember)?.voice?.channelId;
   const newOwner = interaction.options.getUser("utilisateur");
   if (!channelId || !newOwner) {
-    await interaction.reply({ content: "❌ Tu dois être dans un salon vocal et spécifier un utilisateur.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu dois être dans un salon vocal et spécifier un utilisateur.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
   const success = transferTempVoiceOwnership(channelId, interaction.user.id, newOwner.id);
   await interaction.reply({
-    content: success ? `🔑 Propriété transférée à ${newOwner.toString()}.` : "❌ Tu n'es pas le propriétaire de ce salon.",
+    content: success
+      ? `🔑 Propriété transférée à ${newOwner.toString()}.`
+      : "❌ Tu n'es pas le propriétaire de ce salon.",
     flags: [MessageFlags.Ephemeral],
   });
 }

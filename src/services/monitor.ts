@@ -18,6 +18,7 @@ import {
   getOgImage,
   getTweetImage,
   extractMediaThumbnail,
+  isValidEmbedImageUrl,
 } from "../utils/image-helpers.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
@@ -26,7 +27,7 @@ import {
   getPlatformColor,
   getPlatformLabel,
 } from "../utils/notificationCards.js";
-import { alertApiFailure, alertCronFailure, alertCritical } from "../services/proactiveAlerts.js";
+import { alertApiFailure, alertCritical } from "../services/proactiveAlerts.js";
 import { config } from "../config.js";
 import {
   RSS_HEADERS,
@@ -36,7 +37,7 @@ import {
   extractLink,
 } from "../utils/rss-parser.js";
 import { ensureConnected } from "../utils/redisClient.js";
-import { isMonitoringEnabled } from "../modules/guild/guildConfig.js";
+import {} from "../modules/guild/guildConfig.js";
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;
@@ -445,7 +446,7 @@ async function checkAndNotify(client: Client) {
     logger.info("[Monitor] Vérification des sources...");
 
     // 1. Sources de la DB (utilisateur)
-    const sources = await prisma.source.findMany();
+    const sources = await prisma.source.findMany({ take: 500 });
 
     // Batch: fetch all guild configs in one query to avoid N+1
     const guildIds = [...new Set(sources.map((s) => s.guildId))];
@@ -527,20 +528,21 @@ async function checkAndNotify(client: Client) {
               if (source.type === "YOUTUBE" && result.content.url) {
                 const ytContent = result.content as YouTubeRSSContent;
                 const thumb = ytContent.thumbnail || (await getYouTubeThumbnail(ytContent.url));
-                if (thumb) embed.setImage(thumb);
+                if (thumb && isValidEmbedImageUrl(thumb)) embed.setImage(thumb);
               } else if (source.type === "TWITTER" && result.content.url) {
                 const og = await getTweetImage(result.content.url);
-                if (og) embed.setImage(og);
+                if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
               } else if (source.type === "TWITCH" && result.content.url) {
                 const twContent = result.content as YouTubeRSSContent;
-                if (twContent.thumbnail) embed.setImage(twContent.thumbnail);
+                if (twContent.thumbnail && isValidEmbedImageUrl(twContent.thumbnail))
+                  embed.setImage(twContent.thumbnail);
               } else if (source.type === "BLUESKY" && result.content.url) {
                 const og = await getOgImage(result.content.url);
-                if (og) embed.setImage(og);
+                if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
               } else if (source.type === "REDDIT" && result.content.url) {
                 // Reddit : extraire og:image depuis la page du post
                 const og = await getOgImage(result.content.url);
-                if (og) embed.setImage(og);
+                if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
               }
             } catch {
               // Ignore image fetch errors
@@ -569,11 +571,22 @@ async function checkAndNotify(client: Client) {
                 await channel.send({ embeds: [embed], files: [cardAttachment] });
               } catch (sendErr) {
                 // Retry sans la carte si Discord rejette l'embed
-                const cleanData = { ...embed.data };
-                delete (cleanData as Record<string, unknown>).image;
-                delete (cleanData as Record<string, unknown>).thumbnail;
-                await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
-                logger.warn(`[Monitor] Carte rejetée, envoi sans carte pour @${source.urlOrHandle}`);
+                logger.warn(
+                  `[Monitor] Carte rejetée pour @${source.urlOrHandle}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`,
+                );
+                try {
+                  const cleanData = { ...embed.data };
+                  delete (cleanData as Record<string, unknown>).image;
+                  delete (cleanData as Record<string, unknown>).thumbnail;
+                  await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
+                  logger.warn(
+                    `[Monitor] Carte rejetée, envoi sans carte pour @${source.urlOrHandle}`,
+                  );
+                } catch (retryErr) {
+                  logger.error(
+                    `[Monitor] Retry sans carte échoué pour @${source.urlOrHandle}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+                  );
+                }
               }
             } else {
               try {
@@ -582,11 +595,17 @@ async function checkAndNotify(client: Client) {
                 // Retry sans image si Discord rejette l'embed
                 const sendMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
                 if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
-                  const cleanData = { ...embed.data };
-                  delete (cleanData as Record<string, unknown>).image;
-                  delete (cleanData as Record<string, unknown>).thumbnail;
-                  await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
-                  logger.warn(`[Monitor] Embed sans image pour @${source.urlOrHandle}`);
+                  try {
+                    const cleanData = { ...embed.data };
+                    delete (cleanData as Record<string, unknown>).image;
+                    delete (cleanData as Record<string, unknown>).thumbnail;
+                    await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
+                    logger.warn(`[Monitor] Embed sans image pour @${source.urlOrHandle}`);
+                  } catch (retryErr) {
+                    logger.error(
+                      `[Monitor] Retry sans image échoué pour @${source.urlOrHandle}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+                    );
+                  }
                 } else {
                   throw sendErr;
                 }
@@ -597,7 +616,8 @@ async function checkAndNotify(client: Client) {
         }
       } catch (err) {
         const errMsg = String(err instanceof Error ? err.message : String(err));
-        const isTransient = errMsg.includes("fetch") ||
+        const isTransient =
+          errMsg.includes("fetch") ||
           errMsg.includes("timeout") ||
           errMsg.includes("socket") ||
           errMsg.includes("ECONNREFUSED") ||
@@ -671,7 +691,9 @@ async function ensureSourceAndInsertNotification(
   platform: Platform,
 ): Promise<AutoSourceResult> {
   // Ensure platform is a valid Platform enum value (lowercase)
-  const safePlatform = (typeof platform === "string" ? platform.toLowerCase() : String(platform)) as Platform;
+  const safePlatform = (
+    typeof platform === "string" ? platform.toLowerCase() : String(platform)
+  ) as Platform;
   try {
     // Étape 1 : Auto-création de la source si elle n'existe pas
     const source = await prisma.source.upsert({
@@ -769,7 +791,7 @@ export async function runDbSourcesRetrospective(client: Client) {
   logger.info("=".repeat(50));
 
   const startTime = Date.now();
-  const sources = await prisma.source.findMany();
+  const sources = await prisma.source.findMany({ take: 500 });
   let totalPublished = 0;
   let sourcesCreated = 0;
   let notificationsInserted = 0;
@@ -855,23 +877,43 @@ export async function runDbSourcesRetrospective(client: Client) {
           try {
             if (source.type === "YOUTUBE") {
               const thumb = item.thumbnail || (await getYouTubeThumbnail(item.url));
-              if (thumb) embed.setImage(thumb);
+              if (thumb && isValidEmbedImageUrl(thumb)) embed.setImage(thumb);
             } else if (source.type === "TWITTER") {
               const og = await getTweetImage(item.url);
-              if (og) embed.setImage(og);
+              if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             } else if (source.type === "TWITCH") {
-              if (item.thumbnail) embed.setImage(item.thumbnail);
+              if (item.thumbnail && isValidEmbedImageUrl(item.thumbnail))
+                embed.setImage(item.thumbnail);
             } else if (source.type === "BLUESKY") {
               const og = await getOgImage(item.url);
-              if (og) embed.setImage(og);
+              if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             } else if (source.type === "REDDIT") {
               const og = await getOgImage(item.url);
-              if (og) embed.setImage(og);
+              if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             }
           } catch {
             // Ignore image fetch errors
           }
-          await channel.send({ embeds: [embed] });
+          try {
+            await channel.send({ embeds: [embed] });
+          } catch (sendErr) {
+            const sendMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+            if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
+              try {
+                const cleanData = { ...embed.data };
+                delete (cleanData as Record<string, unknown>).image;
+                delete (cleanData as Record<string, unknown>).thumbnail;
+                await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
+                logger.warn(`[RetroDB] Embed sans image pour @${source.urlOrHandle}`);
+              } catch (retryErr) {
+                logger.error(
+                  `[RetroDB] Retry échoué pour @${source.urlOrHandle}: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+                );
+              }
+            } else {
+              throw sendErr;
+            }
+          }
           publishedForSource++;
           totalPublished++;
           if (totalPublished >= maxRetroPosts) {
@@ -966,7 +1008,7 @@ STATUT      -> [1;${statusColor}m ${statusText} [0m]
 
 async function checkSourceInactivity(client: Client): Promise<void> {
   try {
-    const sources = await prisma.source.findMany();
+    const sources = await prisma.source.findMany({ take: 500 });
     const inactiveThreshold = 7 * 24 * 60 * 60 * 1000; // 7 jours
     const now = Date.now();
 

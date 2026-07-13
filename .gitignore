@@ -78,3 +78,15 @@ fix-errors.cjs
 fix-twitter-cron.cjs
 inspect-bytes.cjs
 inv-errors.cjs
+
+# ESLint temp files
+eslint-report.txt
+eslint_final.json
+eslint_full*.json
+eslint_w*.txt
+ef.json
+
+
+# Minecraft server binary
+bedrock-server/
+

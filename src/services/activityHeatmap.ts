@@ -18,14 +18,28 @@ async function generateActivityHeatmap(client: Client): Promise<void> {
   const channel = client.channels.cache.get(targetChannelId) as TextChannel;
   if (!channel?.isTextBased()) return;
 
-  const hourlyData: HourlyActivity[] = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
-  const dailyData: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+  const hourlyData: HourlyActivity[] = Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    count: 0,
+  }));
+  const dailyData: Record<string, number> = {
+    Mon: 0,
+    Tue: 0,
+    Wed: 0,
+    Thu: 0,
+    Fri: 0,
+    Sat: 0,
+    Sun: 0,
+  };
   const channelActivity = new Map<string, number>();
 
   try {
     for (const guild of client.guilds.cache.values()) {
-      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<string, TextChannel>;
-      for (const [chId, ch] of channels) {
+      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<
+        string,
+        TextChannel
+      >;
+      for (const [_chId, ch] of channels) {
         try {
           const messages = await ch.messages.fetch({ limit: 50 });
           for (const msg of messages) {
@@ -49,16 +63,20 @@ async function generateActivityHeatmap(client: Client): Promise<void> {
   const maxDaily = Math.max(...Object.values(dailyData), 1);
 
   const heatmapBars = "▁▂▃▄▅▆▇█";
-  const hourlyBar = hourlyData.map((h) => {
-    const idx = Math.floor((h.count / maxHourly) * (heatmapBars.length - 1));
-    return heatmapBars[idx];
-  }).join("");
+  const hourlyBar = hourlyData
+    .map((h) => {
+      const idx = Math.floor((h.count / maxHourly) * (heatmapBars.length - 1));
+      return heatmapBars[idx];
+    })
+    .join("");
 
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const dailyBar = dayNames.map((d) => {
-    const idx = Math.floor((dailyData[d] / maxDaily) * (heatmapBars.length - 1));
-    return heatmapBars[idx];
-  }).join("");
+  const dailyBar = dayNames
+    .map((d) => {
+      const idx = Math.floor((dailyData[d] / maxDaily) * (heatmapBars.length - 1));
+      return heatmapBars[idx];
+    })
+    .join("");
 
   const topChannels = [...channelActivity.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
@@ -83,7 +101,10 @@ async function generateActivityHeatmap(client: Client): Promise<void> {
   if (topChannels.length > 0) {
     embed.addFields({
       name: "Top 10 salons actifs",
-      value: topChannels.map(([name, count]) => `**#${name}**: ${count} messages`).join("\n").substring(0, 1024),
+      value: topChannels
+        .map(([name, count]) => `**#${name}**: ${count} messages`)
+        .join("\n")
+        .substring(0, 1024),
       inline: false,
     });
   }
@@ -108,7 +129,11 @@ async function generateActivityHeatmap(client: Client): Promise<void> {
 export function startActivityHeatmap(client: Client): void {
   if (heatmapInterval) return;
   logger.info("[Heatmap] Heatmap d'activité activée (intervalle: 24h)");
-  heatmapInterval = safeInterval("ActivityHeatmap", () => generateActivityHeatmap(client), CHECK_INTERVAL_MS);
+  heatmapInterval = safeInterval(
+    "ActivityHeatmap",
+    () => generateActivityHeatmap(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopActivityHeatmap(): void {

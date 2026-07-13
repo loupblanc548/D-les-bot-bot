@@ -18,7 +18,7 @@
  *  4. dispatchReport() — envoie vers alertcenter + notification owners
  */
 
-import { Client, EmbedBuilder, GuildMember } from "discord.js";
+import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
@@ -27,7 +27,6 @@ import {
   generateAlert,
   sendAlertToChannel,
   notifyOwners,
-  resolveAlert,
   type AlertAction,
 } from "./alert-service.js";
 import { queryOSINT, OSINTResult } from "./osintProvider.js";
@@ -255,18 +254,21 @@ async function analyzeWithAI(
       `Réponds UNIQUEMENT avec un objet JSON valide (aucun texte, aucun markdown autour), au format :\n` +
       `{"action": "IGNORE|WATCH|WARN|TIMEOUT|KICK|BAN", "confidence": <entier 0-100>, "reasoning": "<ton analyse concise en français incluant les preuves retenues et la proportionnalité>"}`;
 
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        {
-          role: "system",
-          content: "Tu réponds uniquement en JSON valide, sans markdown ni texte additionnel.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 350,
-      temperature: 0.3,
-    }, { timeout: 12_000 });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          {
+            role: "system",
+            content: "Tu réponds uniquement en JSON valide, sans markdown ni texte additionnel.",
+          },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 350,
+        temperature: 0.3,
+      },
+      { timeout: 12_000 },
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -282,7 +284,9 @@ async function analyzeWithAI(
     };
 
     if (!parsed.action || !VALID_AI_ACTIONS.includes(parsed.action as AlertAction)) {
-      logger.warn(`[Investigator] Action IA invalide: ${String(parsed.action)}, fallback rule-based`);
+      logger.warn(
+        `[Investigator] Action IA invalide: ${String(parsed.action)}, fallback rule-based`,
+      );
       return null;
     }
 
@@ -316,10 +320,7 @@ const ESCALATION_ORDER: AlertAction[] = ["WARN", "TIMEOUT", "KICK", "BAN"];
  * sauf si le score de risque est CRITIQUE (≥100) auquel cas il peut aller
  * directement à KICK ou BAN.
  */
-function applyEscalation(
-  requestedAction: AlertAction,
-  profile: RiskProfile,
-): AlertAction {
+function applyEscalation(requestedAction: AlertAction, profile: RiskProfile): AlertAction {
   // IGNORE et WATCH ne sont pas soumis à l'escalade
   if (requestedAction === "IGNORE" || requestedAction === "WATCH") {
     return requestedAction;
@@ -344,9 +345,7 @@ function applyEscalation(
   }
 
   // Trouver l'indice de la sanction la plus élevée déjà reçue
-  const highestPrevIndex = Math.max(
-    ...previousActions.map((a) => ESCALATION_ORDER.indexOf(a)),
-  );
+  const highestPrevIndex = Math.max(...previousActions.map((a) => ESCALATION_ORDER.indexOf(a)));
 
   // L'agent peut monter d'un cran au-dessus
   const maxAllowedIndex = Math.min(highestPrevIndex + 1, ESCALATION_ORDER.length - 1);
@@ -746,7 +745,7 @@ async function dispatchReport(
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function extractUsername(intel: MemberIntel | null, userId: string): string | null {
+export function extractUsername(intel: MemberIntel | null, _userId: string): string | null {
   if (!intel) return null;
   // Essayer d'extraire un pseudo depuis le tag Discord
   if (intel.tag) {

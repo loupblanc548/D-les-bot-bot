@@ -5,7 +5,6 @@ import {
   enableMaintenanceMode,
   disableMaintenanceMode,
   reloadConfig,
-  reloadCommands,
   fullReload,
   enableAutoReload,
   disableAutoReload,
@@ -81,9 +80,21 @@ async function handleReload(interaction: ChatInputCommandInteraction, client: Cl
       .setDescription("Rechargement complet terminé")
       .setColor(0x00ff00)
       .addFields(
-        { name: "📝 Commandes", value: `✅ ${result.commands.success} | ❌ ${result.commands.failed}`, inline: true },
-        { name: "⚙️ Services", value: `✅ ${result.services.success} | ❌ ${result.services.failed}`, inline: true },
-        { name: "📡 API Discord", value: result.registered ? "✅ Réenregistrées" : "❌ Échec", inline: true },
+        {
+          name: "📝 Commandes",
+          value: `✅ ${result.commands.success} | ❌ ${result.commands.failed}`,
+          inline: true,
+        },
+        {
+          name: "⚙️ Services",
+          value: `✅ ${result.services.success} | ❌ ${result.services.failed}`,
+          inline: true,
+        },
+        {
+          name: "📡 API Discord",
+          value: result.registered ? "✅ Réenregistrées" : "❌ Échec",
+          inline: true,
+        },
       )
       .setTimestamp();
 

@@ -13,12 +13,7 @@ import { Client, EmbedBuilder } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import {
-  generateIntelReport,
-  detectSuspiciousPatterns,
-  sendStealthAlert,
-  isStealthEnabled,
-} from "../services/shadowBroker.js";
+import { generateIntelReport, detectSuspiciousPatterns } from "../services/shadowBroker.js";
 import prisma from "../prisma.js";
 
 let reportCron: ScheduledTask | null = null;

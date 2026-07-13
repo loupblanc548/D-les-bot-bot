@@ -10,19 +10,23 @@ import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { commandRouter } from "./commandRouter.js";
+import {
+  tryRemoteExecution,
+  applyRemoteResult,
+  notifyRemoteProcessing,
+} from "./infrastructure/bridge/remoteRouter.js";
+import { evaluateOffload, recordExecution } from "./infrastructure/monitors/offloadController.js";
+import { isOffloadableCommand } from "./infrastructure/bridge/bridgeTypes.js";
 import { handleMainSelectMenu } from "./commandRouter.js";
 import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
-import {
-  createTicket,
-  closeTicket,
-  claimTicket,
-  getPanel,
-} from "./services/ticketService.js";
+import { createTicket, closeTicket, claimTicket, getPanel } from "./services/ticketService.js";
 import { handleTriviaButton } from "./services/triviaService.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
+import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
+import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 0. Context Menus (clic droit) ──────────────────────────────────
@@ -33,11 +37,17 @@ export function attachInteractionHandlers(client: Client): void {
       try {
         await handler(interaction, client);
       } catch (error) {
-        logger.error(`[ContextMenu] /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`);
-        const reply = interaction.replied || interaction.deferred
-          ? interaction.followUp.bind(interaction)
-          : interaction.reply.bind(interaction);
-        await reply({ content: "❌ Une erreur est survenue.", flags: [MessageFlags.Ephemeral] }).catch(() => {});
+        logger.error(
+          `[ContextMenu] /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        const reply =
+          interaction.replied || interaction.deferred
+            ? interaction.followUp.bind(interaction)
+            : interaction.reply.bind(interaction);
+        await reply({
+          content: "❌ Une erreur est survenue.",
+          flags: [MessageFlags.Ephemeral],
+        }).catch(() => {});
       }
     }
   });
@@ -53,13 +63,41 @@ export function attachInteractionHandlers(client: Client): void {
           await interaction.deferReply().catch(() => {});
         }
 
+        // ─── HYBRID OFFLOAD: Check if command should be sent to worker ───
+        if (isOffloadableCommand(interaction.commandName)) {
+          const decision = evaluateOffload();
+          if (decision.target === "remote") {
+            // Notify user and attempt remote execution
+            await notifyRemoteProcessing(interaction);
+            const remoteResult = await tryRemoteExecution(interaction);
+            if (remoteResult && remoteResult.success) {
+              await applyRemoteResult(interaction, remoteResult);
+              recordExecution("remote");
+              return;
+            }
+            // Remote failed or unavailable — fall through to local execution
+            if (remoteResult && !remoteResult.success) {
+              logger.warn(
+                `[Interaction] Remote execution failed, falling back to local: ${remoteResult.error}`,
+              );
+            }
+          } else if (decision.target === "local_degraded") {
+            recordExecution("local_degraded");
+            logger.warn(`[Interaction] Degraded mode: ${decision.reason}`);
+          } else {
+            recordExecution("local");
+          }
+        }
+
         // Timeout fallback: if handler doesn't complete in 15s, send a message
         const timeout = setTimeout(() => {
           if (!interaction.replied && !interaction.deferred) return;
           if (interaction.deferred && !interaction.replied) {
-            interaction.editReply({
-              content: "⏱️ La commande prend plus de temps que prévu. Réessaie dans un instant.",
-            }).catch(() => {});
+            interaction
+              .editReply({
+                content: "⏱️ La commande prend plus de temps que prévu. Réessaie dans un instant.",
+              })
+              .catch(() => {});
           }
         }, 15_000);
 
@@ -83,10 +121,12 @@ export function attachInteractionHandlers(client: Client): void {
     } else {
       // Commande non trouvée — probablement une ancienne commande standalone migrée en sous-commande
       logger.warn(`[Interaction] Commande /${interaction.commandName} non trouvée dans le router`);
-      await interaction.reply({
-        content: `⚠️ La commande \`/${interaction.commandName}\` n'existe plus. Elle a été regroupée — essaie \`/bot help\` pour voir les commandes disponibles.`,
-        flags: [MessageFlags.Ephemeral],
-      }).catch(() => {});
+      await interaction
+        .reply({
+          content: `⚠️ La commande \`/${interaction.commandName}\` n'existe plus. Elle a été regroupée — essaie \`/bot help\` pour voir les commandes disponibles.`,
+          flags: [MessageFlags.Ephemeral],
+        })
+        .catch(() => {});
     }
   });
 
@@ -109,11 +149,7 @@ export function attachInteractionHandlers(client: Client): void {
             interaction.message.id,
           ).catch(() => null);
 
-          const ticketChannel = await createTicket(
-            interaction.guild,
-            member,
-            panel?.id ?? null,
-          );
+          const ticketChannel = await createTicket(interaction.guild, member, panel?.id ?? null);
 
           if (ticketChannel) {
             await interaction.reply({
@@ -141,14 +177,19 @@ export function attachInteractionHandlers(client: Client): void {
         }
 
         if (interaction.customId === "ticket_claim") {
-          const claimed = await claimTicket(interaction, interaction.channelId, interaction.user.id);
+          const claimed = await claimTicket(
+            interaction,
+            interaction.channelId,
+            interaction.user.id,
+          );
           if (claimed) {
             await interaction.reply({
               content: `✋ ${interaction.user.toString()} a pris en charge ce ticket.`,
             });
           } else {
             await interaction.reply({
-              content: "❌ Impossible de prendre en charge ce ticket (déjà pris en charge ou erreur).",
+              content:
+                "❌ Impossible de prendre en charge ce ticket (déjà pris en charge ou erreur).",
               flags: [MessageFlags.Ephemeral],
             });
           }
@@ -216,6 +257,24 @@ export function attachInteractionHandlers(client: Client): void {
       case "twitch":
         await handleTwitchAutocomplete(interaction);
         break;
+      case "game": {
+        const sub = interaction.options.getSubcommand();
+        if (sub === "wishlist") {
+          await handleWishlistAutocomplete(interaction);
+        }
+        break;
+      }
+      case "fnbot": {
+        const sub = interaction.options.getSubcommand();
+        if (["skin", "emote", "backbling", "pickaxe"].includes(sub)) {
+          await handleFortnitePartyAutocomplete(interaction);
+        }
+        break;
+      }
+      case "profile": {
+        await handleProfileAutocomplete(interaction);
+        break;
+      }
     }
   });
 }

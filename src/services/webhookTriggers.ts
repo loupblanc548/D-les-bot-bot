@@ -34,7 +34,9 @@ const webhookClients = new Map<string, WebhookClient>();
 
 // ─── Register / manage triggers ───────────────────────────────────────
 
-export function registerTrigger(config: Omit<WebhookTriggerConfig, "id" | "createdAt">): WebhookTriggerConfig {
+export function registerTrigger(
+  config: Omit<WebhookTriggerConfig, "id" | "createdAt">,
+): WebhookTriggerConfig {
   const id = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const trigger: WebhookTriggerConfig = { ...config, id, createdAt: new Date() };
   triggers.set(trigger.secret, trigger);
@@ -43,9 +45,13 @@ export function registerTrigger(config: Omit<WebhookTriggerConfig, "id" | "creat
   try {
     const whClient = new WebhookClient({ url: trigger.discordWebhookUrl });
     webhookClients.set(trigger.secret, whClient);
-    logger.info(`[WebhookTriggers] Registered ${trigger.provider} trigger "${trigger.name}" (events: ${trigger.events.join(", ") || "all"})`);
+    logger.info(
+      `[WebhookTriggers] Registered ${trigger.provider} trigger "${trigger.name}" (events: ${trigger.events.join(", ") || "all"})`,
+    );
   } catch (err) {
-    logger.error(`[WebhookTriggers] Failed to create WebhookClient for "${trigger.name}": ${String(err)}`);
+    logger.error(
+      `[WebhookTriggers] Failed to create WebhookClient for "${trigger.name}": ${String(err)}`,
+    );
   }
   return trigger;
 }
@@ -67,7 +73,7 @@ export function getTriggerBySecret(secret: string): WebhookTriggerConfig | undef
 export async function handleWebhookRequest(
   req: IncomingMessage,
   res: ServerResponse,
-  client: Client,
+  _client: Client,
 ): Promise<void> {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   const path = url.pathname;
@@ -105,8 +111,15 @@ export async function handleWebhookRequest(
   }
 
   // Check event filter
-  const eventType = (req.headers["x-github-event"] as string) || (req.headers["x-gitlab-event"] as string) || "generic";
-  if (trigger.events.length > 0 && !trigger.events.includes(eventType) && !trigger.events.includes("*")) {
+  const eventType =
+    (req.headers["x-github-event"] as string) ||
+    (req.headers["x-gitlab-event"] as string) ||
+    "generic";
+  if (
+    trigger.events.length > 0 &&
+    !trigger.events.includes(eventType) &&
+    !trigger.events.includes("*")
+  ) {
     res.writeHead(202, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ignored", reason: `Event ${eventType} not subscribed` }));
     return;
@@ -129,14 +142,19 @@ export async function handleWebhookRequest(
 
 // ─── Send via Discord Webhook URL ────────────────────────────────────
 
-async function sendViaWebhookUrl(trigger: WebhookTriggerConfig, embed: EmbedBuilder): Promise<void> {
+async function sendViaWebhookUrl(
+  trigger: WebhookTriggerConfig,
+  embed: EmbedBuilder,
+): Promise<void> {
   const whClient = webhookClients.get(trigger.secret);
   if (!whClient) {
     logger.error(`[WebhookTriggers] No WebhookClient for trigger "${trigger.name}"`);
     return;
   }
   await whClient.send({ embeds: [embed] }).catch((err) => {
-    logger.error(`[WebhookTriggers] Failed to send via webhook URL for "${trigger.name}": ${String(err)}`);
+    logger.error(
+      `[WebhookTriggers] Failed to send via webhook URL for "${trigger.name}": ${String(err)}`,
+    );
   });
 }
 
@@ -146,7 +164,7 @@ function buildEmbedForProvider(
   provider: string,
   event: string,
   payload: Record<string, unknown>,
-  headers: Record<string, string | string[] | undefined>,
+  _headers: Record<string, string | string[] | undefined>,
 ): EmbedBuilder | null {
   switch (provider) {
     case "github":
@@ -169,7 +187,8 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
 
   switch (event) {
     case "push": {
-      const commits = (payload.commits as { id: string; message: string; author?: { name: string } }[]) ?? [];
+      const commits =
+        (payload.commits as { id: string; message: string; author?: { name: string } }[]) ?? [];
       const ref = String(payload.ref ?? "").replace("refs/heads/", "");
       const pusher = (payload.pusher as { name?: string })?.name ?? "unknown";
       const commitCount = commits.length;
@@ -189,21 +208,27 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
         .setTimestamp();
 
       if (commitCount > 5) {
-        embed.addFields({ name: "Truncated", value: `${commitCount - 5} more commits`, inline: true });
+        embed.addFields({
+          name: "Truncated",
+          value: `${commitCount - 5} more commits`,
+          inline: true,
+        });
       }
       return embed;
     }
 
     case "pull_request": {
-      const pr = payload.pull_request as {
-        number?: number;
-        title?: string;
-        html_url?: string;
-        user?: { login?: string };
-        state?: string;
-        merged?: boolean;
-        draft?: boolean;
-      } | undefined;
+      const pr = payload.pull_request as
+        | {
+            number?: number;
+            title?: string;
+            html_url?: string;
+            user?: { login?: string };
+            state?: string;
+            merged?: boolean;
+            draft?: boolean;
+          }
+        | undefined;
       const action = String(payload.action ?? "opened");
       if (!pr) return null;
 
@@ -231,13 +256,15 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
     }
 
     case "issues": {
-      const issue = payload.issue as {
-        number?: number;
-        title?: string;
-        html_url?: string;
-        user?: { login?: string };
-        labels?: { name: string }[];
-      } | undefined;
+      const issue = payload.issue as
+        | {
+            number?: number;
+            title?: string;
+            html_url?: string;
+            user?: { login?: string };
+            labels?: { name: string }[];
+          }
+        | undefined;
       const action = String(payload.action ?? "opened");
       if (!issue) return null;
 
@@ -262,14 +289,16 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
     }
 
     case "release": {
-      const release = payload.release as {
-        tag_name?: string;
-        name?: string;
-        html_url?: string;
-        author?: { login?: string };
-        body?: string;
-        prerelease?: boolean;
-      } | undefined;
+      const release = payload.release as
+        | {
+            tag_name?: string;
+            name?: string;
+            html_url?: string;
+            author?: { login?: string };
+            body?: string;
+            prerelease?: boolean;
+          }
+        | undefined;
       const action = String(payload.action ?? "published");
       if (!release) return null;
 
@@ -282,19 +311,25 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
         .setTimestamp();
 
       if (release.body) {
-        embed.addFields({ name: "Release Notes", value: release.body.slice(0, 1024), inline: false });
+        embed.addFields({
+          name: "Release Notes",
+          value: release.body.slice(0, 1024),
+          inline: false,
+        });
       }
       return embed;
     }
 
     case "workflow_run": {
-      const wf = payload.workflow_run as {
-        name?: string;
-        conclusion?: string;
-        html_url?: string;
-        head_branch?: string;
-        event?: string;
-      } | undefined;
+      const wf = payload.workflow_run as
+        | {
+            name?: string;
+            conclusion?: string;
+            html_url?: string;
+            head_branch?: string;
+            event?: string;
+          }
+        | undefined;
       const action = String(payload.action ?? "completed");
       if (!wf) return null;
 
@@ -303,7 +338,9 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
         .setTitle(`${success ? "✅" : "❌"} CI: ${wf.name} → ${wf.head_branch ?? "main"}`)
         .setColor(success ? 0x2ea043 : 0xda3633)
         .setURL(wf.html_url ?? repoUrl)
-        .setDescription(`Workflow ${action}: **${wf.conclusion ?? "unknown"}** (trigger: ${wf.event ?? "push"})`)
+        .setDescription(
+          `Workflow ${action}: **${wf.conclusion ?? "unknown"}** (trigger: ${wf.event ?? "push"})`,
+        )
         .setFooter({ text: "GitHub • Actions" })
         .setTimestamp();
       return embed;
@@ -315,7 +352,9 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
       const action = String(payload.action ?? "created");
 
       const embed = new EmbedBuilder()
-        .setTitle(`${action === "created" ? "⭐" : "☆"} ${sender} ${action === "created" ? "starred" : "unstarred"} ${repoName}`)
+        .setTitle(
+          `${action === "created" ? "⭐" : "☆"} ${sender} ${action === "created" ? "starred" : "unstarred"} ${repoName}`,
+        )
         .setColor(action === "created" ? 0xf1c40f : 0x95a5a6)
         .setURL(repoUrl)
         .setDescription(`Total stars: **${stars}**`)
@@ -373,7 +412,8 @@ function buildGitLabEmbed(event: string, payload: Record<string, unknown>): Embe
 
   switch (cleanEvent.toLowerCase()) {
     case "push": {
-      const commits = (payload.commits as { id: string; message: string; author?: { name: string } }[]) ?? [];
+      const commits =
+        (payload.commits as { id: string; message: string; author?: { name: string } }[]) ?? [];
       const ref = String(payload.ref ?? "").replace("refs/heads/", "");
       const user = (payload.user_name as string) ?? "unknown";
 
@@ -394,13 +434,15 @@ function buildGitLabEmbed(event: string, payload: Record<string, unknown>): Embe
     }
 
     case "merge_request": {
-      const mr = payload.object_attributes as {
-        iid?: number;
-        title?: string;
-        url?: string;
-        state?: string;
-        action?: string;
-      } | undefined;
+      const mr = payload.object_attributes as
+        | {
+            iid?: number;
+            title?: string;
+            url?: string;
+            state?: string;
+            action?: string;
+          }
+        | undefined;
       const action = mr?.action ?? "open";
       if (!mr) return null;
 
@@ -415,11 +457,13 @@ function buildGitLabEmbed(event: string, payload: Record<string, unknown>): Embe
     }
 
     case "pipeline": {
-      const pipeline = payload.object_attributes as {
-        status?: string;
-        ref?: string;
-        duration?: number;
-      } | undefined;
+      const pipeline = payload.object_attributes as
+        | {
+            status?: string;
+            ref?: string;
+            duration?: number;
+          }
+        | undefined;
       const status = pipeline?.status ?? "unknown";
       const success = status === "success";
 
@@ -427,7 +471,9 @@ function buildGitLabEmbed(event: string, payload: Record<string, unknown>): Embe
         .setTitle(`${success ? "✅" : "❌"} Pipeline: ${projName} → ${pipeline?.ref ?? "main"}`)
         .setColor(success ? 0x2ea043 : 0xda3633)
         .setURL(projUrl)
-        .setDescription(`Status: **${status}**${pipeline?.duration ? ` • Duration: ${pipeline.duration}s` : ""}`)
+        .setDescription(
+          `Status: **${status}**${pipeline?.duration ? ` • Duration: ${pipeline.duration}s` : ""}`,
+        )
         .setFooter({ text: "GitLab • Pipeline" })
         .setTimestamp();
       return embed;
@@ -455,16 +501,15 @@ function buildGenericEmbed(event: string, payload: Record<string, unknown>): Emb
   const url = String(payload.url ?? "");
   const author = payload.author as { name?: string; icon_url?: string; url?: string } | undefined;
 
-  const embed = new EmbedBuilder()
-    .setTitle(title.slice(0, 256))
-    .setColor(color)
-    .setTimestamp();
+  const embed = new EmbedBuilder().setTitle(title.slice(0, 256)).setColor(color).setTimestamp();
 
   if (url) {
     try {
       new URL(url);
       embed.setURL(url);
-    } catch { /* invalid URL, skip */ }
+    } catch {
+      /* invalid URL, skip */
+    }
   }
 
   if (message) {
@@ -497,7 +542,10 @@ function buildGenericEmbed(event: string, payload: Record<string, unknown>): Emb
 
 // ─── Stats ────────────────────────────────────────────────────────────
 
-export function getTriggerStats(guildId: string): { total: number; byProvider: Record<string, number> } {
+export function getTriggerStats(guildId: string): {
+  total: number;
+  byProvider: Record<string, number>;
+} {
   const guildTriggers = listTriggers(guildId);
   const byProvider: Record<string, number> = {};
   for (const t of guildTriggers) {

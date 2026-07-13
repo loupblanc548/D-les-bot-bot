@@ -13,11 +13,7 @@
 import { EmbedBuilder, TextChannel, Client, MessageCreateOptions } from "discord.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
-import {
-  generateCardAttachment,
-  getPlatformColor,
-  getPlatformLabel,
-} from "../utils/notificationCards.js";
+import { generateCardAttachment } from "../utils/notificationCards.js";
 
 // ─── Configuration des plateformes ─────────────────────────────────────────
 

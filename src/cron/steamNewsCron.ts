@@ -6,12 +6,11 @@ import { retry } from "../utils/retry.js";
 import { dbCache } from "../utils/cache.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { generateCardAttachment } from "../utils/notificationCards.js";
 import {
-  generateCardAttachment,
-  getPlatformColor,
-  getPlatformLabel,
-} from "../utils/notificationCards.js";
-import { alertCronFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
+  alertCronFailure as _alertCronFailure,
+  alertNotificationFailure,
+} from "../services/proactiveAlerts.js";
 import { generateStableId } from "../utils/url-cleaner.js";
 
 // Types

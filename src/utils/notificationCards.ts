@@ -21,7 +21,8 @@ import logger from "./logger.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type CardType = "youtube" | "blog" | "deal" | "freegame" | "patchnote" | "gaming";
+export type CardType =
+  "youtube" | "blog" | "deal" | "freegame" | "patchnote" | "gaming" | "fortnite";
 
 export interface CardData {
   type: CardType;
@@ -37,6 +38,10 @@ export interface CardData {
   originalPrice?: string;
   discountPercent?: number;
   endDate?: string;
+  // Fortnite cosmetic card
+  cosmeticType?: string;
+  cosmeticRarity?: string;
+  cosmeticId?: string;
 }
 
 // ─── Couleurs par plateforme ─────────────────────────────────────────────────
@@ -102,7 +107,7 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max - 3) + "...";
 }
 
-function escapeXml(text: string): string {
+function _escapeXml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -164,7 +169,13 @@ function youtubeCard(data: CardData): SatoriNode {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              ...(data.imageUrl ? { backgroundImage: `url(${data.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+              ...(data.imageUrl
+                ? {
+                    backgroundImage: `url(${data.imageUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : {}),
             },
             children: data.imageUrl ? [] : [text("▶", { fontSize: 48, color: "#ff0000" })],
           }),
@@ -691,6 +702,121 @@ function gamingCard(data: CardData): SatoriNode {
   );
 }
 
+// ─── Carte Cosmétique Fortnite ───────────────────────────────────────────────
+
+const RARITY_COLORS: Record<string, string> = {
+  common: "#b3b3b3",
+  uncommon: "#4caf50",
+  rare: "#2196f3",
+  epic: "#9c27b0",
+  legendary: "#ff9800",
+  mythic: "#f44336",
+  marvel: "#e62429",
+  dc: "#0476f2",
+  icon: "#00e5ff",
+  gaming: "#00bcd4",
+  shadow: "#3b3b6d",
+  starwars: "#ffe81f",
+  transcendent: "#ff1744",
+};
+
+function fortniteCosmeticCard(data: CardData): SatoriNode {
+  const rarityColor = RARITY_COLORS[(data.cosmeticRarity || "").toLowerCase()] || "#9146ff";
+  const typeLabel = data.cosmeticType || "COSMÉTIQUE";
+  const cosmeticIcon = data.badge || "🎮";
+
+  return flex(
+    [
+      // Bande supérieure couleur rareté
+      el("div", {
+        style: { width: "100%", height: "8px", backgroundColor: rarityColor, flexShrink: 0 },
+      }),
+      flex(
+        [
+          // Section image du cosmétique (fond dégradé rareté)
+          el("div", {
+            style: {
+              width: "100%",
+              height: "220px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundImage: data.imageUrl
+                ? `url(${data.imageUrl})`
+                : (undefined as unknown as string),
+              backgroundSize: "contain",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+              backgroundColor: "#0a0a1a",
+            },
+            children: data.imageUrl ? [] : [text(cosmeticIcon, { fontSize: 56 })],
+          }),
+          // Section infos
+          flex(
+            [
+              // Badge type + rareté
+              flex(
+                [
+                  text(cosmeticIcon, { fontSize: 16, marginRight: 6 }),
+                  text(typeLabel.toUpperCase(), {
+                    fontSize: 14,
+                    color: rarityColor,
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                  }),
+                  text(" • ", { fontSize: 14, color: "#555555", marginHorizontal: 4 }),
+                  text((data.cosmeticRarity || "").toUpperCase(), {
+                    fontSize: 12,
+                    color: "#888888",
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                  }),
+                ],
+                { alignItems: "center", marginBottom: 10 },
+              ),
+              // Nom du cosmétique
+              text(truncate(data.title, 60), {
+                fontSize: 26,
+                color: "#ffffff",
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }),
+              // ID cosmétique
+              data.cosmeticId
+                ? text(data.cosmeticId, {
+                    fontSize: 13,
+                    color: "#666666",
+                    marginTop: 6,
+                    fontFamily: "monospace",
+                  })
+                : el("div", { style: {} }),
+              // Description
+              data.description
+                ? text(truncate(data.description, 100), {
+                    fontSize: 14,
+                    color: "#999999",
+                    marginTop: 8,
+                    lineHeight: 1.4,
+                  })
+                : el("div", { style: {} }),
+            ],
+            { flexDirection: "column", padding: 20, width: "100%" },
+          ),
+        ],
+        { flexDirection: "column", flex: 1 },
+      ),
+    ],
+    {
+      flexDirection: "column",
+      width: 600,
+      height: 420,
+      backgroundColor: "#0d0d1a",
+      borderRadius: 12,
+      overflow: "hidden",
+    },
+  );
+}
+
 // ─── Génération PNG ──────────────────────────────────────────────────────────
 
 function selectTemplate(data: CardData): SatoriNode {
@@ -705,6 +831,8 @@ function selectTemplate(data: CardData): SatoriNode {
       return freeGameCard(data);
     case "patchnote":
       return patchNoteCard(data);
+    case "fortnite":
+      return fortniteCosmeticCard(data);
     case "gaming":
     default:
       return gamingCard(data);
@@ -724,7 +852,12 @@ export async function generateNotificationCard(data: CardData): Promise<Buffer |
 
     const svg = await satori(node as any, {
       width: 600,
-      height: data.type === "deal" || data.type === "freegame" ? 400 : 340,
+      height:
+        data.type === "deal" || data.type === "freegame"
+          ? 400
+          : data.type === "fortnite"
+            ? 420
+            : 340,
       fonts: font.length > 0 ? [{ name: "Inter", data: font, weight: 700, style: "normal" }] : [],
     });
 

@@ -55,7 +55,11 @@ export function getMemoryLevel(rssMB: number): MemoryLevel {
 /**
  * Returns a human-readable memory report string.
  */
-export function formatMemoryReport(rssMB: number, heapUsedMB: number, heapTotalMB: number): string {
+export function formatMemoryReport(
+  rssMB: number,
+  heapUsedMB: number,
+  _heapTotalMB: number,
+): string {
   const pct = ((rssMB / MEMORY_CONFIG.GC_THRESHOLD_MB) * 100).toFixed(1);
   const level = getMemoryLevel(rssMB);
   return [

@@ -26,7 +26,7 @@ interface WelcomeOptions {
   accentColor?: string;
 }
 
-interface RankCardOptions {
+interface _RankCardOptions {
   username: string;
   avatarUrl: string;
   level: number;
@@ -84,7 +84,13 @@ export async function generateWelcomeImage(
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(avatarX + AVATAR_SIZE / 2, avatarY + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(
+        avatarX + AVATAR_SIZE / 2,
+        avatarY + AVATAR_SIZE / 2,
+        AVATAR_SIZE / 2,
+        0,
+        Math.PI * 2,
+      );
       ctx.closePath();
       ctx.clip();
       ctx.drawImage(avatar, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
@@ -94,7 +100,13 @@ export async function generateWelcomeImage(
       ctx.strokeStyle = accent;
       ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.arc(avatarX + AVATAR_SIZE / 2, avatarY + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(
+        avatarX + AVATAR_SIZE / 2,
+        avatarY + AVATAR_SIZE / 2,
+        AVATAR_SIZE / 2,
+        0,
+        Math.PI * 2,
+      );
       ctx.closePath();
       ctx.stroke();
     } catch {
@@ -103,7 +115,8 @@ export async function generateWelcomeImage(
 
     // Texte
     const title = options?.title || `Bienvenue ${member.user.username} !`;
-    const subtitle = options?.subtitle || `Tu es le membre #${member.guild.memberCount} sur ${member.guild.name}`;
+    const subtitle =
+      options?.subtitle || `Tu es le membre #${member.guild.memberCount} sur ${member.guild.name}`;
     const textColor = options?.textColor || "#ffffff";
 
     ctx.fillStyle = textColor;
@@ -143,7 +156,13 @@ export async function generateGoodbyeImage(
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(avatarX + AVATAR_SIZE / 2, avatarY + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(
+        avatarX + AVATAR_SIZE / 2,
+        avatarY + AVATAR_SIZE / 2,
+        AVATAR_SIZE / 2,
+        0,
+        Math.PI * 2,
+      );
       ctx.closePath();
       ctx.clip();
       ctx.drawImage(avatar, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
@@ -152,7 +171,13 @@ export async function generateGoodbyeImage(
       ctx.strokeStyle = "#ed4245";
       ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.arc(avatarX + AVATAR_SIZE / 2, avatarY + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(
+        avatarX + AVATAR_SIZE / 2,
+        avatarY + AVATAR_SIZE / 2,
+        AVATAR_SIZE / 2,
+        0,
+        Math.PI * 2,
+      );
       ctx.closePath();
       ctx.stroke();
     } catch {
@@ -160,7 +185,8 @@ export async function generateGoodbyeImage(
     }
 
     const title = options?.title || `Au revoir ${member.user.username} !`;
-    const subtitle = options?.subtitle || `Nous sommes maintenant ${member.guild.memberCount} membres`;
+    const subtitle =
+      options?.subtitle || `Nous sommes maintenant ${member.guild.memberCount} membres`;
 
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 36px Sans";

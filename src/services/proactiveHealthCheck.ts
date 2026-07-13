@@ -4,7 +4,6 @@
  */
 import { Client } from "discord.js";
 import logger from "../utils/logger.js";
-import { config } from "../config.js";
 import prisma from "../prisma.js";
 
 interface HealthStatus {
@@ -42,7 +41,9 @@ async function sendWebhook(url: string, payload: Record<string, unknown>): Promi
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    logger.error(`[HealthCheck] Webhook failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[HealthCheck] Webhook failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -55,30 +56,39 @@ async function notifyStatusChange(client: Client, isOk: boolean): Promise<void> 
     let isDiscordWebhook = false;
     try {
       const parsed = new URL(webhookUrl);
-      isDiscordWebhook = (parsed.hostname === "discord.com" || parsed.hostname === "discordapp.com") && parsed.pathname.includes("/api/webhooks/");
+      isDiscordWebhook =
+        (parsed.hostname === "discord.com" || parsed.hostname === "discordapp.com") &&
+        parsed.pathname.includes("/api/webhooks/");
     } catch {}
     if (isDiscordWebhook) {
       await sendWebhook(webhookUrl, {
-        embeds: [{
-          title: isOk ? "✅ Bot de nouveau en ligne" : "⚠️ Bot hors ligne ou instable",
-          color: isOk ? 0x22c55e : 0xef4444,
-          fields: [
-            { name: "Uptime", value: `${Math.floor(status.uptime)}s`, inline: true },
-            { name: "Serveurs", value: `${status.guildCount}`, inline: true },
-            { name: "Ping", value: `${status.ping}ms`, inline: true },
-            { name: "Mémoire", value: `${status.memoryMb}MB`, inline: true },
-          ],
-          timestamp: status.timestamp,
-        }],
+        embeds: [
+          {
+            title: isOk ? "✅ Bot de nouveau en ligne" : "⚠️ Bot hors ligne ou instable",
+            color: isOk ? 0x22c55e : 0xef4444,
+            fields: [
+              { name: "Uptime", value: `${Math.floor(status.uptime)}s`, inline: true },
+              { name: "Serveurs", value: `${status.guildCount}`, inline: true },
+              { name: "Ping", value: `${status.ping}ms`, inline: true },
+              { name: "Mémoire", value: `${status.memoryMb}MB`, inline: true },
+            ],
+            timestamp: status.timestamp,
+          },
+        ],
       });
     } else {
       // Slack format
       await sendWebhook(webhookUrl, {
         text: isOk ? "✅ Bot de nouveau en ligne" : "⚠️ Bot hors ligne ou instable",
-        attachments: [{ color: isOk ? "good" : "danger", fields: [
-          { title: "Uptime", value: `${Math.floor(status.uptime)}s`, short: true },
-          { title: "Ping", value: `${status.ping}ms`, short: true },
-        ]}],
+        attachments: [
+          {
+            color: isOk ? "good" : "danger",
+            fields: [
+              { title: "Uptime", value: `${Math.floor(status.uptime)}s`, short: true },
+              { title: "Ping", value: `${status.ping}ms`, short: true },
+            ],
+          },
+        ],
       });
     }
   }
@@ -144,15 +154,17 @@ export async function autoBackup(): Promise<void> {
     const webhookUrl = process.env.HEALTH_WEBHOOK_URL || "";
     if (webhookUrl) {
       await sendWebhook(webhookUrl, {
-        embeds: [{
-          title: "💾 Backup automatique terminé",
-          color: 0x6366f1,
-          fields: [
-            { name: "Taille", value: `${Math.round(backupSize / 1024)}KB`, inline: true },
-            { name: "Tables", value: tables.join(", "), inline: true },
-          ],
-          timestamp: new Date().toISOString(),
-        }],
+        embeds: [
+          {
+            title: "💾 Backup automatique terminé",
+            color: 0x6366f1,
+            fields: [
+              { name: "Taille", value: `${Math.round(backupSize / 1024)}KB`, inline: true },
+              { name: "Tables", value: tables.join(", "), inline: true },
+            ],
+            timestamp: new Date().toISOString(),
+          },
+        ],
       });
     }
   } catch (err) {
@@ -162,6 +174,8 @@ export async function autoBackup(): Promise<void> {
 
 export function startAutoBackup(scheduleHours = 168): void {
   const intervalMs = scheduleHours * 60 * 60 * 1000;
-  setInterval(() => { void autoBackup(); }, intervalMs);
+  setInterval(() => {
+    void autoBackup();
+  }, intervalMs);
   logger.info(`[Backup] Auto-backup scheduled every ${scheduleHours}h (hebdomadaire)`);
 }

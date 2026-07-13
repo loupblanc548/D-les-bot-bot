@@ -12,9 +12,7 @@ import {
   ComponentType,
   ChatInputCommandInteraction,
   Message,
-  User,
 } from "discord.js";
-import logger from "../utils/logger.js";
 
 const ITEMS_PER_PAGE = 10;
 const BUTTON_TIMEOUT = 60_000;
@@ -32,11 +30,20 @@ export async function sendPaginatedEmbed(
   interaction: ChatInputCommandInteraction,
   options: PaginationOptions,
 ): Promise<void> {
-  const { title, color = 0x5865f2, items, itemsPerPage = ITEMS_PER_PAGE, footer, ephemeral = false } = options;
+  const {
+    title,
+    color = 0x5865f2,
+    items,
+    itemsPerPage = ITEMS_PER_PAGE,
+    footer,
+    ephemeral = false,
+  } = options;
 
   if (items.length === 0) {
     await interaction.reply({
-      embeds: [new EmbedBuilder().setTitle(title).setColor(color).setDescription("Aucun résultat.")],
+      embeds: [
+        new EmbedBuilder().setTitle(title).setColor(color).setDescription("Aucun résultat."),
+      ],
       ephemeral,
     });
     return;
@@ -95,12 +102,12 @@ export async function sendPaginatedEmbed(
     return;
   }
 
-  const message = await interaction.reply({
+  const message = (await interaction.reply({
     embeds: [buildEmbed(0)],
     components: [buildButtons(0)],
     ephemeral,
     fetchReply: true,
-  }) as Message;
+  })) as Message;
 
   const collector = message.createMessageComponentCollector({
     componentType: ComponentType.Button,
@@ -109,15 +116,26 @@ export async function sendPaginatedEmbed(
 
   collector.on("collect", async (btnInteraction) => {
     if (btnInteraction.user.id !== interaction.user.id) {
-      await btnInteraction.reply({ content: "❌ Ces boutons ne sont pas pour toi.", ephemeral: true });
+      await btnInteraction.reply({
+        content: "❌ Ces boutons ne sont pas pour toi.",
+        ephemeral: true,
+      });
       return;
     }
 
     switch (btnInteraction.customId) {
-      case "page_first": currentPage = 0; break;
-      case "page_prev": currentPage = Math.max(0, currentPage - 1); break;
-      case "page_next": currentPage = Math.min(totalPages - 1, currentPage + 1); break;
-      case "page_last": currentPage = totalPages - 1; break;
+      case "page_first":
+        currentPage = 0;
+        break;
+      case "page_prev":
+        currentPage = Math.max(0, currentPage - 1);
+        break;
+      case "page_next":
+        currentPage = Math.min(totalPages - 1, currentPage + 1);
+        break;
+      case "page_last":
+        currentPage = totalPages - 1;
+        break;
     }
 
     await btnInteraction.update({

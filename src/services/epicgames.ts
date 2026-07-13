@@ -135,7 +135,7 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
 
     // Scan wishlist et notification DM
     if (newGames.length > 0) {
-      const wishlistItems = await prisma.wishlist.findMany();
+      const wishlistItems = await prisma.wishlist.findMany({ take: 1000 });
       const matchMap = new Map<
         string,
         {

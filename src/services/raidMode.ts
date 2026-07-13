@@ -5,8 +5,7 @@
  * strict verification, auto-kick new accounts.
  */
 
-import { Guild, EmbedBuilder, TextChannel, ChannelType, PermissionFlagsBits } from "discord.js";
-import prisma from "../prisma.js";
+import { Guild, EmbedBuilder, TextChannel, ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 
 export interface RaidModeConfig {
@@ -54,9 +53,7 @@ export async function enableRaidMode(
 
   // Lockdown channels
   if (config.lockdownChannels) {
-    const channels = guild.channels.cache.filter(
-      (c) => c.type === ChannelType.GuildText,
-    );
+    const channels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText);
     for (const [, channel] of channels) {
       await channel.permissionOverwrites
         .edit(guild.roles.everyone, {
@@ -75,7 +72,9 @@ export async function enableRaidMode(
       for (const [, invite] of invites) {
         await invite.delete("Raid mode activated").catch(() => {});
       }
-    } catch { /* missing manage invites permission */ }
+    } catch {
+      /* missing manage invites permission */
+    }
   }
 
   // Notify
@@ -85,14 +84,18 @@ export async function enableRaidMode(
       const embed = new EmbedBuilder()
         .setTitle("🚨 RAID MODE ACTIVÉ")
         .setColor(0xe74c3c)
-        .setDescription([
-          "Le serveur est en mode raid.",
-          "Tous les channels sont verrouillés.",
-          "Les invitations sont désactivées.",
-          config.autoKickNewAccounts ? "Les nouveaux comptes seront expulsés." : "",
-          "",
-          "Activé par <@" + activatedBy + ">",
-        ].filter(Boolean).join("\n"))
+        .setDescription(
+          [
+            "Le serveur est en mode raid.",
+            "Tous les channels sont verrouillés.",
+            "Les invitations sont désactivées.",
+            config.autoKickNewAccounts ? "Les nouveaux comptes seront expulsés." : "",
+            "",
+            "Activé par <@" + activatedBy + ">",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        )
         .setTimestamp();
       await channel.send({ embeds: [embed] }).catch(() => {});
     }
@@ -108,9 +111,7 @@ export async function disableRaidMode(guild: Guild): Promise<void> {
 
   // Unlock channels
   if (config.lockdownChannels) {
-    const channels = guild.channels.cache.filter(
-      (c) => c.type === ChannelType.GuildText,
-    );
+    const channels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText);
     for (const [, channel] of channels) {
       await channel.permissionOverwrites
         .edit(guild.roles.everyone, {
@@ -174,9 +175,17 @@ export async function generateRaidModeStatusEmbed(guildId: string): Promise<Embe
       { name: "Status", value: config.active ? "🔴 ACTIVÉ" : "🟢 Désactivé", inline: true },
       { name: "Lockdown channels", value: config.lockdownChannels ? "✅" : "❌", inline: true },
       { name: "Invites désactivées", value: config.disableInvites ? "✅" : "❌", inline: true },
-      { name: "Auto-kick new accounts", value: config.autoKickNewAccounts ? "✅" : "❌", inline: true },
+      {
+        name: "Auto-kick new accounts",
+        value: config.autoKickNewAccounts ? "✅" : "❌",
+        inline: true,
+      },
       { name: "Min account age", value: `${config.minAccountAgeHours}h`, inline: true },
-      { name: "Activé par", value: config.activatedBy ? `<@${config.activatedBy}>` : "N/A", inline: true },
+      {
+        name: "Activé par",
+        value: config.activatedBy ? `<@${config.activatedBy}>` : "N/A",
+        inline: true,
+      },
     )
     .setTimestamp();
 }

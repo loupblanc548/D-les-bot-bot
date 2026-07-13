@@ -33,24 +33,34 @@ export async function getServerStatsConfig(guildId: string): Promise<ServerStats
   try {
     const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
     if (record?.serverStatsConfig) {
-      const parsed = { ...DEFAULT_CONFIG, ...(JSON.parse(record.serverStatsConfig as string) as Partial<ServerStatsConfig>) };
+      const parsed = {
+        ...DEFAULT_CONFIG,
+        ...(JSON.parse(record.serverStatsConfig as string) as Partial<ServerStatsConfig>),
+      };
       configs.set(guildId, parsed);
       return parsed;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ...DEFAULT_CONFIG };
 }
 
-export async function setServerStatsConfig(guildId: string, config: Partial<ServerStatsConfig>): Promise<void> {
+export async function setServerStatsConfig(
+  guildId: string,
+  config: Partial<ServerStatsConfig>,
+): Promise<void> {
   try {
     const current = await getServerStatsConfig(guildId);
     const merged = { ...current, ...config };
     configs.set(guildId, merged);
-    await prisma.guildConfig.upsert({
-      where: { guildId },
-      create: { guildId, serverStatsConfig: JSON.stringify(merged) },
-      update: { serverStatsConfig: JSON.stringify(merged) },
-    }).catch(() => {});
+    await prisma.guildConfig
+      .upsert({
+        where: { guildId },
+        create: { guildId, serverStatsConfig: JSON.stringify(merged) },
+        update: { serverStatsConfig: JSON.stringify(merged) },
+      })
+      .catch(() => {});
   } catch (error) {
     logger.error("[ServerStats] setServerStatsConfig:", String(error));
   }
@@ -59,20 +69,22 @@ export async function setServerStatsConfig(guildId: string, config: Partial<Serv
 // ─── Setup ────────────────────────────────────────────────────────────
 
 export async function setupStatsChannels(guild: Guild): Promise<ServerStatsConfig> {
-  let config = await getServerStatsConfig(guild.id);
+  const config = await getServerStatsConfig(guild.id);
 
   // Create category if not exists
   if (!config.categoryChannelId) {
-    const category = await guild.channels.create({
-      name: "📊 Server Stats",
-      type: ChannelType.GuildCategory,
-      permissionOverwrites: [
-        {
-          id: guild.roles.everyone,
-          deny: [PermissionFlagsBits.Connect],
-        },
-      ],
-    }).catch(() => null);
+    const category = await guild.channels
+      .create({
+        name: "📊 Server Stats",
+        type: ChannelType.GuildCategory,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            deny: [PermissionFlagsBits.Connect],
+          },
+        ],
+      })
+      .catch(() => null);
 
     if (category) {
       config.categoryChannelId = category.id;
@@ -81,34 +93,36 @@ export async function setupStatsChannels(guild: Guild): Promise<ServerStatsConfi
 
   // Create channels
   const createStatChannel = async (name: string): Promise<string | null> => {
-    const channel = await guild.channels.create({
-      name,
-      type: ChannelType.GuildVoice,
-      parent: config.categoryChannelId,
-      permissionOverwrites: [
-        {
-          id: guild.roles.everyone,
-          deny: [PermissionFlagsBits.Connect],
-        },
-      ],
-    }).catch(() => null);
+    const channel = await guild.channels
+      .create({
+        name,
+        type: ChannelType.GuildVoice,
+        parent: config.categoryChannelId,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            deny: [PermissionFlagsBits.Connect],
+          },
+        ],
+      })
+      .catch(() => null);
     return channel?.id ?? null;
   };
 
   if (!config.memberChannelId) {
-    config.memberChannelId = await createStatChannel("Members: 0") ?? undefined;
+    config.memberChannelId = (await createStatChannel("Members: 0")) ?? undefined;
   }
   if (!config.onlineChannelId) {
-    config.onlineChannelId = await createStatChannel("Online: 0") ?? undefined;
+    config.onlineChannelId = (await createStatChannel("Online: 0")) ?? undefined;
   }
   if (!config.boostChannelId) {
-    config.boostChannelId = await createStatChannel("Boosts: 0") ?? undefined;
+    config.boostChannelId = (await createStatChannel("Boosts: 0")) ?? undefined;
   }
   if (!config.channelCountId) {
-    config.channelCountId = await createStatChannel("Channels: 0") ?? undefined;
+    config.channelCountId = (await createStatChannel("Channels: 0")) ?? undefined;
   }
   if (!config.roleCountId) {
-    config.roleCountId = await createStatChannel("Roles: 0") ?? undefined;
+    config.roleCountId = (await createStatChannel("Roles: 0")) ?? undefined;
   }
 
   config.enabled = true;
@@ -123,7 +137,7 @@ export async function setupStatsChannels(guild: Guild): Promise<ServerStatsConfi
 // ─── Update ───────────────────────────────────────────────────────────
 
 export async function updateStatsChannels(guild: Guild, config?: ServerStatsConfig): Promise<void> {
-  const cfg = config ?? await getServerStatsConfig(guild.id);
+  const cfg = config ?? (await getServerStatsConfig(guild.id));
   if (!cfg.enabled) return;
 
   const memberCount = guild.memberCount;
@@ -169,13 +183,25 @@ export async function teardownStatsChannels(guild: Guild): Promise<void> {
     deleteChannel(config.categoryChannelId),
   ]);
 
-  await setServerStatsConfig(guild.id, { enabled: false, memberChannelId: undefined, onlineChannelId: undefined, boostChannelId: undefined, channelCountId: undefined, roleCountId: undefined, categoryChannelId: undefined });
+  await setServerStatsConfig(guild.id, {
+    enabled: false,
+    memberChannelId: undefined,
+    onlineChannelId: undefined,
+    boostChannelId: undefined,
+    channelCountId: undefined,
+    roleCountId: undefined,
+    categoryChannelId: undefined,
+  });
   logger.info(`[ServerStats] Torn down in ${guild.id}`);
 }
 
 // ─── Status embed ─────────────────────────────────────────────────────
 
-export async function generateStatsStatusEmbed(guild: Guild): Promise<{ title: string; color: number; fields: { name: string; value: string; inline: boolean }[] }> {
+export async function generateStatsStatusEmbed(guild: Guild): Promise<{
+  title: string;
+  color: number;
+  fields: { name: string; value: string; inline: boolean }[];
+}> {
   const config = await getServerStatsConfig(guild.id);
   return {
     title: "📊 Server Stats Channels",

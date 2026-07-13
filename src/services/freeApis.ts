@@ -234,7 +234,9 @@ export async function getHackerNewsTop(
 
     const stories = await Promise.all(
       top.map(async (id) => {
-        const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, {
+          signal: AbortSignal.timeout(5000),
+        });
         const story = (await storyRes.json()) as {
           title: string;
           url?: string;
@@ -600,13 +602,13 @@ export function convertColor(input: string): { hex: string; rgb: string; hsl: st
       g = parseInt(hex.slice(2, 4), 16);
       b = parseInt(hex.slice(4, 6), 16);
     } else if (input.startsWith("rgb")) {
-      const match = input.match(/rgb\?\((\d+),\s*(\d+),\s*(\d+)\)/i);
+      const match = input.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
       if (!match) return null;
       r = parseInt(match[1]);
       g = parseInt(match[2]);
       b = parseInt(match[3]);
     } else if (input.startsWith("hsl")) {
-      const match = input.match(/hsl\?\((\d+),\s*(\d+)%,\s*(\d+)%\)/i);
+      const match = input.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/i);
       if (!match) return null;
       const h = parseInt(match[1]) / 360;
       const s = parseInt(match[2]) / 100;

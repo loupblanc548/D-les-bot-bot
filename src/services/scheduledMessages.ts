@@ -6,7 +6,7 @@ import prisma from "../prisma.js";
 const CHECK_INTERVAL_MS = 60 * 1000;
 let schedulerInterval: NodeJS.Timeout | null = null;
 
-interface ScheduledMessage {
+interface _ScheduledMessage {
   id: string;
   channelId: string;
   content: string;
@@ -46,7 +46,9 @@ async function checkScheduledMessages(client: Client): Promise<void> {
           });
           logger.info(`[Scheduled] Message envoyé dans #${channel.name}`);
         } catch (err) {
-          logger.error(`[Scheduled] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(
+            `[Scheduled] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     }
@@ -72,7 +74,11 @@ function parseInterval(expr: string): number {
 export function startScheduledMessages(client: Client): void {
   if (schedulerInterval) return;
   logger.info("[Scheduled] Service de messages programmés activé (intervalle: 1min)");
-  schedulerInterval = safeInterval("ScheduledMessages", () => checkScheduledMessages(client), CHECK_INTERVAL_MS);
+  schedulerInterval = safeInterval(
+    "ScheduledMessages",
+    () => checkScheduledMessages(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopScheduledMessages(): void {

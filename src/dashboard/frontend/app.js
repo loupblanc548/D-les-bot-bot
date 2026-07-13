@@ -1,19 +1,16 @@
-/* dashboard/frontend/app.js — Logique frontend du dashboard Shadow Broker */
-
-// ─── State ──────────────────────────────────────────────────────────────────
+/* dashboard/frontend/app.js — Shadow Broker AI Dashboard */
 
 let sessionToken = null;
-let currentGuildId = null;
-let currentGuildConfig = null;
-
-// ─── API Helper ─────────────────────────────────────────────────────────────
+let isSending = false;
+let allTools = [];
 
 async function api(path, options = {}) {
+  const token = sessionToken || localStorage.getItem("sb_session");
   const res = await fetch(`/api${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -22,6 +19,35 @@ async function api(path, options = {}) {
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+async function controlApi(path, options = {}) {
+  const base = localStorage.getItem("sb_control_url") || `http://${window.location.hostname}:3002`;
+  const token = localStorage.getItem("sb_control_token") || "";
+  const res = await fetch(`${base}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function showView(name) {
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+  const v = document.getElementById(`${name}-view`);
+  if (v) v.classList.add("active");
+  if (name === "tools" && allTools.length === 0) loadTools();
+  if (name === "servers") loadServers();
+  if (name === "stats") loadStats();
+  if (name === "fortnite") loadFortnite();
+  if (name === "settings") loadSettings();
 }
 
 // ─── Screen Management ──────────────────────────────────────────────────────
@@ -44,22 +70,15 @@ function toast(msg, isError = false) {
 // ─── Init ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  // Check for token in URL (after OAuth callback)
   const params = new URLSearchParams(window.location.search);
   const tokenParam = params.get("token");
   if (tokenParam) {
     sessionToken = tokenParam;
     window.history.replaceState({}, document.title, "/");
-    await loadUser();
-    return;
-  }
-
-  // Check for stored token
-  const stored = localStorage.getItem("sb_session");
-  if (stored) {
-    sessionToken = stored;
     try {
       await loadUser();
+      showScreen("main-screen");
+      showView("chat");
       return;
     } catch {
       localStorage.removeItem("sb_session");
@@ -67,408 +86,401 @@ async function init() {
     }
   }
 
-  // Show login
-  showScreen("login-screen");
-  startMatrixRain();
-}
+  const stored = localStorage.getItem("sb_session");
+  if (stored) {
+    sessionToken = stored;
+    try {
+      await loadUser();
+      showScreen("main-screen");
+      showView("chat");
+      return;
+    } catch {
+      localStorage.removeItem("sb_session");
+      sessionToken = null;
+    }
+  }
 
-// ─── Login ──────────────────────────────────────────────────────────────────
+  showScreen("login-screen");
+}
 
 document.getElementById("login-btn").addEventListener("click", () => {
-  window.open("/api/auth/discord", "_blank");
+  window.location.href = "/api/auth/discord";
 });
 
-// ─── Load User ──────────────────────────────────────────────────────────────
-
 async function loadUser() {
-  try {
-    const user = await api("/user");
-    localStorage.setItem("sb_session", sessionToken);
-
-    document.getElementById("user-avatar").src = user.avatarUrl;
-    document.getElementById("user-name").textContent = user.globalName || user.username;
-
-    await loadGuilds();
-  } catch (err) {
-    toast("Session expirée, veuillez vous reconnecter", true);
-    showScreen("login-screen");
-    startMatrixRain();
-  }
+  const user = await api("/user");
+  localStorage.setItem("sb_session", sessionToken);
+  const avatarEl = document.getElementById("user-avatar");
+  const nameEl = document.getElementById("user-name");
+  if (user.avatarUrl) avatarEl.src = user.avatarUrl;
+  else if (user.avatar) avatarEl.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`;
+  else avatarEl.style.display = "none";
+  nameEl.textContent = user.globalName || user.username || "User";
 }
 
-// ─── Load Guilds ────────────────────────────────────────────────────────────
-
-async function loadGuilds() {
-  showScreen("guilds-screen");
-  const grid = document.getElementById("guilds-grid");
-  grid.innerHTML = '<div class="loading">Chargement des serveurs</div>';
-
-  try {
-    const data = await api("/guilds");
-    grid.innerHTML = "";
-
-    if (data.guilds.length === 0) {
-      grid.innerHTML = "<p>Aucun serveur trouvé. Vous devez être administrateur d'un serveur où le bot est présent.</p>";
-      return;
-    }
-
-    for (const guild of data.guilds) {
-      const card = document.createElement("div");
-      card.className = "guild-card";
-      card.innerHTML = `
-        ${guild.icon
-          ? `<img class="guild-card-icon" src="${escapeHtml(guild.icon)}" alt="">`
-          : `<div class="guild-card-icon-placeholder">🏰</div>`
-        }
-        <div class="guild-card-info">
-          <div class="guild-card-name">${escapeHtml(guild.name)}</div>
-          <div class="guild-card-status">
-            <span class="status-dot ${guild.botPresent ? "online" : "offline"}"></span>
-            <span>${guild.botPresent ? "Bot en ligne" : "Bot absent"}</span>
-            ${guild.isOwner ? " · 👑 Owner" : ""}
-          </div>
-          <div class="guild-card-actions">
-            ${guild.botPresent
-              ? `<button class="btn-ghost" onclick="openDashboard('${escapeHtml(guild.id)}', '${escapeHtml(guild.name)}', '${escapeHtml(guild.icon || "")}')">Configurer →</button>`
-              : `<button class="btn-ghost" onclick="inviteBot('${escapeHtml(guild.id)}')">+ Inviter le bot</button>`
-            }
-          </div>
-        </div>
-      `;
-      grid.appendChild(card);
-    }
-  } catch (err) {
-    grid.innerHTML = `<p style="color: var(--danger)">Erreur: ${escapeHtml(err.message)}</p>`;
-  }
-}
-
-// ─── Open Dashboard ─────────────────────────────────────────────────────────
-
-async function openDashboard(guildId, guildName, guildIcon) {
-  currentGuildId = guildId;
-  document.getElementById("guild-name").textContent = guildName;
-  document.getElementById("guild-icon").src = guildIcon || "";
-  showScreen("dashboard-screen");
-
-  try {
-    currentGuildConfig = await api(`/guilds/${guildId}`);
-    renderTab("general");
-  } catch (err) {
-    toast("Erreur chargement config: " + err.message, true);
-  }
-}
-
-// Make it global
-window.openDashboard = openDashboard;
-
-// ─── Invite Bot ─────────────────────────────────────────────────────────────
-
-function inviteBot(guildId) {
-  const clientId = localStorage.getItem("sb_client_id") || "";
-  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=8&guild_id=${guildId}`;
-  window.open(url, "_blank");
-}
-window.inviteBot = inviteBot;
-
-// ─── Tab Navigation ─────────────────────────────────────────────────────────
+// ─── Sidebar Nav ────────────────────────────────────────────────────────────
 
 document.querySelectorAll(".nav-item").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    renderTab(btn.dataset.tab);
+    showView(btn.dataset.view);
   });
 });
 
-function renderTab(tab) {
-  const content = document.getElementById("tab-content");
-  const cfg = currentGuildConfig || {};
+// ─── AI Chat ────────────────────────────────────────────────────────────────
 
-  switch (tab) {
-    case "general":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">⚙️ Configuration Générale</div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Préfixe des commandes</label>
-              <input class="form-input" id="cfg-prefix" value="${escapeHtml(cfg.prefix || "/")}" placeholder="/">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Langue</label>
-              <select class="form-select" id="cfg-language">
-                <option value="fr" ${cfg.language === "fr" ? "selected" : ""}>Français</option>
-                <option value="en" ${cfg.language === "en" ? "selected" : ""}>English</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Salon de logs</label>
-            <input class="form-input" id="cfg-logChannel" value="${escapeHtml(cfg.logChannelId || "")}" placeholder="ID du salon">
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🎨 Apparence</div>
-          <div class="form-group">
-            <label>Mode sombre forcé</label>
-            <label class="toggle">
-              <input type="checkbox" id="cfg-darkMode" ${cfg.darkMode ? "checked" : ""}>
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>`;
-      break;
+const chatInput = document.getElementById("chat-input");
+const chatSend = document.getElementById("chat-send");
+const chatMessages = document.getElementById("chat-messages");
+const chatToolsToggle = document.getElementById("chat-tools-toggle");
 
-    case "moderation":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">⚖️ Modération</div>
-          <div class="form-group">
-            <label class="form-label">Rôle Modérateur</label>
-            <input class="form-input" id="cfg-modRole" value="${escapeHtml(cfg.modRoleId || "")}" placeholder="ID du rôle modérateur">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Rôle Admin</label>
-            <input class="form-input" id="cfg-adminRole" value="${escapeHtml(cfg.adminRoleId || "")}" placeholder="ID du rôle admin">
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Auto-ban spammers</label>
-              <label class="toggle">
-                <input type="checkbox" id="cfg-autoBan" ${cfg.autoBanSpammers ? "checked" : ""}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="form-group">
-              <label>Anti-raid</label>
-              <label class="toggle">
-                <input type="checkbox" id="cfg-antiRaid" ${cfg.antiRaid ? "checked" : ""}>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-        </div>`;
-      break;
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + "px";
+  chatSend.disabled = !chatInput.value.trim() || isSending;
+});
 
-    case "logs":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">📋 Configuration des Logs</div>
-          <div class="form-group">
-            <label class="form-label">Salon de logs général</label>
-            <input class="form-input" id="cfg-logChannel" value="${escapeHtml(cfg.logChannelId || "")}" placeholder="ID du salon">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Salon de logs de modération</label>
-            <input class="form-input" id="cfg-modLogChannel" value="${escapeHtml(cfg.modLogChannelId || "")}" placeholder="ID du salon">
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Logs joins/leaves</label><label class="toggle"><input type="checkbox" ${cfg.logJoins ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Logs messages supprimés</label><label class="toggle"><input type="checkbox" ${cfg.logDeletes ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Logs edits</label><label class="toggle"><input type="checkbox" ${cfg.logEdits ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Logs voice</label><label class="toggle"><input type="checkbox" ${cfg.logVoice ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-          </div>
-        </div>`;
-      break;
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (!chatSend.disabled) sendChat();
+  }
+});
 
-    case "levels":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">📊 Système de Niveaux</div>
-          <div class="form-group">
-            <label>Activer les niveaux</label>
-            <label class="toggle"><input type="checkbox" id="cfg-levels" ${cfg.levelsEnabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Salon des annonces de niveau</label>
-            <input class="form-input" id="cfg-levelChannel" value="${escapeHtml(cfg.levelChannelId || "")}" placeholder="ID du salon">
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">XP par message</label>
-              <input class="form-input" type="number" id="cfg-xpPerMsg" value="${cfg.xpPerMessage || 15}">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Cooldown (secondes)</label>
-              <input class="form-input" type="number" id="cfg-xpCooldown" value="${cfg.xpCooldown || 60}">
-            </div>
-          </div>
-        </div>`;
-      break;
+chatSend.addEventListener("click", () => sendChat());
 
-    case "welcome":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">👋 Messages de Bienvenue</div>
-          <div class="form-group">
-            <label>Activer les bienvenues</label>
-            <label class="toggle"><input type="checkbox" id="cfg-welcome" ${cfg.welcomeEnabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Salon de bienvenue</label>
-            <input class="form-input" id="cfg-welcomeChannel" value="${escapeHtml(cfg.welcomeChannelId || "")}" placeholder="ID du salon">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Message de bienvenue</label>
-            <textarea class="form-textarea" id="cfg-welcomeMsg" placeholder="Bienvenue {user} sur {server}!">${escapeHtml(cfg.welcomeMessage || "")}</textarea>
-          </div>
-        </div>`;
-      break;
+document.getElementById("chat-clear").addEventListener("click", () => {
+  chatMessages.innerHTML = "";
+  showChatWelcome();
+});
 
-    case "automod":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">🤖 Auto-Modération</div>
-          <div class="form-group">
-            <label>Activer l'auto-mod</label>
-            <label class="toggle"><input type="checkbox" id="cfg-automod" ${cfg.autoModEnabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Filtre anti-insultes</label><label class="toggle"><input type="checkbox" ${cfg.filterProfanity ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Filtre anti-spam</label><label class="toggle"><input type="checkbox" ${cfg.filterSpam ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Filtre anti-caps</label><label class="toggle"><input type="checkbox" ${cfg.filterCaps ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Filtre anti-links</label><label class="toggle"><input type="checkbox" ${cfg.filterLinks ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Mots interdits (séparés par virgule)</label>
-            <textarea class="form-textarea" id="cfg-bannedWords" placeholder="mot1, mot2, mot3">${escapeHtml(cfg.bannedWords || "")}</textarea>
-          </div>
-        </div>`;
-      break;
+function showChatWelcome() {
+  chatMessages.innerHTML = `
+    <div class="chat-welcome">
+      <div class="chat-welcome-icon">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 16a4 4 0 1 0-4-4 4 4 0 0 0 4 4z"/></svg>
+      </div>
+      <h3>Bienvenue sur Shadow Broker AI</h3>
+      <p>Posez-moi n'importe quelle question. J'ai accès à 212 outils :<br>météo, crypto, web, gaming, DNS, math, GitHub, et plus encore.</p>
+      <div class="chat-suggestions">
+        <button class="suggestion-chip" data-prompt="Quel temps fait-il à Paris ?">🌤️ Météo Paris</button>
+        <button class="suggestion-chip" data-prompt="Quel est le prix du Bitcoin ?">₿ Prix Bitcoin</button>
+        <button class="suggestion-chip" data-prompt="Donne-moi les dernières actualités tech">📰 Actus tech</button>
+        <button class="suggestion-chip" data-prompt="Génère un mot de passe sécurisé de 20 caractères">🔐 Mot de passe</button>
+      </div>
+    </div>`;
+  document.querySelectorAll(".suggestion-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      chatInput.value = chip.dataset.prompt;
+      chatInput.dispatchEvent(new Event("input"));
+      sendChat();
+    });
+  });
+}
 
-    case "osint":
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">🕵️ Shadow Broker OSINT</div>
-          <p style="color: var(--text-muted); margin-bottom: 1rem;">18 sous-commandes disponibles via /shadow (modérateur minimum)</p>
-          <div class="form-row">
-            <div class="form-group"><label>Activer /shadow</label><label class="toggle"><input type="checkbox" ${cfg.shadowEnabled !== false ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-            <div class="form-group"><label>Alertes proactive DM</label><label class="toggle"><input type="checkbox" ${cfg.proactiveAlerts ? "checked" : ""}><span class="toggle-slider"></span></label></div>
-          </div>
-          <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; border-left: 2px solid var(--accent);">
-            <p style="color: var(--text-secondary); font-size: 0.85rem;">📋 Sous-commandes: intel, network, patterns, report, stealth, watch, search, sherlock, maigret, email, breach, phone, domain, whois, dns, instagram, insta-deep, crawl, social, harvester, wmn, exif, cms</p>
-          </div>
-        </div>`;
-      break;
+document.querySelectorAll(".suggestion-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    chatInput.value = chip.dataset.prompt;
+    chatInput.dispatchEvent(new Event("input"));
+    sendChat();
+  });
+});
 
-    case "stats":
-      content.innerHTML = '<div class="loading">Chargement des statistiques</div>';
-      api("/bot/stats").then((stats) => {
-        content.innerHTML = `
-          <div class="stats-grid">
-            <div class="stat-card"><div class="stat-value">${stats.totalGuilds}</div><div class="stat-label">SERVEURS</div></div>
-            <div class="stat-card"><div class="stat-value">${stats.totalLogs}</div><div class="stat-label">LOGS</div></div>
-            <div class="stat-card"><div class="stat-value">${stats.totalSanctions}</div><div class="stat-label">SANCTIONS</div></div>
-            <div class="stat-card"><div class="stat-value">${stats.totalUsers}</div><div class="stat-label">UTILISATEURS</div></div>
-            <div class="stat-card"><div class="stat-value">${Math.floor(stats.uptime / 3600)}h</div><div class="stat-label">UPTIME</div></div>
-            <div class="stat-card"><div class="stat-value">${stats.memoryMb}</div><div class="stat-label">MÉMOIRE (MB)</div></div>
-          </div>`;
-      }).catch(() => {
-        content.innerHTML = "<p style='color: var(--danger)'>Erreur chargement stats</p>";
-      });
-      break;
+async function sendChat() {
+  const message = chatInput.value.trim();
+  if (!message || isSending) return;
+  isSending = true;
+  chatSend.disabled = true;
 
-    default:
-      content.innerHTML = "<p>Section en construction</p>";
+  const welcome = chatMessages.querySelector(".chat-welcome");
+  if (welcome) welcome.remove();
+
+  addChatMessage("user", message);
+  chatInput.value = "";
+  chatInput.style.height = "auto";
+
+  const typingEl = addTypingIndicator();
+
+  try {
+    const res = await controlApi("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+        sessionId: "dashboard",
+        username: "Dashboard User",
+        tools: chatToolsToggle.checked,
+      }),
+    });
+    typingEl.remove();
+    addChatMessage("assistant", res.response || "Aucune réponse");
+  } catch (err) {
+    typingEl.remove();
+    addChatMessage("assistant", "Erreur: " + err.message);
+  } finally {
+    isSending = false;
+    chatSend.disabled = !chatInput.value.trim();
   }
 }
 
-// ─── Save Settings ──────────────────────────────────────────────────────────
+function addChatMessage(role, content) {
+  const msg = document.createElement("div");
+  msg.className = `chat-msg ${role}`;
+  const avatar = document.createElement("div");
+  avatar.className = "chat-msg-avatar";
+  avatar.textContent = role === "user" ? "U" : "AI";
+  const bubble = document.createElement("div");
+  bubble.className = "chat-msg-bubble";
+  bubble.textContent = content;
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  chatMessages.appendChild(msg);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
-document.getElementById("save-btn").addEventListener("click", async () => {
-  if (!currentGuildId) return;
+function addTypingIndicator() {
+  const msg = document.createElement("div");
+  msg.className = "chat-msg assistant";
+  msg.innerHTML = `<div class="chat-msg-avatar">AI</div><div class="chat-msg-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div>`;
+  chatMessages.appendChild(msg);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return msg;
+}
 
-  // Collecter toutes les valeurs des inputs
-  const settings = {};
-  document.querySelectorAll("[id^='cfg-']").forEach((el) => {
-    const key = el.id.replace("cfg-", "");
-    if (el.type === "checkbox") {
-      settings[key] = el.checked;
-    } else if (el.type === "number") {
-      settings[key] = parseInt(el.value, 10) || 0;
-    } else {
-      settings[key] = el.value;
-    }
-  });
+// ─── Tools ──────────────────────────────────────────────────────────────────
 
+async function loadTools() {
   try {
-    await api(`/guilds/${currentGuildId}/settings`, {
-      method: "POST",
-      body: JSON.stringify(settings),
-    });
-    toast("✅ Configuration sauvegardée");
+    const data = await controlApi("/api/tools");
+    allTools = data.tools || [];
+    renderTools(allTools);
   } catch (err) {
-    toast("Erreur: " + err.message, true);
+    document.getElementById("tools-grid").innerHTML =
+      `<p style="color: var(--danger); grid-column: 1/-1; text-align: center;">Erreur: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function renderTools(tools) {
+  const grid = document.getElementById("tools-grid");
+  if (!tools.length) {
+    grid.innerHTML = "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun outil trouvé</p>";
+    return;
+  }
+  grid.innerHTML = tools.map((t) => `
+    <div class="tool-card">
+      <div class="tool-card-name">${escapeHtml(t.name || "unknown")}</div>
+      <div class="tool-card-desc">${escapeHtml((t.description || "").slice(0, 120))}</div>
+      <span class="tool-card-type ${t.type}">${t.type}</span>
+    </div>`).join("");
+}
+
+document.getElementById("tools-search").addEventListener("input", (e) => {
+  const q = e.target.value.toLowerCase();
+  renderTools(allTools.filter((t) =>
+    (t.name || "").toLowerCase().includes(q) ||
+    (t.description || "").toLowerCase().includes(q)
+  ));
 });
+
+// ─── Servers ────────────────────────────────────────────────────────────────
+
+async function loadServers() {
+  try {
+    const data = await api("/guilds");
+    const guilds = data.guilds || data;
+    const grid = document.getElementById("servers-grid");
+    if (!guilds.length) {
+      grid.innerHTML = "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun serveur trouvé</p>";
+      return;
+    }
+    grid.innerHTML = guilds.map((g) => {
+      const icon = g.icon
+        ? `<img class="server-card-icon" src="${escapeHtml(g.icon)}" alt="">`
+        : `<div class="server-card-placeholder">🏰</div>`;
+      return `<div class="server-card">${icon}<div class="server-card-info"><div class="server-card-name">${escapeHtml(g.name)}</div><div class="server-card-status"><span class="status-dot ${g.botPresent ? "online" : "offline"}"></span><span>${g.botPresent ? "Bot en ligne" : "Bot absent"}</span></div></div></div>`;
+    }).join("");
+  } catch (err) {
+    document.getElementById("servers-grid").innerHTML =
+      `<p style="color: var(--danger); grid-column: 1/-1; text-align: center;">Erreur: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// ─── Stats ──────────────────────────────────────────────────────────────────
+
+async function loadStats() {
+  const content = document.getElementById("stats-content");
+  try {
+    const stats = await api("/bot/stats");
+    content.innerHTML = `<div class="stats-grid">
+      <div class="stat-card"><span class="stat-icon">🏰</span><div class="stat-value">${stats.totalGuilds || 0}</div><div class="stat-label">Serveurs</div></div>
+      <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value">${stats.totalUsers || 0}</div><div class="stat-label">Utilisateurs</div></div>
+      <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value">${stats.totalLogs || 0}</div><div class="stat-label">Logs</div></div>
+      <div class="stat-card"><span class="stat-icon">🔨</span><div class="stat-value">${stats.totalSanctions || 0}</div><div class="stat-label">Sanctions</div></div>
+      <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value">${Math.floor((stats.uptime || 0) / 3600)}h</div><div class="stat-label">Uptime</div></div>
+      <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value">${stats.memoryMb || 0}</div><div class="stat-label">Mémoire (MB)</div></div>
+    </div>`;
+  } catch (err) {
+    content.innerHTML = `<p style="color: var(--danger)">Erreur: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+// ─── Settings ───────────────────────────────────────────────────────────────
+
+function loadSettings() {
+  document.getElementById("settings-content").innerHTML = `
+    <div class="settings-card">
+      <div class="settings-card-title">Compte</div>
+      <div class="form-group"><label class="form-label">Session</label><input class="form-input" value="${escapeHtml(sessionToken || "N/A")}" readonly></div>
+      <div class="form-group"><label class="form-label">Control Server</label><input class="form-input" value="http://${window.location.hostname}:3002" readonly></div>
+    </div>
+    <div class="settings-card">
+      <div class="settings-card-title">À propos</div>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+        Shadow Broker AI Dashboard — Version 2.0<br>212 outils · Multi-LLM · Agent Loop<br>Powered by OpenRouter, Groq, Gemini & HuggingFace
+      </p>
+    </div>`;
+}
 
 // ─── Logout ─────────────────────────────────────────────────────────────────
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
-  try {
-    await api("/auth/logout", { method: "GET" });
-  } catch {}
+  try { await api("/auth/logout", { method: "GET" }); } catch {}
   localStorage.removeItem("sb_session");
   sessionToken = null;
   showScreen("login-screen");
-  startMatrixRain();
 });
-
-// ─── Back Button ────────────────────────────────────────────────────────────
-
-document.getElementById("back-btn").addEventListener("click", () => {
-  loadGuilds();
-});
-
-// ─── Matrix Rain Effect ─────────────────────────────────────────────────────
-
-function startMatrixRain() {
-  const canvas = document.createElement("canvas");
-  const container = document.getElementById("matrix");
-  if (!container) return;
-  container.appendChild(canvas);
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const chars = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
-  const fontSize = 14;
-  const columns = Math.floor(canvas.width / fontSize);
-  const drops = Array(columns).fill(1);
-
-  function draw() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#00ff41";
-    ctx.font = `${fontSize}px monospace`;
-    for (let i = 0; i < drops.length; i++) {
-      const text = chars[Math.floor(Math.random() * chars.length)];
-      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-        drops[i] = 0;
-      }
-      drops[i]++;
-    }
-  }
-
-  const interval = setInterval(draw, 50);
-
-  // Stop after 10s to save CPU
-  setTimeout(() => {
-    clearInterval(interval);
-    container.innerHTML = "";
-  }, 10000);
-}
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
 function escapeHtml(str) {
   if (!str) return "";
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// ─── Start ──────────────────────────────────────────────────────────────────
+// ─── Fortnite ───────────────────────────────────────────────────────────────
+
+async function loadFortnite() {
+  const content = document.getElementById("fortnite-content");
+  try {
+    const data = await controlApi("/api/fortnite/status");
+    const connected = data.connected || false;
+    const displayName = data.displayName || null;
+
+    if (connected && displayName) {
+      content.innerHTML = `
+        <div class="fortnite-status-card connected">
+          <div class="fortnite-status-header">
+            <div class="fortnite-status-icon">🎮</div>
+            <div>
+              <div class="fortnite-status-title">Bot connecté</div>
+              <div class="fortnite-status-name">${escapeHtml(displayName)}</div>
+            </div>
+            <div class="fortnite-status-badge">EN LIGNE</div>
+          </div>
+          <div class="fortnite-info-grid">
+            <div class="fortnite-info-item">
+              <div class="fortnite-info-icon">👥</div>
+              <div class="fortnite-info-text">
+                <div class="fortnite-info-label">Ajoute en ami</div>
+                <div class="fortnite-info-value">${escapeHtml(displayName)}</div>
+              </div>
+            </div>
+            <div class="fortnite-info-item">
+              <div class="fortnite-info-icon">🎉</div>
+              <div class="fortnite-info-text">
+                <div class="fortnite-info-label">Party</div>
+                <div class="fortnite-info-value">Accepte automatiquement</div>
+              </div>
+            </div>
+            <div class="fortnite-info-item">
+              <div class="fortnite-info-icon">👕</div>
+              <div class="fortnite-info-text">
+                <div class="fortnite-info-label">Skin</div>
+                <div class="fortnite-info-value">/game bot-skin</div>
+              </div>
+            </div>
+            <div class="fortnite-info-item">
+              <div class="fortnite-info-icon">💃</div>
+              <div class="fortnite-info-text">
+                <div class="fortnite-info-label">Emote</div>
+                <div class="fortnite-info-value">/game bot-emote</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-ghost" onclick="fortniteLogout()" style="margin-top: 1rem;">Déconnecter le bot</button>
+        </div>`;
+    } else {
+      content.innerHTML = `
+        <div class="fortnite-status-card disconnected">
+          <div class="fortnite-status-header">
+            <div class="fortnite-status-icon">⚠️</div>
+            <div>
+              <div class="fortnite-status-title">Bot non connecté</div>
+              <div class="fortnite-status-name">Aucun compte Fortnite lié</div>
+            </div>
+            <div class="fortnite-status-badge offline">HORS LIGNE</div>
+          </div>
+          <div class="fortnite-login-section">
+            <h3>Connecter un compte Fortnite</h3>
+            <p class="fortnite-help">Obtenez un code d'autorisation sur le lien ci-dessous, puis collez-le ici :</p>
+            <a href="https://www.epicgames.com/id/api/redirect?clientId=3446cd72694c4a4485d81b77adbb2141&responseType=code" target="_blank" class="fortnite-link">🔗 Obtenir un code Epic Games</a>
+            <div class="fortnite-input-row">
+              <input type="text" id="fortnite-auth-input" class="form-input" placeholder="Collez votre code d'autorisation ici..." style="flex:1;">
+              <button class="btn-primary" onclick="fortniteLogin()">Connecter</button>
+            </div>
+          </div>
+        </div>`;
+    }
+  } catch (err) {
+    content.innerHTML = `
+      <div class="fortnite-status-card disconnected">
+        <div class="fortnite-status-header">
+          <div class="fortnite-status-icon">⚠️</div>
+          <div>
+            <div class="fortnite-status-title">Erreur</div>
+            <div class="fortnite-status-name">${escapeHtml(err.message)}</div>
+          </div>
+        </div>
+        <div class="fortnite-login-section">
+          <h3>Connecter un compte Fortnite</h3>
+          <p class="fortnite-help">Obtenez un code d'autorisation sur le lien ci-dessous, puis collez-le ici :</p>
+          <a href="https://www.epicgames.com/id/api/redirect?clientId=3446cd72694c4a4485d81b77adbb2141&responseType=code" target="_blank" class="fortnite-link">🔗 Obtenir un code Epic Games</a>
+          <div class="fortnite-input-row">
+            <input type="text" id="fortnite-auth-input" class="form-input" placeholder="Collez votre code d'autorisation ici..." style="flex:1;">
+            <button class="btn-primary" onclick="fortniteLogin()">Connecter</button>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+async function fortniteLogin() {
+  const input = document.getElementById("fortnite-auth-input");
+  if (!input || !input.value.trim()) {
+    toast("Veuillez coller un code d'autorisation", true);
+    return;
+  }
+  try {
+    await controlApi("/api/fortnite/login", {
+      method: "POST",
+      body: JSON.stringify({ authCode: input.value.trim() }),
+    });
+    toast("Bot Fortnite connecté avec succès !");
+    loadFortnite();
+  } catch (err) {
+    toast("Erreur: " + err.message, true);
+  }
+}
+
+async function fortniteLogout() {
+  try {
+    await controlApi("/api/fortnite/logout", { method: "POST" });
+    toast("Bot Fortnite déconnecté");
+    loadFortnite();
+  } catch (err) {
+    toast("Erreur: " + err.message, true);
+  }
+}
 
 init();

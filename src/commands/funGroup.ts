@@ -16,20 +16,18 @@
  * /fun hackernews  — Top Hacker News
  */
 
-import { ChatInputCommandInteraction, SlashCommandBuilder, Client, EmbedBuilder } from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import {
   getMeme,
   getJoke,
   getQuote,
   getAdvice,
   getActivity,
-  getTriviaQuestion,
   getDogImage,
   getNumberFact,
   getHackerNewsTop,
 } from "../services/freeApis.js";
 import { startTrivia } from "../services/triviaService.js";
-import logger from "../utils/logger.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -240,7 +238,8 @@ export async function handleCommand(
     }
 
     case "trivia": {
-      const difficulty = interaction.options.getString("difficulte") as "easy" | "medium" | "hard" | null;
+      const difficulty = interaction.options.getString("difficulte") as
+        "easy" | "medium" | "hard" | null;
       await startTrivia(interaction, { difficulty: difficulty ?? undefined });
       break;
     }

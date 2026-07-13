@@ -87,7 +87,7 @@ export function getGlobalStats(): {
   let totalTokens = 0;
   let totalUsers = 0;
 
-  for (const [userId, entries] of usageCache) {
+  for (const [_userId, entries] of usageCache) {
     if (entries.length === 0) continue;
     totalUsers++;
     totalTokens += entries.reduce((sum, e) => sum + e.inputTokens + e.outputTokens, 0);

@@ -20,11 +20,11 @@
  *  - Rollback automatique si les tests post-patch échouent
  */
 
-import { Client, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { Client, EmbedBuilder } from "discord.js";
 import { readFile, writeFile, mkdir, copyFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname, basename } from "path";
-import { fileURLToPath } from "url";
+import {} from "url";
 import logger from "../utils/logger.js";
 import { createLog } from "./logs.js";
 import { reloadModule, fullReload } from "../utils/hot-reload.js";
@@ -33,12 +33,7 @@ import { reloadModule, fullReload } from "../utils/hot-reload.js";
 
 export type PatchType = "FIX" | "OPTIMIZATION" | "SECURITY" | "FEATURE" | "HOTFIX";
 export type PatchStatus =
-  | "PROPOSED"
-  | "VALIDATED"
-  | "APPLIED"
-  | "VERIFIED"
-  | "ROLLED_BACK"
-  | "REJECTED";
+  "PROPOSED" | "VALIDATED" | "APPLIED" | "VERIFIED" | "ROLLED_BACK" | "REJECTED";
 
 export interface PatchIssue {
   id: string;

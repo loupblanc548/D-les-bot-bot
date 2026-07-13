@@ -13,7 +13,6 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  ThreadChannel,
   Client,
 } from "discord.js";
 import prisma from "../prisma.js";
@@ -61,24 +60,34 @@ export async function getSuggestionConfig(guildId: string): Promise<SuggestionCo
   try {
     const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
     if (record?.suggestionConfig) {
-      const parsed = { ...DEFAULT_CONFIG, ...(JSON.parse(record.suggestionConfig as string) as Partial<SuggestionConfig>) };
+      const parsed = {
+        ...DEFAULT_CONFIG,
+        ...(JSON.parse(record.suggestionConfig as string) as Partial<SuggestionConfig>),
+      };
       configs.set(guildId, parsed);
       return parsed;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ...DEFAULT_CONFIG };
 }
 
-export async function setSuggestionConfig(guildId: string, config: Partial<SuggestionConfig>): Promise<void> {
+export async function setSuggestionConfig(
+  guildId: string,
+  config: Partial<SuggestionConfig>,
+): Promise<void> {
   try {
     const current = await getSuggestionConfig(guildId);
     const merged = { ...current, ...config };
     configs.set(guildId, merged);
-    await prisma.guildConfig.upsert({
-      where: { guildId },
-      create: { guildId, suggestionConfig: JSON.stringify(merged) },
-      update: { suggestionConfig: JSON.stringify(merged) },
-    }).catch(() => {});
+    await prisma.guildConfig
+      .upsert({
+        where: { guildId },
+        create: { guildId, suggestionConfig: JSON.stringify(merged) },
+        update: { suggestionConfig: JSON.stringify(merged) },
+      })
+      .catch(() => {});
   } catch (error) {
     logger.error("[Suggestion] setSuggestionConfig:", String(error));
   }
@@ -107,7 +116,11 @@ export async function createSuggestion(
     .addFields(
       { name: "👤 Par", value: `<@${authorId}>`, inline: true },
       { name: "📊 Status", value: "⏳ En attente", inline: true },
-      { name: " Votes", value: `${config.upvoteEmoji}: 0 | ${config.downvoteEmoji}: 0`, inline: true },
+      {
+        name: " Votes",
+        value: `${config.upvoteEmoji}: 0 | ${config.downvoteEmoji}: 0`,
+        inline: true,
+      },
     )
     .setFooter({ text: `ID: ${id}` })
     .setTimestamp();
@@ -152,10 +165,12 @@ export async function createSuggestion(
 
   // Auto-thread
   if (config.threadAuto) {
-    const thread = await message.startThread({
-      name: `discussion-${title.slice(0, 40)}`,
-      autoArchiveDuration: 1440,
-    }).catch(() => null);
+    const thread = await message
+      .startThread({
+        name: `discussion-${title.slice(0, 40)}`,
+        autoArchiveDuration: 1440,
+      })
+      .catch(() => null);
     if (thread) {
       suggestion.threadId = thread.id;
     }
@@ -168,10 +183,15 @@ export async function createSuggestion(
 
 // ─── Vote ─────────────────────────────────────────────────────────────
 
-export function vote(suggestionId: string, userId: string, voteType: "up" | "down"): { success: boolean; message: string } {
+export function vote(
+  suggestionId: string,
+  userId: string,
+  voteType: "up" | "down",
+): { success: boolean; message: string } {
   const suggestion = suggestions.get(suggestionId);
   if (!suggestion) return { success: false, message: "Suggestion introuvable." };
-  if (suggestion.status !== "pending") return { success: false, message: "Suggestion déjà traitée." };
+  if (suggestion.status !== "pending")
+    return { success: false, message: "Suggestion déjà traitée." };
 
   // Remove previous vote
   suggestion.upvotes = suggestion.upvotes.filter((u) => u !== userId);
@@ -208,9 +228,28 @@ export async function updateStatus(
       const message = await channel.messages.fetch(suggestion.messageId).catch(() => null);
       if (message) {
         const config = await getSuggestionConfig(suggestion.guildId);
-        const statusEmoji = status === "approved" ? "✅" : status === "denied" ? "❌" : status === "implemented" ? "🎉" : "⏳";
-        const statusText = status === "approved" ? "Approuvée" : status === "denied" ? "Rejetée" : status === "implemented" ? "Implémentée" : "En attente";
-        const colors: Record<SuggestionStatus, number> = { pending: 0xf39c12, approved: 0x2ecc71, denied: 0xe74c3c, implemented: 0x9b59b6 };
+        const statusEmoji =
+          status === "approved"
+            ? "✅"
+            : status === "denied"
+              ? "❌"
+              : status === "implemented"
+                ? "🎉"
+                : "⏳";
+        const statusText =
+          status === "approved"
+            ? "Approuvée"
+            : status === "denied"
+              ? "Rejetée"
+              : status === "implemented"
+                ? "Implémentée"
+                : "En attente";
+        const colors: Record<SuggestionStatus, number> = {
+          pending: 0xf39c12,
+          approved: 0x2ecc71,
+          denied: 0xe74c3c,
+          implemented: 0x9b59b6,
+        };
 
         const embed = new EmbedBuilder()
           .setTitle(`💡 Suggestion: ${suggestion.title}`)
@@ -219,7 +258,11 @@ export async function updateStatus(
           .addFields(
             { name: "👤 Par", value: `<@${suggestion.authorId}>`, inline: true },
             { name: "📊 Status", value: `${statusEmoji} ${statusText}`, inline: true },
-            { name: " Votes", value: `${config.upvoteEmoji}: ${suggestion.upvotes.length} | ${config.downvoteEmoji}: ${suggestion.downvotes.length}`, inline: true },
+            {
+              name: " Votes",
+              value: `${config.upvoteEmoji}: ${suggestion.upvotes.length} | ${config.downvoteEmoji}: ${suggestion.downvotes.length}`,
+              inline: true,
+            },
             { name: "🔨 Décidé par", value: `<@${decidedBy}>`, inline: false },
           )
           .setFooter({ text: `ID: ${suggestion.id}` })
@@ -247,7 +290,13 @@ export function listSuggestions(guildId: string, status?: SuggestionStatus): Sug
   return all;
 }
 
-export function getSuggestionStats(guildId: string): { total: number; pending: number; approved: number; denied: number; implemented: number } {
+export function getSuggestionStats(guildId: string): {
+  total: number;
+  pending: number;
+  approved: number;
+  denied: number;
+  implemented: number;
+} {
   const all = listSuggestions(guildId);
   return {
     total: all.length,

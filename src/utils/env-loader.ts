@@ -171,18 +171,18 @@ const envSchema = z.object({
 
   // Intervals & TTLs (ms) — tuned for local hardware (i9/32GB/4060Ti)
   // For Raspberry Pi: set these higher in .env to reduce load
-  MONITORING_INTERVAL_MS: z.string().default("300000"),      // 5 min (was 15)
-  TWITCH_CHECK_INTERVAL_MS: z.string().default("60000"),     // 1 min (was 2)
-  PATCH_NOTES_INTERVAL_MS: z.string().default("600000"),     // 10 min (was 1h)
-  IG_NEWS_INTERVAL_MS: z.string().default("1800000"),        // 30 min (was 1h)
-  IG_GIVEAWAY_INTERVAL_MS: z.string().default("7200000"),    // 2h (was 12h)
-  FORTNITE_CACHE_TTL_MS: z.string().default("300000"),       // 5 min (was 15)
-  RSS_CACHE_TTL_MS: z.string().default("120000"),            // 2 min (was 5)
+  MONITORING_INTERVAL_MS: z.string().default("300000"), // 5 min (was 15)
+  TWITCH_CHECK_INTERVAL_MS: z.string().default("60000"), // 1 min (was 2)
+  PATCH_NOTES_INTERVAL_MS: z.string().default("600000"), // 10 min (was 1h)
+  IG_NEWS_INTERVAL_MS: z.string().default("1800000"), // 30 min (was 1h)
+  IG_GIVEAWAY_INTERVAL_MS: z.string().default("7200000"), // 2h (was 12h)
+  FORTNITE_CACHE_TTL_MS: z.string().default("300000"), // 5 min (was 15)
+  RSS_CACHE_TTL_MS: z.string().default("120000"), // 2 min (was 5)
   AI_TIMEOUT_MS: z.string().default("25000"),
   AI_SUMMARIZE_TIMEOUT_MS: z.string().default("30000"),
   AI_MODERATION_TIMEOUT_MS: z.string().default("10000"),
   STEAM_TIMEOUT_MS: z.string().default("5000"),
-  STEAM_NEWS_INTERVAL_MS: z.string().default("300000"),      // 5 min (was 10)
+  STEAM_NEWS_INTERVAL_MS: z.string().default("300000"), // 5 min (was 10)
   YOUTUBE_TIMEOUT_MS: z.string().default("5000"),
 
   // Channels (optional)
@@ -219,6 +219,9 @@ const envSchema = z.object({
 
   // Environment
   NODE_ENV: z.string().default("production"),
+
+  // Fortnite Party Bot (fnbr.js)
+  FORTNITE_AUTH_CODE: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

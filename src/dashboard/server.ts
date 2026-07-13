@@ -26,11 +26,17 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production"
-  ? (() => { throw new Error("JWT_SECRET must be set in production. Define it in .env"); })()
-  : crypto.randomUUID().replace(/-/g, ""));
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("JWT_SECRET must be set in production. Define it in .env");
+      })()
+    : crypto.randomUUID().replace(/-/g, ""));
 if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "production") {
-  logger.warn("[Dashboard] JWT_SECRET non défini — sessions invalidées à chaque redémarrage. Définissez JWT_SECRET dans .env");
+  logger.warn(
+    "[Dashboard] JWT_SECRET non défini — sessions invalidées à chaque redémarrage. Définissez JWT_SECRET dans .env",
+  );
 }
 const SESSION_COOKIE_NAME = "sb_session";
 
@@ -128,24 +134,28 @@ function authRequired(
 export async function startDashboardServer(port: number): Promise<number> {
   const app = express();
 
-  app.use(cors({
-    origin: process.env.DASHBOARD_CORS_ORIGIN || "http://localhost:3721",
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: process.env.DASHBOARD_CORS_ORIGIN || "http://localhost:3721",
+      credentials: true,
+    }),
+  );
   app.use(express.json({ limit: "1mb" }));
 
   // Security headers (helmet + custom)
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'"],
+        },
       },
-    },
-  }));
+    }),
+  );
 
   // Rate limiting on all API routes
   app.use("/api", rateLimit);
@@ -198,7 +208,7 @@ export async function startDashboardServer(port: number): Promise<number> {
         },
       );
 
-      const { access_token, refresh_token } = tokenResponse.data;
+      const { access_token, _refresh_token } = tokenResponse.data;
 
       // Récupérer le profil utilisateur
       const userResponse = await axios.get<DiscordUser>(`${DISCORD_API}/users/@me`, {
@@ -322,10 +332,19 @@ export async function startDashboardServer(port: number): Promise<number> {
 
     // Allowlist fields to prevent mass assignment
     const ALLOWED_FIELDS = [
-      "prefix", "language", "logChannelId", "modLogChannelId", "reportChannelId",
-      "welcomeChannelId", "welcomeMessage", "goodbyeMessage",
-      "autoModEnabled", "antiRaidEnabled", "antiPhishingEnabled",
-      "levelingEnabled", "musicEnabled",
+      "prefix",
+      "language",
+      "logChannelId",
+      "modLogChannelId",
+      "reportChannelId",
+      "welcomeChannelId",
+      "welcomeMessage",
+      "goodbyeMessage",
+      "autoModEnabled",
+      "antiRaidEnabled",
+      "antiPhishingEnabled",
+      "levelingEnabled",
+      "musicEnabled",
     ];
     const safeSettings: Record<string, unknown> = {};
     for (const key of ALLOWED_FIELDS) {
@@ -402,7 +421,7 @@ export async function startDashboardServer(port: number): Promise<number> {
     server.on("error", (err: any) => {
       if (err.code === "EADDRINUSE") {
         logger.warn(`[Dashboard] Port ${port} occupé, essai ${port + 1}`);
-        const server2 = app.listen(port + 1, () => resolve(port + 1));
+        const _server2 = app.listen(port + 1, () => resolve(port + 1));
       } else {
         logger.error("[Dashboard] Erreur serveur:", err);
       }

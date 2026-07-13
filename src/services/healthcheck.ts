@@ -1,8 +1,7 @@
 import logger from "../utils/logger.js";
 import fs from "fs";
 import path from "path";
-import { EmbedBuilder, Client, TextChannel } from "discord.js";
-import { config } from "../config.js";
+import { Client } from "discord.js";
 import prisma from "../prisma.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────

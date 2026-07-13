@@ -3,7 +3,8 @@ import logger from "../utils/logger.js";
 import { sanitizeForLog } from "../utils/stripHtml.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
-import prisma from "../prisma.js";
+import _prisma from "../prisma.js";
+import { isValidEmbedImageUrl } from "../utils/image-helpers.js";
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 
@@ -27,23 +28,29 @@ async function fetchRecentVods(streamerName: string): Promise<TwitchVod[]> {
     const clientSecret = config.twitchClientSecret;
     if (!clientId || !clientSecret) return vods;
 
-    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, { method: "POST" });
+    const tokenRes = await fetch(
+      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+      { method: "POST" },
+    );
     if (!tokenRes.ok) return vods;
-    const tokenData = await tokenRes.json() as any;
+    const tokenData = (await tokenRes.json()) as any;
 
     const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${streamerName}`, {
       headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
     });
     if (!userRes.ok) return vods;
-    const userData = await userRes.json() as any;
+    const userData = (await userRes.json()) as any;
     const userId = userData.data?.[0]?.id;
     if (!userId) return vods;
 
-    const vodRes = await fetch(`https://api.twitch.tv/helix/videos?user_id=${userId}&type=archive&first=3`, {
-      headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const vodRes = await fetch(
+      `https://api.twitch.tv/helix/videos?user_id=${userId}&type=archive&first=3`,
+      {
+        headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
+      },
+    );
     if (!vodRes.ok) return vods;
-    const vodData = await vodRes.json() as any;
+    const vodData = (await vodRes.json()) as any;
 
     for (const vod of vodData.data ?? []) {
       vods.push({
@@ -57,7 +64,9 @@ async function fetchRecentVods(streamerName: string): Promise<TwitchVod[]> {
       });
     }
   } catch (err) {
-    logger.debug(`[VODs] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+    logger.debug(
+      `[VODs] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+    );
   }
   return vods;
 }
@@ -88,18 +97,24 @@ async function checkVods(client: Client): Promise<void> {
         .setURL(vod.url)
         .addFields(
           { name: "Streameur", value: streamer, inline: true },
-          { name: "Publié le", value: new Date(vod.createdAt).toLocaleString("fr-FR"), inline: true },
+          {
+            name: "Publié le",
+            value: new Date(vod.createdAt).toLocaleString("fr-FR"),
+            inline: true,
+          },
         )
         .setFooter({ text: "Surveillance System • VOD Notifications" })
         .setTimestamp();
 
-      if (vod.thumbnail) embed.setImage(vod.thumbnail);
+      if (vod.thumbnail && isValidEmbedImageUrl(vod.thumbnail)) embed.setImage(vod.thumbnail);
 
       try {
         await channel.send({ embeds: [embed] });
         logger.info(`[VODs] VOD notifié: ${sanitizeForLog(vod.title)}`);
       } catch (err) {
-        logger.error(`[VODs] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+        logger.error(
+          `[VODs] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+        );
       }
     }
   }

@@ -15,7 +15,7 @@
  * visualisation en temps réel dans le dashboard Cytoscape.js.
  */
 
-import { Client, Guild, GuildMember, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
+import { Client, Guild, EmbedBuilder, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { createLog } from "./logs.js";

@@ -17,7 +17,7 @@
 
 import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
-import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
+import { getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 import { config } from "../config.js";
 
 // ─── Cooldown system ─────────────────────────────────────────────────────────

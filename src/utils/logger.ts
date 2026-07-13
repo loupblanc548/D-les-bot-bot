@@ -8,7 +8,7 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({ format: "HH:mm:ss" }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+  winston.format.printf(({ timestamp, level, message, _service, _environment, ...meta }) => {
     const metaStr =
       Object.keys(meta).length > 0 && meta.stack == null ? " " + JSON.stringify(meta) : "";
     return `${timestamp} ${level}: ${message}${metaStr}`;
@@ -25,11 +25,17 @@ const jsonFormat = winston.format.combine(
 // ─── Logger principal ────────────────────────────────────────────
 // Console : tout (info, warn, error). Le flood Fortnite est éliminé car
 //   les modules Fortnite utilisent désormais `fortniteLogger` (fichier seul).
-// Fichier : logs/combined.log (rotation 5×5 MB) — historique complet.
+// Fichier : logs/combined.log (rotation 50MB, 14 jours de rétention).
 // En production (Docker/Railway), JSON logging activé pour stdout/stderr.
 
 const isProduction = process.env.NODE_ENV === "production";
 const logDir = isProduction ? "/tmp/logs" : "logs";
+
+// ─── MODULE 7: Rotating Log Management ───────────────────────────
+// Max file size: 50MB, retention: 14 days, streamed (not buffered in memory).
+const MAX_LOG_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_LOG_FILES = 14; // 14 days retention (one file per day max at 50MB)
+const MAX_FORTNITE_LOG_FILES = 7; // 7 days for fortnite-specific logs
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
@@ -43,8 +49,17 @@ const logger = winston.createLogger({
       : [
           new winston.transports.File({
             filename: `${logDir}/combined.log`,
-            maxsize: 5 * 1024 * 1024,
-            maxFiles: 5,
+            maxsize: MAX_LOG_SIZE,
+            maxFiles: MAX_LOG_FILES,
+            tailable: true, // Stream mode — don't buffer in memory
+            format: jsonFormat,
+          }),
+          new winston.transports.File({
+            filename: `${logDir}/error.log`,
+            level: "error",
+            maxsize: MAX_LOG_SIZE,
+            maxFiles: MAX_LOG_FILES,
+            tailable: true,
             format: jsonFormat,
           }),
         ]),
@@ -70,14 +85,16 @@ const fortniteLogger = winston.createLogger({
       : [
           new winston.transports.File({
             filename: `${logDir}/combined.log`,
-            maxsize: 5 * 1024 * 1024,
-            maxFiles: 5,
+            maxsize: MAX_LOG_SIZE,
+            maxFiles: MAX_LOG_FILES,
+            tailable: true,
             format: jsonFormat,
           }),
           new winston.transports.File({
             filename: `${logDir}/fortnite.log`,
-            maxsize: 5 * 1024 * 1024,
-            maxFiles: 3,
+            maxsize: MAX_LOG_SIZE,
+            maxFiles: MAX_FORTNITE_LOG_FILES,
+            tailable: true,
             format: jsonFormat,
           }),
         ]),

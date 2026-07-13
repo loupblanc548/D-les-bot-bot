@@ -13,10 +13,10 @@
 import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { createLog } from "./logs.js";
-import { getGuildSecurityPosture, getEvents, calculateThreatScore } from "./socExtension.js";
+import { getGuildSecurityPosture, getEvents } from "./socExtension.js";
 import { getAnomalies, generateAnalysisReport } from "./aiLogAnalyzer.js";
 import { getUnhealthyScrapers } from "./autoDefense.js";
-import { getAllPatches, getPatchesByStatus } from "./aiHotPatcher.js";
+import { getPatchesByStatus } from "./aiHotPatcher.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ export async function generateSecurityReport(
   const posture = await getGuildSecurityPosture(guildId);
   const events = getEvents(guildId, 200);
   const anomalies = getAnomalies(20);
-  const analysisReport = generateAnalysisReport();
+  const _analysisReport = generateAnalysisReport();
   const unhealthyScrapers = getUnhealthyScrapers();
   const appliedPatches = getPatchesByStatus("APPLIED");
 

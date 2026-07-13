@@ -1,7 +1,6 @@
-import { Client, TextChannel, EmbedBuilder } from "discord.js";
+import { Client } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
-import prisma from "../prisma.js";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 let roleInterval: NodeJS.Timeout | null = null;
@@ -19,7 +18,7 @@ async function checkYouTubeSubscribers(channelId: string): Promise<number> {
       `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${apiKey}`,
     );
     if (!res.ok) return 0;
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     return parseInt(data.items?.[0]?.statistics?.subscriberCount ?? "0");
   } catch {
     return 0;
@@ -37,21 +36,24 @@ async function checkTwitchFollowers(username: string): Promise<number> {
       { method: "POST" },
     );
     if (!tokenRes.ok) return 0;
-    const tokenData = await tokenRes.json() as any;
+    const tokenData = (await tokenRes.json()) as any;
 
     const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${username}`, {
       headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
     });
     if (!userRes.ok) return 0;
-    const userData = await userRes.json() as any;
+    const userData = (await userRes.json()) as any;
     const userId = userData.data?.[0]?.id;
     if (!userId) return 0;
 
-    const followRes = await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`, {
-      headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const followRes = await fetch(
+      `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`,
+      {
+        headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
+      },
+    );
     if (!followRes.ok) return 0;
-    const followData = await followRes.json() as any;
+    const followData = (await followRes.json()) as any;
     return followData.total ?? 0;
   } catch {
     return 0;
@@ -87,11 +89,15 @@ async function checkCreatorRoles(client: Client): Promise<void> {
       const role = guild.roles.cache.find((r) => r.name === config.roleName);
       if (role && !member.roles.cache.has(role.id)) {
         await member.roles.add(role);
-        logger.info(`[CreatorRoles] ${member.user.tag} → rôle ${config.roleName} (${followers} followers)`);
+        logger.info(
+          `[CreatorRoles] ${member.user.tag} → rôle ${config.roleName} (${followers} followers)`,
+        );
 
         try {
           const dm = await member.createDM();
-          await dm.send(`🎉 Félicitations ! Tu as reçu le rôle **${config.roleName}** sur **${guild.name}** car tu as ${followers} followers !`);
+          await dm.send(
+            `🎉 Félicitations ! Tu as reçu le rôle **${config.roleName}** sur **${guild.name}** car tu as ${followers} followers !`,
+          );
         } catch {}
       }
     }
@@ -105,7 +111,11 @@ export function startCreatorRoleSync(client: Client): void {
     return;
   }
   logger.info("[CreatorRoles] Sync rôles créateur activé (intervalle: 6h)");
-  roleInterval = safeInterval("CreatorRoleSync", () => checkCreatorRoles(client), CHECK_INTERVAL_MS);
+  roleInterval = safeInterval(
+    "CreatorRoleSync",
+    () => checkCreatorRoles(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopCreatorRoleSync(): void {

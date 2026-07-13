@@ -16,7 +16,7 @@ if (hasRedis) {
     },
   });
 
-  client.on("error", (err) => {
+  client.on("error", (_err) => {
     if (connected) {
       logger.warn("[RedisClient] Error — degrading");
       connected = false;

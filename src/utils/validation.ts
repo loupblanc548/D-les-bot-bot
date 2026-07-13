@@ -6,21 +6,21 @@
  * Validate RSS item structure
  */
 export function validateRssItem(item: Record<string, unknown>): boolean {
-  if (!item || typeof item !== 'object') {
+  if (!item || typeof item !== "object") {
     return false;
   }
 
   // Required fields
-  if (!item.title || typeof item.title !== 'string') {
+  if (!item.title || typeof item.title !== "string") {
     return false;
   }
 
-  if (!item.link || typeof item.link !== 'string') {
+  if (!item.link || typeof item.link !== "string") {
     return false;
   }
 
   // Optional but recommended fields
-  if (item.pubDate && typeof item.pubDate !== 'string') {
+  if (item.pubDate && typeof item.pubDate !== "string") {
     return false;
   }
 
@@ -43,13 +43,13 @@ export function isValidUrl(url: string): boolean {
  * Sanitize string to prevent XSS
  */
 export function sanitizeString(input: string): string {
-  if (typeof input !== 'string') {
-    return '';
+  if (typeof input !== "string") {
+    return "";
   }
 
-  let sanitized = input
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .replace(/^(javascript|data|vbscript):/gi, '') // Remove dangerous protocols
+  const sanitized = input
+    .replace(/[<>]/g, "") // Remove potential HTML tags
+    .replace(/^(javascript|data|vbscript):/gi, "") // Remove dangerous protocols
     .trim()
     .substring(0, 1000); // Limit length
 
@@ -68,7 +68,9 @@ export function isValidDiscordId(id: string): boolean {
  */
 export function isValidGuid(guid: string): boolean {
   // Accept various GUID formats
-  return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(guid) ||
-         /^[a-f0-9]{32}$/i.test(guid) ||
-         guid.length >= 10 && guid.length <= 100; // Accept custom GUIDs
+  return (
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(guid) ||
+    /^[a-f0-9]{32}$/i.test(guid) ||
+    (guid.length >= 10 && guid.length <= 100)
+  ); // Accept custom GUIDs
 }

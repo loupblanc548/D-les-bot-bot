@@ -1,6 +1,5 @@
-import { Client, TextChannel, EmbedBuilder, ChannelType, VoiceChannel } from "discord.js";
+import { Client, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
-import prisma from "../prisma.js";
 
 interface LFGRequest {
   userId: string;
@@ -47,12 +46,17 @@ export async function createLFGRequest(
     if (channel?.isTextBased()) {
       const embed = new EmbedBuilder()
         .setTitle(`🎮 LFG — ${game}`)
-        .setDescription(`**${username}** cherche ${maxPlayers - 1} joueur(s) pour **${game}**\n**Plateforme:** ${platform}\n**Rang:** ${rank}`)
+        .setDescription(
+          `**${username}** cherche ${maxPlayers - 1} joueur(s) pour **${game}**\n**Plateforme:** ${platform}\n**Rang:** ${rank}`,
+        )
         .setColor(0x00ff00)
         .setFooter({ text: "Surveillance System • LFG Matchmaker — En attente de joueurs" })
         .setTimestamp();
 
-      await channel.send({ embeds: [embed], content: `Rejoignez la partie avec /lfg join ${userId}` });
+      await channel.send({
+        embeds: [embed],
+        content: `Rejoignez la partie avec /lfg join ${userId}`,
+      });
     }
   }
 
@@ -75,24 +79,36 @@ function findMatches(req: LFGRequest): LFGRequest[] {
   return matches;
 }
 
-async function createLFGSession(client: Client, host: LFGRequest, matches: LFGRequest[]): Promise<void> {
+async function createLFGSession(
+  client: Client,
+  host: LFGRequest,
+  matches: LFGRequest[],
+): Promise<void> {
   const guild = client.guilds.cache.first();
   if (!guild) return;
 
-  const voiceChannel = await guild.channels.create({
-    name: `🎮 ${host.game} — LFG`,
-    type: ChannelType.GuildVoice,
-    userLimit: host.maxPlayers,
-  }).catch(() => null);
+  const voiceChannel = await guild.channels
+    .create({
+      name: `🎮 ${host.game} — LFG`,
+      type: ChannelType.GuildVoice,
+      userLimit: host.maxPlayers,
+    })
+    .catch(() => null);
 
   const channel = client.channels.cache.get(host.channelId) as TextChannel;
   if (channel?.isTextBased()) {
     const playerList = [host.username, ...matches.map((m) => m.username)];
     const embed = new EmbedBuilder()
       .setTitle(`🎮 Groupe LFG trouvé — ${host.game}`)
-      .setDescription(`**Joueurs:** ${playerList.join(", ")}\n**Plateforme:** ${host.platform}\n**Rang:** ${host.rank}`)
+      .setDescription(
+        `**Joueurs:** ${playerList.join(", ")}\n**Plateforme:** ${host.platform}\n**Rang:** ${host.rank}`,
+      )
       .setColor(0x00ff00)
-      .addFields({ name: "Salon vocal", value: voiceChannel ? `<#${voiceChannel.id}>` : "Création échouée", inline: false })
+      .addFields({
+        name: "Salon vocal",
+        value: voiceChannel ? `<#${voiceChannel.id}>` : "Création échouée",
+        inline: false,
+      })
       .setFooter({ text: "Surveillance System • LFG Matchmaker — Bon jeu !" })
       .setTimestamp();
 
@@ -116,6 +132,6 @@ function playerList(host: LFGRequest, matches: LFGRequest[]): number {
   return 1 + matches.length;
 }
 
-export function startLFGMatchmaker(client: Client): void {
+export function startLFGMatchmaker(_client: Client): void {
   logger.info("[LFG] Matchmaker intelligent activé");
 }

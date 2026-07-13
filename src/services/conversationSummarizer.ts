@@ -1,15 +1,21 @@
-import { Client, TextChannel, EmbedBuilder, Message } from "discord.js";
+import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 
 const SUMMARY_THRESHOLD = 50;
 
-export async function summarizeChannel(client: Client, channelId: string, messageCount: number = 100): Promise<string | null> {
+export async function summarizeChannel(
+  client: Client,
+  channelId: string,
+  messageCount: number = 100,
+): Promise<string | null> {
   try {
     const channel = client.channels.cache.get(channelId) as TextChannel;
     if (!channel?.isTextBased()) return null;
 
     const messages = await channel.messages.fetch({ limit: messageCount });
-    const sortedMsgs = [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    const sortedMsgs = [...messages.values()].sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp,
+    );
 
     const conversation = sortedMsgs
       .filter((m) => !m.author.bot && m.content.length > 0)
@@ -38,7 +44,20 @@ function generateSimpleSummary(conversation: string): string {
 
     const words = line.toLowerCase().match(/\b[a-zA-Zà-ÿ]{4,}\b/g) ?? [];
     for (const word of words) {
-      if (!["avec", "mais", "pour", "dans", "plus", "fait", "être", "avoir", "cette", "tout"].includes(word)) {
+      if (
+        ![
+          "avec",
+          "mais",
+          "pour",
+          "dans",
+          "plus",
+          "fait",
+          "être",
+          "avoir",
+          "cette",
+          "tout",
+        ].includes(word)
+      ) {
         keywords.set(word, (keywords.get(word) ?? 0) + 1);
       }
     }
@@ -62,7 +81,10 @@ function generateSimpleSummary(conversation: string): string {
 export async function autoSummarizeLongThreads(client: Client): Promise<void> {
   try {
     for (const guild of client.guilds.cache.values()) {
-      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<string, TextChannel>;
+      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<
+        string,
+        TextChannel
+      >;
       for (const channel of channels) {
         const textChannel = channel[1];
         const threads = textChannel.threads.cache;
@@ -91,7 +113,9 @@ export async function autoSummarizeLongThreads(client: Client): Promise<void> {
 
 export function startConversationSummarizer(client: Client): void {
   client.on("threadCreate", async (thread) => {
-    logger.info(`[Summary] Nouveau thread détecté: ${thread.name} — résumé auto si > ${SUMMARY_THRESHOLD} messages`);
+    logger.info(
+      `[Summary] Nouveau thread détecté: ${thread.name} — résumé auto si > ${SUMMARY_THRESHOLD} messages`,
+    );
   });
 
   logger.info("[Summary] Résumé automatique de conversations activé");

@@ -1,4 +1,4 @@
-import { Client, TextChannel, EmbedBuilder, Presence } from "discord.js";
+import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
@@ -6,12 +6,60 @@ import { config } from "../config.js";
 const CHECK_INTERVAL_MS = parseInt(process.env.PRESENCE_TRACKER_INTERVAL_MS || "3600000", 10); // 1h
 let presenceInterval: NodeJS.Timeout | null = null;
 
-const PLATFORM_CHANNELS: Record<string, { channelId: string; keywords: string[]; label: string; color: number }> = {
-  steam: { channelId: config.steamEpicChannel, keywords: ["steam", "csgo", "cs2", "dota", "tf2", "garry", "pubg", "apex", "elden ring", "cyberpunk"], label: "Steam/Epic", color: 0x1b2838 },
-  playstation: { channelId: config.playstationChannel, keywords: ["playstation", "ps5", "ps4", "spider-man", "god of war", "horizon", "demon souls", "bloodborne"], label: "PlayStation", color: 0x003791 },
-  xbox: { channelId: config.xboxChannel, keywords: ["xbox", "halo", "forza", "fable", "sea of thieves", "game pass"], label: "Xbox", color: 0x107c10 },
-  nintendo: { channelId: config.nintendoChannel, keywords: ["nintendo", "switch", "mario", "zelda", "pokemon", "smash", "metroid", "splatoon"], label: "Nintendo", color: 0xe60012 },
-  fortnite: { channelId: config.fortniteChannel, keywords: ["fortnite", "battle royale"], label: "Fortnite", color: 0x9147ff },
+const PLATFORM_CHANNELS: Record<
+  string,
+  { channelId: string; keywords: string[]; label: string; color: number }
+> = {
+  steam: {
+    channelId: config.steamEpicChannel,
+    keywords: [
+      "steam",
+      "csgo",
+      "cs2",
+      "dota",
+      "tf2",
+      "garry",
+      "pubg",
+      "apex",
+      "elden ring",
+      "cyberpunk",
+    ],
+    label: "Steam/Epic",
+    color: 0x1b2838,
+  },
+  playstation: {
+    channelId: config.playstationChannel,
+    keywords: [
+      "playstation",
+      "ps5",
+      "ps4",
+      "spider-man",
+      "god of war",
+      "horizon",
+      "demon souls",
+      "bloodborne",
+    ],
+    label: "PlayStation",
+    color: 0x003791,
+  },
+  xbox: {
+    channelId: config.xboxChannel,
+    keywords: ["xbox", "halo", "forza", "fable", "sea of thieves", "game pass"],
+    label: "Xbox",
+    color: 0x107c10,
+  },
+  nintendo: {
+    channelId: config.nintendoChannel,
+    keywords: ["nintendo", "switch", "mario", "zelda", "pokemon", "smash", "metroid", "splatoon"],
+    label: "Nintendo",
+    color: 0xe60012,
+  },
+  fortnite: {
+    channelId: config.fortniteChannel,
+    keywords: ["fortnite", "battle royale"],
+    label: "Fortnite",
+    color: 0x9147ff,
+  },
 };
 
 function classifyGame(gameName: string): string | null {
@@ -82,17 +130,27 @@ async function checkRichPresence(client: Client): Promise<void> {
 
     try {
       await channel.send({ embeds: [embed] });
-      logger.info(`[PresenceTracker] Stats envoyées pour ${cfg.label} — ${sortedGames.length} jeu(x)`);
+      logger.info(
+        `[PresenceTracker] Stats envoyées pour ${cfg.label} — ${sortedGames.length} jeu(x)`,
+      );
     } catch (err) {
-      logger.error(`[PresenceTracker] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[PresenceTracker] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
 
 export function startPresenceTracker(client: Client): void {
   if (presenceInterval) return;
-  logger.info("[PresenceTracker] Tracking Rich Presence activé (intervalle: 6h) — routing par plateforme");
-  presenceInterval = safeInterval("PresenceTracker", () => checkRichPresence(client), CHECK_INTERVAL_MS);
+  logger.info(
+    "[PresenceTracker] Tracking Rich Presence activé (intervalle: 6h) — routing par plateforme",
+  );
+  presenceInterval = safeInterval(
+    "PresenceTracker",
+    () => checkRichPresence(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 export function stopPresenceTracker(): void {

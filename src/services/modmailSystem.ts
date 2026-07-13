@@ -16,7 +16,6 @@ import {
   ActionRowBuilder,
   ThreadChannel,
   User,
-  Message,
 } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
@@ -57,20 +56,27 @@ export async function getModmailConfig(guildId: string): Promise<ModmailConfig> 
       configs.set(guildId, parsed);
       return parsed;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return {};
 }
 
-export async function setModmailConfig(guildId: string, config: Partial<ModmailConfig>): Promise<void> {
+export async function setModmailConfig(
+  guildId: string,
+  config: Partial<ModmailConfig>,
+): Promise<void> {
   try {
     const current = await getModmailConfig(guildId);
     const merged = { ...current, ...config };
     configs.set(guildId, merged);
-    await prisma.guildConfig.upsert({
-      where: { guildId },
-      create: { guildId, modmailConfig: JSON.stringify(merged) },
-      update: { modmailConfig: JSON.stringify(merged) },
-    }).catch(() => {});
+    await prisma.guildConfig
+      .upsert({
+        where: { guildId },
+        create: { guildId, modmailConfig: JSON.stringify(merged) },
+        update: { modmailConfig: JSON.stringify(merged) },
+      })
+      .catch(() => {});
   } catch (error) {
     logger.error("[Modmail] setModmailConfig:", String(error));
   }
@@ -179,11 +185,7 @@ export async function staffReply(
 
 // ─── User reply (from DM) ─────────────────────────────────────────────
 
-export async function userReply(
-  client: Client,
-  userId: string,
-  content: string,
-): Promise<boolean> {
+export async function userReply(client: Client, userId: string, content: string): Promise<boolean> {
   const ticket = activeTickets.get(userId);
   if (!ticket || ticket.closed) return false;
 
@@ -237,7 +239,9 @@ export async function closeTicket(
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
       .setTitle("🔒 Modmail fermé")
-      .setDescription("Votre ticket modmail a été fermé par le staff. Vous pouvez en ouvrir un nouveau en envoyant un DM au bot.")
+      .setDescription(
+        "Votre ticket modmail a été fermé par le staff. Vous pouvez en ouvrir un nouveau en envoyant un DM au bot.",
+      )
       .setTimestamp();
     await user.send({ embeds: [embed] }).catch(() => {});
   }
@@ -251,10 +255,7 @@ export async function closeTicket(
 
 // ─── Generate transcript ──────────────────────────────────────────────
 
-export async function generateTranscript(
-  client: Client,
-  threadId: string,
-): Promise<string> {
+export async function generateTranscript(client: Client, threadId: string): Promise<string> {
   const ticket = ticketByThread.get(threadId);
   if (!ticket) return "Ticket not found";
 

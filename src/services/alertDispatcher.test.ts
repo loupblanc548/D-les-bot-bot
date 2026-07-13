@@ -11,7 +11,6 @@ vi.mock("../utils/logger.js", () => ({
 vi.mock("./logs.js", () => ({ createLog: vi.fn().mockResolvedValue(undefined) }));
 
 import {
-  getChannelConfig,
   updateChannelConfig,
   createAlertPayload,
   dispatchAlert,

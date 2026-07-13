@@ -30,7 +30,9 @@ export async function createTicket(client: Client, config: TicketConfig): Promis
 
     const embed = new EmbedBuilder()
       .setTitle("🎫 Ticket de support")
-      .setDescription(`**Utilisateur:** <@${config.userId}>\n**Raison:** ${config.reason}\n\nUn membre du staff va vous répondre rapidement.`)
+      .setDescription(
+        `**Utilisateur:** <@${config.userId}>\n**Raison:** ${config.reason}\n\nUn membre du staff va vous répondre rapidement.`,
+      )
       .setColor(0x00aaff)
       .setFooter({ text: "Surveillance System • Tickets" })
       .setTimestamp();
@@ -44,7 +46,11 @@ export async function createTicket(client: Client, config: TicketConfig): Promis
   }
 }
 
-export async function closeTicket(client: Client, channelId: string, closedBy: string): Promise<void> {
+export async function closeTicket(
+  client: Client,
+  channelId: string,
+  closedBy: string,
+): Promise<void> {
   try {
     const ticket = await prisma.sanction.findFirst({
       where: { reason: { contains: channelId } },
@@ -68,6 +74,6 @@ export async function closeTicket(client: Client, channelId: string, closedBy: s
   }
 }
 
-export function startTicketSystem(client: Client): void {
+export function startTicketSystem(_client: Client): void {
   logger.info("[Tickets] Système de tickets activé");
 }

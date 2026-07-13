@@ -60,6 +60,7 @@ export interface AnalysisReport {
 const logBuffer: LogEntry[] = [];
 const MAX_BUFFER = 5000;
 const knownPatterns = new Map<string, LogPattern>();
+const MAX_PATTERNS = 2000;
 const anomalyHistory: Anomaly[] = [];
 const MAX_ANOMALIES = 200;
 
@@ -71,7 +72,7 @@ let analysisEnabled = true;
 let analysisIntervalMs = 60_000; // 1 min
 let analysisTimer: ReturnType<typeof setInterval> | null = null;
 const ERROR_SPIKE_THRESHOLD = 10; // 10 erreurs/min = spike
-const MEMORY_GROWTH_THRESHOLD = 50 * 1024 * 1024; // 50MB/min = anomalie
+const _MEMORY_GROWTH_THRESHOLD = 50 * 1024 * 1024;
 
 export function getAnalyzerConfig(): { enabled: boolean; intervalMs: number } {
   return { enabled: analysisEnabled, intervalMs: analysisIntervalMs };
@@ -141,6 +142,10 @@ function learnPattern(source: string, message: string): void {
     pattern.frequency++;
     pattern.lastSeen = Date.now();
   } else {
+    if (knownPatterns.size >= MAX_PATTERNS) {
+      const firstKey = knownPatterns.keys().next().value;
+      if (firstKey !== undefined) knownPatterns.delete(firstKey);
+    }
     knownPatterns.set(key, {
       pattern: normalized,
       source,
@@ -179,7 +184,7 @@ export function analyzeLogs(): Anomaly[] {
   const windowMs = 60_000; // 1 min
   const recentLogs = logBuffer.filter((l) => now - l.timestamp < windowMs);
   const recentErrors = recentLogs.filter((l) => l.level === "error");
-  const recentWarns = recentLogs.filter((l) => l.level === "warn");
+  const _recentWarns = recentLogs.filter((l) => l.level === "warn");
 
   const newAnomalies: Anomaly[] = [];
 

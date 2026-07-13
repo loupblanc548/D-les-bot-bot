@@ -5,6 +5,7 @@ import {
   getTweetImage,
   getBlogImage,
   extractMediaThumbnail,
+  isValidEmbedImageUrl,
 } from "../utils/image-helpers.js";
 import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
@@ -312,7 +313,9 @@ export async function sendToChannel(
       try {
         channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
       } catch (fetchErr) {
-        logger.error(`[Feeds] Channel ${channelId} introuvable: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+        logger.error(
+          `[Feeds] Channel ${channelId} introuvable: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+        );
         return false;
       }
     }
@@ -325,7 +328,9 @@ export async function sendToChannel(
         const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
         // Log full error for debugging
         const rawErr = JSON.stringify(sendErr, Object.getOwnPropertyNames(sendErr), 2);
-        logger.error(`[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`);
+        logger.error(
+          `[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`,
+        );
         if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
           try {
             const cleanData = { ...embed.data };
@@ -338,7 +343,9 @@ export async function sendToChannel(
           } catch (retryErr) {
             const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
             const retryRaw = JSON.stringify(retryErr, Object.getOwnPropertyNames(retryErr), 2);
-            logger.error(`[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`);
+            logger.error(
+              `[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`,
+            );
             // Dernier recours : envoyer en texte simple sans embed
             try {
               const title = embed.data.title || "Notification";
@@ -347,7 +354,9 @@ export async function sendToChannel(
               logger.warn(`[Feeds] Texte simple envoyé sur ${channelId} (embed rejeté)`);
               return true;
             } catch (textErr) {
-              logger.error(`[Feeds] Texte simple échoué sur ${channelId}: ${textErr instanceof Error ? textErr.message : String(textErr)}`);
+              logger.error(
+                `[Feeds] Texte simple échoué sur ${channelId}: ${textErr instanceof Error ? textErr.message : String(textErr)}`,
+              );
             }
           }
         }
@@ -358,7 +367,9 @@ export async function sendToChannel(
     logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
   } catch (err) {
-    logger.error(`[Feeds] Erreur envoi channel ${channelId}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[Feeds] Erreur envoi channel ${channelId}: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return false;
   }
 }
@@ -376,7 +387,9 @@ export async function sendToChannelWithAttachment(
       try {
         channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
       } catch (fetchErr) {
-        logger.error(`[Feeds] Channel ${channelId} introuvable (attachment): ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+        logger.error(
+          `[Feeds] Channel ${channelId} introuvable (attachment): ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+        );
         return false;
       }
     }
@@ -386,14 +399,18 @@ export async function sendToChannelWithAttachment(
         return true;
       } catch (sendErr) {
         // Si l'envoi avec attachment échoue, logger l'erreur réelle
-        logger.error(`[Feeds] Discord API error (attachment) on ${channelId}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`);
+        logger.error(
+          `[Feeds] Discord API error (attachment) on ${channelId}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`,
+        );
         return false;
       }
     }
     logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
   } catch (err) {
-    logger.error(`[Feeds] Erreur envoi channel ${channelId} (attachment): ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[Feeds] Erreur envoi channel ${channelId} (attachment): ${err instanceof Error ? err.message : String(err)}`,
+    );
     return false;
   }
 }
@@ -434,7 +451,9 @@ async function sendToChannelWithCard(
     }
     return await sendToChannel(client, channelId, embed);
   } catch (err) {
-    logger.warn(`[Feeds] Card generation failed for ${platform}/${handle}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[Feeds] Card generation failed for ${platform}/${handle}: ${err instanceof Error ? err.message : String(err)}`,
+    );
     // Clear any attachment:// image that would be invalid without the file
     const cleanData2 = { ...embed.data };
     delete (cleanData2 as Record<string, unknown>).image;
@@ -485,9 +504,9 @@ export async function runGamingFeeds(client: Client) {
 
         const icon = PLATFORM_ICONS[source.platform] || "📡";
         const label = PLATFORM_LABELS[source.platform] || "";
-        const embedTitle = label
-          ? icon + " " + result.title + " — " + label
-          : icon + " " + result.title;
+        const embedTitle = (
+          label ? icon + " " + result.title + " — " + label : icon + " " + result.title
+        ).slice(0, 256);
 
         const embed = new EmbedBuilder()
           .setTitle(embedTitle)
@@ -496,26 +515,28 @@ export async function runGamingFeeds(client: Client) {
           .addFields(
             {
               name: "Source",
-              value: "@" + source.handle + " (" + source.platform + ")",
+              value: ("@" + source.handle + " (" + source.platform + ")").slice(0, 1024),
               inline: true,
             },
-            { name: "Salon", value: feed.channelName, inline: true },
+            { name: "Salon", value: feed.channelName.slice(0, 1024), inline: true },
           )
           .setTimestamp();
 
         try {
           if (source.platform === "youtube") {
             const thumb = result.thumbnail || (await getYouTubeThumbnail(result.url));
-            if (thumb) embed.setImage(thumb);
+            if (thumb && isValidEmbedImageUrl(thumb)) embed.setImage(thumb);
           } else if (source.platform === "twitter") {
             const og = await getTweetImage(result.url);
-            if (og) embed.setImage(og);
+            if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
           } else if (source.platform === "blogs") {
             const img = await getBlogImage(result.url);
-            if (img) embed.setImage(img);
+            if (img && isValidEmbedImageUrl(img)) embed.setImage(img);
           }
         } catch (err) {
-          logger.debug(`[Feeds] Erreur image ${source.platform}/${source.handle}: ${err instanceof Error ? err.message : String(err)}`);
+          logger.debug(
+            `[Feeds] Erreur image ${source.platform}/${source.handle}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
 
         const sent = await sendToChannelWithCard(
@@ -536,7 +557,8 @@ export async function runGamingFeeds(client: Client) {
       } catch (err) {
         const errMsg = String(err instanceof Error ? err.message : String(err));
         // Erreurs transitoires (Nitter down, RSS timeout, socket) — log seulement, pas d'alerte
-        const isTransient = errMsg.includes("fetch") ||
+        const isTransient =
+          errMsg.includes("fetch") ||
           errMsg.includes("timeout") ||
           errMsg.includes("socket") ||
           errMsg.includes("ECONNREFUSED") ||
@@ -591,9 +613,9 @@ export async function runStartupRetrospective(client: Client) {
 
           const icon = PLATFORM_ICONS[source.platform] || "📡";
           const label = PLATFORM_LABELS[source.platform] || "";
-          const embedTitle = label
-            ? icon + " " + item.title + " — " + label
-            : icon + " " + item.title;
+          const embedTitle = (
+            label ? icon + " " + item.title + " — " + label : icon + " " + item.title
+          ).slice(0, 256);
 
           const embed = new EmbedBuilder()
             .setTitle(embedTitle)
@@ -602,10 +624,10 @@ export async function runStartupRetrospective(client: Client) {
             .addFields(
               {
                 name: "Source",
-                value: "@" + source.handle + " (" + source.platform + ")",
+                value: ("@" + source.handle + " (" + source.platform + ")").slice(0, 1024),
                 inline: true,
               },
-              { name: "Salon", value: feed.channelName, inline: true },
+              { name: "Salon", value: feed.channelName.slice(0, 1024), inline: true },
               {
                 name: "Note",
                 value: "📌 Rattrapage (publié pendant l'arrêt du bot)",
@@ -617,13 +639,13 @@ export async function runStartupRetrospective(client: Client) {
           try {
             if (source.platform === "youtube") {
               const thumb = item.thumbnail || (await getYouTubeThumbnail(item.url));
-              if (thumb) embed.setImage(thumb);
+              if (thumb && isValidEmbedImageUrl(thumb)) embed.setImage(thumb);
             } else if (source.platform === "twitter") {
               const og = await getTweetImage(item.url);
-              if (og) embed.setImage(og);
+              if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             } else if (source.platform === "blogs") {
               const img = await getBlogImage(item.url);
-              if (img) embed.setImage(img);
+              if (img && isValidEmbedImageUrl(img)) embed.setImage(img);
             }
           } catch (error) {
             logger.error("[Feeds] Erreur lors de la récupération de l'image:", error);

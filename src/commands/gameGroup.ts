@@ -9,6 +9,7 @@ import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleCommand as handleUtilityGaming } from "./utilityCommands.js";
 import { handleCommand as handleApiCmd } from "./apiCommands.js";
+import { handleCommand as handleFortniteParty } from "./fun/fortniteParty.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -113,10 +114,91 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("twitch").setDescription("Gère les streamers suivis"))
     .addSubcommand((sc) => sc.setName("psn").setDescription("Profil, trophées et jeux PlayStation"))
     .toJSON(),
+
+  // ─── Commande fnbot (Fortnite Party Bot) ───
+  new SlashCommandBuilder()
+    .setName("fnbot")
+    .setDescription("Bot Fortnite Party (skin, emote, backbling, pickaxe, level, ready, status)")
+    .addSubcommand((sc) =>
+      sc
+        .setName("skin")
+        .setDescription("Change le skin du bot Fortnite")
+        .addStringOption((o) =>
+          o.setName("nom").setDescription("Nom du skin").setRequired(true).setAutocomplete(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("emote")
+        .setDescription("Fait faire une emote au bot Fortnite")
+        .addStringOption((o) =>
+          o.setName("nom").setDescription("Nom de l'emote").setRequired(true).setAutocomplete(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("emote-stop").setDescription("Arrête l'emote en cours du bot Fortnite"),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("backbling")
+        .setDescription("Change le backbling du bot Fortnite")
+        .addStringOption((o) =>
+          o
+            .setName("nom")
+            .setDescription("Nom du backbling")
+            .setRequired(true)
+            .setAutocomplete(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("pickaxe")
+        .setDescription("Change le pickaxe du bot Fortnite")
+        .addStringOption((o) =>
+          o.setName("nom").setDescription("Nom du pickaxe").setRequired(true).setAutocomplete(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("level")
+        .setDescription("Définit le niveau du bot Fortnite")
+        .addIntegerOption((o) =>
+          o
+            .setName("niveau")
+            .setDescription("Niveau (1 — 2147483647)")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(2147483647),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("ready")
+        .setDescription("Ready/unready le bot Fortnite")
+        .addBooleanOption((o) =>
+          o.setName("etat").setDescription("true = prêt, false = en attente").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) => sc.setName("status").setDescription("Statut du party bot Fortnite"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("login")
+        .setDescription("Connecte le bot à un compte Fortnite avec un code d'autorisation")
+        .addStringOption((o) =>
+          o.setName("code").setDescription("Code d'autorisation Epic Games").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) => sc.setName("logout").setDescription("Déconnecte le bot Fortnite"))
+    .addSubcommand((sc) =>
+      sc.setName("friend").setDescription("Affiche le pseudo du bot Fortnite à ajouter en ami"),
+    )
+    .toJSON(),
 ];
 
+export const fnbotCommands = commands;
+
 const GAMING_SUBS = ["game-status", "patch_notes", "deal"];
-const TRACKGAME_SUBS = ["track-game", "untrack-game", "list-tracked"];
+const _TRACKGAME_SUBS = ["track-game", "untrack-game", "list-tracked"];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const dc = client as Client;
@@ -175,4 +257,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     Object.defineProperty(interaction, "commandName", { value: "wishlist-notify", writable: true });
     await handleWishlist(interaction);
   }
+}
+
+// ─── Handler fnbot (Fortnite Party Bot) ────────────────────────────────────────
+
+export async function handleFnbotCommand(
+  interaction: ChatInputCommandInteraction,
+  _client: unknown,
+) {
+  await handleFortniteParty(interaction);
 }

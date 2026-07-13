@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { config } from "../config.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
+import { isValidEmbedImageUrl } from "../utils/image-helpers.js";
 
 // Service désactivé par défaut. Activer via KICK_ENABLED=true dans .env
 const KICK_ENABLED = process.env.KICK_ENABLED === "true";
@@ -33,7 +34,7 @@ async function checkKickStreamer(username: string): Promise<KickStream | null> {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     return {
       username,
       isLive: data.livestream?.is_live ?? false,
@@ -65,13 +66,16 @@ async function checkKickStreams(client: Client): Promise<void> {
 
       const embed = new EmbedBuilder()
         .setTitle(`🟣 ${stream.username} est en live sur Kick !`)
-        .setDescription(`**Titre :** ${stream.title}\n**Spectateurs :** ${stream.viewerCount.toLocaleString()}`)
+        .setDescription(
+          `**Titre :** ${stream.title}\n**Spectateurs :** ${stream.viewerCount.toLocaleString()}`,
+        )
         .setColor(0x53fc18)
         .setURL(stream.url)
         .setFooter({ text: "Surveillance System • Kick Alerts" })
         .setTimestamp();
 
-      if (stream.thumbnail) embed.setImage(stream.thumbnail);
+      if (stream.thumbnail && isValidEmbedImageUrl(stream.thumbnail))
+        embed.setImage(stream.thumbnail);
 
       try {
         await channel.send({ embeds: [embed] });
@@ -98,7 +102,9 @@ export function startKickMonitoring(client: Client): void {
   }
   if (checkInterval) return;
 
-  logger.info(`[Kick] Surveillance activée — ${trackedStreamers.length} streamer(s) — intervalle: 5min`);
+  logger.info(
+    `[Kick] Surveillance activée — ${trackedStreamers.length} streamer(s) — intervalle: 5min`,
+  );
   checkInterval = safeInterval("KickMonitor", () => checkKickStreams(client), CHECK_INTERVAL_MS);
 }
 

@@ -250,6 +250,19 @@ model SteamProfile {
   @@index([userId])
 }
 
+model MinecraftProfile {
+  id            Int       @id @default(autoincrement())
+  userId        String    @unique
+  gamertag      String
+  uuid          String?
+  verified      Boolean   @default(false)
+  verifyCode    String?
+  verifyExpires DateTime?
+  linkedAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model UserPreference {
   id         String   @id @default(uuid())
   userId     String   @unique

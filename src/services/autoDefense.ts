@@ -11,9 +11,9 @@
  *  5. Auto-Heal Scraper — redémarrage automatique des scrapers en panne
  */
 
-import { Client, GuildMember, EmbedBuilder } from "discord.js";
+import { GuildMember, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
-import { createLog } from "./logs.js";
+import {} from "./logs.js";
 import { recordSecurityEvent } from "./socExtension.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

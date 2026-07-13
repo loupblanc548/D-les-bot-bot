@@ -9,7 +9,7 @@ import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import { MEMORY_CONFIG, getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
+import { getMemoryLevel } from "../utils/memoryConfig.js";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — check interne
 const WEEKLY_REPORT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours — rapport Discord

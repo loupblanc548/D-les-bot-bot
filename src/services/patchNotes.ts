@@ -3,7 +3,7 @@ import { safeInterval } from "../utils/safe-interval.js";
 import { EmbedBuilder, TextChannel, Client } from "discord.js";
 import { XMLParser } from "fast-xml-parser";
 import { getOpenAIClient } from "./ai.js";
-import { getOgImage } from "../utils/image-helpers.js";
+import { getOgImage, isValidEmbedImageUrl } from "../utils/image-helpers.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import { PLATFORM_LABELS, PLATFORM_COLORS } from "./feeds.js";
@@ -52,7 +52,13 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(feed.url, { signal: controller.signal });
+    const response = await fetch(feed.url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0; PatchNotes)",
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
+      },
+    });
     clearTimeout(timeout);
     if (!response.ok) return null;
     const xml = await response.text();
@@ -95,7 +101,10 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
 
     if (!rawContent) return null;
     return { game: feed.game, title, url, rawContent };
-  } catch {
+  } catch (err) {
+    logger.error(
+      `[PatchNotes] Erreur fetch ${feed.game}: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
@@ -185,7 +194,7 @@ async function checkAllFeeds(client: Client) {
       try {
         if (patchNote.url) {
           const ogImage = await getOgImage(patchNote.url);
-          if (ogImage) embed.setImage(ogImage);
+          if (ogImage && isValidEmbedImageUrl(ogImage)) embed.setImage(ogImage);
         }
       } catch {}
       try {
@@ -204,10 +213,17 @@ async function checkAllFeeds(client: Client) {
           });
         }
       } catch (err) {
-        logger.error("[PatchNotes] Erreur envoi Discord:", String(err));
+        logger.error(
+          "[PatchNotes] Erreur envoi Discord:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
     } catch (err) {
-      logger.error("[PatchNotes] Erreur flux " + feed.game + ":", String(err));
+      logger.error(
+        `[PatchNotes] Erreur flux ${feed.game}:`,
+        err instanceof Error ? err.message : String(err),
+        err instanceof Error ? err.stack : undefined,
+      );
     }
   }
 }

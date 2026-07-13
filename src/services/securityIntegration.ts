@@ -8,11 +8,10 @@
  * quand quelque chose se passe sur le serveur.
  */
 
-import { Client, Message, GuildMember, EmbedBuilder, TextChannel } from "discord.js";
+import { Client, Message, GuildMember, TextChannel } from "discord.js";
 import logger from "../utils/logger.js";
-import { scanURL, checkIPReputation, githubDorkSearch } from "./threatIntel.js";
+import { scanURL } from "./threatIntel.js";
 import {
-  checkGeoBlock,
   checkAutoQuarantine,
   isWhitelisted,
   startEscalation,
@@ -27,7 +26,6 @@ import {
   isGoogleCloudConfigured,
 } from "./googleCloudServices.js";
 import { recordSecurityEvent } from "./socExtension.js";
-import { createLog } from "./logs.js";
 
 // ─── État global ─────────────────────────────────────────────────────────────
 
@@ -403,7 +401,7 @@ export function resolveIncident(guildId: string, incidentId: string): void {
  * Démarre toutes les intégrations de sécurité.
  * Appelé au démarrage du bot.
  */
-export function startSecurityIntegration(client: Client): void {
+export function startSecurityIntegration(_client: Client): void {
   if (logAnalysisEnabled) {
     startContinuousAnalysis();
   }

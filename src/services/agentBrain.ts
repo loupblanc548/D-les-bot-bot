@@ -12,13 +12,13 @@
  * plus court et plus rapide pour les décisions en temps réel.
  */
 
-import { Client, Message, EmbedBuilder } from "discord.js";
+import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { getOrCreateRiskProfile, recordSecurityEvent, recordSanction } from "./risk-engine.js";
-import { getPendingAlerts, resolveAlert, type AlertAction } from "./alert-service.js";
+import { resolveAlert, type AlertAction } from "./alert-service.js";
 import { createLog } from "./logs.js";
 import { sendProactiveAlert } from "./proactiveAlerts.js";
 
@@ -94,18 +94,21 @@ async function analyzeMessage(message: Message): Promise<MessageAnalysis | null>
       `Réponds UNIQUEMENT en JSON : ` +
       `{"threat": "NONE|LOW|MEDIUM|HIGH|CRITICAL", "action": "IGNORE|WATCH|WARN|TIMEOUT|KICK|BAN", "confidence": <0-100>, "reasoning": "<justification courte en français>"}`;
 
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        {
-          role: "system",
-          content: "Tu réponds uniquement en JSON valide. Sois rapide et décisif.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 200,
-      temperature: 0.2,
-    }, { timeout: 10_000 });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          {
+            role: "system",
+            content: "Tu réponds uniquement en JSON valide. Sois rapide et décisif.",
+          },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 200,
+        temperature: 0.2,
+      },
+      { timeout: 10_000 },
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -187,7 +190,7 @@ export async function handleAgentMessageScan(client: Client, message: Message): 
 async function executeAgentAction(
   analysis: MessageAnalysis,
   message: Message,
-  client: Client,
+  _client: Client,
 ): Promise<void> {
   const guild = message.guild;
   if (!guild) return;
@@ -221,10 +224,7 @@ async function executeAgentAction(
       case "TIMEOUT": {
         const member = await guild.members.fetch(message.author.id).catch(() => null);
         if (!member) return;
-        const duration = Math.min(
-          24 * 60 * 60 * 1000,
-          (profile.timeoutCount + 1) * 60 * 60 * 1000,
-        );
+        const duration = Math.min(24 * 60 * 60 * 1000, (profile.timeoutCount + 1) * 60 * 60 * 1000);
         await member.timeout(duration, reason);
         await recordSanction(message.author.id, guild.id, "TIMEOUT");
         break;
@@ -323,7 +323,10 @@ export async function autoResolveAlerts(client: Client): Promise<void> {
                 case "TIMEOUT": {
                   const member = await guild.members.fetch(alert.userId).catch(() => null);
                   if (member) {
-                    await member.timeout(60 * 60 * 1000, `[Agent IA] ${decision.reasoning}`.slice(0, 512));
+                    await member.timeout(
+                      60 * 60 * 1000,
+                      `[Agent IA] ${decision.reasoning}`.slice(0, 512),
+                    );
                     await recordSanction(alert.userId, alert.guildId, "TIMEOUT");
                   }
                   break;
@@ -381,8 +384,16 @@ export async function autoResolveAlerts(client: Client): Promise<void> {
  * Analyse une alerte PENDING avec l'IA pour déterminer l'action.
  */
 async function analyzeAlertWithAI(
-  alert: { id: string; userId: string; guildId: string; riskScore: number; riskLevel: string; details: string | null; type: string },
-  client: Client,
+  alert: {
+    id: string;
+    userId: string;
+    guildId: string;
+    riskScore: number;
+    riskLevel: string;
+    details: string | null;
+    type: string;
+  },
+  _client: Client,
 ): Promise<{ action: AlertAction; confidence: number; reasoning: string } | null> {
   try {
     const openaiClient = getOpenAIClient();
@@ -401,15 +412,18 @@ async function analyzeAlertWithAI(
       `- Sous surveillance: ${profile.underWatch ? "oui" : "non"}\n\n` +
       `Réponds en JSON : {"action": "IGNORE|WATCH|WARN|TIMEOUT|KICK|BAN", "confidence": <0-100>, "reasoning": "<justification courte>"}`;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        { role: "system", content: "Tu réponds uniquement en JSON valide." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 200,
-      temperature: 0.3,
-    }, { timeout: 10_000 });
+    const completion = await openaiClient.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          { role: "system", content: "Tu réponds uniquement en JSON valide." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      },
+      { timeout: 10_000 },
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -450,7 +464,9 @@ export function startAgentBrain(client: Client): void {
   // Auto-résolution d'alertes toutes les 5 minutes
   alertReviewInterval = setInterval(() => {
     void autoResolveAlerts(client).catch((err) =>
-      logger.error(`[AgentBrain] Erreur autoResolve: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[AgentBrain] Erreur autoResolve: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   }, ALERT_REVIEW_COOLDOWN_MS);
 

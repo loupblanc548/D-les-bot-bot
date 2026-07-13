@@ -13,11 +13,10 @@
 import { Client, Message, TextChannel, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
-import { config } from "../config.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
-import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
+import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
@@ -336,7 +335,10 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          owner: { type: "string", description: "Nom d'utilisateur ou organisation GitHub (ex: facebook)" },
+          owner: {
+            type: "string",
+            description: "Nom d'utilisateur ou organisation GitHub (ex: facebook)",
+          },
           repo: { type: "string", description: "Nom du dépôt (ex: react)" },
         },
         required: ["owner", "repo"],
@@ -353,7 +355,10 @@ export const AGENT_TOOLS: AgentToolDef[] = [
         type: "object",
         properties: {
           text: { type: "string", description: "Le texte à traduire" },
-          from: { type: "string", description: "Langue source (ex: en, es, de). 'auto' pour détection." },
+          from: {
+            type: "string",
+            description: "Langue source (ex: en, es, de). 'auto' pour détection.",
+          },
           to: { type: "string", description: "Langue cible (ex: fr, en)" },
         },
         required: ["text", "to"],
@@ -411,7 +416,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           },
           question: {
             type: "string",
-            description: "Question ou instruction sur l'image (défaut: 'Décris cette image en détail')",
+            description:
+              "Question ou instruction sur l'image (défaut: 'Décris cette image en détail')",
           },
         },
         required: ["imageUrl"],
@@ -421,7 +427,11 @@ export const AGENT_TOOLS: AgentToolDef[] = [
 ];
 
 // Fusionner avec les tools étendus (APIs gratuites + Discord + bot features)
-export const ALL_AGENT_TOOLS: AgentToolDef[] = [...AGENT_TOOLS, ...EXTENDED_TOOLS, ...AUTONOMOUS_TOOLS];
+export const ALL_AGENT_TOOLS: AgentToolDef[] = [
+  ...AGENT_TOOLS,
+  ...EXTENDED_TOOLS,
+  ...AUTONOMOUS_TOOLS,
+];
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
 
@@ -430,7 +440,9 @@ export async function executeTool(
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  logger.info(`[AgentTools] 🔧 Exécution tool: ${toolName} args=${JSON.stringify(args).slice(0, 200)}`);
+  logger.info(
+    `[AgentTools] 🔧 Exécution tool: ${toolName} args=${JSON.stringify(args).slice(0, 200)}`,
+  );
 
   try {
     switch (toolName) {
@@ -487,7 +499,9 @@ export async function executeTool(
       }
     }
   } catch (error) {
-    logger.error(`[AgentTools] Erreur tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `[AgentTools] Erreur tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return {
       success: false,
       data: `Erreur lors de l'exécution: ${error instanceof Error ? error.message : String(error)}`,
@@ -554,15 +568,17 @@ async function toolTimeoutUser(
   await member.timeout(durationMin * 60 * 1000, `[Agent IA] ${reason}`.slice(0, 512));
 
   // Logger la sanction
-  await prisma.sanction.create({
-    data: {
-      guildId: ctx.guildId,
-      userId,
-      moderatorId: "AI_AGENT",
-      type: "TIMEOUT",
-      reason: `[Agent IA] ${reason}`,
-    },
-  }).catch(() => {});
+  await prisma.sanction
+    .create({
+      data: {
+        guildId: ctx.guildId,
+        userId,
+        moderatorId: "AI_AGENT",
+        type: "TIMEOUT",
+        reason: `[Agent IA] ${reason}`,
+      },
+    })
+    .catch(() => {});
 
   return {
     success: true,
@@ -577,15 +593,17 @@ async function toolWarnUser(
   const userId = String(args.userId);
   const reason = String(args.reason || "Avertissement par agent IA");
 
-  await prisma.sanction.create({
-    data: {
-      guildId: ctx.guildId,
-      userId,
-      moderatorId: "AI_AGENT",
-      type: "WARN",
-      reason,
-    },
-  }).catch(() => {});
+  await prisma.sanction
+    .create({
+      data: {
+        guildId: ctx.guildId,
+        userId,
+        moderatorId: "AI_AGENT",
+        type: "WARN",
+        reason,
+      },
+    })
+    .catch(() => {});
 
   return {
     success: true,
@@ -613,7 +631,11 @@ async function toolGetUserInfo(
     success: true,
     data: JSON.stringify({
       userId,
-      sanctions: sanctions.map((s) => ({ type: s.type, reason: s.reason, date: s.createdAt.toISOString() })),
+      sanctions: sanctions.map((s) => ({
+        type: s.type,
+        reason: s.reason,
+        date: s.createdAt.toISOString(),
+      })),
       sanctionCount: sanctions.length,
       riskScore: riskProfile?.riskScore ?? 0,
       riskLevel: riskProfile?.riskLevel ?? "INCONNU",
@@ -622,9 +644,7 @@ async function toolGetUserInfo(
   };
 }
 
-async function toolSearchUserMemory(
-  args: Record<string, unknown>,
-): Promise<ToolCallResult> {
+async function toolSearchUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const query = args.query ? String(args.query) : undefined;
 
@@ -657,9 +677,7 @@ async function toolSearchUserMemory(
   };
 }
 
-async function toolSaveMemoryFact(
-  args: Record<string, unknown>,
-): Promise<ToolCallResult> {
+async function toolSaveMemoryFact(args: Record<string, unknown>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const key = String(args.key);
   const value = String(args.value);
@@ -784,7 +802,11 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
 
     let abstract = "";
     if (iaRes?.ok) {
-      const iaData = (await iaRes.json()) as { Abstract?: string; Heading?: string; AbstractURL?: string };
+      const iaData = (await iaRes.json()) as {
+        Abstract?: string;
+        Heading?: string;
+        AbstractURL?: string;
+      };
       if (iaData.Abstract) abstract = iaData.Abstract;
     }
 
@@ -802,7 +824,8 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
     const results: Array<{ title: string; url: string; snippet: string }> = [];
     if (htmlRes?.ok) {
       const html = await htmlRes.text();
-      const regex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)<\/a>/gi;
+      const regex =
+        /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)<\/a>/gi;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(html)) !== null && results.length < 8) {
         const rawUrl = match[1];
@@ -823,7 +846,10 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur recherche web: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur recherche web: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -866,7 +892,10 @@ async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResul
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur lecture URL: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur lecture URL: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -885,7 +914,9 @@ async function toolSearchYouTube(args: Record<string, unknown>): Promise<ToolCal
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) continue;
       const data = (await res.json()) as Array<{
-        videoId: string; title: string; author: string;
+        videoId: string;
+        title: string;
+        author: string;
       }>;
       const results = (data ?? []).slice(0, maxResults).map((v) => ({
         title: v.title,
@@ -895,7 +926,9 @@ async function toolSearchYouTube(args: Record<string, unknown>): Promise<ToolCal
       const output = JSON.stringify(results);
       setCached(cacheKey, output);
       return { success: true, data: output };
-    } catch { continue; }
+    } catch {
+      continue;
+    }
   }
 
   return { success: false, data: "Aucun résultat YouTube" };
@@ -934,7 +967,9 @@ async function toolGetWeather(args: Record<string, unknown>): Promise<ToolCallRe
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`;
     const geoRes = await fetch(geoUrl, { signal: AbortSignal.timeout(8000) });
     if (!geoRes.ok) return { success: false, data: "Géocodage échoué" };
-    const geoData = (await geoRes.json()) as { results?: Array<{ latitude: number; longitude: number; name: string; country: string }> };
+    const geoData = (await geoRes.json()) as {
+      results?: Array<{ latitude: number; longitude: number; name: string; country: string }>;
+    };
     if (!geoData.results?.[0]) return { success: false, data: `Ville "${city}" introuvable` };
     const loc = geoData.results[0];
 
@@ -943,15 +978,36 @@ async function toolGetWeather(args: Record<string, unknown>): Promise<ToolCallRe
     const weatherRes = await fetch(weatherUrl, { signal: AbortSignal.timeout(8000) });
     if (!weatherRes.ok) return { success: false, data: "Météo indisponible" };
     const wData = (await weatherRes.json()) as {
-      current: { temperature_2m: number; relative_humidity_2m: number; apparent_temperature: number; weather_code: number; wind_speed_10m: number };
+      current: {
+        temperature_2m: number;
+        relative_humidity_2m: number;
+        apparent_temperature: number;
+        weather_code: number;
+        wind_speed_10m: number;
+      };
     };
 
     const codeMap: Record<number, string> = {
-      0: "Ciel dégagé", 1: "Principalement dégagé", 2: "Partiellement nuageux", 3: "Couvert",
-      45: "Brouillard", 48: "Brouillard givrant", 51: "Bruine légère", 53: "Bruine modérée",
-      55: "Bruine dense", 61: "Pluie légère", 63: "Pluie modérée", 65: "Pluie forte",
-      71: "Neige légère", 73: "Neige modérée", 75: "Neige forte", 80: "Averses légères",
-      81: "Averses modérées", 82: "Averses violentes", 95: "Orage", 96: "Orage + grêle légère",
+      0: "Ciel dégagé",
+      1: "Principalement dégagé",
+      2: "Partiellement nuageux",
+      3: "Couvert",
+      45: "Brouillard",
+      48: "Brouillard givrant",
+      51: "Bruine légère",
+      53: "Bruine modérée",
+      55: "Bruine dense",
+      61: "Pluie légère",
+      63: "Pluie modérée",
+      65: "Pluie forte",
+      71: "Neige légère",
+      73: "Neige modérée",
+      75: "Neige forte",
+      80: "Averses légères",
+      81: "Averses modérées",
+      82: "Averses violentes",
+      95: "Orage",
+      96: "Orage + grêle légère",
       99: "Orage + grêle forte",
     };
     const condition = codeMap[wData.current.weather_code] || "Conditions inconnues";
@@ -967,7 +1023,10 @@ async function toolGetWeather(args: Record<string, unknown>): Promise<ToolCallRe
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur météo: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur météo: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -981,13 +1040,20 @@ async function toolGetCryptoPrice(args: Record<string, unknown>): Promise<ToolCa
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coin)}&vs_currencies=eur,usd&include_24hr_change=true`;
     const res = await fetch(url, {
-      headers: { "Accept": "application/json" },
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: `Crypto "${coin}" introuvable` };
-    const data = (await res.json()) as Record<string, { eur: number; usd: number; eur_24h_change: number }>;
+    const data = (await res.json()) as Record<
+      string,
+      { eur: number; usd: number; eur_24h_change: number }
+    >;
     const info = data[coin];
-    if (!info) return { success: false, data: `Crypto "${coin}" introuvable. Essayez: bitcoin, ethereum, solana, dogecoin` };
+    if (!info)
+      return {
+        success: false,
+        data: `Crypto "${coin}" introuvable. Essayez: bitcoin, ethereum, solana, dogecoin`,
+      };
 
     const output = JSON.stringify({
       coin,
@@ -998,7 +1064,10 @@ async function toolGetCryptoPrice(args: Record<string, unknown>): Promise<ToolCa
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur crypto: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur crypto: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1015,7 +1084,9 @@ async function toolGetWikipediaSummary(args: Record<string, unknown>): Promise<T
     const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=1`;
     const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(8000) });
     if (!searchRes.ok) return { success: false, data: "Wikipedia indisponible" };
-    const searchData = (await searchRes.json()) as { query?: { search?: Array<{ title: string }> } };
+    const searchData = (await searchRes.json()) as {
+      query?: { search?: Array<{ title: string }> };
+    };
     const title = searchData.query?.search?.[0]?.title;
     if (!title) return { success: false, data: `Aucun article Wikipedia pour "${query}"` };
 
@@ -1024,19 +1095,27 @@ async function toolGetWikipediaSummary(args: Record<string, unknown>): Promise<T
     const summaryRes = await fetch(summaryUrl, { signal: AbortSignal.timeout(8000) });
     if (!summaryRes.ok) return { success: false, data: "Résumé indisponible" };
     const summary = (await summaryRes.json()) as {
-      title: string; extract: string; content_urls?: { desktop?: { page: string } }; thumbnail?: { source: string };
+      title: string;
+      extract: string;
+      content_urls?: { desktop?: { page: string } };
+      thumbnail?: { source: string };
     };
 
     const output = JSON.stringify({
       title: summary.title,
       extract: summary.extract?.slice(0, 1500) || "Pas de résumé disponible",
-      url: summary.content_urls?.desktop?.page || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+      url:
+        summary.content_urls?.desktop?.page ||
+        `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`,
       image: summary.thumbnail?.source || null,
     });
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur Wikipedia: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur Wikipedia: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1052,16 +1131,22 @@ async function toolGetGitHubRepo(args: Record<string, unknown>): Promise<ToolCal
     const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
     const res = await fetch(url, {
       headers: {
-        "Accept": "application/vnd.github.v3+json",
+        Accept: "application/vnd.github.v3+json",
         "User-Agent": "DiscordBot/1.0",
       },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: `Dépôt ${owner}/${repo} introuvable` };
     const data = (await res.json()) as {
-      full_name: string; description: string | null; stargazers_count: number;
-      forks_count: number; language: string | null; open_issues_count: number;
-      html_url: string; updated_at: string; topics?: string[];
+      full_name: string;
+      description: string | null;
+      stargazers_count: number;
+      forks_count: number;
+      language: string | null;
+      open_issues_count: number;
+      html_url: string;
+      updated_at: string;
+      topics?: string[];
     };
 
     const output = JSON.stringify({
@@ -1078,7 +1163,10 @@ async function toolGetGitHubRepo(args: Record<string, unknown>): Promise<ToolCal
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur GitHub: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur GitHub: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1109,11 +1197,16 @@ async function toolTranslateText(args: Record<string, unknown>): Promise<ToolCal
         translated: data.responseData.translatedText,
         from: from === "auto" ? "auto-détecté" : from,
         to,
-        confidence: data.responseData.match ? `${Math.round(data.responseData.match * 100)}%` : "N/A",
+        confidence: data.responseData.match
+          ? `${Math.round(data.responseData.match * 100)}%`
+          : "N/A",
       }),
     };
   } catch (error) {
-    return { success: false, data: `Erreur traduction: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur traduction: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1136,7 +1229,10 @@ async function toolTranscribeAudio(args: Record<string, unknown>): Promise<ToolC
     }
     return { success: false, data: "Transcription échouée ou audio silencieux" };
   } catch (error) {
-    return { success: false, data: `Erreur transcription: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur transcription: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1160,7 +1256,10 @@ async function toolAnalyzeImageGemini(args: Record<string, unknown>): Promise<To
     }
     return { success: false, data: "Analyse d'image échouée" };
   } catch (error) {
-    return { success: false, data: `Erreur analyse image: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur analyse image: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1187,7 +1286,12 @@ async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallR
           signal: AbortSignal.timeout(8000),
         });
         if (!res.ok) return null;
-        const data = (await res.json()) as { title: string; url?: string; score: number; by: string };
+        const data = (await res.json()) as {
+          title: string;
+          url?: string;
+          score: number;
+          by: string;
+        };
         return {
           title: data.title,
           url: data.url || `https://news.ycombinator.com/item?id=${id}`,
@@ -1202,6 +1306,9 @@ async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallR
     setCached(cacheKey, output);
     return { success: true, data: output };
   } catch (error) {
-    return { success: false, data: `Erreur Hacker News: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      success: false,
+      data: `Erreur Hacker News: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }

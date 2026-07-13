@@ -259,7 +259,7 @@ export async function getGuildSecurityPosture(guildId: string): Promise<GuildSec
  */
 export function getIncidentTimeline(guildId: string, limit: number = 50): IncidentTimeline {
   const events = (eventStore.get(guildId) ?? []).slice(0, limit);
-  const { score, level } = calculateThreatScore(guildId);
+  const { level } = calculateThreatScore(guildId);
 
   return {
     guildId,

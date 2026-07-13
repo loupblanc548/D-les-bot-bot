@@ -42,10 +42,21 @@ import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceS
 import { startYouTubeLiveChat } from "./services/youtubeLiveChat.js";
 import { setRiskCallback } from "./services/risk-engine.js";
 import { maybeTriggerInvestigation } from "./services/autonomousInvestigator.js";
-import { startAgentBrain, stopAgentBrain } from "./services/agentBrain.js";
-import { startPersonalityEngine, stopPersonalityEngine } from "./services/personalityEngine.js";
+import { startAgentBrain, stopAgentBrain as _stopAgentBrain } from "./services/agentBrain.js";
+import {
+  startPersonalityEngine,
+  stopPersonalityEngine as _stopPersonalityEngine,
+} from "./services/personalityEngine.js";
 import { initVoiceMonitoring } from "./services/voiceAgent.js";
 import { initTelegramNotifications } from "./services/telegram-notifications.js";
+import { setClient } from "./services/clientRef.js";
+import { initNetworkResilience, savePresence } from "./services/networkResilience.js";
+import { startInfraWatchdog, stopInfraWatchdog } from "./services/infraWatchdog.js";
+import { startConfigCacheCleanup, stopConfigCache } from "./services/configCache.js";
+import { registerAlertDispatcher } from "./services/circuitBreaker.js";
+import { formatSecurityAlert } from "./services/loreAlertDispatcher.js";
+import { loadMemoriesFromDb } from "./services/agentMemory.js";
+import { startBridgeServer, stopBridgeServer } from "./infrastructure/bridge/bridgeServer.js";
 
 const client = new Client({
   intents: [
@@ -63,19 +74,19 @@ const client = new Client({
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
     // ── ZERO CACHE (completely disabled) ──
-    MessageManager: 0,          // No message cache — messages fetched on-demand
-    PresenceManager: 0,         // No presence cache — huge RAM saver
-    ReactionManager: 0,         // No reaction cache
-    ReactionUserManager: 0,     // No reaction user cache
-    ThreadManager: 0,           // No thread cache
-    GuildInviteManager: 0,      // No invite cache
-    StageInstanceManager: 0,    // No stage instance cache
-    GuildBanManager: 0,         // No ban cache
+    MessageManager: 0, // No message cache — messages fetched on-demand
+    PresenceManager: 0, // No presence cache — huge RAM saver
+    ReactionManager: 0, // No reaction cache
+    ReactionUserManager: 0, // No reaction user cache
+    ThreadManager: 0, // No thread cache
+    GuildInviteManager: 0, // No invite cache
+    StageInstanceManager: 0, // No stage instance cache
+    GuildBanManager: 0, // No ban cache
     AutoModerationRuleManager: 0,
     // ── TIGHT LIMITS (minimal cache) ──
-    UserManager: 10,            // Only 10 users cached globally
-    GuildMemberManager: 10,     // Only 10 members cached per guild
-    GuildEmojiManager: 50,      // 50 emojis (needed for commands)
+    UserManager: 10, // Only 10 users cached globally
+    GuildMemberManager: 10, // Only 10 members cached per guild
+    GuildEmojiManager: 50, // 50 emojis (needed for commands)
     // ── DEFAULT (keep Discord.js defaults) ──
     // GuildManager, GuildTextChannelManager, etc. keep defaults
   }),
@@ -83,15 +94,15 @@ const client = new Client({
   sweepers: {
     ...Options.DefaultSweeperSettings,
     messages: {
-      interval: 300,            // Every 5 minutes
-      lifetime: 120,            // Remove after 2 min of inactivity
+      interval: 300, // Every 5 minutes
+      lifetime: 120, // Remove after 2 min of inactivity
     },
     threads: {
       interval: 300,
       lifetime: 120,
     },
     users: {
-      interval: 600,            // Every 10 minutes
+      interval: 600, // Every 10 minutes
       filter: () => () => true, // Sweep all cached users
     },
     guildMembers: {
@@ -261,7 +272,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   if (nonCriticalFailed > 0) {
-    logger.warn(`[HEALTHCHECK] ${nonCriticalFailed} anomalie(s) non-critique(s) — démarrage autorisé.`);
+    logger.warn(
+      `[HEALTHCHECK] ${nonCriticalFailed} anomalie(s) non-critique(s) — démarrage autorisé.`,
+    );
   }
 
   // Construction du routeur de commandes
@@ -285,10 +298,61 @@ async function main(): Promise<void> {
   // atteint un niveau de risque CRITIQUE ou ELEVE avec 5+ sanctions
   setRiskCallback((profile) => {
     void maybeTriggerInvestigation(client, profile).catch((err) =>
-      logger.error(`[Bot] Erreur investigation autonome: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[Bot] Erreur investigation autonome: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   });
   logger.info("✓ Investigation OSINT autonome câblée au risk-engine");
+
+  // ─── MODULE 6: Network Resilience — shard reconnect with backoff ───
+  initNetworkResilience(client);
+  savePresence({
+    status: "online",
+    activities: [{ name: "Surveille les Helldivers", type: 3 }],
+  });
+  logger.info("✓ Network resilience initialise (shard backoff, presence restore)");
+
+  // ─── MODULE 5: Infrastructure Watchdog — memory monitor ───
+  // Aligned with --max-old-space-size=4096 (4GB)
+  startInfraWatchdog(client, process.env.ALERT_CHANNEL_ID);
+  logger.info("✓ Infrastructure watchdog initialise (3.2/3.8/4.0GB thresholds)");
+
+  // ─── MODULE 2: Config Cache — start background cleanup ───
+  startConfigCacheCleanup();
+  logger.info("✓ Config cache initialise (TTL 15min, max 500 guilds)");
+
+  // ─── MODULE 3: Task Worker — register client ref ───
+  setClient(client);
+  logger.info("✓ Task worker client ref initialise");
+
+  // ─── MODULE 1+4: Circuit Breaker → Lore Alert Dispatcher ───
+  registerAlertDispatcher((alert) => {
+    const formatted = formatSecurityAlert({
+      type: "circuit-breaker",
+      userId: alert.userId,
+      guildId: alert.guildId,
+      details: `Agent loop exceeded ${alert.loopCount} iterations. Tokens consumed: ${alert.tokensConsumed}. Error: ${alert.error}`,
+      telemetry: {
+        Interaction: alert.interactionId,
+        Loops: alert.loopCount,
+        Tokens: alert.tokensConsumed,
+      },
+    });
+    logger.warn(`[CircuitBreaker] Alert dispatched: ${formatted.summary}`);
+  });
+  logger.info("✓ Circuit breaker alert dispatcher cable au lore alert");
+
+  // ─── MODULE B: Load vector memories from database ───
+  void loadMemoriesFromDb().catch((err) =>
+    logger.warn(
+      `[Bot] Failed to load agent memories: ${err instanceof Error ? err.message : String(err)}`,
+    ),
+  );
+
+  // ─── HYBRID BRIDGE: Start WebSocket server for Worker offloading ───
+  startBridgeServer();
+  logger.info("✓ Bridge server initialized (waiting for worker connections)");
 
   // Agent IA autonome — scan de messages proactif + auto-résolution d'alertes
   startAgentBrain(client);
@@ -320,7 +384,17 @@ async function main(): Promise<void> {
   attachStartupLogic(client, healthResults);
 
   // Handlers d'arrêt gracieux et d'erreurs process
-  registerDestroyClient(() => client.destroy());
+  registerDestroyClient(() => {
+    stopInfraWatchdog();
+    stopConfigCache();
+    stopBridgeServer();
+    import("./services/networkResilience.js").then(({ shutdownNetworkResilience }) =>
+      shutdownNetworkResilience(),
+    );
+    import("./services/circuitBreaker.js").then(({ cleanupAllStates }) => cleanupAllStates());
+    import("./services/taskWorker.js").then(({ shutdownTaskWorker }) => shutdownTaskWorker());
+    client.destroy();
+  });
   attachShutdownHandlers();
   attachProcessHandlers();
 
@@ -337,6 +411,16 @@ async function main(): Promise<void> {
 
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
+
+  // Fortnite Party Bot (fnbr.js) — connecte un compte Fortnite au bot
+  try {
+    const { startFortnitePartyBot } = await import("./services/fortnitePartyBot.js");
+    void startFortnitePartyBot();
+  } catch (err) {
+    logger.warn(
+      `[FortniteBot] Échec d'initialisation: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   // Notification de démarrage à l'owner — UNE SEULE FOIS par process
   if (!startupNotificationSent) {

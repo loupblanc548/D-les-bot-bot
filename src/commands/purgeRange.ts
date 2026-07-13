@@ -28,16 +28,10 @@ export const commands = [
     .setName("purge-range")
     .setDescription("Supprime tous les messages entre deux IDs (inclus)")
     .addStringOption((o) =>
-      o
-        .setName("de")
-        .setDescription("ID du premier message à supprimer")
-        .setRequired(true),
+      o.setName("de").setDescription("ID du premier message à supprimer").setRequired(true),
     )
     .addStringOption((o) =>
-      o
-        .setName("a")
-        .setDescription("ID du dernier message à supprimer")
-        .setRequired(true),
+      o.setName("a").setDescription("ID du dernier message à supprimer").setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
@@ -57,7 +51,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
 
   if (fromId === toId) {
     await interaction.reply({
-      content: "❌ Les deux IDs sont identiques. Utilise `/mod clear` pour supprimer un seul message.",
+      content:
+        "❌ Les deux IDs sont identiques. Utilise `/mod clear` pour supprimer un seul message.",
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -84,10 +79,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   }
 
   // Valider que les messages existent
-  let fromMsg: Message | null = null;
-  let toMsg: Message | null = null;
+
   try {
-    fromMsg = await channel.messages.fetch(fromId);
+    await channel.messages.fetch(fromId);
   } catch {
     await interaction.reply({
       content: `❌ Le message d'origine (\`${fromId}\`) est introuvable dans ce salon.`,
@@ -96,7 +90,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     return;
   }
   try {
-    toMsg = await channel.messages.fetch(toId);
+    await channel.messages.fetch(toId);
   } catch {
     await interaction.reply({
       content: `❌ Le message de fin (\`${toId}\`) est introuvable dans ce salon.`,
@@ -237,9 +231,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       `[PurgeRange] ${interaction.user.tag} a supprimé ${totalDeleted} messages entre ${lowerId} et ${higherId} en ${passes} passes (${elapsed}s)`,
     );
   } catch (error) {
-    logger.error(
-      `[PurgeRange] Erreur: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    logger.error(`[PurgeRange] Erreur: ${error instanceof Error ? error.message : String(error)}`);
     await anim.stop(
       `❌ Erreur lors de la purge: ${error instanceof Error ? error.message : String(error)}`,
     );

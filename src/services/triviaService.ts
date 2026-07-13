@@ -179,7 +179,9 @@ export async function startTrivia(
     const resultEmbed = new EmbedBuilder()
       .setColor(0xffd700)
       .setTitle("⏰ Temps écoulé !")
-      .setDescription(`La réponse était:\n**${String.fromCharCode(65 + correctIndex)}. ${game.question.correct_answer}**`)
+      .setDescription(
+        `La réponse était:\n**${String.fromCharCode(65 + correctIndex)}. ${game.question.correct_answer}**`,
+      )
       .setFooter({ text: "Utilise /fun trivia pour rejouer" });
 
     try {
@@ -199,12 +201,18 @@ export async function handleTriviaButton(interaction: ButtonInteraction): Promis
 
   const game = activeGames.get(interaction.channelId);
   if (!game) {
-    await interaction.reply({ content: "❌ Aucune partie active.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Aucune partie active.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return true;
   }
 
   if (game.answered.has(interaction.user.id)) {
-    await interaction.reply({ content: "❌ Tu as déjà répondu !", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Tu as déjà répondu !",
+      flags: [MessageFlags.Ephemeral],
+    });
     return true;
   }
 
@@ -223,7 +231,7 @@ export async function handleTriviaButton(interaction: ButtonInteraction): Promis
     });
 
     // Révéler la réponse et terminer
-    const correctIndex = game.question.all_answers.indexOf(game.question.correct_answer);
+    const _correctIndex = game.question.all_answers.indexOf(game.question.correct_answer);
     const embed = new EmbedBuilder()
       .setColor(0x57f287)
       .setTitle("✅ Bonne réponse !")
@@ -249,7 +257,11 @@ export async function handleTriviaButton(interaction: ButtonInteraction): Promis
 /**
  * Sauvegarde ou met à jour le score trivia d'un utilisateur.
  */
-async function saveTriviaScore(discordId: string, _username: string, points: number): Promise<void> {
+async function saveTriviaScore(
+  discordId: string,
+  _username: string,
+  points: number,
+): Promise<void> {
   try {
     await prisma.user.upsert({
       where: { discordId },
@@ -269,7 +281,9 @@ async function saveTriviaScore(discordId: string, _username: string, points: num
 /**
  * Récupère le top 10 des scores trivia.
  */
-export async function getTriviaLeaderboard(): Promise<Array<{ discordId: string; balance: number }>> {
+export async function getTriviaLeaderboard(): Promise<
+  Array<{ discordId: string; balance: number }>
+> {
   try {
     return await prisma.user.findMany({
       where: { balance: { gt: 0 } },

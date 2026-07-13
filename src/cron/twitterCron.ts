@@ -16,12 +16,13 @@ import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { translateToFrench, isLikelyEnglish } from "../utils/translator.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { getTweetImage } from "../utils/image-helpers.js";
+import { sendTweetScreenshot } from "../services/tweetScreenshot.js";
 import { pushFortniteDetection } from "../services/fortnite-broadcast.js";
 
 // Constantes
 
 const TWITTER_BLUE = 0x1da1f2;
-const RSSHUB_BASE = "https://rsshub.app/twitter/user";
+const _RSSHUB_BASE = "https://rsshub.app/twitter/user";
 const MAX_TWEETS_PER_ACCOUNT = 3;
 
 // Multiple free RSS sources for Twitter (fallback chain)
@@ -62,13 +63,7 @@ interface TweetData {
 }
 
 type Platform =
-  | "epic"
-  | "steam"
-  | "playstation"
-  | "xbox"
-  | "nintendo"
-  | "fortnite"
-  | "instantgaming";
+  "epic" | "steam" | "playstation" | "xbox" | "nintendo" | "fortnite" | "instantgaming";
 
 interface PlatformConfig {
   id: Platform;
@@ -172,7 +167,9 @@ async function tryFetchRss(url: string): Promise<string | null> {
     }
     return null;
   } catch (err) {
-    logger.debug(`[TwitterCron] RSS fetch échoué: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[TwitterCron] RSS fetch échoué: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
@@ -218,7 +215,9 @@ function parseTweetsFromRss(xml: string, account: string): TweetData[] {
       tweets.push({ tweetId, account, content, pubDate, link, imageUrl });
     }
   } catch (err) {
-    logger.debug(`[TwitterCron] RSS parse error pour ${account}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[TwitterCron] RSS parse error pour ${account}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return tweets;
 }
@@ -242,13 +241,17 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
     if (xml) {
       const tweets = parseTweetsFromRss(xml, account);
       if (tweets.length > 0) {
-        logger.info(`[TwitterCron] ✓ @${account}: ${tweets.length} tweet(s) via ${url.split("/")[2]}`);
+        logger.info(
+          `[TwitterCron] ✓ @${account}: ${tweets.length} tweet(s) via ${url.split("/")[2]}`,
+        );
         return tweets;
       }
     }
   }
 
-  logger.warn(`[TwitterCron] ✗ @${account}: toutes les sources RSS ont échoué (${sources.length} essayées)`);
+  logger.warn(
+    `[TwitterCron] ✗ @${account}: toutes les sources RSS ont échoué (${sources.length} essayées)`,
+  );
   return [];
 }
 
@@ -437,7 +440,9 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
           const fetched = await client.channels.fetch(cfg.channelId);
           if (fetched?.isTextBased()) channel = fetched as TextChannel;
         } catch (fetchErr) {
-          logger.debug(`[TwitterCron] Fetch salon ${cfg.channelId} échoué: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+          logger.debug(
+            `[TwitterCron] Fetch salon ${cfg.channelId} échoué: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+          );
         }
         if (!channel) {
           logger.warn("[TwitterCron] Salon " + cfg.channelId + " indisponible pour " + cfg.label);
@@ -458,64 +463,86 @@ async function checkTwitterAccounts(client: Client): Promise<void> {
           );
         }
 
-        const embed = new EmbedBuilder()
-          .setTitle("\uD83D\uDD25 Nouveau Tweet de @" + tweet.account)
-          .setURL(tweet.link)
-          .setColor(embedColor)
-          .setAuthor({
-            name: "@" + tweet.account,
-            iconURL: TWITTER_ICON,
-            url: "https://x.com/" + tweet.account,
-          })
-          .setDescription(translatedContent)
-          .addFields({ name: "\uD83D\uDDA5\uFE0F Plateforme", value: cfg.label, inline: true })
-          .setFooter(FOOTER)
-          .setTimestamp();
-
-        if (tweet.pubDate) {
-          embed.addFields({
-            name: "\uD83D\uDCC5 Publi\u00E9 le",
-            value: tweet.pubDate,
-            inline: true,
-          });
-        }
-
-        if (tweet.imageUrl) {
-          embed.setImage(tweet.imageUrl);
-        } else {
-          // Fallback: scraper l'image du tweet sur xcancel
-          try {
-            const tweetImg = await getTweetImage(tweet.link);
-            if (tweetImg) embed.setImage(tweetImg);
-          } catch (err) {
-            logger.debug(`[TwitterCron] Image fetch échoué pour ${tweet.link}: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
-
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder()
-            .setLabel("\uD83D\uDD17 Ouvrir sur X")
-            .setStyle(ButtonStyle.Link)
-            .setURL(tweet.link),
-        );
-
+        // ─── Screenshot du tweet (Playwright) — fallback embed texte ───
+        let screenshotSent = false;
         try {
-          await channel.send({
-            content: "\uD83D\uDD14 **Nouveau tweet de @" + tweet.account + "**",
-            embeds: [embed],
-            components: [row],
-          });
-          logger.info("[TwitterCron] \u2713 " + cfg.label + " : @" + tweet.account);
-          if (cfg.id === "fortnite") {
-            pushFortniteDetection(
-              "tweets",
-              `Tweet Fortnite: ${tweet.content?.slice(0, 100) || "(media)"}`,
-            );
+          screenshotSent = await sendTweetScreenshot(
+            channel,
+            tweet.link,
+            tweet.account,
+            translatedContent,
+            cfg.label,
+            embedColor,
+          );
+        } catch (ssErr) {
+          logger.debug(
+            `[TwitterCron] Screenshot failed: ${ssErr instanceof Error ? ssErr.message : String(ssErr)}`,
+          );
+        }
+
+        // Si le screenshot a échoué, fallback sur l'embed texte existant
+        if (!screenshotSent) {
+          const embed = new EmbedBuilder()
+            .setTitle("\uD83D\uDD25 Nouveau Tweet de @" + tweet.account)
+            .setURL(tweet.link)
+            .setColor(embedColor)
+            .setAuthor({
+              name: "@" + tweet.account,
+              iconURL: TWITTER_ICON,
+              url: "https://x.com/" + tweet.account,
+            })
+            .setDescription(translatedContent)
+            .addFields({ name: "\uD83D\uDDA5\uFE0F Plateforme", value: cfg.label, inline: true })
+            .setFooter(FOOTER)
+            .setTimestamp();
+
+          if (tweet.pubDate) {
+            embed.addFields({
+              name: "\uD83D\uDCC5 Publi\u00E9 le",
+              value: tweet.pubDate,
+              inline: true,
+            });
           }
-        } catch (sendError) {
-          const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
-          logger.error("[TwitterCron] \u2717 Echec envoi " + cfg.label + ": " + sendMsg);
-          continue;
+
+          if (tweet.imageUrl) {
+            embed.setImage(tweet.imageUrl);
+          } else {
+            try {
+              const tweetImg = await getTweetImage(tweet.link);
+              if (tweetImg) embed.setImage(tweetImg);
+            } catch (err) {
+              logger.debug(
+                `[TwitterCron] Image fetch échoué pour ${tweet.link}: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          }
+
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setLabel("\uD83D\uDD17 Ouvrir sur X")
+              .setStyle(ButtonStyle.Link)
+              .setURL(tweet.link),
+          );
+
+          try {
+            await channel.send({
+              content: "\uD83D\uDD14 **Nouveau tweet de @" + tweet.account + "**",
+              embeds: [embed],
+              components: [row],
+            });
+          } catch (sendError) {
+            const sendMsg = sendError instanceof Error ? sendError.message : String(sendError);
+            logger.error("[TwitterCron] \u2717 Echec envoi " + cfg.label + ": " + sendMsg);
+            continue;
+          }
+        }
+
+        logger.info("[TwitterCron] \u2713 " + cfg.label + " : @" + tweet.account);
+        if (cfg.id === "fortnite") {
+          pushFortniteDetection(
+            "tweets",
+            `Tweet Fortnite: ${tweet.content?.slice(0, 100) || "(media)"}`,
+          );
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));

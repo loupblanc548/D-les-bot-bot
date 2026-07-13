@@ -2,7 +2,7 @@ import logger from "../utils/logger.js";
 
 const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || "";
 const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
-const YOUTUBE_REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI || "http://localhost:3000/callback";
+const _YOUTUBE_REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI || "http://localhost:3000/callback";
 let YOUTUBE_REFRESH_TOKEN = process.env.YOUTUBE_REFRESH_TOKEN || "";
 
 const DISCORD_INVITE_LINK = "https://discord.gg/hAVqWmpGV";
@@ -74,7 +74,7 @@ async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
 
-    const data = await res.json() as { access_token: string; expires_in: number };
+    const data = (await res.json()) as { access_token: string; expires_in: number };
     accessToken = data.access_token;
     tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
     logger.info("[YouTubeLiveChat] Token rafraîchi avec succès");
@@ -106,7 +106,7 @@ async function fetchActiveLiveChatId(): Promise<string | null> {
       return null;
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       items?: Array<{ snippet: { liveChatId: string; title: string } }>;
     };
 
@@ -147,7 +147,7 @@ async function pollLiveChat(): Promise<void> {
       return;
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       items?: Array<{
         id: string;
         snippet: {
@@ -242,7 +242,9 @@ export function startYouTubeLiveChat(): void {
   }
 
   if (!YOUTUBE_REFRESH_TOKEN) {
-    logger.warn("[YouTubeLiveChat] Pas de refresh token — lance 'npm run youtube:auth' pour l'obtenir");
+    logger.warn(
+      "[YouTubeLiveChat] Pas de refresh token — lance 'npm run youtube:auth' pour l'obtenir",
+    );
     return;
   }
 

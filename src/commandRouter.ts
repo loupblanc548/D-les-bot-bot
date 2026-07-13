@@ -15,114 +15,18 @@ import {
   withMiddleware,
 } from "./middleware/index.js";
 
-import {
-  commands as mainCommands,
-  handleCommand as handleMain,
-  handleSelectMenu as handleMainSelectMenu,
-} from "./commands/main.js";
+// ── Dynamic File-Based Router ──
+import { buildAllCommands, dispatchInteraction } from "./commands/router/index.js";
 
-import { commands as sourceCommands } from "./commands/sources.js";
-import { commands as adminCommands, handleCommand as handleAdmin } from "./commands/admin.js";
-import { commands as aiCommands, handleCommand as handleAI } from "./commands/ai.js";
-import {
-  commands as modCommands,
-  handleCommand as handleModeration,
-} from "./commands/moderation.js";
-import { commands as casierCommands, handleCommand as handleCasier } from "./commands/casier.js";
-import {
-  commands as securityCommands,
-  handleCommand as handleSecurity,
-} from "./commands/security/core.js";
-import { commands as gamingCommands, handleCommand as handleGaming } from "./commands/gaming.js";
-import {
-  commands as communityCommands,
-  handleCommand as handleCommunity,
-} from "./commands/community.js";
-import { commands as utilityCommands, handleCommand as handleUtility } from "./commands/utility.js";
-import { commands as vocalCommands, handleCommand as handleVocal } from "./commands/vocal.js";
-import { commands as twitchCommands, handleCommand as handleTwitch } from "./commands/twitch.js";
-import { commands as steamCommands, handleCommand as handleSteam } from "./commands/steam.js";
-import {
-  commands as trackGameCommands,
-  handleCommand as handleTrackGame,
-} from "./commands/trackGame.js";
-import { commands as psnCommands, handleCommand as handlePsn } from "./commands/psn.js";
-import {
-  commands as wishlistCommands,
-  handleCommand as handleWishlist,
-} from "./commands/fun/wishlist.js";
-// Phase 1: Removed boutique (keep only fortnite features)
-import {
-  commands as alertcenterCommands,
-  handleCommand as handleAlertcenter,
-} from "./commands/alertcenter.js";
-import { commands as mp3Commands, handleCommand as handleMp3 } from "./commands/mp3.js";
-import { commands as ttsCommands, handleCommand as handleTts } from "./commands/tts.js";
-// Phase 1: Removed profile commands
-import { handleReactionRoleAdd, handleReactionRoleRemove } from "./commands/reactionRoles.js";
-import {
-  commands as rechercheCommands,
-  handleCommand as handleRecherche,
-} from "./commands/recherche.js";
-import {
-  commands as cleanDuplicatesCommands,
-  handleCommand as handleCleanDuplicates,
-} from "./commands/clean-duplicates.js";
-import {
-  commands as maintenanceCommands,
-  handleCommand as handleMaintenance,
-} from "./commands/maintenance.js";
-// Phase 1: Removed userinfo commands
-import {
-  commands as advancedCommands,
-  handleCommand as handleAdvanced,
-} from "./commands/advanced.js";
-// Phase 1: Removed communityExtra commands
-import { commands as dashboardCommands } from "./commands/dashboard.js";
-import { commands as aiCmdCommands } from "./commands/aiCommands.js";
-import {
-  commands as modExtraCommands,
-  handleCommand as handleModExtra,
-} from "./commands/modExtra.js";
-import {
-  commands as extraCmdCommands,
-  handleCommand as handleExtraCmd,
-} from "./commands/extraCommands.js";
-import {
-  radioGamingCommands as radioCommands,
-  handleRadioGamingCommand as handleRadioGaming,
-} from "./cron/radioGaming.js";
-import {
-  commands as modProCommands,
-  handleCommand as handleModPro,
-} from "./commands/moderationPro.js";
-import {
-  commands as audioPanelCommands,
-  handleCommand as handleAudioPanel,
-} from "./commands/audioPanel.js";
-import {
-  commands as utilityGamingCommands,
-  handleCommand as handleUtilityGaming,
-} from "./commands/utilityCommands.js";
-import {
-  commands as apiCmdCommands,
-  handleCommand as handleApiCmd,
-} from "./commands/apiCommands.js";
-import {
-  commands as channelRoutingCommands,
-  handleCommand as handleChannelRouting,
-} from "./commands/channelRouting.js";
-import {
-  commands as purgeContentCommands,
-  handleCommand as handlePurgeContent,
-} from "./commands/purgeContent.js";
-import { commands as shadowCommands, handleCommand as handleShadow } from "./commands/shadow.js";
+import { handleSelectMenu as handleMainSelectMenu } from "./commands/main.js";
+
+// ─── Group Commands (used in allCommands + buildCommandRouter) ───
 import { commands as osintCommands, handleCommand as handleOsint } from "./commands/osint.js";
-import { commands as reportCommands, handleCommand as handleReport } from "./commands/report.js";
-// ─── Wrappers de regroupement (subcommands) ───
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
-import { commands as modAdminCommands, handleCommand as handleModAdmin } from "./commands/modadmin.js";
-import { commands as debugGroupCommands, handleCommand as handleDebugGroup } from "./commands/debugGroup.js";
+import {
+  commands as modAdminCommands,
+  handleCommand as handleModAdmin,
+} from "./commands/modadmin.js";
 import {
   commands as securityGroupCommands,
   handleCommand as handleSecurityGroup,
@@ -132,10 +36,6 @@ import {
   handleCommand as handleSourcesGroup,
 } from "./commands/sourcesGroup.js";
 import {
-  commands as trackGroupCommands,
-  handleCommand as handleTrackGroup,
-} from "./commands/trackGroup.js";
-import {
   commands as casierGroupCommands,
   handleCommand as handleCasierGroup,
 } from "./commands/casierGroup.js";
@@ -144,26 +44,30 @@ import {
   handleCommand as handleAlertGroup,
 } from "./commands/alertGroup.js";
 import { commands as aiGroupCommands, handleCommand as handleAiGroup } from "./commands/aiGroup.js";
-import {
-  commands as botGroupCommands,
-  handleCommand as handleBotGroup,
-} from "./commands/botGroup.js";
+import { commands as botGroupCommands } from "./commands/botGroup.js";
 import {
   commands as adminGroupCommands,
   handleCommand as handleAdminGroup,
 } from "./commands/adminGroup.js";
 import {
   commands as gameGroupCommands,
+  fnbotCommands,
   handleCommand as handleGameGroup,
+  handleFnbotCommand,
 } from "./commands/gameGroup.js";
-// Phase 1: Removed fun, game2, music, economy groups (legacy cleanup)
+import { commands as minecraftGroupCommands } from "./commands/minecraftGroup.js";
 import {
   commands as ticketGroupCommands,
   handleCommand as handleTicketGroup,
 } from "./commands/ticketGroup.js";
-// Phase 1: Removed poll commands (legacy)
-import { commands as autoThreadCommands, handleCommand as handleAutoThread } from "./commands/autoThread.js";
-import { commands as customCmdCommands, handleCommand as handleCustomCmd } from "./commands/customCommands.js";
+import {
+  commands as autoThreadCommands,
+  handleCommand as handleAutoThread,
+} from "./commands/autoThread.js";
+import {
+  commands as customCmdCommands,
+  handleCommand as handleCustomCmd,
+} from "./commands/customCommands.js";
 import {
   commands as manageGroupCommands,
   handleCommand as handleManageGroup,
@@ -464,23 +368,25 @@ const REMOVED_COMMANDS = new Set([
 
 export const allCommands = [
   // ── 15 Slash Commands (Phase 1 architecture) ──
-  ...modGroupCommands,       // 1. /mod (warn, kick, ban, mute, config...)
-  ...securityGroupCommands,  // 2. /security (osint, audit, config...)
-  ...aiGroupCommands,        // 3. /ai (chat, image, translate, config...)
-  ...gameGroupCommands,      // 4. /game (track, news, free-games, steam...)
-  ...adminGroupCommands,     // 5. /admin (config, database, roles...)
-  ...botGroupCommands,       // 6. /bot (help, status, uptime, dashboard...)
-  ...sourcesGroupCommands,   // 7. /sources (add, remove, list, health...)
-  ...alertGroupCommands,     // 8. /alert (rules, ack, digest, test...)
-  ...casierGroupCommands,    // 9. /casier (view, clear...)
-  ...ticketGroupCommands,    // 10. /ticket (setup, close, transcript...)
-  ...manageGroupCommands,    // 11. /manage (roles, channels, emojis...)
-  ...helpCommands,           // 12. /help + /commands
+  ...modGroupCommands, // 1. /mod (warn, kick, ban, mute, config...)
+  ...securityGroupCommands, // 2. /security (osint, audit, config...)
+  ...aiGroupCommands, // 3. /ai (chat, image, translate, config...)
+  ...gameGroupCommands, // 4. /game (track, news, free-games, steam...)
+  ...fnbotCommands, // 4b. /fnbot (Fortnite Party Bot)
+  ...minecraftGroupCommands, // 4c. /mc (Minecraft Bedrock Bot)
+  ...adminGroupCommands, // 5. /admin (config, database, roles...)
+  ...botGroupCommands, // 6. /bot (help, status, uptime, dashboard...)
+  ...sourcesGroupCommands, // 7. /sources (add, remove, list, health...)
+  ...alertGroupCommands, // 8. /alert (rules, ack, digest, test...)
+  ...casierGroupCommands, // 9. /casier (view, clear...)
+  ...ticketGroupCommands, // 10. /ticket (setup, close, transcript...)
+  ...manageGroupCommands, // 11. /manage (roles, channels, emojis...)
+  ...helpCommands, // 12. /help + /commands
   // ── Groupes conservés (standalone) ──
-  ...modAdminCommands,       // 13. /modadmin
-  ...osintCommands,          // 14. /osint (scan, dns, whois...)
-  ...autoThreadCommands,     // 15. /autothread
-  ...customCmdCommands,      // /customcmd
+  ...modAdminCommands, // 13. /modadmin
+  ...osintCommands, // 14. /osint (scan, dns, whois...)
+  ...autoThreadCommands, // 15. /autothread
+  ...customCmdCommands, // /customcmd
   // ── Context Menus (clic droit) ──
   ...contextMenuCommands,
 ].filter((cmd) => {
@@ -488,31 +394,39 @@ export const allCommands = [
   return name ? !REMOVED_COMMANDS.has(name) : true;
 });
 
-function registerGroup(
-  groupNames: string[],
-  handler: Function /* eslint-disable-line @typescript-eslint/no-unsafe-function-type */,
-): void {
-  const needsClient = handler.length > 1;
+type GroupHandler = (interaction: ChatInputCommandInteraction, client: Client) => Promise<void>;
+
+function registerGroup(groupNames: string[], handler: GroupHandler): void {
   for (const name of groupNames) {
     commandRouter[name] = async (interaction, client) => {
       if (!interaction.isChatInputCommand()) return;
-      if (needsClient) {
-        await handler(interaction as ChatInputCommandInteraction, client);
-      } else {
-        await handler(interaction as ChatInputCommandInteraction);
-      }
+      await handler(interaction as ChatInputCommandInteraction, client);
     };
   }
 }
 
 export function buildCommandRouter(): void {
-  // ─── 15 Slash Commands (Phase 1) ───
+  // ─── Catégories migrées vers le router dynamique ───
+  // Ces catégories sont dispatchées par le file-based router.
+  // Les fichiers sont chargés via await import() au runtime.
+  const dynamicCategories = new Set<string>(["mc", "bot"]);
+
+  for (const cat of dynamicCategories) {
+    commandRouter[cat] = async (interaction, client) => {
+      if (!interaction.isChatInputCommand()) return;
+      await dispatchInteraction(interaction as ChatInputCommandInteraction, client);
+    };
+  }
+
+  // ─── Catégories legacy (non encore migrées) ───
   registerGroup(["mod"], handleModGroup);
   registerGroup(["security"], handleSecurityGroup);
   registerGroup(["ai"], handleAiGroup);
   registerGroup(["game"], handleGameGroup);
+  registerGroup(["fnbot"], handleFnbotCommand);
+  // mc et bot sont maintenant dynamiques ↑
   registerGroup(["admin"], handleAdminGroup);
-  registerGroup(["bot"], handleBotGroup);
+  // bot est maintenant dynamique ↑
   registerGroup(["sources"], handleSourcesGroup);
   registerGroup(["alert"], handleAlertGroup);
   registerGroup(["casier"], handleCasierGroup);
@@ -524,8 +438,21 @@ export function buildCommandRouter(): void {
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
   // ─── Context Menus ───
-  registerGroup(["👤 Voir profil", "📋 Voir casier", "🤖 Analyser IA", "⚠️ Risque score", "🚩 Signaler",
-    "🌐 Traduire", "📊 Analyser sentiment", "📦 Extraire", "🚩 Rapporter", "🔍 Snipe"], handleContextMenu as unknown as Function);
+  registerGroup(
+    [
+      "👤 Voir profil",
+      "📋 Voir casier",
+      "🤖 Analyser IA",
+      "⚠️ Risque score",
+      "🚩 Signaler",
+      "🌐 Traduire",
+      "📊 Analyser sentiment",
+      "📦 Extraire",
+      "🚩 Rapporter",
+      "🔍 Snipe",
+    ],
+    handleContextMenu as unknown as GroupHandler,
+  );
 }
 
 export function applyCommandMiddleware(): void {
@@ -542,42 +469,70 @@ export async function registerCommands(): Promise<void> {
     const rest = new REST({ version: "10" }).setToken(config.token);
     logger.info("Enregistrement des commandes slash...");
 
-    if (config.guildId) {
-      // Enregistrer les commandes pour la guilde
-      await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
-        body: allCommands,
-      });
-      logger.info(
-        `✓ ${allCommands.length} commandes enregistrees pour la guilde ${config.guildId}`,
+    // ── Construire les commandes dynamiques depuis le file-based router ──
+    let dynamicCommands: ReturnType<typeof Object>[] = [];
+    try {
+      dynamicCommands = (await buildAllCommands()) as ReturnType<typeof Object>[];
+      logger.info(`✓ Router dynamique: ${dynamicCommands.length} commandes construites`);
+    } catch (err) {
+      logger.error(
+        `Erreur construction router dynamique: ${err instanceof Error ? err.message : String(err)}`,
       );
+    }
 
-      // Nettoyer les anciennes commandes globales (sinon Discord les garde en cache)
+    // ── Fusionner: commandes dynamiques + legacy (sans doublons) ──
+    const dynamicNames = new Set(dynamicCommands.map((c) => (c as { name?: string }).name));
+    const legacyFiltered = allCommands.filter((cmd) => {
+      const name = (cmd as { name?: string }).name;
+      return name ? !dynamicNames.has(name) : true;
+    });
+    const mergedCommands = [...dynamicCommands, ...legacyFiltered];
+
+    logger.info(
+      `Déploiement: ${dynamicCommands.length} dynamiques + ${legacyFiltered.length} legacy = ${mergedCommands.length} total`,
+    );
+
+    // ── Étape 1: Nettoyage complet (clean slate) ──
+    // Vider TOUTES les commandes existantes avant de redéployer.
+    // Évite les commandes fantômes / stale cache côté Discord.
+
+    // 1a. Supprimer toutes les commandes globales
+    try {
+      await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
+      logger.info("✓ Commandes globales supprimées");
+    } catch (err) {
+      logger.warn(
+        `Nettoyage commandes globales échoué: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    // 1b. Supprimer toutes les commandes de guilde (si configurée)
+    if (config.guildId) {
       try {
-        await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
-        logger.info("✓ Commandes globales obsolètes nettoyées");
+        await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
+          body: [],
+        });
+        logger.info("✓ Commandes de guilde supprimées");
       } catch (err) {
         logger.warn(
-          `Nettoyage commandes globales échoué: ${err instanceof Error ? err.message : String(err)}`,
+          `Nettoyage commandes guilde échoué: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
-    } else {
-      // Enregistrer globalement + nettoyer les commandes de guilde
-      await rest.put(Routes.applicationCommands(config.clientId), { body: allCommands });
-      logger.info(`✓ ${allCommands.length} commandes enregistrees globalement`);
+    }
 
-      // Nettoyer les anciennes commandes de guilde
-      if (config.guildId) {
-        try {
-          await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
-            body: [],
-          });
-          logger.info("✓ Commandes de guilde obsolètes nettoyées");
-        } catch (err) {
-          logger.warn(
-            `Nettoyage commandes guilde échoué: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
-      }
+    // ── Étape 2: Déployer les commandes (guilde ou global) ──
+    if (config.guildId) {
+      // Mode guilde: déploiement instantané (1-2s vs 1h en global)
+      await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
+        body: mergedCommands,
+      });
+      logger.info(
+        `✓ ${mergedCommands.length} commandes enregistrees pour la guilde ${config.guildId}`,
+      );
+    } else {
+      // Mode global: déploiement partout (peut prendre jusqu'à 1h)
+      await rest.put(Routes.applicationCommands(config.clientId), { body: mergedCommands });
+      logger.info(`✓ ${mergedCommands.length} commandes enregistrees globalement`);
     }
   } catch (error) {
     logger.error(

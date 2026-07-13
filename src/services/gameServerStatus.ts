@@ -57,7 +57,7 @@ export async function queryMinecraft(host: string, port = 25565): Promise<GameSe
       return { host, port, game: "minecraft", online: false, players: { online: 0, max: 0 } };
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       online: boolean;
       players?: { online: number; max: number; sample?: { name: string }[] };
       version?: string;
@@ -93,7 +93,11 @@ export async function queryMinecraft(host: string, port = 25565): Promise<GameSe
 
 // ─── Query Source engine servers (CS:GO, Rust, Ark, etc.) ────────────
 
-export async function querySourceServer(host: string, port: number, game: GameType): Promise<GameServerInfo> {
+export async function querySourceServer(
+  host: string,
+  port: number,
+  game: GameType,
+): Promise<GameServerInfo> {
   try {
     // Use battlemetrics or direct query
     const url = `https://api.battlemetrics.com/servers?filter[game]=${game}&filter[search]=${encodeURIComponent(host)}&page[size]=1`;
@@ -106,7 +110,7 @@ export async function querySourceServer(host: string, port: number, game: GameTy
       return { host, port, game, online: false, players: { online: 0, max: 0 } };
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       data?: {
         attributes?: {
           name?: string;
@@ -114,7 +118,7 @@ export async function querySourceServer(host: string, port: number, game: GameTy
           players?: number;
           maxPlayers?: number;
           details?: { motd?: string; rust_description?: string };
-        }
+        };
       }[];
     };
 
@@ -156,10 +160,12 @@ export async function queryFiveM(host: string, port = 30120): Promise<GameServer
 
     const players = (await res.json()) as unknown[];
     const dynamicUrl = `http://${host}:${port}/dynamic.json`;
-    const dynRes = await fetch(dynamicUrl, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    const dynRes = await fetch(dynamicUrl, { signal: AbortSignal.timeout(10_000) }).catch(
+      () => null,
+    );
     let maxPlayers = 0;
     if (dynRes?.ok) {
-      const dynData = await dynRes.json() as { sv_maxclients?: number };
+      const dynData = (await dynRes.json()) as { sv_maxclients?: number };
       maxPlayers = dynData.sv_maxclients ?? 0;
     }
 
@@ -177,7 +183,11 @@ export async function queryFiveM(host: string, port = 30120): Promise<GameServer
 
 // ─── Universal query ──────────────────────────────────────────────────
 
-export async function queryServer(host: string, port: number, game: GameType): Promise<GameServerInfo> {
+export async function queryServer(
+  host: string,
+  port: number,
+  game: GameType,
+): Promise<GameServerInfo> {
   switch (game) {
     case "minecraft":
       return queryMinecraft(host, port || 25565);
@@ -205,7 +215,11 @@ export function buildServerEmbed(info: GameServerInfo): EmbedBuilder {
     .setColor(color)
     .addFields(
       { name: "Status", value: statusText, inline: true },
-      { name: "Joueurs", value: info.online ? `${info.players.online}/${info.players.max}` : "N/A", inline: true },
+      {
+        name: "Joueurs",
+        value: info.online ? `${info.players.online}/${info.players.max}` : "N/A",
+        inline: true,
+      },
       { name: "Adresse", value: `\`${info.host}:${info.port}\``, inline: true },
     )
     .setTimestamp();
@@ -249,11 +263,23 @@ export interface ServerWatch {
 
 const watchedServers = new Map<string, ServerWatch>();
 
-export function addServerWatch(guildId: string, channelId: string, host: string, port: number, game: GameType): string {
+export function addServerWatch(
+  guildId: string,
+  channelId: string,
+  host: string,
+  port: number,
+  game: GameType,
+): string {
   const id = `watch_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   watchedServers.set(id, {
-    id, guildId, channelId, host, port, game,
-    lastOnline: false, lastPlayerCount: 0,
+    id,
+    guildId,
+    channelId,
+    host,
+    port,
+    game,
+    lastOnline: false,
+    lastPlayerCount: 0,
   });
   logger.info(`[GameServer] Watching ${host}:${port} (${game}) in ${channelId}`);
   return id;
@@ -270,13 +296,15 @@ export function listServerWatches(guildId: string): ServerWatch[] {
 export async function checkWatchedServers(
   notifyCallback: (channelId: string, embed: EmbedBuilder) => Promise<void>,
 ): Promise<void> {
-  for (const [id, watch] of watchedServers) {
+  for (const [_id, watch] of watchedServers) {
     const info = await queryServer(watch.host, watch.port, watch.game);
 
     // Status change
     if (info.online !== watch.lastOnline) {
       const embed = buildServerEmbed(info);
-      embed.setTitle(`${info.online ? "✅" : "❌"} Serveur ${info.online ? "devenu en ligne" : "est hors ligne"}`);
+      embed.setTitle(
+        `${info.online ? "✅" : "❌"} Serveur ${info.online ? "devenu en ligne" : "est hors ligne"}`,
+      );
       await notifyCallback(watch.channelId, embed).catch(() => {});
       watch.lastOnline = info.online;
     }

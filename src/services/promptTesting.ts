@@ -26,7 +26,7 @@ export interface PromptTestCase {
 
 export interface PromptTestResult {
   response: string;
-  score: number;        // 0-100
+  score: number; // 0-100
   timeMs: number;
   costTokens: number;
   parsed: unknown;
@@ -52,11 +52,7 @@ export interface ABTestResult {
 
 // ─── Évaluation ───────────────────────────────────────────────────────
 
-function evaluateResponse(
-  response: string,
-  parsed: unknown,
-  testCase: PromptTestCase,
-): number {
+function evaluateResponse(response: string, parsed: unknown, testCase: PromptTestCase): number {
   let score = 0;
   let checks = 0;
 
@@ -172,7 +168,13 @@ export async function testPrompts(
       const timeA = Date.now() - startA;
       const scoreA = evaluateResponse(responseA, parsedA, testCase);
       const costA = estimateCost(inputA.length, responseA.length);
-      resultsA.push({ response: responseA, score: scoreA, timeMs: timeA, costTokens: costA, parsed: parsedA });
+      resultsA.push({
+        response: responseA,
+        score: scoreA,
+        timeMs: timeA,
+        costTokens: costA,
+        parsed: parsedA,
+      });
 
       // Run B
       const startB = Date.now();
@@ -199,7 +201,13 @@ export async function testPrompts(
       const timeB = Date.now() - startB;
       const scoreB = evaluateResponse(responseB, parsedB, testCase);
       const costB = estimateCost(inputB.length, responseB.length);
-      resultsB.push({ response: responseB, score: scoreB, timeMs: timeB, costTokens: costB, parsed: parsedB });
+      resultsB.push({
+        response: responseB,
+        score: scoreB,
+        timeMs: timeB,
+        costTokens: costB,
+        parsed: parsedB,
+      });
 
       details.push({
         case: i + 1,
@@ -355,10 +363,17 @@ function calculateAccuracy(response: string, expected: unknown): number {
     }
   }
 
-  if ((expected as PromptTestCase).expectedJsonField && (expected as PromptTestCase).expectedJsonValue !== undefined) {
+  if (
+    (expected as PromptTestCase).expectedJsonField &&
+    (expected as PromptTestCase).expectedJsonValue !== undefined
+  ) {
     checks++;
     const parsed = parseJsonResponse<Record<string, unknown>>(response);
-    if (parsed && parsed[(expected as PromptTestCase).expectedJsonField!] === (expected as PromptTestCase).expectedJsonValue) {
+    if (
+      parsed &&
+      parsed[(expected as PromptTestCase).expectedJsonField!] ===
+        (expected as PromptTestCase).expectedJsonValue
+    ) {
       score += 100;
     }
   }
@@ -407,10 +422,15 @@ function calculateRelevance(response: string, prompt: string): number {
   let score = 100;
 
   // Extract key terms from prompt
-  const promptWords = prompt.toLowerCase()
+  const promptWords = prompt
+    .toLowerCase()
     .replace(/[^a-zà-ÿ\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length > 4 && !["tache", "format", "reponds", "json", "contraintes", "regles"].includes(w));
+    .filter(
+      (w) =>
+        w.length > 4 &&
+        !["tache", "format", "reponds", "json", "contraintes", "regles"].includes(w),
+    );
 
   const responseLower = response.toLowerCase();
   const matched = promptWords.filter((w) => responseLower.includes(w));
@@ -444,10 +464,15 @@ function calculateConsistency(response: string): number {
 
   if (parsed) {
     // Check for contradictory fields in JSON
-    const keys = Object.keys(parsed);
+    const _keys = Object.keys(parsed);
 
     // violation=false but action=ban (contradictory)
-    if (parsed.violation === false && parsed.action && parsed.action !== "none" && parsed.action !== "rien") {
+    if (
+      parsed.violation === false &&
+      parsed.action &&
+      parsed.action !== "none" &&
+      parsed.action !== "rien"
+    ) {
       score -= 40;
     }
 
@@ -457,7 +482,12 @@ function calculateConsistency(response: string): number {
     }
 
     // confidence=0 but verdict given (contradictory)
-    if (parsed.confidence === 0 && parsed.verdict && parsed.verdict !== "clean" && parsed.verdict !== "neutre") {
+    if (
+      parsed.confidence === 0 &&
+      parsed.verdict &&
+      parsed.verdict !== "clean" &&
+      parsed.verdict !== "neutre"
+    ) {
       score -= 25;
     }
 
@@ -496,11 +526,17 @@ export function evaluatePromptQuality(
     score >= 90 ? "A" : score >= 75 ? "B" : score >= 60 ? "C" : score >= 40 ? "D" : "F";
 
   const issues: string[] = [];
-  if (breakdown.accuracy < 60) issues.push("Précision insuffisante — la réponse ne correspond pas à l'attendu");
+  if (breakdown.accuracy < 60)
+    issues.push("Précision insuffisante — la réponse ne correspond pas à l'attendu");
   if (breakdown.clarity < 60) issues.push("Clarté faible — réponse confuse ou mal structurée");
   if (breakdown.relevance < 60) issues.push("Pertinence faible — réponse hors-sujet");
   if (breakdown.concision < 50) issues.push("Verbosité excessive — réponse trop longue");
   if (breakdown.consistency < 60) issues.push("Incohérences détectées — champs contradictoires");
 
-  return { score, breakdown, grade, issues: issues.length > 0 ? issues : ["Qualité excellente — aucun problème"] };
+  return {
+    score,
+    breakdown,
+    grade,
+    issues: issues.length > 0 ? issues : ["Qualité excellente — aucun problème"],
+  };
 }

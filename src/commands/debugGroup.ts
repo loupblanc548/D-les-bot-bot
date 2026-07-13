@@ -27,23 +27,33 @@ export const commands = [
     .setDescription("🔧 Debug & hotreload (admin uniquement)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sc) => sc.setName("status").setDescription("Debug: statut complet du bot"))
-    .addSubcommand((sc) => sc.setName("services").setDescription("Debug: état des services externes"))
+    .addSubcommand((sc) =>
+      sc.setName("services").setDescription("Debug: état des services externes"),
+    )
     .addSubcommand((sc) => sc.setName("database").setDescription("Debug: test connexion DB"))
     .addSubcommand((sc) => sc.setName("memory").setDescription("Debug: utilisation mémoire"))
-    .addSubcommand((sc) => sc.setName("reload").setDescription("Hotreload: recharge commandes et config"))
+    .addSubcommand((sc) =>
+      sc.setName("reload").setDescription("Hotreload: recharge commandes et config"),
+    )
     .addSubcommand((sc) =>
       sc
         .setName("maintenance")
         .setDescription("Hotreload: mode maintenance")
-        .addBooleanOption((o) => o.setName("enable").setDescription("Activer ou non").setRequired(true)),
+        .addBooleanOption((o) =>
+          o.setName("enable").setDescription("Activer ou non").setRequired(true),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("auto")
         .setDescription("Hotreload: auto-reload")
-        .addBooleanOption((o) => o.setName("enable").setDescription("Activer ou non").setRequired(true)),
+        .addBooleanOption((o) =>
+          o.setName("enable").setDescription("Activer ou non").setRequired(true),
+        ),
     )
-    .addSubcommand((sc) => sc.setName("hotreload-status").setDescription("Hotreload: statut du hot reload"))
+    .addSubcommand((sc) =>
+      sc.setName("hotreload-status").setDescription("Hotreload: statut du hot reload"),
+    )
     .toJSON(),
 ];
 
@@ -67,7 +77,7 @@ function patchSubcommand(
   interaction: ChatInputCommandInteraction,
   sub: string,
 ): ChatInputCommandInteraction {
-  const origGetSubcommand = interaction.options.getSubcommand.bind(interaction.options);
-  interaction.options.getSubcommand = (() => sub) as typeof origGetSubcommand;
+  const _origGetSubcommand = interaction.options.getSubcommand.bind(interaction.options);
+  interaction.options.getSubcommand = (() => sub) as typeof interaction.options.getSubcommand;
   return interaction;
 }

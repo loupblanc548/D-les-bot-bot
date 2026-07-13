@@ -29,7 +29,11 @@ const PLATFORM_RSS_FEEDS: { name: string; url: string; platform: string }[] = [
   { name: "PlayStation Blog", url: "https://blog.playstation.com/feed/", platform: "playstation" },
   { name: "Xbox Wire", url: "https://news.xbox.com/feed/", platform: "xbox" },
   { name: "Nintendo News", url: "https://www.nintendo.com/feed/", platform: "nintendo" },
-  { name: "Epic Games", url: "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions", platform: "epic" },
+  {
+    name: "Epic Games",
+    url: "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions",
+    platform: "epic",
+  },
   // Sources gaming générales — détectées et routées par ChannelRouter
   { name: "IGN", url: "https://feeds.feedburner.com/ign/games-all", platform: "general" },
   { name: "GameSpot", url: "https://www.gamespot.com/feeds/mashup/news/", platform: "general" },
@@ -58,7 +62,7 @@ interface PatchNoteItem {
  * Utilise fast-xml-parser pour une extraction fiable de tous les champs.
  */
 /** @internal Test-only export */
-function generatePatchId(link: string): string {
+function _generatePatchId(link: string): string {
   const match = link.match(/\/comments\/([a-z0-9]+)\//i);
   return match?.[1] || link;
 }
@@ -313,14 +317,18 @@ async function checkPlatformFeeds(client: Client): Promise<void> {
           await processPatchNote(client, item as PatchNoteItem);
           processed++;
         } catch (err) {
-          logger.error(`[GlobalPatchNotes] Erreur traitement ${feed.name}: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(
+            `[GlobalPatchNotes] Erreur traitement ${feed.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
       if (processed > 0) {
         logger.info(`[GlobalPatchNotes] ${feed.name}: ${processed} article(s) traite(s)`);
       }
     } catch (err) {
-      logger.debug(`[GlobalPatchNotes] Flux ${feed.name} indisponible: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[GlobalPatchNotes] Flux ${feed.name} indisponible: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
@@ -347,10 +355,7 @@ export function startGlobalPatchNotesMonitoring(client: Client): void {
     isChecking = true;
     logger.info("[GlobalPatchNotes] â±ï¸ ExÃ©cution Cron planifiÃ©e pour Patch Notes");
 
-    Promise.allSettled([
-      checkPatchNotes(client),
-      checkPlatformFeeds(client),
-    ])
+    Promise.allSettled([checkPatchNotes(client), checkPlatformFeeds(client)])
       .then((results) => {
         const rejected = results.filter((r) => r.status === "rejected");
         if (rejected.length > 0) {

@@ -22,7 +22,7 @@ import { requireAdmin } from "../services/permissions.js";
 import { createLog, type LogEntry } from "../services/logs.js";
 
 const FOOTER = { text: "Modération Pro • v1.0.0" };
-const RAID_SHIELD_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const _RAID_SHIELD_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const SPAM_WINDOW_HOURS = 24;
 
 // ─── Définitions des commandes ───────────────────────────────────────────────

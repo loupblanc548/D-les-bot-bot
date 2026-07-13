@@ -5,8 +5,6 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ComponentType,
-  MessageFlags,
 } from "discord.js";
 
 export const commands = [
@@ -55,12 +53,17 @@ export const commands = [
 ];
 
 interface HelpCategory {
-  name: string; emoji: string; description: string; commands: { name: string; description: string }[];
+  name: string;
+  emoji: string;
+  description: string;
+  commands: { name: string; description: string }[];
 }
 
 const HELP_DATA: Record<string, HelpCategory> = {
   mod: {
-    name: "Modération", emoji: "🛡️", description: "Gestion des sanctions et du salon",
+    name: "Modération",
+    emoji: "🛡️",
+    description: "Gestion des sanctions et du salon",
     commands: [
       { name: "/mod warn", description: "Avertir un membre" },
       { name: "/mod kick", description: "Expulser un membre" },
@@ -83,7 +86,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   security: {
-    name: "Sécurité & OSINT", emoji: "🔒", description: "Audit, scan OSINT, anti-raid, vérifications",
+    name: "Sécurité & OSINT",
+    emoji: "🔒",
+    description: "Audit, scan OSINT, anti-raid, vérifications",
     commands: [
       { name: "/security nuke", description: "Clone & supprime le salon (anti-spam)" },
       { name: "/security check-alt", description: "Liste les comptes récents" },
@@ -122,7 +127,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   ai: {
-    name: "IA", emoji: "🤖", description: "Chat, génération, traduction, sentiment, config",
+    name: "IA",
+    emoji: "🤖",
+    description: "Chat, génération, traduction, sentiment, config",
     commands: [
       { name: "/ai chat", description: "Conversation IA" },
       { name: "/ai aichat", description: "Activer/désactiver le chat contextuel" },
@@ -152,7 +159,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   gaming: {
-    name: "Gaming", emoji: "🎮", description: "Tracking, deals, jeux gratuits, plateformes",
+    name: "Gaming",
+    emoji: "🎮",
+    description: "Tracking, deals, jeux gratuits, plateformes",
     commands: [
       { name: "/game status", description: "Statut serveurs de jeu" },
       { name: "/game info", description: "Infos détaillées d'un jeu" },
@@ -181,7 +190,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   economy: {
-    name: "Économie", emoji: "💰", description: "Solde, boutique, daily, giveaways",
+    name: "Économie",
+    emoji: "💰",
+    description: "Solde, boutique, daily, giveaways",
     commands: [
       { name: "/economy balance", description: "Voir ton solde" },
       { name: "/economy daily", description: "Récompense quotidienne" },
@@ -200,7 +211,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   tools: {
-    name: "Tools", emoji: "🛠️", description: "QR code, raccourcir URL, météo, traduction, fun",
+    name: "Tools",
+    emoji: "🛠️",
+    description: "QR code, raccourcir URL, météo, traduction, fun",
     commands: [
       { name: "/tools qr-code", description: "Générer un QR code" },
       { name: "/tools url-shorten", description: "Raccourcir une URL" },
@@ -223,7 +236,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   alerts: {
-    name: "Alertes", emoji: "📢", description: "Règles, escalation, whitelist, tests",
+    name: "Alertes",
+    emoji: "📢",
+    description: "Règles, escalation, whitelist, tests",
     commands: [
       { name: "/alert rules", description: "Gérer les règles d'alerte" },
       { name: "/alert ack", description: "Acquitter une alerte" },
@@ -239,7 +254,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   sources: {
-    name: "Sources RSS", emoji: "📰", description: "Gestion des sources RSS et scrapers",
+    name: "Sources RSS",
+    emoji: "📰",
+    description: "Gestion des sources RSS et scrapers",
     commands: [
       { name: "/sources add", description: "Ajouter une source" },
       { name: "/sources remove", description: "Retirer une source" },
@@ -257,7 +274,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   ticket: {
-    name: "Tickets", emoji: "🎫", description: "Système de tickets de support",
+    name: "Tickets",
+    emoji: "🎫",
+    description: "Système de tickets de support",
     commands: [
       { name: "/ticket setup", description: "Configurer les tickets" },
       { name: "/ticket close", description: "Fermer un ticket" },
@@ -265,7 +284,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   community: {
-    name: "Communauté", emoji: "👤", description: "Profil, rôles, anniversaires, réactions",
+    name: "Communauté",
+    emoji: "👤",
+    description: "Profil, rôles, anniversaires, réactions",
     commands: [
       { name: "/community profile", description: "Profil utilisateur" },
       { name: "/community userinfo", description: "Infos utilisateur" },
@@ -284,7 +305,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   admin: {
-    name: "Admin", emoji: "⚙️", description: "Configuration, gestion, maintenance",
+    name: "Admin",
+    emoji: "⚙️",
+    description: "Configuration, gestion, maintenance",
     commands: [
       { name: "/admin config", description: "Configuration serveur" },
       { name: "/admin guild-config", description: "Config guilde" },
@@ -307,7 +330,9 @@ const HELP_DATA: Record<string, HelpCategory> = {
     ],
   },
   bot: {
-    name: "Bot & Debug", emoji: "🔧", description: "Statut, uptime, dashboard, debug, hotreload",
+    name: "Bot & Debug",
+    emoji: "🔧",
+    description: "Statut, uptime, dashboard, debug, hotreload",
     commands: [
       { name: "/bot help", description: "Aide générale" },
       { name: "/bot start", description: "Démarrer le bot" },
@@ -357,7 +382,9 @@ async function handleHelp(interaction: ChatInputCommandInteraction) {
       .setDescription(cat.description)
       .addFields(fields)
       .setColor(0x5865f2)
-      .setFooter({ text: `${cat.commands.length} commande(s) • /help pour voir toutes les catégories` })
+      .setFooter({
+        text: `${cat.commands.length} commande(s) • /help pour voir toutes les catégories`,
+      })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
@@ -366,11 +393,13 @@ async function handleHelp(interaction: ChatInputCommandInteraction) {
       .setTitle("🤖 Aide — Catégories")
       .setDescription("Sélectionne une catégorie pour voir ses commandes en détail.")
       .addFields(
-        Object.entries(HELP_DATA).slice(0, 25).map(([key, cat]) => ({
-          name: `${cat.emoji} ${cat.name}`,
-          value: `${cat.description}\n**${cat.commands.length} commandes** — \`/help ${key}\``,
-          inline: false,
-        })),
+        Object.entries(HELP_DATA)
+          .slice(0, 25)
+          .map(([key, cat]) => ({
+            name: `${cat.emoji} ${cat.name}`,
+            value: `${cat.description}\n**${cat.commands.length} commandes** — \`/help ${key}\``,
+            inline: false,
+          })),
       )
       .setColor(0x5865f2)
       .setFooter({ text: "Utilise /help <category> pour une catégorie spécifique" })
@@ -398,9 +427,12 @@ async function handleCommands(interaction: ChatInputCommandInteraction, _client:
 
   if (action === "search" && query) {
     const results: { name: string; description: string; category: string }[] = [];
-    for (const [catKey, cat] of Object.entries(HELP_DATA)) {
+    for (const [_catKey, cat] of Object.entries(HELP_DATA)) {
       for (const cmd of cat.commands) {
-        if (cmd.name.includes(query.toLowerCase()) || cmd.description.toLowerCase().includes(query.toLowerCase())) {
+        if (
+          cmd.name.includes(query.toLowerCase()) ||
+          cmd.description.toLowerCase().includes(query.toLowerCase())
+        ) {
           results.push({ ...cmd, category: cat.name });
         }
       }
@@ -424,20 +456,26 @@ async function handleCommands(interaction: ChatInputCommandInteraction, _client:
   } else if (action === "category" && query) {
     const cat = HELP_DATA[query];
     if (!cat) {
-      await interaction.editReply({ content: `❌ Catégorie inconnue. Utilise /help pour voir la liste.` });
+      await interaction.editReply({
+        content: `❌ Catégorie inconnue. Utilise /help pour voir la liste.`,
+      });
       return;
     }
     const embed = new EmbedBuilder()
       .setTitle(`${cat.emoji} ${cat.name} — Toutes les commandes`)
       .setColor(0x5865f2)
-      .addFields(cat.commands.map((cmd) => ({ name: cmd.name, value: cmd.description, inline: false })))
+      .addFields(
+        cat.commands.map((cmd) => ({ name: cmd.name, value: cmd.description, inline: false })),
+      )
       .setFooter({ text: `${cat.commands.length} commande(s)` });
     await interaction.editReply({ embeds: [embed] });
   } else {
     const totalCmds = Object.values(HELP_DATA).reduce((acc, cat) => acc + cat.commands.length, 0);
     const embed = new EmbedBuilder()
       .setTitle("🔥 Commandes Trending & Stats")
-      .setDescription(`**${totalCmds} commandes** réparties sur **${Object.keys(HELP_DATA).length} catégories**`)
+      .setDescription(
+        `**${totalCmds} commandes** réparties sur **${Object.keys(HELP_DATA).length} catégories**`,
+      )
       .addFields(
         Object.entries(HELP_DATA).map(([key, cat]) => ({
           name: `${cat.emoji} ${cat.name}`,

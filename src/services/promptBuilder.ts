@@ -63,22 +63,21 @@ CONTRAINTES SUPPLÉMENTAIRES:
 // ─── Builder ──────────────────────────────────────────────────────────
 
 export function buildPrompt(opts: PromptBuilderOptions): string {
-  const rules = (opts.rules ?? [])
-    .map((r, i) => `- ${r}`)
-    .join("\n") || "- Aucune règle spécifique";
+  const rules =
+    (opts.rules ?? []).map((r, _i) => `- ${r}`).join("\n") || "- Aucune règle spécifique";
 
-  const examples = (opts.examples ?? [])
-    .map((ex, i) => `- Exemple ${i + 1}: ${ex.input} → ${ex.output}`)
-    .join("\n") || "- Aucun exemple";
+  const examples =
+    (opts.examples ?? [])
+      .map((ex, i) => `- Exemple ${i + 1}: ${ex.input} → ${ex.output}`)
+      .join("\n") || "- Aucun exemple";
 
   const format = opts.format ?? "Réponds naturellement en gardant ton rôle";
 
-  const constraints = (opts.constraints ?? [])
-    .map((c) => `- ${c}`)
-    .join("\n") || "- Aucune contrainte supplémentaire";
+  const constraints =
+    (opts.constraints ?? []).map((c) => `- ${c}`).join("\n") ||
+    "- Aucune contrainte supplémentaire";
 
-  return MASTER_TEMPLATE
-    .replace("{DOMAIN}", opts.domain)
+  return MASTER_TEMPLATE.replace("{DOMAIN}", opts.domain)
     .replace("{EXPERIENCE}", String(opts.experience ?? "10"))
     .replace("{CONTEXT}", opts.context)
     .replace("{TASK}", opts.task)
@@ -94,7 +93,8 @@ export function buildPrompt(opts: PromptBuilderOptions): string {
 export const MODERATION_PRESET: Omit<PromptBuilderOptions, "content"> = {
   domain: "modération Discord",
   experience: "10",
-  context: "Serveur gaming francophone avec règles standards (pas de spam, pas d'insultes, pas de phishing, respect mutuel). Le trash talk gaming est toléré dans une certaine mesure.",
+  context:
+    "Serveur gaming francophone avec règles standards (pas de spam, pas d'insultes, pas de phishing, respect mutuel). Le trash talk gaming est toléré dans une certaine mesure.",
   task: "Analyse si le message viole les règles et recommande une action.",
   rules: [
     "Considère le contexte gaming (trash talk toléré)",
@@ -105,10 +105,17 @@ export const MODERATION_PRESET: Omit<PromptBuilderOptions, "content"> = {
   ],
   examples: [
     { input: "GG bien joué les gars!", output: '{"violation": false, "action": "none"}' },
-    { input: "Free Nitro! discord.gg/scam", output: '{"violation": true, "action": "ban", "type": "phishing"}' },
-    { input: "T'es nul à ce jeu", output: '{"violation": false, "action": "none", "note": "trash talk toléré"}' },
+    {
+      input: "Free Nitro! discord.gg/scam",
+      output: '{"violation": true, "action": "ban", "type": "phishing"}',
+    },
+    {
+      input: "T'es nul à ce jeu",
+      output: '{"violation": false, "action": "none", "note": "trash talk toléré"}',
+    },
   ],
-  format: '{"violation": true|false, "severity": 1-5, "action": "none|warn|timeout|kick|ban", "reason": "...", "confidence": 0-100}',
+  format:
+    '{"violation": true|false, "severity": 1-5, "action": "none|warn|timeout|kick|ban", "reason": "...", "confidence": 0-100}',
   constraints: [
     "Réponds en JSON strict valide",
     "Pas de modération excessive",
@@ -119,7 +126,8 @@ export const MODERATION_PRESET: Omit<PromptBuilderOptions, "content"> = {
 export const SECURITY_PRESET: Omit<PromptBuilderOptions, "content"> = {
   domain: "cyber-sécurité et threat intelligence",
   experience: "15",
-  context: "Analyse de menaces sur Discord: phishing, malware, raid, scam. Domaines de gaming (steam, discord, twitch) sont sûrs par défaut.",
+  context:
+    "Analyse de menaces sur Discord: phishing, malware, raid, scam. Domaines de gaming (steam, discord, twitch) sont sûrs par défaut.",
   task: "Analyse la cible (IP, domaine, message) et évalue le niveau de menace.",
   rules: [
     "Distingue certitude et probabilité",
@@ -130,9 +138,13 @@ export const SECURITY_PRESET: Omit<PromptBuilderOptions, "content"> = {
   ],
   examples: [
     { input: "discord.com", output: '{"threat_level": "none", "confidence": 100}' },
-    { input: "discord-nitro-free.xyz", output: '{"threat_level": "high", "confidence": 90, "type": "phishing"}' },
+    {
+      input: "discord-nitro-free.xyz",
+      output: '{"threat_level": "high", "confidence": 90, "type": "phishing"}',
+    },
   ],
-  format: '{"target": "...", "threat_level": "none|low|medium|high|critical", "findings": {}, "actions_recommended": [], "confidence": 0-100}',
+  format:
+    '{"target": "...", "threat_level": "none|low|medium|high|critical", "findings": {}, "actions_recommended": [], "confidence": 0-100}',
   constraints: [
     "Réponds en JSON strict valide",
     "Base-toi sur les faits, pas sur des suppositions",
@@ -143,7 +155,8 @@ export const SECURITY_PRESET: Omit<PromptBuilderOptions, "content"> = {
 export const SENTIMENT_PRESET: Omit<PromptBuilderOptions, "content"> = {
   domain: "analyse de sentiment et psychologie",
   experience: "8",
-  context: "Analyse de messages Discord gaming francophone. Le sarcasme et le trash talk sont courants et ne sont pas nécessairement toxiques.",
+  context:
+    "Analyse de messages Discord gaming francophone. Le sarcasme et le trash talk sont courants et ne sont pas nécessairement toxiques.",
   task: "Analyse le sentiment et la toxicité du message sur 5 dimensions.",
   rules: [
     "Distingue sarcasme et toxicité réelle",
@@ -153,19 +166,21 @@ export const SENTIMENT_PRESET: Omit<PromptBuilderOptions, "content"> = {
   ],
   examples: [
     { input: "GG bien joué!", output: '{"sentiment": "positif", "toxicity": 0, "confidence": 95}' },
-    { input: "Je vais te trouver IRL", output: '{"sentiment": "négatif", "toxicity": 8, "confidence": 90, "type": "menace"}' },
+    {
+      input: "Je vais te trouver IRL",
+      output: '{"sentiment": "négatif", "toxicity": 8, "confidence": 90, "type": "menace"}',
+    },
   ],
-  format: '{"sentiment": "très_positif|positif|neutre|négatif|très_négatif", "toxicity": 0-10, "urgency": 0-10, "confidence": 0-100, "summary": "..."}',
-  constraints: [
-    "Réponds en JSON strict valide",
-    "Évalue l'intention, pas juste les mots",
-  ],
+  format:
+    '{"sentiment": "très_positif|positif|neutre|négatif|très_négatif", "toxicity": 0-10, "urgency": 0-10, "confidence": 0-100, "summary": "..."}',
+  constraints: ["Réponds en JSON strict valide", "Évalue l'intention, pas juste les mots"],
 };
 
 export const CODE_REVIEW_PRESET: Omit<PromptBuilderOptions, "content"> = {
   domain: "sécurité logicielle",
   experience: "20",
-  context: "Spécialité: vulnérabilités Web. Certifications: OSCP, CEH. Track record: 500+ bugs trouvés.",
+  context:
+    "Spécialité: vulnérabilités Web. Certifications: OSCP, CEH. Track record: 500+ bugs trouvés.",
   task: "Analyse le code fourni pour identifier les vulnérabilités et problèmes de qualité.",
   rules: [
     "Couvre 5 catégories: sécurité, performance, qualité, bugs, suggestions",
@@ -174,9 +189,14 @@ export const CODE_REVIEW_PRESET: Omit<PromptBuilderOptions, "content"> = {
     "Considère le contexte du projet",
   ],
   examples: [
-    { input: "eval(userInput)", output: '{"severity": "critical", "issue": "Code injection via eval", "fix": "Use JSON.parse or sanitize input"}' },
+    {
+      input: "eval(userInput)",
+      output:
+        '{"severity": "critical", "issue": "Code injection via eval", "fix": "Use JSON.parse or sanitize input"}',
+    },
   ],
-  format: "Markdown avec sections: ## Sécurité, ## Performance, ## Qualité, ## Bugs, ## Suggestions",
+  format:
+    "Markdown avec sections: ## Sécurité, ## Performance, ## Qualité, ## Bugs, ## Suggestions",
   constraints: [
     "Réponds en Markdown structuré",
     "Sois spécifique sur les vulnérabilités",
@@ -207,10 +227,15 @@ export function listPresets(): { key: string; name: string; domain: string }[] {
 
 export function getPreset(key: string): Omit<PromptBuilderOptions, "content"> | null {
   switch (key) {
-    case "moderation": return MODERATION_PRESET;
-    case "security": return SECURITY_PRESET;
-    case "sentiment": return SENTIMENT_PRESET;
-    case "code-review": return CODE_REVIEW_PRESET;
-    default: return null;
+    case "moderation":
+      return MODERATION_PRESET;
+    case "security":
+      return SECURITY_PRESET;
+    case "sentiment":
+      return SENTIMENT_PRESET;
+    case "code-review":
+      return CODE_REVIEW_PRESET;
+    default:
+      return null;
   }
 }

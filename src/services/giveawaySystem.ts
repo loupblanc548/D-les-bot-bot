@@ -15,7 +15,6 @@ import {
   GuildMember,
   ChannelType,
 } from "discord.js";
-import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -148,10 +147,7 @@ export async function joinGiveaway(
 
 // ─── End ──────────────────────────────────────────────────────────────
 
-export async function endGiveaway(
-  giveawayId: string,
-  guild: Guild,
-): Promise<Giveaway | null> {
+export async function endGiveaway(giveawayId: string, guild: Guild): Promise<Giveaway | null> {
   const giveaway = activeGiveaways.get(giveawayId);
   if (!giveaway || giveaway.ended) return null;
 
@@ -188,7 +184,10 @@ export async function endGiveaway(
         value: giveaway.winners.map((w) => `<@${w}>`).join(", "),
         inline: false,
       });
-      await channel.send({ content: giveaway.winners.map((w) => `<@${w}>`).join(" "), embeds: [embed] });
+      await channel.send({
+        content: giveaway.winners.map((w) => `<@${w}>`).join(" "),
+        embeds: [embed],
+      });
     } else {
       embed.setDescription("Aucun participant — giveaway annulé.");
       await channel.send({ embeds: [embed] });

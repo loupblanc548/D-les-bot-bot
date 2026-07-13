@@ -3,40 +3,73 @@
  * Implémentations de base qui peuvent être enrichies ensuite.
  */
 
-import { ChatInputCommandInteraction, Client, EmbedBuilder, PermissionFlagsBits, ChannelType, Role, AttachmentBuilder } from "discord.js";
-import logger from "../utils/logger.js";
+import {
+  ChatInputCommandInteraction,
+  Client,
+  EmbedBuilder,
+  ChannelType,
+  Role,
+  AttachmentBuilder,
+} from "discord.js";
 import prisma from "../prisma.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
-import { deepSentimentAnalysis, detectSpamPhishing, analyzeThreatIntel, advancedChat } from "../services/ai-moderation.js";
-import { runReasoningPipeline, runModerationPipeline, type ModerationPipelineSolution } from "../services/reasoningPipeline.js";
+import {
+  deepSentimentAnalysis,
+  detectSpamPhishing,
+  analyzeThreatIntel,
+  advancedChat,
+} from "../services/ai-moderation.js";
+import {
+  runReasoningPipeline,
+  type ModerationPipelineSolution,
+} from "../services/reasoningPipeline.js";
 import { getMultiExpertConsensus } from "../services/multiExpertConsensus.js";
-import { thinkTree, moderationThinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
-import { testPrompts, SPAM_TEST_CASES, SENTIMENT_TEST_CASES, type PromptTestCase, evaluatePromptQuality } from "../services/promptTesting.js";
-import { scorePromptDetailed, scorePromptsBatch, gradeEmoji, validateBestPractices, detectAntiPatterns } from "../services/promptScoring.js";
-import { SPAM_PHISHING_PROMPT, DEEP_SENTIMENT_PROMPT, THREAT_INTEL_PROMPT, CODE_REVIEW_PROMPT, MODERATION_PROMPT, SENTIMENT_PROMPT, RISK_ASSESSMENT_PROMPT } from "../services/moderationPrompts.js";
-import { listPersonas, getPersona, buildPersonaPrompt, buildPersonaSystemPrompt } from "../services/personaPrompts.js";
+import { thinkTree, type ModerationToTResult } from "../services/treeOfThought.js";
+import {
+  testPrompts,
+  SPAM_TEST_CASES,
+  SENTIMENT_TEST_CASES,
+  type PromptTestCase,
+} from "../services/promptTesting.js";
+import {
+  scorePromptDetailed,
+  scorePromptsBatch,
+  gradeEmoji,
+  validateBestPractices,
+  detectAntiPatterns,
+} from "../services/promptScoring.js";
+import {
+  SPAM_PHISHING_PROMPT,
+  DEEP_SENTIMENT_PROMPT,
+  THREAT_INTEL_PROMPT,
+  CODE_REVIEW_PROMPT,
+  MODERATION_PROMPT,
+  SENTIMENT_PROMPT,
+  RISK_ASSESSMENT_PROMPT,
+} from "../services/moderationPrompts.js";
+import { listPersonas, getPersona } from "../services/personaPrompts.js";
 import { buildFromPreset, listPresets, getPreset } from "../services/promptBuilder.js";
 import { translateText, detectLanguage } from "../services/translateService.js";
 import { summarizeChannel } from "../services/channelSummary.js";
-import { saveAiHistory, getAiHistory, clearAiHistory, getAiStats } from "../services/aiHistory.js";
-import { exportChannelMessages, exportToJSON, exportToMarkdown, exportToCSV } from "../services/chatExport.js";
-import { selectModel, listModels, estimateCost, getModelById } from "../services/modelSelector.js";
-import { trackUsage, getUsageStats, getGlobalStats } from "../services/tokenTracker.js";
+import { getAiHistory, clearAiHistory, getAiStats } from "../services/aiHistory.js";
+import {
+  exportChannelMessages,
+  exportToJSON,
+  exportToMarkdown,
+  exportToCSV,
+} from "../services/chatExport.js";
+import { listModels } from "../services/modelSelector.js";
+import { getUsageStats, getGlobalStats } from "../services/tokenTracker.js";
 import { generateUserSummary, generateUserEmbed } from "../services/userSummary.js";
-import { setAfk, getAfk, removeAfk, isAfk, handleMention as afkHandleMention } from "../services/afkSystem.js";
-import { setReminder, getUserReminders, cancelReminder } from "../services/reminderService.js";
-import { createPoll, endPoll, listActivePolls } from "../services/pollSystem.js";
-import { setThreshold as setStarThreshold, getStarboardStats } from "../services/starboard.js";
-import { createGiveaway, listActiveGiveaways, endGiveaway, rerollGiveaway } from "../services/giveawaySystem.js";
-import { getAntiNukeConfig, setAntiNukeConfig, generateAntiNukeStatusEmbed } from "../services/antiNuke.js";
-import { getCaptchaConfig, setCaptchaConfig, generateCaptchaStatusEmbed } from "../services/captchaVerify.js";
-import { enableRaidMode, disableRaidMode, generateRaidModeStatusEmbed } from "../services/raidMode.js";
 import { sendPaginatedEmbed } from "../services/paginationUtil.js";
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
-export async function handleModExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleModExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0xe74c3c);
 
@@ -46,7 +79,9 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
       const raison = interaction.options.getString("raison") ?? "Aucune raison";
       try {
         await interaction.guild?.bans.remove(id, raison);
-        embed.setTitle("✅ Unban").setDescription(`Utilisateur <@${id}> débanni.\nRaison: ${raison}`);
+        embed
+          .setTitle("✅ Unban")
+          .setDescription(`Utilisateur <@${id}> débanni.\nRaison: ${raison}`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de débannir cet utilisateur.");
       }
@@ -55,16 +90,24 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
     }
 
     case "ban-all": {
-      const ids = interaction.options.getString("ids", true)?.split(/[\s,]+/).filter(Boolean) ?? [];
+      const ids =
+        interaction.options
+          .getString("ids", true)
+          ?.split(/[\s,]+/)
+          .filter(Boolean) ?? [];
       const raison = interaction.options.getString("raison") ?? "Ban en masse";
       let count = 0;
       for (const id of ids.slice(0, 20)) {
         try {
           await interaction.guild?.bans.create(id, { reason: raison });
           count++;
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
-      embed.setTitle("🔨 Ban en masse").setDescription(`${count}/${ids.length} utilisateurs bannis.`);
+      embed
+        .setTitle("🔨 Ban en masse")
+        .setDescription(`${count}/${ids.length} utilisateurs bannis.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -74,7 +117,12 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
         const bans = await interaction.guild?.bans.fetch();
         let count = 0;
         for (const ban of bans?.values() ?? []) {
-          try { await interaction.guild?.bans.remove(ban.user.id); count++; } catch { /* skip */ }
+          try {
+            await interaction.guild?.bans.remove(ban.user.id);
+            count++;
+          } catch {
+            /* skip */
+          }
         }
         embed.setTitle("✅ Mass Unban").setDescription(`${count} utilisateurs débannis.`);
       } catch {
@@ -93,7 +141,10 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
       embed.setTitle("🔇 Membres mute");
       members.forEach((m) => {
         const until = m.communicationDisabledUntil;
-        embed.addFields({ name: m.user.tag, value: `Jusqu'à: ${until ? `<t:${Math.floor(until!.getTime() / 1000)}:R>` : "Inconnu"}` });
+        embed.addFields({
+          name: m.user.tag,
+          value: `Jusqu'à: ${until ? `<t:${Math.floor(until!.getTime() / 1000)}:R>` : "Inconnu"}`,
+        });
       });
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
@@ -101,14 +152,23 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
 
     case "warn-list": {
       const cible = interaction.options.getUser("cible", true);
-      const warns = await prisma.warning.findMany({ where: { userId: cible.id, guildId: interaction.guildId! }, orderBy: { createdAt: "desc" }, take: 10 }).catch(() => []);
+      const warns = await prisma.warning
+        .findMany({
+          where: { userId: cible.id, guildId: interaction.guildId! },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+        .catch(() => []);
       if (!warns.length) {
         await interaction.reply({ content: `ℹ️ Aucun warn pour <@${cible.id}>.`, ephemeral: true });
         return;
       }
       embed.setTitle(`⚠️ Warns — ${cible.tag}`);
-      warns.forEach((w, i) => {
-        embed.addFields({ name: `#${w.id}`, value: `${w.reason ?? "N/A"} — <t:${Math.floor(w.createdAt.getTime() / 1000)}:R>` });
+      warns.forEach((w) => {
+        embed.addFields({
+          name: `#${w.id}`,
+          value: `${w.reason ?? "N/A"} — <t:${Math.floor(w.createdAt.getTime() / 1000)}:R>`,
+        });
       });
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
@@ -129,8 +189,12 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
     case "warn-reset": {
       const cible = interaction.options.getUser("cible", true);
       try {
-        await prisma.warning.deleteMany({ where: { userId: cible.id, guildId: interaction.guildId! } });
-        embed.setTitle("✅ Warns réinitialisés").setDescription(`Tous les warns de <@${cible.id}> ont été supprimés.`);
+        await prisma.warning.deleteMany({
+          where: { userId: cible.id, guildId: interaction.guildId! },
+        });
+        embed
+          .setTitle("✅ Warns réinitialisés")
+          .setDescription(`Tous les warns de <@${cible.id}> ont été supprimés.`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de réinitialiser les warns.");
       }
@@ -140,27 +204,43 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
 
     case "lockdown": {
       const raison = interaction.options.getString("raison") ?? "Lockdown";
-      const channels = interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
+      const channels =
+        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
       let count = 0;
       for (const ch of channels.values()) {
         try {
-          await ch.permissionOverwrites.edit(interaction.guild!.roles.everyone, { SendMessages: false }, { reason: raison });
+          await ch.permissionOverwrites.edit(
+            interaction.guild!.roles.everyone,
+            { SendMessages: false },
+            { reason: raison },
+          );
           count++;
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
-      embed.setTitle("🔒 Lockdown").setDescription(`${count} salons verrouillés.\nRaison: ${raison}`);
+      embed
+        .setTitle("🔒 Lockdown")
+        .setDescription(`${count} salons verrouillés.\nRaison: ${raison}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "unlock-all": {
-      const channels = interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
+      const channels =
+        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
       let count = 0;
       for (const ch of channels.values()) {
         try {
-          await ch.permissionOverwrites.edit(interaction.guild!.roles.everyone, { SendMessages: null }, { reason: "Unlock all" });
+          await ch.permissionOverwrites.edit(
+            interaction.guild!.roles.everyone,
+            { SendMessages: null },
+            { reason: "Unlock all" },
+          );
           count++;
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
       embed.setTitle("🔓 Unlock All").setDescription(`${count} salons déverrouillés.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -168,14 +248,19 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
     }
 
     case "dehoist": {
-      const members = interaction.guild?.members.cache.filter((m) => /^[!@#$%^&*()_+=\-.~`]/.test(m.displayName)) ?? [];
+      const members =
+        interaction.guild?.members.cache.filter((m) =>
+          /^[!@#$%^&*()_+=\-.~`]/.test(m.displayName),
+        ) ?? [];
       let count = 0;
       for (const m of members.values()) {
         try {
           const newName = m.displayName.replace(/^[!@#$%^&*()_+=\-.~`]+/, "");
           await m.setNickname(newName, "Dehoist");
           count++;
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
       embed.setTitle("🧹 Dehoist").setDescription(`${count} pseudos nettoyés.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -199,7 +284,9 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
       const cible = interaction.options.getUser("cible", true);
       try {
         await interaction.guild?.members.edit(cible, { nick: null });
-        embed.setTitle("✅ Pseudo réinitialisé").setDescription(`<@${cible.id}> pseudo remis par défaut.`);
+        embed
+          .setTitle("✅ Pseudo réinitialisé")
+          .setDescription(`<@${cible.id}> pseudo remis par défaut.`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de réinitialiser le pseudo.");
       }
@@ -211,11 +298,17 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
       const role = interaction.options.getRole("rôle", true) as Role;
       const members = interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id));
       if (!members || !members.size) {
-        await interaction.reply({ content: `ℹ️ Aucun membre avec le rôle ${role.name}.`, ephemeral: true });
+        await interaction.reply({
+          content: `ℹ️ Aucun membre avec le rôle ${role.name}.`,
+          ephemeral: true,
+        });
         return;
       }
       embed.setTitle(`👥 Rôle: ${role.name} (${members.size})`);
-      const list = members.map((m) => m.user.tag).slice(0, 50).join("\n");
+      const list = members
+        .map((m) => m.user.tag)
+        .slice(0, 50)
+        .join("\n");
       embed.setDescription(list);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
@@ -226,21 +319,36 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
       const members = interaction.guild?.members.cache ?? [];
       let count = 0;
       for (const m of members.values()) {
-        try { await m.roles.add(role); count++; } catch { /* skip */ }
+        try {
+          await m.roles.add(role);
+          count++;
+        } catch {
+          /* skip */
+        }
       }
-      embed.setTitle("✅ Rôle ajouté en masse").setDescription(`${count} membres ont reçu ${role.name}.`);
+      embed
+        .setTitle("✅ Rôle ajouté en masse")
+        .setDescription(`${count} membres ont reçu ${role.name}.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "role-remove-all": {
       const role = interaction.options.getRole("rôle", true) as Role;
-      const members = interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)) ?? [];
+      const members =
+        interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)) ?? [];
       let count = 0;
       for (const m of members.values()) {
-        try { await m.roles.remove(role); count++; } catch { /* skip */ }
+        try {
+          await m.roles.remove(role);
+          count++;
+        } catch {
+          /* skip */
+        }
       }
-      embed.setTitle("✅ Rôle retiré en masse").setDescription(`${count} membres ont perdu ${role.name}.`);
+      embed
+        .setTitle("✅ Rôle retiré en masse")
+        .setDescription(`${count} membres ont perdu ${role.name}.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -252,14 +360,19 @@ export async function handleModExtra(interaction: ChatInputCommandInteraction, _
 
 // ─── Sécurité étendue ─────────────────────────────────────────────────────────
 
-export async function handleSecurityExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleSecurityExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0xe74c3c);
 
   switch (action) {
     case "raid-mode": {
       const duree = interaction.options.getInteger("duree") ?? 30;
-      embed.setTitle("🚨 Mode Raid Activé").setDescription(`Verrouillage total pendant ${duree} minutes.`);
+      embed
+        .setTitle("🚨 Mode Raid Activé")
+        .setDescription(`Verrouillage total pendant ${duree} minutes.`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -274,7 +387,9 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
     case "automod-config": {
       const action2 = interaction.options.getString("action", true);
       const filtre = interaction.options.getString("filtre");
-      embed.setTitle("⚙️ Automod Config").setDescription(`Action: ${action2}${filtre ? ` • Filtre: ${filtre}` : ""}`);
+      embed
+        .setTitle("⚙️ Automod Config")
+        .setDescription(`Action: ${action2}${filtre ? ` • Filtre: ${filtre}` : ""}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -309,7 +424,9 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
     case "logging-config": {
       const event = interaction.options.getString("event", true);
       const salon = interaction.options.getChannel("salon");
-      embed.setTitle("📋 Logging Config").setDescription(`Event: ${event}${salon ? ` → <#${salon.id}>` : ""}`);
+      embed
+        .setTitle("📋 Logging Config")
+        .setDescription(`Event: ${event}${salon ? ` → <#${salon.id}>` : ""}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -322,20 +439,32 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
 
     case "whitelist-domain": {
       const domaine = interaction.options.getString("domaine", true);
-      embed.setTitle("✅ Domaine Whitelisté").setDescription(`\`${domaine}\` ajouté à la whitelist.`);
+      embed
+        .setTitle("✅ Domaine Whitelisté")
+        .setDescription(`\`${domaine}\` ajouté à la whitelist.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "intel": {
       await interaction.deferReply({ ephemeral: true });
-      const target = interaction.options.getString("target") ?? interaction.options.getString("domaine") ?? interaction.options.getString("ip") ?? "unknown";
+      const target =
+        interaction.options.getString("target") ??
+        interaction.options.getString("domaine") ??
+        interaction.options.getString("ip") ??
+        "unknown";
       if (target === "unknown") {
         await interaction.editReply({ content: "❌ Aucune cible spécifiée." });
         break;
       }
       const result = await analyzeThreatIntel(target);
-      const colorMap: Record<string, number> = { none: 0x2ecc71, low: 0x2ecc71, medium: 0xf1c40f, high: 0xff8800, critical: 0xe74c3c };
+      const colorMap: Record<string, number> = {
+        none: 0x2ecc71,
+        low: 0x2ecc71,
+        medium: 0xf1c40f,
+        high: 0xff8800,
+        critical: 0xe74c3c,
+      };
       const intelEmbed = new EmbedBuilder()
         .setTitle(`🔍 Threat Intel — ${result.target}`)
         .setColor(colorMap[result.threat_level] ?? 0x2ecc71)
@@ -344,14 +473,49 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
           { name: "🔐 Confiance", value: `${result.confidence}%`, inline: true },
           { name: "📍 Localisation", value: result.findings.location || "inconnue", inline: true },
           { name: "📊 Réputation", value: result.findings.reputation.slice(0, 500), inline: false },
-          { name: "🦠 Malware", value: result.findings.malware_detections.length > 0 ? result.findings.malware_detections.join(", ") : "Aucun", inline: false },
-          { name: "🎣 Phishing", value: result.findings.phishing_reports.length > 0 ? result.findings.phishing_reports.join(", ") : "Aucun", inline: false },
-          { name: "🔗 IPs associées", value: result.findings.associated_ips.length > 0 ? result.findings.associated_ips.join(", ") : "Aucune", inline: false },
-          { name: "⚡ Actions", value: result.actions_recommended.join(", ") || "monitor", inline: false },
+          {
+            name: "🦠 Malware",
+            value:
+              result.findings.malware_detections.length > 0
+                ? result.findings.malware_detections.join(", ")
+                : "Aucun",
+            inline: false,
+          },
+          {
+            name: "🎣 Phishing",
+            value:
+              result.findings.phishing_reports.length > 0
+                ? result.findings.phishing_reports.join(", ")
+                : "Aucun",
+            inline: false,
+          },
+          {
+            name: "🔗 IPs associées",
+            value:
+              result.findings.associated_ips.length > 0
+                ? result.findings.associated_ips.join(", ")
+                : "Aucune",
+            inline: false,
+          },
+          {
+            name: "⚡ Actions",
+            value: result.actions_recommended.join(", ") || "monitor",
+            inline: false,
+          },
         )
         .setTimestamp();
-      if (result.findings.ssl_info) intelEmbed.addFields({ name: "🔒 SSL", value: result.findings.ssl_info.slice(0, 200), inline: false });
-      if (result.findings.abuse_history) intelEmbed.addFields({ name: "📜 Abuse History", value: result.findings.abuse_history.slice(0, 500), inline: false });
+      if (result.findings.ssl_info)
+        intelEmbed.addFields({
+          name: "🔒 SSL",
+          value: result.findings.ssl_info.slice(0, 200),
+          inline: false,
+        });
+      if (result.findings.abuse_history)
+        intelEmbed.addFields({
+          name: "📜 Abuse History",
+          value: result.findings.abuse_history.slice(0, 500),
+          inline: false,
+        });
       await interaction.editReply({ embeds: [intelEmbed] });
       break;
     }
@@ -364,7 +528,11 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
         .setDescription("Génération du rapport de menace pour le serveur...")
         .addFields(
           { name: "📊 Membres", value: `${interaction.guild?.memberCount ?? 0}`, inline: true },
-          { name: "🔒 Verif Level", value: String(interaction.guild?.verificationLevel ?? "unknown"), inline: true },
+          {
+            name: "🔒 Verif Level",
+            value: String(interaction.guild?.verificationLevel ?? "unknown"),
+            inline: true,
+          },
           { name: "📅 Généré", value: new Date().toISOString(), inline: true },
         )
         .setTimestamp();
@@ -373,25 +541,37 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
     }
 
     case "privacy": {
-      embed.setTitle("🔒 Audit Vie Privée").setDescription("Audit des données exposées sur le serveur.").setColor(0x9b59b6);
+      embed
+        .setTitle("🔒 Audit Vie Privée")
+        .setDescription("Audit des données exposées sur le serveur.")
+        .setColor(0x9b59b6);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "network": {
-      embed.setTitle("🌐 Analyse Réseau").setDescription("Analyse réseau du serveur Discord.").setColor(0x3498db);
+      embed
+        .setTitle("🌐 Analyse Réseau")
+        .setDescription("Analyse réseau du serveur Discord.")
+        .setColor(0x3498db);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "auto-report": {
-      embed.setTitle("📊 Rapport Auto").setDescription("Rapport automatique activé.").setColor(0x2ecc71);
+      embed
+        .setTitle("📊 Rapport Auto")
+        .setDescription("Rapport automatique activé.")
+        .setColor(0x2ecc71);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "autodefense": {
-      embed.setTitle("🛡️ Auto-Défense").setDescription("Système d'auto-défense activé.").setColor(0xe74c3c);
+      embed
+        .setTitle("🛡️ Auto-Défense")
+        .setDescription("Système d'auto-défense activé.")
+        .setColor(0xe74c3c);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -403,7 +583,10 @@ export async function handleSecurityExtra(interaction: ChatInputCommandInteracti
 
 // ─── Bot étendu ───────────────────────────────────────────────────────────────
 
-export async function handleBotExtra(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+export async function handleBotExtra(
+  interaction: ChatInputCommandInteraction,
+  client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x5865f2);
 
@@ -418,14 +601,17 @@ export async function handleBotExtra(interaction: ChatInputCommandInteraction, c
 
     case "stats": {
       const mem = process.memoryUsage();
-      embed.setTitle("📊 Statistiques du bot")
-        .addFields(
-          { name: "RAM", value: `${(mem.rss / 1024 / 1024).toFixed(1)} MB`, inline: true },
-          { name: "Uptime", value: `<t:${Math.floor(Date.now() / 1000 - process.uptime())}:R>`, inline: true },
-          { name: "Serveurs", value: String(client.guilds.cache.size), inline: true },
-          { name: "Utilisateurs", value: String(client.users.cache.size), inline: true },
-          { name: "Salons", value: String(client.channels.cache.size), inline: true },
-        );
+      embed.setTitle("📊 Statistiques du bot").addFields(
+        { name: "RAM", value: `${(mem.rss / 1024 / 1024).toFixed(1)} MB`, inline: true },
+        {
+          name: "Uptime",
+          value: `<t:${Math.floor(Date.now() / 1000 - process.uptime())}:R>`,
+          inline: true,
+        },
+        { name: "Serveurs", value: String(client.guilds.cache.size), inline: true },
+        { name: "Utilisateurs", value: String(client.users.cache.size), inline: true },
+        { name: "Salons", value: String(client.channels.cache.size), inline: true },
+      );
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -438,7 +624,9 @@ export async function handleBotExtra(interaction: ChatInputCommandInteraction, c
     }
 
     case "changelog": {
-      embed.setTitle("📋 Changelog").setDescription("Voir le repo GitHub pour les derniers changements.");
+      embed
+        .setTitle("📋 Changelog")
+        .setDescription("Voir le repo GitHub pour les derniers changements.");
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -456,13 +644,19 @@ export async function handleBotExtra(interaction: ChatInputCommandInteraction, c
     }
 
     case "privacy": {
-      embed.setTitle("🔒 Confidentialité").setDescription("Le bot stocke uniquement les données nécessaires au fonctionnement des commandes.");
+      embed
+        .setTitle("🔒 Confidentialité")
+        .setDescription(
+          "Le bot stocke uniquement les données nécessaires au fonctionnement des commandes.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }
 
     case "commands-list": {
-      embed.setTitle("📜 Liste des commandes").setDescription("Utilise `/bot help` pour la liste complète.");
+      embed
+        .setTitle("📜 Liste des commandes")
+        .setDescription("Utilise `/bot help` pour la liste complète.");
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -474,7 +668,10 @@ export async function handleBotExtra(interaction: ChatInputCommandInteraction, c
 
 // ─── Admin étendu ─────────────────────────────────────────────────────────────
 
-export async function handleAdminExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleAdminExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x5865f2);
 
@@ -483,7 +680,10 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
       const nom = interaction.options.getString("nom", true);
       const couleur = interaction.options.getString("couleur") ?? "#5865f2";
       try {
-        const role = await interaction.guild?.roles.create({ name: nom, color: couleur as `#${string}` });
+        const role = await interaction.guild?.roles.create({
+          name: nom,
+          color: couleur as `#${string}`,
+        });
         embed.setTitle("✅ Rôle créé").setDescription(`<@&${role!.id}> (${nom})`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de créer le rôle.");
@@ -516,7 +716,10 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
     case "channel-create": {
       const nom = interaction.options.getString("nom", true);
       try {
-        const ch = await interaction.guild?.channels.create({ name: nom, type: ChannelType.GuildText });
+        const ch = await interaction.guild?.channels.create({
+          name: nom,
+          type: ChannelType.GuildText,
+        });
         embed.setTitle("✅ Salon créé").setDescription(`<#${ch!.id}>`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de créer le salon.");
@@ -543,7 +746,10 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
       try {
         const res = await fetch(url);
         const buf = await res.arrayBuffer();
-        const emoji = await interaction.guild?.emojis.create({ attachment: Buffer.from(buf), name: nom });
+        const emoji = await interaction.guild?.emojis.create({
+          attachment: Buffer.from(buf),
+          name: nom,
+        });
         embed.setTitle("✅ Emoji ajouté").setDescription(`<:${emoji!.name}:${emoji!.id}>`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible d'ajouter l'emoji.");
@@ -554,7 +760,9 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
 
     case "emoji-remove": {
       const emojiStr = interaction.options.getString("emoji", true);
-      const emoji = interaction.guild?.emojis.cache.find((e) => e.name === emojiStr || e.toString() === emojiStr);
+      const emoji = interaction.guild?.emojis.cache.find(
+        (e) => e.name === emojiStr || e.toString() === emojiStr,
+      );
       if (!emoji) {
         await interaction.reply({ content: "❌ Emoji introuvable.", ephemeral: true });
         return;
@@ -572,7 +780,9 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
     case "webhook-config": {
       const salon = interaction.options.getChannel("salon", true);
       const action2 = interaction.options.getString("action", true);
-      embed.setTitle("🪝 Webhook Config").setDescription(`Salon: <#${salon.id}> • Action: ${action2}`);
+      embed
+        .setTitle("🪝 Webhook Config")
+        .setDescription(`Salon: <#${salon.id}> • Action: ${action2}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -584,7 +794,10 @@ export async function handleAdminExtra(interaction: ChatInputCommandInteraction,
 
 // ─── Alert étendu ─────────────────────────────────────────────────────────────
 
-export async function handleAlertExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleAlertExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0xff9800);
 
@@ -599,14 +812,18 @@ export async function handleAlertExtra(interaction: ChatInputCommandInteraction,
       break;
     case "alert-whitelist": {
       const cible = interaction.options.getUser("cible", true);
-      embed.setTitle("✅ Whitelist").setDescription(`<@${cible.id}> ajouté à la whitelist des alertes.`);
+      embed
+        .setTitle("✅ Whitelist")
+        .setDescription(`<@${cible.id}> ajouté à la whitelist des alertes.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "alert-digest": {
       const frequence = interaction.options.getString("frequence", true);
       const salon = interaction.options.getChannel("salon");
-      embed.setTitle("📬 Digest configuré").setDescription(`Fréquence: ${frequence}${salon ? ` → <#${salon.id}>` : ""}`);
+      embed
+        .setTitle("📬 Digest configuré")
+        .setDescription(`Fréquence: ${frequence}${salon ? ` → <#${salon.id}>` : ""}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -618,7 +835,9 @@ export async function handleAlertExtra(interaction: ChatInputCommandInteraction,
     }
     case "alert-escalate": {
       const id = interaction.options.getString("id", true);
-      embed.setTitle("⬆️ Alerte escaladée").setDescription(`Alerte #${id} escaladée aux admins (DM).`);
+      embed
+        .setTitle("⬆️ Alerte escaladée")
+        .setDescription(`Alerte #${id} escaladée aux admins (DM).`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -629,7 +848,10 @@ export async function handleAlertExtra(interaction: ChatInputCommandInteraction,
 
 // ─── Sources étendu ───────────────────────────────────────────────────────────
 
-export async function handleSourcesExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleSourcesExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x2ecc71);
 
@@ -673,7 +895,10 @@ export async function handleSourcesExtra(interaction: ChatInputCommandInteractio
 
 // ─── Casier étendu ────────────────────────────────────────────────────────────
 
-export async function handleCasierExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleCasierExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x8e44ad);
 
@@ -682,7 +907,9 @@ export async function handleCasierExtra(interaction: ChatInputCommandInteraction
       const cible = interaction.options.getUser("cible", true);
       const type = interaction.options.getString("type", true);
       const raison = interaction.options.getString("raison", true);
-      embed.setTitle("✅ Sanction ajoutée").setDescription(`<@${cible.id}> • ${type}\nRaison: ${raison}`);
+      embed
+        .setTitle("✅ Sanction ajoutée")
+        .setDescription(`<@${cible.id}> • ${type}\nRaison: ${raison}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -697,7 +924,9 @@ export async function handleCasierExtra(interaction: ChatInputCommandInteraction
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     case "top-sanctioned":
-      embed.setTitle("🏆 Top sanctionnés").setDescription("Top 10 des membres les plus sanctionnés.");
+      embed
+        .setTitle("🏆 Top sanctionnés")
+        .setDescription("Top 10 des membres les plus sanctionnés.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     case "history":
@@ -706,13 +935,17 @@ export async function handleCasierExtra(interaction: ChatInputCommandInteraction
       break;
     case "lock": {
       const cible = interaction.options.getUser("cible", true);
-      embed.setTitle("🔒 Casier verrouillé").setDescription(`Casier de <@${cible.id}> en lecture seule.`);
+      embed
+        .setTitle("🔒 Casier verrouillé")
+        .setDescription(`Casier de <@${cible.id}> en lecture seule.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "unlock": {
       const cible = interaction.options.getUser("cible", true);
-      embed.setTitle("🔓 Casier déverrouillé").setDescription(`Casier de <@${cible.id}> modifiable.`);
+      embed
+        .setTitle("🔓 Casier déverrouillé")
+        .setDescription(`Casier de <@${cible.id}> modifiable.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -727,7 +960,10 @@ export async function handleCasierExtra(interaction: ChatInputCommandInteraction
 
 // ─── Community étendu ─────────────────────────────────────────────────────────
 
-export async function handleCommunityExtraCmd(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleCommunityExtraCmd(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x2ecc71);
 
@@ -735,7 +971,10 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
     case "poll": {
       const question = interaction.options.getString("question", true);
       const optionsStr = interaction.options.getString("options", true);
-      const options = optionsStr.split(",").map((s) => s.trim()).slice(0, 10);
+      const options = optionsStr
+        .split(",")
+        .map((s) => s.trim())
+        .slice(0, 10);
       const emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
       embed.setTitle("📊 Sondage").setDescription(`**${question}**`);
       options.forEach((opt, i) => {
@@ -752,7 +991,11 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
       const duree = interaction.options.getString("duree", true);
       const prix = interaction.options.getString("prix", true);
       const gagnants = interaction.options.getInteger("gagnants") ?? 1;
-      embed.setTitle("🎉 Giveaway!").setDescription(`**Prix:** ${prix}\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}\n\nRéagis avec 🎉 pour participer!`);
+      embed
+        .setTitle("🎉 Giveaway!")
+        .setDescription(
+          `**Prix:** ${prix}\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}\n\nRéagis avec 🎉 pour participer!`,
+        );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
       await msg.react("🎉").catch(() => {});
       break;
@@ -776,7 +1019,9 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
       break;
 
     case "welcome-config":
-      embed.setTitle("👋 Configuration de bienvenue").setDescription("Message de bienvenue configuré.");
+      embed
+        .setTitle("👋 Configuration de bienvenue")
+        .setDescription("Message de bienvenue configuré.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
@@ -798,12 +1043,16 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
       break;
 
     case "birthday-config":
-      embed.setTitle("🎂 Configuration anniversaire").setDescription("Salon/role d'anniversaire configuré.");
+      embed
+        .setTitle("🎂 Configuration anniversaire")
+        .setDescription("Salon/role d'anniversaire configuré.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
     case "level-config":
-      embed.setTitle("📈 Configuration des niveaux").setDescription("Système de niveaux configuré.");
+      embed
+        .setTitle("📈 Configuration des niveaux")
+        .setDescription("Système de niveaux configuré.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
@@ -811,7 +1060,9 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
       const cible = interaction.options.getUser("cible") ?? interaction.user;
       const xpData = await getUserXp(cible.id);
       if (!xpData) {
-        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Aucun XP enregistré. Envoie des messages pour gagner de l'XP !");
+        embed
+          .setTitle(`🏆 Rang de ${cible.username}`)
+          .setDescription("Aucun XP enregistré. Envoie des messages pour gagner de l'XP !");
         await interaction.reply({ embeds: [embed] });
         break;
       }
@@ -830,7 +1081,9 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
           files: [new AttachmentBuilder(buffer, { name: "rank-card.png" })],
         });
       } catch {
-        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription(`Niveau ${xpData.level} • ${xpData.xp} XP • Rang #${xpData.rank}`);
+        embed
+          .setTitle(`🏆 Rang de ${cible.username}`)
+          .setDescription(`Niveau ${xpData.level} • ${xpData.xp} XP • Rang #${xpData.rank}`);
         await interaction.editReply({ embeds: [embed] });
       }
       break;
@@ -839,7 +1092,9 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
     case "leaderboard": {
       const top = await getLeaderboard(10);
       if (top.length === 0) {
-        embed.setTitle("🏆 Classement XP").setDescription("Aucune donnée XP. Envoie des messages pour gagner de l'XP !");
+        embed
+          .setTitle("🏆 Classement XP")
+          .setDescription("Aucune donnée XP. Envoie des messages pour gagner de l'XP !");
         await interaction.reply({ embeds: [embed] });
         break;
       }
@@ -855,7 +1110,11 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
     case "lfg": {
       const jeu = interaction.options.getString("jeu", true);
       const nombre = interaction.options.getInteger("nombre") ?? 4;
-      embed.setTitle("🎮 Looking For Group").setDescription(`**Jeu:** ${jeu}\n**Joueurs recherchés:** ${nombre}\n\nRéagis avec ✅ pour rejoindre!`);
+      embed
+        .setTitle("🎮 Looking For Group")
+        .setDescription(
+          `**Jeu:** ${jeu}\n**Joueurs recherchés:** ${nombre}\n\nRéagis avec ✅ pour rejoindre!`,
+        );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
       await msg.react("✅").catch(() => {});
       break;
@@ -868,12 +1127,17 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
     case "server-info": {
       const g = interaction.guild!;
-      embed.setTitle(`ℹ️ ${g.name}`)
+      embed
+        .setTitle(`ℹ️ ${g.name}`)
         .addFields(
           { name: "Membres", value: String(g.memberCount), inline: true },
           { name: "Salons", value: String(g.channels.cache.size), inline: true },
           { name: "Rôles", value: String(g.roles.cache.size), inline: true },
-          { name: "Créé le", value: `<t:${Math.floor(g.createdTimestamp / 1000)}:F>`, inline: true },
+          {
+            name: "Créé le",
+            value: `<t:${Math.floor(g.createdTimestamp / 1000)}:F>`,
+            inline: true,
+          },
           { name: "Boost", value: `Niveau ${g.premiumTier}`, inline: true },
         )
         .setThumbnail(g.iconURL() ?? "");
@@ -883,20 +1147,33 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
     case "avatar": {
       const cible = interaction.options.getUser("cible") ?? interaction.user;
-      embed.setTitle(`🖼️ Avatar de ${cible.username}`).setImage(cible.displayAvatarURL({ size: 512 }));
+      embed
+        .setTitle(`🖼️ Avatar de ${cible.username}`)
+        .setImage(cible.displayAvatarURL({ size: 512 }));
       await interaction.reply({ embeds: [embed] });
       break;
     }
 
     case "role-info": {
       const role = interaction.options.getRole("rôle", true) as Role;
-      embed.setTitle(`🎭 ${role.name}`)
+      embed
+        .setTitle(`🎭 ${role.name}`)
         .addFields(
-          { name: "Membres", value: String(interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)).size ?? 0), inline: true },
+          {
+            name: "Membres",
+            value: String(
+              interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)).size ?? 0,
+            ),
+            inline: true,
+          },
           { name: "Couleur", value: role.hexColor, inline: true },
           { name: "Position", value: String(role.position), inline: true },
           { name: "Mentionnable", value: role.mentionable ? "Oui" : "Non", inline: true },
-          { name: "Créé le", value: `<t:${Math.floor(role.createdTimestamp / 1000)}:F>`, inline: true },
+          {
+            name: "Créé le",
+            value: `<t:${Math.floor(role.createdTimestamp / 1000)}:F>`,
+            inline: true,
+          },
         )
         .setColor(role.color || 0x5865f2);
       await interaction.reply({ embeds: [embed] });
@@ -907,7 +1184,8 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
       const salon = interaction.options.getChannel("salon") ?? interaction.channel!;
       const salonName = (salon as { name?: string }).name ?? "N/A";
       const salonTs = (salon as { createdTimestamp?: number }).createdTimestamp ?? Date.now();
-      embed.setTitle(`📢 ${salonName}`)
+      embed
+        .setTitle(`📢 ${salonName}`)
         .addFields(
           { name: "Type", value: String(salon.type), inline: true },
           { name: "ID", value: salon.id, inline: true },
@@ -919,14 +1197,19 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
     case "member-count": {
       const g = interaction.guild!;
-      embed.setTitle("👥 Compteur de membres").setDescription(`**Total:** ${g.memberCount}\n**En ligne:** ${g.presences.cache.filter((p) => p.status !== "offline").size}`);
+      embed
+        .setTitle("👥 Compteur de membres")
+        .setDescription(
+          `**Total:** ${g.memberCount}\n**En ligne:** ${g.presences.cache.filter((p) => p.status !== "offline").size}`,
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }
 
     case "server-boost": {
       const g = interaction.guild!;
-      embed.setTitle("🚀 Boost du serveur")
+      embed
+        .setTitle("🚀 Boost du serveur")
         .addFields(
           { name: "Niveau", value: String(g.premiumTier), inline: true },
           { name: "Boosts", value: String(g.premiumSubscriptionCount), inline: true },
@@ -937,7 +1220,10 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
     case "color": {
       const hex = interaction.options.getString("hex", true);
-      embed.setTitle("🎨 Couleur de profil").setDescription(`Couleur définie: ${hex}`).setColor(hex as `#${string}`);
+      embed
+        .setTitle("🎨 Couleur de profil")
+        .setDescription(`Couleur définie: ${hex}`)
+        .setColor(hex as `#${string}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -949,7 +1235,10 @@ export async function handleCommunityExtraCmd(interaction: ChatInputCommandInter
 
 // ─── AI étendu ────────────────────────────────────────────────────────────────
 
-export async function handleAiExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleAiExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x9b59b6);
 
@@ -957,7 +1246,11 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "summarize": {
       const salon = interaction.options.getChannel("salon");
       const nombre = interaction.options.getInteger("nombre") ?? 50;
-      embed.setTitle("📝 Résumé").setDescription(`Résumé des ${nombre} derniers messages de <#${salon?.id ?? interaction.channelId}>.`);
+      embed
+        .setTitle("📝 Résumé")
+        .setDescription(
+          `Résumé des ${nombre} derniers messages de <#${salon?.id ?? interaction.channelId}>.`,
+        );
       await interaction.deferReply();
       // TODO: implémenter avec l'IA existante
       await interaction.editReply({ embeds: [embed] });
@@ -986,10 +1279,21 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         }
         const result = await deepSentimentAnalysis(msg.content || "");
         const dim = result.dimensions;
-        const sentimentEmoji = result.sentiment === "très_positif" ? "😄" : result.sentiment === "positif" ? "🙂" : result.sentiment === "neutre" ? "😐" : result.sentiment === "négatif" ? "😠" : "🤬";
+        const sentimentEmoji =
+          result.sentiment === "très_positif"
+            ? "😄"
+            : result.sentiment === "positif"
+              ? "🙂"
+              : result.sentiment === "neutre"
+                ? "😐"
+                : result.sentiment === "négatif"
+                  ? "😠"
+                  : "🤬";
         const embed = new EmbedBuilder()
           .setTitle(`${sentimentEmoji} Analyse de sentiment — ${result.sentiment}`)
-          .setColor(result.risque_global > 60 ? 0xe74c3c : result.risque_global > 30 ? 0xff8800 : 0x2ecc71)
+          .setColor(
+            result.risque_global > 60 ? 0xe74c3c : result.risque_global > 30 ? 0xff8800 : 0x2ecc71,
+          )
           .addFields(
             { name: "Positivité", value: `${dim.positivité}/10`, inline: true },
             { name: "Agressivité", value: `${dim.agressivité}/10`, inline: true },
@@ -999,11 +1303,15 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
             { name: "Risque global", value: `${result.risque_global}/100`, inline: true },
           )
           .setDescription(result.explication)
-          .setFooter({ text: `Action recommandée: ${result.action_recommandée}${result.flags.length > 0 ? ` | Flags: ${result.flags.join(", ")}` : ""}` })
+          .setFooter({
+            text: `Action recommandée: ${result.action_recommandée}${result.flags.length > 0 ? ` | Flags: ${result.flags.join(", ")}` : ""}`,
+          })
           .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
       } catch (err) {
-        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+        await interaction.editReply({
+          content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
       break;
     }
@@ -1018,7 +1326,10 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         }
         const textChannel = channel as import("discord.js").TextBasedChannel;
         const messages = await textChannel.messages.fetch({ limit: 20 });
-        const recentContent = messages.map(m => m.content).filter(c => c.length > 0).slice(0, 10);
+        const recentContent = messages
+          .map((m) => m.content)
+          .filter((c) => c.length > 0)
+          .slice(0, 10);
         if (recentContent.length === 0) {
           await interaction.editReply({ content: "❌ Aucun message récent à analyser." });
           break;
@@ -1027,7 +1338,9 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         const result = await detectSpamPhishing(combined);
         const embed = new EmbedBuilder()
           .setTitle("🔍 Analyse spam/phishing")
-          .setColor(result.verdict === "clean" ? 0x2ecc71 : result.verdict === "spam" ? 0xff8800 : 0xe74c3c)
+          .setColor(
+            result.verdict === "clean" ? 0x2ecc71 : result.verdict === "spam" ? 0xff8800 : 0xe74c3c,
+          )
           .addFields(
             { name: "Verdict", value: result.verdict, inline: true },
             { name: "Confiance", value: `${result.confidence}%`, inline: true },
@@ -1037,7 +1350,9 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
           .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
       } catch (err) {
-        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+        await interaction.editReply({
+          content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
       break;
     }
@@ -1045,9 +1360,11 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       const personaName = interaction.options.getString("persona", true);
       const persona = getPersona(personaName);
       if (!persona) {
-        const list = listPersonas().map(p => `${p.emoji} \`${p.key}\` — ${p.name} (${p.tone})`).join("\n");
+        const list = listPersonas()
+          .map((p) => `${p.emoji} \`${p.key}\` — ${p.name} (${p.tone})`)
+          .join("\n");
         await interaction.reply({
-          content: `❌ Persona \"${personaName}\" introuvable.\n\n**Personas disponibles:**\n${list}`,
+          content: `❌ Persona "${personaName}" introuvable.\n\n**Personas disponibles:**\n${list}`,
           ephemeral: true,
         });
         break;
@@ -1062,7 +1379,9 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
           { name: "❤️ Intérêts", value: persona.interests.join(", "), inline: false },
           { name: "🚫 Limites", value: persona.limits.join("\n"), inline: false },
         )
-        .setFooter({ text: `Persona ${personaName} configuré. Le bot utilisera cette personnalité.` })
+        .setFooter({
+          text: `Persona ${personaName} configuré. Le bot utilisera cette personnalité.`,
+        })
         .setTimestamp();
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
@@ -1072,28 +1391,58 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       const embed = new EmbedBuilder()
         .setTitle("📋 Personas disponibles")
         .setColor(0x9b59b6)
-        .setDescription(personas.map(p => `${p.emoji} **${p.name}** (\`/ai advanced persona ${p.key}\`) — ${p.tone}`).join("\n"))
+        .setDescription(
+          personas
+            .map((p) => `${p.emoji} **${p.name}** (\`/ai advanced persona ${p.key}\`) — ${p.tone}`)
+            .join("\n"),
+        )
         .setFooter({ text: "Utilise /ai advanced persona <nom> pour sélectionner" })
         .setTimestamp();
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "ai-context": {
-      const sujet = interaction.options.getString("sujet") ?? interaction.options.getString("context");
+      const sujet =
+        interaction.options.getString("sujet") ?? interaction.options.getString("context");
       await interaction.deferReply({ ephemeral: true });
       if (!sujet) {
         await interaction.editReply({ content: "❌ Aucun sujet fourni." });
         break;
       }
-      const pipeline = await runReasoningPipeline<ModerationPipelineSolution>(sujet, { maxAspects: 5, timeoutPerStep: 12_000 });
+      const pipeline = await runReasoningPipeline<ModerationPipelineSolution>(sujet, {
+        maxAspects: 5,
+        timeoutPerStep: 12_000,
+      });
       const embed = new EmbedBuilder()
         .setTitle("🧠 Analyse multi-étapes")
         .setColor(0x5865f2)
         .setDescription(`Pipeline: ${pipeline.steps} étapes en ${pipeline.durationMs}ms`)
         .addFields(
-          { name: "📋 Aspects identifiés", value: pipeline.aspects.length > 0 ? pipeline.aspects.map((a, i) => `${i + 1}. ${a}`).join("\n") : "Aucun", inline: false },
-          { name: "🔍 Analyses", value: pipeline.analyses.map(a => `**${a.aspect}**: ${a.result.analysis.slice(0, 200)}${a.result.severity !== undefined ? ` (${a.result.severity}/10)` : ""}`).join("\n\n").slice(0, 1024) || "Aucune", inline: false },
-          { name: "✅ Solution", value: JSON.stringify(pipeline.solution, null, 2).slice(0, 1024), inline: false },
+          {
+            name: "📋 Aspects identifiés",
+            value:
+              pipeline.aspects.length > 0
+                ? pipeline.aspects.map((a, i) => `${i + 1}. ${a}`).join("\n")
+                : "Aucun",
+            inline: false,
+          },
+          {
+            name: "🔍 Analyses",
+            value:
+              pipeline.analyses
+                .map(
+                  (a) =>
+                    `**${a.aspect}**: ${a.result.analysis.slice(0, 200)}${a.result.severity !== undefined ? ` (${a.result.severity}/10)` : ""}`,
+                )
+                .join("\n\n")
+                .slice(0, 1024) || "Aucune",
+            inline: false,
+          },
+          {
+            name: "✅ Solution",
+            value: JSON.stringify(pipeline.solution, null, 2).slice(0, 1024),
+            inline: false,
+          },
         )
         .setTimestamp();
       await interaction.editReply({ embeds: [embed] });
@@ -1104,7 +1453,12 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.deferReply({ ephemeral: true });
       try {
         let messageContent = "";
-        if (messageId && interaction.channel && "isTextBased" in interaction.channel && interaction.channel.isTextBased()) {
+        if (
+          messageId &&
+          interaction.channel &&
+          "isTextBased" in interaction.channel &&
+          interaction.channel.isTextBased()
+        ) {
           const msg = await interaction.channel.messages.fetch(messageId).catch(() => null);
           if (msg) messageContent = msg.content;
         }
@@ -1116,22 +1470,49 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         const moodEmoji = consensus.unanimity ? "🟢" : "🟡";
         const embed = new EmbedBuilder()
           .setTitle(`${moodEmoji} Consensus multi-experts — ${consensus.final_verdict}`)
-          .setColor(consensus.final_verdict === "clean" ? 0x2ecc71 : consensus.final_verdict === "warning" ? 0xf1c40f : consensus.final_verdict === "violation" ? 0xff8800 : 0xe74c3c)
-          .setDescription(`Action: **${consensus.final_action}** | Confiance: **${consensus.confidence}%** | Méthode: ${consensus.decision_method}`)
+          .setColor(
+            consensus.final_verdict === "clean"
+              ? 0x2ecc71
+              : consensus.final_verdict === "warning"
+                ? 0xf1c40f
+                : consensus.final_verdict === "violation"
+                  ? 0xff8800
+                  : 0xe74c3c,
+          )
+          .setDescription(
+            `Action: **${consensus.final_action}** | Confiance: **${consensus.confidence}%** | Méthode: ${consensus.decision_method}`,
+          )
           .addFields(
-            { name: "🗳️ Votes", value: consensus.votes.map(v => `${v.verdict}: ${v.count}`).join(" | "), inline: false },
-            { name: "🔍 Avis des experts", value: consensus.opinions.map(o => `**${o.expert}**: ${o.verdict} (${o.confidence}%) — ${o.reasoning.slice(0, 150)}`).join("\n\n").slice(0, 1024), inline: false },
+            {
+              name: "🗳️ Votes",
+              value: consensus.votes.map((v) => `${v.verdict}: ${v.count}`).join(" | "),
+              inline: false,
+            },
+            {
+              name: "🔍 Avis des experts",
+              value: consensus.opinions
+                .map(
+                  (o) =>
+                    `**${o.expert}**: ${o.verdict} (${o.confidence}%) — ${o.reasoning.slice(0, 150)}`,
+                )
+                .join("\n\n")
+                .slice(0, 1024),
+              inline: false,
+            },
           )
           .setFooter({ text: consensus.unanimity ? "Unanimité totale" : "Consensus par vote" })
           .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
       } catch (err) {
-        await interaction.editReply({ content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}` });
+        await interaction.editReply({
+          content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
       break;
     }
     case "ai-suggest": {
-      const sujet = interaction.options.getString("sujet") ?? interaction.options.getString("probleme");
+      const sujet =
+        interaction.options.getString("sujet") ?? interaction.options.getString("probleme");
       await interaction.deferReply({ ephemeral: true });
       if (!sujet) {
         await interaction.editReply({ content: "❌ Aucun sujet fourni." });
@@ -1141,10 +1522,26 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       const embed = new EmbedBuilder()
         .setTitle("🌳 Tree of Thought")
         .setColor(0x2ecc71)
-        .setDescription(`3 approches en parallèle • ${result.durationMs}ms${result.best_branch ? ` • Meilleure: **${result.best_branch}**` : ""}`)
+        .setDescription(
+          `3 approches en parallèle • ${result.durationMs}ms${result.best_branch ? ` • Meilleure: **${result.best_branch}**` : ""}`,
+        )
         .addFields(
-          { name: "🌿 Branches", value: result.branches.map(b => `**${b.name}**${b.score !== undefined ? ` (${b.score}/10)` : ""}: ${b.analysis.slice(0, 200)}`).join("\n\n").slice(0, 1024), inline: false },
-          { name: "✅ Synthèse", value: JSON.stringify(result.synthesis, null, 2).slice(0, 1024), inline: false },
+          {
+            name: "🌿 Branches",
+            value: result.branches
+              .map(
+                (b) =>
+                  `**${b.name}**${b.score !== undefined ? ` (${b.score}/10)` : ""}: ${b.analysis.slice(0, 200)}`,
+              )
+              .join("\n\n")
+              .slice(0, 1024),
+            inline: false,
+          },
+          {
+            name: "✅ Synthèse",
+            value: JSON.stringify(result.synthesis, null, 2).slice(0, 1024),
+            inline: false,
+          },
         )
         .setTimestamp();
       await interaction.editReply({ embeds: [embed] });
@@ -1153,19 +1550,45 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
     case "ai-moderation-config": {
       const suite = interaction.options.getString("suite") ?? "spam";
       await interaction.deferReply({ ephemeral: true });
-      const promptA = "Analyse ce message et classifie-le. Réponds en JSON: {verdict, confidence, raison, action}";
-      const promptB = "Tu es un modérateur expert. Analyse ce message avec few-shot. Réponds en JSON: {verdict, confidence, raison, action}";
-      const testCases: PromptTestCase[] = suite === "sentiment" ? SENTIMENT_TEST_CASES : SPAM_TEST_CASES;
-      const result = await testPrompts(promptA, promptB, testCases, { maxTokens: 200, timeout: 10_000 });
+      const promptA =
+        "Analyse ce message et classifie-le. Réponds en JSON: {verdict, confidence, raison, action}";
+      const promptB =
+        "Tu es un modérateur expert. Analyse ce message avec few-shot. Réponds en JSON: {verdict, confidence, raison, action}";
+      const testCases: PromptTestCase[] =
+        suite === "sentiment" ? SENTIMENT_TEST_CASES : SPAM_TEST_CASES;
+      const result = await testPrompts(promptA, promptB, testCases, {
+        maxTokens: 200,
+        timeout: 10_000,
+      });
       const embed = new EmbedBuilder()
         .setTitle("🧪 A/B Test de Prompts")
         .setColor(result.winner === "A" ? 0x3498db : result.winner === "B" ? 0x2ecc71 : 0xf1c40f)
-        .setDescription(`**Winner: ${result.winner === "tie" ? "Égalité" : `Prompt ${result.winner}`}** | Suite: ${suite} | ${testCases.length} cas`)
+        .setDescription(
+          `**Winner: ${result.winner === "tie" ? "Égalité" : `Prompt ${result.winner}`}** | Suite: ${suite} | ${testCases.length} cas`,
+        )
         .addFields(
-          { name: "📊 Accuracy", value: `A: ${result.accuracyA}% | B: ${result.accuracyB}%`, inline: true },
-          { name: "⏱️ Temps moyen", value: `A: ${result.timeA}ms | B: ${result.timeB}ms`, inline: true },
+          {
+            name: "📊 Accuracy",
+            value: `A: ${result.accuracyA}% | B: ${result.accuracyB}%`,
+            inline: true,
+          },
+          {
+            name: "⏱️ Temps moyen",
+            value: `A: ${result.timeA}ms | B: ${result.timeB}ms`,
+            inline: true,
+          },
           { name: "💰 Tokens", value: `A: ${result.costA} | B: ${result.costB}`, inline: true },
-          { name: "📋 Détails par cas", value: result.details.map(d => `Cas ${d.case}: A=${d.scoreA}% (${d.timeA}ms) vs B=${d.scoreB}% (${d.timeB}ms)`).join("\n").slice(0, 1024), inline: false },
+          {
+            name: "📋 Détails par cas",
+            value: result.details
+              .map(
+                (d) =>
+                  `Cas ${d.case}: A=${d.scoreA}% (${d.timeA}ms) vs B=${d.scoreB}% (${d.timeB}ms)`,
+              )
+              .join("\n")
+              .slice(0, 1024),
+            inline: false,
+          },
         )
         .setTimestamp();
       await interaction.editReply({ embeds: [embed] });
@@ -1187,21 +1610,34 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         .setTitle("📊 Scoring des Prompts IA")
         .setColor(avgScore >= 75 ? 0x2ecc71 : avgScore >= 60 ? 0xf1c40f : 0xff8800)
         .setDescription(`Score moyen: **${avgScore}/100** | ${prompts.length} prompts évalués`)
-        .addFields(
-          { name: "📝 Scores par prompt", value: scores.map(s => `${gradeEmoji(s.grade)} **${s.name}**: ${s.score}/100 (Grade ${s.grade})`).join("\n"), inline: false },
-        )
+        .addFields({
+          name: "📝 Scores par prompt",
+          value: scores
+            .map((s) => `${gradeEmoji(s.grade)} **${s.name}**: ${s.score}/100 (Grade ${s.grade})`)
+            .join("\n"),
+          inline: false,
+        })
         .setTimestamp();
       const worst = scores.sort((a, b) => a.score - b.score)[0];
       if (worst && worst.score < 80) {
-        embed.addFields({ name: "⚠️ Améliorations — " + worst.name, value: worst.suggestions.slice(0, 3).join("\n"), inline: false });
+        embed.addFields({
+          name: "⚠️ Améliorations — " + worst.name,
+          value: worst.suggestions.slice(0, 3).join("\n"),
+          inline: false,
+        });
       }
       // Best practices validation sur le prompt le plus faible
-      const worstPrompt = prompts.sort((a, b) => scorePromptDetailed(a.prompt).total - scorePromptDetailed(b.prompt).total)[0];
+      const worstPrompt = prompts.sort(
+        (a, b) => scorePromptDetailed(a.prompt).total - scorePromptDetailed(b.prompt).total,
+      )[0];
       if (worstPrompt) {
         const bp = validateBestPractices(worstPrompt.prompt);
         embed.addFields({
           name: `${gradeEmoji(bp.grade)} Best Practices — ${worstPrompt.name} (${bp.passedCount}/${bp.totalCount})`,
-          value: bp.checks.map(c => `${c.passed ? "✅" : "❌"} #${c.id} ${c.name}`).join("\n").slice(0, 1024),
+          value: bp.checks
+            .map((c) => `${c.passed ? "✅" : "❌"} #${c.id} ${c.name}`)
+            .join("\n")
+            .slice(0, 1024),
           inline: false,
         });
         // Anti-patterns detection
@@ -1209,7 +1645,14 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         if (!ap.clean) {
           embed.addFields({
             name: `🔴 Anti-Patterns — ${worstPrompt.name} (${ap.detectedCount} détectés, score ${ap.score}/100)`,
-            value: ap.checks.filter(c => c.detected).map(c => `${c.severity === "critical" ? "🔴" : c.severity === "warning" ? "🟠" : "🟡"} #${c.id} ${c.name}: ${c.fix}`).join("\n").slice(0, 1024),
+            value: ap.checks
+              .filter((c) => c.detected)
+              .map(
+                (c) =>
+                  `${c.severity === "critical" ? "🔴" : c.severity === "warning" ? "🟠" : "🟡"} #${c.id} ${c.name}: ${c.fix}`,
+              )
+              .join("\n")
+              .slice(0, 1024),
             inline: false,
           });
         }
@@ -1252,8 +1695,13 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       const content = interaction.options.getString("content") ?? "Test message";
       const preset = getPreset(presetKey);
       if (!preset) {
-        const list = listPresets().map(p => `- \`${p.key}\` — ${p.name} (${p.domain})`).join("\n");
-        await interaction.reply({ content: `❌ Preset introuvable.\n\n**Presets disponibles:**\n${list}`, ephemeral: true });
+        const list = listPresets()
+          .map((p) => `- \`${p.key}\` — ${p.name} (${p.domain})`)
+          .join("\n");
+        await interaction.reply({
+          content: `❌ Preset introuvable.\n\n**Presets disponibles:**\n${list}`,
+          ephemeral: true,
+        });
         break;
       }
       const prompt = buildFromPreset(preset, content);
@@ -1267,7 +1715,6 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       break;
     }
     case "ai-channel-summary": {
-      const channelId = interaction.channelId;
       await interaction.deferReply({ ephemeral: true });
       try {
         const channel = interaction.channel;
@@ -1276,9 +1723,15 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
           break;
         }
         const messages = await channel.messages.fetch({ limit: 50 });
-        const contents = messages.map((m) => m.content).filter((c) => c.length > 0).reverse();
+        const contents = messages
+          .map((m) => m.content)
+          .filter((c) => c.length > 0)
+          .reverse();
         const summary = await summarizeChannel(contents, 30);
-        embed.setTitle("📋 Résumé du channel").setColor(0x5865f2).setDescription(summary.slice(0, 4000));
+        embed
+          .setTitle("📋 Résumé du channel")
+          .setColor(0x5865f2)
+          .setDescription(summary.slice(0, 4000));
         await interaction.editReply({ embeds: [embed] });
       } catch {
         await interaction.editReply("❌ Impossible de résumer le channel.");
@@ -1291,7 +1744,9 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       await interaction.deferReply({ ephemeral: true });
       const translated = await translateText(text, target);
       const detected = await detectLanguage(text);
-      embed.setTitle("🌍 Traduction").setColor(0x5865f2)
+      embed
+        .setTitle("🌍 Traduction")
+        .setColor(0x5865f2)
         .addFields(
           { name: "Langue détectée", value: detected || "?", inline: true },
           { name: "Cible", value: target, inline: true },
@@ -1301,7 +1756,11 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       break;
     }
     case "ai-image":
-      embed.setTitle("🎨 Génération d'image").setDescription("⚠️ En cours de développement — nécessite une API d'image (DALL-E, Stable Diffusion).");
+      embed
+        .setTitle("🎨 Génération d'image")
+        .setDescription(
+          "⚠️ En cours de développement — nécessite une API d'image (DALL-E, Stable Diffusion).",
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     case "ai-history": {
@@ -1311,7 +1770,9 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         await interaction.reply({ content: "✅ Historique IA effacé.", ephemeral: true });
       } else if (subHist === "stats") {
         const stats = await getAiStats(interaction.user.id);
-        embed.setTitle("📊 Stats IA").setColor(0x5865f2)
+        embed
+          .setTitle("📊 Stats IA")
+          .setColor(0x5865f2)
           .addFields(
             { name: "Requêtes", value: String(stats.totalRequests), inline: true },
             { name: "Tokens", value: String(stats.totalTokens), inline: true },
@@ -1323,8 +1784,16 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
         if (history.length === 0) {
           await interaction.reply({ content: "Aucun historique IA.", ephemeral: true });
         } else {
-          const items = history.map((h) => `**${h.command}** — ${h.timestamp.toDateString()} (${h.tokensUsed} tokens)`);
-          await sendPaginatedEmbed(interaction, { title: "📜 Historique IA", color: 0x5865f2, items, itemsPerPage: 10, ephemeral: true });
+          const items = history.map(
+            (h) => `**${h.command}** — ${h.timestamp.toDateString()} (${h.tokensUsed} tokens)`,
+          );
+          await sendPaginatedEmbed(interaction, {
+            title: "📜 Historique IA",
+            color: 0x5865f2,
+            items,
+            itemsPerPage: 10,
+            ephemeral: true,
+          });
         }
       }
       break;
@@ -1342,24 +1811,47 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
       if (format === "markdown") content = exportToMarkdown(messages);
       else if (format === "csv") content = exportToCSV(messages);
       else content = exportToJSON(messages);
-      const attachment = new AttachmentBuilder(Buffer.from(content, "utf-8"), { name: `export.${format === "markdown" ? "md" : format === "csv" ? "csv" : "json"}` });
-      await interaction.editReply({ content: `📤 Export de ${messages.length} messages (${format})`, files: [attachment] });
+      const attachment = new AttachmentBuilder(Buffer.from(content, "utf-8"), {
+        name: `export.${format === "markdown" ? "md" : format === "csv" ? "csv" : "json"}`,
+      });
+      await interaction.editReply({
+        content: `📤 Export de ${messages.length} messages (${format})`,
+        files: [attachment],
+      });
       break;
     }
     case "ai-model-select": {
       const models = listModels();
-      const items = models.map((m) => `**${m.name}** — ${m.id}\nContexte: ${m.contextLength.toLocaleString()} | $${m.pricing.prompt}/${m.pricing.completion} per M tokens | ${m.capabilities.join(", ")}`);
-      await sendPaginatedEmbed(interaction, { title: "🤖 Modèles disponibles", color: 0x5865f2, items, itemsPerPage: 3, ephemeral: true });
+      const items = models.map(
+        (m) =>
+          `**${m.name}** — ${m.id}\nContexte: ${m.contextLength.toLocaleString()} | $${m.pricing.prompt}/${m.pricing.completion} per M tokens | ${m.capabilities.join(", ")}`,
+      );
+      await sendPaginatedEmbed(interaction, {
+        title: "🤖 Modèles disponibles",
+        color: 0x5865f2,
+        items,
+        itemsPerPage: 3,
+        ephemeral: true,
+      });
       break;
     }
     case "ai-token-usage": {
       const stats = getUsageStats(interaction.user.id);
       const global = getGlobalStats();
-      embed.setTitle("📊 Token Usage").setColor(0x5865f2)
+      embed
+        .setTitle("📊 Token Usage")
+        .setColor(0x5865f2)
         .addFields(
           { name: "Vos tokens", value: String(stats.totalTokens), inline: true },
           { name: "Coût estimé", value: `$${stats.totalCost.toFixed(4)}`, inline: true },
-          { name: "Par commande", value: Object.entries(stats.byCommand).map(([k, v]) => `${k}: ${v}`).join("\n") || "Aucun", inline: false },
+          {
+            name: "Par commande",
+            value:
+              Object.entries(stats.byCommand)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join("\n") || "Aucun",
+            inline: false,
+          },
           { name: "Global users", value: String(global.totalUsers), inline: true },
           { name: "Global tokens", value: String(global.totalTokens), inline: true },
         );
@@ -1386,7 +1878,10 @@ export async function handleAiExtra(interaction: ChatInputCommandInteraction, _c
 
 // ─── Shadow étendu ────────────────────────────────────────────────────────────
 
-export async function handleShadowExtra(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleShadowExtra(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x2c2f33);
 
@@ -1398,7 +1893,9 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
         const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) });
         const headers: string[] = [];
         res.headers.forEach((v, k) => headers.push(`**${k}:** ${v}`));
-        embed.setTitle("📋 Headers HTTP").setDescription(headers.slice(0, 20).join("\n") || "Aucun header.");
+        embed
+          .setTitle("📋 Headers HTTP")
+          .setDescription(headers.slice(0, 20).join("\n") || "Aucun header.");
         await interaction.editReply({ embeds: [embed] });
       } catch {
         await interaction.editReply("❌ Impossible de récupérer les headers.");
@@ -1407,7 +1904,9 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
     }
     case "ssl-check": {
       const domaine = interaction.options.getString("domaine", true);
-      embed.setTitle("🔒 Vérification SSL").setDescription(`Domaine: ${domaine}\nVérification en cours...`);
+      embed
+        .setTitle("🔒 Vérification SSL")
+        .setDescription(`Domaine: ${domaine}\nVérification en cours...`);
       await interaction.deferReply();
       try {
         const res = await fetch(`https://${domaine}`, { signal: AbortSignal.timeout(5000) });
@@ -1420,7 +1919,9 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
     }
     case "port-scan": {
       const host = interaction.options.getString("host", true);
-      embed.setTitle("🔍 Scan de ports").setDescription(`Host: ${host}\nPorts communs scannés (80, 443, 22, 21, 25, 3389)...`);
+      embed
+        .setTitle("🔍 Scan de ports")
+        .setDescription(`Host: ${host}\nPorts communs scannés (80, 443, 22, 21, 25, 3389)...`);
       await interaction.deferReply();
       const ports = [80, 443, 22, 21, 25, 3389];
       const results: string[] = [];
@@ -1441,7 +1942,11 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
       break;
     }
     case "username-gen": {
-      const mots = interaction.options.getString("mots", true)?.split(/[\s,]+/).filter(Boolean) ?? [];
+      const mots =
+        interaction.options
+          .getString("mots", true)
+          ?.split(/[\s,]+/)
+          .filter(Boolean) ?? [];
       const generated: string[] = [];
       for (let i = 0; i < 5; i++) {
         const combined = mots.sort(() => Math.random() - 0.5).join("");
@@ -1462,7 +1967,11 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
         const contentLength = res.headers.get("content-length");
         embed.addFields(
           { name: "Content-Type", value: contentType ?? "N/A", inline: true },
-          { name: "Taille", value: contentLength ? `${(parseInt(contentLength) / 1024).toFixed(1)} KB` : "N/A", inline: true },
+          {
+            name: "Taille",
+            value: contentLength ? `${(parseInt(contentLength) / 1024).toFixed(1)} KB` : "N/A",
+            inline: true,
+          },
         );
         await interaction.editReply({ embeds: [embed] });
       } catch {
@@ -1496,14 +2005,21 @@ export async function handleShadowExtra(interaction: ChatInputCommandInteraction
 
 // ─── Music ────────────────────────────────────────────────────────────────────
 
-export async function handleMusic(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleMusic(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0x1db954);
 
   switch (action) {
     case "play": {
       const query = interaction.options.getString("requete", true);
-      embed.setTitle("🎵 Lecture").setDescription(`Recherche: ${query}\n\n⚠️ Le système de musique nécessite un player audio (en développement).`);
+      embed
+        .setTitle("🎵 Lecture")
+        .setDescription(
+          `Recherche: ${query}\n\n⚠️ Le système de musique nécessite un player audio (en développement).`,
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -1559,7 +2075,9 @@ export async function handleMusic(interaction: ChatInputCommandInteraction, _cli
       break;
     case "lyrics": {
       const titre = interaction.options.getString("titre");
-      embed.setTitle("🎤 Paroles").setDescription(titre ? `Recherche de paroles pour: ${titre}` : "Aucune musique en cours.");
+      embed
+        .setTitle("🎤 Paroles")
+        .setDescription(titre ? `Recherche de paroles pour: ${titre}` : "Aucune musique en cours.");
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -1594,7 +2112,9 @@ export async function handleMusic(interaction: ChatInputCommandInteraction, _cli
       await interaction.reply({ embeds: [embed] });
       break;
     case "audio-effects":
-      embed.setTitle("🎚️ Effets audio").setDescription("Effets audio (bassboost, nightcore, 8d) — en développement.");
+      embed
+        .setTitle("🎚️ Effets audio")
+        .setDescription("Effets audio (bassboost, nightcore, 8d) — en développement.");
       await interaction.reply({ embeds: [embed] });
       break;
     default:
@@ -1604,7 +2124,10 @@ export async function handleMusic(interaction: ChatInputCommandInteraction, _cli
 
 // ─── Economy ──────────────────────────────────────────────────────────────────
 
-export async function handleEconomy(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleEconomy(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const action = interaction.options.getSubcommand();
   const embed = new EmbedBuilder().setColor(0xf1c40f);
 
@@ -1661,12 +2184,16 @@ export async function handleEconomy(interaction: ChatInputCommandInteraction, _c
     case "transfer": {
       const cible = interaction.options.getUser("cible", true);
       const montant = interaction.options.getInteger("montant", true);
-      embed.setTitle("💸 Transfert").setDescription(`Tu as envoyé ${montant} crédits à <@${cible.id}>.`);
+      embed
+        .setTitle("💸 Transfert")
+        .setDescription(`Tu as envoyé ${montant} crédits à <@${cible.id}>.`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "leaderboard":
-      embed.setTitle("🏆 Classement des plus riches").setDescription("Classement en développement.");
+      embed
+        .setTitle("🏆 Classement des plus riches")
+        .setDescription("Classement en développement.");
       await interaction.reply({ embeds: [embed] });
       break;
     case "level": {
@@ -1685,7 +2212,11 @@ export async function handleEconomy(interaction: ChatInputCommandInteraction, _c
         await interaction.reply({ embeds: [embed] });
         break;
       }
-      embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription(`Niveau ${xpData.level} • ${xpData.xp.toLocaleString()} XP • Rang #${xpData.rank}`);
+      embed
+        .setTitle(`🏆 Rang de ${cible.username}`)
+        .setDescription(
+          `Niveau ${xpData.level} • ${xpData.xp.toLocaleString()} XP • Rang #${xpData.rank}`,
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }

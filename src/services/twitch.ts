@@ -83,7 +83,7 @@ async function getLiveStreams(logins: string[]): Promise<TwitchStream[]> {
 // Boucle principale de vérification
 async function checkTwitchStreams(client: Client) {
   try {
-    const follows = await prisma.twitchFollow.findMany();
+    const follows = await prisma.twitchFollow.findMany({ take: 500 });
 
     if (follows.length === 0) return;
 

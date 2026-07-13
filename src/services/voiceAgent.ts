@@ -11,7 +11,7 @@
  * audio de Discord.js pour rejoindre/quitter les channels vocaux.
  */
 
-import { Client, VoiceChannel, GuildMember, EmbedBuilder } from "discord.js";
+import { Client, EmbedBuilder } from "discord.js";
 import {
   joinVoiceChannel,
   getVoiceConnection,

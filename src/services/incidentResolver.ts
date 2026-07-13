@@ -212,7 +212,7 @@ export async function submitForValidation(
   proposal: FixProposal,
   interaction: ChatInputCommandInteraction,
 ): Promise<ResolutionResult> {
-  const embed = buildFixProposalEmbed(proposal);
+  const _embed = buildFixProposalEmbed(proposal);
 
   const approved = await requestConfirmation(
     interaction,

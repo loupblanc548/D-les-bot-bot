@@ -27,7 +27,6 @@ import prisma from "./prisma.js";
 import { config } from "./config.js";
 import { getFortniteState } from "./services/fortnite-broadcast.js";
 import { handleWebhookRequest } from "./services/webhookTriggers.js";
-import { setupAllWebhooks } from "./services/webhookSetup.js";
 
 let server: http.Server | null = null;
 const logBuffer: { timestamp: number; level: string; message: string }[] = [];
@@ -146,7 +145,9 @@ export async function startControlServer(port: number, client: Client): Promise<
 
     // Debug: log unmatched paths that look like webhook
     if (path.includes("webhook")) {
-      logger.warn(`[ControlServer] Path contains 'webhook' but not matched: "${path}" (startsWith check: ${path.startsWith("/webhook/")})`);
+      logger.warn(
+        `[ControlServer] Path contains 'webhook' but not matched: "${path}" (startsWith check: ${path.startsWith("/webhook/")})`,
+      );
     }
 
     if (!authCheck(req)) {
@@ -340,7 +341,7 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
       if (path === "/api/flux/resume" && req.method === "POST") {
-        const body = await readBody(req);
+        await readBody(req);
         sendJson(res, 200, { success: true });
         return;
       }
@@ -381,7 +382,7 @@ export async function startControlServer(port: number, client: Client): Promise<
             success: true,
           });
           sendJson(res, 200, { success: true });
-        } catch (err) {
+        } catch (_err) {
           dmHistory.push({
             timestamp: Date.now(),
             userId,
@@ -466,9 +467,52 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
 
-      if (path === "/api/studio/analyze" && req.method === "POST") {
+      // ─── Fortnite Party Bot ────────────────────────────────────────
+      if (path === "/api/fortnite/status" && req.method === "GET") {
+        try {
+          const { isFortniteBotReady, getBotDisplayName } =
+            await import("./services/fortnitePartyBot.js");
+          const connected = isFortniteBotReady();
+          const displayName = getBotDisplayName();
+          sendJson(res, 200, { connected, displayName });
+        } catch {
+          sendJson(res, 200, { connected: false, displayName: null });
+        }
+        return;
+      }
+
+      if (path === "/api/fortnite/login" && req.method === "POST") {
         try {
           const body = await readBody(req);
+          const authCode = (body.authCode as string)?.trim();
+          if (!authCode || authCode.length < 10) {
+            sendJson(res, 400, { error: "Code d'autorisation invalide" });
+            return;
+          }
+          const { connectFortniteBot } = await import("./services/fortnitePartyBot.js");
+          await connectFortniteBot(authCode);
+          logger.info("[ControlServer] Fortnite bot login via dashboard");
+          sendJson(res, 200, { success: true, message: "Connexion en cours..." });
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (path === "/api/fortnite/logout" && req.method === "POST") {
+        try {
+          const { disconnectFortniteBot } = await import("./services/fortnitePartyBot.js");
+          await disconnectFortniteBot();
+          sendJson(res, 200, { success: true });
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (path === "/api/studio/analyze" && req.method === "POST") {
+        try {
+          await readBody(req);
           // Placeholder — would integrate Google Vision API
           sendJson(res, 200, {
             text: "",
@@ -543,33 +587,57 @@ export async function startControlServer(port: number, client: Client): Promise<
       if (path === "/api/moderation" && req.method === "GET") {
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const [warns, mutes, bans, automod, recentSanctions, tempbans] = await Promise.all([
-          prisma.sanction.count({ where: { type: "WARN", createdAt: { gte: since } } }).catch(() => 0),
-          prisma.sanction.count({ where: { type: "MUTE", createdAt: { gte: since } } }).catch(() => 0),
-          prisma.sanction.count({ where: { type: "BAN", createdAt: { gte: since } } }).catch(() => 0),
-          prisma.log.count({ where: { type: "automod", createdAt: { gte: since } } }).catch(() => 0),
-          prisma.sanction.findMany({
-            where: { createdAt: { gte: since } },
-            orderBy: { createdAt: "desc" },
-            take: 20,
-          }).catch(() => []),
-          prisma.log.findMany({
-            where: { type: "tempban" },
-            orderBy: { createdAt: "desc" },
-            take: 10,
-          }).catch(() => []),
+          prisma.sanction
+            .count({ where: { type: "WARN", createdAt: { gte: since } } })
+            .catch(() => 0),
+          prisma.sanction
+            .count({ where: { type: "MUTE", createdAt: { gte: since } } })
+            .catch(() => 0),
+          prisma.sanction
+            .count({ where: { type: "BAN", createdAt: { gte: since } } })
+            .catch(() => 0),
+          prisma.log
+            .count({ where: { type: "automod", createdAt: { gte: since } } })
+            .catch(() => 0),
+          prisma.sanction
+            .findMany({
+              where: { createdAt: { gte: since } },
+              orderBy: { createdAt: "desc" },
+              take: 20,
+            })
+            .catch(() => []),
+          prisma.log
+            .findMany({
+              where: { type: "tempban" },
+              orderBy: { createdAt: "desc" },
+              take: 10,
+            })
+            .catch(() => []),
         ]);
-        const automodFeed = logBuffer.filter((l) => l.message?.includes("[AutoMod]") || l.message?.includes("automod")).slice(-15).reverse();
+        const automodFeed = logBuffer
+          .filter((l) => l.message?.includes("[AutoMod]") || l.message?.includes("automod"))
+          .slice(-15)
+          .reverse();
         sendJson(res, 200, {
           stats: { warns, mutes, bans, automod },
           recentSanctions: recentSanctions.map((s) => ({
-            id: s.id, type: s.type, userId: s.userId, reason: s.reason,
-            moderatorId: s.moderatorId, createdAt: s.createdAt,
+            id: s.id,
+            type: s.type,
+            userId: s.userId,
+            reason: s.reason,
+            moderatorId: s.moderatorId,
+            createdAt: s.createdAt,
           })),
           tempbans: tempbans.map((t) => ({
-            id: t.id, userId: t.userId, action: t.action, createdAt: t.createdAt,
+            id: t.id,
+            userId: t.userId,
+            action: t.action,
+            createdAt: t.createdAt,
           })),
           automodFeed: automodFeed.map((l) => ({
-            timestamp: l.timestamp, level: l.level, message: l.message,
+            timestamp: l.timestamp,
+            level: l.level,
+            message: l.message,
           })),
         });
         return;
@@ -579,21 +647,35 @@ export async function startControlServer(port: number, client: Client): Promise<
       if (path === "/api/security" && req.method === "GET") {
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const [securityEvents, riskyUsers, shadowBans, osintLogs] = await Promise.all([
-          prisma.log.count({ where: { type: "security", createdAt: { gte: since } } }).catch(() => 0),
-          prisma.log.findMany({
-            where: { type: "security", createdAt: { gte: since } },
-            orderBy: { createdAt: "desc" },
-            take: 15,
-            distinct: ["userId"],
-          }).catch(() => []),
+          prisma.log
+            .count({ where: { type: "security", createdAt: { gte: since } } })
+            .catch(() => 0),
+          prisma.log
+            .findMany({
+              where: { type: "security", createdAt: { gte: since } },
+              orderBy: { createdAt: "desc" },
+              take: 15,
+              distinct: ["userId"],
+            })
+            .catch(() => []),
           prisma.log.count({ where: { type: "shadowban" } }).catch(() => 0),
-          prisma.log.findMany({
-            where: { type: "osint" },
-            orderBy: { createdAt: "desc" },
-            take: 10,
-          }).catch(() => []),
+          prisma.log
+            .findMany({
+              where: { type: "osint" },
+              orderBy: { createdAt: "desc" },
+              take: 10,
+            })
+            .catch(() => []),
         ]);
-        const eventsFeed = logBuffer.filter((l) => l.message?.includes("[Security]") || l.message?.includes("[Risk]") || l.message?.includes("[Alt]")).slice(-15).reverse();
+        const eventsFeed = logBuffer
+          .filter(
+            (l) =>
+              l.message?.includes("[Security]") ||
+              l.message?.includes("[Risk]") ||
+              l.message?.includes("[Alt]"),
+          )
+          .slice(-15)
+          .reverse();
         sendJson(res, 200, {
           stats: {
             riskAvg: 0,
@@ -602,13 +684,23 @@ export async function startControlServer(port: number, client: Client): Promise<
             shadowCount: shadowBans,
           },
           riskyUsers: riskyUsers.map((u) => ({
-            id: u.id, userId: u.userId, action: u.action, details: u.details, createdAt: u.createdAt,
+            id: u.id,
+            userId: u.userId,
+            action: u.action,
+            details: u.details,
+            createdAt: u.createdAt,
           })),
           eventsFeed: eventsFeed.map((l) => ({
-            timestamp: l.timestamp, level: l.level, message: l.message,
+            timestamp: l.timestamp,
+            level: l.level,
+            message: l.message,
           })),
           osintResults: osintLogs.map((o) => ({
-            id: o.id, userId: o.userId, action: o.action, details: o.details, createdAt: o.createdAt,
+            id: o.id,
+            userId: o.userId,
+            action: o.action,
+            details: o.details,
+            createdAt: o.createdAt,
           })),
         });
         return;
@@ -620,14 +712,20 @@ export async function startControlServer(port: number, client: Client): Promise<
           const { getDisTube } = await import("./services/musicService.js");
           const dt = getDisTube();
           if (!dt) {
-            sendJson(res, 200, { stats: { voiceCount: 0, queueCount: 0 }, nowPlaying: null, queues: [] });
+            sendJson(res, 200, {
+              stats: { voiceCount: 0, queueCount: 0 },
+              nowPlaying: null,
+              queues: [],
+            });
             return;
           }
           const client = (globalThis as any).__client as any;
-          const guilds: { id: string; name: string }[] = client?.guilds?.cache?.map((g: any) => ({ id: g.id, name: g.name })) || [];
+          const guilds: { id: string; name: string }[] =
+            client?.guilds?.cache?.map((g: any) => ({ id: g.id, name: g.name })) || [];
           const queues: unknown[] = [];
           let voiceCount = 0;
-          let nowPlaying: { title: string; url: string; duration: string; guild: string } | null = null;
+          let nowPlaying: { title: string; url: string; duration: string; guild: string } | null =
+            null;
           for (const g of guilds) {
             const queue = dt.getQueue(g.id);
             if (queue) {
@@ -643,25 +741,34 @@ export async function startControlServer(port: number, client: Client): Promise<
               }
               queues.push({
                 guild: g.name,
-                songs: songs.slice(0, 10).map((s: { name?: string; url?: string; formattedDuration?: string }) => ({
-                  title: s.name || s.url || "Unknown",
-                  url: s.url || "",
-                  duration: s.formattedDuration || "",
-                })),
+                songs: songs
+                  .slice(0, 10)
+                  .map((s: { name?: string; url?: string; formattedDuration?: string }) => ({
+                    title: s.name || s.url || "Unknown",
+                    url: s.url || "",
+                    duration: s.formattedDuration || "",
+                  })),
                 volume: queue.volume || 50,
                 loop: queue.repeatMode,
                 playing: queue.playing,
               });
             }
           }
-          const totalQueue = queues.reduce((acc: number, q: unknown) => acc + ((q as { songs?: unknown[] }).songs?.length || 0), 0);
+          const totalQueue = queues.reduce(
+            (acc: number, q: unknown) => acc + ((q as { songs?: unknown[] }).songs?.length || 0),
+            0,
+          );
           sendJson(res, 200, {
             stats: { voiceCount, queueCount: totalQueue },
             nowPlaying,
             queues,
           });
         } catch {
-          sendJson(res, 200, { stats: { voiceCount: 0, queueCount: 0 }, nowPlaying: null, queues: [] });
+          sendJson(res, 200, {
+            stats: { voiceCount: 0, queueCount: 0 },
+            nowPlaying: null,
+            queues: [],
+          });
         }
         return;
       }
@@ -679,12 +786,34 @@ export async function startControlServer(port: number, client: Client): Promise<
           }
           const queue = dt.getQueue(guildId);
           switch (action) {
-            case "pause": if (queue) { queue.pause(); } break;
-            case "resume": if (queue) { queue.resume(); } break;
-            case "skip": if (queue) { await dt.skip(guildId); } break;
-            case "stop": if (queue) { await dt.stop(guildId); } break;
-            case "shuffle": if (queue) { queue.shuffle(); } break;
-            default: sendJson(res, 200, { success: false, error: "Unknown action" }); return;
+            case "pause":
+              if (queue) {
+                queue.pause();
+              }
+              break;
+            case "resume":
+              if (queue) {
+                queue.resume();
+              }
+              break;
+            case "skip":
+              if (queue) {
+                await dt.skip(guildId);
+              }
+              break;
+            case "stop":
+              if (queue) {
+                await dt.stop(guildId);
+              }
+              break;
+            case "shuffle":
+              if (queue) {
+                queue.shuffle();
+              }
+              break;
+            default:
+              sendJson(res, 200, { success: false, error: "Unknown action" });
+              return;
           }
           sendJson(res, 200, { success: true });
         } catch (err) {
@@ -702,7 +831,7 @@ export async function startControlServer(port: number, client: Client): Promise<
           const sessionId = (body.sessionId as string) || "api-default";
           const username = (body.username as string) || "API User";
           const useTools = body.tools !== false; // default true
-          const stream = body.stream === true;
+          const _stream = body.stream === true;
 
           if (!message || message.length > 4000) {
             sendJson(res, 400, { error: "Paramètre 'message' requis (max 4000 caractères)" });
@@ -751,7 +880,10 @@ export async function startControlServer(port: number, client: Client): Promise<
           });
         } catch (err) {
           logger.error("[ControlServer] /api/chat error:", err);
-          sendJson(res, 500, { error: "Erreur IA", details: err instanceof Error ? err.message : String(err) });
+          sendJson(res, 500, {
+            error: "Erreur IA",
+            details: err instanceof Error ? err.message : String(err),
+          });
         }
         return;
       }
@@ -762,11 +894,19 @@ export async function startControlServer(port: number, client: Client): Promise<
           const { ALL_AGENT_TOOLS } = await import("./services/agentTools.js");
           const { EXTENDED_TOOLS } = await import("./services/agentToolsExtended.js");
           const tools = [
-            ...ALL_AGENT_TOOLS.map((t: any) => ({ name: t.function?.name, description: t.function?.description, type: "core" })),
-            ...EXTENDED_TOOLS.map((t: any) => ({ name: t.function?.name, description: t.function?.description, type: "extended" })),
+            ...ALL_AGENT_TOOLS.map((t: any) => ({
+              name: t.function?.name,
+              description: t.function?.description,
+              type: "core",
+            })),
+            ...EXTENDED_TOOLS.map((t: any) => ({
+              name: t.function?.name,
+              description: t.function?.description,
+              type: "extended",
+            })),
           ];
           sendJson(res, 200, { count: tools.length, tools });
-        } catch (err) {
+        } catch (_err) {
           sendJson(res, 500, { error: "Erreur listing tools" });
         }
         return;
@@ -798,7 +938,10 @@ export async function startControlServer(port: number, client: Client): Promise<
           sendJson(res, 200, { tool: toolName, success: result.success, data: result.data });
         } catch (err) {
           logger.error("[ControlServer] /api/tools/execute error:", err);
-          sendJson(res, 500, { error: "Erreur exécution tool", details: err instanceof Error ? err.message : String(err) });
+          sendJson(res, 500, {
+            error: "Erreur exécution tool",
+            details: err instanceof Error ? err.message : String(err),
+          });
         }
         return;
       }

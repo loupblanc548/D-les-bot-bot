@@ -12,16 +12,12 @@
  * /security-config      — Configure les intégrations de sécurité
  */
 
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
-import { scanURL, checkIPReputation, githubDorkSearch } from "../services/threatIntel.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
+import { scanURL, checkIPReputation } from "../services/threatIntel.js";
 import {
   getAutoDefenseConfig,
   updateAutoDefenseConfig,
   addGeoBlockRule,
-  getGeoBlockRules,
-  addToWhitelist,
-  isWhitelisted,
-  removeFromWhitelist,
   buildAutoDefenseEmbed,
 } from "../services/autoDefense.js";
 import { getIntegrationConfig, updateIntegrationConfig } from "../services/securityIntegration.js";
@@ -246,7 +242,7 @@ export async function handleYouTubeCheck(interaction: ChatInputCommandInteractio
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-  } catch (error) {
+  } catch (_error) {
     await interaction.editReply({ content: "Erreur lors de la vérification." });
   }
 }
@@ -290,7 +286,7 @@ export async function handleTranslate(interaction: ChatInputCommandInteraction):
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-  } catch (error) {
+  } catch (_error) {
     await interaction.editReply({ content: "Erreur lors de la traduction." });
   }
 }
@@ -339,7 +335,7 @@ export async function handleAnalyzeImage(interaction: ChatInputCommandInteractio
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-  } catch (error) {
+  } catch (_error) {
     await interaction.editReply({ content: "Erreur lors de l'analyse." });
   }
 }
@@ -394,7 +390,7 @@ export async function handleAnalyzeText(interaction: ChatInputCommandInteraction
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-  } catch (error) {
+  } catch (_error) {
     await interaction.editReply({ content: "Erreur lors de l'analyse." });
   }
 }

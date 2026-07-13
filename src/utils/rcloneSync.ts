@@ -33,7 +33,7 @@ export async function syncBackupsToCloud(): Promise<void> {
   }
 
   try {
-    const { stdout, stderr } = await execFileAsync(
+    const { stderr } = await execFileAsync(
       "rclone",
       [
         "sync",

@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message } from "discord.js";
+import { Client, TextChannel, Message, Collection } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 
@@ -9,9 +9,15 @@ let rotationInterval: NodeJS.Timeout | null = null;
 async function rotatePins(client: Client): Promise<void> {
   for (const guild of client.guilds.cache.values()) {
     try {
-      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<string, TextChannel>;
+      const channels = guild.channels.cache.filter((c) => c.isTextBased()) as Map<
+        string,
+        TextChannel
+      >;
       for (const [, channel] of channels) {
-        const pinned = await channel.messages.fetchPinned().catch(() => null);
+        const pinned = (await channel.messages.fetchPins().catch(() => null)) as Collection<
+          string,
+          Message<true>
+        > | null;
         if (!pinned || pinned.size <= MAX_PINS) continue;
 
         const sorted = [...pinned.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
@@ -20,19 +26,25 @@ async function rotatePins(client: Client): Promise<void> {
         for (const msg of toUnpin) {
           try {
             await msg.unpin();
-            logger.info(`[PinRotation] Dépinglé: "${msg.content.substring(0, 50)}" dans #${channel.name}`);
+            logger.info(
+              `[PinRotation] Dépinglé: "${msg.content.substring(0, 50)}" dans #${channel.name}`,
+            );
           } catch {}
         }
       }
     } catch (err) {
-      logger.debug(`[PinRotation] Erreur guild ${guild.name}: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[PinRotation] Erreur guild ${guild.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
 
 export function startPinRotation(client: Client): void {
   if (rotationInterval) return;
-  logger.info(`[PinRotation] Rotation des messages épinglés activée (max ${MAX_PINS} par salon, intervalle: 6h)`);
+  logger.info(
+    `[PinRotation] Rotation des messages épinglés activée (max ${MAX_PINS} par salon, intervalle: 6h)`,
+  );
   rotationInterval = safeInterval("PinRotation", () => rotatePins(client), CHECK_INTERVAL_MS);
 }
 

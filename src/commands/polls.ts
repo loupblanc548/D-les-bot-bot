@@ -11,7 +11,6 @@ import {
   ActionRowBuilder,
   ComponentType,
 } from "discord.js";
-import logger from "../utils/logger.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -24,12 +23,20 @@ export const commands = [
     .addStringOption((o) => o.setName("option4").setDescription("Option 4").setRequired(false))
     .addStringOption((o) => o.setName("option5").setDescription("Option 5").setRequired(false))
     .addIntegerOption((o) =>
-      o.setName("duree").setDescription("Durée en minutes (défaut: 60)").setRequired(false).setMinValue(1).setMaxValue(10080),
+      o
+        .setName("duree")
+        .setDescription("Durée en minutes (défaut: 60)")
+        .setRequired(false)
+        .setMinValue(1)
+        .setMaxValue(10080),
     )
     .toJSON(),
 ];
 
-const activePolls = new Map<string, { question: string; options: string[]; votes: Map<number, string[]>; endTime: number }>();
+const activePolls = new Map<
+  string,
+  { question: string; options: string[]; votes: Map<number, string[]>; endTime: number }
+>();
 
 function renderBar(percent: number, length = 20): string {
   const filled = Math.round((percent / 100) * length);
@@ -48,7 +55,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   }
 
   if (options.length < 2) {
-    await interaction.reply({ content: "❌ Au moins 2 options requises.", flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({
+      content: "❌ Au moins 2 options requises.",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
 
@@ -57,7 +67,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   activePolls.set(pollId, { question, options, votes: new Map(), endTime });
 
   const buttons = options.map((opt, i) =>
-    new ButtonBuilder().setCustomId(`poll_vote_${pollId}_${i}`).setLabel(`${i + 1}. ${opt.substring(0, 70)}`).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`poll_vote_${pollId}_${i}`)
+      .setLabel(`${i + 1}. ${opt.substring(0, 70)}`)
+      .setStyle(ButtonStyle.Primary),
   );
 
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
@@ -83,7 +96,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     const optionIdx = parseInt(match[1]);
 
     // Remove previous vote from this user
-    for (const [idx, voters] of poll.votes) {
+    for (const [_idx, voters] of poll.votes) {
       const pos = voters.indexOf(btnInteraction.user.id);
       if (pos !== -1) voters.splice(pos, 1);
     }
@@ -107,12 +120,19 @@ function buildPollEmbed(pollId: string, author: string, finished = false): Embed
   const poll = activePolls.get(pollId);
   if (!poll) return new EmbedBuilder().setTitle("Sondage terminé");
 
-  const totalVotes = Array.from(poll.votes.values()).reduce((sum, voters) => sum + voters.length, 0);
+  const totalVotes = Array.from(poll.votes.values()).reduce(
+    (sum, voters) => sum + voters.length,
+    0,
+  );
 
   const embed = new EmbedBuilder()
     .setTitle("📊 " + poll.question)
     .setColor(finished ? 0x6366f1 : 0x818cf8)
-    .setFooter({ text: finished ? "Sondage terminé" : `Se termine <t:${Math.floor(poll.endTime / 1000)}:R> • ${totalVotes} vote(s)` });
+    .setFooter({
+      text: finished
+        ? "Sondage terminé"
+        : `Se termine <t:${Math.floor(poll.endTime / 1000)}:R> • ${totalVotes} vote(s)`,
+    });
 
   poll.options.forEach((opt, i) => {
     const votes = poll.votes.get(i)?.length || 0;

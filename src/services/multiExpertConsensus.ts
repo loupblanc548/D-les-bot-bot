@@ -46,15 +46,18 @@ export interface ConsensusResult {
 const EXPERT_PERSONAS = [
   {
     name: "modérateur_strict",
-    system: "Tu es un modérateur Discord strict avec zero tolérance. La sécurité du serveur passe avant tout. Tu es sévère mais juste dans l'application des règles.",
+    system:
+      "Tu es un modérateur Discord strict avec zero tolérance. La sécurité du serveur passe avant tout. Tu es sévère mais juste dans l'application des règles.",
   },
   {
     name: "modérateur_juste",
-    system: "Tu es un modérateur Discord juste et équitable. Tu pèses le pour et le contre. Tu considères le contexte et l'intention avant de décider.",
+    system:
+      "Tu es un modérateur Discord juste et équitable. Tu pèses le pour et le contre. Tu considères le contexte et l'intention avant de décider.",
   },
   {
     name: "modérateur_empathique",
-    system: "Tu es un modérateur Discord empathique. Tu considères le contexte humain, l'intention derrière le message, et la possibilité d'erreur. Tu préfères éduquer que punir.",
+    system:
+      "Tu es un modérateur Discord empathique. Tu considères le contexte humain, l'intention derrière le message, et la possibilité d'erreur. Tu préfères éduquer que punir.",
   },
 ] as const;
 
@@ -141,13 +144,14 @@ export async function getMultiExpertConsensus(
   message: string,
   context?: string,
 ): Promise<ConsensusResult> {
-  const startTime = Date.now();
+  void Date.now();
 
   try {
     const client = getOpenAIClient();
-    const taskPrompt = EXPERT_TASK_PROMPT
-      .replace("{message}", message.slice(0, 2000))
-      .replace("{context}", context ?? "message isolé sur serveur gaming francophone");
+    const taskPrompt = EXPERT_TASK_PROMPT.replace("{message}", message.slice(0, 2000)).replace(
+      "{context}",
+      context ?? "message isolé sur serveur gaming francophone",
+    );
 
     // Lancer tous les experts en parallèle
     const opinions = await Promise.all(

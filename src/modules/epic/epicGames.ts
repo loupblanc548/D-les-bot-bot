@@ -1,7 +1,7 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import logger from "../../utils/logger.js";
 import { ensureConnected } from "../../utils/redisClient.js";
-import { safeSetImage } from "../../utils/image-helpers.js";
+import {} from "../../utils/image-helpers.js";
 
 const EPIC_API_URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions";
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes

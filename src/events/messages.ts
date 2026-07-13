@@ -42,9 +42,13 @@ import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
 import { addXp } from "../services/xpService.js";
 import { handleSecurityIntegration } from "../services/securityIntegration.js";
-import { shouldBlock as checkAbuseFilter, checkMessage as getAbuseMatches } from "../services/abuseFilter.js";
-import { recordMessage as recordSpamMessage, analyzeSpam, getUserScore as getSpamScore } from "../services/spamDetector.js";
-import { analyzeToxicity as analyzePerspectiveToxicity, isPerspectiveConfigured } from "../services/perspectiveApi.js";
+import { tryHandleNaturalAction } from "../services/naturalActions.js";
+import { shouldBlock as checkAbuseFilter } from "../services/abuseFilter.js";
+import { recordMessage as recordSpamMessage, analyzeSpam } from "../services/spamDetector.js";
+import {
+  analyzeToxicity as analyzePerspectiveToxicity,
+  isPerspectiveConfigured,
+} from "../services/perspectiveApi.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -165,7 +169,13 @@ export function handleMessageEvents(client: Client) {
       }
 
       // ── Détection spam proactive ──────────────────────────────────
-      void checkMessageSpam(client, message.author.id, message.guild.id, message.channel.id, message.content);
+      void checkMessageSpam(
+        client,
+        message.author.id,
+        message.guild.id,
+        message.channel.id,
+        message.content,
+      );
 
       // ── Enregistrement pour le spam detector ML ───────────────────
       recordSpamMessage(message.author.id, message.content, message.channel.id);
@@ -173,7 +183,10 @@ export function handleMessageEvents(client: Client) {
       // ── Abuse Filter : patterns malveillants (scam, IP logger, raid...) ──
       if (!("member" in message) || !message.member) return;
       const abuseMember = message.member as GuildMember;
-      if (!abuseMember.permissions.has("Administrator") && !abuseMember.permissions.has("ModerateMembers")) {
+      if (
+        !abuseMember.permissions.has("Administrator") &&
+        !abuseMember.permissions.has("ModerateMembers")
+      ) {
         const abuseResult = checkAbuseFilter(message.content);
         if (abuseResult.block) {
           try {
@@ -184,19 +197,27 @@ export function handleMessageEvents(client: Client) {
             setTimeout(() => abuseAlert.delete().catch(() => {}), 8000);
 
             if (abuseResult.action === "ban" && message.guild) {
-              await message.guild.members.ban(message.author, { reason: `AbuseFilter: ${abuseResult.reason}` }).catch(() => {});
+              await message.guild.members
+                .ban(message.author, { reason: `AbuseFilter: ${abuseResult.reason}` })
+                .catch(() => {});
             } else if (abuseResult.action === "timeout" && abuseMember.moderatable) {
-              await abuseMember.timeout(5 * 60 * 1000, `AbuseFilter: ${abuseResult.reason}`).catch(() => {});
+              await abuseMember
+                .timeout(5 * 60 * 1000, `AbuseFilter: ${abuseResult.reason}`)
+                .catch(() => {});
             }
 
-            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => {});
+            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(
+              () => {},
+            );
             await createLog({
               type: "automod",
               action: `AbuseFilter (${abuseResult.action}) par ${message.author.tag}: ${abuseResult.reason}`,
               userId: message.author.id,
               details: message.content.slice(0, 200),
             });
-            logger.info(`[AbuseFilter] ${message.author.tag}: ${abuseResult.reason} → ${abuseResult.action}`);
+            logger.info(
+              `[AbuseFilter] ${message.author.tag}: ${abuseResult.reason} → ${abuseResult.action}`,
+            );
             await sendSecurityAlert(client, {
               type: "ABUSE_FILTER",
               userId: message.author.id,
@@ -225,14 +246,18 @@ export function handleMessageEvents(client: Client) {
               content: `🚫 ${message.author} timeout automatique (spam détecté: score ${spamResult.score})`,
             });
             setTimeout(() => spamAlert.delete().catch(() => {}), 10000);
-            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(() => {});
+            await recordSecurityEvent(message.author.id, message.guild.id, "ANTI_SPAM").catch(
+              () => {},
+            );
             await createLog({
               type: "automod",
               action: `SpamDetector par ${message.author.tag}: score ${spamResult.score} (${spamResult.reasons.join(", ")})`,
               userId: message.author.id,
               details: message.content.slice(0, 200),
             });
-            logger.info(`[SpamDetector] ${message.author.tag}: score ${spamResult.score} — ${spamResult.reasons.join(", ")}`);
+            logger.info(
+              `[SpamDetector] ${message.author.tag}: score ${spamResult.score} — ${spamResult.reasons.join(", ")}`,
+            );
             await sendSecurityAlert(client, {
               type: "SPAM_DETECTOR",
               userId: message.author.id,
@@ -328,14 +353,18 @@ export function handleMessageEvents(client: Client) {
     try {
       await handleAgentMessageScan(client, message);
     } catch (agentErr) {
-      logger.warn(`[MessageEvents] AgentBrain: ${agentErr instanceof Error ? agentErr.message : String(agentErr)}`);
+      logger.warn(
+        `[MessageEvents] AgentBrain: ${agentErr instanceof Error ? agentErr.message : String(agentErr)}`,
+      );
     }
 
     // ── Moteur de personnalité — réponses autonomes de John Helldiver ──
     try {
       await handlePersonalityMessage(client, message);
     } catch (personalityErr) {
-      logger.debug(`[MessageEvents] Personality: ${personalityErr instanceof Error ? personalityErr.message : String(personalityErr)}`);
+      logger.debug(
+        `[MessageEvents] Personality: ${personalityErr instanceof Error ? personalityErr.message : String(personalityErr)}`,
+      );
     }
   });
 }
@@ -362,6 +391,11 @@ async function handleAiChatMention(
       });
       return;
     }
+
+    // ── Détection d'actions en langage naturel ──
+    // Ex: "@bot rejoins le vocal", "@bot dis bonjour", "@bot mets le skin X"
+    const actionResult = await tryHandleNaturalAction(message as Message);
+    if (actionResult.handled) return;
 
     // ── Réaction emoji spontanée pour messages simples (40% du temps) ──
     const reaction = getSpontaneousReaction(cleanedContent);
@@ -443,7 +477,9 @@ async function handleAiChatMention(
     } catch (loopError) {
       // Fallback : si l'agent loop échoue (ex: modèle sans function calling),
       // on retombe sur le simple fetch OpenRouter
-      logger.warn(`[AIChat] AgentLoop échoué, fallback simple: ${loopError instanceof Error ? loopError.message : String(loopError)}`);
+      logger.warn(
+        `[AIChat] AgentLoop échoué, fallback simple: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+      );
       const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -460,8 +496,11 @@ async function handleAiChatMention(
         }),
         signal: AbortSignal.timeout(15000),
       });
-      if (!fallbackResponse.ok) throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`);
-      const fallbackData = (await fallbackResponse.json()) as { choices: Array<{ message: { content: string } }> };
+      if (!fallbackResponse.ok)
+        throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`, { cause: loopError });
+      const fallbackData = (await fallbackResponse.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
       aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
     }
 
@@ -505,7 +544,7 @@ async function handleAiChatMention(
 
 async function handleDMMessage(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
-  client: Client,
+  _client: Client,
 ): Promise<void> {
   try {
     const content = message.content.trim();
@@ -540,7 +579,9 @@ async function handleDMMessage(
       aiResponse = await runAgentLoop(message as Message, content);
     } catch (loopError) {
       // Fallback simple fetch si l'agent loop échoue
-      logger.warn(`[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`);
+      logger.warn(
+        `[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+      );
       const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -552,7 +593,12 @@ async function handleDMMessage(
         body: JSON.stringify({
           model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
           messages: [
-            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français, sois concis et naturel." },
+            {
+              role: "system",
+              content:
+                config.aiSystemPrompt +
+                "\n\nTu es John Helldiver, réponds en français, sois concis et naturel.",
+            },
             { role: "user", content: `${message.author.username}: ${content}` },
           ],
           max_tokens: 500,
@@ -560,8 +606,11 @@ async function handleDMMessage(
         }),
         signal: AbortSignal.timeout(15000),
       });
-      if (!fallbackResponse.ok) throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`);
-      const fallbackData = (await fallbackResponse.json()) as { choices: Array<{ message: { content: string } }> };
+      if (!fallbackResponse.ok)
+        throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`, { cause: loopError });
+      const fallbackData = (await fallbackResponse.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
       aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
     }
 
@@ -683,7 +732,11 @@ async function handleContextualAiChat(
       message.author.username,
       message.guildId || undefined,
     );
-    await sendMultiMessage(message.channel as TextChannel, reply.slice(0, 2000), message as Message);
+    await sendMultiMessage(
+      message.channel as TextChannel,
+      reply.slice(0, 2000),
+      message as Message,
+    );
   } catch (err) {
     logger.error("[AIChat] Erreur contextuelle:", err);
   }
@@ -704,7 +757,11 @@ async function handleSecurityModules(
     // ── Perspective API (Google) : toxicité en complément de l'IA ──
     if (isPerspectiveConfigured()) {
       const perspectiveResult = await analyzePerspectiveToxicity(message.content).catch(() => null);
-      if (perspectiveResult && (perspectiveResult.recommendedAction === "remove" || perspectiveResult.recommendedAction === "timeout")) {
+      if (
+        perspectiveResult &&
+        (perspectiveResult.recommendedAction === "remove" ||
+          perspectiveResult.recommendedAction === "timeout")
+      ) {
         try {
           await message.delete();
           const pAlert = await message.channel.send({
@@ -712,10 +769,17 @@ async function handleSecurityModules(
           });
           setTimeout(() => pAlert.delete().catch(() => {}), 8000);
           if (perspectiveResult.recommendedAction === "timeout" && member.moderatable) {
-            await member.timeout(5 * 60 * 1000, `Perspective API: toxicité ${perspectiveResult.overallScore}`);
+            await member.timeout(
+              5 * 60 * 1000,
+              `Perspective API: toxicité ${perspectiveResult.overallScore}`,
+            );
           }
-          await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION").catch(() => {});
-          logger.info(`[Perspective] ${message.author.tag}: toxicité ${Math.round(perspectiveResult.overallScore * 100)}% → ${perspectiveResult.recommendedAction}`);
+          await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION").catch(
+            () => {},
+          );
+          logger.info(
+            `[Perspective] ${message.author.tag}: toxicité ${Math.round(perspectiveResult.overallScore * 100)}% → ${perspectiveResult.recommendedAction}`,
+          );
           await sendSecurityAlert(client, {
             type: "PERSPECTIVE_MOD",
             userId: message.author.id,

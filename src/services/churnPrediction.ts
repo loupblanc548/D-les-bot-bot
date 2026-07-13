@@ -1,4 +1,4 @@
-import { Client, TextChannel, EmbedBuilder, GuildMember } from "discord.js";
+import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import prisma from "../prisma.js";
@@ -28,39 +28,43 @@ async function checkChurnRisk(client: Client): Promise<void> {
 
   for (const guild of client.guilds.cache.values()) {
     try {
-    const members = await guild.members.fetch({ limit: 200 });
-    for (const [memberId, member] of members) {
-      if (member.user.bot) continue;
+      const members = await guild.members.fetch({ limit: 200 });
+      for (const [memberId, member] of members) {
+        if (member.user.bot) continue;
 
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const recentSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-      const totalMessages = await prisma.notification.count({
-        where: { sentAt: { gte: since } },
-      }).catch(() => 0);
+        const totalMessages = await prisma.notification
+          .count({
+            where: { sentAt: { gte: since } },
+          })
+          .catch(() => 0);
 
-      const recentMessages = await prisma.notification.count({
-        where: { sentAt: { gte: recentSince } },
-      }).catch(() => 0);
+        const recentMessages = await prisma.notification
+          .count({
+            where: { sentAt: { gte: recentSince } },
+          })
+          .catch(() => 0);
 
-      const avgPerDay = totalMessages / 30;
-      const recentPerDay = recentMessages / 7;
+        const avgPerDay = totalMessages / 30;
+        const recentPerDay = recentMessages / 7;
 
-      if (avgPerDay < 1) continue;
+        if (avgPerDay < 1) continue;
 
-      const churnRisk = avgPerDay > 0 ? Math.max(0, 1 - recentPerDay / avgPerDay) : 0;
+        const churnRisk = avgPerDay > 0 ? Math.max(0, 1 - recentPerDay / avgPerDay) : 0;
 
-      if (churnRisk >= CHURN_THRESHOLD) {
-        atRiskMembers.push({
-          userId: memberId,
-          username: member.user.username,
-          avgMessagesPerDay: avgPerDay,
-          recentMessagesPerDay: recentPerDay,
-          lastActive: null,
-          churnRisk,
-        });
+        if (churnRisk >= CHURN_THRESHOLD) {
+          atRiskMembers.push({
+            userId: memberId,
+            username: member.user.username,
+            avgMessagesPerDay: avgPerDay,
+            recentMessagesPerDay: recentPerDay,
+            lastActive: null,
+            churnRisk,
+          });
+        }
       }
-    }
     } catch {}
   }
 
@@ -71,7 +75,9 @@ async function checkChurnRisk(client: Client): Promise<void> {
   const embed = new EmbedBuilder()
     .setTitle("⚠️ Alerte churn — Membres à risque de départ")
     .setColor(0xff6600)
-    .setDescription(`${atRiskMembers.length} membre(s) ont réduit leur activité de >${Math.round(CHURN_THRESHOLD * 100)}%`)
+    .setDescription(
+      `${atRiskMembers.length} membre(s) ont réduit leur activité de >${Math.round(CHURN_THRESHOLD * 100)}%`,
+    )
     .setFooter({ text: "Surveillance System • Churn Prediction" })
     .setTimestamp();
 
@@ -84,7 +90,10 @@ async function checkChurnRisk(client: Client): Promise<void> {
   }
 
   try {
-    await channel.send({ embeds: [embed], content: atRiskMembers.length > 10 ? `<@&${process.env.ADMIN_ROLE_ID ?? ""}>` : undefined });
+    await channel.send({
+      embeds: [embed],
+      content: atRiskMembers.length > 10 ? `<@&${process.env.ADMIN_ROLE_ID ?? ""}>` : undefined,
+    });
     logger.info(`[Churn] Alerte envoyée — ${atRiskMembers.length} membre(s) à risque`);
   } catch (err) {
     logger.error(`[Churn] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);

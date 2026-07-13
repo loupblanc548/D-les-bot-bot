@@ -231,6 +231,9 @@ export const config = {
   // Roles
   adminRoles: env.ADMIN_ROLES.split(",").filter(Boolean),
   modRoles: env.MOD_ROLES.split(",").filter(Boolean),
+
+  // Fortnite Party Bot (fnbr.js)
+  fortniteAuthCode: env.FORTNITE_AUTH_CODE || "",
 };
 
 export function validateConfig(): { errors: string[]; warnings: string[] } {

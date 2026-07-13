@@ -16,6 +16,22 @@ import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { ALL_AGENT_TOOLS, executeTool, type ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
+import {
+  beginInteraction,
+  recordLoop,
+  completeInteraction,
+  tripBreaker,
+  createTrippedEmbed,
+} from "./circuitBreaker.js";
+import { generatePlan, formatPlanForPrompt } from "./agentPlanner.js";
+import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
+import { reflectOnToolResult, resetRetries, type ToolExecutionResult } from "./agentReflector.js";
+import {
+  buildPersonalitySystemPrompt,
+  getPersonalityModel,
+  getPersonalityTemperature,
+  getPersonalityMaxTokens,
+} from "../infrastructure/middleware/personalityMiddleware.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -95,10 +111,7 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
  * @param userMessage Le contenu du message (sans la mention du bot)
  * @returns La réponse finale de l'IA
  */
-export async function runAgentLoop(
-  message: Message,
-  userMessage: string,
-): Promise<string> {
+export async function runAgentLoop(message: Message, userMessage: string): Promise<string> {
   // Concurrency lock: prevent the same user from running multiple agent loops
   if (activeAgentLoops.has(message.author.id)) {
     return "⏳ Je traite déjà ton message précédent, soldat ! Patiente un instant.";
@@ -117,10 +130,70 @@ export async function runAgentLoop(
   }
 }
 
-async function runAgentLoopInternal(
-  message: Message,
-  userMessage: string,
-): Promise<string> {
+// ─── Retry wrapper for OpenRouter API calls ─────────────────────────────────
+
+const API_MAX_RETRIES = 3;
+const API_BASE_DELAY_MS = 1_000;
+
+interface RetryableError {
+  status?: number;
+  message: string;
+}
+
+function isRetryableError(err: unknown): boolean {
+  const e = err as RetryableError;
+  if (
+    e.status === 429 ||
+    e.status === 500 ||
+    e.status === 502 ||
+    e.status === 503 ||
+    e.status === 504
+  ) {
+    return true;
+  }
+  if (
+    !e.status &&
+    (e.message.includes("timeout") ||
+      e.message.includes("ECONNRESET") ||
+      e.message.includes("fetch failed") ||
+      e.message.includes("socket hang up"))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function callLlmWithRetry(
+  client: ReturnType<typeof getOpenAIClient>,
+  params: Record<string, unknown>,
+  options: { timeout: number },
+): Promise<Awaited<ReturnType<typeof client.chat.completions.create>>> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
+    try {
+      const result = await client.chat.completions.create(params as never, options as never);
+      return result;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempt < API_MAX_RETRIES && isRetryableError(err)) {
+        const delay = API_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
+        logger.warn(
+          `[AgentLoop] API retry ${attempt + 1}/${API_MAX_RETRIES} in ${Math.round(delay)}ms: ${lastError.message}`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error("API call failed after retries");
+}
+
+async function runAgentLoopInternal(message: Message, userMessage: string): Promise<string> {
   const client = getOpenAIClient();
   const ctx: ToolContext = {
     client: message.client as Client,
@@ -130,6 +203,21 @@ async function runAgentLoopInternal(
     channelId: message.channelId,
   };
 
+  // ─── MODULE 1: Circuit Breaker — track execution state ───
+  const breakerState = beginInteraction(message.author.id, message.guildId || "");
+
+  // ─── MODULE A: Planification multi-étapes ───
+  const toolNames = ALL_AGENT_TOOLS.map((t) => t.function.name);
+  const plan = await generatePlan(userMessage, toolNames);
+  const planPrompt = plan ? formatPlanForPrompt(plan) : "";
+
+  // ─── MODULE B: Mémoire vectorielle — récupérer le contexte pertinent ───
+  const memoryPrompt = formatMemoriesForPrompt(
+    message.author.id,
+    userMessage,
+    message.guildId || undefined,
+  );
+
   // 1. Construire le contexte (mémoire + historique) — en parallèle pour la perf
   const [longTermMemory, channelHistory] = await Promise.all([
     loadLongTermMemory(message.author.id),
@@ -137,7 +225,7 @@ async function runAgentLoopInternal(
   ]);
 
   const systemPrompt =
-    config.aiSystemPrompt +
+    buildPersonalitySystemPrompt(config.aiSystemPrompt) +
     "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
     "Tu as accès à Internet et à plus de 40 outils.\n\n" +
     "## PROCESSUS DE RAISONNEMENT\n" +
@@ -239,6 +327,16 @@ async function runAgentLoopInternal(
     "- addRole, removeRole, createChannel, deleteChannel, lockChannel, unlockChannel\n" +
     "- getMemberInfo, getServerRoles, getServerStats, getVoiceChannels, getEmojis\n" +
     "- setNickname, sendDM, createEmbed, getAuditLog, createInvite\n" +
+    "### Screenshot (Playwright)\n" +
+    "- take_screenshot : prend une capture d'écran d'une page web et l'envoie dans le salon. Utile pour montrer visuellement un site, un article, un graphique.\n" +
+    "### OpenRouter MCP (live model data)\n" +
+    "- or_list_models : liste les modèles IA disponibles avec prix et capacités\n" +
+    "- or_model_info : détails complets d'un modèle (prix, contexte, params)\n" +
+    "- or_benchmarks : scores de benchmark pour comparer la qualité des modèles\n" +
+    "- or_rankings : classement des modèles les plus utilisés aujourd'hui\n" +
+    "- or_chat_test : envoie un prompt de test à n'importe quel modèle (payant)\n" +
+    "- or_docs_search : recherche dans la doc OpenRouter\n" +
+    "- or_credits : vérifie les crédits restants\n" +
     "### Bot Features\n" +
     "- searchGifs, checkToxicity, getRiskProfile, checkPhishing\n" +
     "### Mémoire\n" +
@@ -252,7 +350,9 @@ async function runAgentLoopInternal(
     "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
     "- Sois concis, naturel, réponds en français.\n" +
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
-    (longTermMemory ? longTermMemory : "");
+    (longTermMemory ? longTermMemory : "") +
+    memoryPrompt +
+    planPrompt;
 
   const conversation: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -264,16 +364,47 @@ async function runAgentLoopInternal(
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${MAX_ITERATIONS}`);
 
-    const response = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: conversation as never,
-      tools: ALL_AGENT_TOOLS as never,
-      max_tokens: 800,
-      temperature: 0.7,
-      parallel_tool_calls: true,
-    }, { timeout: 15_000 });
+    // Circuit breaker: check if we can continue
+    if (!recordLoop(breakerState, 800)) {
+      // Breaker tripped — return immersive error
+      const embed = createTrippedEmbed(breakerState);
+      logger.warn(`[AgentLoop] 🚨 Circuit breaker tripped at iteration ${iteration + 1}`);
+      return `${embed.data.title ?? "Circuit breaker activated"} — L'agent a dépassé la limite de sécurité. Réessaie ta demande.`;
+    }
 
-    const choice = response.choices[0];
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
+    try {
+      response = await callLlmWithRetry(
+        client,
+        {
+          model: getPersonalityModel(config.openRouterModel),
+          messages: conversation as never,
+          tools: ALL_AGENT_TOOLS as never,
+          max_tokens: getPersonalityMaxTokens(),
+          temperature: getPersonalityTemperature(),
+          parallel_tool_calls: true,
+          stream: false,
+        },
+        { timeout: 15_000 },
+      );
+    } catch (apiErr) {
+      const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+      logger.error(`[AgentLoop] API call failed after retries: ${errMsg}`);
+      completeInteraction(breakerState);
+      if (errMsg.includes("429") || errMsg.includes("rate")) {
+        return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+      }
+      if (errMsg.includes("timeout") || errMsg.includes("ECONNRESET") || errMsg.includes("fetch")) {
+        return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
+      }
+      return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
+    }
+
+    const choice = (
+      response as {
+        choices: Array<{ message: { content: string | null; tool_calls?: unknown[] } }>;
+      }
+    ).choices[0];
     if (!choice) break;
 
     const assistantMessage = choice.message;
@@ -282,6 +413,16 @@ async function runAgentLoopInternal(
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
       const finalReply = assistantMessage.content || "*(silence)*";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
+      completeInteraction(breakerState);
+
+      // ─── MODULE B: Stocker en mémoire vectorielle ───
+      storeMemory(message.author.id, message.guildId || "", userMessage, "user");
+      storeMemory(message.author.id, message.guildId || "", finalReply, "assistant");
+      void persistMemoryToDb(message.author.id, message.guildId || "").catch(() => {});
+
+      // ─── MODULE C: Reset retry state ───
+      resetRetries(breakerState.interactionId);
+
       return finalReply;
     }
 
@@ -293,9 +434,13 @@ async function runAgentLoopInternal(
     });
 
     // Exécuter tous les tools en parallèle pour la performance
+    const toolCalls = (assistantMessage.tool_calls ?? []) as Array<{
+      id: string;
+      function: { name: string; arguments: string };
+    }>;
     const toolResults = await Promise.all(
-      assistantMessage.tool_calls.map(async (toolCall) => {
-        const tc = toolCall as { id: string; function: { name: string; arguments: string } };
+      toolCalls.map(async (toolCall) => {
+        const tc = toolCall;
         const toolName = tc.function.name;
         let args: Record<string, unknown> = {};
 
@@ -305,8 +450,59 @@ async function runAgentLoopInternal(
           logger.warn(`[AgentLoop] Args invalides pour ${toolName}: ${tc.function.arguments}`);
         }
 
-        const result = await executeTool(toolName, args, ctx);
-        logger.info(`[AgentLoop] 🔧 ${toolName} → ${result.success ? "OK" : "FAIL"}: ${result.data.slice(0, 100)}`);
+        let result;
+        try {
+          result = await executeTool(toolName, args, ctx);
+        } catch (toolErr) {
+          const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+          logger.warn(`[AgentLoop] Tool ${toolName} crashed: ${toolErrMsg}`);
+          result = { success: false, data: `Erreur interne (tool ${toolName}). Réessaie.` };
+        }
+        logger.info(
+          `[AgentLoop] 🔧 ${toolName} → ${result.success ? "OK" : "FAIL"}: ${result.data.slice(0, 100)}`,
+        );
+
+        // ─── MODULE C: Auto-réflexion sur le résultat du tool ───
+        const toolExecResult: ToolExecutionResult = {
+          toolName,
+          success: result.success,
+          data: result.data,
+          args,
+        };
+        let reflection;
+        try {
+          reflection = await reflectOnToolResult(userMessage, toolExecResult, iteration);
+        } catch (reflectErr) {
+          logger.warn(
+            `[AgentLoop] Reflection failed for ${toolName}: ${reflectErr instanceof Error ? reflectErr.message : String(reflectErr)}`,
+          );
+          reflection = { action: "continue" as const, reasoning: undefined };
+        }
+
+        if (reflection.action === "retry" || reflection.action === "retry_different") {
+          const retryArgs = reflection.corrected_args || args;
+          logger.info(
+            `[AgentLoop] 🔄 Retrying ${toolName} (${reflection.action}): ${reflection.reasoning?.slice(0, 80)}`,
+          );
+          const retryResult = await executeTool(toolName, retryArgs, ctx);
+          logger.info(
+            `[AgentLoop] 🔧 ${toolName} retry → ${retryResult.success ? "OK" : "FAIL"}: ${retryResult.data.slice(0, 100)}`,
+          );
+          return {
+            tool_call_id: tc.id,
+            content:
+              retryResult.data +
+              (reflection.reasoning ? `\n[Reflexion: ${reflection.reasoning}]` : ""),
+          };
+        }
+
+        if (reflection.action === "abort") {
+          logger.warn(`[AgentLoop] 🛑 Aborting ${toolName}: ${reflection.reasoning}`);
+          return {
+            tool_call_id: tc.id,
+            content: `Tool ${toolName} abandonné: ${reflection.reasoning}`,
+          };
+        }
 
         return {
           tool_call_id: tc.id,
@@ -330,6 +526,7 @@ async function runAgentLoopInternal(
 
   // Si on a épuisé les itérations, retourner la dernière réponse
   logger.warn(`[AgentLoop] ⚠️ Max iterations (${MAX_ITERATIONS}) atteint`);
+  tripBreaker(breakerState, `Max iterations (${MAX_ITERATIONS}) reached without final reply`);
   return "J'ai analysé la situation mais j'ai besoin de plus de contexte pour répondre. Peux-tu préciser ?";
 }
 
@@ -347,24 +544,27 @@ export async function extractAndSaveMemory(
   try {
     const client = getOpenAIClient();
 
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
-            "Réponds en JSON : {\"facts\": [{\"key\": \"...\", \"value\": \"...\", \"category\": \"...\"}]}. " +
-            "Si rien à mémoriser, réponds {\"facts\": []}.",
-        },
-        {
-          role: "user",
-          content: `User: ${userMessage}\nAI: ${aiResponse}`,
-        },
-      ],
-      max_tokens: 200,
-      temperature: 0.3,
-    }, { timeout: 10_000 });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
+              'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "..."}]}. ' +
+              'Si rien à mémoriser, réponds {"facts": []}.',
+          },
+          {
+            role: "user",
+            content: `User: ${userMessage}\nAI: ${aiResponse}`,
+          },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      },
+      { timeout: 10_000 },
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -403,6 +603,8 @@ export async function extractAndSaveMemory(
     logger.info(`[AgentLoop] 💾 ${parsed.facts.length} faits sauvegardés pour ${userId}`);
   } catch (error) {
     // Non-critique — la mémoire est optionnelle
-    logger.debug(`[AgentLoop] Extraction mémoire échouée: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[AgentLoop] Extraction mémoire échouée: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }

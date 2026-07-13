@@ -20,26 +20,17 @@ export const commands = [
     .setName("broadcast")
     .setDescription("Envoie un message a tous les membres (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("message")
-        .setDescription("Le message a envoyer")
-        .setRequired(true)
+      opt.setName("message").setDescription("Le message a envoyer").setRequired(true),
     )
     .toJSON(),
   new SlashCommandBuilder()
     .setName("dm")
     .setDescription("Envoie un DM sous l'identite du bot (admin)")
     .addUserOption((opt) =>
-      opt
-        .setName("utilisateur")
-        .setDescription("L'utilisateur a contacter")
-        .setRequired(true)
+      opt.setName("utilisateur").setDescription("L'utilisateur a contacter").setRequired(true),
     )
     .addStringOption((opt) =>
-      opt
-        .setName("message")
-        .setDescription("Le message a envoyer")
-        .setRequired(true)
+      opt.setName("message").setDescription("Le message a envoyer").setRequired(true),
     )
     .toJSON(),
   new SlashCommandBuilder()
@@ -56,8 +47,8 @@ export const commands = [
           { name: "Salons", value: "channel" },
           { name: "Roles", value: "role" },
           { name: "Emojis", value: "emoji" },
-          { name: "Messages", value: "message" }
-        )
+          { name: "Messages", value: "message" },
+        ),
     )
     .toJSON(),
   new SlashCommandBuilder()
@@ -68,7 +59,9 @@ export const commands = [
   // /test-freegames : envoie un message de test dans FREE_GAMES_CHANNEL_ID
   new SlashCommandBuilder()
     .setName("test-freegames")
-    .setDescription("Envoie un message de test dans le salon FREE_GAMES_CHANNEL_ID pour valider la configuration")
+    .setDescription(
+      "Envoie un message de test dans le salon FREE_GAMES_CHANNEL_ID pour valider la configuration",
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
   // /status : change le statut du bot (admin only)
@@ -84,11 +77,11 @@ export const commands = [
           { name: "En ligne", value: "online" },
           { name: "Inactif", value: "idle" },
           { name: "Ne pas déranger", value: "dnd" },
-          { name: "Invisible", value: "invisible" }
-        )
+          { name: "Invisible", value: "invisible" },
+        ),
     )
     .toJSON(),
-  
+
   // /add-source : Ajouter une nouvelle source de surveillance
   new SlashCommandBuilder()
     .setName("add-source")
@@ -104,24 +97,21 @@ export const commands = [
           { name: "Bluesky", value: "BLUESKY" },
           { name: "Twitch", value: "TWITCH" },
           { name: "Reddit", value: "REDDIT" },
-          { name: "Instagram", value: "INSTAGRAM" }
-        )
+          { name: "Instagram", value: "INSTAGRAM" },
+        ),
     )
     .addStringOption((opt) =>
       opt
         .setName("handle")
         .setDescription("Handle ou ID de la source (ex: @channel ou UC...)")
-        .setRequired(true)
+        .setRequired(true),
     )
     .addChannelOption((opt) =>
-      opt
-        .setName("salon")
-        .setDescription("Salon où envoyer les notifications")
-        .setRequired(true)
+      opt.setName("salon").setDescription("Salon où envoyer les notifications").setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /remove-source : Supprimer une source de surveillance
   new SlashCommandBuilder()
     .setName("remove-source")
@@ -130,18 +120,18 @@ export const commands = [
       opt
         .setName("handle")
         .setDescription("Handle ou ID de la source à supprimer")
-        .setRequired(true)
+        .setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /list-sources : Lister toutes les sources configurées
   new SlashCommandBuilder()
     .setName("list-sources")
     .setDescription("Lister toutes les sources de surveillance (admin)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /pause-source : Mettre en pause une source
   new SlashCommandBuilder()
     .setName("pause-source")
@@ -150,66 +140,54 @@ export const commands = [
       opt
         .setName("handle")
         .setDescription("Handle ou ID de la source à mettre en pause")
-        .setRequired(true)
+        .setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /backup : Lancer un backup manuel de la base de données
   new SlashCommandBuilder()
     .setName("backup")
     .setDescription("Lancer un backup manuel de la base de données (admin)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /create-workflow : Créer un nouveau workflow
   new SlashCommandBuilder()
     .setName("create-workflow")
     .setDescription("Créer un nouveau workflow d'automatisation (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("name")
-        .setDescription("Nom du workflow")
-        .setRequired(true)
+      opt.setName("name").setDescription("Nom du workflow").setRequired(true),
     )
     .addStringOption((opt) =>
-      opt
-        .setName("description")
-        .setDescription("Description du workflow")
-        .setRequired(false)
+      opt.setName("description").setDescription("Description du workflow").setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /list-workflows : Lister tous les workflows
   new SlashCommandBuilder()
     .setName("list-workflows")
     .setDescription("Lister tous les workflows d'automatisation (admin)")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /toggle-workflow : Activer/désactiver un workflow
   new SlashCommandBuilder()
     .setName("toggle-workflow")
     .setDescription("Activer ou désactiver un workflow (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("workflow-id")
-        .setDescription("ID du workflow")
-        .setRequired(true)
+      opt.setName("workflow-id").setDescription("ID du workflow").setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /search-notifications : Rechercher dans les notifications historiques
   new SlashCommandBuilder()
     .setName("search-notifications")
     .setDescription("Rechercher dans les notifications historiques (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("query")
-        .setDescription("Terme de recherche")
-        .setRequired(false)
+      opt.setName("query").setDescription("Terme de recherche").setRequired(false),
     )
     .addStringOption((opt) =>
       opt
@@ -222,60 +200,53 @@ export const commands = [
           { name: "Bluesky", value: "bluesky" },
           { name: "Twitch", value: "twitch" },
           { name: "Reddit", value: "reddit" },
-          { name: "Instagram", value: "instagram" }
-        )
+          { name: "Instagram", value: "instagram" },
+        ),
     )
     .addIntegerOption((opt) =>
-      opt
-        .setName("page")
-        .setDescription("Numéro de page")
-        .setRequired(false)
-        .setMinValue(1)
+      opt.setName("page").setDescription("Numéro de page").setRequired(false).setMinValue(1),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
-  
+
   // /guild-config : Configurer les paramètres de la guilde
   new SlashCommandBuilder()
     .setName("guild-config")
     .setDescription("Configurer les paramètres de la guilde (admin)")
     .addChannelOption((opt) =>
-      opt
-        .setName("log-channel")
-        .setDescription("Salon de logs")
-        .setRequired(false)
+      opt.setName("log-channel").setDescription("Salon de logs").setRequired(false),
     )
     .addChannelOption((opt) =>
       opt
         .setName("report-channel")
         .setDescription("Salon de signalement (alertes sécurité)")
-        .setRequired(false)
+        .setRequired(false),
     )
     .addChannelOption((opt) =>
       opt
         .setName("free-games-channel")
         .setDescription("Salon des jeux gratuits")
-        .setRequired(false)
+        .setRequired(false),
     )
     .addBooleanOption((opt) =>
       opt
         .setName("monitoring-enabled")
         .setDescription("Activer/désactiver le monitoring")
-        .setRequired(false)
+        .setRequired(false),
     )
     .addIntegerOption((opt) =>
       opt
         .setName("monitoring-interval")
         .setDescription("Intervalle de monitoring (ms)")
         .setRequired(false)
-        .setMinValue(60000)
+        .setMinValue(60000),
     )
     .addIntegerOption((opt) =>
       opt
         .setName("max-retro-posts")
         .setDescription("Nombre max de posts rétrospectifs")
         .setRequired(false)
-        .setMinValue(1)
+        .setMinValue(1),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
@@ -298,8 +269,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       await handleDeleteHistory(interaction);
       break;
     case "test-freegames":
-        await handleTestFreeGames(interaction);
-        break;
+      await handleTestFreeGames(interaction);
+      break;
     case "status":
       await handleStatus(interaction);
       break;
@@ -350,7 +321,7 @@ async function handleBroadcast(interaction: ChatInputCommandInteraction) {
 
   const confirmed = await requestConfirmation(
     interaction,
-    "Envoyer le message suivant a **tous les membres** ?\n\n> " + message
+    "Envoyer le message suivant a **tous les membres** ?\n\n> " + message,
   );
   if (!confirmed) return;
 
@@ -377,7 +348,14 @@ async function handleBroadcast(interaction: ChatInputCommandInteraction) {
     });
   } catch (error) {
     logger.error("[CRASH COMMANDE BROADCAST]:", error);
-    try { await interaction.followUp({ content: "Impossible de terminer le broadcast.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    try {
+      await interaction.followUp({
+        content: "Impossible de terminer le broadcast.",
+        ephemeral: true,
+      });
+    } catch (err) {
+      logger.warn("[Admin] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -401,10 +379,17 @@ async function handleDM(interaction: ChatInputCommandInteraction) {
     logger.error("[CRASH COMMANDE DM]:", error);
     try {
       await interaction.editReply({
-        content: "Impossible d'envoyer un DM a " + user.tag + ". L'utilisateur a peut-etre desactive les DMs.",
+        content:
+          "Impossible d'envoyer un DM a " +
+          user.tag +
+          ". L'utilisateur a peut-etre desactive les DMs.",
       });
     } catch {
-      try { await interaction.followUp({ content: "Impossible d'envoyer le DM.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({ content: "Impossible d'envoyer le DM.", ephemeral: true });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -446,8 +431,15 @@ async function handleLogs(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE LOGS]:", error);
-    try { await interaction.editReply({ content: "Impossible d'afficher les logs." }); }
-    catch { try { await interaction.followUp({ content: "Impossible d'afficher les logs.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ content: "Impossible d'afficher les logs." });
+    } catch {
+      try {
+        await interaction.followUp({ content: "Impossible d'afficher les logs.", ephemeral: true });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -464,7 +456,7 @@ async function handleDeleteHistory(interaction: ChatInputCommandInteraction) {
 
   const confirmed = await requestConfirmation(
     interaction,
-    "Supprimer **" + notifCount + "** notifications enregistrees ? Cette action est irreversible."
+    "Supprimer **" + notifCount + "** notifications enregistrees ? Cette action est irreversible.",
   );
   if (!confirmed) return;
 
@@ -477,7 +469,14 @@ async function handleDeleteHistory(interaction: ChatInputCommandInteraction) {
     });
   } catch (error) {
     logger.error("[CRASH COMMANDE DELETEHISTORY]:", error);
-    try { await interaction.followUp({ content: "Impossible de supprimer les notifications.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    try {
+      await interaction.followUp({
+        content: "Impossible de supprimer les notifications.",
+        ephemeral: true,
+      });
+    } catch (err) {
+      logger.warn("[Admin] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -503,10 +502,12 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
   try {
     await interaction.client.user.setPresence({
       status: newStatus as any,
-      activities: [{
-        name: 'Surveille les Helldivers',
-        type: 3, // Watching
-      }],
+      activities: [
+        {
+          name: "Surveille les Helldivers",
+          type: 3, // Watching
+        },
+      ],
     });
 
     await interaction.reply({
@@ -537,8 +538,8 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
           .setTitle("❌ Configuration manquante")
           .setDescription(
             "La variable d'environnement **FREE_GAMES_CHANNEL_ID** n'est pas définie.\n\n" +
-            "Ajoute-la dans ton fichier `.env` puis redémarre le bot.\n" +
-            "Voir `FREE_GAMES_SETUP.md` pour la procédure complète."
+              "Ajoute-la dans ton fichier `.env` puis redémarre le bot.\n" +
+              "Voir `FREE_GAMES_SETUP.md` pour la procédure complète.",
           ),
       ],
     });
@@ -554,11 +555,13 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
           .setColor(0xff3344)
           .setTitle("❌ Salon introuvable")
           .setDescription(
-            "Le salon avec l'ID `" + channelId + "` est introuvable ou n'est pas textuel.\n\n" +
-            "Vérifie que :\n" +
-            "1. L'ID est correct (Paramètres → Avancés → Mode développeur)\n" +
-            "2. Le salon existe toujours\n" +
-            "3. Le bot a accès au salon"
+            "Le salon avec l'ID `" +
+              channelId +
+              "` est introuvable ou n'est pas textuel.\n\n" +
+              "Vérifie que :\n" +
+              "1. L'ID est correct (Paramètres → Avancés → Mode développeur)\n" +
+              "2. Le salon existe toujours\n" +
+              "3. Le bot a accès au salon",
           ),
       ],
     });
@@ -577,14 +580,18 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
     })
     .setDescription(
       "Ceci est un **message de test** envoyé par la commande `/test-freegames`.\n\n" +
-      "Si tu vois ce message dans le bon salon avec la bonne couleur (vert Epic) et le bon logo, " +
-      "ta configuration est **correcte** ✅\n\n" +
-      "Les prochaines alertes de jeux gratuits seront postées ici toutes les 30 minutes."
+        "Si tu vois ce message dans le bon salon avec la bonne couleur (vert Epic) et le bon logo, " +
+        "ta configuration est **correcte** ✅\n\n" +
+        "Les prochaines alertes de jeux gratuits seront postées ici toutes les 30 minutes.",
     )
     .addFields(
-      { name: "📅 Date du test", value: "<t:" + Math.floor(Date.now() / 1000) + ":F>", inline: true },
+      {
+        name: "📅 Date du test",
+        value: "<t:" + Math.floor(Date.now() / 1000) + ":F>",
+        inline: true,
+      },
       { name: "👤 Demandé par", value: "<@" + interaction.user.id + ">", inline: true },
-      { name: "🛒 Plateforme simulée", value: "Epic Games Store", inline: true }
+      { name: "🛒 Plateforme simulée", value: "Epic Games Store", inline: true },
     )
     .setFooter({ text: "Free Games Tracker • Test de configuration" })
     .setTimestamp();
@@ -598,16 +605,20 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
           .setColor(0x53fc18)
           .setTitle("✅ Message de test envoyé")
           .setDescription(
-            "Un embed de test a été posté dans <#" + channelId + ">.\n\n" +
-            "Vérifie visuellement que :\n" +
-            "✅ La couleur est bien **verte** (Epic)\n" +
-            "✅ Le logo **Epic Games Store** est visible\n" +
-            "✅ Le contenu est correctement formaté"
+            "Un embed de test a été posté dans <#" +
+              channelId +
+              ">.\n\n" +
+              "Vérifie visuellement que :\n" +
+              "✅ La couleur est bien **verte** (Epic)\n" +
+              "✅ Le logo **Epic Games Store** est visible\n" +
+              "✅ Le contenu est correctement formaté",
           ),
       ],
     });
 
-    logger.info("[TestFreeGames] Message de test envoyé dans " + channelId + " par " + interaction.user.tag);
+    logger.info(
+      "[TestFreeGames] Message de test envoyé dans " + channelId + " par " + interaction.user.tag,
+    );
   } catch (sendError) {
     const msg = sendError instanceof Error ? sendError.message : String(sendError);
     await interaction.editReply({
@@ -616,9 +627,13 @@ async function handleTestFreeGames(interaction: ChatInputCommandInteraction) {
           .setColor(0xff3344)
           .setTitle("❌ Erreur d'envoi")
           .setDescription(
-            "Le bot n'a pas pu envoyer le message dans <#" + channelId + ">.\n\n" +
-            "**Erreur :** `" + msg + "`\n\n" +
-            "Vérifie que le bot a bien les permissions `Envoyer des messages` et `Inclure dans les embeds` sur ce salon."
+            "Le bot n'a pas pu envoyer le message dans <#" +
+              channelId +
+              ">.\n\n" +
+              "**Erreur :** `" +
+              msg +
+              "`\n\n" +
+              "Vérifie que le bot a bien les permissions `Envoyer des messages` et `Inclure dans les embeds` sur ce salon.",
           ),
       ],
     });
@@ -637,7 +652,10 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
   const guild = interaction.guild;
 
   if (!guild || !channel) {
-    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur avec un salon valide.", ephemeral: true });
+    await interaction.reply({
+      content: "Cette commande doit être utilisée sur un serveur avec un salon valide.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -672,7 +690,7 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
       .addFields(
         { name: "Type", value: type, inline: true },
         { name: "Handle", value: handle, inline: true },
-        { name: "Salon", value: `<#${channel.id}>`, inline: true }
+        { name: "Salon", value: `<#${channel.id}>`, inline: true },
       )
       .setTimestamp();
 
@@ -683,7 +701,14 @@ async function handleAddSource(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Impossible d'ajouter la source." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible d'ajouter la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible d'ajouter la source.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -706,7 +731,7 @@ async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
 
   const confirmed = await requestConfirmation(
     interaction,
-    "Supprimer la source **" + handle + "** ? Cette action est irréversible."
+    "Supprimer la source **" + handle + "** ? Cette action est irréversible.",
   );
   if (!confirmed) return;
 
@@ -719,7 +744,14 @@ async function handleRemoveSource(interaction: ChatInputCommandInteraction) {
     logger.info(`[Admin] Source supprimée: ${handle} par ${interaction.user.tag}`);
   } catch (error) {
     logger.error("[CRASH COMMANDE REMOVE-SOURCE]:", error);
-    try { await interaction.followUp({ content: "❌ Impossible de supprimer la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+    try {
+      await interaction.followUp({
+        content: "❌ Impossible de supprimer la source.",
+        ephemeral: true,
+      });
+    } catch (err) {
+      logger.warn("[Admin] Erreur followUp:", String(err));
+    }
   }
 }
 
@@ -754,8 +786,18 @@ async function handleListSources(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE LIST-SOURCES]:", error);
-    try { await interaction.editReply({ content: "❌ Impossible d'afficher les sources." }); }
-    catch { try { await interaction.followUp({ content: "❌ Impossible d'afficher les sources.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ content: "❌ Impossible d'afficher les sources." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible d'afficher les sources.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -768,13 +810,22 @@ async function handleBackup(interaction: ChatInputCommandInteraction) {
 
   try {
     await manualBackup(interaction.client);
-    await interaction.editReply({ content: "✅ Backup manuel lancé. Vous recevrez une notification dans le LOG_CHANNEL_ID." });
+    await interaction.editReply({
+      content: "✅ Backup manuel lancé. Vous recevrez une notification dans le LOG_CHANNEL_ID.",
+    });
   } catch (error) {
     logger.error("[CRASH COMMANDE BACKUP]:", error);
     try {
       await interaction.editReply({ content: "❌ Impossible de lancer le backup." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible de lancer le backup.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de lancer le backup.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -789,7 +840,10 @@ async function handleCreateWorkflow(interaction: ChatInputCommandInteraction) {
   const guild = interaction.guild;
 
   if (!guild) {
-    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "Cette commande doit être utilisée sur un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -810,7 +864,7 @@ async function handleCreateWorkflow(interaction: ChatInputCommandInteraction) {
       .addFields(
         { name: "ID", value: workflow.id, inline: true },
         { name: "Nom", value: workflow.name, inline: true },
-        { name: "Description", value: workflow.description || "Aucune", inline: true }
+        { name: "Description", value: workflow.description || "Aucune", inline: true },
       )
       .setTimestamp();
 
@@ -821,7 +875,14 @@ async function handleCreateWorkflow(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Impossible de créer le workflow." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible de créer le workflow.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de créer le workflow.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -868,8 +929,18 @@ async function handleListWorkflows(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[CRASH COMMANDE LIST-WORKFLOWS]:", error);
-    try { await interaction.editReply({ content: "❌ Impossible d'afficher les workflows." }); }
-    catch { try { await interaction.followUp({ content: "❌ Impossible d'afficher les workflows.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ content: "❌ Impossible d'afficher les workflows." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible d'afficher les workflows.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
+    }
   }
 }
 
@@ -905,7 +976,14 @@ async function handleToggleWorkflow(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Impossible de modifier le workflow." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible de modifier le workflow.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de modifier le workflow.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -947,7 +1025,7 @@ async function handleSearchNotifications(interaction: ChatInputCommandInteractio
       .setDescription(notificationLines.join("\n").slice(0, 4000) || "Aucun résultat")
       .addFields(
         { name: "Total", value: result.totalCount.toString(), inline: true },
-        { name: "Page", value: `${result.currentPage}/${result.totalPages}`, inline: true }
+        { name: "Page", value: `${result.currentPage}/${result.totalPages}`, inline: true },
       )
       .setFooter({ text: `Page ${result.currentPage} sur ${result.totalPages}` })
       .setTimestamp();
@@ -958,7 +1036,14 @@ async function handleSearchNotifications(interaction: ChatInputCommandInteractio
     try {
       await interaction.editReply({ content: "❌ Impossible de rechercher les notifications." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible de rechercher les notifications.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de rechercher les notifications.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -977,7 +1062,10 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
 
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.reply({ content: "Cette commande doit être utilisée sur un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "Cette commande doit être utilisée sur un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -998,12 +1086,36 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
       .setTitle("✅ Configuration de guilde mise à jour")
       .setColor(0x53fc18)
       .addFields(
-        { name: "Salon de logs", value: config?.logChannelId || "Non configuré", inline: true },
-        { name: "Salon de signalement", value: config?.reportChannelId || "Non configuré", inline: true },
-        { name: "Salon jeux gratuits", value: config?.freeGamesChannelId || "Non configuré", inline: true },
-        { name: "Monitoring", value: config?.monitoringEnabled ? "Activé" : "Désactivé", inline: true },
-        { name: "Intervalle monitoring", value: `${config?.monitoringIntervalMs || 300000}ms`, inline: true },
-        { name: "Max posts rétrospectifs", value: config?.maxRetroPosts?.toString() || "10", inline: true }
+        {
+          name: "Salon de logs",
+          value: String(config?.logChannelId ?? "Non configuré"),
+          inline: true,
+        },
+        {
+          name: "Salon de signalement",
+          value: String(config?.reportChannelId ?? "Non configuré"),
+          inline: true,
+        },
+        {
+          name: "Salon jeux gratuits",
+          value: String(config?.freeGamesChannelId ?? "Non configuré"),
+          inline: true,
+        },
+        {
+          name: "Monitoring",
+          value: config?.monitoringEnabled ? "Activé" : "Désactivé",
+          inline: true,
+        },
+        {
+          name: "Intervalle monitoring",
+          value: `${config?.monitoringIntervalMs ?? 300000}ms`,
+          inline: true,
+        },
+        {
+          name: "Max posts rétrospectifs",
+          value: String(config?.maxRetroPosts ?? "10"),
+          inline: true,
+        },
       )
       .setTimestamp();
 
@@ -1014,7 +1126,14 @@ async function handleGuildConfig(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.editReply({ content: "❌ Impossible de mettre à jour la configuration." });
     } catch {
-      try { await interaction.followUp({ content: "❌ Impossible de mettre à jour la configuration.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) }
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de mettre à jour la configuration.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
     }
   }
 }
@@ -1036,10 +1155,23 @@ async function handlePauseSource(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    await interaction.editReply({ content: "ℹ️ Fonctionnalité de pause à implémenter (nécessite un champ 'active' dans le schéma)." });
+    await interaction.editReply({
+      content:
+        "ℹ️ Fonctionnalité de pause à implémenter (nécessite un champ 'active' dans le schéma).",
+    });
   } catch (error) {
     logger.error("[CRASH COMMANDE PAUSE-SOURCE]:", error);
-    try { await interaction.editReply({ content: "❌ Impossible de mettre en pause la source." }); }
-    catch { try { await interaction.followUp({ content: "❌ Impossible de mettre en pause la source.", ephemeral: true }); } catch (err) { logger.warn("[Admin] Erreur followUp:", String(err)) } }
+    try {
+      await interaction.editReply({ content: "❌ Impossible de mettre en pause la source." });
+    } catch {
+      try {
+        await interaction.followUp({
+          content: "❌ Impossible de mettre en pause la source.",
+          ephemeral: true,
+        });
+      } catch (err) {
+        logger.warn("[Admin] Erreur followUp:", String(err));
+      }
+    }
   }
 }

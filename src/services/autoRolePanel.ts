@@ -38,7 +38,7 @@ export interface AutoRolePanel {
   roles: AutoRolePanelRole[];
 }
 
-interface AutoRolePanelEntry extends AutoRolePanel {}
+type AutoRolePanelEntry = AutoRolePanel;
 
 // ─── Constantes ───────────────────────────────────────────────────
 
@@ -140,9 +140,7 @@ export async function handleButtonInteraction(
     return null;
   }
   if (!panel.roles.some((r) => r.roleId === decoded.roleId)) {
-    logger.warn(
-      `[autoRolePanel] Rôle ${decoded.roleId} absent du panel ${decoded.panelId}`,
-    );
+    logger.warn(`[autoRolePanel] Rôle ${decoded.roleId} absent du panel ${decoded.panelId}`);
     return null;
   }
 
@@ -150,15 +148,11 @@ export async function handleButtonInteraction(
   try {
     if (has) {
       await member.roles.remove(decoded.roleId);
-      logger.info(
-        `[autoRolePanel] Rôle ${decoded.roleId} retiré à ${member.user.tag}`,
-      );
+      logger.info(`[autoRolePanel] Rôle ${decoded.roleId} retiré à ${member.user.tag}`);
       return false;
     }
     await member.roles.add(decoded.roleId);
-    logger.info(
-      `[autoRolePanel] Rôle ${decoded.roleId} ajouté à ${member.user.tag}`,
-    );
+    logger.info(`[autoRolePanel] Rôle ${decoded.roleId} ajouté à ${member.user.tag}`);
     return true;
   } catch (error) {
     logger.error(
@@ -230,9 +224,7 @@ function encodeCustomId(panelId: string, roleId: string): string {
   return `${AUTO_ROLE_PREFIX}:${panelId}:${roleId}`;
 }
 
-function decodeCustomId(
-  customId: string,
-): { panelId: string; roleId: string } | null {
+function decodeCustomId(customId: string): { panelId: string; roleId: string } | null {
   if (!customId.startsWith(`${AUTO_ROLE_PREFIX}:`)) return null;
   const parts = customId.split(":");
   if (parts.length !== 3) return null;

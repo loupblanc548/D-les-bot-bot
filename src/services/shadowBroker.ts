@@ -10,7 +10,7 @@
  * Mode stealth : alertes en DM uniquement, aucun log visible dans le serveur.
  */
 
-import { Client, GuildMember, EmbedBuilder, User } from "discord.js";
+import { Client, GuildMember, EmbedBuilder } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
@@ -336,7 +336,7 @@ export async function getMemberNetwork(member: GuildMember): Promise<MemberNetwo
   const userId = member.id;
 
   // Analyser les logs partagés (même type, même période)
-  const myLogs = await prisma.log.findMany({
+  const _myLogs = await prisma.log.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -352,14 +352,14 @@ export async function getMemberNetwork(member: GuildMember): Promise<MemberNetwo
   const myModerators = new Set(mySanctions.map((s) => s.moderatorId).filter(Boolean));
 
   if (myModerators.size > 0) {
-    for (const modId of myModerators) {
-      if (!modId || modId === userId) continue;
-      const otherSanctions = await prisma.sanction.findMany({
-        where: { guildId, moderatorId: modId, userId: { not: userId } },
-        take: 20,
-        distinct: ["userId"],
+    const modIds = Array.from(myModerators).filter((id) => id && id !== userId);
+    if (modIds.length > 0) {
+      const allOtherSanctions = await prisma.sanction.findMany({
+        where: { guildId, moderatorId: { in: modIds }, userId: { not: userId } },
+        take: 100,
+        distinct: ["userId", "moderatorId"],
       });
-      for (const s of otherSanctions) {
+      for (const s of allOtherSanctions) {
         const existing = connectionsMap.get(s.userId) ?? { strength: 0, reasons: new Set() };
         existing.strength += 15;
         existing.reasons.add("Sanctionné par le même modérateur");

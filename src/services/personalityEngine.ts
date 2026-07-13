@@ -86,7 +86,15 @@ const activeChannels = process.env.PERSONALITY_CHANNELS
   ? process.env.PERSONALITY_CHANNELS.split(",").map((s) => s.trim())
   : [];
 
-const skipChannelNames = ["logs", "mod-logs", "audit", "commands", "bot-commands", "config", "setup"];
+const skipChannelNames = [
+  "logs",
+  "mod-logs",
+  "audit",
+  "commands",
+  "bot-commands",
+  "config",
+  "setup",
+];
 
 // ─── Conversation flow tracking ──────────────────────────────────────────────
 
@@ -195,21 +203,28 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
     // Fallback: OpenRouter
     const client = getOpenAIClient();
 
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        { role: "system", content: "Tu réponds uniquement en JSON valide. Sois rapide." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 50,
-      temperature: 0.3,
-    }, { timeout: 8_000 });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          { role: "system", content: "Tu réponds uniquement en JSON valide. Sois rapide." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 50,
+        temperature: 0.3,
+      },
+      { timeout: 8_000 },
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
-    const parsed = JSON.parse(jsonMatch[0]) as { respond?: boolean; emotion?: string; reason?: string };
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      respond?: boolean;
+      emotion?: string;
+      reason?: string;
+    };
 
     return {
       shouldRespond: parsed.respond ?? false,
@@ -217,7 +232,9 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
       reason: parsed.reason || "",
     };
   } catch (error) {
-    logger.debug(`[Personality] Relevance check failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[Personality] Relevance check failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     // Fallback: if API fails, default to responding (better to respond than stay silent)
     return { shouldRespond: true, emotion: "neutre", reason: "API fallback" };
   }
@@ -264,7 +281,9 @@ async function generateHumanResponse(
 
     const lastInteraction = recentInteractions.get(message.author.id);
     const isFamiliar = lastInteraction && Date.now() - lastInteraction < 24 * 60 * 60 * 1000;
-    const familiarityHint = isFamiliar ? "Tu connais déjà cette personne, sois naturel." : "Tu ne connais pas bien cette personne, reste courtois mais moins familier.";
+    const familiarityHint = isFamiliar
+      ? "Tu connais déjà cette personne, sois naturel."
+      : "Tu ne connais pas bien cette personne, reste courtois mais moins familier.";
 
     const emotionContext = emotion !== "neutre" ? `L'ambiance actuelle est: ${emotion}.` : "";
 
@@ -284,7 +303,7 @@ async function generateHumanResponse(
         temperature: 0.85,
       });
       if (groqResponse && groqResponse.length >= 2) {
-        let response = groqResponse
+        const response = groqResponse
           .replace(/\*\*/g, "")
           .replace(/^John Helldiver:\s*/i, "")
           .replace(/^John:\s*/i, "")
@@ -297,17 +316,20 @@ async function generateHumanResponse(
     // Fallback: OpenRouter
     const client = getOpenAIClient();
 
-    const completion = await client.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        { role: "system", content: HUMAN_SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 400,
-      temperature: 0.85,
-      presence_penalty: 0.6,
-      frequency_penalty: 0.3,
-    }, { timeout: 15_000 });
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          { role: "system", content: HUMAN_SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 400,
+        temperature: 0.85,
+        presence_penalty: 0.6,
+        frequency_penalty: 0.3,
+      },
+      { timeout: 15_000 },
+    );
 
     let response = completion.choices[0]?.message?.content?.trim() ?? "";
     if (!response || response.length < 2) return null;
@@ -323,7 +345,9 @@ async function generateHumanResponse(
     if (!response || response.length < 2) return null;
     return response.slice(0, 2000);
   } catch (error) {
-    logger.error(`[Personality] Generate failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `[Personality] Generate failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     // Fallback: generate a simple contextual response without AI
     const fallbackResponses = [
       "ouf",
@@ -418,10 +442,15 @@ export async function handlePersonalityMessage(client: Client, message: Message)
       if (i === 0 && Math.random() < 0.08 && msg.length > 60) {
         const embed = new EmbedBuilder()
           .setColor(0x00ff41)
-          .setAuthor({ name: PERSONALITY_NAME, iconURL: client.user?.displayAvatarURL() || undefined })
+          .setAuthor({
+            name: PERSONALITY_NAME,
+            iconURL: client.user?.displayAvatarURL() || undefined,
+          })
           .setDescription(msg)
           .setTimestamp();
-        await (message.channel as { send: (opts: unknown) => Promise<unknown> }).send({ embeds: [embed] });
+        await (message.channel as { send: (opts: unknown) => Promise<unknown> }).send({
+          embeds: [embed],
+        });
       } else {
         await (message.channel as { send: (content: string) => Promise<unknown> }).send(msg);
       }
@@ -444,7 +473,9 @@ export async function handlePersonalityMessage(client: Client, message: Message)
       `[Personality] 🎖️ ${PERSONALITY_NAME} a répondu dans #${(message.channel as { name?: string }).name || message.channelId} (${messages.length} msg, ${emotion}, mention: ${isMentioned})`,
     );
   } catch (error) {
-    logger.error(`[Personality] Post failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `[Personality] Post failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -463,28 +494,34 @@ async function generateProactiveMessage(client: Client): Promise<string | null> 
     let recentTopic = "";
     for (const [, channel] of channels) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const msgs = await (channel as any).messages.fetch({ limit: 5 });
-        const humanMsgs = [...msgs.values()].filter((m: { author: { bot: boolean } }) => !m.author.bot);
+        const humanMsgs = [...msgs.values()].filter(
+          (m: { author: { bot: boolean } }) => !m.author.bot,
+        );
         if (humanMsgs.length > 0) {
           recentTopic = (humanMsgs[0] as { content: string }).content.slice(0, 200);
           break;
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
 
-    const completion = await openaiClient.chat.completions.create({
-      model: config.openRouterModel,
-      messages: [
-        { role: "system", content: HUMAN_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Tu veux lancer une conversation sur Discord. ${recentTopic ? `Le dernier sujet discuté était: "${recentTopic}". ` : ""}Écris un message court et naturel pour démarrer une conversation. Sois spontané, comme un gars qui revient sur Discord et veut parler. 1-2 phrases max.`,
-        },
-      ],
-      max_tokens: 150,
-      temperature: 0.9,
-    }, { timeout: 12_000 });
+    const completion = await openaiClient.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          { role: "system", content: HUMAN_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Tu veux lancer une conversation sur Discord. ${recentTopic ? `Le dernier sujet discuté était: "${recentTopic}". ` : ""}Écris un message court et naturel pour démarrer une conversation. Sois spontané, comme un gars qui revient sur Discord et veut parler. 1-2 phrases max.`,
+          },
+        ],
+        max_tokens: 150,
+        temperature: 0.9,
+      },
+      { timeout: 12_000 },
+    );
 
     return completion.choices[0]?.message?.content?.trim() ?? null;
   } catch {
@@ -522,7 +559,11 @@ async function sendProactiveMessage(client: Client): Promise<void> {
     const generalChannel = channels.find(
       (c) =>
         c.type === 0 &&
-        (c.name.includes("general") || c.name.includes("général") || c.name.includes("random") || c.name.includes("chat") || c.name.includes("discussion")),
+        (c.name.includes("general") ||
+          c.name.includes("général") ||
+          c.name.includes("random") ||
+          c.name.includes("chat") ||
+          c.name.includes("discussion")),
     );
 
     if (!generalChannel || !generalChannel.isTextBased()) return;
@@ -539,7 +580,9 @@ async function sendProactiveMessage(client: Client): Promise<void> {
     lastResponseTime = Date.now();
     logger.info(`[Personality] 🎖️ Message proactif envoyé dans #${generalChannel.name}`);
   } catch (error) {
-    logger.debug(`[Personality] Proactive failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[Personality] Proactive failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 

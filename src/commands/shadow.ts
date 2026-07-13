@@ -17,7 +17,6 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   MessageFlags,
-  User,
 } from "discord.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
@@ -27,7 +26,6 @@ import {
   getMemberNetwork,
   detectSuspiciousPatterns,
   generateIntelReport,
-  isStealthEnabled,
   enableStealth,
   disableStealth,
   sendStealthAlert,
@@ -294,12 +292,6 @@ async function handlePatterns(interaction: ChatInputCommandInteraction) {
     if (patterns.length === 0) {
       embed.setDescription("✅ Aucun pattern suspect détecté sur le serveur.");
     } else {
-      const severityColors: Record<string, number> = {
-        critical: 0xff0000,
-        high: 0xff6600,
-        medium: 0xffaa00,
-        low: 0xaaaa00,
-      };
       const severityEmojis: Record<string, string> = {
         critical: "🔴",
         high: "🟠",

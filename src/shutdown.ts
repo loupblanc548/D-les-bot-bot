@@ -29,7 +29,7 @@ import { stopLogRetention } from "./cron/logRetention.js";
 import { stopLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { stopAgentBrain } from "./services/agentBrain.js";
 import { stopPersonalityEngine } from "./services/personalityEngine.js";
-import type { Client } from "discord.js";
+import type {} from "discord.js";
 
 export type ClientDestroyFn = () => void;
 
