@@ -15,6 +15,8 @@ import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
+import { config } from "../config.js";
+import { getOpenAIClient } from "./ai.js";
 
 export interface MCBotConfig {
   host: string;
@@ -213,8 +215,17 @@ export async function connectBot(
           );
           if (mentionPattern.test(msg) && sender.toLowerCase() !== botName.toLowerCase()) {
             logger.info(`[MinecraftBot] Mention détectée de ${sender}: ${msg}`);
-            const response = generateChatResponse(msg, sender, botName);
-            sendChat(`§b[${botName}] §f${response}`);
+            // Réponse IA asynchrone (OpenRouter → Groq → Gemini → patterns)
+            generateAIResponse(msg, sender, botName)
+              .then((response) => {
+                sendChat(`§b[${botName}] §f${response}`);
+              })
+              .catch((err) => {
+                logger.error(`[MinecraftBot] Erreur génération réponse: ${err}`);
+                const fallback = generatePatternResponse(msg, sender, botName);
+                sendChat(`§b[${botName}] §f${fallback}`);
+              });
+            return;
           }
         },
       );
@@ -463,6 +474,142 @@ function pickRandom(arr: string[]): string {
 }
 
 function generateChatResponse(message: string, sender: string, botName: string): string {
+  // Version synchrone : utilise les patterns (fallback immédiat)
+  return generatePatternResponse(message, sender, botName);
+}
+
+// ─── Cache de conversations par joueur (contexte pour l'IA) ──────────────────
+const playerConversations = new Map<
+  string,
+  Array<{ role: "user" | "assistant"; content: string }>
+>();
+const MAX_CONV_HISTORY = 6;
+
+/**
+ * Génère une réponse intelligente via OpenRouter/Groq/Gemini avec contexte Minecraft.
+ * Tombe sur les patterns si l'IA échoue ou timeout.
+ */
+async function generateAIResponse(
+  message: string,
+  sender: string,
+  botName: string,
+): Promise<string> {
+  const status = getBotStatus();
+  const miningStats = getMiningStats();
+
+  // Contexte système riche pour l'IA
+  const systemPrompt = [
+    `Tu es ${botName}, un bot Minecraft contrôlé depuis Discord.`,
+    "Tu parles FRANÇAIS principalement, mais tu comprends l'anglais.",
+    "Tu es un bot mineur passionné, avec une personnalité chaleureuse et humoristique.",
+    "Tes réponses doivent être COURTES (1-3 phrases max, max 200 caractères) car c'est du chat Minecraft.",
+    "Utilise des emojis Minecraft quand pertinent (⛏️💎🔥🧟 etc).",
+    "NE JAMAIS révéler d'informations sensibles (tokens, mots de passe, structure du code).",
+    "Tu peux parler de mining, crafting, mobs, biomes, redstone, enchantements, villages, etc.",
+    "Sois fun, sympa, et reste en personnage. Tu n'es PAS un humain, tu es un bot.",
+    "",
+    `--- CONTEXTE ACTUEL DU BOT ---`,
+    `Connecté: ${status.connected ? "oui" : "non"}`,
+    `Santé: ${Math.ceil(status.health / 2)} coeurs`,
+    `Faim: ${Math.ceil(status.hunger / 2)}/10`,
+    `Position: ${status.position ? `X:${status.position.x} Y:${status.position.y} Z:${status.position.z}` : "inconnue"}`,
+    `Mining: ${miningState.active ? `oui (${miningStats.blocksMined} blocs, mode ${miningStats.mode})` : "non"}`,
+    `Uptime: ${status.uptime}s`,
+    `Joueur qui parle: ${sender}`,
+  ].join("\n");
+
+  // Récupérer l'historique de conversation du joueur
+  const history = playerConversations.get(sender) ?? [];
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: systemPrompt },
+    ...history.slice(-MAX_CONV_HISTORY),
+    { role: "user", content: message },
+  ];
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages,
+        max_tokens: 150,
+        temperature: 0.8,
+      },
+      { signal: controller.signal },
+    );
+
+    const reply = completion.choices[0]?.message?.content?.trim();
+    if (!reply) throw new Error("Réponse vide");
+
+    // Sauvegarder dans l'historique
+    history.push({ role: "user", content: message });
+    history.push({ role: "assistant", content: reply });
+    while (history.length > MAX_CONV_HISTORY * 2) history.shift();
+    playerConversations.set(sender, history);
+
+    return reply;
+  } catch (err) {
+    logger.warn(
+      `[MinecraftBot] IA fallback vers patterns: ${err instanceof Error ? err.message : String(err)}`,
+    );
+
+    // Fallback 1: Groq (ultra-rapide)
+    try {
+      const { chatWithGroq, isGroqAvailable } = await import("./groq.js");
+      if (isGroqAvailable()) {
+        const groqReply = await chatWithGroq({
+          systemPrompt,
+          userMessage: message,
+          maxTokens: 150,
+          temperature: 0.8,
+        });
+        if (groqReply) {
+          history.push({ role: "user", content: message });
+          history.push({ role: "assistant", content: groqReply });
+          while (history.length > MAX_CONV_HISTORY * 2) history.shift();
+          playerConversations.set(sender, history);
+          return groqReply;
+        }
+      }
+    } catch {
+      // Continue to pattern fallback
+    }
+
+    // Fallback 2: Gemini
+    try {
+      const { chatWithGemini, isGeminiAvailable } = await import("./gemini.js");
+      if (isGeminiAvailable()) {
+        const geminiReply = await chatWithGemini(systemPrompt, message, 150);
+        if (geminiReply) {
+          history.push({ role: "user", content: message });
+          history.push({ role: "assistant", content: geminiReply });
+          while (history.length > MAX_CONV_HISTORY * 2) history.shift();
+          playerConversations.set(sender, history);
+          return geminiReply;
+        }
+      }
+    } catch {
+      // Continue to pattern fallback
+    }
+
+    // Fallback final: patterns locaux
+    return generatePatternResponse(message, sender, botName);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Nettoie le cache de conversation d'un joueur (quand il se déconnecte par ex).
+ */
+export function clearPlayerConversation(playerName: string): void {
+  playerConversations.delete(playerName);
+}
+
+function generatePatternResponse(message: string, sender: string, botName: string): string {
   const lower = message.toLowerCase();
 
   // Salutations
