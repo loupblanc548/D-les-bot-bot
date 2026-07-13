@@ -20,6 +20,7 @@ export default defineSub({
       ),
   execute: async (interaction) => {
     const { connectBot } = await import("../../services/minecraftBot.js");
+    const { buildMinecraftConnectEmbed } = await import("../../utils/gameSetupEmbeds.js");
     const ip = interaction.options.getString("ip", true);
     const port = interaction.options.getInteger("port") ?? 19132;
     const pseudo =
@@ -27,6 +28,11 @@ export default defineSub({
 
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     const result = await connectBot({ host: ip, port, username: pseudo, offline: true });
-    await interaction.editReply({ content: result.message });
+    if (result.success) {
+      const embed = buildMinecraftConnectEmbed(ip, port, pseudo);
+      await interaction.editReply({ embeds: [embed] });
+    } else {
+      await interaction.editReply({ content: result.message });
+    }
   },
 });

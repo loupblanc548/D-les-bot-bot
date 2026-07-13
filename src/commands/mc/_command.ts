@@ -23,6 +23,10 @@ import give from "./give.js";
 import equip from "./equip.js";
 import farm from "./farm.js";
 import stopFarm from "./stop-farm.js";
+import link from "./link.js";
+import unlink from "./unlink.js";
+import profile from "./profile.js";
+import stats from "./stats.js";
 
 const subcommands: SubcommandDef[] = [
   connect,
@@ -40,6 +44,10 @@ const subcommands: SubcommandDef[] = [
   equip,
   farm,
   stopFarm,
+  link,
+  unlink,
+  profile,
+  stats,
 ];
 
 export default {
