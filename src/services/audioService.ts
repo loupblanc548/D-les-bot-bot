@@ -55,7 +55,7 @@ try {
 
 // ─── ffmpeg-static path ──────────────────────────────────────────────────────
 
-let ffmpegPath: string | null = null;
+let ffmpegPath: string | null;
 try {
   const ffmpegMod = await import("ffmpeg-static");
   ffmpegPath = (ffmpegMod as unknown as string) || null;

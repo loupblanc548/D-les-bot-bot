@@ -1445,7 +1445,7 @@ async function handleView(interaction: ChatInputCommandInteraction) {
 
   const profile = await prisma.memberProfile.findUnique({ where: { userId } });
 
-  let badges: string[] = [];
+  let badges: string[];
   try {
     badges = profile?.badges ? JSON.parse(profile.badges) : [];
   } catch {
@@ -1762,7 +1762,7 @@ async function handleBadges(interaction: ChatInputCommandInteraction, userId: st
   }
 
   const profile = await prisma.memberProfile.findUnique({ where: { userId } });
-  let badges: string[] = [];
+  let badges: string[];
   try {
     badges = profile?.badges ? JSON.parse(profile.badges) : [];
   } catch {

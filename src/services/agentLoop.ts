@@ -372,7 +372,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       return `${embed.data.title ?? "Circuit breaker activated"} — L'agent a dépassé la limite de sécurité. Réessaie ta demande.`;
     }
 
-    let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>>;
     try {
       response = await callLlmWithRetry(
         client,

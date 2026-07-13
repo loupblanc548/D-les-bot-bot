@@ -113,14 +113,17 @@ export function ingestLog(level: LogEntry["level"], source: string, message: str
  * Enregistre une entrée de log depuis le logger du bot.
  * À connecter au transport logger.
  */
-export function attachToLogger(logFn: (level: string, message: string) => void): void {
+export function attachToLogger(
+  logFn: (level: string, message: string) => void,
+): (level: string, message: string) => void {
   const original = logFn;
-  logFn = (level: string, message: string) => {
+  const wrapped = (level: string, message: string) => {
     original(level, message);
     if (["info", "warn", "error", "debug"].includes(level)) {
       ingestLog(level as LogEntry["level"], "bot", message);
     }
   };
+  return wrapped;
 }
 
 // ─── Apprentissage de patterns ───────────────────────────────────────────────
