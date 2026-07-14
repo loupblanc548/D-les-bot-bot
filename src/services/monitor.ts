@@ -961,49 +961,12 @@ async function sendHealthAlert(
   errorsEncountered: number,
   executionTime: number,
 ): Promise<void> {
-  try {
-    const logChannelId = process.env.LOG_CHANNEL_ID;
-    if (!logChannelId) {
-      logger.error("[HealthAlert] LOG_CHANNEL_ID not defined");
-      return;
-    }
-
-    const channel = await client.channels.fetch(logChannelId);
-    if (!channel || !(channel instanceof TextChannel)) {
-      logger.error(`[HealthAlert] Invalid log channel: ${logChannelId}`);
-      return;
-    }
-
-    const executionTimeFormatted = (executionTime / 1000).toFixed(2);
-    const statusColor = errorsEncountered === 0 ? "32" : "33";
-    const statusText = errorsEncountered === 0 ? "SUCCÈS" : "AVERTISSEMENT";
-
-    const healthOutput = `\`\`\`ansi
-[1;32mOPÉRATIONNEL[0m === RAPPORT DE SANTÉ RÉTROSPECTIVE ===
-> Version Core : f35eede
-> Identité     : John_Helldiver.aic
-
---- STATISTIQUES CYCLE ---
-[1;36mSOURCES CRÉÉES[0m] [▓▓▓▓▓▒▒▒▒▒▒▒] ${sourcesCreated}
-[1;36mNOTIFICATIONS[0m] [▓▓▓▓▓▒▒▒▒▒▒▒] ${notificationsInserted}
-[1;36mPUBLIÉES[0m]      [▓▓▓▓▓▒▒▒▒▒▒▒] ${totalPublished}
-[1;36mERREURS[0m]       [▓▓▓▓▓▒▒▒▒▒▒▒] ${errorsEncountered}
-
---- MÉTRIQUES EXÉCUTION ---
-TEMPS       -> [1;36m ${executionTimeFormatted}s [0m]
-STATUT      -> [1;${statusColor}m ${statusText} [0m]
-
---- CACHE REDIS ---
-[1;36mPERFORMANCE[0m] ${getCacheStats()}
-
-=======================================================
-[1;30m// Cycle de rattrapage terminé. Système opérationnel.[0m\`\`\``;
-
-    await channel.send({ content: healthOutput });
-    logger.info("[HealthAlert] Health report sent");
-  } catch (error) {
-    logger.error("[HealthAlert] Error:", error);
-  }
+  // Log interne uniquement — plus de spam dans le salon log
+  const executionTimeFormatted = (executionTime / 1000).toFixed(2);
+  const statusText = errorsEncountered === 0 ? "SUCCÈS" : "AVERTISSEMENT";
+  logger.info(
+    `[HealthAlert] Rétrospective: ${sourcesCreated} sources, ${notificationsInserted} notifs, ${totalPublished} publiées, ${errorsEncountered} erreurs, ${executionTimeFormatted}s — ${statusText}`,
+  );
 }
 
 async function checkSourceInactivity(client: Client): Promise<void> {

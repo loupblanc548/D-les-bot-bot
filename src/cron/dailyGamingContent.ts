@@ -56,8 +56,12 @@ async function generateAIContent(prompt: string, maxTokens: number = 300): Promi
 }
 
 async function postDailyContent(client: Client): Promise<void> {
-  const channelId = config.logChannel || process.env.GAMING_CHANNEL_ID;
-  if (!channelId) return;
+  // Poster dans le salon gaming dédié, PAS dans le salon log
+  const channelId = process.env.GAMING_CHANNEL_ID || config.gamingBlogChannel || config.steamEpicChannel;
+  if (!channelId) {
+    logger.warn("[DailyGaming] Aucun salon gaming configuré — contenu ignoré");
+    return;
+  }
 
   const channel = await client.channels.fetch(channelId);
   if (!channel?.isTextBased()) return;

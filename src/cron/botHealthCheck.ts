@@ -14,12 +14,12 @@ import { getMemoryLevel } from "../utils/memoryConfig.js";
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — check interne
 const WEEKLY_REPORT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours — rapport Discord
 const LATENCY_THRESHOLD_MS = 500; // alerte si > 500ms
-const MEMORY_ALERT_THRESHOLD_MB = 400; // alerte si RSS > 400MB (matches GC_THRESHOLD)
+const MEMORY_ALERT_THRESHOLD_MB = 480; // alerte si RSS > 480MB (proche limite Railway 512MB)
 
 let intervalId: NodeJS.Timeout | null = null;
 let lastAlertTime = 0;
 let lastWeeklyReportTime = 0;
-const ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2h entre alertes
+const ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6h entre alertes (était 2h)
 
 export function startBotHealthCheck(client: Client): void {
   if (intervalId) {
