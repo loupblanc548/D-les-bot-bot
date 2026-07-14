@@ -20,6 +20,7 @@ import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
+import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -424,6 +425,29 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "execute_code",
+      description:
+        "Exécute du code dans une sandbox sécurisée (Python, JavaScript, ou shell). Utilise cet outil quand l'utilisateur demande d'écrire et exécuter un script, faire un calcul complexe, analyser des données, générer un fichier, ou prototyper quelque chose. Le code s'exécute avec un timeout de 15s. E2B cloud sandbox si configuré, sinon local.",
+      parameters: {
+        type: "object",
+        properties: {
+          code: {
+            type: "string",
+            description: "Le code à exécuter (code complet, pas un snippet)",
+          },
+          language: {
+            type: "string",
+            enum: ["python", "javascript", "shell"],
+            description: "Langage du code: python, javascript, ou shell (défaut: python)",
+          },
+        },
+        required: ["code"],
+      },
+    },
+  },
 ];
 
 // Fusionner avec les tools étendus (APIs gratuites + Discord + bot features)
@@ -488,6 +512,8 @@ export async function executeTool(
         return await toolTranscribeAudio(args);
       case "analyzeImageGemini":
         return await toolAnalyzeImageGemini(args);
+      case "execute_code":
+        return await toolExecuteCode(args);
       default: {
         // Essayer les tools étendus
         const extResult = await executeExtendedTool(toolName, args, ctx);
@@ -1309,6 +1335,49 @@ async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallR
     return {
       success: false,
       data: `Erreur Hacker News: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+// ─── Code Sandbox ────────────────────────────────────────────────────────────
+
+async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const code = String(args.code ?? "");
+  const language = (String(args.language ?? "python") as "python" | "javascript" | "shell");
+
+  if (!code.trim()) {
+    return { success: false, data: "Code vide — rien à exécuter" };
+  }
+
+  // Safety: block obviously dangerous commands
+  const dangerousPatterns = [
+    /rm\s+-rf\s+\//,
+    /mkfs/,
+    /dd\s+if=\/dev\/zero/,
+    /:\(\)\{.*\};:/, // fork bomb
+    /shutdown/,
+    /reboot/,
+  ];
+
+  if (dangerousPatterns.some((p) => p.test(code))) {
+    return {
+      success: false,
+      data: "Code bloqué par le filtre de sécurité (commande dangereuse détectée)",
+    };
+  }
+
+  try {
+    const result = await executeCode(code, language);
+    const formatted = formatSandboxResult(result);
+    const mode = isE2BConfigured() ? "E2B cloud" : "local";
+    logger.info(
+      `[CodeSandbox] ${language} executed (${mode}) — ${result.success ? "OK" : "FAIL"} in ${result.executionTimeMs}ms`,
+    );
+    return { success: result.success, data: formatted };
+  } catch (error) {
+    return {
+      success: false,
+      data: `Erreur sandbox: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

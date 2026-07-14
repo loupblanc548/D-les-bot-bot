@@ -255,6 +255,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- getNasaApod, getBookInfo\n" +
     "### Utilities\n" +
     "- shortenUrl, getQrCode, getRandomUser\n" +
+    "### Code Sandbox (exécution de code)\n" +
+    "- execute_code : exécute du code Python, JavaScript ou shell dans une sandbox sécurisée. Utilise-le quand l'utilisateur demande d'écrire et exécuter un script, faire un calcul, analyser des données, générer un fichier. Timeout 15s. E2B cloud si configuré, sinon local.\n" +
     "### Agent autonome\n" +
     "- analyze_image : analyse une image attachée (URL requis)\n" +
     "- analyze_sentiment : analyse le sentiment et la toxicité d'un texte\n" +
