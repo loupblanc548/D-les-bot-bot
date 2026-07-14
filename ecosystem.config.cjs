@@ -14,9 +14,10 @@ module.exports = {
       interpreter_args: "--expose-gc --max-old-space-size=448 --import tsx",
       cwd: __dirname,
       autorestart: true,
-      max_restarts: 10,
-      min_uptime: "30s",
-      restart_delay: 5000,
+      max_restarts: 3,
+      min_uptime: "60s",
+      restart_delay: 15000,
+      exp_backoff_restart_delay: 200,
       max_memory_restart: "800M",
       env: {
         NODE_ENV: "production",
