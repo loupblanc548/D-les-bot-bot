@@ -81,7 +81,8 @@ export const commandRouter: Record<string, CmdHandler> = {};
 const commandMiddlewares = [
   createLoggingMiddleware(),
   createPermissionGuardMiddleware(),
-  createRateLimitMiddleware(),
+  // Rate limiting DÉSACTIVÉ — bot débridé
+  // createRateLimitMiddleware(),
 ];
 
 const REMOVED_COMMANDS = new Set([

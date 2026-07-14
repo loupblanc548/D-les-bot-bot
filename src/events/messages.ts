@@ -402,19 +402,7 @@ async function handleAiChatMention(
     // ── Vérifier les conversations expirées avant de continuer ──
     await checkExpiredConversations();
 
-    // ── Vérifier le rate limiting ──
-    const rateLimitCheck = checkRateLimit(
-      message.author.id,
-      "ai_chat",
-      message.guildId || undefined,
-    );
-    if (!rateLimitCheck.allowed) {
-      const _resetTime = new Date(rateLimitCheck.resetTime).toLocaleTimeString("fr-FR");
-      await message.reply({
-        allowedMentions: { repliedUser: false },
-      });
-      return;
-    }
+    // ── Rate limiting DÉSACTIVÉ — bot débridé ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -526,15 +514,7 @@ async function handleDMMessage(
     const content = message.content.trim();
     if (!content) return;
 
-    // Rate limiting sur les DMs
-    const rateLimitCheck = checkRateLimit(message.author.id, "ai_chat", undefined);
-    if (!rateLimitCheck.allowed) {
-      await message.reply({
-        content: "Tu parles trop vite ! Attends quelques secondes. 🦉",
-        allowedMentions: { repliedUser: false },
-      });
-      return;
-    }
+    // ── Rate limiting DÉSACTIVÉ — bot débridé ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -658,7 +638,7 @@ async function handleContextualAiChat(
   client: Client,
 ): Promise<void> {
   try {
-    if (!isAiChatEnabled(message.channel.id)) return;
+    // ── AI Chat activé PARTOUT — plus besoin d'activer le salon ──
     if (!message.mentions.has(client.user!)) return;
 
     let cleanedContent = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "");
@@ -674,12 +654,7 @@ async function handleContextualAiChat(
     cleanedContent = cleanedContent.trim();
     if (!cleanedContent) return;
 
-    const lastUsed = aichatCooldown.get(message.author.id) || 0;
-    if (Date.now() - lastUsed < AICHAT_COOLDOWN_MS) {
-      await message.react("\u23f3").catch(() => {});
-      return;
-    }
-    aichatCooldown.set(message.author.id, Date.now());
+    // ── Cooldown DÉSACTIVÉ — bot débridé ──
 
     // ── TOUS les messages vont à l'IA, peu importe le contenu ou la langue ──
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
