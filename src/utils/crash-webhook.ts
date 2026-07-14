@@ -10,15 +10,16 @@
  */
 
 import logger from "./logger.js";
+import { canAlertPersistent, isCrashLoop } from "./persistentCooldown.js";
 
 const CRASH_WEBHOOK_URL = process.env.CRASH_WEBHOOK_URL || "";
 
-let lastCrashAlert = 0;
 const CRASH_ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes entre alertes
 
 /**
  * Envoie un message d'alerte critique via Webhook Discord.
- * Cooldown de 1 minute pour éviter le spam en cas de crash loop.
+ * Cooldown persistant de 30 min — survit aux redémarrages.
+ * Skip total en cas de crash loop détectée.
  */
 export async function sendCrashAlert(
   title: string,
@@ -30,12 +31,17 @@ export async function sendCrashAlert(
     return;
   }
 
-  const now = Date.now();
-  if (now - lastCrashAlert < CRASH_ALERT_COOLDOWN_MS) {
-    logger.debug(`[CrashWebhook] Alert "${title}" skipped (cooldown)`);
+  // Skip total en crash loop
+  if (isCrashLoop()) {
+    logger.debug(`[CrashWebhook] Alert "${title}" skipped (crash loop)`);
     return;
   }
-  lastCrashAlert = now;
+
+  // Cooldown persistant — survit aux redémarrages
+  if (!canAlertPersistent(`crash_${title}`, CRASH_ALERT_COOLDOWN_MS)) {
+    logger.debug(`[CrashWebhook] Alert "${title}" skipped (cooldown persistant)`);
+    return;
+  }
 
   try {
     const payload = {

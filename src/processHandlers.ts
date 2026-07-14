@@ -7,7 +7,6 @@
 import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import { sendCrashAlert } from "./utils/crash-webhook.js";
-import { sendProactiveAlert } from "./services/proactiveAlerts.js";
 
 export function attachProcessHandlers(): void {
   // Suppress ECONNREFUSED spam from node-redis/BullMQ socket layer (printed to stderr before handlers)
@@ -25,7 +24,9 @@ export function attachProcessHandlers(): void {
     const combined = args.map(String).join(" ");
     if (
       combined.includes("ECONNREFUSED") &&
-      (combined.includes("6379") || combined.includes("redis") || combined.includes("AggregateError"))
+      (combined.includes("6379") ||
+        combined.includes("redis") ||
+        combined.includes("AggregateError"))
     ) {
       return; // Silent — Redis is optional, fallback to local cache
     }
@@ -72,21 +73,16 @@ export function attachProcessHandlers(): void {
       stack: err.stack,
     });
     Sentry.captureException(err, { tags: { type: "unhandledRejection" } });
+    // Crash webhook seulement (cooldown persistant 30min + skip en crash loop)
     void sendCrashAlert(
       "Unhandled Rejection",
       `${err.message}\n\nStack: ${err.stack?.slice(0, 3000)}`,
     );
-    void sendProactiveAlert(
-      "unhandled_rejection",
-      "🔴 Unhandled Rejection",
-      `**Erreur:** ${err.message}\n\`\`\`${err.stack?.slice(0, 800) || "N/A"}\`\`\``,
-      0xff3344,
-      60 * 1000,
-    );
+    // PLUS de DM owner — le crash webhook suffit, évite le spam
   });
 
   process.on("uncaughtException", (error: Error) => {
-    // Erreurs Redis non-fatals — ne pas crasher le bot
+    // Erreurs Redis non-fatales — ne pas crasher le bot
     if (isRedisError(error)) {
       logger.warn(`[PROCESS] Redis error (non-fatal): ${error.message || error.name}`);
       return;
@@ -98,16 +94,11 @@ export function attachProcessHandlers(): void {
     logger.error(`[PROCESS] ⚠️ Uncaught Exception: ${error.message}`, { stack: error.stack });
     logger.error("[PROCESS] L'erreur a ete capturee. Le bot continue de fonctionner.");
     Sentry.captureException(error, { tags: { type: "uncaughtException" } });
+    // Crash webhook seulement (cooldown persistant 30min + skip en crash loop)
     void sendCrashAlert(
       "Uncaught Exception",
       `${error.message}\n\nStack: ${error.stack?.slice(0, 3000)}`,
     );
-    void sendProactiveAlert(
-      "uncaught_exception",
-      "🔴 Uncaught Exception",
-      `**Erreur:** ${error.message}\n\`\`\`${error.stack?.slice(0, 800) || "N/A"}\`\`\``,
-      0xff3344,
-      60 * 1000,
-    );
+    // PLUS de DM owner — le crash webhook suffit, évite le spam
   });
 }

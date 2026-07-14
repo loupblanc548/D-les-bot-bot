@@ -19,20 +19,13 @@ import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 import { config } from "../config.js";
+import { canAlertPersistent, isCrashLoop } from "../utils/persistentCooldown.js";
 
 // ─── Cooldown system ─────────────────────────────────────────────────────────
+// Cooldowns maintenant persistants via fichier — survivent aux redémarrages
 
-const alertCooldowns = new Map<string, number>();
 const DEFAULT_COOLDOWN_MS = 5 * 60 * 1000; // 5 min entre alertes du même type
 const CRITICAL_COOLDOWN_MS = 60 * 1000; // 1 min pour les critiques
-
-function canAlert(key: string, cooldownMs: number = DEFAULT_COOLDOWN_MS): boolean {
-  const now = Date.now();
-  const last = alertCooldowns.get(key) ?? 0;
-  if (now - last < cooldownMs) return false;
-  alertCooldowns.set(key, now);
-  return true;
-}
 
 // ─── Statistiques d'erreurs ──────────────────────────────────────────────────
 
@@ -143,7 +136,18 @@ export async function sendProactiveAlert(
   color: number = 0xff3344,
   cooldownMs: number = DEFAULT_COOLDOWN_MS,
 ): Promise<void> {
-  if (!canAlert(key, cooldownMs)) return;
+  // Skip total en crash loop — évite le spam de DM au propriétaire
+  if (isCrashLoop()) {
+    logger.debug(`[ProactiveAlerts] Alert "${title}" skipped (crash loop)`);
+    return;
+  }
+
+  // Cooldown persistant — survit aux redémarrages
+  if (!canAlertPersistent(key, cooldownMs)) {
+    logger.debug(`[ProactiveAlerts] Alert "${title}" skipped (cooldown persistant)`);
+    return;
+  }
+
   if (!botClient) return;
 
   try {

@@ -3,6 +3,9 @@ node_modules
 # Anti-restart-loop lock file
 .restart-lock
 
+# Persistent cooldown state
+.cooldown-state
+
 # Environment variables
 .env
 .env.local
