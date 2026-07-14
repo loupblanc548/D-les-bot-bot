@@ -257,6 +257,35 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- shortenUrl, getQrCode, getRandomUser\n" +
     "### Code Sandbox (exécution de code)\n" +
     "- execute_code : exécute du code Python, JavaScript ou shell dans une sandbox sécurisée. Utilise-le quand l'utilisateur demande d'écrire et exécuter un script, faire un calcul, analyser des données, générer un fichier. Timeout 15s. E2B cloud si configuré, sinon local.\n" +
+    "### Génération d'images & audio (gratuit)\n" +
+    "- generate_image : génère une image from text (Pollinations.ai, gratuit). Retourne une URL.\n" +
+    "- generate_tts : convertit du texte en audio (StreamElements, gratuit). Voix FR: Celine, Mathieu, Chantal.\n" +
+    "### Science & Data (gratuit)\n" +
+    "- get_nasa_apod : image astronomique du jour (NASA)\n" +
+    "- get_earthquakes : séismes récents dans le monde (USGS)\n" +
+    "- search_arxiv : papers scientifiques (arXiv)\n" +
+    "- search_books : recherche de livres (OpenLibrary)\n" +
+    "- search_food : produits alimentaires avec nutriscore (OpenFoodFacts)\n" +
+    "- get_flights : vols en temps réel (OpenSky)\n" +
+    "- get_google_trends : tendances de recherche Google\n" +
+    "### Gaming (gratuit)\n" +
+    "- get_chess_stats : stats Chess.com d'un joueur\n" +
+    "- get_lichess_stats : stats Lichess d'un joueur\n" +
+    "- get_pokemon : infos Pokémon (PokeAPI)\n" +
+    "### Dev & Code (gratuit)\n" +
+    "- get_npm_package : infos d'un package NPM\n" +
+    "- get_pypi_package : infos d'un package Python PyPI\n" +
+    "- get_devto_articles : articles Dev.to\n" +
+    "### Finance (gratuit)\n" +
+    "- get_stock_price : prix d'une action (Alpha Vantage)\n" +
+    "- get_currency_rate : conversion de devises\n" +
+    "### Social & Web (gratuit — contourne les APIs payantes)\n" +
+    "- get_rsshub_feed : flux RSS de Twitter/Instagram/TikTok/YouTube via RSSHub (SANS API payante). Ex: twitter/user/elonmusk\n" +
+    "### Misc (gratuit)\n" +
+    "- get_country_info : infos d'un pays (capitale, population, langues, drapeau)\n" +
+    "- get_urban_dict : définition d'argot (Urban Dictionary)\n" +
+    "- get_cat_image : image aléatoire de chat\n" +
+    "- get_random_user : profil utilisateur aléatoire\n" +
     "### Agent autonome\n" +
     "- analyze_image : analyse une image attachée (URL requis)\n" +
     "- analyze_sentiment : analyse le sentiment et la toxicité d'un texte\n" +

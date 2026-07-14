@@ -19,6 +19,7 @@
  */
 
 import logger from "../utils/logger.js";
+import Parser from "rss-parser";
 
 // ─── 1. Open-Meteo (météo gratuite, sans clé) ────────────────────────────────
 
@@ -693,6 +694,577 @@ export function makeTimestamp(
     if (isNaN(date.getTime())) return null;
     const unix = Math.floor(date.getTime() / 1000);
     return { timestamp: `<t:${unix}:${format}>`, unix };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 21. Pollinations.ai — Génération d'images gratuite (sans clé) ───────────
+
+export async function generateImage(
+  prompt: string,
+  width = 1024,
+  height = 1024,
+): Promise<string> {
+  const seed = Math.floor(Math.random() * 1000000);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+}
+
+// ─── 22. StreamElements TTS — Voix gratuite (sans clé) ────────────────────────
+
+export function generateTTSUrl(text: string, voice = "Brian"): string {
+  return `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
+}
+
+export const TTS_VOICES = [
+  "Brian", "Emma", "Joey", "Matthew", "Russell", "Amy", "Charlotte",
+  "Justin", "Kendra", "Salli", "Joanna", "Ivy", "Raveena", "Nicole",
+  "Celine", "Mathieu", "Chantal", "Marlene", "Hans", "Vicki",
+];
+
+// ─── 23. NASA APOD — Astronomy Picture of the Day ─────────────────────────────
+
+export async function getNasaApod(date?: string): Promise<{
+  title: string; explanation: string; url: string; mediaType: string; date: string;
+} | null> {
+  try {
+    const apiKey = process.env.NASA_API_KEY ?? "DEMO_KEY";
+    const dateParam = date ? `&date=${date}` : "";
+    const res = await fetch(
+      `https://api.nasa.gov/planetary/apod?api_key=${apiKey}${dateParam}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      title: string; explanation: string; url: string; media_type: string; date: string;
+    };
+    return {
+      title: data.title,
+      explanation: data.explanation.slice(0, 1000),
+      url: data.url,
+      mediaType: data.media_type,
+      date: data.date,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 24. USGS Earthquakes — Séismes temps réel (sans clé) ────────────────────
+
+export async function getEarthquakes(
+  minMagnitude = 4.5,
+  limit = 10,
+): Promise<Array<{
+  magnitude: number; place: string; time: string; url: string;
+  coords: { lat: number; lng: number };
+}>> {
+  try {
+    const res = await fetch(
+      `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_${minMagnitude}.geojson`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      features: Array<{
+        properties: { mag: number; place: string; time: number; url: string };
+        geometry: { coordinates: [number, number, number] };
+      }>;
+    };
+    return (data.features ?? []).slice(0, limit).map((f) => ({
+      magnitude: f.properties.mag,
+      place: f.properties.place ?? "Unknown",
+      time: new Date(f.properties.time).toISOString(),
+      url: f.properties.url,
+      coords: { lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] },
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 25. Chess.com — Stats joueur (sans clé) ──────────────────────────────────
+
+export async function getChessStats(username: string): Promise<{
+  username: string;
+  stats: Array<{ mode: string; rating: number; best: number; games: number; wins: number; losses: number; draws: number }>;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://api.chess.com/pub/player/${encodeURIComponent(username.toLowerCase())}/stats`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as Record<string, {
+      last?: { rating: number }; best?: { rating: number };
+      record?: { win: number; loss: number; draw: number };
+    }>;
+    const modeMap: Record<string, string> = {
+      chess_rapid: "Rapid", chess_bullet: "Bullet", chess_blitz: "Blitz",
+      chess_daily: "Daily", tactics: "Tactics", puzzle_rush: "Puzzle Rush",
+    };
+    const stats = Object.entries(data)
+      .filter(([, v]) => v.last?.rating)
+      .map(([k, v]) => ({
+        mode: modeMap[k] ?? k,
+        rating: v.last!.rating,
+        best: v.best?.rating ?? 0,
+        games: v.record ? v.record.win + v.record.loss + v.record.draw : 0,
+        wins: v.record?.win ?? 0,
+        losses: v.record?.loss ?? 0,
+        draws: v.record?.draw ?? 0,
+      }));
+    return { username, stats };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 26. Lichess — Stats joueur (sans clé) ────────────────────────────────────
+
+export async function getLichessStats(username: string): Promise<{
+  username: string;
+  perfs: Array<{ mode: string; rating: number; games: number }>;
+  playTime: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://lichess.org/api/user/${encodeURIComponent(username.toLowerCase())}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      perfs?: Record<string, { rating: number; games: number }>;
+      playTime?: { total: number };
+    };
+    const perfs = Object.entries(data.perfs ?? {}).map(([mode, v]) => ({
+      mode, rating: v.rating, games: v.games,
+    }));
+    const hours = Math.floor((data.playTime?.total ?? 0) / 3600);
+    return { username, perfs, playTime: `${hours}h` };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 27. OpenLibrary — Recherche de livres (sans clé) ────────────────────────
+
+export async function searchBooks(query: string, limit = 5): Promise<
+  Array<{ title: string; author: string; year: number | null; cover: string | null; url: string }>
+> {
+  try {
+    const res = await fetch(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      docs: Array<{
+        title: string; author_name?: string[];
+        first_publish_year?: number; cover_i?: number; key: string;
+      }>;
+    };
+    return (data.docs ?? []).map((d) => ({
+      title: d.title,
+      author: d.author_name?.[0] ?? "Unknown",
+      year: d.first_publish_year ?? null,
+      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+      url: `https://openlibrary.org${d.key}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 28. Open Food Facts — Base alimentaire (sans clé) ───────────────────────
+
+export async function searchFood(query: string, limit = 5): Promise<
+  Array<{ name: string; brand: string; calories: number | null; nutriscore: string | null; url: string }>
+> {
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${limit}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      products: Array<{
+        product_name?: string; brands?: string; energy_100g?: number;
+        nutriscore_grade?: string; url?: string;
+      }>;
+    };
+    return (data.products ?? []).map((p) => ({
+      name: p.product_name ?? "Unknown",
+      brand: p.brands ?? "Unknown",
+      calories: p.energy_100g ? Math.round(p.energy_100g / 4.184) : null,
+      nutriscore: p.nutriscore_grade ?? null,
+      url: p.url ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 29. arXiv — Papers scientifiques (sans clé) ──────────────────────────────
+
+export async function searchArxiv(query: string, limit = 5): Promise<
+  Array<{ title: string; authors: string; summary: string; published: string; url: string }>
+> {
+  try {
+    const res = await fetch(
+      `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&max_results=${limit}&sortBy=relevance`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return [];
+    const text = await res.text();
+    const rssParserLocal = new Parser();
+    const feed = await rssParserLocal.parseString(text);
+    return feed.items.map((item) => ({
+      title: item.title?.trim() ?? "",
+      authors: item.creator ?? "Unknown",
+      summary: (item.contentSnippet ?? "").slice(0, 500),
+      published: item.isoDate ?? "",
+      url: item.link ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 30. OpenSky — Suivi de vols (sans clé) ───────────────────────────────────
+
+export async function getFlights(): Promise<
+  Array<{ callsign: string; origin: string; altitude: number; velocity: number; heading: number }>
+> {
+  try {
+    const res = await fetch("https://opensky-network.org/api/states/all", {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      states: Array<[string, string, string, number, number, number, number, number, number, number, number, number, number]> | null;
+    };
+    if (!data.states) return [];
+    return data.states.slice(0, 20).map((s) => ({
+      callsign: (s[1] ?? "").trim() || "N/A",
+      origin: s[2] ?? "N/A",
+      altitude: Math.round((s[7] ?? 0) * 3.281),
+      velocity: Math.round((s[9] ?? 0) * 3.6),
+      heading: Math.round(s[10] ?? 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 31. Google Trends — Tendances (sans clé) ────────────────────────────────
+
+export async function getGoogleTrends(country = "FR"): Promise<
+  Array<{ title: string; traffic: string; url: string }>
+> {
+  try {
+    const res = await fetch(
+      `https://trends.google.com/trending/rss?geo=${encodeURIComponent(country)}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return [];
+    const text = await res.text();
+    const rssParserLocal = new Parser();
+    const feed = await rssParserLocal.parseString(text);
+    return feed.items.slice(0, 20).map((item) => ({
+      title: item.title ?? "",
+      traffic: (item.contentSnippet ?? "").split(" ")[0] ?? "",
+      url: item.link ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 32. RSSHub — Universal RSS (Twitter/Insta/TikTok sans API payante) ──────
+
+const RSSHUB_URL = process.env.RSSHUB_URL ?? "https://rsshub.app";
+
+export async function getRssHubFeed(route: string, limit = 10): Promise<
+  Array<{ title: string; link: string; content: string; pubDate: string; author: string }>
+> {
+  try {
+    const url = `${RSSHUB_URL}/${route.replace(/^\//, "")}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return [];
+    const text = await res.text();
+    const rssParserLocal = new Parser();
+    const feed = await rssParserLocal.parseString(text);
+    return feed.items.slice(0, limit).map((item) => ({
+      title: item.title ?? "",
+      link: item.link ?? "",
+      content: (item.contentSnippet ?? "").slice(0, 500),
+      pubDate: item.isoDate ?? "",
+      author: item.creator ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function isRssHubConfigured(): boolean {
+  return !!process.env.RSSHUB_URL;
+}
+
+// ─── 33. Dev.to — Articles tech (sans clé) ───────────────────────────────────
+
+export async function getDevToArticles(tag?: string, limit = 5): Promise<
+  Array<{ title: string; url: string; author: string; tags: string; reactions: number }>
+> {
+  try {
+    const url = tag
+      ? `https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=${limit}`
+      : `https://dev.to/api/articles?per_page=${limit}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+    if (!res.ok) return [];
+    const data = (await res.json()) as Array<{
+      title: string; url: string; user: { username: string };
+      tag_list?: string[]; positive_reactions_count: number;
+    }>;
+    return (data ?? []).map((a) => ({
+      title: a.title,
+      url: a.url,
+      author: a.user?.username ?? "Unknown",
+      tags: (a.tag_list ?? []).join(", "),
+      reactions: a.positive_reactions_count ?? 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── 34. Cat API (sans clé) ───────────────────────────────────────────────────
+
+export async function getCatImage(): Promise<string | null> {
+  try {
+    const res = await fetch("https://api.thecatapi.com/v1/images/search", {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{ url: string }>;
+    return data[0]?.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── 35. PokeAPI (sans clé) ───────────────────────────────────────────────────
+
+export async function getPokemon(nameOrId: string): Promise<{
+  name: string; id: number; height: number; weight: number;
+  types: string[]; stats: Array<{ name: string; value: number }>; sprite: string;
+} | null> {
+  try {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nameOrId.toLowerCase())}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      name: string; id: number; height: number; weight: number;
+      types: Array<{ type: { name: string } }>;
+      stats: Array<{ base_stat: number; stat: { name: string } }>;
+      sprites: { front_default: string };
+    };
+    return {
+      name: data.name, id: data.id,
+      height: data.height / 10, weight: data.weight / 10,
+      types: data.types.map((t) => t.type.name),
+      stats: data.stats.map((s) => ({ name: s.stat.name, value: s.base_stat })),
+      sprite: data.sprites.front_default,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 36. NPM registry (sans clé) ──────────────────────────────────────────────
+
+export async function getNpmPackage(name: string): Promise<{
+  name: string; version: string; description: string; author: string; license: string; homepage: string;
+} | null> {
+  try {
+    const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      name: string; version: string; description: string;
+      author?: { name: string } | string; license?: string; homepage?: string;
+    };
+    return {
+      name: data.name, version: data.version,
+      description: (data.description ?? "").slice(0, 300),
+      author: typeof data.author === "string" ? data.author : (data.author?.name ?? "Unknown"),
+      license: data.license ?? "Unknown",
+      homepage: data.homepage ?? `https://www.npmjs.com/package/${name}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 37. PyPI (sans clé) ──────────────────────────────────────────────────────
+
+export async function getPypiPackage(name: string): Promise<{
+  name: string; version: string; summary: string; author: string; license: string; homepage: string;
+} | null> {
+  try {
+    const res = await fetch(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      info: { name: string; version: string; summary: string; author: string; license: string; home_page: string };
+    };
+    return {
+      name: data.info.name, version: data.info.version,
+      summary: (data.info.summary ?? "").slice(0, 300),
+      author: data.info.author ?? "Unknown",
+      license: data.info.license ?? "Unknown",
+      homepage: data.info.home_page ?? `https://pypi.org/project/${name}/`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 38. REST Countries (sans clé) ────────────────────────────────────────────
+
+export async function getCountryInfo(name: string): Promise<{
+  name: string; capital: string; population: number; region: string;
+  languages: string[]; currencies: string[]; flag: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://restcountries.com/v3.1/name/${encodeURIComponent(name)}?fields=name,capital,population,region,languages,currencies,flag`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{
+      name: { common: string }; capital?: string[]; population: number;
+      region: string; languages?: Record<string, string>;
+      currencies?: Record<string, { name: string }>; flag: string;
+    }>;
+    const c = data[0];
+    if (!c) return null;
+    return {
+      name: c.name.common,
+      capital: c.capital?.[0] ?? "N/A",
+      population: c.population,
+      region: c.region,
+      languages: Object.values(c.languages ?? {}),
+      currencies: Object.keys(c.currencies ?? {}),
+      flag: c.flag,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 39. Urban Dictionary (sans clé) ──────────────────────────────────────────
+
+export async function getUrbanDict(term: string): Promise<{
+  word: string; definition: string; example: string;
+} | null> {
+  try {
+    const res = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      list: Array<{ word: string; definition: string; example: string }>;
+    };
+    const entry = data.list?.[0];
+    if (!entry) return null;
+    return {
+      word: entry.word,
+      definition: entry.definition.slice(0, 500),
+      example: entry.example.slice(0, 300),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 40. Currency exchange (exchangerate.host — sans clé) ────────────────────
+
+export async function getCurrencyRate(from: string, to: string, amount = 1): Promise<{
+  from: string; to: string; rate: number; result: number;
+} | null> {
+  try {
+    const res = await fetch(
+      `https://api.exchangerate.host/live?source=${from.toUpperCase()}&currencies=${to.toUpperCase()}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { quotes: Record<string, number> };
+    const key = `${from.toUpperCase()}${to.toUpperCase()}`;
+    const rate = data.quotes?.[key];
+    if (!rate) return null;
+    return { from: from.toUpperCase(), to: to.toUpperCase(), rate, result: amount * rate };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 41. Random User (sans clé) ───────────────────────────────────────────────
+
+export async function getRandomUser(): Promise<{
+  name: string; gender: string; email: string; country: string; picture: string;
+} | null> {
+  try {
+    const res = await fetch("https://randomuser.me/api/?nat=fr", {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      results: Array<{
+        name: { first: string; last: string }; gender: string; email: string;
+        location: { country: string }; picture: { large: string };
+      }>;
+    };
+    const u = data.results?.[0];
+    if (!u) return null;
+    return {
+      name: `${u.name.first} ${u.name.last}`,
+      gender: u.gender, email: u.email,
+      country: u.location.country, picture: u.picture.large,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── 42. Stock price (Alpha Vantage — gratuit, 500 req/jour) ─────────────────
+
+export async function getStockPrice(symbol: string): Promise<{
+  symbol: string; price: number; change: number; changePercent: number;
+  high: number; low: number; volume: number;
+} | null> {
+  try {
+    const apiKey = process.env.ALPHA_VANTAGE_API_KEY ?? "demo";
+    const res = await fetch(
+      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { "Global Quote": Record<string, string> };
+    const q = data["Global Quote"];
+    if (!q) return null;
+    return {
+      symbol: q["01. symbol"] ?? symbol,
+      price: parseFloat(q["05. price"] ?? "0"),
+      change: parseFloat(q["09. change"] ?? "0"),
+      changePercent: parseFloat(q["10. change percent"]?.replace("%", "") ?? "0"),
+      high: parseFloat(q["03. high"] ?? "0"),
+      low: parseFloat(q["04. low"] ?? "0"),
+      volume: parseInt(q["06. volume"] ?? "0", 10),
+    };
   } catch {
     return null;
   }

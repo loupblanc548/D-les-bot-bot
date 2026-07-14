@@ -21,6 +21,7 @@ import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
+import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -455,6 +456,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...AGENT_TOOLS,
   ...EXTENDED_TOOLS,
   ...AUTONOMOUS_TOOLS,
+  ...FREE_TOOLS,
 ];
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
@@ -521,6 +523,9 @@ export async function executeTool(
         // Essayer les tools autonomes
         const autoResult = await executeAutonomousTool(toolName, args, ctx);
         if (autoResult) return autoResult;
+        // Essayer les tools free APIs
+        const freeResult = await executeFreeTool(toolName, args, ctx);
+        if (freeResult) return freeResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }
