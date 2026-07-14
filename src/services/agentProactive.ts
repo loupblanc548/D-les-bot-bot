@@ -67,7 +67,7 @@ async function gatherContext(client: Client): Promise<ProactiveContext> {
   const memUsage = process.memoryUsage();
   const memMB = memUsage.rss / 1024 / 1024;
   const botHealth: "healthy" | "degraded" | "critical" =
-    memMB > 1500 ? "critical" : memMB > 800 ? "degraded" : "healthy";
+    memMB > 2500 ? "critical" : memMB > 1500 ? "degraded" : "healthy";
 
   return { serverActivity, recentTopics, lastProactiveActions, botHealth };
 }
@@ -219,7 +219,7 @@ async function autonomousMonitor(client: Client): Promise<void> {
 
   // 3. Auto-GC si RAM élevée
   const memMB = process.memoryUsage().rss / 1024 / 1024;
-  if (memMB > 1000) {
+  if (memMB > 1800) {
     logger.info(`[Proactive] 🧹 RAM élevée (${memMB.toFixed(0)}MB) — déclenchement GC`);
     if (global.gc) {
       global.gc();
