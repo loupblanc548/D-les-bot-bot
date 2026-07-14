@@ -288,6 +288,18 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- get_urban_dict : définition d'argot (Urban Dictionary)\n" +
     "- get_cat_image : image aléatoire de chat\n" +
     "- get_random_user : profil utilisateur aléatoire\n" +
+    "### VPS & Système (externe)\n" +
+    "- system_stats : CPU, RAM, disk, uptime du VPS en temps réel\n" +
+    "- ssh_command : exécute des commandes shell sur le VPS (whitelist). Nécessite AGENT_SSH_ENABLED=true\n" +
+    "- db_query : interroge la DB PostgreSQL (SELECT seulement)\n" +
+    "- git_operations : status, log, pull, diff sur le repo du bot. Nécessite AGENT_GIT_ENABLED=true\n" +
+    "- docker_manage : liste/logs/restart/stats des containers Docker. Nécessite AGENT_DOCKER_ENABLED=true\n" +
+    "- file_read : lit un fichier sur le VPS (chemin absolu)\n" +
+    "### Web & HTTP (externe)\n" +
+    "- http_request : fait n'importe quelle requête HTTP (GET/POST/PUT/DELETE) vers n'importe quelle URL\n" +
+    "- rss_monitor : surveille un flux RSS arbitraire et retourne les derniers articles\n" +
+    "- website_diff : détecte les changements sur une page web (compare avec la dernière vérification)\n" +
+    "- cron_create : crée un cron job dynamique pour automatiser des tâches récurrentes\n" +
     "### Agent autonome\n" +
     "- analyze_image : analyse une image attachée (URL requis)\n" +
     "- analyze_sentiment : analyse le sentiment et la toxicité d'un texte\n" +

@@ -22,6 +22,7 @@ import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
+import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -457,6 +458,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...EXTENDED_TOOLS,
   ...AUTONOMOUS_TOOLS,
   ...FREE_TOOLS,
+  ...EXTERNAL_TOOLS,
 ];
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
@@ -518,14 +520,17 @@ export async function executeTool(
         return await toolExecuteCode(args);
       default: {
         // Essayer les tools étendus
-        const extResult = await executeExtendedTool(toolName, args, ctx);
-        if (extResult) return extResult;
+        const extToolResult = await executeExtendedTool(toolName, args, ctx);
+        if (extToolResult) return extToolResult;
         // Essayer les tools autonomes
         const autoResult = await executeAutonomousTool(toolName, args, ctx);
         if (autoResult) return autoResult;
         // Essayer les tools free APIs
         const freeResult = await executeFreeTool(toolName, args, ctx);
         if (freeResult) return freeResult;
+        // Essayer les tools externes (VPS, HTTP, DB, Docker, Git)
+        const extResult = await executeExternalTool(toolName, args, ctx);
+        if (extResult) return extResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }

@@ -40,6 +40,10 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "RSSHUB_URL", tools: ["get_rsshub_feed"], optional: true },
   { envVar: "TELEGRAM_BOT_TOKEN", tools: ["send_telegram"], optional: true },
   { envVar: "DISCORD_WEBHOOK_URL", tools: [], optional: true },
+  { envVar: "AGENT_SSH_ENABLED", tools: ["ssh_command"], optional: false },
+  { envVar: "AGENT_DOCKER_ENABLED", tools: ["docker_manage"], optional: false },
+  { envVar: "AGENT_GIT_ENABLED", tools: ["git_operations"], optional: false },
+  { envVar: "AGENT_DB_ENABLED", tools: ["db_query"], optional: true },
 ];
 
 /**
@@ -48,7 +52,13 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
 export function getConfiguredApiKeys(): Record<string, boolean> {
   const result: Record<string, boolean> = {};
   for (const req of API_KEY_REGISTRY) {
-    result[req.envVar] = !!process.env[req.envVar];
+    const val = process.env[req.envVar];
+    // Boolean env vars (AGENT_*_ENABLED) must be "true"
+    if (req.envVar.startsWith("AGENT_")) {
+      result[req.envVar] = val === "true";
+    } else {
+      result[req.envVar] = !!val;
+    }
   }
   return result;
 }
@@ -60,7 +70,9 @@ export function filterAvailableTools(allTools: AgentToolDef[]): AgentToolDef[] {
   const disabledTools = new Set<string>();
 
   for (const req of API_KEY_REGISTRY) {
-    if (!req.optional && !process.env[req.envVar]) {
+    const val = process.env[req.envVar];
+    const isConfigured = req.envVar.startsWith("AGENT_") ? val === "true" : !!val;
+    if (!req.optional && !isConfigured) {
       for (const toolName of req.tools) {
         disabledTools.add(toolName);
       }
@@ -208,7 +220,43 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     keywords: ["santé", "health", "ram", "mémoire", "performance"],
-    tools: ["monitor_ram_health", "enforce_garbage_collection", "bot_health", "triggerGarbageCollection"],
+    tools: ["monitor_ram_health", "enforce_garbage_collection", "bot_health", "triggerGarbageCollection", "system_stats"],
+  },
+  {
+    keywords: ["vps", "serveur", "cpu", "disk", "uptime", "load"],
+    tools: ["system_stats", "ssh_command"],
+  },
+  {
+    keywords: ["docker", "container", "conteneur"],
+    tools: ["docker_manage"],
+  },
+  {
+    keywords: ["git", "repo", "pull", "commit", "push", "diff"],
+    tools: ["git_operations"],
+  },
+  {
+    keywords: ["sql", "query", "database", "base de données", "select"],
+    tools: ["db_query"],
+  },
+  {
+    keywords: ["http", "api request", "post request", "get request", "fetch url"],
+    tools: ["http_request"],
+  },
+  {
+    keywords: ["rss", "flux", "feed"],
+    tools: ["rss_monitor", "get_rsshub_feed"],
+  },
+  {
+    keywords: ["changement", "diff", "change", "monitoring site", "surveiller site"],
+    tools: ["website_diff"],
+  },
+  {
+    keywords: ["cron", "automatiser", "tâche planifiée", "schedule"],
+    tools: ["cron_create"],
+  },
+  {
+    keywords: ["fichier", "file", "log", "lire fichier", "cat"],
+    tools: ["file_read"],
   },
 ];
 
