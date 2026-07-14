@@ -26,6 +26,7 @@ import {
 import { generatePlan, formatPlanForPrompt } from "./agentPlanner.js";
 import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
 import { reflectOnToolResult, resetRetries, type ToolExecutionResult } from "./agentReflector.js";
+import { routeTools, getToolHints, suggestToolChain, getApiKeyStatusLine } from "./agentToolRouter.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
@@ -207,7 +208,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   const breakerState = beginInteraction(message.author.id, message.guildId || "");
 
   // ─── MODULE A: Planification multi-étapes ───
-  const toolNames = ALL_AGENT_TOOLS.map((t) => t.function.name);
+  const availableTools = routeTools(userMessage, ALL_AGENT_TOOLS);
+  const toolNames = availableTools.map((t) => t.function.name);
   const plan = await generatePlan(userMessage, toolNames);
   const planPrompt = plan ? formatPlanForPrompt(plan) : "";
 
@@ -385,7 +387,14 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
     (longTermMemory ? longTermMemory : "") +
     memoryPrompt +
-    planPrompt;
+    planPrompt +
+    getApiKeyStatusLine() +
+    (getToolHints(userMessage) ? "\n## Tools suggérés pour cette requête\n" + getToolHints(userMessage) : "") +
+    (() => {
+      const chains = suggestToolChain(userMessage);
+      if (chains.length === 0) return "";
+      return "\n## Enchaînement suggéré: " + chains.map((c) => c.join(" → ")).join(" | ") + "\n";
+    })();
 
   const conversation: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -412,7 +421,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
         {
           model: getPersonalityModel(config.openRouterModel),
           messages: conversation as never,
-          tools: ALL_AGENT_TOOLS as never,
+          tools: availableTools as never,
           max_tokens: getPersonalityMaxTokens(),
           temperature: getPersonalityTemperature(),
           parallel_tool_calls: true,

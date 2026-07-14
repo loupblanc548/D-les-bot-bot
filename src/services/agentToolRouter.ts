@@ -1,0 +1,313 @@
+/**
+ * agentToolRouter.ts — Router intelligent pour la sélection d'outils
+ *
+ * Analyse la requête utilisateur et:
+ *  1. Pré-sélectionne les tools pertinents (réduit le contexte LLM)
+ *  2. Vérifie quelles clés API sont configurées
+ *  3. Désactive les tools qui nécessitent une clé absente
+ *  4. Suggère des enchaînements de tools (multi-step)
+ */
+
+import logger from "../utils/logger.js";
+import type { AgentToolDef } from "./agentTools.js";
+
+// ─── API Key Registry ────────────────────────────────────────────────────────
+
+interface ApiKeyRequirement {
+  envVar: string;
+  tools: string[]; // tool names that require this key
+  optional?: boolean; // if true, tool works without key but with limited features
+}
+
+const API_KEY_REGISTRY: ApiKeyRequirement[] = [
+  { envVar: "OPENROUTER_API_KEY", tools: ["searchWeb", "transcribeAudio"], optional: false },
+  { envVar: "BRAVE_SEARCH_API_KEY", tools: ["searchWeb"], optional: true },
+  { envVar: "GROQ_API_KEY", tools: [], optional: true },
+  { envVar: "GEMINI_API_KEY", tools: ["analyzeImageGemini"], optional: true },
+  { envVar: "COHERE_API_KEY", tools: [], optional: true },
+  { envVar: "ASSEMBLYAI_API_KEY", tools: ["transcribeAudio"], optional: true },
+  { envVar: "STEAM_API_KEY", tools: ["getSteamGame"], optional: true },
+  { envVar: "TWITCH_CLIENT_ID", tools: [], optional: true },
+  { envVar: "SPOTIFY_CLIENT_ID", tools: [], optional: true },
+  { envVar: "LASTFM_API_KEY", tools: [], optional: true },
+  { envVar: "IGDB_CLIENT_ID", tools: [], optional: true },
+  { envVar: "ITAD_API_KEY", tools: [], optional: true },
+  { envVar: "STEAMGRIDDB_API_KEY", tools: [], optional: true },
+  { envVar: "NEWS_API_KEY", tools: ["getTechNews"], optional: true },
+  { envVar: "E2B_API_KEY", tools: ["execute_code"], optional: true },
+  { envVar: "ALPHA_VANTAGE_API_KEY", tools: ["get_stock_price"], optional: true },
+  { envVar: "NASA_API_KEY", tools: ["get_nasa_apod"], optional: true },
+  { envVar: "RSSHUB_URL", tools: ["get_rsshub_feed"], optional: true },
+  { envVar: "TELEGRAM_BOT_TOKEN", tools: ["send_telegram"], optional: true },
+  { envVar: "DISCORD_WEBHOOK_URL", tools: [], optional: true },
+];
+
+/**
+ * Vérifie quelles clés API sont configurées.
+ */
+export function getConfiguredApiKeys(): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (const req of API_KEY_REGISTRY) {
+    result[req.envVar] = !!process.env[req.envVar];
+  }
+  return result;
+}
+
+/**
+ * Filtre les tools dont les clés API requises (non-optionnelles) sont absentes.
+ */
+export function filterAvailableTools(allTools: AgentToolDef[]): AgentToolDef[] {
+  const disabledTools = new Set<string>();
+
+  for (const req of API_KEY_REGISTRY) {
+    if (!req.optional && !process.env[req.envVar]) {
+      for (const toolName of req.tools) {
+        disabledTools.add(toolName);
+      }
+    }
+  }
+
+  if (disabledTools.size > 0) {
+    logger.info(`[ToolRouter] Tools désactivés (clés manquantes): ${[...disabledTools].join(", ")}`);
+  }
+
+  return allTools.filter((t) => !disabledTools.has(t.function.name));
+}
+
+// ─── Tool Category Mapping ───────────────────────────────────────────────────
+
+interface ToolCategory {
+  keywords: string[];
+  tools: string[];
+}
+
+const TOOL_CATEGORIES: ToolCategory[] = [
+  {
+    keywords: ["météo", "weather", "température", "pluie", "soleil", "neige", "vent"],
+    tools: ["getWeather"],
+  },
+  {
+    keywords: ["crypto", "bitcoin", "btc", "ethereum", "eth", "prix", "price"],
+    tools: ["getCryptoPrice"],
+  },
+  {
+    keywords: ["action", "stock", "bourse", "trading", "aapl", "msft", "tsla"],
+    tools: ["get_stock_price"],
+  },
+  {
+    keywords: ["devise", "currency", "convertir", "euro", "dollar", "yen", "taux change"],
+    tools: ["get_currency_rate"],
+  },
+  {
+    keywords: ["recherche", "search", "google", "trouver", "chercher", "web"],
+    tools: ["searchWeb", "getWikipediaSummary"],
+  },
+  {
+    keywords: ["youtube", "vidéo", "video", "transcript", "sous-titre"],
+    tools: ["searchYouTube", "youtube_transcript"],
+  },
+  {
+    keywords: ["github", "repo", "code", "projet"],
+    tools: ["getGitHubRepo", "github_profile"],
+  },
+  {
+    keywords: ["pokemon", "pokémon"],
+    tools: ["get_pokemon"],
+  },
+  {
+    keywords: ["échec", "chess", "échecs", "joueur"],
+    tools: ["get_chess_stats", "get_lichess_stats"],
+  },
+  {
+    keywords: ["livre", "book", "lire", "auteur"],
+    tools: ["search_books"],
+  },
+  {
+    keywords: ["nasa", "espace", "astronomie", "étoile", "galaxie"],
+    tools: ["get_nasa_apod"],
+  },
+  {
+    keywords: ["séisme", "earthquake", "tremblement"],
+    tools: ["get_earthquakes"],
+  },
+  {
+    keywords: ["science", "paper", "recherche scientifique", "arxiv", "étude"],
+    tools: ["search_arxiv"],
+  },
+  {
+    keywords: ["nourriture", "food", "aliment", "calorie", "nutriscore"],
+    tools: ["search_food"],
+  },
+  {
+    keywords: ["vol", "flight", "avion", "flight tracker"],
+    tools: ["get_flights"],
+  },
+  {
+    keywords: ["tendance", "trend", "trending", "populaire"],
+    tools: ["get_google_trends"],
+  },
+  {
+    keywords: ["twitter", "tweet", "x.com", "elonmusk"],
+    tools: ["get_rsshub_feed", "jina_read_twitter", "twitter_get_user", "twitter_search"],
+  },
+  {
+    keywords: ["instagram", "insta", "post insta"],
+    tools: ["get_rsshub_feed"],
+  },
+  {
+    keywords: ["tiktok", "tok"],
+    tools: ["get_rsshub_feed"],
+  },
+  {
+    keywords: ["image", "génère", "dessine", "crée image", "picture"],
+    tools: ["generate_image"],
+  },
+  {
+    keywords: ["voix", "audio", "tts", "parle", "speech"],
+    tools: ["generate_tts"],
+  },
+  {
+    keywords: ["code", "python", "javascript", "script", "exécute", "compile"],
+    tools: ["execute_code"],
+  },
+  {
+    keywords: ["traduire", "translate", "traduction"],
+    tools: ["translateText", "auto_translate"],
+  },
+  {
+    keywords: ["pays", "country", "capitale", "population"],
+    tools: ["get_country_info"],
+  },
+  {
+    keywords: ["argot", "slang", "définition", "urban"],
+    tools: ["get_urban_dict", "scrape_urban_slang"],
+  },
+  {
+    keywords: ["npm", "package", "node"],
+    tools: ["get_npm_package"],
+  },
+  {
+    keywords: ["pypi", "pip", "python package"],
+    tools: ["get_pypi_package"],
+  },
+  {
+    keywords: ["dev.to", "article", "blog tech"],
+    tools: ["get_devto_articles"],
+  },
+  {
+    keywords: ["chat", "random user", "profil"],
+    tools: ["get_random_user"],
+  },
+  {
+    keywords: ["modération", "ban", "kick", "timeout", "warn", "sanction"],
+    tools: ["get_user_moderation_history", "timeoutUser", "warnUser"],
+  },
+  {
+    keywords: ["osint", "investigation", "background check"],
+    tools: ["osint_scan", "shodan_search", "username_search", "email_reputation"],
+  },
+  {
+    keywords: ["santé", "health", "ram", "mémoire", "performance"],
+    tools: ["monitor_ram_health", "enforce_garbage_collection", "bot_health", "triggerGarbageCollection"],
+  },
+];
+
+/**
+ * Analyse une requête et retourne les tools pertinents.
+ */
+export function routeTools(userMessage: string, allTools: AgentToolDef[]): AgentToolDef[] {
+  const lowerMsg = userMessage.toLowerCase();
+  const relevantToolNames = new Set<string>();
+
+  for (const cat of TOOL_CATEGORIES) {
+    for (const keyword of cat.keywords) {
+      if (lowerMsg.includes(keyword)) {
+        for (const toolName of cat.tools) {
+          relevantToolNames.add(toolName);
+        }
+        break;
+      }
+    }
+  }
+
+  // Si on a identifié des tools pertinents, les prioriser
+  // mais garder tous les tools disponibles (l'IA peut toujours en utiliser d'autres)
+  if (relevantToolNames.size > 0) {
+    logger.info(`[ToolRouter] Tools suggérés pour "${lowerMsg.slice(0, 50)}": ${[...relevantToolNames].join(", ")}`);
+  }
+
+  // Filtrer les tools désactivés (clés manquantes)
+  return filterAvailableTools(allTools);
+}
+
+/**
+ * Génère un hint pour le system prompt sur les tools suggérés.
+ */
+export function getToolHints(userMessage: string): string {
+  const lowerMsg = userMessage.toLowerCase();
+  const hints: string[] = [];
+
+  for (const cat of TOOL_CATEGORIES) {
+    for (const keyword of cat.keywords) {
+      if (lowerMsg.includes(keyword)) {
+        hints.push(`Pour "${keyword}", utilise: ${cat.tools.join(" ou ")}`);
+        break;
+      }
+    }
+  }
+
+  return hints.length > 0 ? hints.join("\n") : "";
+}
+
+/**
+ * Suggère un enchaînement de tools (multi-step).
+ */
+export function suggestToolChain(userMessage: string): string[][] {
+  const lowerMsg = userMessage.toLowerCase();
+  const chains: string[][] = [];
+
+  // "Vérifie les deals" → searchWeb + getSteamGame + build_rich_embed
+  if (lowerMsg.includes("deal") || lowerMsg.includes("promotion") || lowerMsg.includes("réduction")) {
+    chains.push(["searchWeb", "getSteamGame", "build_rich_embed"]);
+  }
+
+  // "Analyse ce user" → get_user_moderation_history + osint_scan + track_avatar_hash
+  if (lowerMsg.includes("analyse") && (lowerMsg.includes("user") || lowerMsg.includes("utilisateur"))) {
+    chains.push(["get_user_moderation_history", "osint_scan", "track_avatar_hash"]);
+  }
+
+  // "Écris un script" → execute_code
+  if (lowerMsg.includes("script") || lowerMsg.includes("code python") || lowerMsg.includes("exécute")) {
+    chains.push(["execute_code"]);
+  }
+
+  // "Tendances" → get_google_trends + get_devto_articles + getTechNews
+  if (lowerMsg.includes("tendance") || lowerMsg.includes("trend") || lowerMsg.includes("actu")) {
+    chains.push(["get_google_trends", "get_devto_articles", "getTechNews"]);
+  }
+
+  // "Génère une image" → generate_image
+  if (lowerMsg.includes("image") || lowerMsg.includes("dessine") || lowerMsg.includes("génère")) {
+    chains.push(["generate_image"]);
+  }
+
+  return chains;
+}
+
+/**
+ * Statut des API keys pour le system prompt.
+ */
+export function getApiKeyStatusLine(): string {
+  const keys = getConfiguredApiKeys();
+  const configured = Object.entries(keys).filter(([, v]) => v).map(([k]) => k);
+  const missing = Object.entries(keys).filter(([, v]) => !v).map(([k]) => k);
+
+  let line = "## API Keys configurées\n";
+  if (configured.length > 0) {
+    line += `✅ Actives: ${configured.join(", ")}\n`;
+  }
+  if (missing.length > 0) {
+    line += `⚠️ Manquantes (tools correspondants en mode dégradé): ${missing.join(", ")}\n`;
+  }
+  return line;
+}

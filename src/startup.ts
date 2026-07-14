@@ -89,6 +89,7 @@ import { startPresenceTracker } from "./services/presenceTracker.js";
 import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
+import { startProactiveAgent } from "./services/agentProactive.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -312,6 +313,7 @@ export function attachStartupLogic(
       () => startDealFusion(client),
       () => startGitHubReleasesMonitor(client),
       () => startMultiSiteDealsMonitor(client),
+      () => startProactiveAgent(client),
     ];
     for (const start of services) {
       try {
