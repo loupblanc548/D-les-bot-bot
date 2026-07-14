@@ -70,24 +70,16 @@ export function initProactiveAlerts(client: Client): void {
     );
   });
 
-  // 2. Déconnexion Discord
+  // 2. Déconnexion Discord — DÉSACTIVÉ en DM (spam inutile, log interne suffit)
   client.on("shardDisconnect", (event) => {
-    void sendProactiveAlert(
-      "discord_disconnect",
-      "🔌 Déconnexion Discord",
-      `Le bot s'est déconnecté de Discord.\n**Raison:** ${event.reason || "Inconnue"}\n**Code:** ${event.code}`,
-      0xff9900,
+    logger.warn(
+      `[ProactiveAlerts] Déconnexion Discord: ${event.reason || "Inconnue"} (code: ${event.code})`,
     );
   });
 
-  // 3. Reconnexion Discord
+  // 3. Reconnexion Discord — DÉSACTIVÉ en DM (spam inutile, log interne suffit)
   client.on("shardReconnecting", () => {
-    void sendProactiveAlert(
-      "discord_reconnect",
-      "🔄 Reconnexion Discord",
-      "Tentative de reconnexion à Discord en cours...",
-      0xffaa00,
-    );
+    logger.warn("[ProactiveAlerts] Reconnexion Discord en cours...");
   });
 
   // 4. Erreur de shard
@@ -395,7 +387,7 @@ export async function sendDeploymentNotification(
 }
 
 /**
- * Envoie une notification de statut global du bot.
+ * Envoie un rapport de statut global du bot.
  * Résumé complet : serveurs, utilisateurs, uptime, mémoire, commandes.
  */
 export async function sendStatusReport(): Promise<void> {
@@ -432,5 +424,55 @@ export async function sendStatusReport(): Promise<void> {
     logger.info("[ProactiveAlerts] Rapport de statut envoyé à l'owner");
   } catch (error) {
     logger.error("[ProactiveAlerts] Erreur envoi rapport de statut:", error);
+  }
+}
+
+/**
+ * Envoie UN SEUL embed consolidé au démarrage — remplace les 3 messages séparés
+ * (DM texte "🚀", sendDeploymentNotification, sendStatusReport).
+ * Inclut : confirmation de démarrage + statut complet (serveurs, mémoire, ping).
+ */
+export async function sendConsolidatedStartupReport(): Promise<void> {
+  if (!botClient) return;
+
+  try {
+    const owner = await botClient.users.fetch(config.ownerId);
+    if (!owner) return;
+
+    const guilds = botClient.guilds.cache;
+    const totalMembers = guilds.reduce((sum, g) => sum + (g.memberCount || 0), 0);
+    const memUsage = process.memoryUsage();
+    const memMb = (memUsage.rss / (1024 * 1024)).toFixed(1);
+    const heapMb = (memUsage.heapUsed / (1024 * 1024)).toFixed(1);
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚀 Bot démarré avec succès")
+      .setColor(0x43b581)
+      .setTimestamp()
+      .setFooter({ text: "Shadow Broker — Notification de démarrage" });
+
+    embed.addFields(
+      { name: "✅ Statut", value: "En ligne", inline: true },
+      { name: "🖥️ Serveurs", value: String(guilds.size), inline: true },
+      { name: "👥 Membres", value: String(totalMembers), inline: true },
+      { name: "💾 Mémoire RSS", value: `${memMb} MB`, inline: true },
+      { name: "🧠 Heap", value: `${heapMb} MB`, inline: true },
+      { name: "📡 Latence", value: `${Math.round(botClient.ws.ping)}ms`, inline: true },
+    );
+
+    embed.setDescription(
+      [
+        "Connexion Discord établie",
+        "Système d'alertes proactive actif",
+        "Système de départ invisible (stealth leave) actif",
+      ]
+        .map((s) => `✅ ${s}`)
+        .join("\n"),
+    );
+
+    await owner.send({ embeds: [embed] });
+    logger.info("[ProactiveAlerts] Rapport de démarrage consolidé envoyé");
+  } catch (error) {
+    logger.error("[ProactiveAlerts] Erreur envoi rapport consolidé:", error);
   }
 }

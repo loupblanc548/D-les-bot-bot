@@ -25,11 +25,7 @@ import { startProactiveHealthCheck, startAutoBackup } from "./services/proactive
 import { attachStartupLogic } from "./startup.js";
 import { attachShutdownHandlers, registerDestroyClient } from "./shutdown.js";
 import { attachProcessHandlers } from "./processHandlers.js";
-import {
-  initProactiveAlerts,
-  sendDeploymentNotification,
-  sendStatusReport,
-} from "./services/proactiveAlerts.js";
+import { initProactiveAlerts, sendConsolidatedStartupReport } from "./services/proactiveAlerts.js";
 import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
@@ -57,6 +53,7 @@ import { registerAlertDispatcher } from "./services/circuitBreaker.js";
 import { formatSecurityAlert } from "./services/loreAlertDispatcher.js";
 import { loadMemoriesFromDb } from "./services/agentMemory.js";
 import { startBridgeServer, stopBridgeServer } from "./infrastructure/bridge/bridgeServer.js";
+import { startDmCleanup, stopDmCleanup } from "./services/dmCleanup.js";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -470,6 +467,7 @@ async function main(): Promise<void> {
     stopInfraWatchdog();
     stopConfigCache();
     stopBridgeServer();
+    stopDmCleanup();
     import("./services/networkResilience.js").then(({ shutdownNetworkResilience }) =>
       shutdownNetworkResilience(),
     );
@@ -501,6 +499,9 @@ async function main(): Promise<void> {
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
 
+  // Purge auto des messages de statut en DM et log channel (>7 jours)
+  startDmCleanup(client);
+
   // Fortnite Party Bot (fnbr.js) — connecte un compte Fortnite au bot
   try {
     const { startFortnitePartyBot } = await import("./services/fortnitePartyBot.js");
@@ -511,23 +512,13 @@ async function main(): Promise<void> {
     );
   }
 
-  // Notification de démarrage à l'owner — UNE SEULE FOIS par process
+  // Notification de démarrage à l'owner — UNE SEULE FOIS par process, message consolidé
   // + skip si crash loop (évite 1200 messages pendant la nuit)
   const skipNotification = loopCheck.isLoop && loopCheck.restartCount > 2;
   if (!startupNotificationSent && !skipNotification) {
     startupNotificationSent = true;
-    await sendDeploymentNotification(
-      "Bot démarré avec succès",
-      [
-        "Connexion Discord établie",
-        "Système d'alertes proactive actif",
-        "Système de départ invisible (stealth leave) actif",
-      ],
-      0x43b581,
-    );
-
-    // Rapport de statut après 5 secondes (le temps que les guildes se chargent)
-    setTimeout(() => void sendStatusReport(), 5000);
+    // Un seul embed consolidé au lieu de 3 messages séparés
+    setTimeout(() => void sendConsolidatedStartupReport(), 5000);
   } else if (skipNotification) {
     logger.warn("[AntiLoop] Notification de démarrage skip (crash loop)");
   } else {
