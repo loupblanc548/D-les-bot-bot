@@ -83,13 +83,20 @@ export function isCrashLoop(): boolean {
 }
 
 /**
- * KILL SWITCH DM — si le fichier .silence-notifications existe,
- * TOUTES les notifications DM à l'owner sont bloquées immédiatement.
+ * KILL SWITCH DM — bloque TOUTES les notifications DM à l'owner.
  * Le salon log (crash webhook, alertes channel) continue de fonctionner.
- * Pour réactiver les DMs: supprimer le fichier .silence-notifications
+ *
+ * Deux façons d'activer :
+ * 1. Fichier local: créer un fichier vide `.silence-notifications` dans le CWD
+ * 2. Variable d'environnement: `SILENCE_NOTIFICATIONS=true` (pour Railway/cloud)
+ *
+ * Pour réactiver: supprimer le fichier OU mettre SILENCE_NOTIFICATIONS=false
  */
 export function isNotificationsSilenced(): boolean {
   try {
+    if (process.env.SILENCE_NOTIFICATIONS === "true" || process.env.SILENCE_NOTIFICATIONS === "1") {
+      return true;
+    }
     return existsSync(join(process.cwd(), ".silence-notifications"));
   } catch {
     return false;
