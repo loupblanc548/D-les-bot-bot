@@ -57,6 +57,8 @@ import { registerAlertDispatcher } from "./services/circuitBreaker.js";
 import { formatSecurityAlert } from "./services/loreAlertDispatcher.js";
 import { loadMemoriesFromDb } from "./services/agentMemory.js";
 import { startBridgeServer, stopBridgeServer } from "./infrastructure/bridge/bridgeServer.js";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 
 const client = new Client({
   intents: [
@@ -124,8 +126,68 @@ const client = new Client({
 let healthResults: import("./services/healthcheck.js").CheckResult[] = [];
 let startupNotificationSent = false;
 
+// ─── Protection anti-redémarrage en boucle ──────────────────────────────────
+// Si le bot redémarre trop rapidement (crash loop), on limite les notifications
+// et on attend avant de continuer pour éviter de spammer Discord.
+const RESTART_LOCK_FILE = join(process.cwd(), ".restart-lock");
+const MIN_RESTART_INTERVAL_MS = 30_000; // 30s minimum entre 2 redémarrages
+const MAX_RESTARTS_BEFORE_QUARANTINE = 5; // Après 5 redémarrages rapides, pause longue
+const QUARANTINE_DURATION_MS = 5 * 60_000; // 5 min de pause si crash loop
+
+function checkRestartLoop(): { isLoop: boolean; restartCount: number; waitMs: number } {
+  try {
+    if (!existsSync(RESTART_LOCK_FILE)) {
+      writeFileSync(RESTART_LOCK_FILE, JSON.stringify({ count: 1, lastRestart: Date.now() }));
+      return { isLoop: false, restartCount: 1, waitMs: 0 };
+    }
+
+    const data = JSON.parse(readFileSync(RESTART_LOCK_FILE, "utf-8")) as {
+      count: number;
+      lastRestart: number;
+    };
+    const now = Date.now();
+    const elapsed = now - data.lastRestart;
+    const newCount = elapsed < MIN_RESTART_INTERVAL_MS ? data.count + 1 : 1;
+
+    writeFileSync(RESTART_LOCK_FILE, JSON.stringify({ count: newCount, lastRestart: now }));
+
+    if (newCount >= MAX_RESTARTS_BEFORE_QUARANTINE) {
+      logger.warn(
+        `[AntiLoop] ${newCount} redémarrages rapides détectés — QUARANTINE de ${QUARANTINE_DURATION_MS / 1000}s`,
+      );
+      // Réinitialiser le compteur après la quarantaine
+      writeFileSync(
+        RESTART_LOCK_FILE,
+        JSON.stringify({ count: 0, lastRestart: now + QUARANTINE_DURATION_MS }),
+      );
+      return { isLoop: true, restartCount: newCount, waitMs: QUARANTINE_DURATION_MS };
+    }
+
+    if (elapsed < MIN_RESTART_INTERVAL_MS) {
+      const waitMs = MIN_RESTART_INTERVAL_MS - elapsed;
+      logger.warn(
+        `[AntiLoop] Redémarrage trop rapide (${elapsed}ms) — attente de ${waitMs / 1000}s (restart #${newCount})`,
+      );
+      return { isLoop: true, restartCount: newCount, waitMs };
+    }
+
+    return { isLoop: false, restartCount: newCount, waitMs: 0 };
+  } catch {
+    return { isLoop: false, restartCount: 0, waitMs: 0 };
+  }
+}
+
 async function main(): Promise<void> {
   logger.info("=== Discord Surveillance Bot ===");
+
+  // ─── Anti-boucle de redémarrage ───────────────────────────────────────
+  const loopCheck = checkRestartLoop();
+  if (loopCheck.waitMs > 0) {
+    logger.warn(
+      `[AntiLoop] Pause de ${loopCheck.waitMs / 1000}s avant de continuer (évite le spam Discord)`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, loopCheck.waitMs));
+  }
 
   // Mode --register seulement
   if (process.argv.includes("--register")) {
@@ -398,8 +460,15 @@ async function main(): Promise<void> {
   attachShutdownHandlers();
   attachProcessHandlers();
 
-  // Enregistrement et connexion
-  await registerCommands();
+  // Enregistrement des commandes — skip si redémarrage rapide (anti-spam Discord API)
+  const shouldSkipRegister = loopCheck.isLoop && loopCheck.restartCount > 2;
+  if (shouldSkipRegister) {
+    logger.warn(
+      "[AntiLoop] Skip registerCommands (redémarrage rapide — évite le spam API Discord)",
+    );
+  } else {
+    await registerCommands();
+  }
   try {
     await client.login(config.token);
   } catch (error) {
@@ -423,7 +492,9 @@ async function main(): Promise<void> {
   }
 
   // Notification de démarrage à l'owner — UNE SEULE FOIS par process
-  if (!startupNotificationSent) {
+  // + skip si crash loop (évite 1200 messages pendant la nuit)
+  const skipNotification = loopCheck.isLoop && loopCheck.restartCount > 2;
+  if (!startupNotificationSent && !skipNotification) {
     startupNotificationSent = true;
     await sendDeploymentNotification(
       "Bot démarré avec succès",
@@ -437,6 +508,8 @@ async function main(): Promise<void> {
 
     // Rapport de statut après 5 secondes (le temps que les guildes se chargent)
     setTimeout(() => void sendStatusReport(), 5000);
+  } else if (skipNotification) {
+    logger.warn("[AntiLoop] Notification de démarrage skip (crash loop)");
   } else {
     logger.info("[Bot] Reconnexion — skip notification de démarrage (déjà envoyé)");
   }

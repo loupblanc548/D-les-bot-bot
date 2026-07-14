@@ -8,6 +8,8 @@
 import { Client, Events } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
 import { runStartupRetrospective } from "./services/feeds.js";
@@ -188,8 +190,23 @@ export function attachStartupLogic(
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
 
-    // Notification propriétaire en MP
-    if (config.ownerId) {
+    // Notification propriétaire en MP — seulement si pas de crash loop
+    const restartLockPath = join(process.cwd(), ".restart-lock");
+    let isCrashLoop = false;
+    try {
+      if (existsSync(restartLockPath)) {
+        const lockData = JSON.parse(readFileSync(restartLockPath, "utf-8")) as {
+          count: number;
+          lastRestart: number;
+        };
+        const elapsed = Date.now() - lockData.lastRestart;
+        isCrashLoop = lockData.count > 2 && elapsed < 60_000;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (config.ownerId && !isCrashLoop) {
       client.users
         .fetch(config.ownerId)
         .then((owner) => owner.send(`🚀 **${readyClient.user.username}** vient de demarrer !`))
@@ -199,6 +216,8 @@ export function attachStartupLogic(
             { stack: error instanceof Error ? error.stack : undefined },
           ),
         );
+    } else if (isCrashLoop) {
+      logger.warn("[Startup] DM owner skip (crash loop détecté)");
     }
 
     // Wishlist Fortnite (startup + interval)

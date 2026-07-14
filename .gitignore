@@ -1,5 +1,8 @@
 node_modules
 
+# Anti-restart-loop lock file
+.restart-lock
+
 # Environment variables
 .env
 .env.local
