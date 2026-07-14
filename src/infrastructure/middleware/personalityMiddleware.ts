@@ -60,7 +60,7 @@ export const PERSONALITY_MAX_TOKENS = 1000;
 
 // ─── Model Configuration ─────────────────────────────────────────────────────
 
-export const PERSONALITY_MODEL = "meta-llama/llama-3.3-70b-instruct";
+export const PERSONALITY_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // ─── Middleware Function ─────────────────────────────────────────────────────
 

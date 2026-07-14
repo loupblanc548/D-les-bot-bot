@@ -15,6 +15,7 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
+import { markModelFailure, markModelSuccess, getAvailableFreeModels } from "./modelRotation.js";
 import { ALL_AGENT_TOOLS, executeTool, type ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
 import {
@@ -434,74 +435,87 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       return `${embed.data.title ?? "Circuit breaker activated"} — L'agent a dépassé la limite de sécurité. Réessaie ta demande.`;
     }
 
-    let response: Awaited<ReturnType<typeof client.chat.completions.create>>;
-    try {
-      response = await callLlmWithRetry(
-        client,
-        {
-          model: getPersonalityModel(config.openRouterModel),
-          messages: conversation as never,
-          tools: availableTools as never,
-          max_tokens: getPersonalityMaxTokens(),
-          temperature: getPersonalityTemperature(),
-          parallel_tool_calls: true,
-          stream: false,
-        },
-        { timeout: 15_000 },
-      );
-    } catch (apiErr) {
-      const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-      logger.error(`[AgentLoop] OpenRouter API call failed after retries: ${errMsg}`);
+    let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
+    let lastErrMsg = "";
 
-      // ─── Fallback: Groq (free, supports function calling) ───
-      if (isGroqAvailable()) {
-        try {
-          logger.warn(`[AgentLoop] Tentative de fallback Groq...`);
-          const groqClient = getGroqClient()!;
-          response = await groqClient.chat.completions.create(
-            {
-              model: config.groqModel,
-              messages: conversation as never,
-              tools: availableTools as never,
-              max_tokens: getPersonalityMaxTokens(),
-              temperature: getPersonalityTemperature(),
-              parallel_tool_calls: true,
-              stream: false,
-            } as never,
-            { timeout: 15_000 } as never,
-          );
-          logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
-          // Continue to the normal response processing below
-        } catch (groqErr) {
-          const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
-          logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
-          completeInteraction(breakerState);
-          if (errMsg.includes("429") || errMsg.includes("rate")) {
-            return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
-          }
-          if (
-            errMsg.includes("timeout") ||
-            errMsg.includes("ECONNRESET") ||
-            errMsg.includes("fetch")
-          ) {
-            return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
-          }
-          return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
-        }
-      } else {
-        completeInteraction(breakerState);
-        if (errMsg.includes("429") || errMsg.includes("rate")) {
-          return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
-        }
-        if (
-          errMsg.includes("timeout") ||
-          errMsg.includes("ECONNRESET") ||
-          errMsg.includes("fetch")
-        ) {
-          return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
-        }
-        return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
+    // ─── Étape 1: Rotation sur les modèles OpenRouter gratuits ───
+    const availableModels = getAvailableFreeModels();
+    const preferredModel = getPersonalityModel(config.openRouterModel);
+    // Mettre le modèle préféré en premier s'il est disponible
+    const modelsToTry = availableModels.includes(preferredModel)
+      ? [preferredModel, ...availableModels.filter((m) => m !== preferredModel)]
+      : availableModels;
+
+    for (const modelName of modelsToTry) {
+      try {
+        logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
+        response = await callLlmWithRetry(
+          client,
+          {
+            model: modelName,
+            messages: conversation as never,
+            tools: availableTools as never,
+            max_tokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+            parallel_tool_calls: true,
+            stream: false,
+          },
+          { timeout: 15_000 },
+        );
+        markModelSuccess(modelName);
+        logger.info(`[AgentLoop] ✅ ${modelName} réussi`);
+        break; // Succès → on sort de la boucle de rotation
+      } catch (modelErr) {
+        const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
+        const isRateLimit = msg.includes("429") || msg.includes("rate");
+        markModelFailure(modelName, isRateLimit);
+        lastErrMsg = msg;
+        logger.warn(`[AgentLoop] ❌ ${modelName} échoué: ${msg.slice(0, 100)}`);
+        // Continue au prochain modèle
       }
+    }
+
+    // ─── Étape 2: Fallback Groq si tous les modèles OpenRouter ont échoué ───
+    if (!response && isGroqAvailable()) {
+      try {
+        logger.warn(
+          `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
+        );
+        const groqClient = getGroqClient()!;
+        response = await groqClient.chat.completions.create(
+          {
+            model: config.groqModel,
+            messages: conversation as never,
+            tools: availableTools as never,
+            max_tokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+            parallel_tool_calls: true,
+            stream: false,
+          } as never,
+          { timeout: 15_000 } as never,
+        );
+        logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
+      } catch (groqErr) {
+        const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+        logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
+        lastErrMsg = groqErrMsg;
+      }
+    }
+
+    // ─── Étape 3: Tous les fallbacks ont échoué ───
+    if (!response) {
+      completeInteraction(breakerState);
+      if (lastErrMsg.includes("429") || lastErrMsg.includes("rate")) {
+        return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+      }
+      if (
+        lastErrMsg.includes("timeout") ||
+        lastErrMsg.includes("ECONNRESET") ||
+        lastErrMsg.includes("fetch")
+      ) {
+        return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
+      }
+      return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
     }
 
     const choice = (
