@@ -83,10 +83,10 @@ export function isCrashLoop(): boolean {
 }
 
 /**
- * KILL SWITCH GLOBAL — si le fichier .silence-notifications existe,
- * TOUTES les notifications DM sont bloquées immédiatement.
- * Permet de stopper le spam sans redéployer le code.
- * Pour réactiver: supprimer le fichier .silence-notifications
+ * KILL SWITCH DM — si le fichier .silence-notifications existe,
+ * TOUTES les notifications DM à l'owner sont bloquées immédiatement.
+ * Le salon log (crash webhook, alertes channel) continue de fonctionner.
+ * Pour réactiver les DMs: supprimer le fichier .silence-notifications
  */
 export function isNotificationsSilenced(): boolean {
   try {
