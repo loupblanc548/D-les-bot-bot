@@ -226,6 +226,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
+    "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
+    "Adapte-toi à n'importe quelle langue du monde. " +
     "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
     "Tu as accès à Internet et à plus de 40 outils.\n\n" +
     "## PROCESSUS DE RAISONNEMENT\n" +

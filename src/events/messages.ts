@@ -392,33 +392,9 @@ async function handleAiChatMention(
       return;
     }
 
-    // ── Détection d'actions en langage naturel ──
-    // Ex: "@bot rejoins le vocal", "@bot dis bonjour", "@bot mets le skin X"
-    const actionResult = await tryHandleNaturalAction(message as Message);
-    if (actionResult.handled) return;
-
-    // ── Réaction emoji spontanée pour messages simples (40% du temps) ──
-    const reaction = getSpontaneousReaction(cleanedContent);
-    if (reaction) {
-      await message.react(reaction).catch(() => {});
-      // 50% de chance de quand même répondre court, 50% juste la réaction
-      if (Math.random() > 0.5) return;
-      const shortReply = getUltraShortReply(cleanedContent);
-      if (shortReply) {
-        await simulateHumanTyping(message.channel as TextChannel, shortReply.length);
-        await message.reply({ content: shortReply, allowedMentions: { repliedUser: false } });
-        return;
-      }
-      return; // Juste la réaction, pas de réponse
-    }
-
-    // ── Réponse ultra-courte pour messages simples (salut, ok, merci...) ──
-    const ultraShort = getUltraShortReply(cleanedContent);
-    if (ultraShort) {
-      await simulateHumanTyping(message.channel as TextChannel, ultraShort.length);
-      await message.reply({ content: ultraShort, allowedMentions: { repliedUser: false } });
-      return;
-    }
+    // ── TOUS les messages vont à l'IA, peu importe le contenu ou la langue ──
+    // Plus de courts-circuits (reactions, ultra-short replies, natural actions)
+    // L'IA gère toutes les langues et tous les types de messages.
 
     // Déclencher l'indicateur de frappe réaliste
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
@@ -597,7 +573,9 @@ async function handleDMMessage(
               role: "system",
               content:
                 config.aiSystemPrompt +
-                "\n\nTu es John Helldiver, réponds en français, sois concis et naturel.",
+                "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
+                "Adapte-toi à n'importe quelle langue du monde. " +
+                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
             },
             { role: "user", content: `${message.author.username}: ${content}` },
           ],
@@ -703,28 +681,7 @@ async function handleContextualAiChat(
     }
     aichatCooldown.set(message.author.id, Date.now());
 
-    // ── Réaction emoji spontanée pour messages simples ──
-    const ctxReaction = getSpontaneousReaction(cleanedContent);
-    if (ctxReaction) {
-      await message.react(ctxReaction).catch(() => {});
-      if (Math.random() > 0.5) return;
-      const ctxShort = getUltraShortReply(cleanedContent);
-      if (ctxShort) {
-        await simulateHumanTyping(message.channel as TextChannel, ctxShort.length);
-        await message.reply({ content: ctxShort, allowedMentions: { repliedUser: false } });
-        return;
-      }
-      return;
-    }
-
-    // ── Réponse ultra-courte pour messages simples ──
-    const ctxUltraShort = getUltraShortReply(cleanedContent);
-    if (ctxUltraShort) {
-      await simulateHumanTyping(message.channel as TextChannel, ctxUltraShort.length);
-      await message.reply({ content: ctxUltraShort, allowedMentions: { repliedUser: false } });
-      return;
-    }
-
+    // ── TOUS les messages vont à l'IA, peu importe le contenu ou la langue ──
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
     const reply = await chatWithHistory(
       message.channelId,
