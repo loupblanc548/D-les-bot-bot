@@ -9,7 +9,7 @@
  * Ensuite, un cron hebdomadaire relance la purge.
  */
 
-import { Client, TextChannel, DMChannel, EmbedBuilder } from "discord.js";
+import { Client, TextChannel, DMChannel } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
@@ -166,25 +166,7 @@ export async function runDmCleanup(client: Client): Promise<void> {
 
   if (totalDeleted > 0) {
     logger.info(`[DMCleanup] Purge terminée: ${totalDeleted} message(s) au total`);
-
-    // Notification discrète à l'owner
-    if (config.ownerId) {
-      try {
-        const owner = await client.users.fetch(config.ownerId);
-        const dm = await owner.createDM();
-        const embed = new EmbedBuilder()
-          .setTitle("🧹 Nettoyage hebdomadaire")
-          .setDescription(
-            `${totalDeleted} message(s) de statut supprimé(s) (>7 jours) dans les DM et logs.`,
-          )
-          .setColor(0x5865f2)
-          .setTimestamp()
-          .setFooter({ text: "Nettoyage automatique" });
-        await dm.send({ embeds: [embed] });
-      } catch {
-        // ignore
-      }
-    }
+    // Pas de DM de notification — le nettoyage doit être silencieux
   }
 }
 

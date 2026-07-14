@@ -12,6 +12,7 @@ import {
 } from "discord.js";
 import type { RiskProfile, RiskLevel } from "./risk-engine.js";
 import { getRiskReport } from "./risk-engine.js";
+import { isNotificationsSilenced } from "../utils/persistentCooldown.js";
 
 // ============================================================
 // Types
@@ -38,10 +39,10 @@ export interface AlertData {
 // Constantes
 // ============================================================
 const RISK_EMOJIS: Record<RiskLevel, string> = {
-  "FAIBLE": "\u2139",
-  "MOYEN": "\u26A0",
-  "ELEVE": "\uD83D\uDEA8",
-  "CRITIQUE": "\u274C",
+  FAIBLE: "\u2139",
+  MOYEN: "\u26A0",
+  ELEVE: "\uD83D\uDEA8",
+  CRITIQUE: "\u274C",
 };
 
 const ALERT_BUTTONS: { id: AlertAction; label: string; emoji: string; style: ButtonStyle }[] = [
@@ -59,7 +60,7 @@ const ALERT_BUTTONS: { id: AlertAction; label: string; emoji: string; style: But
 export async function generateAlert(
   profile: RiskProfile,
   reason: string,
-  type: string = "RISK_THRESHOLD"
+  type: string = "RISK_THRESHOLD",
 ): Promise<AlertData> {
   const alert = await prisma.alert.create({
     data: {
@@ -87,17 +88,16 @@ export async function generateAlert(
     details: JSON.stringify({ riskScore: profile.riskScore, riskLevel: profile.riskLevel, reason }),
   });
 
-  logger.info(`[AlertService] Alerte g\u00E9n\u00E9r\u00E9e pour ${profile.userId} (${profile.riskLevel}, score=${profile.riskScore})`);
+  logger.info(
+    `[AlertService] Alerte g\u00E9n\u00E9r\u00E9e pour ${profile.userId} (${profile.riskLevel}, score=${profile.riskScore})`,
+  );
   return alert as unknown as AlertData;
 }
 
 // ============================================================
 // Construction de l'embed d'alerte
 // ============================================================
-export async function buildAlertEmbed(
-  alert: AlertData,
-  client: Client
-): Promise<EmbedBuilder> {
+export async function buildAlertEmbed(alert: AlertData, client: Client): Promise<EmbedBuilder> {
   const { profile, recentSanctions } = await getRiskReport(alert.userId, alert.guildId);
 
   // Récupérer infos utilisateur
@@ -134,10 +134,10 @@ export async function buildAlertEmbed(
   }
 
   const colorMap: Record<RiskLevel, number> = {
-    "FAIBLE": 0x53fc18,
-    "MOYEN": 0xffaa00,
-    "ELEVE": 0xff6600,
-    "CRITIQUE": 0xff3344,
+    FAIBLE: 0x53fc18,
+    MOYEN: 0xffaa00,
+    ELEVE: 0xff6600,
+    CRITIQUE: 0xff3344,
   };
   const color = colorMap[alert.riskLevel] || 0x808080;
 
@@ -146,20 +146,22 @@ export async function buildAlertEmbed(
     .setColor(color)
     .setDescription(
       `## ${riskEmoji} Niveau de Risque : **${alert.riskLevel}**\n` +
-      `**Score** : \`${alert.riskScore}\` \u2014 **Raison** : ${alert.details}\n\n` +
-      `### \u2139 Informations Utilisateur\n` +
-      `\u2022 **Pseudo** : \`${userTag}\`\n` +
-      `\u2022 **Mention** : <@${alert.userId}>\n` +
-      `\u2022 **ID** : \`${alert.userId}\`\n` +
-      `\u2022 **Compte cr\u00E9\u00E9** : ${accountCreatedAt}\n` +
-      `\u2022 **Arriv\u00E9e serveur** : ${joinedAt}\n\n` +
-      `### \uD83D\uDEA8 Statistiques de Sanctions\n` +
-      `\u2022 **Warns** : ${profile.warnCount} \u2014 **Timeouts** : ${profile.timeoutCount}\n` +
-      `\u2022 **Kicks** : ${profile.kickCount} \u2014 **Tempbans** : ${profile.tempbanCount}\n` +
-      `\u2022 **Bans** : ${profile.banCount} \u2014 **Total** : ${profile.totalSanctions}\n\n` +
-      `### \u23F0 Historique R\u00E9cent\n${sanctionsHistory}`
+        `**Score** : \`${alert.riskScore}\` \u2014 **Raison** : ${alert.details}\n\n` +
+        `### \u2139 Informations Utilisateur\n` +
+        `\u2022 **Pseudo** : \`${userTag}\`\n` +
+        `\u2022 **Mention** : <@${alert.userId}>\n` +
+        `\u2022 **ID** : \`${alert.userId}\`\n` +
+        `\u2022 **Compte cr\u00E9\u00E9** : ${accountCreatedAt}\n` +
+        `\u2022 **Arriv\u00E9e serveur** : ${joinedAt}\n\n` +
+        `### \uD83D\uDEA8 Statistiques de Sanctions\n` +
+        `\u2022 **Warns** : ${profile.warnCount} \u2014 **Timeouts** : ${profile.timeoutCount}\n` +
+        `\u2022 **Kicks** : ${profile.kickCount} \u2014 **Tempbans** : ${profile.tempbanCount}\n` +
+        `\u2022 **Bans** : ${profile.banCount} \u2014 **Total** : ${profile.totalSanctions}\n\n` +
+        `### \u23F0 Historique R\u00E9cent\n${sanctionsHistory}`,
     )
-    .setFooter({ text: `Alerte #${alert.id.substring(0, 8)} \u2022 Syst\u00E8me de Surveillance v1.0.0` })
+    .setFooter({
+      text: `Alerte #${alert.id.substring(0, 8)} \u2022 Syst\u00E8me de Surveillance v1.0.0`,
+    })
     .setTimestamp();
 
   return embed;
@@ -168,10 +170,7 @@ export async function buildAlertEmbed(
 // ============================================================
 // Envoi de l'alerte vers le salon dédié
 // ============================================================
-export async function sendAlertToChannel(
-  alert: AlertData,
-  client: Client
-): Promise<void> {
+export async function sendAlertToChannel(alert: AlertData, client: Client): Promise<void> {
   const embed = await buildAlertEmbed(alert, client);
 
   // Boutons d'action (2 rows of 3)
@@ -185,7 +184,7 @@ export async function sendAlertToChannel(
         .setCustomId(`alert_${btn.id}_${alert.id}`)
         .setLabel(btn.label)
         .setEmoji(btn.emoji)
-        .setStyle(btn.style)
+        .setStyle(btn.style),
     );
     buttonCount++;
     if (buttonCount % 3 === 0 || buttonCount === ALERT_BUTTONS.length) {
@@ -232,13 +231,12 @@ export async function sendAlertToChannel(
 export async function notifyOwners(
   alert: AlertData,
   message: string,
-  client: Client
+  client: Client,
 ): Promise<void> {
-  const ownerIds = config.ownerId
-    ? config.ownerId.split(",").map((s: string) => s.trim())
-    : [];
+  const ownerIds = config.ownerId ? config.ownerId.split(",").map((s: string) => s.trim()) : [];
 
   if (ownerIds.length === 0) return;
+  if (isNotificationsSilenced()) return;
 
   for (const ownerId of ownerIds) {
     if (!ownerId) continue;
@@ -256,7 +254,9 @@ export async function notifyOwners(
         .setTimestamp();
 
       await owner.send({ embeds: [embed] }).catch((err: Error) => {
-        logger.warn(`[AlertService] Impossible de DM le propri\u00E9taire ${ownerId}: ${err.message}`);
+        logger.warn(
+          `[AlertService] Impossible de DM le propri\u00E9taire ${ownerId}: ${err.message}`,
+        );
       });
     } catch (err) {
       logger.warn(`[AlertService] Erreur notification owner ${ownerId}: ${err}`);
@@ -270,7 +270,7 @@ export async function notifyOwners(
 export async function resolveAlert(
   alertId: string,
   action: AlertAction,
-  moderatorId: string
+  moderatorId: string,
 ): Promise<AlertData | null> {
   const alert = await prisma.alert.findUnique({ where: { id: alertId } });
   if (!alert || alert.status !== "PENDING") return null;
@@ -315,10 +315,7 @@ export async function getPendingAlerts(guildId: string) {
   });
 }
 
-export async function getAlertHistory(
-  guildId: string,
-  limit: number = 50
-) {
+export async function getAlertHistory(guildId: string, limit: number = 50) {
   return prisma.alert.findMany({
     where: { guildId },
     orderBy: { createdAt: "desc" },
@@ -326,10 +323,7 @@ export async function getAlertHistory(
   });
 }
 
-export async function getAlertsByUser(
-  userId: string,
-  guildId: string
-) {
+export async function getAlertsByUser(userId: string, guildId: string) {
   return prisma.alert.findMany({
     where: { userId, guildId },
     orderBy: { createdAt: "desc" },

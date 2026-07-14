@@ -14,6 +14,7 @@ import * as Sentry from "@sentry/node";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import { setCache, getCache } from "../utils/redis.js";
+import { isNotificationsSilenced } from "../utils/persistentCooldown.js";
 
 const REDIS_KEY_PREFIX = "drama:channel:";
 const WINDOW_SIZE = 50;
@@ -270,6 +271,7 @@ async function sendDramaAlert(
   // 1. DM to owner
   tasks.push(
     (async () => {
+      if (isNotificationsSilenced()) return;
       try {
         const owner = await client.users.fetch(ownerId);
         await owner.send({ content: `<@${ownerId}>`, embeds: [embed] });

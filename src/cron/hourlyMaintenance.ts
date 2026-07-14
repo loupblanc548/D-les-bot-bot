@@ -3,6 +3,7 @@ import { Client, EmbedBuilder, TextChannel, ChannelType, DMChannel } from "disco
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { isNotificationsSilenced } from "../utils/persistentCooldown.js";
 
 const FOOTER = { text: "Maintenance Bi-hebdomadaire • Iskan Auto-Clean" };
 const MESSAGE_RETENTION_DAYS = 14; // Supprimer les anciens rapports après 2 semaines
@@ -28,7 +29,9 @@ async function leaveAllVoiceChannels(client: Client): Promise<number> {
     try {
       await me.voice.disconnect("Maintenance horaire automatique");
       leftCount++;
-      logger.info(`[BiWeeklyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`);
+      logger.info(
+        `[BiWeeklyMaint] Quitté le salon vocal ${me.voice.channel?.name} (${guild.name})`,
+      );
     } catch (err) {
       logger.error(`[BiWeeklyMaint] Erreur déconnexion vocale ${guild.name}:`, String(err));
     }
@@ -155,8 +158,8 @@ async function deleteOldBotMessages(
     const toDelete = messages.filter((msg) => {
       if (!msg.author.bot) return false;
       if (msg.createdTimestamp > cutoff) return false;
-      const hasKeyword = msg.embeds.some((e) =>
-        e.data.title && titleKeywords.some((kw) => e.data.title?.includes(kw)),
+      const hasKeyword = msg.embeds.some(
+        (e) => e.data.title && titleKeywords.some((kw) => e.data.title?.includes(kw)),
       );
       return hasKeyword;
     });
@@ -164,7 +167,9 @@ async function deleteOldBotMessages(
     if (toDelete.size === 0) return;
 
     // bulkDelete fonctionne pour < 14 jours, sinon suppression individuelle
-    const recent = toDelete.filter((m) => Date.now() - m.createdTimestamp < 14 * 24 * 60 * 60 * 1000);
+    const recent = toDelete.filter(
+      (m) => Date.now() - m.createdTimestamp < 14 * 24 * 60 * 60 * 1000,
+    );
     const old = toDelete.filter((m) => Date.now() - m.createdTimestamp >= 14 * 24 * 60 * 60 * 1000);
 
     if (channel instanceof TextChannel && recent.size > 1) {
@@ -178,9 +183,13 @@ async function deleteOldBotMessages(
       await msg.delete().catch(() => {});
     }
 
-    logger.info(`[BiWeeklyMaint] ${toDelete.size} ancien(s) rapport(s) supprimé(s) (${channel instanceof DMChannel ? "DM" : `#${(channel as TextChannel).name}`})`);
+    logger.info(
+      `[BiWeeklyMaint] ${toDelete.size} ancien(s) rapport(s) supprimé(s) (${channel instanceof DMChannel ? "DM" : `#${(channel as TextChannel).name}`})`,
+    );
   } catch (err) {
-    logger.debug(`[BiWeeklyMaint] Erreur suppression anciens messages: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[BiWeeklyMaint] Erreur suppression anciens messages: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -232,12 +241,14 @@ async function sendReport(
     );
 
   // DM à l'owner — nettoyer les anciens puis envoyer
-  if (config.ownerId) {
+  if (config.ownerId && !isNotificationsSilenced()) {
     const owner = await client.users.fetch(config.ownerId).catch(() => null);
     if (owner) {
-      await deleteOldBotMessages(owner.dmChannel ?? await owner.createDM(), MESSAGE_RETENTION_DAYS, [
-        "Maintenance", "Bot Health Check",
-      ]);
+      await deleteOldBotMessages(
+        owner.dmChannel ?? (await owner.createDM()),
+        MESSAGE_RETENTION_DAYS,
+        ["Maintenance", "Bot Health Check"],
+      );
       await owner.send({ embeds: [embed] }).catch(() => {
         logger.warn("[BiWeeklyMaint] Impossible de DM l'owner");
       });
@@ -249,7 +260,8 @@ async function sendReport(
     const logChannel = await client.channels.fetch(config.logChannel).catch(() => null);
     if (logChannel && logChannel.type === ChannelType.GuildText) {
       await deleteOldBotMessages(logChannel as TextChannel, MESSAGE_RETENTION_DAYS, [
-        "Maintenance", "Bot Health Check",
+        "Maintenance",
+        "Bot Health Check",
       ]);
       await (logChannel as TextChannel).send({ embeds: [embed] }).catch(() => {
         logger.warn("[BiWeeklyMaint] Impossible d'envoyer dans le salon de log");
