@@ -81,3 +81,17 @@ export function isCrashLoop(): boolean {
     return false;
   }
 }
+
+/**
+ * KILL SWITCH GLOBAL — si le fichier .silence-notifications existe,
+ * TOUTES les notifications DM sont bloquées immédiatement.
+ * Permet de stopper le spam sans redéployer le code.
+ * Pour réactiver: supprimer le fichier .silence-notifications
+ */
+export function isNotificationsSilenced(): boolean {
+  try {
+    return existsSync(join(process.cwd(), ".silence-notifications"));
+  } catch {
+    return false;
+  }
+}

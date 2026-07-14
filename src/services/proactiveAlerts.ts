@@ -19,7 +19,11 @@ import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { getMemoryLevel, formatMemoryReport } from "../utils/memoryConfig.js";
 import { config } from "../config.js";
-import { canAlertPersistent, isCrashLoop } from "../utils/persistentCooldown.js";
+import {
+  canAlertPersistent,
+  isCrashLoop,
+  isNotificationsSilenced,
+} from "../utils/persistentCooldown.js";
 
 // ─── Cooldown system ─────────────────────────────────────────────────────────
 // Cooldowns maintenant persistants via fichier — survivent aux redémarrages
@@ -136,6 +140,12 @@ export async function sendProactiveAlert(
   color: number = 0xff3344,
   cooldownMs: number = DEFAULT_COOLDOWN_MS,
 ): Promise<void> {
+  // KILL SWITCH — bloque tout si .silence-notifications existe
+  if (isNotificationsSilenced()) {
+    logger.debug(`[ProactiveAlerts] Alert "${title}" skipped (notifications silenced)`);
+    return;
+  }
+
   // Skip total en crash loop — évite le spam de DM au propriétaire
   if (isCrashLoop()) {
     logger.debug(`[ProactiveAlerts] Alert "${title}" skipped (crash loop)`);
@@ -356,6 +366,10 @@ export async function sendDeploymentNotification(
   items: string[],
   color: number = 0x43b581,
 ): Promise<void> {
+  if (isNotificationsSilenced()) {
+    logger.debug(`[ProactiveAlerts] Deployment notification skipped (silenced)`);
+    return;
+  }
   if (!botClient) {
     logger.warn("[ProactiveAlerts] Client non initialisé — notification de déploiement ignorée");
     return;
@@ -395,6 +409,10 @@ export async function sendDeploymentNotification(
  * Résumé complet : serveurs, utilisateurs, uptime, mémoire, commandes.
  */
 export async function sendStatusReport(): Promise<void> {
+  if (isNotificationsSilenced()) {
+    logger.debug(`[ProactiveAlerts] Status report skipped (silenced)`);
+    return;
+  }
   if (!botClient) return;
 
   try {
@@ -437,6 +455,10 @@ export async function sendStatusReport(): Promise<void> {
  * Inclut : confirmation de démarrage + statut complet (serveurs, mémoire, ping).
  */
 export async function sendConsolidatedStartupReport(): Promise<void> {
+  if (isNotificationsSilenced()) {
+    logger.debug(`[ProactiveAlerts] Startup report skipped (silenced)`);
+    return;
+  }
   if (!botClient) return;
 
   try {

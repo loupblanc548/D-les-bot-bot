@@ -10,7 +10,7 @@
  */
 
 import logger from "./logger.js";
-import { canAlertPersistent, isCrashLoop } from "./persistentCooldown.js";
+import { canAlertPersistent, isCrashLoop, isNotificationsSilenced } from "./persistentCooldown.js";
 
 const CRASH_WEBHOOK_URL = process.env.CRASH_WEBHOOK_URL || "";
 
@@ -28,6 +28,12 @@ export async function sendCrashAlert(
 ): Promise<void> {
   if (!CRASH_WEBHOOK_URL) {
     logger.debug("[CrashWebhook] CRASH_WEBHOOK_URL non configuré, alerte ignorée");
+    return;
+  }
+
+  // KILL SWITCH — bloque tout si .silence-notifications existe
+  if (isNotificationsSilenced()) {
+    logger.debug(`[CrashWebhook] Alert "${title}" skipped (notifications silenced)`);
     return;
   }
 

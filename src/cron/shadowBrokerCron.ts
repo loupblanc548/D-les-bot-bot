@@ -13,6 +13,7 @@ import { Client, EmbedBuilder } from "discord.js";
 import cron, { ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { isNotificationsSilenced } from "../utils/persistentCooldown.js";
 import { generateIntelReport, detectSuspiciousPatterns } from "../services/shadowBroker.js";
 import prisma from "../prisma.js";
 
@@ -29,6 +30,7 @@ function alertHash(type: string, userId: string): string {
 // ─── Rapport périodique (hebdomadaire — lundi 10:00) ─────────────────────────
 
 async function sendPeriodicReport(client: Client): Promise<void> {
+  if (isNotificationsSilenced()) return;
   try {
     const guilds = client.guilds.cache;
     if (guilds.size === 0) return;
@@ -119,6 +121,7 @@ async function sendPeriodicReport(client: Client): Promise<void> {
 // ─── Résumé hebdomadaire complet (vendredi 22:00) ────────────────────────────
 
 async function sendDailySummary(client: Client): Promise<void> {
+  if (isNotificationsSilenced()) return;
   try {
     const guilds = client.guilds.cache;
     if (guilds.size === 0) return;
@@ -238,6 +241,7 @@ async function sendDailySummary(client: Client): Promise<void> {
 // ─── Alertes temps réel (toutes les 5 min) ───────────────────────────────────
 
 async function checkRealTimeAlerts(client: Client): Promise<void> {
+  if (isNotificationsSilenced()) return;
   try {
     const guilds = client.guilds.cache;
     if (guilds.size === 0) return;

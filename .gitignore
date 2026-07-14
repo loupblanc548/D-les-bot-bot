@@ -6,6 +6,9 @@ node_modules
 # Persistent cooldown state
 .cooldown-state
 
+# Kill switch for notifications
+.silence-notifications
+
 # Environment variables
 .env
 .env.local

@@ -14,6 +14,7 @@ import { Client, GuildMember, EmbedBuilder } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { isNotificationsSilenced } from "../utils/persistentCooldown.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ export async function sendStealthAlert(
   description: string,
   color: number = 0x00ff41,
 ): Promise<void> {
+  if (isNotificationsSilenced()) return;
   try {
     const owner = await client.users.fetch(config.ownerId);
     if (!owner) return;
