@@ -6,7 +6,8 @@ node_modules
 # Persistent cooldown state
 .cooldown-state
 
-# Kill switch for notifications
+# Notification control (opt-in file)
+.enable-notifications
 .silence-notifications
 
 # Environment variables

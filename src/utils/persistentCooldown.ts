@@ -83,22 +83,26 @@ export function isCrashLoop(): boolean {
 }
 
 /**
- * KILL SWITCH DM — bloque TOUTES les notifications DM à l'owner.
- * Le salon log (crash webhook, alertes channel) continue de fonctionner.
+ * CONTRÔLE DES DMs À L'OWNER — désactivés PAR DÉFAUT.
  *
- * Deux façons d'activer :
- * 1. Fichier local: créer un fichier vide `.silence-notifications` dans le CWD
- * 2. Variable d'environnement: `SILENCE_NOTIFICATIONS=true` (pour Railway/cloud)
+ * Les DMs ne sont envoyés QUE si:
+ * 1. Le fichier .enable-notifications existe dans le CWD, OU
+ * 2. La variable d'environnement ENABLE_NOTIFICATIONS=true
  *
- * Pour réactiver: supprimer le fichier OU mettre SILENCE_NOTIFICATIONS=false
+ * Pour réactiver: touch .enable-notifications OU set ENABLE_NOTIFICATIONS=true
  */
 export function isNotificationsSilenced(): boolean {
   try {
-    if (process.env.SILENCE_NOTIFICATIONS === "true" || process.env.SILENCE_NOTIFICATIONS === "1") {
-      return true;
+    // Opt-in: notifications désactivées par défaut
+    if (process.env.ENABLE_NOTIFICATIONS === "true" || process.env.ENABLE_NOTIFICATIONS === "1") {
+      return false; // Activées explicitement
     }
-    return existsSync(join(process.cwd(), ".silence-notifications"));
+    if (existsSync(join(process.cwd(), ".enable-notifications"))) {
+      return false; // Activées via fichier
+    }
+    // Par défaut: silencieux
+    return true;
   } catch {
-    return false;
+    return true; // En cas d'erreur: silencieux
   }
 }
