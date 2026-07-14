@@ -58,6 +58,17 @@ export function attachProcessHandlers(): void {
     );
   }
 
+  function isUndiciAssertionError(err: Error): boolean {
+    const msg = String(err.message || "");
+    const stack = String(err.stack || "");
+    return (
+      (msg.includes("false == true") && stack.includes("undici")) ||
+      (err.name === "AssertionError" && stack.includes("undici")) ||
+      stack.includes("Parser.finish") ||
+      stack.includes("onHttpSocketEnd")
+    );
+  }
+
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     // Erreurs Redis non-fatals — ne pas crasher le bot
@@ -67,6 +78,10 @@ export function attachProcessHandlers(): void {
     }
     if (isTransientSocketError(err)) {
       logger.warn(`[PROCESS] Transient socket rejection (non-fatal): ${err.message || err.name}`);
+      return;
+    }
+    if (isUndiciAssertionError(err)) {
+      logger.warn(`[PROCESS] Undici assertion (non-fatal, Node.js TLS bug): ${err.message}`);
       return;
     }
     logger.error(`[PROCESS] Unhandled Rejection at: ${promise}, reason: ${err.message}`, {
@@ -89,6 +104,10 @@ export function attachProcessHandlers(): void {
     }
     if (isTransientSocketError(error)) {
       logger.warn(`[PROCESS] Transient socket error (non-fatal): ${error.message || error.name}`);
+      return;
+    }
+    if (isUndiciAssertionError(error)) {
+      logger.warn(`[PROCESS] Undici assertion (non-fatal, Node.js TLS bug): ${error.message}`);
       return;
     }
     logger.error(`[PROCESS] ⚠️ Uncaught Exception: ${error.message}`, { stack: error.stack });
