@@ -14,6 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
+import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { ALL_AGENT_TOOLS, executeTool, type ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
 import {
@@ -26,7 +27,12 @@ import {
 import { generatePlan, formatPlanForPrompt } from "./agentPlanner.js";
 import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
 import { reflectOnToolResult, resetRetries, type ToolExecutionResult } from "./agentReflector.js";
-import { routeTools, getToolHints, suggestToolChain, getApiKeyStatusLine } from "./agentToolRouter.js";
+import {
+  routeTools,
+  getToolHints,
+  suggestToolChain,
+  getApiKeyStatusLine,
+} from "./agentToolRouter.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
@@ -401,7 +407,9 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     memoryPrompt +
     planPrompt +
     getApiKeyStatusLine() +
-    (getToolHints(userMessage) ? "\n## Tools suggérés pour cette requête\n" + getToolHints(userMessage) : "") +
+    (getToolHints(userMessage)
+      ? "\n## Tools suggérés pour cette requête\n" + getToolHints(userMessage)
+      : "") +
     (() => {
       const chains = suggestToolChain(userMessage);
       if (chains.length === 0) return "";
@@ -443,15 +451,57 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       );
     } catch (apiErr) {
       const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-      logger.error(`[AgentLoop] API call failed after retries: ${errMsg}`);
-      completeInteraction(breakerState);
-      if (errMsg.includes("429") || errMsg.includes("rate")) {
-        return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+      logger.error(`[AgentLoop] OpenRouter API call failed after retries: ${errMsg}`);
+
+      // ─── Fallback: Groq (free, supports function calling) ───
+      if (isGroqAvailable()) {
+        try {
+          logger.warn(`[AgentLoop] Tentative de fallback Groq...`);
+          const groqClient = getGroqClient()!;
+          response = await groqClient.chat.completions.create(
+            {
+              model: config.groqModel,
+              messages: conversation as never,
+              tools: availableTools as never,
+              max_tokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              parallel_tool_calls: true,
+              stream: false,
+            } as never,
+            { timeout: 15_000 } as never,
+          );
+          logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
+          // Continue to the normal response processing below
+        } catch (groqErr) {
+          const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+          logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
+          completeInteraction(breakerState);
+          if (errMsg.includes("429") || errMsg.includes("rate")) {
+            return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+          }
+          if (
+            errMsg.includes("timeout") ||
+            errMsg.includes("ECONNRESET") ||
+            errMsg.includes("fetch")
+          ) {
+            return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
+          }
+          return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
+        }
+      } else {
+        completeInteraction(breakerState);
+        if (errMsg.includes("429") || errMsg.includes("rate")) {
+          return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+        }
+        if (
+          errMsg.includes("timeout") ||
+          errMsg.includes("ECONNRESET") ||
+          errMsg.includes("fetch")
+        ) {
+          return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
+        }
+        return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
       }
-      if (errMsg.includes("timeout") || errMsg.includes("ECONNRESET") || errMsg.includes("fetch")) {
-        return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
-      }
-      return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
     }
 
     const choice = (
