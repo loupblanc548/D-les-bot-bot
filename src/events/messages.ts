@@ -12,7 +12,7 @@ import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
 import { recordSecurityEvent } from "../services/risk-engine.js";
 import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
-import { isAiChatEnabled, chatWithHistory } from "../services/aichat.js";
+import { chatWithHistory } from "../services/aichat.js";
 import { analyzeToxicity } from "../services/ai-moderation.js";
 import { sendSecurityAlert, checkMessageSpam } from "../services/reportChannel.js";
 import prisma from "../prisma.js";
@@ -20,8 +20,6 @@ import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { simulateHumanTyping } from "../utils/humanTyping.js";
 import {
-  getSpontaneousReaction,
-  getUltraShortReply,
   sendMultiMessage,
 } from "../utils/humanBehavior.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
@@ -33,7 +31,6 @@ import {
   checkExpiredConversations,
   buildConversationContext,
 } from "../services/aiConversation.js";
-import { checkRateLimit } from "../services/rateLimiter.js";
 import {
   checkMessage as checkWordFilter,
   enforceFilter as enforceWordFilter,
@@ -42,7 +39,6 @@ import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
 import { addXp } from "../services/xpService.js";
 import { handleSecurityIntegration } from "../services/securityIntegration.js";
-import { tryHandleNaturalAction } from "../services/naturalActions.js";
 import { shouldBlock as checkAbuseFilter } from "../services/abuseFilter.js";
 import { recordMessage as recordSpamMessage, analyzeSpam } from "../services/spamDetector.js";
 import {
@@ -51,9 +47,6 @@ import {
 } from "../services/perspectiveApi.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
-
-const aichatCooldown = new Map<string, number>();
-const AICHAT_COOLDOWN_MS = 5_000;
 
 const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
@@ -76,21 +69,9 @@ function getRandomHelldiverReply(): string {
 
 // ─── Cleanup périodique ─────────────────────────────────────────────────────
 
-let mapCleanupInterval: NodeJS.Timeout | null = null;
 let conversationCleanupInterval: NodeJS.Timeout | null = null;
 
 export function startMapCleanup() {
-  if (mapCleanupInterval) return;
-  mapCleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [userId, timestamp] of aichatCooldown) {
-      if (now - timestamp > 3600000) {
-        aichatCooldown.delete(userId);
-      }
-    }
-  }, 300000);
-  if (mapCleanupInterval.unref) mapCleanupInterval.unref();
-
   // Vérifier les conversations IA expirées toutes les 2 minutes
   if (!conversationCleanupInterval) {
     conversationCleanupInterval = setInterval(() => {
@@ -103,10 +84,6 @@ export function startMapCleanup() {
 }
 
 export function stopMapCleanup() {
-  if (mapCleanupInterval) {
-    clearInterval(mapCleanupInterval);
-    mapCleanupInterval = null;
-  }
   if (conversationCleanupInterval) {
     clearInterval(conversationCleanupInterval);
     conversationCleanupInterval = null;

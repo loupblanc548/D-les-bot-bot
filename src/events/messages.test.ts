@@ -10,7 +10,6 @@ const mockCreateLog = vi.hoisted(() => vi.fn());
 const mockRecordSecurityEvent = vi.hoisted(() => vi.fn());
 const mockIsAntiPhishingActive = vi.hoisted(() => vi.fn());
 const mockCheckSuspiciousLinks = vi.hoisted(() => vi.fn());
-const mockIsAiChatEnabled = vi.hoisted(() => vi.fn());
 const mockChatWithHistory = vi.hoisted(() => vi.fn());
 const mockAnalyzeToxicity = vi.hoisted(() => vi.fn());
 const mockWithCache = vi.hoisted(() => vi.fn());
@@ -19,7 +18,6 @@ const mockAddMessageToConversation = vi.hoisted(() => vi.fn());
 const mockGetConversationHistory = vi.hoisted(() => vi.fn());
 const mockGetCachedResponse = vi.hoisted(() => vi.fn());
 const mockCacheResponse = vi.hoisted(() => vi.fn());
-const mockCheckRateLimit = vi.hoisted(() => vi.fn());
 const mockClearConversation = vi.hoisted(() => vi.fn());
 
 vi.mock("../prisma", () => ({
@@ -42,7 +40,6 @@ vi.mock("../commands/security", () => ({
 }));
 
 vi.mock("../services/aichat", () => ({
-  isAiChatEnabled: mockIsAiChatEnabled,
   chatWithHistory: mockChatWithHistory,
 }));
 
@@ -67,10 +64,6 @@ vi.mock("../services/aiMemory", () => ({
 vi.mock("../services/aiCache", () => ({
   getCachedResponse: mockGetCachedResponse,
   cacheResponse: mockCacheResponse,
-}));
-
-vi.mock("../services/rateLimiter", () => ({
-  checkRateLimit: mockCheckRateLimit,
 }));
 
 vi.mock("../services/wordFilter", () => ({
@@ -297,7 +290,6 @@ describe("messageCreate — AI Chat @mention", () => {
     vi.clearAllMocks();
     client = createMockClient();
     handleMessageEvents(client as unknown as Client);
-    mockCheckRateLimit.mockReturnValue({ allowed: true, resetTime: Date.now() + 60000 });
   });
 
   it("répond avec une relance humoristique si @mention sans message", async () => {
@@ -350,7 +342,6 @@ describe("Anti-Spam — Seuil de 5 messages", () => {
     mockPrismaGuildConfig.findUnique.mockResolvedValue({ aiModerationEnabled: false });
     mockIsAntiPhishingActive.mockResolvedValue(false);
     mockTranslateAuto.mockResolvedValue(null);
-    mockIsAiChatEnabled.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -431,7 +422,6 @@ describe("AI Moderation — Toxicité", () => {
     mockWithCache.mockImplementation((_key, _ttl, fn) => fn());
     mockIsAntiPhishingActive.mockResolvedValue(false);
     mockTranslateAuto.mockResolvedValue(null);
-    mockIsAiChatEnabled.mockReturnValue(false);
   });
 
   it("supprime le message si toxicité > 0.8 et aiModerationEnabled = true", async () => {
@@ -566,7 +556,6 @@ describe("Anti-Phishing", () => {
     mockWithCache.mockImplementation((_key, _ttl, fn) => fn());
     mockPrismaGuildConfig.findUnique.mockResolvedValue({ aiModerationEnabled: false });
     mockTranslateAuto.mockResolvedValue(null);
-    mockIsAiChatEnabled.mockReturnValue(false);
   });
 
   it("supprime le message si un lien suspect est détecté", async () => {
