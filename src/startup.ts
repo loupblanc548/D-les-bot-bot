@@ -198,6 +198,7 @@ export function attachStartupLogic(
         const lockData = JSON.parse(readFileSync(restartLockPath, "utf-8")) as {
           count: number;
           lastRestart: number;
+          createdAt?: number;
         };
         const elapsed = Date.now() - lockData.lastRestart;
         isCrashLoop = lockData.count > 2 && elapsed < 60_000;

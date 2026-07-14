@@ -133,32 +133,52 @@ const RESTART_LOCK_FILE = join(process.cwd(), ".restart-lock");
 const MIN_RESTART_INTERVAL_MS = 30_000; // 30s minimum entre 2 redémarrages
 const MAX_RESTARTS_BEFORE_QUARANTINE = 5; // Après 5 redémarrages rapides, pause longue
 const QUARANTINE_DURATION_MS = 5 * 60_000; // 5 min de pause si crash loop
+const LOCK_EXPIRY_MS = 7 * 24 * 60 * 60_000; // 7 jours — le lock s'auto-réinitialise chaque semaine
 
 function checkRestartLoop(): { isLoop: boolean; restartCount: number; waitMs: number } {
   try {
+    const now = Date.now();
+
     if (!existsSync(RESTART_LOCK_FILE)) {
-      writeFileSync(RESTART_LOCK_FILE, JSON.stringify({ count: 1, lastRestart: Date.now() }));
+      writeFileSync(
+        RESTART_LOCK_FILE,
+        JSON.stringify({ count: 1, lastRestart: now, createdAt: now }),
+      );
       return { isLoop: false, restartCount: 1, waitMs: 0 };
     }
 
     const data = JSON.parse(readFileSync(RESTART_LOCK_FILE, "utf-8")) as {
       count: number;
       lastRestart: number;
+      createdAt?: number;
     };
-    const now = Date.now();
+
+    // ─── Expiration hebdomadaire : si le lock a plus de 7 jours, on repart à zéro ──
+    const createdAt = data.createdAt ?? data.lastRestart;
+    if (now - createdAt > LOCK_EXPIRY_MS) {
+      logger.info("[AntiLoop] Lock expiré (>7 jours) — réinitialisation du compteur");
+      writeFileSync(
+        RESTART_LOCK_FILE,
+        JSON.stringify({ count: 1, lastRestart: now, createdAt: now }),
+      );
+      return { isLoop: false, restartCount: 1, waitMs: 0 };
+    }
+
     const elapsed = now - data.lastRestart;
     const newCount = elapsed < MIN_RESTART_INTERVAL_MS ? data.count + 1 : 1;
 
-    writeFileSync(RESTART_LOCK_FILE, JSON.stringify({ count: newCount, lastRestart: now }));
+    writeFileSync(
+      RESTART_LOCK_FILE,
+      JSON.stringify({ count: newCount, lastRestart: now, createdAt }),
+    );
 
     if (newCount >= MAX_RESTARTS_BEFORE_QUARANTINE) {
       logger.warn(
         `[AntiLoop] ${newCount} redémarrages rapides détectés — QUARANTINE de ${QUARANTINE_DURATION_MS / 1000}s`,
       );
-      // Réinitialiser le compteur après la quarantaine
       writeFileSync(
         RESTART_LOCK_FILE,
-        JSON.stringify({ count: 0, lastRestart: now + QUARANTINE_DURATION_MS }),
+        JSON.stringify({ count: 0, lastRestart: now + QUARANTINE_DURATION_MS, createdAt }),
       );
       return { isLoop: true, restartCount: newCount, waitMs: QUARANTINE_DURATION_MS };
     }
