@@ -14,19 +14,9 @@ import status from "./status.js";
 import mine from "./mine.js";
 import stop from "./stop.js";
 import chat from "./chat.js";
-import seed from "./seed.js";
-import stopServer from "./stop-server.js";
-import solo from "./solo.js";
 import follow from "./follow.js";
-import unfollow from "./unfollow.js";
-import give from "./give.js";
-import equip from "./equip.js";
 import farm from "./farm.js";
 import stopFarm from "./stop-farm.js";
-import link from "./link.js";
-import unlink from "./unlink.js";
-import profile from "./profile.js";
-import stats from "./stats.js";
 
 const subcommands: SubcommandDef[] = [
   connect,
@@ -35,19 +25,9 @@ const subcommands: SubcommandDef[] = [
   mine,
   stop,
   chat,
-  seed,
-  stopServer,
-  solo,
   follow,
-  unfollow,
-  give,
-  equip,
   farm,
   stopFarm,
-  link,
-  unlink,
-  profile,
-  stats,
 ];
 
 export default {
