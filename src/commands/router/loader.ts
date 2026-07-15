@@ -151,7 +151,11 @@ function discoverCategories(): string[] {
   return entries
     .filter((e) => e.isDirectory() && !e.name.startsWith("_") && e.name !== "router")
     .map((e) => e.name)
-    .filter((name) => existsSync(join(COMMANDS_DIR, name, "_command.ts")));
+    .filter(
+      (name) =>
+        existsSync(join(COMMANDS_DIR, name, "_command.ts")) ||
+        existsSync(join(COMMANDS_DIR, name, "_command.js")),
+    );
 }
 
 /**
