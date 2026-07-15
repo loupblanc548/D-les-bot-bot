@@ -423,6 +423,11 @@ const REMOVED_COMMANDS = new Set([
   "tools", // tools supprimé
   "sources", // sources supprimé
   "music", // music supprimé
+  // ─── Groupes supprimés (features automatiques ou natifs Discord) ───
+  "alert", // alertes automatiques
+  "casier", // rempli auto + context menu "Voir casier"
+  "commands", // redondant avec /bot help
+  "manage", // Discord natif (roles, channels, emojis)
 ]);
 
 export const allCommands = [
