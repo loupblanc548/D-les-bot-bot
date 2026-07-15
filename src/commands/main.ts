@@ -32,180 +32,80 @@ export const CATEGORIES: Category[] = [
     emoji: "🛠️",
     description: "Commandes principales du bot",
     commands:
-      "`/bot start - Initialise le bot`\n" +
       "`/bot help - Cette aide`\n" +
-      "`/bot restart - Redémarre (admin)`\n" +
-      "`/bot status - Statut système`\n" +
-      "`/bot uptime - Uptime du bot`\n" +
-      "`/bot userinfo [@user] - Infos d'un utilisateur`\n" +
-      "`/bot server-info - Infos du serveur`\n" +
-      "`/bot dashboard - Dashboard (admin)`\n" +
-      "`/bot debug-status - Debug: statut (admin)`\n" +
-      "`/bot debug-services - Debug: services (admin)`\n" +
-      "`/bot debug-database - Debug: DB (admin)`\n" +
-      "`/bot debug-memory - Debug: mémoire (admin)`\n" +
-      "`/bot hotreload-reload - Recharge commandes (admin)`\n" +
-      "`/bot hotreload-maintenance - Mode maintenance (admin)`\n" +
-      "`/bot hotreload-auto - Auto-reload (admin)`\n" +
-      "`/bot hotreload-status - Statut hot reload (admin)`",
-  },
-  {
-    id: "surveillance",
-    name: "Surveillance",
-    emoji: "📡",
-    description: "Gestion des sources de surveillance",
-    commands:
-      "`/sources add [type] [handle] [salon] - Ajoute une source`\n" +
-      "`/sources remove [handle] - Supprime une source`\n" +
-      "`/sources list - Liste les sources`\n" +
-      "`/sources pause [handle] - Met en pause une source`\n" +
-      "`/sources reddit-track [subreddit] - Suit un subreddit`\n" +
-      "`/sources rss-custom [url] - Flux RSS personnalisé`\n" +
-      "`/sources stats - Statistiques des sources`\n" +
-      "`/sources rss-test [url] - Teste un flux RSS`\n" +
-      "`/sources scraper-status - Statut des scrapers`\n" +
-      "`/sources search-notifications [requete] - Recherche notifications`\n" +
-      "`/sources test-freegames - Teste les jeux gratuits`\n" +
-      "`/sources test-rss [url] - Teste un flux RSS`",
-  },
-  {
-    id: "admin",
-    name: "Administration",
-    emoji: "👑",
-    description: "Commandes d'administration",
-    commands:
-      "`/admin broadcast [message] - Message à tous`\n" +
-      "`/admin dm [@user] [message] - DM à un utilisateur`\n" +
-      "`/admin deletehistory - Supprime l'historique`\n" +
-      "`/admin maintenance - Mode maintenance`\n" +
-      "`/admin clean-duplicates - Nettoie les doublons DB`\n" +
-      "`/admin backup - Backup manuel`\n" +
-      "`/admin permission-audit - Audit permissions`\n" +
-      "`/admin guild-config - Configuration serveur`\n" +
-      "`/admin cooldown-config - Configuration cooldowns`\n" +
-      "`/admin channel-routing - Routage des salons`\n" +
-      "`/admin purge-content - Purge de contenu`\n" +
-      "`/admin purge-range [de] [a] - Supprime entre 2 IDs de messages`\n" +
-      "`/admin api-status - Statut des APIs`\n" +
-      "`/admin bot-health - Health check`\n" +
-      "`/admin healthz - Endpoint health`\n" +
-      "`/admin create-workflow - Crée un workflow`\n" +
-      "`/admin list-workflows - Liste les workflows`\n" +
-      "`/admin toggle-workflow - Active/désactive un workflow`",
-  },
-  {
-    id: "ai",
-    name: "IA",
-    emoji: "🤖",
-    description: "Commandes d'intelligence artificielle",
-    commands:
-      "`/ai chat [message] - Discute avec l'IA`\n" +
-      "`/ai aichat - Active/désactive l'IA contextuelle`\n" +
-      "`/ai smartpoll [question] - Sondage intelligent par IA`\n" +
-      "`/ai translate-auto [texte] - Traduction automatique`\n" +
-      "`/ai config [parametre] [valeur] - Configuration IA (admin)`",
-  },
-  {
-    id: "alertcenter",
-    name: "AlertCenter",
-    emoji: "🚨",
-    description: "Centre d'alertes et risques",
-    commands:
-      "`/alert pending - Alertes en attente`\n" +
-      "`/alert history - Historique des alertes`\n" +
-      "`/alert user [@user] - Alertes d'un utilisateur`\n" +
-      "`/alert channel [salon] - Définit le salon des alertes`\n" +
-      "`/alert threshold [score] - Seuil de score`\n" +
-      "`/alert reset [@user] - Réinitialise le profil de risque`\n" +
-      "`/alert view - Configuration actuelle`\n" +
-      "`/alert smart [action] - Alertes groupées intelligentes`\n" +
-      "`/alert security-audit - Audit sécurité des sanctions`\n" +
-      "`/alert riskscore [@user] - Score de risque`\n" +
-      "`/alert riskyusers - Utilisateurs à risque`\n" +
-      "`/alert spam-analysis - Analyse de spam`\n" +
-      "`/alert auto-report - Rapport automatique`\n" +
-      "`/alert viral-alert - Alerte virale`\n" +
-      "`/alert trend-report - Rapport de tendances`\n" +
-      "`/alert alert-rules [action] - Règles d'alerte (admin)`",
+      "`/bot status - Statut du bot`\n" +
+      "`/bot restart - Redémarre le bot (admin)`",
   },
   {
     id: "moderation",
     name: "Modération",
-    emoji: "🛡️",
+    emoji: "�️",
     description: "Commandes de modération",
     commands:
-      "`/mod ban [@user] - Bannir (admin)`\n" +
+      "`/mod warn [@user] - Avertir un membre`\n" +
+      "`/mod mute [@user] - Rendre muet (timeout long)`\n" +
+      "`/mod unmute [@user] - Retirer le timeout`\n" +
       "`/mod kick [@user] - Expulser`\n" +
-      "`/mod mute [@user] [durée] - Mute temporaire`\n" +
-      "`/mod unmute [@user] - Démute`\n" +
-      "`/mod warn [@user] [raison] - Avertir`\n" +
+      "`/mod ban [@user] - Bannir`\n" +
+      "`/mod timeout [@user] - Timeout court terme`\n" +
       "`/mod clear [nombre] - Supprimer messages`\n" +
-      "`/mod timeout [@user] [durée] - Timeout court terme`\n" +
       "`/mod unlock - Déverrouiller le salon`\n" +
-      "`/mod purge [@user] [nombre] - Supprime messages d'un utilisateur`\n" +
+      "`/mod purge [@user] - Supprime messages d'un utilisateur`\n" +
       "`/mod history [@user] - Historique des messages`\n" +
       "`/mod slowmode [durée] - Slowmode du salon`\n" +
       "`/mod lock - Verrouiller le salon`\n" +
       "`/mod softban [@user] - Soft ban (ban+unban)`\n" +
-      "`/mod tempban [@user] [durée] - Ban temporaire`\n" +
-      "`/mod purgeuser [@user] - Purge messages d'un user`\n" +
+      "`/mod tempban [@user] - Ban temporaire`\n" +
+      "`/mod purgeuser [@user] - Supprime tous les messages d'un user`\n" +
       "`/mod snipe - Dernier message supprimé`\n" +
-      "`/mod report [@user] [raison] - Signale un membre`\n" +
-      "`/mod mass-move [destination] - Déplace tous les membres vocaux`\n" +
-      "`/mod voice-kick [@user] - Expulse du vocal`",
+      "`/mod report [@user] - Signale un membre au staff`",
   },
   {
     id: "security",
     name: "Sécurité",
     emoji: "🔒",
-    description: "Commandes de sécurité avancée",
+    description: "OSINT, threat intel, config et défense",
     commands:
-      "`/security nuke - Clone et nettoie un salon`\n" +
-      "`/security check-alt - Liste les comptes récents`\n" +
-      "`/security blacklist - Gère la liste noire (owner)`\n" +
-      "`/security role-mass - Ajoute/retire un rôle à tous (admin)`\n" +
-      "`/security antiraid - Protection anti-raid (comptes récents)`\n" +
-      "`/security verif - Système de vérification par bouton`\n" +
-      "`/security namehistory [@user] - Historique des pseudos`\n" +
-      "`/security avatarhistory [@user] - Historique des avatars`\n" +
-      "`/security linkcheck [url] - Vérifie un lien suspect`\n" +
-      "`/security alt-link [@user] - Lie ton compte main et alt`\n" +
-      "`/security ban-log [membre] - Historique cross-serveurs des bans`\n" +
-      "`/security behavior-timeline [membre] - Timeline des events d'un user`\n" +
-      "`/security alert-rules [action] - Builder de règles d'alerte (admin)`\n" +
-      "`/security word-filter [action] - Filtre de mots interdits (admin)`\n" +
-      "`/security permission-audit - Audit des permissions`\n" +
-      "`/security raid-shield - Bouclier anti-raid`",
+      "`/security osint scan [pseudo] - Scan 35+ plateformes`\n" +
+      "`/security osint dns [domaine] - Résolution DNS`\n" +
+      "`/security osint whois [domaine] - WHOIS complet`\n" +
+      "`/security osint breach [email] - Data breach check`\n" +
+      "`/security osint phone [numero] - PhoneInfoga`\n" +
+      "`/security threat linkcheck [url] - Lien suspect ?`\n" +
+      "`/security threat intel - Analyse globale serveur`\n" +
+      "`/security threat namehistory [@user] - Historique pseudos`\n" +
+      "`/security config antiraid [action] - Mode anti-raid`\n" +
+      "`/security config word-filter [action] - Filtre mots interdits`\n" +
+      "`/security defense raid-shield - Bouclier anti-raid`\n" +
+      "`/security defense lockdown-server - Verrouillage serveur`",
   },
   {
-    id: "osint",
-    name: "OSINT / Shadow",
-    emoji: "🕵️",
-    description: "Commandes OSINT et renseignement (modérateur minimum)",
+    id: "ai",
+    name: "IA",
+    emoji: "🤖",
+    description: "Chat, analyse et configuration IA",
     commands:
-      "`/shadow intel [@user] - Profil d'intelligence d'un membre`\n" +
-      "`/shadow network [@user] - Réseau d'un membre`\n" +
-      "`/shadow patterns - Patterns suspects détectés`\n" +
-      "`/shadow report - Rapport d'intelligence serveur (owner)`\n" +
-      "`/shadow stealth - Mode furtif (owner)`\n" +
-      "`/shadow watch - Surveillance (owner)`\n" +
-      "`/shadow search [type] [query] - Recherche OSINT`\n" +
-      "`/shadow sherlock [pseudo] - Sherlock (480+ sites)`\n" +
-      "`/shadow maigret [pseudo] - Maigret (2500+ sites)`\n" +
-      "`/shadow email [email] - Holehe (120+ sites)`\n" +
-      "`/shadow breach [email] - h8mail (data breaches)`\n" +
-      "`/shadow phone [numero] - PhoneInfoga`\n" +
-      "`/shadow domain [domaine] - crt.sh + WHOIS + DNS + Sublist3r`\n" +
-      "`/shadow whois [domaine] - WHOIS lookup`\n" +
-      "`/shadow dns [domaine] - DNS records`\n" +
-      "`/shadow instagram [pseudo] - Instaloader`\n" +
-      "`/shadow insta-deep [pseudo] - Osintgram (deep intel)`\n" +
-      "`/shadow crawl [url] - Photon crawl`\n" +
-      "`/shadow social [query] - socialscan multi-plateformes`\n" +
-      "`/shadow harvester [domaine] - theHarvester (emails, hosts)`\n" +
-      "`/shadow wmn [pseudo] - WhatsMyName (600+ sites)`\n" +
-      "`/shadow exif [url] - EXIF metadata extraction`\n" +
-      "`/shadow cms [url] - CMSeeK (CMS detection)`",
+      "`/ai basic chat [message] - Pose une question à l'IA`\n" +
+      "`/ai basic ask-bot - Active/désactive le chat IA contextuel`\n" +
+      "`/ai basic image [prompt] - Génère une image via IA`\n" +
+      "`/ai basic translate [texte] - Traduit un texte`\n" +
+      "`/ai basic summarize - Résume les derniers messages`\n" +
+      "`/ai analysis sentiment [message] - Analyse de sentiment`\n" +
+      "`/ai analysis summarize-user [@user] - Résumé activité d'un membre`\n" +
+      "`/ai analysis channel-summary - Résumé complet d'un salon`\n" +
+      "`/ai analysis behavior-timeline [@user] - Timeline comportementale`\n" +
+      "`/ai analysis spam-analysis - Analyse spam d'un salon`\n" +
+      "`/ai advanced persona [style] - Change la personnalité de l'IA`\n" +
+      "`/ai advanced mood - Humeur générale du serveur`\n" +
+      "`/ai advanced prompt-templates - Liste/modifie templates`\n" +
+      "`/ai advanced fine-tune - Fine-tune du modèle`\n" +
+      "`/ai advanced context - Gère le contexte (clear/size)`\n" +
+      "`/ai advanced history - Historique actions modération IA`\n" +
+      "`/ai config model-select [modele] - Change le modèle LLM`\n" +
+      "`/ai config temperature [valeur] - Ajuste la créativité (0-2)`\n" +
+      "`/ai config token-usage - Stats consommation tokens`\n" +
+      "`/ai config moderation-config - Config modération IA`\n" +
+      "`/ai config fun-mode - Mode fun (roast, compliment...)`",
   },
   {
     id: "gaming",
@@ -213,7 +113,7 @@ export const CATEGORIES: Category[] = [
     emoji: "🎮",
     description: "Commandes liées aux jeux vidéo",
     commands:
-      "`/game status [jeu] - Statut des serveurs de jeu`\n" +
+      "`/game status - Statut des serveurs de jeu`\n" +
       "`/game info [jeu] - Infos détaillées d'un jeu`\n" +
       "`/game free-games - Jeux gratuits (Epic Games)`\n" +
       "`/game free-game-reminder - Rappels jeux gratuits`\n" +
@@ -223,7 +123,7 @@ export const CATEGORIES: Category[] = [
       "`/game price-compare [jeu] - Compare prix multi-plateforme`\n" +
       "`/game price-history [jeu] - Historique des prix`\n" +
       "`/game price-track [jeu] - Suivi de prix`\n" +
-      "`/game release-calendar [periode] - Calendrier des sorties`\n" +
+      "`/game release-calendar - Calendrier des sorties`\n" +
       "`/game gaming-news - News gaming`\n" +
       "`/game epic-calendar - Calendrier Epic Games`\n" +
       "`/game steam - Profil Steam, wishlist, nowplaying`\n" +
@@ -231,49 +131,42 @@ export const CATEGORIES: Category[] = [
       "`/game wishlist [action] - Wishlist multi-plateforme`\n" +
       "`/game wishlist-stats - Stats de ta wishlist`\n" +
       "`/game wishlist-notify - Notifs wishlist`\n" +
-      "`/game boutique [section] - Boutique Fortnite (FR)`\n" +
+      "`/game boutique - Boutique Fortnite (FR)`\n" +
       "`/game fortnite-wishlist [action] - Wishlist Fortnite (DM)`\n" +
       "`/game fortnite-shop-preview - Aperçu boutique Fortnite`\n" +
       "`/game xbox [gamertag] - Profil Xbox/Game Pass`\n" +
       "`/game twitch - Gère les streamers suivis`\n" +
-      "`/game psn - Profil, trophées et jeux PlayStation`\n" +
-      "`/game track-add [jeu] - Surveille les actus Steam d'un jeu`\n" +
-      "`/game track-remove [jeu] - Arrête la surveillance`\n" +
-      "`/game track-list - Liste les jeux surveillés`",
+      "`/game psn - Profil, trophées et jeux PlayStation`",
   },
   {
-    id: "community",
-    name: "Communauté",
-    emoji: "👥",
-    description: "Fonctionnalités communautaires",
+    id: "mc",
+    name: "Minecraft",
+    emoji: "⛏️",
+    description: "Bot Minecraft Bedrock",
     commands:
-      "`/community ticket-setup - Configure le système de tickets`\n" +
-      "`/community self-role [action] - Rôles auto-attribuables (admin)`\n" +
-      "`/community profile [action] - Profil personnalisé (bio, couleur, badges, titre)`",
+      "`/mc connect [ip] - Connecte le bot au serveur`\n" +
+      "`/mc disconnect - Déconnecte le bot`\n" +
+      "`/mc status - Statut du bot Minecraft`\n" +
+      "`/mc mine - Démarre le mining automatique`\n" +
+      "`/mc stop - Arrête le mining`\n" +
+      "`/mc chat [message] - Envoie un message dans le chat`\n" +
+      "`/mc follow [joueur] - Le bot suit un joueur`\n" +
+      "`/mc farm - Démarre l'agriculture automatique`\n" +
+      "`/mc stop-farm - Arrête l'agriculture`",
   },
   {
-    id: "utility",
-    name: "Utilitaires",
-    emoji: "🔧",
-    description: "Outils et utilitaires",
+    id: "admin",
+    name: "Administration",
+    emoji: "�",
+    description: "Commandes d'administration",
     commands:
-      "`/tools embed-builder - Crée un embed personnalisé`\n" +
-      "`/tools say [salon] [message] - Fait parler le bot`\n" +
-      "`/tools vocal [action] - Gère la connexion vocale (rejoindre/quitter)`\n" +
-      "`/tools mp3 [nom] - Joue un son en vocal`\n" +
-      "`/tools tts [texte] [langue] - Lit du texte à voix haute en vocal`\n" +
-      "`/tools recherche [sujet] - Recherche sur Internet`\n" +
-      "`/tools audio-effects - Effets audio`\n" +
-      "`/tools radio-stop - Arrête la radio`",
-  },
-  {
-    id: "casier",
-    name: "Casier",
-    emoji: "📋",
-    description: "Gestion du casier judiciaire",
-    commands:
-      "`/casier view [@user] - Affiche le casier d'un membre`\n" +
-      "`/casier clear [id] - Efface une sanction ou un casier (admin)`",
+      "`/admin dm [@user] [message] - DM à un utilisateur`\n" +
+      "`/admin maintenance - Active/désactive le mode maintenance`\n" +
+      "`/admin clean-duplicates - Nettoie les doublons DB`\n" +
+      "`/admin backup - Backup manuel de la DB`\n" +
+      "`/admin guild-config - Configuration du serveur`\n" +
+      "`/admin channel-routing - Routage des salons`\n" +
+      "`/admin purge-range [de] [a] - Supprime entre 2 IDs de messages`",
   },
 ];
 
