@@ -25,6 +25,7 @@ import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import { checkMessageMediaForAI } from "../services/aiAvatarDetector.js";
+import { joinVoiceChannelById, isInVoiceChannel } from "../services/voiceAgent.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -357,6 +358,23 @@ async function handleAiChatMention(
   client: Client,
 ): Promise<void> {
   try {
+    // ── Si l'utilisateur est dans un vocal, le bot le rejoint automatiquement ──
+    if (message.member?.voice?.channelId && message.guild) {
+      const guildId = message.guild.id;
+      const channelId = message.member.voice.channelId;
+      if (!isInVoiceChannel(guildId)) {
+        const joined = await joinVoiceChannelById(client, guildId, channelId);
+        if (joined) {
+          await message
+            .reply({
+              content: `🔊 J'ai rejoint <#${channelId}> !`,
+              allowedMentions: { repliedUser: false },
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
     // Nettoyer le message : retirer la mention du bot
     const cleanedContent = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
