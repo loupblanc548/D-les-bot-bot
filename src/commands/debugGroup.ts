@@ -20,6 +20,7 @@ import {
 } from "discord.js";
 import { execute as executeDebug } from "./debug.js";
 import { execute as executeHotreload } from "./hotreload.js";
+import { registerCommands } from "../commandRouter.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -54,6 +55,11 @@ export const commands = [
     .addSubcommand((sc) =>
       sc.setName("hotreload-status").setDescription("Hotreload: statut du hot reload"),
     )
+    .addSubcommand((sc) =>
+      sc
+        .setName("register")
+        .setDescription("Force l'enregistrement des commandes slash sur Discord"),
+    )
     .toJSON(),
 ];
 
@@ -63,6 +69,19 @@ const HOTRELOAD_SUBS = ["reload", "maintenance", "auto", "hotreload-status"];
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
+
+  if (action === "register") {
+    await interaction.editReply({ content: "⏳ Enregistrement des commandes sur Discord..." });
+    try {
+      await registerCommands();
+      await interaction.editReply({ content: "✅ Commandes enregistrées avec succès !" });
+    } catch (err) {
+      await interaction.editReply({
+        content: `❌ Erreur: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    return;
+  }
 
   if (DEBUG_SUBS.includes(action)) {
     await executeDebug(interaction, dc);
