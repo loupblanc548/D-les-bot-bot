@@ -418,6 +418,11 @@ const REMOVED_COMMANDS = new Set([
   "track-game", // déjà dans /track (lui-même supprimé)
   "untrack-game", // déjà dans /track
   "list-tracked", // déjà dans /track
+  // ─── Groupes supprimés (autre système ou inutiles) ───
+  "ticket", // autre système de tickets en place
+  "tools", // tools supprimé
+  "sources", // sources supprimé
+  "music", // music supprimé
 ]);
 
 export const allCommands = [
