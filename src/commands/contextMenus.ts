@@ -4,11 +4,13 @@ import {
   Client,
   EmbedBuilder,
   MessageFlags,
+  PermissionFlagsBits,
 } from "discord.js";
-import { getOrCreateRiskProfile } from "../services/risk-engine.js";
+import { getOrCreateRiskProfile, recordSanction } from "../services/risk-engine.js";
 import { autoTranslateIfNeeded } from "../services/libreTranslate.js";
 import { buildTranslationEmbed } from "../services/embedBuilder.js";
 import { assessThreat, fullModeration } from "../services/ai-moderation.js";
+import { requireMod } from "../services/permissions.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
@@ -22,6 +24,19 @@ export const contextMenuCommands = [
   new ContextMenuCommandBuilder()
     .setName("� Voir casier")
     .setType(ApplicationCommandType.User)
+    .toJSON(),
+
+  // ── Quick Mod Actions (clic droit user) ──
+  new ContextMenuCommandBuilder()
+    .setName("🔨 Ban rapide")
+    .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .toJSON(),
+
+  new ContextMenuCommandBuilder()
+    .setName("⏱️ Timeout rapide")
+    .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .toJSON(),
 
   // ── Message Context Menus (gardés: traduire = utile) ──
@@ -271,6 +286,63 @@ async function handleUserContextMenu(
         .setColor(0xff8800)
         .setTimestamp();
       await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+      break;
+    }
+
+    case "🔨 Ban rapide": {
+      if (!(await requireMod(interaction as unknown as import("discord.js").CommandInteraction)))
+        return;
+      await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+      try {
+        const reason = `Ban rapide par ${interaction.user.tag}`;
+        await interaction.guild!.members.ban(target, { reason, deleteMessageSeconds: 86400 });
+        await recordSanction(target.id, interaction.guildId!, "BAN");
+        const embed = new EmbedBuilder()
+          .setTitle("🔨 Ban rapide")
+          .setColor(0xff3344)
+          .setDescription(
+            `**${target.tag}** a été banni.
+- **Modérateur** : ${interaction.user.tag}
+- **Raison** : ${reason}`,
+          )
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+      } catch (error) {
+        logger.error(
+          `[ContextMenu] Ban rapide: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        await interaction.editReply({ content: "❌ Impossible de bannir ce membre." });
+      }
+      break;
+    }
+
+    case "⏱️ Timeout rapide": {
+      if (!(await requireMod(interaction as unknown as import("discord.js").CommandInteraction)))
+        return;
+      await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+      try {
+        const member = interaction.guild?.members.cache.get(target.id);
+        if (!member || !("timeout" in member)) {
+          await interaction.editReply({ content: "❌ Membre introuvable." });
+          return;
+        }
+        await member.timeout(600_000, `Timeout rapide par ${interaction.user.tag}`);
+        await recordSanction(target.id, interaction.guildId!, "TIMEOUT");
+        const embed = new EmbedBuilder()
+          .setTitle("⏱️ Timeout rapide (10 min)")
+          .setColor(0xffaa00)
+          .setDescription(
+            `**${target.tag}** a été mis en timeout 10 minutes.
+- **Modérateur** : ${interaction.user.tag}`,
+          )
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+      } catch (error) {
+        logger.error(
+          `[ContextMenu] Timeout rapide: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        await interaction.editReply({ content: "❌ Impossible de timeout ce membre." });
+      }
       break;
     }
 
