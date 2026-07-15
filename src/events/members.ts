@@ -10,6 +10,7 @@ import { sendStealthAlert } from "../services/shadowBroker.js";
 import { stealthGuildLeave } from "../services/stealthLeave.js";
 import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
 import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/reportChannel.js";
+import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -103,6 +104,9 @@ export function handleMemberEvents(client: Client) {
 
       // ── Security Integration: auto-quarantine, geo-block ──
       handleMemberSecurityIntegration(client, member).catch(() => {});
+
+      // ── Détection d'avatar généré par IA ──
+      void checkAvatarForAI(client, member, true).catch(() => {});
 
       // ── Message de bienvenue (si configuré et activé) ──
       await sendWelcomeMessage(member);
@@ -198,6 +202,11 @@ export function handleMemberEvents(client: Client) {
               userId: newMember.id,
               details: `Ancien hash: ${oldHash} | Nouveau hash: ${newHash}`,
             });
+
+            // ── Détection d'avatar généré par IA ──
+            if (newMember.user.avatar) {
+              void checkAvatarForAI(client, newMember, false).catch(() => {});
+            }
           } catch (err) {
             logger.error("[MemberUpdate/Avatar] Erreur:", err);
           }
