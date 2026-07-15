@@ -362,7 +362,6 @@ const REMOVED_COMMANDS = new Set([
   "giveaway-reroll",
   "community",
   "tools",
-  "economy",
   "music",
   "game2",
 ]);
