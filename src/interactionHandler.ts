@@ -5,7 +5,7 @@
  * Regroupe les 3 events InteractionCreate : commandes, boutons+select, autocomplete.
  */
 
-import { Client, Events, Interaction, MessageFlags } from "discord.js";
+import { Client, Events, Interaction, MessageFlags, StringSelectMenuInteraction } from "discord.js";
 import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
@@ -18,6 +18,7 @@ import {
 import { evaluateOffload, recordExecution } from "./infrastructure/monitors/offloadController.js";
 import { isOffloadableCommand } from "./infrastructure/bridge/bridgeTypes.js";
 import { handleMainSelectMenu } from "./commandRouter.js";
+import { handleHelpSelectMenu } from "./commands/helpSystem.js";
 import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
 import { createTicket, closeTicket, claimTicket, getPanel } from "./services/ticketService.js";
@@ -211,7 +212,7 @@ export function attachInteractionHandlers(client: Client): void {
     if (!interaction.isStringSelectMenu()) return;
     if (interaction.customId === "help_category_select") {
       try {
-        await handleMainSelectMenu(interaction);
+        await handleHelpSelectMenu(interaction as StringSelectMenuInteraction);
       } catch (error) {
         logger.error(
           `Erreur select menu ${interaction.customId}: ${error instanceof Error ? error.message : String(error)}`,

@@ -5,6 +5,7 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
+  StringSelectMenuInteraction,
 } from "discord.js";
 
 export const commands = [
@@ -487,4 +488,46 @@ async function handleCommands(interaction: ChatInputCommandInteraction, _client:
       .setFooter({ text: "Utilise /commands search <terme> pour rechercher" });
     await interaction.editReply({ embeds: [embed] });
   }
+}
+
+export async function handleHelpSelectMenu(
+  interaction: StringSelectMenuInteraction,
+): Promise<void> {
+  const categoryId = interaction.values[0];
+  const cat = HELP_DATA[categoryId];
+
+  if (!cat) {
+    await interaction.update({ content: "Catégorie introuvable.", components: [] });
+    return;
+  }
+
+  const fields = cat.commands.slice(0, 25).map((cmd) => ({
+    name: cmd.name,
+    value: cmd.description,
+    inline: false,
+  }));
+
+  const embed = new EmbedBuilder()
+    .setTitle(`${cat.emoji} ${cat.name}`)
+    .setDescription(cat.description)
+    .addFields(fields)
+    .setColor(0x5865f2)
+    .setFooter({
+      text: `${cat.commands.length} commande(s) • /help pour voir toutes les catégories`,
+    })
+    .setTimestamp();
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId("help_category_select")
+    .setPlaceholder("Choisis une catégorie...")
+    .addOptions(
+      Object.entries(HELP_DATA).map(([key, c]) => ({
+        label: `${c.emoji} ${c.name}`,
+        value: key,
+        description: c.description.slice(0, 100),
+      })),
+    );
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+  await interaction.update({ embeds: [embed], components: [row] });
 }

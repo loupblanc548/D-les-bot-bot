@@ -308,7 +308,6 @@ async function handleStart(interaction: ChatInputCommandInteraction, client: Cli
 }
 
 async function handleHelp(interaction: ChatInputCommandInteraction) {
-  await interaction.deferReply({ ephemeral: true });
   try {
     const categoryOptions = CATEGORIES.map((cat) => ({
       label: `${cat.emoji} ${cat.name}`,
