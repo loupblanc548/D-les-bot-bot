@@ -310,7 +310,10 @@ const HELP_DATA: Record<string, HelpCategory> = {
 };
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client) {
-  if (interaction.commandName === "help") {
+  const isHelpCommand =
+    interaction.commandName === "help" ||
+    (interaction.commandName === "bot" && interaction.options.getSubcommand() === "help");
+  if (isHelpCommand) {
     await handleHelp(interaction);
   } else if (interaction.commandName === "commands") {
     await handleCommands(interaction, client);
