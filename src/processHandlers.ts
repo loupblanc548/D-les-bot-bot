@@ -69,6 +69,15 @@ export function attachProcessHandlers(): void {
     );
   }
 
+  function isEsbuildShutdownError(err: Error): boolean {
+    const msg = String(err.message || "");
+    const stack = String(err.stack || "");
+    return (
+      msg.includes("The service is no longer running") ||
+      (stack.includes("esbuild") && msg.includes("service"))
+    );
+  }
+
   process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     // Erreurs Redis non-fatals — ne pas crasher le bot
@@ -82,6 +91,12 @@ export function attachProcessHandlers(): void {
     }
     if (isUndiciAssertionError(err)) {
       logger.warn(`[PROCESS] Undici assertion (non-fatal, Node.js TLS bug): ${err.message}`);
+      return;
+    }
+    if (isEsbuildShutdownError(err)) {
+      logger.warn(
+        `[PROCESS] esbuild service shutdown (non-fatal, restart in progress): ${err.message}`,
+      );
       return;
     }
     logger.error(`[PROCESS] Unhandled Rejection at: ${promise}, reason: ${err.message}`, {
@@ -108,6 +123,12 @@ export function attachProcessHandlers(): void {
     }
     if (isUndiciAssertionError(error)) {
       logger.warn(`[PROCESS] Undici assertion (non-fatal, Node.js TLS bug): ${error.message}`);
+      return;
+    }
+    if (isEsbuildShutdownError(error)) {
+      logger.warn(
+        `[PROCESS] esbuild service shutdown (non-fatal, restart in progress): ${error.message}`,
+      );
       return;
     }
     logger.error(`[PROCESS] ⚠️ Uncaught Exception: ${error.message}`, { stack: error.stack });
