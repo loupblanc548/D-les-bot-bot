@@ -19,13 +19,12 @@ import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
 import { simulateHumanTyping } from "../utils/humanTyping.js";
-import {
-  sendMultiMessage,
-} from "../utils/humanBehavior.js";
+import { sendMultiMessage } from "../utils/humanBehavior.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
+import { checkMessageMediaForAI } from "../services/aiAvatarDetector.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -306,6 +305,9 @@ export function handleMessageEvents(client: Client) {
 
       // ── Security Integration: threatIntel, Google Vision, YouTube check, sentiment ──
       handleSecurityIntegration(client, message).catch(() => {});
+
+      // ── Détection de médias générés par IA (images, vidéos) ──
+      void checkMessageMediaForAI(client, message).catch(() => {});
 
       // ── Auto-react (après sécurité, non bloquant) ──
       await processAutoReact(message);
