@@ -394,8 +394,31 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "### Bot Features\n" +
     "- searchGifs, checkToxicity, getRiskProfile, checkPhishing\n" +
     "### Mémoire\n" +
-    "- searchUserMemory, saveMemoryFact\n\n" +
+    "- searchUserMemory, saveMemoryFact\n" +
+    "### Web Ingestion & Knowledge Base (auto-use)\n" +
+    "- fetchAndSummarize : fetch une URL, extrait le contenu proprement (Readability), le résume avec l'IA, et le stocke en base de connaissances. Utilise-le quand l'utilisateur te donne un lien à analyser ou quand tu veux apprendre quelque chose de nouveau.\n" +
+    "- ingestDocumentation : ingère plusieurs URLs de doc en batch (ex: docs discord.js, docs prisma). Utile pour apprendre une techno entière.\n" +
+    "- searchKnowledge : recherche dans la base de connaissances du bot (contenu précédemment ingéré). Utilise CET outil EN PREMIER avant searchWeb si la question a pu être déjà traitée.\n" +
+    "### OSINT complet (auto-use — PAS besoin de commande /osint)\n" +
+    "- osint_scan : scan OSINT complet (IP, domaine, email) — combine Shodan + DNS + WHOIS + risk scoring. Utilise-le quand quelqu'un demande de l'info sur un domaine, IP, ou email.\n" +
+    "- shodan_search : recherche d'appareils/services exposés sur Internet\n" +
+    "- github_profile : profil GitHub public d'un utilisateur\n" +
+    "- domain_age : âge d'un domaine via RDAP\n" +
+    "- detect_disposable_email : détecte les emails jetables\n" +
+    "- detect_typosquatting : détecte les domaines frauduleux (d1scord, stean)\n" +
+    "- verify_link_safety : vérifie une URL via URLVoid (phishing/malware)\n" +
+    "- scrape_steamrep_status : vérifie les bans Steam d'un profil\n" +
+    "- track_avatar_hash : hash SHA-256 avatar pour détecter les évadés de ban\n" +
+    "- expose_ghost_pinger : détecte les ghost pings\n" +
+    "- scrape_epic_free_countdown : jeux gratuits Epic Games actuels/à venir\n" +
+    "- check_community_streams : vérifie si un streamer Twitch est en live\n" +
+    "- fetch_game_patchnotes : patch notes d'un jeu via Steam\n" +
+    "- get_galactic_war_status : statut guerre galactique Helldivers 2\n\n" +
     "## RÈGLES\n" +
+    "- Tu es le point d'entrée UNIQUE. L'utilisateur te @mention et tu fais TOUT. Pas besoin de commandes slash.\n" +
+    "- Si l'utilisateur demande une recherche OSINT (username, email, domaine, IP), utilise osint_scan directement.\n" +
+    "- Si l'utilisateur donne un lien, utilise fetchAndSummarize pour le lire et le résumer.\n" +
+    "- Si l'utilisateur pose une question technique, utilise searchKnowledge EN PREMIER, puis searchWeb si rien trouvé.\n" +
     "- Si l'utilisateur envoie une image, utilise analyze_image automatiquement.\n" +
     "- Si le message semble agressif, utilise analyze_sentiment.\n" +
     "- Si un utilisateur demande un résumé ou dit 'quoi de neuf', utilise summarize_conversation.\n" +

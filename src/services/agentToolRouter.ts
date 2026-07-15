@@ -80,7 +80,9 @@ export function filterAvailableTools(allTools: AgentToolDef[]): AgentToolDef[] {
   }
 
   if (disabledTools.size > 0) {
-    logger.info(`[ToolRouter] Tools désactivés (clés manquantes): ${[...disabledTools].join(", ")}`);
+    logger.info(
+      `[ToolRouter] Tools désactivés (clés manquantes): ${[...disabledTools].join(", ")}`,
+    );
   }
 
   return allTools.filter((t) => !disabledTools.has(t.function.name));
@@ -215,12 +217,14 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     tools: ["get_user_moderation_history", "timeoutUser", "warnUser"],
   },
   {
-    keywords: ["osint", "investigation", "background check"],
-    tools: ["osint_scan", "shodan_search", "username_search", "email_reputation"],
-  },
-  {
     keywords: ["santé", "health", "ram", "mémoire", "performance"],
-    tools: ["monitor_ram_health", "enforce_garbage_collection", "bot_health", "triggerGarbageCollection", "system_stats"],
+    tools: [
+      "monitor_ram_health",
+      "enforce_garbage_collection",
+      "bot_health",
+      "triggerGarbageCollection",
+      "system_stats",
+    ],
   },
   {
     keywords: ["vps", "serveur", "cpu", "disk", "uptime", "load"],
@@ -258,6 +262,89 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     keywords: ["fichier", "file", "log", "lire fichier", "cat"],
     tools: ["file_read"],
   },
+  {
+    keywords: [
+      "osint",
+      "investigation",
+      "background check",
+      "domaine",
+      "ip",
+      "email",
+      "whois",
+      "dns",
+      "scan",
+      "shodan",
+      "username",
+      "pseudo",
+      "profil",
+    ],
+    tools: [
+      "osint_scan",
+      "shodan_search",
+      "github_profile",
+      "domain_age",
+      "detect_disposable_email",
+      "detect_typosquatting",
+      "verify_link_safety",
+      "scrape_steamrep_status",
+      "track_avatar_hash",
+      "expose_ghost_pinger",
+    ],
+  },
+  {
+    keywords: [
+      "lien",
+      "url",
+      "article",
+      "page web",
+      "lis ça",
+      "analyse ça",
+      "doc",
+      "documentation",
+      "apprends",
+      "ingère",
+    ],
+    tools: ["fetchAndSummarize", "readUrl", "searchKnowledge"],
+  },
+  {
+    keywords: [
+      "connaissance",
+      "tu sais",
+      "tu as appris",
+      "base de connaissances",
+      "tu te souviens",
+    ],
+    tools: ["searchKnowledge"],
+  },
+  {
+    keywords: ["phishing", "arnaque", "scam", "suspect", "douteux", "fraude", "malware"],
+    tools: [
+      "verify_link_safety",
+      "detect_typosquatting",
+      "detect_disposable_email",
+      "checkPhishing",
+    ],
+  },
+  {
+    keywords: ["steam", "ban steam", "trade ban", "scammer"],
+    tools: ["scrape_steamrep_status"],
+  },
+  {
+    keywords: ["epic", "jeu gratuit", "free game", "epic games"],
+    tools: ["scrape_epic_free_countdown"],
+  },
+  {
+    keywords: ["twitch", "stream", "live", "streamer"],
+    tools: ["check_community_streams"],
+  },
+  {
+    keywords: ["patch note", "mise à jour", "update", "changelog", "version"],
+    tools: ["fetch_game_patchnotes"],
+  },
+  {
+    keywords: ["helldivers", "galactic war", "guerre galactique", "major order"],
+    tools: ["get_galactic_war_status"],
+  },
 ];
 
 /**
@@ -281,7 +368,9 @@ export function routeTools(userMessage: string, allTools: AgentToolDef[]): Agent
   // Si on a identifié des tools pertinents, les prioriser
   // mais garder tous les tools disponibles (l'IA peut toujours en utiliser d'autres)
   if (relevantToolNames.size > 0) {
-    logger.info(`[ToolRouter] Tools suggérés pour "${lowerMsg.slice(0, 50)}": ${[...relevantToolNames].join(", ")}`);
+    logger.info(
+      `[ToolRouter] Tools suggérés pour "${lowerMsg.slice(0, 50)}": ${[...relevantToolNames].join(", ")}`,
+    );
   }
 
   // Filtrer les tools désactivés (clés manquantes)
@@ -315,17 +404,28 @@ export function suggestToolChain(userMessage: string): string[][] {
   const chains: string[][] = [];
 
   // "Vérifie les deals" → searchWeb + getSteamGame + build_rich_embed
-  if (lowerMsg.includes("deal") || lowerMsg.includes("promotion") || lowerMsg.includes("réduction")) {
+  if (
+    lowerMsg.includes("deal") ||
+    lowerMsg.includes("promotion") ||
+    lowerMsg.includes("réduction")
+  ) {
     chains.push(["searchWeb", "getSteamGame", "build_rich_embed"]);
   }
 
   // "Analyse ce user" → get_user_moderation_history + osint_scan + track_avatar_hash
-  if (lowerMsg.includes("analyse") && (lowerMsg.includes("user") || lowerMsg.includes("utilisateur"))) {
+  if (
+    lowerMsg.includes("analyse") &&
+    (lowerMsg.includes("user") || lowerMsg.includes("utilisateur"))
+  ) {
     chains.push(["get_user_moderation_history", "osint_scan", "track_avatar_hash"]);
   }
 
   // "Écris un script" → execute_code
-  if (lowerMsg.includes("script") || lowerMsg.includes("code python") || lowerMsg.includes("exécute")) {
+  if (
+    lowerMsg.includes("script") ||
+    lowerMsg.includes("code python") ||
+    lowerMsg.includes("exécute")
+  ) {
     chains.push(["execute_code"]);
   }
 
@@ -339,6 +439,49 @@ export function suggestToolChain(userMessage: string): string[][] {
     chains.push(["generate_image"]);
   }
 
+  // "Analyse ce lien" → fetchAndSummarize + searchKnowledge
+  if (
+    lowerMsg.includes("lien") ||
+    lowerMsg.includes("url") ||
+    lowerMsg.includes("article") ||
+    lowerMsg.includes("page web")
+  ) {
+    chains.push(["fetchAndSummarize", "searchKnowledge"]);
+  }
+
+  // "Apprends cette doc" → ingestDocumentation + searchKnowledge
+  if (
+    lowerMsg.includes("apprends") ||
+    lowerMsg.includes("ingère") ||
+    lowerMsg.includes("documentation")
+  ) {
+    chains.push(["ingestDocumentation", "searchKnowledge"]);
+  }
+
+  // "Scan ce domaine/IP" → osint_scan + verify_link_safety + domain_age
+  if (lowerMsg.includes("domaine") || lowerMsg.includes("ip") || lowerMsg.includes("scan")) {
+    chains.push(["osint_scan", "verify_link_safety", "domain_age"]);
+  }
+
+  // "C'est une arnaque ?" → verify_link_safety + detect_typosquatting + detect_disposable_email
+  if (
+    lowerMsg.includes("arnaque") ||
+    lowerMsg.includes("scam") ||
+    lowerMsg.includes("suspect") ||
+    lowerMsg.includes("fraude")
+  ) {
+    chains.push(["verify_link_safety", "detect_typosquatting", "detect_disposable_email"]);
+  }
+
+  // "Question technique" → searchKnowledge + searchWeb
+  if (
+    lowerMsg.includes("comment") ||
+    lowerMsg.includes("documentation") ||
+    lowerMsg.includes("aide")
+  ) {
+    chains.push(["searchKnowledge", "searchWeb"]);
+  }
+
   return chains;
 }
 
@@ -347,8 +490,12 @@ export function suggestToolChain(userMessage: string): string[][] {
  */
 export function getApiKeyStatusLine(): string {
   const keys = getConfiguredApiKeys();
-  const configured = Object.entries(keys).filter(([, v]) => v).map(([k]) => k);
-  const missing = Object.entries(keys).filter(([, v]) => !v).map(([k]) => k);
+  const configured = Object.entries(keys)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+  const missing = Object.entries(keys)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
 
   let line = "## API Keys configurées\n";
   if (configured.length > 0) {

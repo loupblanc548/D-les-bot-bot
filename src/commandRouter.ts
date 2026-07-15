@@ -21,7 +21,7 @@ import { buildAllCommands, dispatchInteraction } from "./commands/router/index.j
 import { handleSelectMenu as handleMainSelectMenu } from "./commands/main.js";
 
 // ─── Group Commands (used in allCommands + buildCommandRouter) ───
-import { commands as osintCommands, handleCommand as handleOsint } from "./commands/osint.js";
+// osint supprimé — l'agent IA gère l'OSINT automatiquement via @mention
 import { commands as modGroupCommands, handleCommand as handleModGroup } from "./commands/mod.js";
 import {
   commands as modAdminCommands,
@@ -448,7 +448,7 @@ export const allCommands = [
   ...helpCommands, // 12. /help + /commands
   // ── Groupes conservés (standalone) ──
   ...modAdminCommands, // 13. /modadmin
-  ...osintCommands, // 14. /osint (scan, dns, whois...)
+  // osint supprimé — agent IA gère via @mention
   ...autoThreadCommands, // 15. /autothread
   ...customCmdCommands, // /customcmd
   // ── Groupes restaurés ──
@@ -506,7 +506,7 @@ export function buildCommandRouter(): void {
   registerGroup(["manage"], handleManageGroup);
   registerGroup(["help", "commands"], handleHelp);
   registerGroup(["modadmin"], handleModAdmin);
-  registerGroup(["osint"], handleOsint);
+  // osint supprimé — agent IA gère via @mention
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
   registerGroup(["community"], handleCommunityGroup);
