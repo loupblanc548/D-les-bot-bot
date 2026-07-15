@@ -258,32 +258,167 @@ export async function checkAvatarForAI(
 
 /**
  * Extrait les URLs de médias (images, vidéos, audio) d'un message.
+ * Inclut les pièces jointes, les embeds, et les liens média dans le texte.
  */
 function extractMediaUrls(
   message: Message,
 ): Array<{ url: string; type: "image" | "video" | "audio" }> {
   const media: Array<{ url: string; type: "image" | "video" | "audio" }> = [];
+  const seen = new Set<string>();
 
+  function addUrl(url: string, type: "image" | "video" | "audio") {
+    if (seen.has(url)) return;
+    seen.add(url);
+    media.push({ url, type });
+  }
+
+  // 1. Pièces jointes
   for (const attachment of message.attachments.values()) {
     const ct = attachment.contentType ?? "";
     if (ct.startsWith("image/")) {
-      media.push({ url: attachment.url, type: "image" });
+      addUrl(attachment.url, "image");
     } else if (ct.startsWith("video/")) {
-      media.push({ url: attachment.url, type: "video" });
+      addUrl(attachment.url, "video");
     } else if (ct.startsWith("audio/")) {
-      media.push({ url: attachment.url, type: "audio" });
+      addUrl(attachment.url, "audio");
     }
   }
 
+  // 2. Embeds
   for (const embed of message.embeds) {
-    if (embed.image?.url) media.push({ url: embed.image.url, type: "image" });
+    if (embed.image?.url) addUrl(embed.image.url, "image");
     if (embed.thumbnail?.url && embed.image?.url !== embed.thumbnail.url) {
-      media.push({ url: embed.thumbnail.url, type: "image" });
+      addUrl(embed.thumbnail.url, "image");
     }
-    if (embed.video?.url) media.push({ url: embed.video.url, type: "video" });
+    if (embed.video?.url) addUrl(embed.video.url, "video");
+  }
+
+  // 3. Liens média dans le texte du message (images/vidéos directes)
+  const urlRegex =
+    /https?:\/\/[^\s<>"']+\.(png|jpe?g|gif|webp|bmp|svg|mp4|webm|mov|avi|mkv)(\?[^\s]*)?/gi;
+  const textUrls = message.content.match(urlRegex) || [];
+  for (const url of textUrls) {
+    const ext = url
+      .match(/\.(png|jpe?g|gif|webp|bmp|svg|mp4|webm|mov|avi|mkv)/i)?.[1]
+      ?.toLowerCase();
+    if (!ext) continue;
+    const isVideo = ["mp4", "webm", "mov", "avi", "mkv"].includes(ext);
+    addUrl(url, isVideo ? "video" : "image");
   }
 
   return media;
+}
+
+/**
+ * Extrait tous les liens (non-média) d'un message pour analyse de sécurité.
+ */
+export function extractLinksFromMessage(content: string): string[] {
+  const urlRegex = /https?:\/\/[^\s<>"']+/gi;
+  const mediaExts = /\.(png|jpe?g|gif|webp|bmp|svg|mp4|webm|mov|avi|mkv)(\?|$)/i;
+  const urls = content.match(urlRegex) || [];
+  return urls.filter((u) => !mediaExts.test(u));
+}
+
+/**
+ * Envoie un signalement pour un lien dangereux détecté.
+ */
+async function sendLinkSecurityAlert(
+  client: Client,
+  message: Message,
+  url: string,
+  scanResult: {
+    overallMalicious: boolean;
+    overallConfidence: number;
+    results: Array<{ source: string; malicious: boolean; confidence: number; details: string }>;
+  },
+): Promise<void> {
+  try {
+    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch(() => null);
+    if (!channel?.isTextBased()) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 Lien potentiellement dangereux détecté")
+      .setColor(0xff0000)
+      .setThumbnail(message.author.displayAvatarURL({ size: 128 }))
+      .setDescription(
+        `**${message.author.tag}** (${message.author.id})\n` +
+          `📍 Salon: <#${message.channelId}>\n` +
+          `🔗 **URL:** ${url.slice(0, 200)}\n` +
+          `📊 **Confiance: ${scanResult.overallConfidence}%**`,
+      )
+      .addFields(
+        { name: "Utilisateur", value: `<@${message.author.id}>`, inline: true },
+        { name: "Message", value: `[Aller au message](${message.url})`, inline: true },
+        {
+          name: "Sources",
+          value:
+            scanResult.results
+              .map(
+                (r) =>
+                  `**${r.source}**: ${r.malicious ? "⚠️" : "✅"} (${r.confidence}%) — ${r.details.slice(0, 100)}`,
+              )
+              .join("\n")
+              .slice(0, 1024) || "Aucune",
+          inline: false,
+        },
+      )
+      .setFooter({ text: "Sécurité automatique • Threat Intelligence" })
+      .setTimestamp();
+
+    await (channel as TextChannel).send({
+      content: `🚨 Lien dangereux détecté par <@${message.author.id}>`,
+      embeds: [embed],
+    });
+
+    logger.info(
+      `[AIAvatarDetector] Signalement lien dangereux envoyé pour ${message.author.tag} (confiance: ${scanResult.overallConfidence}%)`,
+    );
+  } catch (err) {
+    logger.error(
+      `[AIAvatarDetector] Erreur envoi signalement lien: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+/**
+ * Scanne les liens d'un message pour la sécurité (VirusTotal, Safe Browsing, PhishTank).
+ */
+export async function checkMessageLinksForSecurity(
+  client: Client,
+  message: Message,
+): Promise<void> {
+  try {
+    if (message.author.bot) return;
+    if (!message.guild) return;
+
+    const links = extractLinksFromMessage(message.content);
+    if (links.length === 0) return;
+
+    // Cooldown per user for link security alerts
+    const now = Date.now();
+    const cooldownKey = `link_sec_${message.author.id}`;
+    const lastAlert = recentAlerts.get(cooldownKey) ?? 0;
+    if (now - lastAlert < MEDIA_ALERT_COOLDOWN_MS) return;
+
+    const { scanURL } = await import("./threatIntel.js");
+
+    for (const url of links) {
+      try {
+        const result = await scanURL(url);
+        if (result.overallMalicious) {
+          recentAlerts.set(cooldownKey, now);
+          await sendLinkSecurityAlert(client, message, url, result);
+          break;
+        }
+      } catch {
+        // Non-critique — skip cette URL
+      }
+    }
+  } catch (err) {
+    logger.error(
+      `[AIAvatarDetector] Erreur scan liens sécurité: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 /**

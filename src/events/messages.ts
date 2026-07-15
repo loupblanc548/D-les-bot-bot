@@ -24,7 +24,10 @@ import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
-import { checkMessageMediaForAI } from "../services/aiAvatarDetector.js";
+import {
+  checkMessageMediaForAI,
+  checkMessageLinksForSecurity,
+} from "../services/aiAvatarDetector.js";
 import { joinVoiceChannelById, isInVoiceChannel } from "../services/voiceAgent.js";
 import {
   touchConversation,
@@ -309,6 +312,9 @@ export function handleMessageEvents(client: Client) {
 
       // ── Détection de médias générés par IA (images, vidéos) ──
       void checkMessageMediaForAI(client, message).catch(() => {});
+
+      // ── Analyse de sécurité des liens (VirusTotal, Safe Browsing, PhishTank) ──
+      void checkMessageLinksForSecurity(client, message).catch(() => {});
 
       // ── Auto-react (après sécurité, non bloquant) ──
       await processAutoReact(message);
