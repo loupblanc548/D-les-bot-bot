@@ -14,6 +14,10 @@
  * /fun dog        — Photo de chien aléatoire
  * /fun number-fact — Fait sur un nombre
  * /fun hackernews  — Top Hacker News
+ * /fun weather    — Météo (Open-Meteo, sans clé)
+ * /fun anime      — Recherche anime (Jikan/MyAnimeList, sans clé)
+ * /fun manga      — Recherche manga (Jikan/MyAnimeList, sans clé)
+ * /fun top-anime  — Top anime de la saison
  */
 
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
@@ -28,6 +32,8 @@ import {
   getHackerNewsTop,
 } from "../services/freeApis.js";
 import { startTrivia } from "../services/triviaService.js";
+import { getCurrentWeather, getWeatherForecast } from "../services/openMeteo.js";
+import { searchAnime, searchManga, getAnimeSeason } from "../services/jikan.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -108,6 +114,41 @@ export const commands = [
             .setMinValue(1)
             .setMaxValue(10),
         ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("weather")
+        .setDescription("Météo actuelle (gratuit, sans clé)")
+        .addStringOption((o) =>
+          o.setName("ville").setDescription("Nom de la ville").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("forecast")
+        .setDescription("Prévisions météo 3 jours")
+        .addStringOption((o) =>
+          o.setName("ville").setDescription("Nom de la ville").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("anime")
+        .setDescription("Recherche un anime (MyAnimeList)")
+        .addStringOption((o) =>
+          o.setName("titre").setDescription("Titre de l'anime").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("manga")
+        .setDescription("Recherche un manga (MyAnimeList)")
+        .addStringOption((o) =>
+          o.setName("titre").setDescription("Titre du manga").setRequired(true),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("top-anime").setDescription("Top anime de la saison actuelle"),
     )
     .toJSON(),
 ];
@@ -371,6 +412,144 @@ export async function handleCommand(
         embed.addFields({
           name: `${i + 1}. ${a.title}`,
           value: `⬆️ ${a.score} points • [Lien](${a.url})`,
+        });
+      });
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case "weather": {
+      await interaction.deferReply();
+      const ville = interaction.options.getString("ville", true);
+      const weather = await getCurrentWeather(ville);
+      if (!weather) {
+        await interaction.editReply(`❌ Ville "${ville}" introuvable.`);
+        return;
+      }
+      const embed = new EmbedBuilder()
+        .setTitle(`${weather.weatherDesc} — ${weather.city}, ${weather.country}`)
+        .addFields(
+          { name: "🌡️ Température", value: `${weather.temperature}°C`, inline: true },
+          { name: "💨 Vent", value: `${weather.windspeed} km/h`, inline: true },
+          { name: "🕐 Heure", value: weather.time, inline: true },
+        )
+        .setColor(weather.isDay ? 0xffd700 : 0x2c2f33)
+        .setFooter({ text: "Open-Meteo API" });
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case "forecast": {
+      await interaction.deferReply();
+      const ville = interaction.options.getString("ville", true);
+      const forecast = await getWeatherForecast(ville, 3);
+      if (!forecast) {
+        await interaction.editReply(`❌ Ville "${ville}" introuvable.`);
+        return;
+      }
+      const embed = new EmbedBuilder()
+        .setTitle(`📅 Prévisions — ${forecast.city}, ${forecast.country}`)
+        .setColor(0x3498db)
+        .setFooter({ text: "Open-Meteo API" });
+      forecast.days.forEach((d) => {
+        embed.addFields({
+          name: `${d.date} — ${d.weatherDesc}`,
+          value: `🔺 ${d.max}°C / 🔻 ${d.min}°C • 🌧️ ${d.precipitation} mm`,
+          inline: false,
+        });
+      });
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case "anime": {
+      await interaction.deferReply();
+      const titre = interaction.options.getString("titre", true);
+      const results = await searchAnime(titre, 1);
+      if (!results.length) {
+        await interaction.editReply(`❌ Aucun anime trouvé pour "${titre}".`);
+        return;
+      }
+      const a = results[0];
+      const embed = new EmbedBuilder()
+        .setTitle(a.title_french || a.title)
+        .setDescription(a.synopsis?.slice(0, 1024) || "Pas de synopsis")
+        .addFields(
+          { name: "⭐ Score", value: a.score ? `${a.score}/10` : "N/A", inline: true },
+          { name: "📺 Épisodes", value: a.episodes ? String(a.episodes) : "N/A", inline: true },
+          { name: "📊 Statut", value: a.status, inline: true },
+          {
+            name: "🎭 Genres",
+            value: a.genres.map((g) => g.name).join(", ") || "N/A",
+            inline: false,
+          },
+          {
+            name: "🎬 Studios",
+            value: a.studios.map((s) => s.name).join(", ") || "N/A",
+            inline: false,
+          },
+        )
+        .setColor(0x2e51a2)
+        .setFooter({ text: "Jikan API (MyAnimeList)" });
+      if (a.image_url) embed.setThumbnail(a.image_url);
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case "manga": {
+      await interaction.deferReply();
+      const titre = interaction.options.getString("titre", true);
+      const results = await searchManga(titre, 1);
+      if (!results.length) {
+        await interaction.editReply(`❌ Aucun manga trouvé pour "${titre}".`);
+        return;
+      }
+      const m = results[0];
+      const embed = new EmbedBuilder()
+        .setTitle(m.title_french || m.title)
+        .setDescription(m.synopsis?.slice(0, 1024) || "Pas de synopsis")
+        .addFields(
+          { name: "⭐ Score", value: m.score ? `${m.score}/10` : "N/A", inline: true },
+          { name: "📖 Chapitres", value: m.chapters ? String(m.chapters) : "N/A", inline: true },
+          { name: "📚 Volumes", value: m.volumes ? String(m.volumes) : "N/A", inline: true },
+          { name: "📊 Statut", value: m.status, inline: true },
+          {
+            name: "🎭 Genres",
+            value: m.genres.map((g) => g.name).join(", ") || "N/A",
+            inline: false,
+          },
+          {
+            name: "✍️ Auteurs",
+            value: m.authors.map((a) => a.name).join(", ") || "N/A",
+            inline: false,
+          },
+        )
+        .setColor(0xff6b35)
+        .setFooter({ text: "Jikan API (MyAnimeList)" });
+      if (m.image_url) embed.setThumbnail(m.image_url);
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case "top-anime": {
+      await interaction.deferReply();
+      const seasonal = await getAnimeSeason();
+      if (!seasonal.length) {
+        await interaction.editReply("❌ Aucun anime trouvé pour cette saison.");
+        return;
+      }
+      const embed = new EmbedBuilder()
+        .setTitle("🔥 Top anime de la saison")
+        .setColor(0x2e51a2)
+        .setFooter({ text: "Jikan API (MyAnimeList)" });
+      seasonal.slice(0, 10).forEach((a, i) => {
+        embed.addFields({
+          name: `${i + 1}. ${a.title_french || a.title}`,
+          value: `⭐ ${a.score ?? "N/A"}/10 • 📺 ${a.episodes ?? "?"} ép • ${a.genres
+            .map((g) => g.name)
+            .slice(0, 3)
+            .join(", ")}`,
+          inline: false,
         });
       });
       await interaction.editReply({ embeds: [embed] });
