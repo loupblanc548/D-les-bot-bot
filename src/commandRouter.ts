@@ -72,6 +72,34 @@ import {
   commands as manageGroupCommands,
   handleCommand as handleManageGroup,
 } from "./commands/manageGroup.js";
+import {
+  commands as communityGroupCommands,
+  handleCommand as handleCommunityGroup,
+} from "./commands/communityGroup.js";
+import {
+  commands as toolsGroupCommands,
+  handleCommand as handleToolsGroup,
+} from "./commands/toolsGroup.js";
+import {
+  commands as funGroupCommands,
+  handleCommand as handleFunGroup,
+} from "./commands/funGroup.js";
+import {
+  commands as debugGroupCommands,
+  handleCommand as handleDebugGroup,
+} from "./commands/debugGroup.js";
+import {
+  commands as game2GroupCommands,
+  handleCommand as handleGame2Group,
+} from "./commands/game2Group.js";
+import {
+  commands as musicGroupCommands,
+  handleCommand as handleMusicGroup,
+} from "./commands/musicGroup.js";
+import {
+  commands as trackGroupCommands,
+  handleCommand as handleTrackGroup,
+} from "./commands/trackGroup.js";
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
 
@@ -360,10 +388,7 @@ const REMOVED_COMMANDS = new Set([
   "birthday-config",
   "giveaway-list",
   "giveaway-reroll",
-  "community",
-  "tools",
-  "music",
-  "game2",
+  "economy",
 ]);
 
 export const allCommands = [
@@ -387,6 +412,14 @@ export const allCommands = [
   ...osintCommands, // 14. /osint (scan, dns, whois...)
   ...autoThreadCommands, // 15. /autothread
   ...customCmdCommands, // /customcmd
+  // ── Groupes restaurés ──
+  ...communityGroupCommands, // /community
+  ...toolsGroupCommands, // /tools
+  ...funGroupCommands, // /fun
+  ...debugGroupCommands, // /debug
+  ...game2GroupCommands, // /game2
+  ...musicGroupCommands, // /music
+  ...trackGroupCommands, // /track
   // ── Context Menus (clic droit) ──
   ...contextMenuCommands,
 ].filter((cmd) => {
@@ -437,6 +470,13 @@ export function buildCommandRouter(): void {
   registerGroup(["osint"], handleOsint);
   registerGroup(["autothread"], handleAutoThread);
   registerGroup(["customcmd"], handleCustomCmd);
+  registerGroup(["community"], handleCommunityGroup);
+  registerGroup(["tools"], handleToolsGroup);
+  registerGroup(["fun"], handleFunGroup);
+  registerGroup(["debug"], handleDebugGroup);
+  registerGroup(["game2"], handleGame2Group);
+  registerGroup(["music"], handleMusicGroup);
+  registerGroup(["track"], handleTrackGroup);
   // ─── Context Menus ───
   registerGroup(
     [
