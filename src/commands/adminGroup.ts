@@ -21,14 +21,6 @@ export const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sc) =>
       sc
-        .setName("broadcast")
-        .setDescription("Message à tous")
-        .addStringOption((o) =>
-          o.setName("message").setDescription("Le message").setRequired(true),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc
         .setName("dm")
         .setDescription("DM à un utilisateur")
         .addUserOption((o) => o.setName("cible").setDescription("Destinataire").setRequired(true))
@@ -36,74 +28,57 @@ export const commands = [
           o.setName("message").setDescription("Le message").setRequired(true),
         ),
     )
-    .addSubcommand((sc) => sc.setName("deletehistory").setDescription("Supprime l'historique"))
     .addSubcommand((sc) =>
       sc.setName("maintenance").setDescription("Active/désactive le mode maintenance"),
     )
     .addSubcommand((sc) => sc.setName("clean-duplicates").setDescription("Nettoie les doublons DB"))
     .addSubcommand((sc) => sc.setName("backup").setDescription("Backup manuel de la DB"))
-    .addSubcommand((sc) => sc.setName("permission-audit").setDescription("Audit des permissions"))
     .addSubcommand((sc) => sc.setName("guild-config").setDescription("Configuration du serveur"))
-    .addSubcommand((sc) =>
-      sc.setName("cooldown-config").setDescription("Configuration des cooldowns"),
-    )
     .addSubcommand((sc) => sc.setName("channel-routing").setDescription("Routage des salons"))
-    .addSubcommand((sc) => sc.setName("purge-content").setDescription("Purge de contenu"))
     .addSubcommand((sc) =>
       sc
         .setName("purge-range")
         .setDescription("Supprime tous les messages entre deux IDs (inclus)")
-        .addStringOption((o) => o.setName("de").setDescription("ID du premier message").setRequired(true))
-        .addStringOption((o) => o.setName("a").setDescription("ID du dernier message").setRequired(true)),
-    )
-    .addSubcommand((sc) => sc.setName("api-status").setDescription("Statut des APIs externes"))
-    .addSubcommand((sc) => sc.setName("bot-health").setDescription("Health check du bot"))
-    .addSubcommand((sc) => sc.setName("healthz").setDescription("Endpoint health"))
-    .addSubcommand((sc) => sc.setName("create-workflow").setDescription("Crée un workflow"))
-    .addSubcommand((sc) => sc.setName("list-workflows").setDescription("Liste les workflows"))
-    .addSubcommand((sc) =>
-      sc.setName("toggle-workflow").setDescription("Active/désactive un workflow"),
+        .addStringOption((o) =>
+          o.setName("de").setDescription("ID du premier message").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("a").setDescription("ID du dernier message").setRequired(true),
+        ),
     )
     .toJSON(),
 ];
 
-const ADMIN_SUBS = [
-  "broadcast",
-  "dm",
-  "deletehistory",
-  "backup",
-  "permission-audit",
-  "guild-config",
-];
-const EXTRA_SUBS = [
-  "api-status",
-  "bot-health",
-  "healthz",
-  "create-workflow",
-  "list-workflows",
-  "toggle-workflow",
-];
+const ADMIN_SUBS = ["dm", "backup", "guild-config"];
+const EXTRA_SUBS = ["api-status", "bot-health", "healthz"];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
-  Object.defineProperty(interaction, "commandName", { value: action, writable: true });
 
   if (ADMIN_SUBS.includes(action)) {
+    Object.defineProperty(interaction, "commandName", { value: action, writable: true });
     await handleAdmin(interaction);
-  } else if (action === "clean-duplicates") {
-    await handleCleanDuplicates(interaction);
   } else if (action === "maintenance") {
-    await handleMaintenance(interaction, dc);
-  } else if (action === "cooldown-config") {
-    await handleAdvanced(interaction, dc);
+    Object.defineProperty(interaction, "commandName", { value: "maintenance", writable: true });
+    await handleMaintenance(interaction);
+  } else if (action === "clean-duplicates") {
+    Object.defineProperty(interaction, "commandName", {
+      value: "clean-duplicates",
+      writable: true,
+    });
+    await handleCleanDuplicates(interaction);
   } else if (action === "channel-routing") {
+    Object.defineProperty(interaction, "commandName", { value: "channel-routing", writable: true });
     await handleChannelRouting(interaction);
   } else if (action === "purge-content") {
+    Object.defineProperty(interaction, "commandName", { value: "purge-content", writable: true });
     await handlePurgeContent(interaction);
   } else if (action === "purge-range") {
+    Object.defineProperty(interaction, "commandName", { value: "purge-range", writable: true });
     await handlePurgeRange(interaction);
   } else if (EXTRA_SUBS.includes(action)) {
+    Object.defineProperty(interaction, "commandName", { value: action, writable: true });
     await handleExtraCmd(interaction, dc);
   } else {
     await handleAdminExtra(interaction, dc);

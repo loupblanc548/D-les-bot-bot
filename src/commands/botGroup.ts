@@ -20,47 +20,9 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("bot")
     .setDescription("Commandes principales du bot")
-    .addSubcommand((sc) => sc.setName("start").setDescription("Démarre le bot"))
     .addSubcommand((sc) => sc.setName("help").setDescription("Affiche l'aide"))
-    .addSubcommand((sc) => sc.setName("restart").setDescription("Redémarre le bot (admin)"))
     .addSubcommand((sc) => sc.setName("status").setDescription("Statut du bot"))
-    .addSubcommand((sc) => sc.setName("uptime").setDescription("Statistiques d'exécution"))
-    .addSubcommand((sc) => sc.setName("server-info").setDescription("Infos du serveur"))
-    .addSubcommand((sc) =>
-      sc
-        .setName("userinfo")
-        .setDescription("Infos d'un utilisateur")
-        .addUserOption((o) =>
-          o.setName("cible").setDescription("L'utilisateur").setRequired(false),
-        ),
-    )
-    .addSubcommand((sc) => sc.setName("dashboard").setDescription("Dashboard de gestion (admin)"))
-    .addSubcommand((sc) =>
-      sc.setName("shadowbroker").setDescription("Ouvre le dashboard Shadow Broker"),
-    )
-    // ─── Nouvelles sous-commandes bot ───
-    .addSubcommand((sc) =>
-      sc
-        .setName("invite")
-        .setDescription("Génère un lien d'invitation du bot")
-        .addStringOption((o) => o.setName("permissions").setDescription("Niveau de permissions (bitfield)").setRequired(false)),
-    )
-    .addSubcommand((sc) => sc.setName("stats").setDescription("Statistiques détaillées du bot"))
-    .addSubcommand((sc) => sc.setName("ping").setDescription("Latence du bot"))
-    .addSubcommand((sc) => sc.setName("changelog").setDescription("Derniers changements du bot"))
-    .addSubcommand((sc) => sc.setName("vote").setDescription("Vote pour le bot sur les listes"))
-    .addSubcommand((sc) => sc.setName("support").setDescription("Serveur support et documentation"))
-    .addSubcommand((sc) => sc.setName("privacy").setDescription("Politique de confidentialité"))
-    .addSubcommand((sc) => sc.setName("commands-list").setDescription("Liste toutes les commandes disponibles"))
-    .addSubcommand((sc) => sc.setName("shard-stats").setDescription("Statut des shards (admin)"))
-    .addSubcommand((sc) =>
-      sc
-        .setName("shard-restart")
-        .setDescription("Redémarre un shard spécifique (admin)")
-        .addIntegerOption((o) =>
-          o.setName("shard_id").setDescription("ID du shard à redémarrer").setRequired(true).setMinValue(0),
-        ),
-    )
+    .addSubcommand((sc) => sc.setName("restart").setDescription("Redémarre le bot (admin)"))
     .toJSON(),
 ];
 
@@ -167,7 +129,9 @@ async function handleShardStats(interaction: ChatInputCommandInteraction): Promi
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    await interaction.editReply(`❌ Erreur: ${error instanceof Error ? error.message : "erreur inconnue"}`);
+    await interaction.editReply(
+      `❌ Erreur: ${error instanceof Error ? error.message : "erreur inconnue"}`,
+    );
   }
 }
 
