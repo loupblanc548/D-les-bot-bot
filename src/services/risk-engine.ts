@@ -7,7 +7,8 @@ import logger from "../utils/logger.js";
 import { RiskLevel } from "@prisma/client";
 export { RiskLevel };
 export type SanctionType = "WARN" | "TIMEOUT" | "KICK" | "TEMPBAN" | "BAN" | "SOFTBAN";
-export type EventType = "ANTI_RAID" | "ANTI_SPAM" | "ANTI_PHISHING" | "SUSPICIOUS_ACCOUNT" | "AI_MODERATION";
+export type EventType =
+  "ANTI_RAID" | "ANTI_SPAM" | "ANTI_PHISHING" | "SUSPICIOUS_ACCOUNT" | "AI_MODERATION";
 
 // ============================================================
 // Callback pour investigation autonome
@@ -67,14 +68,14 @@ const DECAY_RATE_PER_DAY = 0.05;
 // Seuils de risque
 const THRESHOLDS: Record<string, number> = {
   MOYEN: 30,
-  "ELEVE": 60,
+  ELEVE: 60,
   CRITIQUE: 100,
 };
 
 // ============================================================
 // Fonctions de calcul
 // ============================================================
-function getRiskLevel(score: number): RiskLevel {
+export function getRiskLevel(score: number): RiskLevel {
   if (score >= THRESHOLDS.CRITIQUE) return "CRITIQUE";
   if (score >= THRESHOLDS["ELEVE"]) return "ELEVE";
   if (score >= THRESHOLDS.MOYEN) return "MOYEN";
@@ -82,9 +83,16 @@ function getRiskLevel(score: number): RiskLevel {
 }
 
 export function calculateRiskScore(
-  counts: { warn: number; timeout: number; kick: number; tempban: number; ban: number; softban: number },
+  counts: {
+    warn: number;
+    timeout: number;
+    kick: number;
+    tempban: number;
+    ban: number;
+    softban: number;
+  },
   events: { antiRaid: number; antiSpam: number; antiPhishing: number; suspicious: number },
-  lastSanctionAt: Date | null
+  lastSanctionAt: Date | null,
 ): number {
   let score = 0;
   score += counts.warn * SANCTION_WEIGHTS.WARN;
@@ -119,7 +127,7 @@ export function calculateRiskScore(
 // ============================================================
 export async function getOrCreateRiskProfile(
   userId: string,
-  guildId: string
+  guildId: string,
 ): Promise<RiskProfile> {
   let profile = await prisma.riskProfile.findUnique({
     where: { userId_guildId: { userId, guildId } },
@@ -140,7 +148,7 @@ export async function getOrCreateRiskProfile(
 export async function recordSanction(
   userId: string,
   guildId: string,
-  type: SanctionType
+  type: SanctionType,
 ): Promise<RiskProfile> {
   const now = new Date();
 
@@ -183,7 +191,7 @@ export async function recordSanction(
       softban: 0,
     },
     { antiRaid: 0, antiSpam: 0, antiPhishing: 0, suspicious: 0 },
-    updated.lastSanctionAt
+    updated.lastSanctionAt,
   );
 
   const riskLevel = getRiskLevel(score);
@@ -202,7 +210,9 @@ export async function recordSanction(
     try {
       riskCallback(finalProfile);
     } catch (err) {
-      logger.error(`[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -215,7 +225,7 @@ export async function recordSanction(
 export async function recordSecurityEvent(
   userId: string,
   guildId: string,
-  eventType: EventType
+  eventType: EventType,
 ): Promise<RiskProfile> {
   const profile = await getOrCreateRiskProfile(userId, guildId);
   const eventWeight = EVENT_WEIGHTS[eventType] || 0;
@@ -227,7 +237,9 @@ export async function recordSecurityEvent(
     data: { riskScore: currentScore, riskLevel, lastSanctionAt: new Date() },
   });
 
-  logger.info(`[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`);
+  logger.info(
+    `[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`,
+  );
 
   const finalProfile = { ...profile, riskScore: currentScore, riskLevel } as unknown as RiskProfile;
 
@@ -236,7 +248,9 @@ export async function recordSecurityEvent(
     try {
       riskCallback(finalProfile);
     } catch (err) {
-      logger.error(`[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[RiskEngine] Erreur callback investigation: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -254,26 +268,39 @@ export interface ThresholdCheck {
 
 export async function checkAlertThreshold(
   profile: RiskProfile,
-  guildId: string
+  guildId: string,
 ): Promise<ThresholdCheck> {
   const now = new Date();
 
   // Ne pas alerter si déjà une alerte dans les 12 dernières heures
   if (profile.lastAlertAt) {
-    const hoursSinceLast = (now.getTime() - new Date(profile.lastAlertAt).getTime()) / (1000 * 60 * 60);
+    const hoursSinceLast =
+      (now.getTime() - new Date(profile.lastAlertAt).getTime()) / (1000 * 60 * 60);
     if (hoursSinceLast < 12) {
-      return { shouldAlert: false, profile, reason: "D\u00E9lai minimum entre alertes non atteint" };
+      return {
+        shouldAlert: false,
+        profile,
+        reason: "D\u00E9lai minimum entre alertes non atteint",
+      };
     }
   }
 
   // Alerte critique immédiate
   if (profile.riskLevel === "CRITIQUE") {
-    return { shouldAlert: true, profile, reason: `Score de risque critique (${profile.riskScore})` };
+    return {
+      shouldAlert: true,
+      profile,
+      reason: `Score de risque critique (${profile.riskScore})`,
+    };
   }
 
   // Alerte élevé avec 5+ sanctions
   if (profile.riskLevel === "ELEVE" && profile.totalSanctions >= 5) {
-    return { shouldAlert: true, profile, reason: "Score \u00E9lev\u00E9 avec 5+ sanctions cumul\u00E9es" };
+    return {
+      shouldAlert: true,
+      profile,
+      reason: "Score \u00E9lev\u00E9 avec 5+ sanctions cumul\u00E9es",
+    };
   }
 
   // 3+ sanctions en 24h
@@ -286,7 +313,11 @@ export async function checkAlertThreshold(
       },
     });
     if (recentSanctions >= 3) {
-      return { shouldAlert: true, profile, reason: `3+ sanctions en 24 heures (${recentSanctions})` };
+      return {
+        shouldAlert: true,
+        profile,
+        reason: `3+ sanctions en 24 heures (${recentSanctions})`,
+      };
     }
   }
 
@@ -311,18 +342,12 @@ export async function getRiskReport(userId: string, guildId: string) {
 // ============================================================
 // Fonctions administratives
 // ============================================================
-export async function resetRiskProfile(
-  userId: string,
-  guildId: string
-): Promise<void> {
+export async function resetRiskProfile(userId: string, guildId: string): Promise<void> {
   await prisma.riskProfile.deleteMany({ where: { userId, guildId } });
   logger.info(`[RiskEngine] Profil de risque r\u00E9initialis\u00E9 pour ${userId}`);
 }
 
-export async function getAllRiskyUsers(
-  guildId: string,
-  minLevel: RiskLevel = "MOYEN"
-) {
+export async function getAllRiskyUsers(guildId: string, minLevel: RiskLevel = "MOYEN") {
   const levels: RiskLevel[] = [minLevel];
   if (minLevel === "MOYEN") levels.push("ELEVE", "CRITIQUE");
   else if (minLevel === "ELEVE") levels.push("CRITIQUE");

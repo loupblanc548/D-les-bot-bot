@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { runHealthCheck } from "./healthcheck.js";
 import { handleWebhookRequest } from "./webhookTriggers.js";
+import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
 import type { Client } from "discord.js";
 
 let server: http.Server | null = null;
@@ -71,6 +72,14 @@ export function startHealthServer(port = 3000): void {
         await handleLivenessProbe(res);
       } else if (path === "/health/detailed") {
         await handleDetailedHealth(res);
+      } else if (path === "/metrics") {
+        if (discordClient) {
+          updateDiscordMetrics(discordClient);
+        }
+        const metrics = await getPrometheusMetrics();
+        res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
+        res.end(metrics);
+        return;
       } else if (path.startsWith("/webhook/")) {
         if (!discordClient) {
           res.writeHead(503, { "Content-Type": "application/json" });
@@ -96,6 +105,7 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /health/ready - Readiness probe`);
     logger.info(`  - GET /health/live - Liveness probe`);
     logger.info(`  - GET /health/detailed - Full health check`);
+    logger.info(`  - GET /metrics - Prometheus metrics`);
     logger.info(`  - POST /webhook/<secret> - External webhook triggers`);
   });
 }

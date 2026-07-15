@@ -195,7 +195,7 @@ export const commands = [
     .toJSON(),
 ];
 
-export const fnbotCommands = commands;
+export const fnbotCommands: unknown[] = [];
 
 const GAMING_SUBS = ["game-status", "patch_notes", "deal"];
 const _TRACKGAME_SUBS = ["track-game", "untrack-game", "list-tracked"];
