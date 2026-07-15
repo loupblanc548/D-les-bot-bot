@@ -1071,6 +1071,24 @@ model MemoryDecayLog {
   @@map("memory_decay_log")
 }
 
+// ===== Agent Knowledge (Web Ingestion) =====
+
+model AgentKnowledge {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  title     String
+  content   String   @db.Text
+  summary   String   @db.Text
+  wordCount Int
+  source    String   @default("web_ingestion")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([source])
+  @@index([updatedAt])
+  @@map("agent_knowledge")
+}
+
 // ===== Price History (Phase 2) =====
 
 model PriceHistory {

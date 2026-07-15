@@ -23,6 +23,7 @@ import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
+import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -245,6 +246,68 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           url: { type: "string", description: "L'URL complète à lire (doit commencer par http)" },
         },
         required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "fetchAndSummarize",
+      description:
+        "Fetch une URL, extrait le contenu principal (sans boilerplate HTML), le résume avec l'IA, et le stocke en base de connaissances pour réutilisation. Plus puissant que readUrl car il garde le contenu en mémoire.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "L'URL à ingérer (doit commencer par http)" },
+          customPrompt: {
+            type: "string",
+            description:
+              "Prompt personnalisé pour le résumé (optionnel). Ex: 'Extrait les concepts techniques clés'",
+          },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ingestDocumentation",
+      description:
+        "Ingère plusieurs URLs de documentation en batch. Fetch, extrait, résume et stocke chaque page. Utile pour apprendre une techno entière (ex: docs discord.js, docs prisma).",
+      parameters: {
+        type: "object",
+        properties: {
+          urls: {
+            type: "array",
+            items: { type: "string" },
+            description: "Liste d'URLs à ingérer",
+          },
+          customPrompt: {
+            type: "string",
+            description: "Prompt personnalisé pour les résumés (optionnel)",
+          },
+        },
+        required: ["urls"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "searchKnowledge",
+      description:
+        "Recherche dans la base de connaissances du bot (contenu précédemment ingéré via fetchAndSummarize ou ingestDocumentation). Retourne les résumés pertinents. Utilise cet outil avant de chercher sur le web si la question a déjà été traitée.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "La requête de recherche" },
+          limit: {
+            type: "number",
+            description: "Nombre max de résultats (défaut 5)",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -496,6 +559,12 @@ export async function executeTool(
         return await toolSearchWeb(args);
       case "readUrl":
         return await toolReadUrl(args);
+      case "fetchAndSummarize":
+        return await toolFetchAndSummarize(args);
+      case "ingestDocumentation":
+        return await toolIngestDocumentation(args);
+      case "searchKnowledge":
+        return await toolSearchKnowledge(args);
       case "searchYouTube":
         return await toolSearchYouTube(args);
       case "getServerStats":
@@ -896,8 +965,21 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
  */
 async function extractTextFromHtml(res: Response): Promise<string> {
   const html = await res.text();
+  try {
+    const { JSDOM } = await import("jsdom");
+    const { Readability } = await import("@mozilla/readability");
+    const dom = new JSDOM(html, { url: res.url || "http://localhost" });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+    dom.window.close();
+    if (article?.textContent) {
+      const text = article.textContent.replace(/\s+/g, " ").trim().slice(0, 3000);
+      return text || "(page vide ou contenu non-texte)";
+    }
+  } catch {
+    // fallback to basic strip
+  }
   const text = stripAllHtml(html).replace(/\s+/g, " ").trim().slice(0, 3000);
-  // html goes out of scope here — buffer eligible for GC
   return text || "(page vide ou contenu non-texte)";
 }
 
@@ -1353,7 +1435,7 @@ async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallR
 
 async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallResult> {
   const code = String(args.code ?? "");
-  const language = (String(args.language ?? "python") as "python" | "javascript" | "shell");
+  const language = String(args.language ?? "python") as "python" | "javascript" | "shell";
 
   if (!code.trim()) {
     return { success: false, data: "Code vide — rien à exécuter" };
@@ -1390,4 +1472,62 @@ async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallR
       data: `Erreur sandbox: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
+}
+
+// ─── Web Ingestion Tools ─────────────────────────────────────────────────────
+
+async function toolFetchAndSummarize(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  const customPrompt = args.customPrompt ? String(args.customPrompt) : undefined;
+
+  const result = await ingestUrl(url, { summarize: true, customPrompt });
+  if (!result) {
+    return { success: false, data: `Impossible d'ingérer ${url}` };
+  }
+
+  return {
+    success: true,
+    data: JSON.stringify({
+      title: result.title,
+      summary: result.summary,
+      wordCount: result.wordCount,
+      message: `Contenu ingéré et stocké dans la base de connaissances (${result.wordCount} mots)`,
+    }),
+  };
+}
+
+async function toolIngestDocumentation(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const urls = args.urls as string[];
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return { success: false, data: "Liste d'URLs vide" };
+  }
+
+  const { ingestBatch } = await import("./webIngestion.js");
+  const customPrompt = args.customPrompt ? String(args.customPrompt) : undefined;
+  const result = await ingestBatch(urls.slice(0, 20), { summarize: true, customPrompt });
+
+  return {
+    success: result.success > 0,
+    data: JSON.stringify({
+      success: result.success,
+      failed: result.failed,
+      results: result.results,
+      message: `${result.success}/${urls.length} pages ingérées avec succès`,
+    }),
+  };
+}
+
+async function toolSearchKnowledge(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query);
+  const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
+
+  const results = await searchKnowledge(query, limit);
+  if (!results.length) {
+    return { success: false, data: "Aucun contenu trouvé dans la base de connaissances" };
+  }
+
+  return {
+    success: true,
+    data: JSON.stringify(results),
+  };
 }

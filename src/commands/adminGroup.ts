@@ -13,6 +13,8 @@ import { handleCommand as handlePurgeContent } from "./purgeContent.js";
 import { handleCommand as handlePurgeRange } from "./purgeRange.js";
 import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleAdminExtra } from "./stubHandlers.js";
+import { ingestUrl, searchKnowledge } from "../services/webIngestion.js";
+import { EmbedBuilder } from "discord.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -46,6 +48,26 @@ export const commands = [
           o.setName("a").setDescription("ID du dernier message").setRequired(true),
         ),
     )
+    .addSubcommand((sc) =>
+      sc
+        .setName("learn-url")
+        .setDescription("Ingère une URL dans la base de connaissances du bot")
+        .addStringOption((o) => o.setName("url").setDescription("URL à ingérer").setRequired(true))
+        .addStringOption((o) =>
+          o
+            .setName("prompt")
+            .setDescription("Prompt personnalisé pour le résumé (optionnel)")
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("search-knowledge")
+        .setDescription("Recherche dans la base de connaissances du bot")
+        .addStringOption((o) =>
+          o.setName("query").setDescription("Requête de recherche").setRequired(true),
+        ),
+    )
     .toJSON(),
 ];
 
@@ -77,10 +99,71 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else if (action === "purge-range") {
     Object.defineProperty(interaction, "commandName", { value: "purge-range", writable: true });
     await handlePurgeRange(interaction);
+  } else if (action === "learn-url") {
+    await handleLearnUrl(interaction);
+  } else if (action === "search-knowledge") {
+    await handleSearchKnowledge(interaction);
   } else if (EXTRA_SUBS.includes(action)) {
     Object.defineProperty(interaction, "commandName", { value: action, writable: true });
     await handleExtraCmd(interaction, dc);
   } else {
     await handleAdminExtra(interaction, dc);
   }
+}
+
+async function handleLearnUrl(interaction: ChatInputCommandInteraction) {
+  const url = interaction.options.getString("url", true);
+  const customPrompt = interaction.options.getString("prompt") || undefined;
+
+  if (!url.startsWith("http")) {
+    await interaction.reply({
+      content: "❌ URL invalide (doit commencer par http)",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+  const result = await ingestUrl(url, { summarize: true, customPrompt });
+
+  if (!result) {
+    await interaction.editReply(`❌ Impossible d'ingérer ${url}`);
+    return;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("📚 URL ingérée")
+    .addFields(
+      { name: "Titre", value: result.title.slice(0, 200), inline: false },
+      { name: "Mots", value: String(result.wordCount), inline: true },
+      { name: "Résumé", value: result.summary.slice(0, 1024), inline: false },
+    )
+    .setColor(0x5865f2)
+    .setFooter({ text: "Stocké dans la base de connaissances" });
+
+  await interaction.editReply({ embeds: [embed] });
+}
+
+async function handleSearchKnowledge(interaction: ChatInputCommandInteraction) {
+  const query = interaction.options.getString("query", true);
+
+  await interaction.deferReply({ ephemeral: true });
+  const results = await searchKnowledge(query, 5);
+
+  if (!results.length) {
+    await interaction.editReply("❌ Aucun contenu trouvé dans la base de connaissances.");
+    return;
+  }
+
+  const embed = new EmbedBuilder().setTitle("🔍 Base de connaissances").setColor(0x5865f2);
+
+  results.forEach((r, i) => {
+    embed.addFields({
+      name: `${i + 1}. ${r.title.slice(0, 100)}`,
+      value: `${r.summary.slice(0, 200)}...\n[${r.url}](${r.url})`,
+      inline: false,
+    });
+  });
+
+  await interaction.editReply({ embeds: [embed] });
 }
