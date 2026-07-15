@@ -389,6 +389,35 @@ const REMOVED_COMMANDS = new Set([
   "giveaway-list",
   "giveaway-reroll",
   "economy",
+  // ─── Commandes standalone supprimées (déjà en sous-commandes dans les groupes) ───
+  "osint", // déjà dans /security osint
+  "modadmin", // déjà dans /mod et /admin
+  "fnbot", // déjà dans /game
+  "game2", // fusionné dans /game
+  "track", // déjà dans /game
+  "community", // fusionné dans /fun
+  "autothread", // fusionné dans /manage
+  "customcmd", // fusionné dans /manage
+  "shadow", // déjà dans /security
+  "report", // déjà dans /mod report
+  "recherche", // déjà dans /tools recherche
+  "steam", // déjà dans /game steam
+  "twitch", // déjà dans /sources twitch
+  "psn", // déjà dans /game psn
+  "xbox", // déjà dans /game xbox
+  "profile", // déjà dans /community profile
+  "poll", // déjà dans /fun poll
+  "mp3", // déjà dans /tools mp3
+  "tts", // déjà dans /tools tts
+  "vocal", // déjà dans /tools vocal
+  "embed-builder", // déjà dans /tools embed-builder
+  "purge-range", // déjà dans /mod purge-range
+  "purge-content", // déjà dans /mod purge-content
+  "security-audit", // déjà dans /security audit
+  "rss-test", // déjà dans /sources rss-test
+  "track-game", // déjà dans /track (lui-même supprimé)
+  "untrack-game", // déjà dans /track
+  "list-tracked", // déjà dans /track
 ]);
 
 export const allCommands = [

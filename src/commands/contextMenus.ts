@@ -13,55 +13,20 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 export const contextMenuCommands = [
-  // ── User Context Menus ──
+  // ── User Context Menus (gardés: profil + casier = utiles manuellement) ──
   new ContextMenuCommandBuilder()
     .setName("👤 Voir profil")
     .setType(ApplicationCommandType.User)
     .toJSON(),
 
   new ContextMenuCommandBuilder()
-    .setName("📋 Voir casier")
+    .setName("� Voir casier")
     .setType(ApplicationCommandType.User)
     .toJSON(),
 
-  new ContextMenuCommandBuilder()
-    .setName("🤖 Analyser IA")
-    .setType(ApplicationCommandType.User)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("⚠️ Risque score")
-    .setType(ApplicationCommandType.User)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("🚩 Signaler")
-    .setType(ApplicationCommandType.User)
-    .toJSON(),
-
-  // ── Message Context Menus ──
+  // ── Message Context Menus (gardés: traduire = utile) ──
   new ContextMenuCommandBuilder()
     .setName("🌐 Traduire")
-    .setType(ApplicationCommandType.Message)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("📊 Analyser sentiment")
-    .setType(ApplicationCommandType.Message)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("📦 Extraire")
-    .setType(ApplicationCommandType.Message)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("🚩 Rapporter")
-    .setType(ApplicationCommandType.Message)
-    .toJSON(),
-
-  new ContextMenuCommandBuilder()
-    .setName("🔍 Snipe")
     .setType(ApplicationCommandType.Message)
     .toJSON(),
 ];
