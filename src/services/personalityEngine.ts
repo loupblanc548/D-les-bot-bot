@@ -79,7 +79,7 @@ const channelResponseLog = new Map<string, number[]>();
 const MIN_MESSAGE_LENGTH = 15;
 
 // Probability gates
-const AUTONOMOUS_RESPONSE_PROBABILITY = 0.55; // 55% of relevant messages
+const AUTONOMOUS_RESPONSE_PROBABILITY = 0; // 0% — bot répond uniquement quand @mentionné
 
 // Channels config
 const activeChannels = process.env.PERSONALITY_CHANNELS

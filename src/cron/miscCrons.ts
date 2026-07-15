@@ -1,7 +1,6 @@
 /**
  * miscCrons.ts — Crons divers automatisés
  *
- * CRON-14: Member milestone (notif auto à 100/500/1000 membres)
  * CRON-15: Birthday notifier (notif auto anniversaires du jour)
  * CRON-24: Command stats logging (log auto des utilisations de commandes)
  * CRON-27: AI server health (rapport IA global quotidien)
@@ -12,45 +11,6 @@ import cron, { ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
-
-// ─── Member Milestone (CRON-14) ──────────────────────────────────────────────
-
-const MILESTONES = [100, 500, 1000, 2000, 5000, 10000];
-const milestoneTracker = new Map<string, number>(); // guildId → last milestone
-
-export async function checkMemberMilestone(client: Client): Promise<void> {
-  try {
-    for (const guild of client.guilds.cache.values()) {
-      const count = guild.memberCount;
-      const lastMilestone = milestoneTracker.get(guild.id) || 0;
-
-      for (const ms of MILESTONES) {
-        if (count >= ms && lastMilestone < ms) {
-          milestoneTracker.set(guild.id, ms);
-
-          const generalChannelId = "1134242473334554774";
-          const channel = await client.channels.fetch(generalChannelId).catch(() => null);
-          if (channel?.isTextBased()) {
-            const embed = new EmbedBuilder()
-              .setTitle(`🎉 Milestone atteint !`)
-              .setColor(0x57f287)
-              .setDescription(
-                `Le serveur **${guild.name}** vient d'atteindre **${ms}** membres ! 🥳`,
-              )
-              .setTimestamp();
-            await (channel as TextChannel).send({
-              embeds: [embed],
-            });
-          }
-          logger.info(`[Milestone] ${guild.name}: ${ms} membres atteints`);
-          break;
-        }
-      }
-    }
-  } catch (error) {
-    logger.error("[Milestone] Erreur:", error);
-  }
-}
 
 // ─── Birthday Notifier (CRON-15) ─────────────────────────────────────────────
 
@@ -181,20 +141,10 @@ export async function runAiServerHealth(client: Client): Promise<void> {
 
 // ─── Scheduler ───────────────────────────────────────────────────────────────
 
-let milestoneInterval: NodeJS.Timeout | null = null;
 let birthdayCron: ScheduledTask | null = null;
 let healthCron: ScheduledTask | null = null;
 
 export function startMiscCrons(client: Client): void {
-  // CRON-14: Member milestone — check every 10 min
-  milestoneInterval = setInterval(
-    () => {
-      checkMemberMilestone(client).catch((err) => logger.error("[Milestone] Erreur:", err));
-    },
-    10 * 60 * 1000,
-  );
-  if (milestoneInterval.unref) milestoneInterval.unref();
-
   // CRON-15: Birthday notifier — daily at 09:00
   birthdayCron = cron.schedule("0 9 * * *", () => {
     checkBirthdays(client).catch((err) => logger.error("[Birthday] Erreur:", err));
@@ -205,14 +155,12 @@ export function startMiscCrons(client: Client): void {
     runAiServerHealth(client).catch((err) => logger.error("[AiHealth] Erreur:", err));
   });
 
-  logger.info("[MiscCrons] Crons activés: milestone (10min), birthday (09:00), ai-health (lun 23:00)");
+  logger.info("[MiscCrons] Crons activés: birthday (09:00), ai-health (lun 23:00)");
 }
 
 export function stopMiscCrons(): void {
-  if (milestoneInterval) clearInterval(milestoneInterval);
   if (birthdayCron) birthdayCron.stop();
   if (healthCron) healthCron.stop();
-  milestoneInterval = null;
   birthdayCron = null;
   healthCron = null;
 }
