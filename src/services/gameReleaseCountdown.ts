@@ -77,73 +77,6 @@ function getPlatformChannelId(platforms: string[]): string | null {
   return null;
 }
 
-// ─── On-demand voice channel creation for screen share ──────────────────────
-let releaseVoiceChannelId: string | null = null; // single shared channel
-
-async function ensureVoiceChannelForPlatform(
-  client: Client,
-  _platform: string,
-): Promise<string | null> {
-  // Return existing channel if we already have one
-  if (releaseVoiceChannelId) {
-    const guild = client.guilds.cache.get(getGuildId());
-    if (guild?.channels.cache.has(releaseVoiceChannelId)) return releaseVoiceChannelId;
-  }
-
-  const guildId = getGuildId();
-  if (!guildId) return null;
-
-  const guild = client.guilds.cache.get(guildId);
-  if (!guild) return null;
-
-  // Search for existing channel by name (avoid duplicates on restart)
-  const existingChannel = guild.channels.cache.find(
-    (c) => c.type === 2 && c.name.toLowerCase().includes("game release countdown"),
-  );
-  if (existingChannel) {
-    releaseVoiceChannelId = existingChannel.id;
-    logger.info(
-      `[GameReleaseCountdown] Salon vocal existant réutilisé: ${existingChannel.name} (${existingChannel.id})`,
-    );
-    return existingChannel.id;
-  }
-
-  // Find or create a category
-  let category = guild.channels.cache.find(
-    (c) => c.type === 4 && c.name.toLowerCase().includes("game releases"),
-  );
-
-  if (!category) {
-    try {
-      category = await guild.channels.create({
-        name: "🎮 Game Releases",
-        type: 4,
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  // Create ONE voice channel
-  try {
-    const channel = await guild.channels.create({
-      name: "📺 Game Release Countdown",
-      type: 2,
-      parent: category.id,
-    });
-    releaseVoiceChannelId = channel.id;
-    logger.info(
-      `[GameReleaseCountdown] Salon vocal créé: 📺 Game Release Countdown (${channel.id})`,
-    );
-    return channel.id;
-  } catch (err) {
-    logger.error(
-      `[GameReleaseCountdown] Erreur création salon vocal: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
-}
-
 function getGuildId(): string {
   return process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
 }
@@ -603,24 +536,6 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
             logger.error(
               `[GameReleaseCountdown] Erreur notif J-${days}: ${err instanceof Error ? err.message : String(err)}`,
             );
-          }
-        }
-
-        // Create on-demand voice channel for screen share if a release is approaching
-        if (days === 7 || days === 1 || days === 0) {
-          const primaryPlatform = tracked.platforms[0]?.toLowerCase() || "all";
-          const voiceChannelId = await ensureVoiceChannelForPlatform(client, primaryPlatform);
-          if (voiceChannelId) {
-            logger.info(
-              `[GameReleaseCountdown] Salon vocal prêt pour ${primaryPlatform}: ${voiceChannelId}`,
-            );
-            // Trigger screen share for this platform
-            try {
-              const { startPlatformScreenShare } = await import("./voiceScreenShare.js");
-              await startPlatformScreenShare(client, voiceChannelId, primaryPlatform);
-            } catch {
-              // Screen share module may not be ready
-            }
           }
         }
 

@@ -409,3 +409,128 @@ h1 { text-align:center; margin-bottom:20px; background:linear-gradient(135deg,#5
 </body>
 </html>`;
 }
+
+// ─── Game-specific preview page for screen share ────────────────────────────
+
+export function getGamePreviewPage(gameName: string): string {
+  const releases = getReleasesData();
+  const game = releases.find(
+    (r) =>
+      r.gameName.toLowerCase().includes(gameName.toLowerCase()) ||
+      gameName.toLowerCase().includes(r.gameName.toLowerCase()),
+  );
+
+  if (!game) {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Aucun jeu</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a1a;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}
+h1{font-size:2em;color:#666}</style></head><body><h1>Aucun jeu trouvé pour "${gameName}"</h1></body></html>`;
+  }
+
+  const releaseDate = new Date(game.releaseDate);
+  const now = Date.now();
+  const diff = releaseDate.getTime() - now;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  const isReleased = diff <= 0;
+
+  const total = 90 * 86400000;
+  const elapsed = total - diff;
+  const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+
+  const platforms = game.platforms.join(" • ") || "Multi-plateforme";
+  const genres = game.genres.join(", ") || "";
+  const cover = game.coverUrl || "";
+  const dateStr = releaseDate.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${game.gameName} — Countdown</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0a0a1a;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.bg-cover {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background-image: ${cover ? `url('${cover}')` : "none"};
+  background-size: cover; background-position: center;
+  filter: blur(20px) brightness(0.3);
+  z-index: 0;
+}
+.content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
+.game-cover { width: 300px; height: 400px; object-fit: cover; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); margin-bottom: 30px; }
+.game-title { font-size: 3.5em; font-weight: 800; margin-bottom: 10px; background: linear-gradient(135deg, #5865f2, #eb459e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(88,101,242,0.3); }
+.game-meta { font-size: 1.3em; color: #b0b0c8; margin-bottom: 8px; }
+.game-genres { font-size: 1em; color: #8080a0; margin-bottom: 30px; }
+.release-date { font-size: 1.5em; color: #fff; margin-bottom: 20px; }
+.countdown {
+  font-size: 5em; font-weight: 900; font-variant-numeric: tabular-nums;
+  letter-spacing: 4px; margin-bottom: 30px;
+  ${isReleased ? "color: #00d26a;" : "color: #5865f2; text-shadow: 0 0 30px rgba(88,101,242,0.5);"}
+}
+.countdown-label { font-size: 1.2em; color: #8080a0; text-transform: uppercase; letter-spacing: 6px; margin-bottom: 30px; }
+.progress-container { width: 80%; max-width: 800px; }
+.progress-bar { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #5865f2, #eb459e); border-radius: 6px; transition: width 1s ease; width: ${pct}%; }
+.progress-text { font-size: 0.9em; color: #666; margin-top: 8px; }
+.footer { position: fixed; bottom: 10px; left: 0; width: 100%; text-align: center; font-size: 0.7em; color: #444; }
+</style>
+</head>
+<body>
+<div class="bg-cover"></div>
+<div class="content">
+  ${cover ? `<img class="game-cover" src="${cover}" alt="${game.gameName}" />` : ""}
+  <div class="game-title">${game.gameName}</div>
+  <div class="game-meta">🎯 ${platforms}</div>
+  ${genres ? `<div class="game-genres">🏷️ ${genres}</div>` : ""}
+  <div class="release-date">📅 ${dateStr}</div>
+  ${
+    isReleased
+      ? `<div class="countdown">🎉 SORTI !</div><div class="countdown-label">Disponible maintenant</div>`
+      : `<div class="countdown" id="cd">${days}j ${hours}h ${minutes}m ${seconds}s</div><div class="countdown-label">Compte à rebours</div>`
+  }
+  <div class="progress-container">
+    <div class="progress-bar"><div class="progress-fill" id="bar" style="width:${pct}%"></div></div>
+    <div class="progress-text">${Math.round(pct)}% du temps écoulé</div>
+  </div>
+</div>
+<div class="footer">Game Release Countdown • ${new Date().toLocaleDateString("fr-FR")} • http://31.220.79.90:3000</div>
+<script>
+const releaseTime = ${releaseDate.getTime()};
+function tick() {
+  const diff = releaseTime - Date.now();
+  if (diff <= 0) {
+    document.getElementById('cd').innerHTML = '🎉 SORTI !';
+    return;
+  }
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  document.getElementById('cd').innerHTML = d + 'j ' + h + 'h ' + m + 'm ' + s + 's';
+  const total = 90 * 86400000;
+  const elapsed = total - diff;
+  const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+  document.getElementById('bar').style.width = pct + '%';
+}
+setInterval(tick, 1000);
+</script>
+</body>
+</html>`;
+}

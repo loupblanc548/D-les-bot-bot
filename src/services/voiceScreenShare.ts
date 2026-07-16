@@ -19,6 +19,24 @@ const HTTP_BASE = "http://localhost:3000";
 const RELEASES_URL = `${HTTP_BASE}/releases`;
 const SCREENSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 min between screenshots
 
+async function getNextGamePreviewUrl(): Promise<string> {
+  try {
+    const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return RELEASES_URL;
+    const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
+    const now = Date.now();
+    const upcoming = games
+      .filter((g) => new Date(g.releaseDate).getTime() > now)
+      .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
+    if (upcoming.length > 0) {
+      return `${HTTP_BASE}/releases/preview?game=${encodeURIComponent(upcoming[0].gameName)}`;
+    }
+    return RELEASES_URL;
+  } catch {
+    return RELEASES_URL;
+  }
+}
+
 async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -112,7 +130,8 @@ async function startScreenShare(client: Client): Promise<void> {
     }
     logger.info(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} prêt`);
 
-    // 3. Launch Playwright
+    // 3. Launch Playwright — open the next game's preview page
+    const previewUrl = await getNextGamePreviewUrl();
     const { chromium } = await import("playwright");
     browserContext = await chromium.launch({
       headless: true,
@@ -124,7 +143,7 @@ async function startScreenShare(client: Client): Promise<void> {
     let pageLoaded = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        await page.goto(RELEASES_URL, { waitUntil: "networkidle", timeout: 15000 });
+        await page.goto(previewUrl, { waitUntil: "networkidle", timeout: 15000 });
         pageLoaded = true;
         break;
       } catch (err) {
@@ -135,7 +154,7 @@ async function startScreenShare(client: Client): Promise<void> {
       }
     }
     if (!pageLoaded) {
-      logger.error(`[VoiceScreenShare] Impossible de charger ${RELEASES_URL}`);
+      logger.error(`[VoiceScreenShare] Impossible de charger ${previewUrl}`);
       isStreaming = false;
       await browserContext.close().catch(() => {});
       browserContext = null;
@@ -145,7 +164,7 @@ async function startScreenShare(client: Client): Promise<void> {
       }
       return;
     }
-    logger.info(`[VoiceScreenShare] Page ${RELEASES_URL} chargée`);
+    logger.info(`[VoiceScreenShare] Page ${previewUrl} chargée`);
 
     // 4. Take initial screenshot and post it
     await takeAndPostScreenshot(client, VOICE_CHANNEL_ID);
