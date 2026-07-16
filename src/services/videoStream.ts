@@ -60,7 +60,7 @@ let streamerInstance: any = null;
 let selfbotClient: any = null;
 let isVideoStreaming = false;
 
-export async function startVideoStream(): Promise<void> {
+export function startVideoStream(): void {
   const userToken = getUserToken();
   const voiceChannelId = getVoiceChannelId();
   const guildId = getGuildId();
@@ -68,8 +68,9 @@ export async function startVideoStream(): Promise<void> {
   if (!userToken) {
     logger.info("[VideoStream] Désactivé — SCREEN_SHARE_USER_TOKEN non configuré");
     logger.info(
-      "[VideoStream] Pour activer le vrai Go Live, ajoutez un token utilisateur dans .env",
+      "[VideoStream] Pour activer le vrai Go Live (partage d'écran vidéo), ajoutez un token utilisateur dans .env:",
     );
+    logger.info("[VideoStream] SCREEN_SHARE_USER_TOKEN=votre_token_utilisateur_discord");
     return;
   }
 
@@ -77,6 +78,17 @@ export async function startVideoStream(): Promise<void> {
     logger.info("[VideoStream] Désactivé — GAME_RELEASE_VOICE_CHANNEL_ID ou GUILD_ID manquant");
     return;
   }
+
+  // Start async streaming
+  void startVideoStreamAsync().catch((err) =>
+    logger.error(`[VideoStream] Erreur: ${err instanceof Error ? err.message : String(err)}`),
+  );
+}
+
+async function startVideoStreamAsync(): Promise<void> {
+  const userToken = getUserToken();
+  const voiceChannelId = getVoiceChannelId();
+  const guildId = getGuildId();
 
   if (isVideoStreaming) {
     logger.debug("[VideoStream] déjà en cours");
