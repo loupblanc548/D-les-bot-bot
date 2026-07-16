@@ -10,6 +10,7 @@
 import { ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
+import { fetchRetry } from "../utils/fetchRetry.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
@@ -1386,7 +1387,7 @@ export async function executeExtendedTool(
 
 async function tGetJoke(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://official-joke-api.appspot.com/random_joke", {
+    const res = await fetchRetry("https://official-joke-api.appspot.com/random_joke", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Blague indisponible" };
@@ -1399,7 +1400,7 @@ async function tGetJoke(): Promise<ToolCallResult> {
 
 async function tGetDadJoke(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://icanhazdadjoke.com/", {
+    const res = await fetchRetry("https://icanhazdadjoke.com/", {
       headers: { Accept: "text/plain" },
       signal: AbortSignal.timeout(8000),
     });
@@ -1413,7 +1414,7 @@ async function tGetDadJoke(): Promise<ToolCallResult> {
 
 async function tGetAdvice(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://api.adviceslip.com/advice", {
+    const res = await fetchRetry("https://api.adviceslip.com/advice", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Conseil indisponible" };
@@ -1426,7 +1427,7 @@ async function tGetAdvice(): Promise<ToolCallResult> {
 
 async function tGetQuote(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://zenquotes.io/api/random", {
+    const res = await fetchRetry("https://zenquotes.io/api/random", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Citation indisponible" };
@@ -1440,7 +1441,7 @@ async function tGetQuote(): Promise<ToolCallResult> {
 
 async function tGetTrivia(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://opentdb.com/api.php?amount=1&type=multiple", {
+    const res = await fetchRetry("https://opentdb.com/api.php?amount=1&type=multiple", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Trivia indisponible" };
@@ -1472,7 +1473,7 @@ async function tGetTrivia(): Promise<ToolCallResult> {
 
 async function tGetMeme(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://api.imgflip.com/get_memes", {
+    const res = await fetchRetry("https://api.imgflip.com/get_memes", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Meme indisponible" };
@@ -1492,7 +1493,7 @@ async function tGetMeme(): Promise<ToolCallResult> {
 
 async function tGetDogImage(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://dog.ceo/api/breeds/image/random", {
+    const res = await fetchRetry("https://dog.ceo/api/breeds/image/random", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Photo indisponible" };
@@ -1505,7 +1506,7 @@ async function tGetDogImage(): Promise<ToolCallResult> {
 
 async function tGetCatImage(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://cataas.com/cat?json=true", {
+    const res = await fetchRetry("https://cataas.com/cat?json=true", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "Photo indisponible" };
@@ -1524,7 +1525,7 @@ async function tGetCountryInfo(args: Record<string, unknown>): Promise<ToolCallR
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=name,capital,population,flag,currencies,languages,region,subregion,maps`,
       { signal: AbortSignal.timeout(8000) },
     );
@@ -1565,7 +1566,7 @@ async function tGetCurrencyRate(args: Record<string, unknown>): Promise<ToolCall
   const from = String(args.from).toUpperCase();
   const to = String(args.to).toUpperCase();
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.exchangerate.host/convert?from=${from}&to=${to}&amount=${amount}`,
       { signal: AbortSignal.timeout(8000) },
     );
@@ -1590,9 +1591,12 @@ async function tGetCurrencyRate(args: Record<string, unknown>): Promise<ToolCall
 async function tGetDateTime(args: Record<string, unknown>): Promise<ToolCallResult> {
   const tz = String(args.timezone);
   try {
-    const res = await fetch(`https://worldtimeapi.org/api/timezone/${encodeURIComponent(tz)}`, {
-      signal: AbortSignal.timeout(8000),
-    });
+    const res = await fetchRetry(
+      `https://worldtimeapi.org/api/timezone/${encodeURIComponent(tz)}`,
+      {
+        signal: AbortSignal.timeout(8000),
+      },
+    );
     if (!res.ok) return { success: false, data: `Timezone "${tz}" introuvable` };
     const d = (await res.json()) as { datetime: string; timezone: string; utc_datetime: string };
     return {
@@ -1607,7 +1611,7 @@ async function tGetDateTime(args: Record<string, unknown>): Promise<ToolCallResu
 async function tGetIpInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   try {
-    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
+    const res = await fetchRetry(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "IP indisponible" };
@@ -1646,7 +1650,7 @@ async function tGetStockPrice(args: Record<string, unknown>): Promise<ToolCallRe
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://stooq.com/q/l/?s=${encodeURIComponent(symbol.toLowerCase())}&f=sd2t2ohlcv&h&e=csv`,
       { signal: AbortSignal.timeout(8000) },
     );
@@ -1680,7 +1684,7 @@ async function tGetRedditPosts(args: Record<string, unknown>): Promise<ToolCallR
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/top.json?limit=${limit}&t=day`,
       {
         headers: { "User-Agent": "DiscordBot/1.0" },
@@ -1721,7 +1725,7 @@ async function tGetRedditPosts(args: Record<string, unknown>): Promise<ToolCallR
 async function tGetUrbanDict(args: Record<string, unknown>): Promise<ToolCallResult> {
   const term = String(args.term);
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`,
       { signal: AbortSignal.timeout(8000) },
     );
@@ -1751,7 +1755,7 @@ async function tGetUrbanDict(args: Record<string, unknown>): Promise<ToolCallRes
 async function tGetBookInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
   const query = String(args.query);
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`,
       { signal: AbortSignal.timeout(8000) },
     );
@@ -1788,7 +1792,7 @@ async function tGetNasaApod(): Promise<ToolCallResult> {
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY", {
+    const res = await fetchRetry("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "NASA APOD indisponible" };
@@ -1823,7 +1827,7 @@ async function tGetPokemon(args: Record<string, unknown>): Promise<ToolCallResul
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(name)}`, {
+    const res = await fetchRetry(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(name)}`, {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: `Pokémon "${name}" introuvable` };
@@ -1860,9 +1864,12 @@ async function tGetSteamGame(args: Record<string, unknown>): Promise<ToolCallRes
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=fr`, {
-      signal: AbortSignal.timeout(8000),
-    });
+    const res = await fetchRetry(
+      `https://store.steampowered.com/api/appdetails?appids=${appid}&l=fr`,
+      {
+        signal: AbortSignal.timeout(8000),
+      },
+    );
     if (!res.ok) return { success: false, data: "Steam Store indisponible" };
     const d = (await res.json()) as Record<
       string,
@@ -1903,7 +1910,7 @@ async function tGetSteamGame(args: Record<string, unknown>): Promise<ToolCallRes
 
 async function tGetSteamDeals(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://store.steampowered.com/api/featuredcategories", {
+    const res = await fetchRetry("https://store.steampowered.com/api/featuredcategories", {
       signal: AbortSignal.timeout(10000),
       headers: { "User-Agent": "Mozilla/5.0" },
     });
@@ -1945,7 +1952,7 @@ async function tGetGameNews(args: Record<string, unknown>): Promise<ToolCallResu
   const appid = Number(args.appid);
   const count = Math.min(Number(args.count) || 5, 20);
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}&count=${count}&maxlength=500&format=json`,
       {
         signal: AbortSignal.timeout(10000),
@@ -1979,7 +1986,7 @@ async function tGetGameNews(args: Record<string, unknown>): Promise<ToolCallResu
 async function tGetSpeedrunRecord(args: Record<string, unknown>): Promise<ToolCallResult> {
   const game = String(args.game).toLowerCase().trim();
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://www.speedrun.com/api/v1/games?name=${encodeURIComponent(game)}&max=1`,
       {
         signal: AbortSignal.timeout(10000),
@@ -1992,7 +1999,7 @@ async function tGetSpeedrunRecord(args: Record<string, unknown>): Promise<ToolCa
     if (!data.data?.length)
       return { success: false, data: `Jeu "${game}" introuvable sur speedrun.com` };
     const g = data.data[0];
-    const recordsRes = await fetch(
+    const recordsRes = await fetchRetry(
       `https://www.speedrun.com/api/v1/games/${g.abbreviation}/records?top=1&max=1`,
       {
         signal: AbortSignal.timeout(10000),
@@ -2042,7 +2049,7 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
   if (!clientId || !clientSecret)
     return { success: false, data: "IGDB non configuré (clés manquantes)" };
   try {
-    const tokenRes = await fetch(
+    const tokenRes = await fetchRetry(
       `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
       { method: "POST", signal: AbortSignal.timeout(10000) },
     );
@@ -2060,7 +2067,7 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
       platformId >= 0
         ? `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)} & platforms = (${platformId}); sort first_release_date asc; limit ${count};`
         : `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)}; sort first_release_date asc; limit ${count};`;
-    const res = await fetch("https://api.igdb.com/v4/games", {
+    const res = await fetchRetry("https://api.igdb.com/v4/games", {
       method: "POST",
       headers: {
         "Client-ID": clientId,
@@ -2094,7 +2101,7 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
 async function tGetSteamPlayerCount(args: Record<string, unknown>): Promise<ToolCallResult> {
   const appid = Number(args.appid);
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appid}`,
       {
         signal: AbortSignal.timeout(10000),
@@ -2175,7 +2182,7 @@ async function tDnsLookup(args: Record<string, unknown>): Promise<ToolCallResult
     .replace(/\/.*$/, "");
   const type = String(args.type || "A").toUpperCase();
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${type}`,
       {
         headers: { Accept: "application/dns-json" },
@@ -2205,7 +2212,7 @@ async function tGetHttpStatus(args: Record<string, unknown>): Promise<ToolCallRe
   const url = String(args.url);
   try {
     const start = Date.now();
-    const res = await fetch(url, {
+    const res = await fetchRetry(url, {
       method: "HEAD",
       signal: AbortSignal.timeout(10000),
       redirect: "follow",
@@ -2415,7 +2422,7 @@ async function tGetRandomFact(args: Record<string, unknown>): Promise<ToolCallRe
   const number = args.number !== undefined ? Number(args.number) : "random";
   try {
     const url = `http://numbersapi.com/${number}/${type}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const res = await fetchRetry(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return { success: false, data: "Numbers API indisponible" };
     const text = await res.text();
     return {
@@ -2434,7 +2441,7 @@ async function tGetRandomFact(args: Record<string, unknown>): Promise<ToolCallRe
 async function tGetHoroscope(args: Record<string, unknown>): Promise<ToolCallResult> {
   const sign = String(args.sign).toLowerCase().trim();
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://horoscope-app-api.vercel.app/api/v1/get-horoscope/daily?sign=${sign}&day=TODAY`,
       {
         signal: AbortSignal.timeout(10000),
@@ -2459,7 +2466,7 @@ async function tGetUvIndex(args: Record<string, unknown>): Promise<ToolCallResul
   const lat = Number(args.lat);
   const lon = Number(args.lon);
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=uv_index_max,temperature_2m_max,temperature_2m_min&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`,
       {
         signal: AbortSignal.timeout(10000),
@@ -2507,7 +2514,7 @@ async function tGetGithubRepoInfo(args: Record<string, unknown>): Promise<ToolCa
   };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    const res = await fetchRetry(`https://api.github.com/repos/${owner}/${repo}`, {
       headers,
       signal: AbortSignal.timeout(10000),
     });
@@ -2569,7 +2576,7 @@ async function tGetCryptoInfo(args: Record<string, unknown>): Promise<ToolCallRe
   };
   coin = symbolMap[coin] || coin;
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://api.coingecko.com/api/v3/coins/${coin}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false`,
       {
         signal: AbortSignal.timeout(10000),
@@ -2626,7 +2633,7 @@ async function tGetCryptoInfo(args: Record<string, unknown>): Promise<ToolCallRe
 async function tGetNpmPackage(args: Record<string, unknown>): Promise<ToolCallResult> {
   const name = String(args.name);
   try {
-    const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
+    const res = await fetchRetry(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: `Paquet npm "${name}" introuvable` };
@@ -2657,7 +2664,7 @@ async function tGetNpmPackage(args: Record<string, unknown>): Promise<ToolCallRe
 async function tGetPypiPackage(args: Record<string, unknown>): Promise<ToolCallResult> {
   const name = String(args.name);
   try {
-    const res = await fetch(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
+    const res = await fetchRetry(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: `Paquet PyPI "${name}" introuvable` };
@@ -2696,7 +2703,7 @@ async function tGetGithubUser(args: Record<string, unknown>): Promise<ToolCallRe
   const cached = getCache(ck);
   if (cached) return { success: true, data: cached };
   try {
-    const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+    const res = await fetchRetry(`https://api.github.com/users/${encodeURIComponent(username)}`, {
       headers: { "User-Agent": "DiscordBot/1.0" },
       signal: AbortSignal.timeout(8000),
     });
@@ -2740,9 +2747,12 @@ async function tShortenUrl(args: Record<string, unknown>): Promise<ToolCallResul
   const url = String(args.url);
   if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
   try {
-    const res = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(url)}`, {
-      signal: AbortSignal.timeout(8000),
-    });
+    const res = await fetchRetry(
+      `https://is.gd/create.php?format=json&url=${encodeURIComponent(url)}`,
+      {
+        signal: AbortSignal.timeout(8000),
+      },
+    );
     if (!res.ok) return { success: false, data: "Raccourcissement indisponible" };
     const d = (await res.json()) as { shorturl?: string; errormessage?: string };
     if (d.errormessage) return { success: false, data: d.errormessage };
@@ -2760,7 +2770,7 @@ async function tGetQrCode(args: Record<string, unknown>): Promise<ToolCallResult
 
 async function tGetRandomUser(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://randomuser.me/api/?nat=fr", {
+    const res = await fetchRetry("https://randomuser.me/api/?nat=fr", {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return { success: false, data: "RandomUser indisponible" };

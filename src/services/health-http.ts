@@ -4,6 +4,8 @@ import prisma from "../prisma.js";
 import { runHealthCheck } from "./healthcheck.js";
 import { handleWebhookRequest } from "./webhookTriggers.js";
 import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
+import { getModelRotationStatus } from "./modelRotation.js";
+import { getCacheStats } from "./aiCache.js";
 import type { Client } from "discord.js";
 
 let server: http.Server | null = null;
@@ -72,6 +74,14 @@ export function startHealthServer(port = 3000): void {
         await handleLivenessProbe(res);
       } else if (path === "/health/detailed") {
         await handleDetailedHealth(res);
+      } else if (path === "/health/models") {
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end(getModelRotationStatus());
+        return;
+      } else if (path === "/health/cache") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(getCacheStats(), null, 2));
+        return;
       } else if (path === "/metrics") {
         if (discordClient) {
           updateDiscordMetrics(discordClient);
@@ -105,6 +115,8 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /health/ready - Readiness probe`);
     logger.info(`  - GET /health/live - Liveness probe`);
     logger.info(`  - GET /health/detailed - Full health check`);
+    logger.info(`  - GET /health/models - Model rotation status`);
+    logger.info(`  - GET /health/cache - AI cache stats`);
     logger.info(`  - GET /metrics - Prometheus metrics`);
     logger.info(`  - POST /webhook/<secret> - External webhook triggers`);
   });

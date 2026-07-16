@@ -19,6 +19,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
+import { fetchRetry } from "../utils/fetchRetry.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import { stripHtml } from "../utils/stripHtml.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
@@ -1067,7 +1068,7 @@ async function tScrapeUrbanSlang(args: Record<string, unknown>): Promise<ToolCal
     .slice(0, 50)
     .replace(/[^a-zA-Z0-9\s-]/g, "");
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://www.urbandictionary.com/define.php?term=${encodeURIComponent(word)}`,
       {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
@@ -1231,7 +1232,7 @@ async function tVerifyLinkSafety(args: Record<string, unknown>): Promise<ToolCal
   const url = String(args.url).slice(0, 500);
   try {
     const domain = new URL(url).hostname;
-    const res = await fetch(`https://www.urlvoid.com/scan/${domain}/`, {
+    const res = await fetchRetry(`https://www.urlvoid.com/scan/${domain}/`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
       signal: AbortSignal.timeout(10000),
     });
@@ -1267,7 +1268,7 @@ async function tDetectDisposableEmail(args: Record<string, unknown>): Promise<To
   try {
     // Load list once and cache
     if (!disposableEmailList) {
-      const res = await fetch(
+      const res = await fetchRetry(
         "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf",
         {
           signal: AbortSignal.timeout(10000),
@@ -1309,7 +1310,7 @@ async function tScrapeSteamrepStatus(args: Record<string, unknown>): Promise<Too
     return { success: false, data: "Steam ID invalide (doit faire 17 chiffres)" };
 
   try {
-    const res = await fetch(`https://steamrep.com/profiles/${steamId}`, {
+    const res = await fetchRetry(`https://steamrep.com/profiles/${steamId}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
       signal: AbortSignal.timeout(10000),
     });
@@ -1434,7 +1435,7 @@ async function tTrackAvatarHash(
     if (!user) return { success: false, data: "Utilisateur introuvable" };
 
     const avatarURL = user.displayAvatarURL({ size: 256, extension: "png" });
-    const res = await fetch(avatarURL, { signal: AbortSignal.timeout(8000) });
+    const res = await fetchRetry(avatarURL, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return { success: false, data: "Impossible de télécharger l'avatar" };
     const buffer = Buffer.from(await res.arrayBuffer());
     const hash = createHash("sha256").update(buffer).digest("hex");
@@ -1588,7 +1589,7 @@ async function tMatchFortniteShopWishlist(): Promise<ToolCallResult> {
 
 async function tScrapeEpicFreeCountdown(): Promise<ToolCallResult> {
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=fr&country=FR&allowCountries=FR",
       {
         headers: { "User-Agent": "Mozilla/5.0" },
@@ -1636,7 +1637,7 @@ async function tCheckCommunityStreams(args: Record<string, unknown>): Promise<To
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
   try {
-    const res = await fetch(`https://www.twitch.tv/${channelName}`, {
+    const res = await fetchRetry(`https://www.twitch.tv/${channelName}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Accept-Language": "en-US",
@@ -1682,7 +1683,7 @@ async function tFetchGamePatchnotes(args: Record<string, unknown>): Promise<Tool
     const appId = steamAppIds[game];
     if (!appId) {
       // Try generic Steam search
-      const searchRes = await fetch(
+      const searchRes = await fetchRetry(
         `https://store.steampowered.com/api/storesearch?term=${encodeURIComponent(game)}&l=fr&cc=FR`,
         {
           signal: AbortSignal.timeout(8000),
@@ -1708,7 +1709,7 @@ async function tFetchGamePatchnotes(args: Record<string, unknown>): Promise<Tool
 }
 
 async function fetchSteamNews(appId: number, gameName: string): Promise<ToolCallResult> {
-  const res = await fetch(
+  const res = await fetchRetry(
     `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appId}&count=3&maxlength=500&format=json`,
     {
       signal: AbortSignal.timeout(8000),
@@ -1737,7 +1738,7 @@ async function fetchSteamNews(appId: number, gameName: string): Promise<ToolCall
 
 async function tGetGalacticWarStatus(): Promise<ToolCallResult> {
   try {
-    const res = await fetch("https://api.helldivers2.dev/api/v1/war", {
+    const res = await fetchRetry("https://api.helldivers2.dev/api/v1/war", {
       headers: { "User-Agent": "HelldiversBot/1.0" },
       signal: AbortSignal.timeout(10000),
     });
@@ -1753,7 +1754,7 @@ async function tGetGalacticWarStatus(): Promise<ToolCallResult> {
     // Also fetch current campaigns
     let campaigns: unknown[] = [];
     try {
-      const campRes = await fetch("https://api.helldivers2.dev/api/v1/campaigns", {
+      const campRes = await fetchRetry("https://api.helldivers2.dev/api/v1/campaigns", {
         headers: { "User-Agent": "HelldiversBot/1.0" },
         signal: AbortSignal.timeout(8000),
       });
@@ -2661,7 +2662,7 @@ async function tUsernameSearch(args: Record<string, unknown>): Promise<ToolCallR
     const batch = platforms.slice(i, i + CONCURRENCY).map(async ([platform, urlTemplate]) => {
       const url = urlTemplate.replace("{u}", encodeURIComponent(username));
       try {
-        const res = await fetch(url, {
+        const res = await fetchRetry(url, {
           method: "GET",
           redirect: "manual",
           signal: AbortSignal.timeout(5_000),
@@ -2704,7 +2705,7 @@ async function tEmailReputation(args: Record<string, unknown>): Promise<ToolCall
   }
 
   try {
-    const res = await fetch(`https://emailrep.io/${email}`, {
+    const res = await fetchRetry(`https://emailrep.io/${email}`, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BotOSINT/1.0)" },
       signal: AbortSignal.timeout(8_000),
     });
@@ -2751,7 +2752,7 @@ async function tPhoneLookup(args: Record<string, unknown>): Promise<ToolCallResu
   if (!phone) return { success: false, data: "Numéro requis" };
 
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `https://numverify.com/php_helper_scripts/numverify_api.php?number=${encodeURIComponent(phone)}&format=1`,
       {
         signal: AbortSignal.timeout(8_000),
@@ -2805,7 +2806,7 @@ async function tIpGeolocation(args: Record<string, unknown>): Promise<ToolCallRe
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchRetry(
       `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,city,zip,lat,lon,timezone,isp,org,as,query`,
       {
         signal: AbortSignal.timeout(8_000),
@@ -2856,7 +2857,7 @@ async function tDomainAge(args: Record<string, unknown>): Promise<ToolCallResult
   }
 
   try {
-    const res = await fetch(`https://rdap.org/domain/${domain}`, {
+    const res = await fetchRetry(`https://rdap.org/domain/${domain}`, {
       signal: AbortSignal.timeout(10_000),
       headers: { Accept: "application/rdap+json" },
     });
@@ -2915,7 +2916,7 @@ async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallRe
   if (!username) return { success: false, data: "Username GitHub requis" };
 
   try {
-    const res = await fetch(`https://api.github.com/users/${username}`, {
+    const res = await fetchRetry(`https://api.github.com/users/${username}`, {
       signal: AbortSignal.timeout(8_000),
       headers: {
         Accept: "application/vnd.github.v3+json",

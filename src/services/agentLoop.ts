@@ -45,6 +45,15 @@ import {
   getPersonalityTemperature,
   getPersonalityMaxTokens,
 } from "../infrastructure/middleware/personalityMiddleware.js";
+import { getCachedResponse, cacheResponse } from "./aiCache.js";
+import {
+  agentLoopIterations,
+  agentLoopDuration,
+  agentModelUsed,
+  agentToolCalls,
+  agentCacheHits,
+  agentCacheMisses,
+} from "./prometheusExporter.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -66,6 +75,42 @@ const TOOL_FAILURE_THRESHOLD = 5; // disable after 5 consecutive failures
 const TOOL_FAILURE_WINDOW_MS = 60_000; // within 60s
 const disabledTools = new Set<string>();
 
+// Global tool rate limiter: max calls per minute per tool
+const toolCallTimestamps = new Map<string, number[]>();
+const TOOL_GLOBAL_RATE_LIMIT = 10; // max 10 calls per minute per tool globally
+const TOOL_RATE_LIMIT_WINDOW_MS = 60_000;
+
+function isToolRateLimited(toolName: string): boolean {
+  const now = Date.now();
+  const timestamps = toolCallTimestamps.get(toolName) || [];
+  const recent = timestamps.filter((t) => now - t < TOOL_RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= TOOL_GLOBAL_RATE_LIMIT) {
+    logger.warn(
+      `[AgentLoop] 🚦 Tool "${toolName}" rate-limited globally (${recent.length}/${TOOL_GLOBAL_RATE_LIMIT} per min)`,
+    );
+    return true;
+  }
+  recent.push(now);
+  toolCallTimestamps.set(toolName, recent);
+  return false;
+}
+
+// Cleanup old timestamps every 5 minutes
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [tool, timestamps] of toolCallTimestamps.entries()) {
+      const recent = timestamps.filter((t) => now - t < TOOL_RATE_LIMIT_WINDOW_MS);
+      if (recent.length === 0) {
+        toolCallTimestamps.delete(tool);
+      } else {
+        toolCallTimestamps.set(tool, recent);
+      }
+    }
+  },
+  5 * 60 * 1000,
+);
+
 function isToolDisabled(toolName: string): boolean {
   return disabledTools.has(toolName);
 }
@@ -83,6 +128,7 @@ function recordToolFailure(toolName: string): void {
 
   if (entry.count >= TOOL_FAILURE_THRESHOLD && !disabledTools.has(toolName)) {
     disabledTools.add(toolName);
+    toolDisabledAt.set(toolName, now);
     logger.warn(
       `[AgentLoop] ⛔ Tool "${toolName}" auto-disabled after ${entry.count} failures in ${TOOL_FAILURE_WINDOW_MS / 1000}s`,
     );
@@ -98,6 +144,24 @@ function recordToolSuccess(toolName: string): void {
     logger.info(`[AgentLoop] ✅ Tool "${toolName}" re-enabled after success`);
   }
 }
+
+// Auto-repair: re-enable disabled tools after 5 minutes
+const TOOL_AUTO_REPAIR_MS = 5 * 60 * 1000;
+const toolDisabledAt = new Map<string, number>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [toolName, disabledAt] of toolDisabledAt.entries()) {
+    if (now - disabledAt > TOOL_AUTO_REPAIR_MS && disabledTools.has(toolName)) {
+      disabledTools.delete(toolName);
+      toolFailureCounts.delete(toolName);
+      toolDisabledAt.delete(toolName);
+      logger.info(
+        `[AgentLoop] 🔧 Tool "${toolName}" auto-re-enabled after ${TOOL_AUTO_REPAIR_MS / 1000}s cooldown`,
+      );
+    }
+  }
+}, 60 * 1000); // Check every minute
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -133,13 +197,35 @@ async function loadLongTermMemory(userId: string): Promise<string> {
 
 /**
  * Récupère l'historique récent du salon (court-terme).
+ * Combine l'historique Discord (messages récents) avec l'historique persisté en DB.
  */
 async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
+  const history: ChatMessage[] = [];
+
+  // 1. Charger l'historique persisté en DB (survit au redémarrage)
+  try {
+    const dbHistory = await prisma.chatHistory.findMany({
+      where: { channelId: message.channelId },
+      orderBy: { createdAt: "desc" },
+      take: 10, // Last 10 messages from DB
+    });
+    // Reverse to chronological order
+    dbHistory.reverse();
+    for (const entry of dbHistory) {
+      history.push({
+        role: entry.role === "assistant" ? "assistant" : "user",
+        content: entry.content,
+      });
+    }
+  } catch {
+    // DB might not be available, continue with Discord history only
+  }
+
+  // 2. Charger l'historique Discord (messages récents en mémoire)
   try {
     const messages = await message.channel.messages.fetch({ limit: MAX_HISTORY_MESSAGES });
     const sorted = [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
-    const history: ChatMessage[] = [];
     for (const msg of sorted) {
       if (msg.author.bot && msg.author.id !== message.client.user?.id) continue;
       if (!msg.content || msg.content.trim().length === 0) continue;
@@ -151,11 +237,17 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
         content: role === "user" ? `${authorName}: ${msg.content}` : msg.content,
       });
     }
-
-    return history;
   } catch {
-    return [];
+    // Discord fetch might fail, continue with DB history only
   }
+
+  // Deduplicate: keep only last MAX_HISTORY_MESSAGES * 2 entries
+  const maxHistory = MAX_HISTORY_MESSAGES * 2;
+  if (history.length > maxHistory) {
+    return history.slice(-maxHistory);
+  }
+
+  return history;
 }
 
 // ─── Boucle principale de l'agent ────────────────────────────────────────────
@@ -271,7 +363,20 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   // ─── MODULE 1: Circuit Breaker — track execution state ───
   const breakerState = beginInteraction(message.author.id, message.guildId || "");
 
-  // ─── MODULE 0: Ambiguity detection — ask clarifying questions before executing ───
+  // ─── MODULE 0a: Semantic cache check — skip API if we already answered this ───
+  const cacheCtx = message.guildId || "dm";
+  const loopStartTime = Date.now();
+  const cached = getCachedResponse(userMessage, cacheCtx);
+  if (cached) {
+    logger.info(`[AgentLoop] 🎯 Cache hit — skipping API call`);
+    agentCacheHits.inc();
+    agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
+    completeInteraction(breakerState);
+    return cached;
+  }
+  agentCacheMisses.inc();
+
+  // ─── MODULE 0b: Ambiguity detection — ask clarifying questions before executing ───
   const ambiguityQuestions = detectAmbiguity(userMessage);
   if (ambiguityQuestions) {
     const formattedQuestions =
@@ -325,21 +430,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "[RESPONSE] Ta réponse directe à l'utilisateur\n" +
     "[SUGGESTION] Suggestion proactive ou prochaine action recommandée\n\n" +
     "## TOOLS DISPONIBLES\n" +
-    "### Internet & Recherche\n" +
-    "- searchWeb, readUrl, searchYouTube, getWikipediaSummary, getTechNews, getRedditPosts\n" +
-    "### APIs gratuites\n" +
-    "- getWeather, getCryptoPrice, getStockPrice, getCurrencyRate, getCountryInfo, getDateTime\n" +
-    "- getIpInfo, translateText, getUrbanDict\n" +
-    "### Fun\n" +
-    "- getJoke, getDadJoke, getAdvice, getQuote, getTrivia, getMeme, getDogImage, getCatImage\n" +
-    "### Gaming & Dev\n" +
-    "- getPokemon, getSteamGame, getNpmPackage, getPypiPackage, getGitHubRepo, getGithubUser\n" +
-    "### Science\n" +
-    "- getNasaApod, getBookInfo\n" +
-    "### Utilities\n" +
-    "- shortenUrl, getQrCode, getRandomUser\n" +
-    "### Code Sandbox (exécution de code)\n" +
-    "- execute_code : exécute du code Python, JavaScript ou shell dans une sandbox sécurisée. Utilise-le quand l'utilisateur demande d'écrire et exécuter un script, faire un calcul, analyser des données, générer un fichier. Timeout 15s. E2B cloud si configuré, sinon local.\n" +
+    "Tu as accès à plus de 40 outils. La liste complète est fournie ci-dessous (auto-générée).\n" +
+    "Utilise le bon tool selon le contexte. Si unsure, searchKnowledge en premier pour les questions techniques.\n\n" +
     "### Génération d'images & audio (gratuit)\n" +
     "- generate_image : génère une image from text (Pollinations.ai, gratuit). Retourne une URL.\n" +
     "- generate_tts : convertit du texte en audio (StreamElements, gratuit). Voix FR: Celine, Mathieu, Chantal.\n" +
@@ -489,85 +581,18 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- fetch_game_patchnotes : patch notes d'un jeu via Steam\n" +
     "- get_galactic_war_status : statut guerre galactique Helldivers 2\n\n" +
     "## RÈGLES\n" +
-    "- Tu es le point d'entrée UNIQUE. L'utilisateur te @mention et tu fais TOUT. Pas besoin de commandes slash.\n" +
-    "- Si l'utilisateur demande une recherche OSINT (username, email, domaine, IP), utilise osint_scan directement.\n" +
-    "- Si l'utilisateur donne un lien, utilise fetchAndSummarize pour le lire et le résumer.\n" +
-    "- Si l'utilisateur pose une question technique, utilise searchKnowledge EN PREMIER, puis searchWeb si rien trouvé.\n" +
-    "- Si l'utilisateur envoie une image, utilise analyze_image automatiquement.\n" +
-    "- Si le message semble agressif, utilise analyze_sentiment.\n" +
-    "- Si un utilisateur demande un résumé ou dit 'quoi de neuf', utilise summarize_conversation.\n" +
-    "- Si le message n'est pas en français, utilise detect_language puis traduis ta réponse.\n" +
-    "- Si on te demande des stats sur le serveur, utilise get_server_insights ou guild_analytics.\n" +
-    "- Si l'utilisateur demande une blague/mème/conseil/citation, utilise getJoke/getMeme/getAdvice/getQuote directement.\n" +
-    "- Si l'utilisateur demande pile-ou-face/dé/8ball, utilise execute_code pour générer le résultat aléatoire.\n" +
-    "- Si l'utilisateur parle de raid/attaque, utilise evaluate_channel_velocity + calculate_server_panic_index.\n" +
-    "- Si l'utilisateur soupçonne un évadé de ban, utilise track_avatar_hash + get_user_moderation_history.\n" +
-    "- Si l'utilisateur demande un bug/erreur/crash, utilise self_inspect_logs + bot_health.\n" +
-    "- Si l'utilisateur demande des infos sur un jeu gratuit Epic, utilise scrape_epic_free_countdown.\n" +
-    "- Si l'utilisateur demande si un streamer est en live, utilise check_community_streams.\n" +
-    "- Si l'utilisateur demande des patch notes, utilise fetch_game_patchnotes.\n" +
-    "- Si l'utilisateur demande le statut Helldivers 2, utilise get_galactic_war_status.\n" +
-    "- Si l'utilisateur demande une image de chien/chat, utilise getDogImage/get_cat_image.\n" +
-    "- Si l'utilisateur demande un profil GitHub, utilise github_profile.\n" +
-    "- Si l'utilisateur demande l'âge d'un domaine, utilise domain_age.\n" +
-    "- Si l'utilisateur demande si un email est jetable, utilise detect_disposable_email.\n" +
-    "- Si l'utilisateur demande si un lien est suspect, utilise verify_link_safety + detect_typosquatting.\n" +
-    "- Si l'utilisateur demande des bans Steam, utilise scrape_steamrep_status.\n" +
-    "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
-    "- Sois concis, naturel, réponds en français.\n" +
-    "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
+    "- Tu es le point d'entrée UNIQUE. L'utilisateur te @mention et tu fais TOUT.\n" +
+    "- searchKnowledge EN PREMIER pour les questions techniques, puis searchWeb.\n" +
+    "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
+    "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
+    "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
     "\n## CLARIFICATION — RÈGLE CRITIQUE (APPLIQUE À TOUT)\n" +
     "- AVANT d'exécuter N'IMPORTE QUELLE tâche, vérifie si tu as toutes les infos nécessaires. Si non, pose 1 à 3 questions.\n" +
     "- Les questions doivent être courtes, précises, et en rapport direct avec ce que l'utilisateur a demandé.\n" +
     "- Quand tu poses une question, ne lance AUCUN tool — attends la réponse de l'utilisateur.\n" +
     "- Format: liste numérotée si plusieurs questions, sinon une question directe.\n" +
-    "- Exemples de questions par catégorie :\n" +
-    "  * OSINT/Scan : « Quelle cible ? (domaine, IP, email) » / « Scan complet ou aspect spécifique ? »\n" +
-    "  * Modération : « Quel utilisateur ? (@) » / « Quelle sanction ? warn/timeout/ban ? » / « Quelle durée ? » / « Quelle raison ? »\n" +
-    "  * Purge : « Combien de messages ? » / « Dans quel salon ? »\n" +
-    "  * Génération image : « Quel sujet/style/ambiance ? » / « Carré ou paysage ? »\n" +
-    "  * TTS/Audio : « Quel texte ? » / « Quelle voix ? (Brian, Mathieu, Chantal...) »\n" +
-    "  * Analyse de lien : « Donne l'URL » / « Résumé court ou détaillé ? »\n" +
-    "  * Screenshot : « Quelle URL ? » / « Full page ou viewport ? »\n" +
-    "  * Ingestion doc : « Quelle(s) URL(s) ? » / « Résumé court ou détaillé ? »\n" +
-    "  * Code : « Quel langage ? (Python/JS/Shell) » / « Juste le code ou avec explication ? »\n" +
-    "  * Recherche web : « Quel sujet exact ? » / « En français ou toutes langues ? »\n" +
-    "  * YouTube : « Quel sujet/mot-clé ? » / « Combien de résultats ? »\n" +
-    "  * Météo : « Quelle ville ? »\n" +
-    "  * Crypto : « Quelle crypto ? (bitcoin, ethereum, solana...) »\n" +
-    "  * Bourse : « Quel ticker ? (AAPL, TSLA, MSFT...) »\n" +
-    "  * Traduction : « Quel texte ? » / « Vers quelle langue ? »\n" +
-    "  * Wikipedia : « Quel sujet ? »\n" +
-    "  * GitHub : « Quel utilisateur/dépôt ? »\n" +
-    "  * Reddit : « Quel subreddit ? » / « Hot/new/top ? »\n" +
-    "  * Twitter : « Quel compte/mot-clé ? »\n" +
-    "  * Twitch : « Quel streamer ? »\n" +
-    "  * Gaming : « Quel jeu ? » / « Quel pseudo/ID ? »\n" +
-    "  * Musique : « Quel titre/artiste ? » / « Lien YouTube/Spotify ? »\n" +
-    "  * Livres : « Quel titre/auteur ? »\n" +
-    "  * Nourriture : « Quel produit ? »\n" +
-    "  * Science/arXiv : « Quel sujet ? »\n" +
-    "  * Vols : « Quelle zone/callsign ? »\n" +
-    "  * Tendances : « Quel pays ? »\n" +
-    "  * Devise : « Quel montant et quelles devises ? (ex: 100 EUR vers USD) »\n" +
-    "  * DNS : « Quel domaine ? »\n" +
-    "  * Email jetable : « Quelle adresse email ? »\n" +
-    "  * Lien suspect : « Donne l'URL suspecte »\n" +
-    "  * Évadé de ban : « Quel utilisateur suspect ? (@) »\n" +
-    "  * Raid : « Détecter ou verrouiller ? » / « Quel salon ? »\n" +
-    "  * Sondage : « Quelle question ? » / « Quels choix ? »\n" +
-    "  * Rappel : « De quoi ? » / « Dans combien de temps ? »\n" +
-    "  * Giveaway : « Quel prix ? » / « Quelle durée ? »\n" +
-    "  * Slowmode : « Quelle durée ? »\n" +
-    "  * Embed : « Quel titre/contenu ? »\n" +
-    "  * Mot de passe : « Quelle longueur ? » / « Avec symboles ? »\n" +
-    "  * QR code : « Quel texte/URL ? »\n" +
-    "  * Raccourcir URL : « Quelle URL ? »\n" +
-    "  * Pokémon : « Quel Pokémon ? »\n" +
-    "  * Chess : « Quel pseudo ? » / « Chess.com ou Lichess ? »\n" +
-    "  * Package : « Quel nom de package ? »\n" +
-    "  * Sismes : « Quelle magnitude minimum ? »\n" +
-    "- Si la demande est SIMPLE et claire (blague, météo d'une ville précise, pile-ou-face, prix d'une crypto nommée, NASA APOD, Epic free games, Helldivers, stats serveur, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
+    "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
+    "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
     "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
     "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(ALL_AGENT_TOOLS) +
@@ -585,7 +610,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       return "\n## Enchaînement suggéré: " + chains.map((c) => c.join(" → ")).join(" | ") + "\n";
     })();
 
-  const conversation: ChatMessage[] = [
+  let conversation: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...channelHistory,
     { role: "user", content: `${message.author.username}: ${userMessage}` },
@@ -594,6 +619,28 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   // 2. Boucle Think → Act → Observe → Respond
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${MAX_ITERATIONS}`);
+
+    // ─── Context compression: after iteration 4, summarize tool results to save tokens ───
+    if (iteration === 4 && conversation.length > 12) {
+      const toolResults = conversation.filter((m) => m.role === "tool");
+      if (toolResults.length > 3) {
+        // Keep only the last 2 tool results, summarize older ones
+        const oldToolResults = toolResults.slice(0, -2);
+        const summary = oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
+        // Remove old tool messages and replace with a compact summary
+        conversation = conversation.filter(
+          (m) => m.role !== "tool" || toolResults.indexOf(m) >= oldToolResults.length,
+        );
+        // Insert summary as a system message
+        conversation.push({
+          role: "system",
+          content: `[Résumé des tools précédents: ${summary.slice(0, 300)}]`,
+        });
+        logger.info(
+          `[AgentLoop] 🗜️ Context compressed: ${oldToolResults.length} tool results summarized`,
+        );
+      }
+    }
 
     // Circuit breaker: check if we can continue
     if (!recordLoop(breakerState, 800)) {
@@ -631,12 +678,14 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
           { timeout: 15_000 },
         );
         markModelSuccess(modelName);
+        agentModelUsed.labels(modelName, "success").inc();
         logger.info(`[AgentLoop] ✅ ${modelName} réussi`);
         break; // Succès → on sort de la boucle de rotation
       } catch (modelErr) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
         const isRateLimit = msg.includes("429") || msg.includes("rate");
         markModelFailure(modelName, isRateLimit);
+        agentModelUsed.labels(modelName, "fail").inc();
         lastErrMsg = msg;
         logger.warn(`[AgentLoop] ❌ ${modelName} échoué: ${msg.slice(0, 100)}`);
         // Continue au prochain modèle
@@ -700,11 +749,38 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       const finalReply = assistantMessage.content || "*(silence)*";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
       completeInteraction(breakerState);
+      agentLoopIterations.observe(iteration + 1);
+      agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
 
       // ─── MODULE B: Stocker en mémoire vectorielle ───
       storeMemory(message.author.id, message.guildId || "", userMessage, "user");
       storeMemory(message.author.id, message.guildId || "", finalReply, "assistant");
       void persistMemoryToDb(message.author.id, message.guildId || "").catch(() => {});
+
+      // ─── MODULE B1: Persister la conversation en DB (survivre au redémarrage) ───
+      void prisma.chatHistory
+        .createMany({
+          data: [
+            {
+              channelId: message.channelId,
+              userId: message.author.id,
+              guildId: message.guildId || null,
+              role: "user" as never,
+              content: userMessage.slice(0, 2000),
+            },
+            {
+              channelId: message.channelId,
+              userId: message.author.id,
+              guildId: message.guildId || null,
+              role: "assistant" as never,
+              content: finalReply.slice(0, 2000),
+            },
+          ],
+        })
+        .catch(() => {});
+
+      // ─── MODULE B2: Mettre en cache sémantique ───
+      cacheResponse(userMessage, finalReply, cacheCtx);
 
       // ─── MODULE C: Reset retry state ───
       resetRetries(breakerState.interactionId);
@@ -745,12 +821,20 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
               success: false,
               data: `Tool ${toolName} temporairement indisponible (trop d'erreurs récentes). Réessaie plus tard.`,
             };
+          } else if (isToolRateLimited(toolName)) {
+            logger.info(`[AgentLoop] 🚦 Tool ${toolName} skipped (global rate limit)`);
+            result = {
+              success: false,
+              data: `Tool ${toolName} temporairement limité (trop d'appels récents). Réessaie dans 1 minute.`,
+            };
           } else {
             result = await executeTool(toolName, args, ctx);
             if (result.success) {
               recordToolSuccess(toolName);
+              agentToolCalls.labels(toolName, "success").inc();
             } else {
               recordToolFailure(toolName);
+              agentToolCalls.labels(toolName, "fail").inc();
             }
           }
         } catch (toolErr) {

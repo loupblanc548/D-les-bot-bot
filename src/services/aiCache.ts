@@ -4,25 +4,51 @@ import crypto from "crypto";
 /**
  * Service de cache pour les réponses IA
  * Réduit les appels API inutiles en mettant en cache les réponses similaires
+ * Inclut une normalisation sémantique pour matcher les questions reformulées
  */
 
 interface CachedResponse {
   response: string;
   timestamp: number;
   hitCount: number;
+  normalizedQuery: string;
 }
 
 // Cache en mémoire (pourrait être remplacé par Redis pour la persistance distribuée)
 const responseCache = new Map<string, CachedResponse>();
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure de TTL
-const MAX_CACHE_SIZE = 100; // Reduced for memory optimization
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min de TTL (plus frais)
+const MAX_CACHE_SIZE = 200; // Augmenté pour plus de hits
 
 /**
- * Génère une clé de cache basée sur le message et le contexte
+ * Normalise une question pour le cache sémantique:
+ * - lowercase, trim, collapse whitespace
+ * - remove punctuation
+ * - remove stop words français/anglais
+ * - remove accents
+ */
+function normalizeQuery(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[?!.,;:'"`~@#$%^&*()_+=\[\]{}|\\<>\/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(
+      /\b(le|la|les|un|une|des|du|de|the|a|an|of|to|in|on|at|for|is|are|et|ou|mais|donc|or|ni|car|que|qui|quoi|comment|pourquoi|ou|quand|quel|quelle|quels|quelles|est|sont|ai|as|a|avons|avez|ont|vais|vas|va|allons|allez|vont)\b/g,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Génère une clé de cache basée sur le message normalisé et le contexte
  */
 function generateCacheKey(message: string, context?: string): string {
-  const data = context ? `${message}:${context}` : message;
+  const normalized = normalizeQuery(message);
+  const data = context ? `${normalized}:${context}` : normalized;
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
@@ -48,14 +74,22 @@ export function getCachedResponse(message: string, context?: string): string | n
   cached.hitCount++;
   responseCache.set(key, cached);
 
-  logger.debug(`[AICache] Cache hit pour: ${message.slice(0, 30)}... (hits: ${cached.hitCount})`);
+  logger.info(`[AICache] 🎯 Cache hit pour: ${message.slice(0, 30)}... (hits: ${cached.hitCount})`);
   return cached.response;
 }
 
 /**
  * Met en cache une réponse IA
+ * Ne cache que les réponses suffisamment longues (évite de cacher les erreurs courtes)
  */
 export function cacheResponse(message: string, response: string, context?: string): void {
+  // Ne pas cacher les réponses trop courtes (erreurs, clarifications)
+  if (response.length < 20) return;
+  // Ne pas cacher les messages d'erreur
+  if (response.includes("Le serveur IA") || response.includes("Problème de communication")) return;
+  // Ne pas cacher les questions de clarification (ambiguïté)
+  if (response.startsWith("🤔")) return;
+
   const key = generateCacheKey(message, context);
 
   // Limiter la taille du cache
@@ -81,6 +115,7 @@ export function cacheResponse(message: string, response: string, context?: strin
     response,
     timestamp: Date.now(),
     hitCount: 0,
+    normalizedQuery: normalizeQuery(message),
   });
 
   logger.debug(`[AICache] Réponse mise en cache: ${message.slice(0, 30)}...`);
@@ -111,6 +146,7 @@ export function getCacheStats(): {
   size: number;
   maxSize: number;
   hitRate: number;
+  totalHits: number;
   oldestEntry: number | null;
   newestEntry: number | null;
 } {
@@ -128,13 +164,13 @@ export function getCacheStats(): {
     }
   }
 
-  // Calculer le taux de hits (approximatif)
-  const hitRate = responseCache.size > 0 ? totalHits / responseCache.size : 0;
+  const hitRate = responseCache.size > 0 ? totalHits / (totalHits + responseCache.size) : 0;
 
   return {
     size: responseCache.size,
     maxSize: MAX_CACHE_SIZE,
     hitRate,
+    totalHits,
     oldestEntry: oldestTimestamp,
     newestEntry: newestTimestamp,
   };
@@ -159,6 +195,6 @@ export function cleanupExpiredCache(): void {
   }
 }
 
-// Nettoyage automatique toutes les 30 minutes
-const _aiCacheCleanup = setInterval(cleanupExpiredCache, 30 * 60 * 1000);
+// Nettoyage automatique toutes les 15 minutes
+const _aiCacheCleanup = setInterval(cleanupExpiredCache, 15 * 60 * 1000);
 if (_aiCacheCleanup.unref) _aiCacheCleanup.unref();

@@ -143,5 +143,40 @@ function createSentryBridge(target: winston.Logger, moduleName?: string): void {
 createSentryBridge(logger);
 createSentryBridge(fortniteLogger, "fortnite");
 
+// ─── Discord Webhook Transport for critical errors ──────────────────
+const DISCORD_WEBHOOK_URL = process.env.LOG_DISCORD_WEBHOOK_URL;
+let webhookBuffer: string[] = [];
+let lastWebhookFlush = 0;
+const WEBHOOK_FLUSH_INTERVAL = 10_000; // 10s
+const WEBHOOK_MAX_BUFFER = 5;
+
+if (DISCORD_WEBHOOK_URL) {
+  const originalError = logger.error.bind(logger);
+  const webhookErrorProxy = function (message: string | Error, ...rest: unknown[]): winston.Logger {
+    const msg = typeof message === "string" ? message : String(message);
+    webhookBuffer.push(msg.slice(0, 500));
+    const now = Date.now();
+    if (
+      webhookBuffer.length >= WEBHOOK_MAX_BUFFER ||
+      now - lastWebhookFlush > WEBHOOK_FLUSH_INTERVAL
+    ) {
+      const toSend = webhookBuffer.slice(0, WEBHOOK_MAX_BUFFER);
+      webhookBuffer = webhookBuffer.slice(WEBHOOK_MAX_BUFFER);
+      lastWebhookFlush = now;
+      void fetch(DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `🚨 **Erreurs critiques** (${toSend.length})\n\`\`\`\n${toSend.join("\n---\n")}\n\`\`\``,
+        }),
+      }).catch(() => {});
+    }
+    // @ts-expect-error - winston's error signature accepts variadic args
+    return originalError(message, ...rest);
+  };
+  (logger as any).error = webhookErrorProxy;
+  logger.info(`[Logger] Discord webhook transport activé pour les erreurs critiques`);
+}
+
 export { Sentry, fortniteLogger };
 export default logger;
