@@ -14,15 +14,37 @@
 import logger from "../utils/logger.js";
 
 // ─── Modèles OpenRouter gratuits supportant le function calling ─────────────
+// Liste étendue — maximise l'utilisation de la clé OpenRouter
+// Ordre: du plus puissant au plus léger
 const FREE_MODELS_OPENROUTER = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemini-2.0-flash-exp:free",
-  "qwen/qwen-2.5-72b-instruct:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "mistralai/mistral-7b-instruct:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "google/gemma-2-9b-it:free",
+  // ─── Modèles gratuits avec tools/function calling ───
+  "tencent/hy3:free", // 295B MoE, 262K context, tools ✅
+  "deepseek/deepseek-r1:free", // Reasoning model, tools ✅
+  "deepseek/deepseek-v3:free", // V3, tools ✅
+  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
+  "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅
+  "nvidia/nemotron-3-ultra-550b-a55b:free", // 550B MoE, tools ✅
+  "google/gemini-2.0-flash-exp:free", // Gemini 2.0, tools ✅
+  "google/gemini-2.0-flash-lite-preview-02-05:free", // Gemini Flash Lite, tools ✅
+  "poolside/laguna-xs-2.1:free", // 33B coding agent, tools ✅
+  "cohere/north-mini-code:free", // 30B MoE coding, tools ✅
+  "mistralai/mistral-7b-instruct:free", // 7B, tools ✅
+  "meta-llama/llama-3.1-8b-instruct:free", // 8B, tools ✅
+  "google/gemma-2-9b-it:free", // 9B, tools ✅
+  "meta-llama/llama-3.2-3b-instruct:free", // 3B, lightweight fallback
 ];
+
+// ─── Modèles ultra-bon-marché (backup si tous les gratuits sont épuisés) ─────
+// Prix < $0.000001/token — quasi gratuit
+const CHEAP_FALLBACK_MODELS = [
+  "meta-llama/llama-3.1-8b-instruct", // $0.05/$0.08 per 1M tokens
+  "qwen/qwen-2.5-7b-instruct", // $0.04/$0.10 per 1M tokens
+  "mistralai/mistral-nemo", // $0.02/$0.04 per 1M tokens
+  "meta-llama/llama-3.2-3b-instruct", // $0.05/$0.33 per 1M tokens
+];
+
+// ─── Routeur auto OpenRouter (toujours disponible) ───────────────────────────
+const AUTO_ROUTER_MODEL = "openrouter/auto";
 
 // ─── État de rotation ────────────────────────────────────────────────────────
 
@@ -113,12 +135,48 @@ export function getAvailableFreeModels(): string[] {
 }
 
 /**
- * Retourne le prochain modèle OpenRouter gratuit disponible.
+ * Retourne la liste des modèles bon marché disponibles (backup)
+ */
+export function getAvailableCheapModels(): string[] {
+  const now = Date.now();
+  return CHEAP_FALLBACK_MODELS.filter((model) => {
+    const health = modelHealth.get(model);
+    if (!health) return true;
+    return now >= health.rateLimitedUntil;
+  });
+}
+
+/**
+ * Retourne TOUS les modèles disponibles, par ordre de priorité:
+ * 1. Modèles gratuits (du plus puissant au plus léger)
+ * 2. Modèles bon marché (backup quasi gratuit)
+ * 3. Routeur auto OpenRouter (toujours disponible, coûte variable)
+ */
+export function getAllAvailableModels(): string[] {
+  const free = getAvailableFreeModels();
+  if (free.length > 0) return free;
+
+  // Tous les gratuits épuisés → ajouter les bon marché
+  const cheap = getAvailableCheapModels();
+  if (cheap.length > 0) {
+    logger.warn(
+      `[ModelRotation] ⚠️ Tous les modèles gratuits sont en cooldown — utilisation des modèles bon marché`,
+    );
+    return cheap;
+  }
+
+  // Dernier recours: routeur auto (coût variable mais toujours dispo)
+  logger.warn(`[ModelRotation] 🔄 Tous les modèles en cooldown — fallback routeur auto OpenRouter`);
+  return [AUTO_ROUTER_MODEL];
+}
+
+/**
+ * Retourne le prochain modèle OpenRouter disponible.
  * Si le modèle préféré est disponible, le retourne.
- * Sinon, retourne le prochain disponible dans la liste.
+ * Sinon, retourne le prochain disponible dans la liste étendue.
  */
 export function getNextAvailableModel(preferred?: string): string | null {
-  const available = getAvailableFreeModels();
+  const available = getAllAvailableModels();
   if (available.length === 0) return null;
 
   // Si on a un modèle préféré et qu'il est disponible, l'utiliser
@@ -136,6 +194,8 @@ export function getNextAvailableModel(preferred?: string): string | null {
 export function getModelRotationStatus(): string {
   const now = Date.now();
   const lines: string[] = [];
+
+  lines.push("── Modèles gratuits ──");
   for (const model of FREE_MODELS_OPENROUTER) {
     const health = modelHealth.get(model);
     if (!health || health.failures === 0) {
@@ -147,5 +207,22 @@ export function getModelRotationStatus(): string {
       lines.push(`  ⚠️ ${model} (${health.failures} failures, ready)`);
     }
   }
+
+  lines.push("── Modèles bon marché (backup) ──");
+  for (const model of CHEAP_FALLBACK_MODELS) {
+    const health = modelHealth.get(model);
+    if (!health || health.failures === 0) {
+      lines.push(`  ✅ ${model}`);
+    } else if (now < health.rateLimitedUntil) {
+      const remaining = Math.ceil((health.rateLimitedUntil - now) / 1000);
+      lines.push(`  ⏳ ${model} (cooldown ${remaining}s)`);
+    } else {
+      lines.push(`  ⚠️ ${model} (ready)`);
+    }
+  }
+
+  lines.push(`── Routeur auto ──`);
+  lines.push(`  ✅ ${AUTO_ROUTER_MODEL} (toujours disponible)`);
+
   return lines.join("\n");
 }

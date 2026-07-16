@@ -15,7 +15,7 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
-import { markModelFailure, markModelSuccess, getAvailableFreeModels } from "./modelRotation.js";
+import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import {
   ALL_AGENT_TOOLS,
   executeTool,
@@ -606,8 +606,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
     let lastErrMsg = "";
 
-    // ─── Étape 1: Rotation sur les modèles OpenRouter gratuits ───
-    const availableModels = getAvailableFreeModels();
+    // ─── Étape 1: Rotation sur les modèles OpenRouter (gratuits → bon marché → auto) ───
+    const availableModels = getAllAvailableModels();
     const preferredModel = getPersonalityModel(config.openRouterModel);
     // Mettre le modèle préféré en premier s'il est disponible
     const modelsToTry = availableModels.includes(preferredModel)
