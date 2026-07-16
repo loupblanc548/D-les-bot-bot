@@ -24,6 +24,8 @@ import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
 import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
+import { getOpenAIClient } from "./ai.js";
+import { config } from "../config.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -1541,6 +1543,53 @@ async function toolSearchKnowledge(args: Record<string, unknown>): Promise<ToolC
     return { success: false, data: "Aucun contenu trouvé dans la base de connaissances" };
   }
 
+  // Construire le contexte à partir des résultats
+  const contextText = results
+    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.summary}`)
+    .join("\n\n");
+
+  // Utiliser OpenRouter pour générer une réponse constructive à partir des connaissances
+  try {
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create({
+      model: config.openRouterModel,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un assistant expert. À partir des connaissances stockées en base, " +
+            "génère une réponse constructive, structurée et utile. " +
+            "Synthétise les informations, mets en avant les points clés, " +
+            "et ajoute des conseils pratiques si pertinent. " +
+            "Réponds en français. Cite les sources (URLs) quand tu utilises une information. " +
+            "Si les connaissances ne couvrent qu'une partie de la question, signale-le clairement.",
+        },
+        {
+          role: "user",
+          content: `Question: ${query}\n\nConnaissances disponibles:\n${contextText}`,
+        },
+      ],
+      max_tokens: 800,
+      temperature: 0.5,
+    });
+
+    const constructiveAnswer = completion.choices[0]?.message?.content;
+
+    if (constructiveAnswer && constructiveAnswer.trim().length > 0) {
+      // Retourner la réponse constructive + les sources pour que l'agent puisse les citer
+      const sources = results.map((r) => r.url).filter(Boolean);
+      return {
+        success: true,
+        data: `${constructiveAnswer}\n\n--- Sources: ${sources.join(", ")}`,
+      };
+    }
+  } catch (err) {
+    logger.warn(
+      `[toolSearchKnowledge] OpenRouter synthesis failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  // Fallback: retourner les résultats bruts si l'API échoue
   return {
     success: true,
     data: JSON.stringify(results),
