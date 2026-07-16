@@ -6,8 +6,6 @@
  * Endpoint: GET /releases/data → JSON des sorties suivies
  */
 
-import http from "http";
-import logger from "../utils/logger.js";
 import { getTrackedReleases } from "./gameReleaseCountdown.js";
 
 interface ReleaseData {
@@ -305,28 +303,10 @@ function buildReleasesPage(): string {
 </html>`;
 }
 
-export function attachReleasesEndpoint(server: http.Server): void {
-  server.on("request", (req, res) => {
-    const url = new URL(req.url || "/", `http://${req.headers.host}`);
-    const path = url.pathname;
+export function getReleasesPage(): string {
+  return buildReleasesPage();
+}
 
-    if (path === "/releases") {
-      const html = buildReleasesPage();
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
-      return;
-    }
-
-    if (path === "/releases/data") {
-      const data = getReleasesData();
-      res.writeHead(200, {
-        "Content-Type": "application/json; charset=utf-8",
-        "Access-Control-Allow-Origin": "*",
-      });
-      res.end(JSON.stringify(data));
-      return;
-    }
-  });
-
-  logger.info("[GameReleaseCountdownWeb] Endpoint /releases disponible pour partage d'écran");
+export function getReleasesJson(): string {
+  return JSON.stringify(getReleasesData());
 }
