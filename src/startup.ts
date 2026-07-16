@@ -94,6 +94,7 @@ import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
 import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startAutoTranslate } from "./services/autoTranslate.js";
 import { startAiSpamDetector } from "./services/aiSpamDetector.js";
+import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -322,6 +323,7 @@ export function attachStartupLogic(
       () => startSteamWishlistMonitor(client),
       () => startAutoTranslate(client),
       () => startAiSpamDetector(client),
+      () => startVoiceScreenShare(client),
     ];
     for (const start of services) {
       try {
