@@ -423,7 +423,22 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- Si le message semble agressif, utilise analyze_sentiment.\n" +
     "- Si un utilisateur demande un résumé ou dit 'quoi de neuf', utilise summarize_conversation.\n" +
     "- Si le message n'est pas en français, utilise detect_language puis traduis ta réponse.\n" +
-    "- Si on te demande des stats sur le serveur, utilise get_server_insights.\n" +
+    "- Si on te demande des stats sur le serveur, utilise get_server_insights ou guild_analytics.\n" +
+    "- Si l'utilisateur demande une blague/mème/conseil/citation, utilise getJoke/getMeme/getAdvice/getQuote directement.\n" +
+    "- Si l'utilisateur demande pile-ou-face/dé/8ball, utilise execute_code pour générer le résultat aléatoire.\n" +
+    "- Si l'utilisateur parle de raid/attaque, utilise evaluate_channel_velocity + calculate_server_panic_index.\n" +
+    "- Si l'utilisateur soupçonne un évadé de ban, utilise track_avatar_hash + get_user_moderation_history.\n" +
+    "- Si l'utilisateur demande un bug/erreur/crash, utilise self_inspect_logs + bot_health.\n" +
+    "- Si l'utilisateur demande des infos sur un jeu gratuit Epic, utilise scrape_epic_free_countdown.\n" +
+    "- Si l'utilisateur demande si un streamer est en live, utilise check_community_streams.\n" +
+    "- Si l'utilisateur demande des patch notes, utilise fetch_game_patchnotes.\n" +
+    "- Si l'utilisateur demande le statut Helldivers 2, utilise get_galactic_war_status.\n" +
+    "- Si l'utilisateur demande une image de chien/chat, utilise getDogImage/get_cat_image.\n" +
+    "- Si l'utilisateur demande un profil GitHub, utilise github_profile.\n" +
+    "- Si l'utilisateur demande l'âge d'un domaine, utilise domain_age.\n" +
+    "- Si l'utilisateur demande si un email est jetable, utilise detect_disposable_email.\n" +
+    "- Si l'utilisateur demande si un lien est suspect, utilise verify_link_safety + detect_typosquatting.\n" +
+    "- Si l'utilisateur demande des bans Steam, utilise scrape_steamrep_status.\n" +
     "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
     "- Sois concis, naturel, réponds en français.\n" +
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +

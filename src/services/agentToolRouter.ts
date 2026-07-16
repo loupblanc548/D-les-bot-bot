@@ -345,6 +345,111 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     keywords: ["helldivers", "galactic war", "guerre galactique", "major order"],
     tools: ["get_galactic_war_status"],
   },
+  // ═══ Fun & Divertissement ═══
+  {
+    keywords: ["mème", "meme", "mème aléatoire", "drôle", "fun"],
+    tools: ["getJoke", "getMeme", "getDadJoke"],
+  },
+  {
+    keywords: ["blague", "joke", "rigolo", "humour"],
+    tools: ["getJoke", "getDadJoke"],
+  },
+  {
+    keywords: ["citation", "quote", "inspirant", "motivant", "proverbe"],
+    tools: ["getQuote"],
+  },
+  {
+    keywords: ["conseil", "advice", "que faire", "ennui", "ennuyé", "activité"],
+    tools: ["getAdvice"],
+  },
+  {
+    keywords: ["trivia", "question culture", "quiz", "saviez-vous"],
+    tools: ["getTrivia"],
+  },
+  {
+    keywords: ["pile ou face", "coinflip", "pile face", "lancer pièce"],
+    tools: ["execute_code"],
+  },
+  {
+    keywords: ["dé", "dice", "lancer dé", "roll", "d20", "d6"],
+    tools: ["execute_code"],
+  },
+  {
+    keywords: ["chien", "dog", "photo chien", "toutou", "wouf"],
+    tools: ["getDogImage", "get_cat_image"],
+  },
+  {
+    keywords: ["chat", "cat image", "photo chat", "minou", "miaou"],
+    tools: ["get_cat_image"],
+  },
+  {
+    keywords: ["nombre", "number fact", "fait sur", "chiffre aléatoire"],
+    tools: ["getTrivia"],
+  },
+  {
+    keywords: ["8ball", "boule magique", "prédiction", "futur", "destin"],
+    tools: ["execute_code"],
+  },
+  {
+    keywords: ["hacker news", "tech news", "actualité tech", "hn"],
+    tools: ["getTechNews", "get_devto_articles"],
+  },
+  // ═══ Community & Social ═══
+  {
+    keywords: ["giveaway", "tirage au sort", "cadeau", "concours"],
+    tools: ["build_rich_embed"],
+  },
+  {
+    keywords: ["anniversaire", "birthday", "né le", "date de naissance"],
+    tools: ["get_server_insights"],
+  },
+  {
+    keywords: ["niveau", "rank", "xp", "leaderboard", "classement", "progression"],
+    tools: ["get_server_insights", "top_commands"],
+  },
+  {
+    keywords: ["server info", "infos serveur", "membres", "member count", "boost"],
+    tools: ["get_server_insights", "guild_analytics"],
+  },
+  {
+    keywords: ["avatar", "photo de profil", "pp", "image profil"],
+    tools: ["track_avatar_hash"],
+  },
+  {
+    keywords: ["lfg", "groupe", "qui veut jouer", "recherche joueurs"],
+    tools: ["build_rich_embed"],
+  },
+  // ═══ Musique ═══
+  {
+    keywords: ["joue musique", "play music", "lance musique", "écoute", "chanson"],
+    tools: ["searchYouTube"],
+  },
+  // ═══ Modération auto ═══
+  {
+    keywords: ["raid", "attaque", "spam massif", "invasion"],
+    tools: [
+      "evaluate_channel_velocity",
+      "calculate_server_panic_index",
+      "emergency_channel_freeze",
+    ],
+  },
+  {
+    keywords: ["ghost ping", "mention fantôme", "faux ping"],
+    tools: ["expose_ghost_pinger"],
+  },
+  {
+    keywords: ["évadé de ban", "ban evasion", "retour ban", "multi-compte"],
+    tools: ["track_avatar_hash", "get_user_moderation_history"],
+  },
+  // ═══ Debug & Système ═══
+  {
+    keywords: ["erreur", "bug", "crash", "problème", "logs", "log erreur"],
+    tools: ["self_inspect_logs", "monitor_ram_health", "bot_health"],
+  },
+  {
+    keywords: ["reload", "recharger", "redémarrer module", "hot reload"],
+    tools: ["triggerGarbageCollection"],
+  },
 ];
 
 /**
@@ -480,6 +585,57 @@ export function suggestToolChain(userMessage: string): string[][] {
     lowerMsg.includes("aide")
   ) {
     chains.push(["searchKnowledge", "searchWeb"]);
+  }
+
+  // "Raid ?" → evaluate_channel_velocity + calculate_server_panic_index
+  if (lowerMsg.includes("raid") || lowerMsg.includes("attaque") || lowerMsg.includes("invasion")) {
+    chains.push(["evaluate_channel_velocity", "calculate_server_panic_index"]);
+  }
+
+  // "Évadé de ban ?" → track_avatar_hash + get_user_moderation_history
+  if (
+    lowerMsg.includes("évadé") ||
+    lowerMsg.includes("ban evasion") ||
+    lowerMsg.includes("multi-compte")
+  ) {
+    chains.push(["track_avatar_hash", "get_user_moderation_history"]);
+  }
+
+  // "Bug / erreur" → self_inspect_logs + bot_health
+  if (
+    lowerMsg.includes("bug") ||
+    lowerMsg.includes("erreur") ||
+    lowerMsg.includes("crash") ||
+    lowerMsg.includes("problème")
+  ) {
+    chains.push(["self_inspect_logs", "bot_health", "monitor_ram_health"]);
+  }
+
+  // "Fun" → getJoke + getMeme
+  if (
+    lowerMsg.includes("blague") ||
+    lowerMsg.includes("mème") ||
+    lowerMsg.includes("drôle") ||
+    lowerMsg.includes("rigole")
+  ) {
+    chains.push(["getJoke", "getMeme"]);
+  }
+
+  // "Stats serveur" → guild_analytics + get_server_insights + top_commands
+  if (
+    lowerMsg.includes("stat") ||
+    (lowerMsg.includes("serveur") && (lowerMsg.includes("info") || lowerMsg.includes("membres")))
+  ) {
+    chains.push(["guild_analytics", "get_server_insights", "top_commands"]);
+  }
+
+  // "Conseil" → getAdvice + getQuote
+  if (
+    lowerMsg.includes("conseil") ||
+    lowerMsg.includes("motivation") ||
+    lowerMsg.includes("inspir")
+  ) {
+    chains.push(["getAdvice", "getQuote"]);
   }
 
   return chains;
