@@ -25,10 +25,15 @@ import { spawn } from "child_process";
 import logger from "../utils/logger.js";
 import { PassThrough } from "stream";
 
-const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
-const GUILD_ID =
-  process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
 const RELEASES_URL = `http://localhost:3000/releases`;
+
+function getVoiceChannelId(): string {
+  return process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
+}
+
+function getGuildId(): string {
+  return process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
+}
 
 let activeConnection: VoiceConnection | null = null;
 let screenshotInterval: NodeJS.Timeout | null = null;
@@ -38,6 +43,8 @@ let page: any = null;
 let isStreaming = false;
 
 async function startScreenShare(client: Client): Promise<void> {
+  const VOICE_CHANNEL_ID = getVoiceChannelId();
+  const GUILD_ID = getGuildId();
   if (!VOICE_CHANNEL_ID || !GUILD_ID) {
     logger.info(
       "[VoiceScreenShare] Désactivé — GAME_RELEASE_VOICE_CHANNEL_ID ou GUILD_ID non configuré",
@@ -210,6 +217,7 @@ function stopScreenShare(): void {
 }
 
 export function startVoiceScreenShare(client: Client): void {
+  const VOICE_CHANNEL_ID = getVoiceChannelId();
   if (!VOICE_CHANNEL_ID) {
     logger.info("[VoiceScreenShare] Désactivé — GAME_RELEASE_VOICE_CHANNEL_ID non configuré");
     return;
@@ -228,7 +236,7 @@ export function startVoiceScreenShare(client: Client): void {
   // Auto-reconnect if disconnected
   setInterval(
     () => {
-      if (!isStreaming && VOICE_CHANNEL_ID) {
+      if (!isStreaming && getVoiceChannelId()) {
         logger.info("[VoiceScreenShare] Tentative de reconnexion...");
         void startScreenShare(client).catch(() => {});
       }
