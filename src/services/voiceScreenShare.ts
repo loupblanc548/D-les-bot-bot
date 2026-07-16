@@ -223,17 +223,22 @@ export function startVoiceScreenShare(client: Client): void {
     return;
   }
 
-  // Wait for bot to be ready, then start screen share
-  const startDelay = 20_000; // 20s after boot
-  setTimeout(() => {
+  // Start as soon as client is ready (or immediately if already ready)
+  const launch = () => {
     void startScreenShare(client).catch((err) =>
       logger.error(
         `[VoiceScreenShare] Erreur: ${err instanceof Error ? err.message : String(err)}`,
       ),
     );
-  }, startDelay);
+  };
 
-  // Auto-reconnect if disconnected
+  if (client.isReady()) {
+    setTimeout(launch, 3000); // 3s pour laisser le HTTP server démarrer
+  } else {
+    client.once("ready", () => setTimeout(launch, 3000));
+  }
+
+  // Auto-reconnect if disconnected (check every 2 min)
   setInterval(
     () => {
       if (!isStreaming && getVoiceChannelId()) {
@@ -241,8 +246,8 @@ export function startVoiceScreenShare(client: Client): void {
         void startScreenShare(client).catch(() => {});
       }
     },
-    5 * 60 * 1000,
-  ); // Check every 5 min
+    2 * 60 * 1000,
+  );
 }
 
 export function stopVoiceScreenShare(): void {
