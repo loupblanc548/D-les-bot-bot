@@ -2065,8 +2065,8 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
     const platformId = platformMap[platform] ?? -1;
     const body =
       platformId >= 0
-        ? `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)} & platforms = (${platformId}); sort first_release_date asc; limit ${count};`
-        : `fields name,first_release_date,platforms.name,cover.url; where first_release_date > ${Math.floor(Date.now() / 1000)}; sort first_release_date asc; limit ${count};`;
+        ? `fields name,first_release_date,summary,platforms.name,cover.image_id,genres.name; where first_release_date > ${Math.floor(Date.now() / 1000)} & platforms = (${platformId}); sort first_release_date asc; limit ${count};`
+        : `fields name,first_release_date,summary,platforms.name,cover.image_id,genres.name; where first_release_date > ${Math.floor(Date.now() / 1000)}; sort first_release_date asc; limit ${count};`;
     const res = await fetchRetry("https://api.igdb.com/v4/games", {
       method: "POST",
       headers: {
@@ -2081,8 +2081,10 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
     const games = (await res.json()) as Array<{
       name: string;
       first_release_date: number;
+      summary?: string;
       platforms: Array<{ name: string }>;
-      cover?: { url: string };
+      cover?: { image_id: string };
+      genres?: Array<{ name: string }>;
     }>;
     const releases = games.map((g) => ({
       name: g.name,
@@ -2090,7 +2092,11 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
         ? new Date(g.first_release_date * 1000).toLocaleDateString("fr-FR")
         : "TBA",
       platforms: g.platforms?.map((p) => p.name).join(", ") || "N/A",
-      cover: g.cover?.url ? `https:${g.cover.url}` : null,
+      cover: g.cover
+        ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
+        : null,
+      summary: g.summary?.slice(0, 500) || null,
+      genres: g.genres?.map((g2) => g2.name).join(", ") || null,
     }));
     return { success: true, data: JSON.stringify(releases) };
   } catch (e) {

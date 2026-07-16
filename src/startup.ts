@@ -90,6 +90,7 @@ import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
 import { startProactiveAgent } from "./services/agentProactive.js";
+import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -314,6 +315,7 @@ export function attachStartupLogic(
       () => startGitHubReleasesMonitor(client),
       () => startMultiSiteDealsMonitor(client),
       () => startProactiveAgent(client),
+      () => startGameReleaseCountdown(client),
     ];
     for (const start of services) {
       try {
