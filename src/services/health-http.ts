@@ -11,6 +11,7 @@ import {
   getReleasesJson,
   getReleasesStatsPage,
   getGamePreviewPage,
+  getShowcasePage,
 } from "./gameReleaseCountdownWeb.js";
 import type { Client } from "discord.js";
 
@@ -150,6 +151,10 @@ export function startHealthServer(port = 3000): void {
         const gameName = url.searchParams.get("game") || "";
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(getGamePreviewPage(gameName));
+        return;
+      } else if (path === "/releases/showcase") {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(getShowcasePage());
         return;
       } else if (path === "/api/releases") {
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });

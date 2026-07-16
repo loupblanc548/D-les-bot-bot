@@ -614,3 +614,213 @@ setInterval(tick, 1000);
 </body>
 </html>`;
 }
+
+// ─── Showcase page: all upcoming AAA/AA games with animated platform cards ──
+
+export function getShowcasePage(): string {
+  const releases = getReleasesData();
+  const now = Date.now();
+
+  const upcoming = releases
+    .filter((r) => new Date(r.releaseDate).getTime() > now)
+    .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
+
+  const platformColors: Record<string, string> = {
+    steam: "#1b2838",
+    epic: "#0a0a0a",
+    playstation: "#003791",
+    ps: "#003791",
+    xbox: "#107c10",
+    nintendo: "#e60012",
+    switch: "#e60012",
+  };
+
+  function getPlatformColor(name: string): string {
+    const lower = name.toLowerCase();
+    for (const [key, c] of Object.entries(platformColors)) {
+      if (lower.includes(key)) return c;
+    }
+    return "#2a2a4a";
+  }
+
+  const gameCards = upcoming
+    .slice(0, 8)
+    .map((game, i) => {
+      const releaseDate = new Date(game.releaseDate);
+      const diff = releaseDate.getTime() - now;
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      const cover = game.coverUrl || "";
+      const dateStr = releaseDate.toLocaleDateString("fr-FR", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      });
+
+      const cards = game.platforms
+        .map((p, pi) => {
+          return `<div class="pcard" style="--cc:${getPlatformColor(p)};--cd:${i * 0.5 + pi * 0.3}s">
+        <span class="pcard-name">${p}</span>
+      </div>`;
+        })
+        .join("");
+
+      return `<div class="game-card" style="--gd:${i * 3}s">
+      <div class="gc-cover" ${cover ? `style="background-image:url('${cover}')"` : ""}></div>
+      <div class="gc-info">
+        <div class="gc-title">${game.gameName}</div>
+        <div class="gc-date">${dateStr}</div>
+        <div class="gc-countdown" data-release="${releaseDate.getTime()}">${days}j ${hours}h ${minutes}m ${seconds}s</div>
+        <div class="gc-platforms">${cards}</div>
+      </div>
+    </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Releases — Showcase</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #00b140;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+.showcase {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  padding: 30px 40px;
+}
+.showcase-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.showcase-header h1 {
+  font-size: 2.5em; font-weight: 900;
+  color: #fff;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.showcase-header .subtitle {
+  font-size: 1em; color: rgba(255,255,255,0.8);
+  margin-top: 4px;
+}
+.games-grid {
+  display: flex; flex-wrap: wrap; gap: 20px;
+  justify-content: center;
+  flex: 1; align-content: center;
+}
+.game-card {
+  width: 380px;
+  background: rgba(10,10,26,0.92);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(40px) scale(0.95);
+  animation: gcEnter 0.7s ease forwards, gcFloat 4s ease-in-out infinite;
+  animation-delay: var(--gd), calc(var(--gd) + 0.7s);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+@keyframes gcEnter {
+  0% { opacity: 0; transform: translateY(40px) scale(0.95); }
+  60% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes gcFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.gc-cover {
+  width: 140px; min-height: 200px;
+  background-size: cover; background-position: center;
+  background-color: #1a1a2e;
+  flex-shrink: 0;
+}
+.gc-info {
+  padding: 16px 18px;
+  display: flex; flex-direction: column;
+  flex: 1;
+}
+.gc-title {
+  font-size: 1.3em; font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+.gc-date {
+  font-size: 0.85em; color: #b0b0c8;
+  margin-bottom: 8px;
+}
+.gc-countdown {
+  font-size: 1.4em; font-weight: 800;
+  color: #5865f2;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+  text-shadow: 0 0 12px rgba(88,101,242,0.4);
+}
+.gc-platforms {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.pcard {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--cc);
+  font-size: 0.7em; font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: scale(0.8);
+  animation: pcEnter 0.5s ease forwards;
+  animation-delay: var(--cd);
+}
+@keyframes pcEnter {
+  to { opacity: 1; transform: scale(1); }
+}
+.pcard-name { white-space: nowrap; }
+.footer {
+  text-align: center;
+  font-size: 0.65em;
+  color: rgba(255,255,255,0.5);
+  padding: 8px 0;
+}
+</style>
+</head>
+<body>
+<div class="showcase">
+  <div class="showcase-header">
+    <h1>🎮 Sorties à venir</h1>
+    <div class="subtitle">AAA & AA • Compte à rebours en temps réel</div>
+  </div>
+  <div class="games-grid">
+    ${gameCards || '<div style="color:#fff;font-size:1.5em;text-align:center">Aucune sortie à venir</div>'}
+  </div>
+  <div class="footer">Game Release Countdown • ${new Date().toLocaleDateString("fr-FR")}</div>
+</div>
+<script>
+function tick() {
+  const now = Date.now();
+  document.querySelectorAll('.gc-countdown').forEach(el => {
+    const release = parseInt(el.dataset.release);
+    const diff = release - now;
+    if (diff <= 0) { el.innerHTML = '🎉 SORTI !'; el.style.color = '#00d26a'; return; }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.innerHTML = d + 'j ' + h + 'h ' + m + 'm ' + s + 's';
+  });
+}
+setInterval(tick, 1000);
+</script>
+</body>
+</html>`;
+}

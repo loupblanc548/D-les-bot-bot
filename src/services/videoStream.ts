@@ -26,6 +26,10 @@ function getGuildId(): string {
 }
 
 async function getNextGamePreviewUrl(): Promise<string> {
+  // Use the showcase page (all games with animated platform cards on green background)
+  const showcaseUrl = `${HTTP_BASE}/releases/showcase`;
+
+  // Wait for game data to be available
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
@@ -40,17 +44,8 @@ async function getNextGamePreviewUrl(): Promise<string> {
         await new Promise((r) => setTimeout(r, 5000));
         continue;
       }
-      const now = Date.now();
-      const upcoming = games
-        .filter((g) => new Date(g.releaseDate).getTime() > now)
-        .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
-      logger.info(`[VideoStream] ${games.length} jeux, ${upcoming.length} à venir`);
-      if (upcoming.length > 0) {
-        const url = `${HTTP_BASE}/releases/preview?game=${encodeURIComponent(upcoming[0].gameName)}`;
-        logger.info(`[VideoStream] Prochain jeu: ${upcoming[0].gameName} → ${url}`);
-        return url;
-      }
-      return `${HTTP_BASE}/releases`;
+      logger.info(`[VideoStream] ${games.length} jeux disponibles — page showcase`);
+      return showcaseUrl;
     } catch (err) {
       logger.warn(
         `[VideoStream] Erreur fetch /releases/data (retry ${attempt + 1}/10): ${err instanceof Error ? err.message : String(err)}`,
@@ -58,8 +53,8 @@ async function getNextGamePreviewUrl(): Promise<string> {
       await new Promise((r) => setTimeout(r, 5000));
     }
   }
-  logger.warn(`[VideoStream] Aucune donnée après 10 tentatives — fallback /releases`);
-  return `${HTTP_BASE}/releases`;
+  logger.warn(`[VideoStream] Aucune donnée après 10 tentatives — fallback /releases/showcase`);
+  return showcaseUrl;
 }
 
 async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean> {

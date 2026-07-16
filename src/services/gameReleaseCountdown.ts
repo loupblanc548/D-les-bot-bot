@@ -141,11 +141,11 @@ async function fetchUpcomingReleases(): Promise<
     const platformId = PLATFORM_MAP[PLATFORM_FILTER.toLowerCase()] ?? -1;
     const nowSec = Math.floor(Date.now() / 1000);
 
-    // Fetch games releasing in the next 90 days, sorted by date
+    // Fetch games releasing in the next 90 days — prioritize AAA/AA via hypes
     const body =
       platformId >= 0
-        ? `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400} & platforms = (${platformId}); sort first_release_date asc; limit 20;`
-        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400}; sort first_release_date asc; limit 20;`;
+        ? `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400} & platforms = (${platformId}); sort hypes desc; limit 40;`
+        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400}; sort hypes desc; limit 40;`;
 
     const res = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
@@ -170,18 +170,35 @@ async function fetchUpcomingReleases(): Promise<
       cover?: { image_id: string };
       platforms?: Array<{ name: string }>;
       genres?: Array<{ name: string }>;
+      hypes?: number;
     }>;
 
-    const result = games.map((g) => ({
-      name: g.name,
-      releaseDate: new Date(g.first_release_date * 1000),
-      coverUrl: g.cover
-        ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
-        : null,
-      summary: g.summary || "Aucun synopsis disponible.",
-      platforms: g.platforms?.map((p) => p.name) ?? [],
-      genres: g.genres?.map((g2) => g2.name) ?? [],
-    }));
+    // Filter: prioritize AAA/AA (hypes > 0 or multi-platform), deprioritize pure indie
+    const result = games
+      .filter((g) => {
+        const isPureIndie = (g.genres || []).every((gen) => gen.name.toLowerCase() === "indie");
+        const platformCount = (g.platforms || []).length;
+        const hypes = g.hypes || 0;
+        // Keep if: has hypes (AAA/AA), OR multi-platform (2+), OR not pure indie
+        return hypes > 0 || (platformCount >= 2 && !isPureIndie) || !isPureIndie;
+      })
+      .sort((a, b) => {
+        // Sort by hypes desc first, then by release date asc
+        const hypesDiff = (b.hypes || 0) - (a.hypes || 0);
+        if (hypesDiff !== 0) return hypesDiff;
+        return a.first_release_date - b.first_release_date;
+      })
+      .slice(0, 20)
+      .map((g) => ({
+        name: g.name,
+        releaseDate: new Date(g.first_release_date * 1000),
+        coverUrl: g.cover
+          ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
+          : null,
+        summary: g.summary || "Aucun synopsis disponible.",
+        platforms: g.platforms?.map((p) => p.name) ?? [],
+        genres: g.genres?.map((g2) => g2.name) ?? [],
+      }));
 
     // Cache to DB
     try {
