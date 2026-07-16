@@ -1,32 +1,23 @@
 /**
- * voiceScreenShare.ts — Le bot rejoint un salon vocal et partage
- * la page web /releases en streaming vidéo (screen share).
+ * voiceScreenShare.ts — Le bot rejoint un salon vocal et ouvre la page
+ * web /releases avec Playwright. Il poste des screenshots périodiques
+ * dans le salon texte associé au salon vocal.
  *
- * Utilise Playwright pour capturer la page en screenshots,
- * ffmpeg pour encoder en flux vidéo H.264,
- * et @discordjs/voice pour streamer dans le salon vocal.
+ * Note: Les bots Discord ne peuvent PAS faire de "Go Live" / screen share
+ * vidéo via l'API. À la place, on poste des screenshots réguliers.
  *
  * Configuration .env:
  * - GAME_RELEASE_VOICE_CHANNEL_ID : ID du salon vocal
- * - SCREEN_SHARE_GUILD_ID : ID du serveur (guild)
+ * - DISCORD_GUILD_ID : ID du serveur
  */
 
-import { Client } from "discord.js";
-import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
-  VoiceConnectionStatus,
-  getVoiceConnection,
-  type VoiceConnection,
-} from "@discordjs/voice";
-import { spawn } from "child_process";
+import { Client, AttachmentBuilder, EmbedBuilder } from "discord.js";
+import { joinVoiceChannel, VoiceConnectionStatus, type VoiceConnection } from "@discordjs/voice";
 import logger from "../utils/logger.js";
-import { PassThrough } from "stream";
 
-const HTTP_BASE = `http://localhost:3000`;
+const HTTP_BASE = "http://localhost:3000";
 const RELEASES_URL = `${HTTP_BASE}/releases`;
+const SCREENSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 min between screenshots
 
 async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
@@ -52,10 +43,10 @@ function getGuildId(): string {
 
 let activeConnection: VoiceConnection | null = null;
 let screenshotInterval: NodeJS.Timeout | null = null;
-let ffmpegProcess: ReturnType<typeof spawn> | null = null;
 let browserContext: any = null;
 let page: any = null;
 let isStreaming = false;
+let lastScreenshotMessageId: string | null = null;
 
 async function startScreenShare(client: Client): Promise<void> {
   const VOICE_CHANNEL_ID = getVoiceChannelId();
@@ -73,7 +64,7 @@ async function startScreenShare(client: Client): Promise<void> {
   }
 
   isStreaming = true;
-  logger.info("[VoiceScreenShare] Démarrage du screen share...");
+  logger.info("[VoiceScreenShare] Démarrage...");
 
   try {
     // 1. Join voice channel
@@ -95,8 +86,8 @@ async function startScreenShare(client: Client): Promise<void> {
       channelId: VOICE_CHANNEL_ID,
       guildId: GUILD_ID,
       adapterCreator: guild.voiceAdapterCreator as never,
-      selfDeaf: false,
-      selfMute: false,
+      selfDeaf: true,
+      selfMute: true,
     });
 
     activeConnection.on(VoiceConnectionStatus.Ready, () => {
@@ -108,10 +99,10 @@ async function startScreenShare(client: Client): Promise<void> {
       stopScreenShare();
     });
 
-    // 2. Wait for HTTP server to be ready
+    // 2. Wait for HTTP server
     const serverReady = await waitForHttpServer(HTTP_BASE);
     if (!serverReady) {
-      logger.warn(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} non disponible — abandon`);
+      logger.warn(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} non disponible`);
       isStreaming = false;
       if (activeConnection) {
         activeConnection.destroy();
@@ -121,16 +112,15 @@ async function startScreenShare(client: Client): Promise<void> {
     }
     logger.info(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} prêt`);
 
-    // 3. Launch Playwright to capture the page
+    // 3. Launch Playwright
     const { chromium } = await import("playwright");
     browserContext = await chromium.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     page = await browserContext.newPage();
-    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.setViewportSize({ width: 1280, height: 720 });
 
-    // Retry page load up to 5 times
     let pageLoaded = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
@@ -139,13 +129,13 @@ async function startScreenShare(client: Client): Promise<void> {
         break;
       } catch (err) {
         logger.warn(
-          `[VoiceScreenShare] Page load tentative ${attempt + 1}/5 échouée: ${err instanceof Error ? err.message : String(err)}`,
+          `[VoiceScreenShare] Page load tentative ${attempt + 1}/5: ${err instanceof Error ? err.message : String(err)}`,
         );
         await new Promise((r) => setTimeout(r, 3000));
       }
     }
     if (!pageLoaded) {
-      logger.error(`[VoiceScreenShare] Impossible de charger ${RELEASES_URL} après 5 tentatives`);
+      logger.error(`[VoiceScreenShare] Impossible de charger ${RELEASES_URL}`);
       isStreaming = false;
       await browserContext.close().catch(() => {});
       browserContext = null;
@@ -157,89 +147,81 @@ async function startScreenShare(client: Client): Promise<void> {
     }
     logger.info(`[VoiceScreenShare] Page ${RELEASES_URL} chargée`);
 
-    // 4. Create ffmpeg process to encode screenshots as video stream
-    const videoStream = new PassThrough();
-    ffmpegProcess = spawn(
-      "ffmpeg",
-      [
-        "-re",
-        "-f",
-        "image2pipe",
-        "-vcodec",
-        "png",
-        "-r",
-        "10",
-        "-i",
-        "-",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-tune",
-        "zerolatency",
-        "-pix_fmt",
-        "yuv420p",
-        "-f",
-        "opus",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "pipe:1",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
+    // 4. Take initial screenshot and post it
+    await takeAndPostScreenshot(client, VOICE_CHANNEL_ID);
 
-    ffmpegProcess.stdin?.on("error", () => {});
-    ffmpegProcess.stdout?.on("error", () => {});
-    ffmpegProcess.stderr?.on("data", (data: Buffer) => {
-      const msg = data.toString();
-      if (msg.includes("error") || msg.includes("Error")) {
-        logger.debug(`[VoiceScreenShare] ffmpeg: ${msg.trim()}`);
-      }
-    });
-
-    // Pipe ffmpeg output to audio resource
-    videoStream.pipe(ffmpegProcess.stdin!);
-
-    // 5. Create audio player and resource
-    const player = createAudioPlayer();
-    const resource = createAudioResource(ffmpegProcess.stdout!, {
-      inputType: "ogg/opus" as never,
-    });
-
-    player.play(resource);
-    activeConnection.subscribe(player);
-
-    player.on(AudioPlayerStatus.Playing, () => {
-      logger.info("[VoiceScreenShare] Streaming vidéo actif");
-    });
-
-    player.on(AudioPlayerStatus.Idle, () => {
-      logger.debug("[VoiceScreenShare] Player idle");
-    });
-
-    player.on("error", (err) => {
-      logger.error(`[VoiceScreenShare] Player error: ${err.message}`);
-    });
-
-    // 6. Capture screenshots every 100ms and feed to ffmpeg
+    // 5. Post screenshots periodically
     screenshotInterval = setInterval(async () => {
-      if (!page || !ffmpegProcess?.stdin?.writable) return;
-      try {
-        const screenshot = await page.screenshot({ type: "png" });
-        ffmpegProcess.stdin.write(screenshot);
-      } catch {
-        // Page might be loading
-      }
-    }, 100);
+      await takeAndPostScreenshot(client, VOICE_CHANNEL_ID);
+    }, SCREENSHOT_INTERVAL_MS);
 
-    logger.info("[VoiceScreenShare] Screen share démarré avec succès");
+    logger.info("[VoiceScreenShare] Actif — screenshots toutes les 5 min");
   } catch (err) {
-    logger.error(
-      `[VoiceScreenShare] Erreur démarrage: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`[VoiceScreenShare] Erreur: ${err instanceof Error ? err.message : String(err)}`);
     isStreaming = false;
+  }
+}
+
+async function takeAndPostScreenshot(client: Client, voiceChannelId: string): Promise<void> {
+  if (!page) return;
+
+  try {
+    // Reload page to get fresh countdown data
+    await page.reload({ waitUntil: "networkidle", timeout: 10000 }).catch(() => {});
+
+    const screenshot: Buffer = await page.screenshot({ type: "png" });
+    const attachment = new AttachmentBuilder(screenshot, { name: "releases-countdown.png" });
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎮 Game Release Countdown")
+      .setColor(0x5865f2)
+      .setImage("attachment://releases-countdown.png")
+      .setFooter({
+        text: `Mise à jour • ${new Date().toLocaleTimeString("fr-FR")} • ${RELEASES_URL}`,
+      })
+      .setTimestamp();
+
+    // Find the text channel associated with the voice channel
+    const guild = client.guilds.cache.get(getGuildId());
+    if (!guild) return;
+
+    const voiceChannel = guild.channels.cache.get(voiceChannelId);
+    if (!voiceChannel) return;
+
+    const textChannel = guild.channels.cache.find(
+      (c) =>
+        c.type === 0 &&
+        c.parentId === voiceChannel.parentId &&
+        c.name.toLowerCase().includes("release"),
+    );
+
+    const targetChannel = textChannel || voiceChannel;
+
+    if (targetChannel && "send" in targetChannel) {
+      // Delete previous screenshot to avoid spam
+      if (lastScreenshotMessageId) {
+        try {
+          const oldMsg = await targetChannel.messages.fetch(lastScreenshotMessageId);
+          if (oldMsg) await oldMsg.delete();
+        } catch {
+          // Message might already be deleted
+        }
+      }
+
+      const sent = await targetChannel.send({
+        content: `📊 **Countdown en temps réel** → ${RELEASES_URL}`,
+        embeds: [embed],
+        files: [attachment],
+      });
+      lastScreenshotMessageId = sent.id;
+      logger.debug(
+        `[VoiceScreenShare] Screenshot posté (${new Date().toLocaleTimeString("fr-FR")})`,
+      );
+    }
+  } catch (err) {
+    logger.debug(
+      `[VoiceScreenShare] Erreur screenshot: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -247,11 +229,6 @@ function stopScreenShare(): void {
   if (screenshotInterval) {
     clearInterval(screenshotInterval);
     screenshotInterval = null;
-  }
-  if (ffmpegProcess) {
-    ffmpegProcess.stdin?.end();
-    ffmpegProcess.kill("SIGTERM");
-    ffmpegProcess = null;
   }
   if (page) {
     page.close().catch(() => {});
@@ -266,6 +243,7 @@ function stopScreenShare(): void {
     activeConnection = null;
   }
   isStreaming = false;
+  lastScreenshotMessageId = null;
   logger.info("[VoiceScreenShare] Arrêté");
 }
 
@@ -276,7 +254,6 @@ export function startVoiceScreenShare(client: Client): void {
     return;
   }
 
-  // Start as soon as client is ready (or immediately if already ready)
   const launch = () => {
     void startScreenShare(client).catch((err) =>
       logger.error(
@@ -286,12 +263,12 @@ export function startVoiceScreenShare(client: Client): void {
   };
 
   if (client.isReady()) {
-    setTimeout(launch, 3000); // 3s pour laisser le HTTP server démarrer
+    setTimeout(launch, 3000);
   } else {
     client.once("ready", () => setTimeout(launch, 3000));
   }
 
-  // Auto-reconnect if disconnected (check every 2 min)
+  // Auto-reconnect every 2 min
   setInterval(
     () => {
       if (!isStreaming && getVoiceChannelId()) {
@@ -307,157 +284,15 @@ export function stopVoiceScreenShare(): void {
   stopScreenShare();
 }
 
-// ─── Per-platform screen share ───────────────────────────────────────────────
-
-const platformStreams = new Map<
-  string,
-  {
-    connection: VoiceConnection;
-    interval: NodeJS.Timeout;
-    ffmpeg: ReturnType<typeof spawn>;
-    browser: any;
-    page: any;
-  }
->();
-
+// Per-platform: reuse main stream (no duplicate channels)
 export async function startPlatformScreenShare(
   client: Client,
-  channelId: string,
-  platform: string,
+  _channelId: string,
+  _platform: string,
 ): Promise<void> {
-  // Don't create duplicate streams
-  if (platformStreams.has(platform)) {
-    logger.debug(`[VoiceScreenShare] Stream déjà actif pour ${platform}`);
+  if (isStreaming) {
+    logger.debug(`[VoiceScreenShare] Stream déjà actif, ${_platform} ignoré`);
     return;
   }
-
-  const guildId = getGuildId();
-  if (!guildId || !channelId) return;
-
-  const guild = client.guilds.cache.get(guildId);
-  if (!guild) return;
-
-  logger.info(`[VoiceScreenShare] Démarrage stream plateforme ${platform} → salon ${channelId}`);
-
-  try {
-    const connection = joinVoiceChannel({
-      channelId,
-      guildId,
-      adapterCreator: guild.voiceAdapterCreator as never,
-      selfDeaf: false,
-      selfMute: false,
-    });
-
-    connection.on(VoiceConnectionStatus.Disconnected, () => {
-      logger.info(`[VoiceScreenShare] Déconnexion stream ${platform}`);
-      stopPlatformScreenShare(platform);
-    });
-
-    // Wait for HTTP server then load page with retries
-    await waitForHttpServer(HTTP_BASE);
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
-    });
-    const pg = await browser.newPage();
-    await pg.setViewportSize({ width: 1920, height: 1080 });
-    const url = `${HTTP_BASE}/releases?platform=${encodeURIComponent(platform)}`;
-
-    let pageLoaded = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        await pg.goto(url, { waitUntil: "networkidle", timeout: 15000 });
-        pageLoaded = true;
-        break;
-      } catch (err) {
-        logger.warn(
-          `[VoiceScreenShare] Page load ${platform} tentative ${attempt + 1}/5: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-    }
-    if (!pageLoaded) {
-      logger.error(`[VoiceScreenShare] Impossible de charger ${url}`);
-      await browser.close().catch(() => {});
-      connection.destroy();
-      return;
-    }
-    logger.info(`[VoiceScreenShare] Page ${url} chargée pour ${platform}`);
-
-    // ffmpeg to encode screenshots as video
-    const ffmpeg = spawn(
-      "ffmpeg",
-      [
-        "-re",
-        "-f",
-        "image2pipe",
-        "-vcodec",
-        "png",
-        "-r",
-        "10",
-        "-i",
-        "-",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-tune",
-        "zerolatency",
-        "-pix_fmt",
-        "yuv420p",
-        "-f",
-        "opus",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "pipe:1",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
-
-    ffmpeg.stdin?.on("error", () => {});
-    ffmpeg.stdout?.on("error", () => {});
-    ffmpeg.stderr?.on("data", () => {});
-
-    const player = createAudioPlayer();
-    const resource = createAudioResource(ffmpeg.stdout!, {
-      inputType: "ogg/opus" as never,
-    });
-    player.play(resource);
-    connection.subscribe(player);
-
-    // Capture screenshots every 100ms
-    const interval = setInterval(async () => {
-      if (!pg || !ffmpeg.stdin?.writable) return;
-      try {
-        const screenshot = await pg.screenshot({ type: "png" });
-        ffmpeg.stdin.write(screenshot);
-      } catch {
-        // Page might be loading
-      }
-    }, 100);
-
-    platformStreams.set(platform, { connection, interval, ffmpeg, browser, page: pg });
-    logger.info(`[VoiceScreenShare] Stream ${platform} actif ✅`);
-  } catch (err) {
-    logger.error(
-      `[VoiceScreenShare] Erreur stream ${platform}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
-}
-
-function stopPlatformScreenShare(platform: string): void {
-  const stream = platformStreams.get(platform);
-  if (!stream) return;
-
-  clearInterval(stream.interval);
-  stream.ffmpeg.stdin?.end();
-  stream.ffmpeg.kill("SIGTERM");
-  stream.page?.close?.().catch(() => {});
-  stream.browser?.close?.().catch(() => {});
-  stream.connection.destroy();
-  platformStreams.delete(platform);
-  logger.info(`[VoiceScreenShare] Stream ${platform} arrêté`);
+  void startScreenShare(client).catch(() => {});
 }

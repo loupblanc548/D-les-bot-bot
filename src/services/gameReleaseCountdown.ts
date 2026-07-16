@@ -78,18 +78,16 @@ function getPlatformChannelId(platforms: string[]): string | null {
 }
 
 // ─── On-demand voice channel creation for screen share ──────────────────────
-const platformVoiceChannels = new Map<string, string>(); // platform → channelId
-const screenSharePages = new Map<string, string>(); // platform → page URL
+let releaseVoiceChannelId: string | null = null; // single shared channel
 
 async function ensureVoiceChannelForPlatform(
   client: Client,
-  platform: string,
+  _platform: string,
 ): Promise<string | null> {
-  // Check if we already have a channel
-  const existing = platformVoiceChannels.get(platform);
-  if (existing) {
+  // Return existing channel if we already have one
+  if (releaseVoiceChannelId) {
     const guild = client.guilds.cache.get(getGuildId());
-    if (guild?.channels.cache.has(existing)) return existing;
+    if (guild?.channels.cache.has(releaseVoiceChannelId)) return releaseVoiceChannelId;
   }
 
   const guildId = getGuildId();
@@ -98,32 +96,45 @@ async function ensureVoiceChannelForPlatform(
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return null;
 
-  // Find or create a category for game releases
+  // Search for existing channel by name (avoid duplicates on restart)
+  const existingChannel = guild.channels.cache.find(
+    (c) => c.type === 2 && c.name.toLowerCase().includes("game release countdown"),
+  );
+  if (existingChannel) {
+    releaseVoiceChannelId = existingChannel.id;
+    logger.info(
+      `[GameReleaseCountdown] Salon vocal existant réutilisé: ${existingChannel.name} (${existingChannel.id})`,
+    );
+    return existingChannel.id;
+  }
+
+  // Find or create a category
   let category = guild.channels.cache.find(
-    (c) => c.type === 4 && c.name.toLowerCase() === "🎮 game releases",
+    (c) => c.type === 4 && c.name.toLowerCase().includes("game releases"),
   );
 
   if (!category) {
     try {
       category = await guild.channels.create({
         name: "🎮 Game Releases",
-        type: 4, // Category
+        type: 4,
       });
     } catch {
       return null;
     }
   }
 
-  // Create voice channel for this platform
-  const channelName = `📺 ${platform.toUpperCase()} Countdown`;
+  // Create ONE voice channel
   try {
     const channel = await guild.channels.create({
-      name: channelName,
-      type: 2, // Voice
+      name: "📺 Game Release Countdown",
+      type: 2,
       parent: category.id,
     });
-    platformVoiceChannels.set(platform, channel.id);
-    logger.info(`[GameReleaseCountdown] Salon vocal créé: ${channelName} (${channel.id})`);
+    releaseVoiceChannelId = channel.id;
+    logger.info(
+      `[GameReleaseCountdown] Salon vocal créé: 📺 Game Release Countdown (${channel.id})`,
+    );
     return channel.id;
   } catch (err) {
     logger.error(
