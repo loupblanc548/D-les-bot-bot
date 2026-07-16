@@ -439,8 +439,6 @@ h1{font-size:2em;color:#666}</style></head><body><h1>Aucun jeu trouvé pour "${g
   const elapsed = total - diff;
   const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
 
-  const platforms = game.platforms.join(" • ") || "Multi-plateforme";
-  const genres = game.genres.join(", ") || "";
   const cover = game.coverUrl || "";
   const dateStr = releaseDate.toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -448,6 +446,48 @@ h1{font-size:2em;color:#666}</style></head><body><h1>Aucun jeu trouvé pour "${g
     month: "long",
     day: "numeric",
   });
+
+  // Platform color mapping
+  const platformColors: Record<string, string> = {
+    steam: "#1b2838",
+    epic: "#000000",
+    playstation: "#003791",
+    ps: "#003791",
+    xbox: "#107c10",
+    nintendo: "#e60012",
+    switch: "#e60012",
+  };
+  const platformIcons: Record<string, string> = {
+    steam: "🎮",
+    epic: "🎮",
+    playstation: "🎮",
+    ps: "🎮",
+    xbox: "🎮",
+    nintendo: "🎮",
+    switch: "🎮",
+  };
+
+  function getPlatformStyle(platformName: string): { color: string; icon: string; label: string } {
+    const lower = platformName.toLowerCase();
+    for (const [key, color] of Object.entries(platformColors)) {
+      if (lower.includes(key))
+        return { color, icon: platformIcons[key] || "🎮", label: platformName };
+    }
+    return { color: "#2a2a4a", icon: "🎮", label: platformName };
+  }
+
+  const platformCards = game.platforms
+    .map((p, i) => {
+      const style = getPlatformStyle(p);
+      return `<div class="platform-card" style="--card-color:${style.color};--delay:${i * 3}s" data-platform="${p}">
+      <div class="card-glow"></div>
+      <div class="card-icon">${style.icon}</div>
+      <div class="card-name">${p}</div>
+    </div>`;
+    })
+    .join("");
+
+  const genres = game.genres.join(", ") || "";
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -470,26 +510,66 @@ body {
   position: fixed; top:0; left:0; width:100%; height:100%;
   background-image: ${cover ? `url('${cover}')` : "none"};
   background-size: cover; background-position: center;
-  filter: blur(20px) brightness(0.3);
+  filter: blur(20px) brightness(0.2);
   z-index: 0;
 }
-.content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
-.game-cover { width: 300px; height: 400px; object-fit: cover; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); margin-bottom: 30px; }
-.game-title { font-size: 3.5em; font-weight: 800; margin-bottom: 10px; background: linear-gradient(135deg, #5865f2, #eb459e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(88,101,242,0.3); }
-.game-meta { font-size: 1.3em; color: #b0b0c8; margin-bottom: 8px; }
-.game-genres { font-size: 1em; color: #8080a0; margin-bottom: 30px; }
-.release-date { font-size: 1.5em; color: #fff; margin-bottom: 20px; }
+.content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 30px; text-align: center; }
+.game-cover { width: 240px; height: 320px; object-fit: cover; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); margin-bottom: 20px; }
+.game-title { font-size: 3em; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #5865f2, #eb459e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(88,101,242,0.3); }
+.game-genres { font-size: 1em; color: #8080a0; margin-bottom: 20px; }
+.release-date { font-size: 1.3em; color: #fff; margin-bottom: 15px; }
 .countdown {
-  font-size: 5em; font-weight: 900; font-variant-numeric: tabular-nums;
-  letter-spacing: 4px; margin-bottom: 30px;
+  font-size: 4.5em; font-weight: 900; font-variant-numeric: tabular-nums;
+  letter-spacing: 4px; margin-bottom: 15px;
   ${isReleased ? "color: #00d26a;" : "color: #5865f2; text-shadow: 0 0 30px rgba(88,101,242,0.5);"}
 }
-.countdown-label { font-size: 1.2em; color: #8080a0; text-transform: uppercase; letter-spacing: 6px; margin-bottom: 30px; }
-.progress-container { width: 80%; max-width: 800px; }
-.progress-bar { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #5865f2, #eb459e); border-radius: 6px; transition: width 1s ease; width: ${pct}%; }
-.progress-text { font-size: 0.9em; color: #666; margin-top: 8px; }
-.footer { position: fixed; bottom: 10px; left: 0; width: 100%; text-align: center; font-size: 0.7em; color: #444; }
+.countdown-label { font-size: 1em; color: #8080a0; text-transform: uppercase; letter-spacing: 6px; margin-bottom: 25px; }
+.progress-container { width: 70%; max-width: 700px; margin-bottom: 25px; }
+.progress-bar { width: 100%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #5865f2, #eb459e); border-radius: 5px; transition: width 1s ease; width: ${pct}%; }
+.progress-text { font-size: 0.8em; color: #666; margin-top: 6px; }
+
+/* Platform cards */
+.platforms-row {
+  display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
+  perspective: 800px;
+}
+.platform-card {
+  width: 160px; height: 100px;
+  border-radius: 14px;
+  background: var(--card-color);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  opacity: 0; transform: translateY(60px) rotateX(40deg) scale(0.8);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.08);
+  animation: cardEnter 0.8s ease forwards;
+  animation-delay: var(--delay);
+}
+.card-glow {
+  position: absolute; top:0; left:0; width:100%; height:100%;
+  background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.12), transparent 70%);
+}
+.card-icon { font-size: 2em; margin-bottom: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+.card-name { font-size: 0.85em; font-weight: 600; color: rgba(255,255,255,0.9); text-shadow: 0 1px 3px rgba(0,0,0,0.6); padding: 0 8px; text-align: center; }
+
+@keyframes cardEnter {
+  0% { opacity: 0; transform: translateY(60px) rotateX(40deg) scale(0.8); }
+  60% { opacity: 1; transform: translateY(-8px) rotateX(-5deg) scale(1.05); }
+  100% { opacity: 1; transform: translateY(0) rotateX(0) scale(1); }
+}
+
+/* Continuous floating animation after entry */
+.platform-card {
+  animation: cardEnter 0.8s ease forwards, cardFloat 3s ease-in-out infinite;
+  animation-delay: var(--delay), calc(var(--delay) + 0.8s);
+}
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.footer { position: fixed; bottom: 8px; left: 0; width: 100%; text-align: center; font-size: 0.65em; color: #444; }
 </style>
 </head>
 <body>
@@ -497,7 +577,6 @@ body {
 <div class="content">
   ${cover ? `<img class="game-cover" src="${cover}" alt="${game.gameName}" />` : ""}
   <div class="game-title">${game.gameName}</div>
-  <div class="game-meta">🎯 ${platforms}</div>
   ${genres ? `<div class="game-genres">🏷️ ${genres}</div>` : ""}
   <div class="release-date">📅 ${dateStr}</div>
   ${
@@ -509,6 +588,7 @@ body {
     <div class="progress-bar"><div class="progress-fill" id="bar" style="width:${pct}%"></div></div>
     <div class="progress-text">${Math.round(pct)}% du temps écoulé</div>
   </div>
+  <div class="platforms-row">${platformCards}</div>
 </div>
 <div class="footer">Game Release Countdown • ${new Date().toLocaleDateString("fr-FR")} • http://31.220.79.90:3000</div>
 <script>
