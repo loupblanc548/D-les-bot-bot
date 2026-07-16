@@ -273,6 +273,12 @@ export function startVoiceScreenShare(client: Client): void {
     return;
   }
 
+  // If VideoStream (Go Live) is configured, don't start screenshot mode
+  if (process.env.SCREEN_SHARE_USER_TOKEN) {
+    logger.info("[VoiceScreenShare] Désactivé — VideoStream (Go Live) est actif à la place");
+    return;
+  }
+
   const launch = () => {
     void startScreenShare(client).catch((err) =>
       logger.error(

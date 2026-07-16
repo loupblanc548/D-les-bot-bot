@@ -148,16 +148,18 @@ async function startVideoStreamAsync(): Promise<void> {
     const { PassThrough } = await import("stream");
     const videoStream = new PassThrough();
 
-    // Start capturing screenshots at 30fps
+    // Start capturing screenshots at 30fps and pipe to ffmpeg
     const fps = 30;
     const frameInterval = 1000 / fps;
-    const capturing = true;
+    let capturing = true;
 
     const captureLoop = async () => {
       while (capturing) {
         try {
           const screenshot: Buffer = await page.screenshot({ type: "jpeg", quality: 80 });
-          videoStream.write(screenshot);
+          if (!videoStream.destroyed) {
+            videoStream.write(screenshot);
+          }
         } catch {
           // Page might be loading
         }
@@ -188,14 +190,26 @@ async function startVideoStreamAsync(): Promise<void> {
       logger.error(`[VideoStream] ffmpeg error: ${err.message}`);
     });
 
-    await playStream(output, streamerInstance, {
+    // 7b. Start streaming (don't await — keep it running)
+    playStream(output, streamerInstance, {
       type: "go-live",
-    });
+    })
+      .then(() => {
+        logger.info("[VideoStream] Go Live terminé");
+        capturing = false;
+        isVideoStreaming = false;
+      })
+      .catch((err: Error) => {
+        logger.error(`[VideoStream] Go Live erreur: ${err.message}`);
+        capturing = false;
+        isVideoStreaming = false;
+      });
 
     logger.info("[VideoStream] Go Live actif — streaming vidéo en temps réel ✅");
 
     // 8. Reload page every 60s to refresh countdown data
     setInterval(async () => {
+      if (!capturing) return;
       try {
         await page.reload({ waitUntil: "networkidle", timeout: 10000 });
         logger.debug("[VideoStream] Page rechargée");
@@ -203,6 +217,14 @@ async function startVideoStreamAsync(): Promise<void> {
         // Ignore reload errors
       }
     }, 60_000);
+
+    // 9. Auto-reconnect if stream stops (check every 30s)
+    setInterval(() => {
+      if (!isVideoStreaming && getUserToken() && getVoiceChannelId()) {
+        logger.info("[VideoStream] Stream arrêté — tentative de reconnexion...");
+        void startVideoStreamAsync().catch(() => {});
+      }
+    }, 30_000);
   } catch (err) {
     logger.error(`[VideoStream] Erreur: ${err instanceof Error ? err.message : String(err)}`);
     isVideoStreaming = false;
