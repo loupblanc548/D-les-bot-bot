@@ -1,0 +1,2 @@
+#!/bin/bash
+sshpass -p 'Si62u1j55exIO8' ssh -o StrictHostKeyChecking=no root@31.220.79.90 'grep GUILD_ID /opt/discord-bot/.env; grep GAME_RELEASE_VOICE_CHANNEL_ID /opt/discord-bot/.env; echo "---"; systemctl restart discord-bot; sleep 25; journalctl -u discord-bot --no-pager -n 100 2>&1 | grep -iE "ScreenShare|VoiceScreen|screen|Désactivé.*Voice|GUILD_ID|voice.*channel|connect.*vocal|streaming|ffmpeg|page.*chargé"'

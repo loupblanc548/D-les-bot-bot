@@ -26,7 +26,8 @@ import logger from "../utils/logger.js";
 import { PassThrough } from "stream";
 
 const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
-const GUILD_ID = process.env.GUILD_ID || process.env.MAIN_GUILD_ID || "";
+const GUILD_ID =
+  process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
 const RELEASES_URL = `http://localhost:3000/releases`;
 
 let activeConnection: VoiceConnection | null = null;
