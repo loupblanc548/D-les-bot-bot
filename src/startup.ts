@@ -95,6 +95,7 @@ import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startAutoTranslate } from "./services/autoTranslate.js";
 import { startAiSpamDetector } from "./services/aiSpamDetector.js";
 import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
+import { startVideoStream } from "./services/videoStream.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -324,6 +325,7 @@ export function attachStartupLogic(
       () => startAutoTranslate(client),
       () => startAiSpamDetector(client),
       () => startVoiceScreenShare(client),
+      () => startVideoStream(),
     ];
     for (const start of services) {
       try {
