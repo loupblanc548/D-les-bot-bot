@@ -25,7 +25,22 @@ import { spawn } from "child_process";
 import logger from "../utils/logger.js";
 import { PassThrough } from "stream";
 
-const RELEASES_URL = `http://localhost:3000/releases`;
+const HTTP_BASE = `http://localhost:3000`;
+const RELEASES_URL = `${HTTP_BASE}/releases`;
+
+async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      if (res.ok || res.status === 404) return true;
+    } catch {
+      // Server not ready yet
+    }
+    logger.debug(`[VoiceScreenShare] Attente serveur HTTP... (${i + 1}/${maxRetries})`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return false;
+}
 
 function getVoiceChannelId(): string {
   return process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
@@ -93,7 +108,20 @@ async function startScreenShare(client: Client): Promise<void> {
       stopScreenShare();
     });
 
-    // 2. Launch Playwright to capture the page
+    // 2. Wait for HTTP server to be ready
+    const serverReady = await waitForHttpServer(HTTP_BASE);
+    if (!serverReady) {
+      logger.warn(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} non disponible — abandon`);
+      isStreaming = false;
+      if (activeConnection) {
+        activeConnection.destroy();
+        activeConnection = null;
+      }
+      return;
+    }
+    logger.info(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} prêt`);
+
+    // 3. Launch Playwright to capture the page
     const { chromium } = await import("playwright");
     browserContext = await chromium.launch({
       headless: true,
@@ -101,10 +129,35 @@ async function startScreenShare(client: Client): Promise<void> {
     });
     page = await browserContext.newPage();
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(RELEASES_URL, { waitUntil: "networkidle" });
+
+    // Retry page load up to 5 times
+    let pageLoaded = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await page.goto(RELEASES_URL, { waitUntil: "networkidle", timeout: 15000 });
+        pageLoaded = true;
+        break;
+      } catch (err) {
+        logger.warn(
+          `[VoiceScreenShare] Page load tentative ${attempt + 1}/5 échouée: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+    if (!pageLoaded) {
+      logger.error(`[VoiceScreenShare] Impossible de charger ${RELEASES_URL} après 5 tentatives`);
+      isStreaming = false;
+      await browserContext.close().catch(() => {});
+      browserContext = null;
+      if (activeConnection) {
+        activeConnection.destroy();
+        activeConnection = null;
+      }
+      return;
+    }
     logger.info(`[VoiceScreenShare] Page ${RELEASES_URL} chargée`);
 
-    // 3. Create ffmpeg process to encode screenshots as video stream
+    // 4. Create ffmpeg process to encode screenshots as video stream
     const videoStream = new PassThrough();
     ffmpegProcess = spawn(
       "ffmpeg",
@@ -149,7 +202,7 @@ async function startScreenShare(client: Client): Promise<void> {
     // Pipe ffmpeg output to audio resource
     videoStream.pipe(ffmpegProcess.stdin!);
 
-    // 4. Create audio player and resource
+    // 5. Create audio player and resource
     const player = createAudioPlayer();
     const resource = createAudioResource(ffmpegProcess.stdout!, {
       inputType: "ogg/opus" as never,
@@ -170,7 +223,7 @@ async function startScreenShare(client: Client): Promise<void> {
       logger.error(`[VoiceScreenShare] Player error: ${err.message}`);
     });
 
-    // 5. Capture screenshots every 100ms and feed to ffmpeg
+    // 6. Capture screenshots every 100ms and feed to ffmpeg
     screenshotInterval = setInterval(async () => {
       if (!page || !ffmpegProcess?.stdin?.writable) return;
       try {
@@ -300,7 +353,8 @@ export async function startPlatformScreenShare(
       stopPlatformScreenShare(platform);
     });
 
-    // Launch Playwright for this platform page
+    // Wait for HTTP server then load page with retries
+    await waitForHttpServer(HTTP_BASE);
     const { chromium } = await import("playwright");
     const browser = await chromium.launch({
       headless: true,
@@ -308,8 +362,27 @@ export async function startPlatformScreenShare(
     });
     const pg = await browser.newPage();
     await pg.setViewportSize({ width: 1920, height: 1080 });
-    const url = `http://localhost:3000/releases?platform=${encodeURIComponent(platform)}`;
-    await pg.goto(url, { waitUntil: "networkidle" });
+    const url = `${HTTP_BASE}/releases?platform=${encodeURIComponent(platform)}`;
+
+    let pageLoaded = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await pg.goto(url, { waitUntil: "networkidle", timeout: 15000 });
+        pageLoaded = true;
+        break;
+      } catch (err) {
+        logger.warn(
+          `[VoiceScreenShare] Page load ${platform} tentative ${attempt + 1}/5: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+    if (!pageLoaded) {
+      logger.error(`[VoiceScreenShare] Impossible de charger ${url}`);
+      await browser.close().catch(() => {});
+      connection.destroy();
+      return;
+    }
     logger.info(`[VoiceScreenShare] Page ${url} chargée pour ${platform}`);
 
     // ffmpeg to encode screenshots as video
