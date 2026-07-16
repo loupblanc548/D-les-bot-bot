@@ -405,7 +405,7 @@ async function handleAiChatMention(
     // ── Vérifier les conversations expirées avant de continuer ──
     await checkExpiredConversations();
 
-    // ── Rate limiting DÉSACTIVÉ — bot débridé ──
+    // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -517,7 +517,7 @@ async function handleDMMessage(
     const content = message.content.trim();
     if (!content) return;
 
-    // ── Rate limiting DÉSACTIVÉ — bot débridé ──
+    // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -657,7 +657,7 @@ async function handleContextualAiChat(
     cleanedContent = cleanedContent.trim();
     if (!cleanedContent) return;
 
-    // ── Cooldown DÉSACTIVÉ — bot débridé ──
+    // ── Cooldown géré par runAgentLoop (3s par user) ──
 
     // ── TOUS les messages vont à l'IA, peu importe le contenu ou la langue ──
     await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);

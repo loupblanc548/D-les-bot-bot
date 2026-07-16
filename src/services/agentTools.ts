@@ -515,6 +515,21 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
 ];
 
+/**
+ * Génère automatiquement une liste lisible des tools disponibles
+ * pour l'inclure dans le system prompt de l'agent.
+ * Évite la désynchronisation entre les tools réels et le prompt.
+ */
+export function generateToolListPrompt(tools: AgentToolDef[]): string {
+  const lines: string[] = [];
+  for (const t of tools) {
+    const name = t.function.name;
+    const desc = t.function.description?.slice(0, 120) || "";
+    lines.push(`- ${name} : ${desc}`);
+  }
+  return lines.join("\n");
+}
+
 // Fusionner avec les tools étendus (APIs gratuites + Discord + bot features)
 export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...AGENT_TOOLS,

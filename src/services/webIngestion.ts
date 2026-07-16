@@ -13,6 +13,7 @@ import { JSDOM } from "jsdom";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { embedTexts, cosineSimilarity, isCohereAvailable } from "./cohere.js";
 
 const AI_BASE_URL = config.openRouterBaseUrl || "https://openrouter.ai/api/v1";
 const AI_MODEL = config.openRouterModel || "meta-llama/llama-3.1-8b-instruct:free";
@@ -131,6 +132,15 @@ export async function ingestUrl(
 
   // Stocker en DB pour réutilisation par l'agent
   try {
+    // Générer un embedding pour la recherche sémantique
+    let embedding: number[] | null = null;
+    if (isCohereAvailable()) {
+      const embeddings = await embedTexts([`${extracted.title} ${summary}`]);
+      if (embeddings && embeddings[0]) {
+        embedding = embeddings[0];
+      }
+    }
+
     await prisma.agentKnowledge.upsert({
       where: { url },
       create: {
@@ -149,6 +159,13 @@ export async function ingestUrl(
         updatedAt: new Date(),
       },
     });
+
+    // Stocker l'embedding dans un cache en mémoire (évite de requêter Cohere à chaque recherche)
+    if (embedding) {
+      knowledgeEmbeddings.set(url, embedding);
+      logger.debug(`[WebIngestion] Embedding stored for ${url} (${embedding.length} dims)`);
+    }
+
     logger.info(
       `[WebIngestion] Stored "${extracted.title}" (${extracted.wordCount} words) from ${url}`,
     );
@@ -160,14 +177,60 @@ export async function ingestUrl(
   return { title: extracted.title, summary, wordCount: extracted.wordCount };
 }
 
+// Cache d'embeddings en mémoire pour la recherche sémantique
+const knowledgeEmbeddings = new Map<string, number[]>();
+
 /**
  * Recherche dans la base de connaissances ingérée.
+ * Utilise les embeddings sémantiques si Cohere est disponible,
+ * sinon fallback sur recherche textuelle ILIKE.
  */
 export async function searchKnowledge(
   query: string,
   limit = 5,
 ): Promise<{ title: string; summary: string; url: string }[]> {
   try {
+    // Récupérer tous les documents (la base est petite)
+    const allDocs = await prisma.agentKnowledge.findMany({
+      take: 100,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (allDocs.length === 0) return [];
+
+    // Si Cohere est disponible, faire une recherche sémantique
+    if (isCohereAvailable()) {
+      const queryEmbedding = await embedTexts([query]);
+      if (queryEmbedding && queryEmbedding[0]) {
+        const queryVec = queryEmbedding[0];
+
+        // Calculer les embeddings manquants et scorer tous les docs
+        const scored = await Promise.all(
+          allDocs.map(async (doc) => {
+            let docEmbedding = knowledgeEmbeddings.get(doc.url);
+            if (!docEmbedding) {
+              const embeddings = await embedTexts([`${doc.title} ${doc.summary}`]);
+              if (embeddings && embeddings[0]) {
+                docEmbedding = embeddings[0];
+                knowledgeEmbeddings.set(doc.url, docEmbedding);
+              }
+            }
+            const score = docEmbedding ? cosineSimilarity(queryVec, docEmbedding) : 0;
+            return { doc, score };
+          }),
+        );
+
+        // Trier par score de similarité
+        scored.sort((a, b) => b.score - a.score);
+        return scored.slice(0, limit).map(({ doc }) => ({
+          title: doc.title,
+          summary: doc.summary || doc.content.slice(0, 500),
+          url: doc.url,
+        }));
+      }
+    }
+
+    // Fallback: recherche textuelle ILIKE
     const results = await prisma.agentKnowledge.findMany({
       where: {
         OR: [

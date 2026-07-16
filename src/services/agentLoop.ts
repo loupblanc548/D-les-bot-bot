@@ -16,7 +16,12 @@ import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAvailableFreeModels } from "./modelRotation.js";
-import { ALL_AGENT_TOOLS, executeTool, type ToolContext } from "./agentTools.js";
+import {
+  ALL_AGENT_TOOLS,
+  executeTool,
+  generateToolListPrompt,
+  type ToolContext,
+} from "./agentTools.js";
 import prisma from "../prisma.js";
 import {
   beginInteraction,
@@ -43,13 +48,56 @@ import {
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const MAX_ITERATIONS = 5;
+const MAX_ITERATIONS = 8;
 const MAX_HISTORY_MESSAGES = 15;
 const MAX_MEMORY_FACTS = 5;
-const AGENT_LOOP_TIMEOUT_MS = 30_000; // 30s max for the entire agent loop
+const AGENT_LOOP_TIMEOUT_MS = 45_000; // 45s max for the entire agent loop (was 30s)
 
 // Per-user concurrency lock: prevents the same user from triggering multiple agent loops
 const activeAgentLoops = new Set<string>();
+
+// Per-user cooldown: prevents spam @mentions from saturating the API
+const userCooldowns = new Map<string, number>();
+const COOLDOWN_MS = 3_000; // 3s between agent calls per user
+
+// Tool failure tracker: auto-disable tools that crash repeatedly
+const toolFailureCounts = new Map<string, { count: number; lastFail: number }>();
+const TOOL_FAILURE_THRESHOLD = 5; // disable after 5 consecutive failures
+const TOOL_FAILURE_WINDOW_MS = 60_000; // within 60s
+const disabledTools = new Set<string>();
+
+function isToolDisabled(toolName: string): boolean {
+  return disabledTools.has(toolName);
+}
+
+function recordToolFailure(toolName: string): void {
+  const entry = toolFailureCounts.get(toolName) || { count: 0, lastFail: 0 };
+  const now = Date.now();
+  // Reset if outside the window
+  if (now - entry.lastFail > TOOL_FAILURE_WINDOW_MS) {
+    entry.count = 0;
+  }
+  entry.count++;
+  entry.lastFail = now;
+  toolFailureCounts.set(toolName, entry);
+
+  if (entry.count >= TOOL_FAILURE_THRESHOLD && !disabledTools.has(toolName)) {
+    disabledTools.add(toolName);
+    logger.warn(
+      `[AgentLoop] ⛔ Tool "${toolName}" auto-disabled after ${entry.count} failures in ${TOOL_FAILURE_WINDOW_MS / 1000}s`,
+    );
+  }
+}
+
+function recordToolSuccess(toolName: string): void {
+  // Reset failure count on success
+  toolFailureCounts.delete(toolName);
+  // Re-enable if was disabled
+  if (disabledTools.has(toolName)) {
+    disabledTools.delete(toolName);
+    logger.info(`[AgentLoop] ✅ Tool "${toolName}" re-enabled after success`);
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -120,17 +168,26 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
  * @returns La réponse finale de l'IA
  */
 export async function runAgentLoop(message: Message, userMessage: string): Promise<string> {
+  // Cooldown check: prevent spam @mentions
+  const now = Date.now();
+  const lastCall = userCooldowns.get(message.author.id);
+  if (lastCall && now - lastCall < COOLDOWN_MS) {
+    const wait = Math.ceil((COOLDOWN_MS - (now - lastCall)) / 1000);
+    return `⏳ Patiente ${wait}s avant de me re-solliciter, soldat !`;
+  }
+
   // Concurrency lock: prevent the same user from running multiple agent loops
   if (activeAgentLoops.has(message.author.id)) {
     return "⏳ Je traite déjà ton message précédent, soldat ! Patiente un instant.";
   }
   activeAgentLoops.add(message.author.id);
+  userCooldowns.set(message.author.id, now);
 
   try {
     return await Promise.race([
       runAgentLoopInternal(message, userMessage),
       new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error("AgentLoop timeout (30s)")), AGENT_LOOP_TIMEOUT_MS),
+        setTimeout(() => reject(new Error("AgentLoop timeout (45s)")), AGENT_LOOP_TIMEOUT_MS),
       ),
     ]);
   } finally {
@@ -215,7 +272,9 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   const breakerState = beginInteraction(message.author.id, message.guildId || "");
 
   // ─── MODULE A: Planification multi-étapes ───
-  const availableTools = routeTools(userMessage, ALL_AGENT_TOOLS);
+  const routedTools = routeTools(userMessage, ALL_AGENT_TOOLS);
+  // Filter out auto-disabled tools
+  const availableTools = routedTools.filter((t) => !isToolDisabled(t.function.name));
   const toolNames = availableTools.map((t) => t.function.name);
   const plan = await generatePlan(userMessage, toolNames);
   const planPrompt = plan ? formatPlanForPrompt(plan) : "";
@@ -442,6 +501,9 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
     "- Sois concis, naturel, réponds en français.\n" +
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
+    "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
+    generateToolListPrompt(ALL_AGENT_TOOLS) +
+    "\n\n" +
     (longTermMemory ? longTermMemory : "") +
     memoryPrompt +
     planPrompt +
@@ -608,10 +670,25 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
         let result;
         try {
-          result = await executeTool(toolName, args, ctx);
+          // Auto-disable check: skip tools that have been failing repeatedly
+          if (isToolDisabled(toolName)) {
+            logger.info(`[AgentLoop] ⏭️ Tool ${toolName} skipped (auto-disabled)`);
+            result = {
+              success: false,
+              data: `Tool ${toolName} temporairement indisponible (trop d'erreurs récentes). Réessaie plus tard.`,
+            };
+          } else {
+            result = await executeTool(toolName, args, ctx);
+            if (result.success) {
+              recordToolSuccess(toolName);
+            } else {
+              recordToolFailure(toolName);
+            }
+          }
         } catch (toolErr) {
           const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
           logger.warn(`[AgentLoop] Tool ${toolName} crashed: ${toolErrMsg}`);
+          recordToolFailure(toolName);
           result = { success: false, data: `Erreur interne (tool ${toolName}). Réessaie.` };
         }
         logger.info(
