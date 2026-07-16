@@ -89,6 +89,97 @@ export function isComplexRequest(userMessage: string): boolean {
   return false;
 }
 
+// ─── Ambiguity detection (no LLM needed) ─────────────────────────────────────
+
+/**
+ * Détecte si une requête est ambiguë et nécessite une clarification.
+ * Retourne les questions à poser si ambigu, null sinon.
+ */
+export function detectAmbiguity(userMessage: string): string[] | null {
+  const lower = userMessage.toLowerCase().trim();
+  const words = lower.split(/\s+/);
+  const questions: string[] = [];
+
+  // OSINT sans cible claire
+  if (
+    (lower.includes("scan") || lower.includes("osint") || lower.includes("investig")) &&
+    !lower.includes("@") &&
+    !/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(lower) &&
+    !lower.includes(".") &&
+    words.length < 8
+  ) {
+    questions.push("Quelle cible exacte veux-tu scanner ? (domaine, IP, ou email)");
+  }
+
+  // Modération sans précision
+  if (
+    (lower.includes("ban") ||
+      lower.includes("kick") ||
+      lower.includes("timeout") ||
+      lower.includes("warn")) &&
+    !lower.includes("@") &&
+    !lower.match(/\d{17,19}/)
+  ) {
+    questions.push("Quel utilisateur veux-tu sanctionner ? (mentionne-le avec @)");
+  }
+
+  // Génération d'image sans description
+  if (lower.includes("génère") && lower.includes("image") && words.length < 6) {
+    questions.push("Quelle image veux-tu que je génère ? Décris-la (sujet, style, ambiance).");
+  }
+
+  // Analyse de lien sans URL
+  if (
+    (lower.includes("analyse") || lower.includes("résume") || lower.includes("lis")) &&
+    lower.includes("lien") &&
+    !lower.includes("http")
+  ) {
+    questions.push("Donne-moi le lien (URL) que tu veux que j'analyse.");
+  }
+
+  // Ingestion de doc sans URL
+  if (
+    (lower.includes("ingère") || lower.includes("apprends") || lower.includes("documentation")) &&
+    !lower.includes("http") &&
+    words.length < 10
+  ) {
+    questions.push("Quelle(s) URL(s) de documentation veux-tu que j'ingère ?");
+  }
+
+  // Code sans langage précisé
+  if (
+    (lower.includes("code") || lower.includes("script") || lower.includes("programme")) &&
+    !lower.includes("python") &&
+    !lower.includes("javascript") &&
+    !lower.includes("js") &&
+    !lower.includes("shell") &&
+    !lower.includes("bash") &&
+    words.length < 10
+  ) {
+    questions.push("Quel langage veux-tu que j'utilise ? (Python, JavaScript, Shell)");
+  }
+
+  // "Fais un truc" trop vague
+  if (
+    words.length <= 4 &&
+    (lower.includes("fais") || lower.includes("aide") || lower.includes("peux tu"))
+  ) {
+    questions.push("Peux-tu détailler ce que tu veux que je fasse exactement ?");
+  }
+
+  // Recherche sans sujet clair
+  if (
+    (lower.includes("cherche") || lower.includes("trouve") || lower.includes("recherche")) &&
+    words.length < 6 &&
+    !lower.includes("quoi") &&
+    !lower.includes("qui")
+  ) {
+    questions.push("Que veux-tu que je recherche exactement ?");
+  }
+
+  return questions.length > 0 ? questions : null;
+}
+
 // ─── LLM Planner ─────────────────────────────────────────────────────────────
 
 /**

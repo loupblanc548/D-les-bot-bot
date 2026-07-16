@@ -30,7 +30,7 @@ import {
   tripBreaker,
   createTrippedEmbed,
 } from "./circuitBreaker.js";
-import { generatePlan, formatPlanForPrompt } from "./agentPlanner.js";
+import { generatePlan, formatPlanForPrompt, detectAmbiguity } from "./agentPlanner.js";
 import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
 import { reflectOnToolResult, resetRetries, type ToolExecutionResult } from "./agentReflector.js";
 import {
@@ -271,6 +271,21 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   // ─── MODULE 1: Circuit Breaker — track execution state ───
   const breakerState = beginInteraction(message.author.id, message.guildId || "");
 
+  // ─── MODULE 0: Ambiguity detection — ask clarifying questions before executing ───
+  const ambiguityQuestions = detectAmbiguity(userMessage);
+  if (ambiguityQuestions) {
+    const formattedQuestions =
+      ambiguityQuestions.length === 1
+        ? `🤔 ${ambiguityQuestions[0]}`
+        : "🤔 Avant de commencer, j'ai besoin de précisions:\n" +
+          ambiguityQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n");
+    logger.info(
+      `[AgentLoop] ❓ Ambiguity detected — asking ${ambiguityQuestions.length} question(s)`,
+    );
+    completeInteraction(breakerState);
+    return formattedQuestions;
+  }
+
   // ─── MODULE A: Planification multi-étapes ───
   const routedTools = routeTools(userMessage, ALL_AGENT_TOOLS);
   // Filter out auto-disabled tools
@@ -501,6 +516,21 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
     "- Sois concis, naturel, réponds en français.\n" +
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
+    "\n## CLARIFICATION — RÈGLE CRITIQUE\n" +
+    "- AVANT d'exécuter une tâche complexe (OSINT, analyse, génération, modération, ingestion de doc), pose TOUJOURS 1 à 3 questions de clarification pour être sûr de faire le bon truc.\n" +
+    "- Les questions doivent être courtes, précises, et en rapport direct avec ce que l'utilisateur a demandé.\n" +
+    "- Exemples de questions à poser selon le contexte :\n" +
+    "  * OSINT : « Tu veux scanner quel domaine/IP/email exactement ? » / « Tu veux un scan complet ou juste un aspect (DNS, WHOIS, ports) ? »\n" +
+    "  * Analyse de lien : « Tu veux juste un résumé ou une analyse détaillée ? » / « Tu veux que je stocke ça en mémoire pour plus tard ? »\n" +
+    "  * Ingestion de doc : « Combien d'URLs à ingérer ? » / « Tu veux un résumé court ou détaillé pour chaque page ? »\n" +
+    "  * Modération : « Quelle sanction ? warn/timeout/ban ? » / « Pour quelle raison ? » / « Quelle durée ? »\n" +
+    "  * Génération d'image : « Quel style ? réaliste/anime/3D ? » / « Quel format ? carré/paysage ? »\n" +
+    "  * Code : « Quel langage ? » / « Tu veux juste le code ou aussi une explication ? »\n" +
+    "  * Recherche : « Tu veux des résultats en français ou toutes langues ? » / « Combien de résultats ? »\n" +
+    "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, question factuelle), NE pose PAS de questions, réponds directement.\n" +
+    "- Si la demande est AMBIGUË ou manque de détails cruciaux, pose ta question AU LIEU de deviner.\n" +
+    "- Quand tu poses une question, ne lance AUCUN tool — attends la réponse de l'utilisateur.\n" +
+    "- Format: pose les questions sous forme de liste numérotée si plusieurs, sinon une question directe.\n" +
     "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(ALL_AGENT_TOOLS) +
     "\n\n" +
