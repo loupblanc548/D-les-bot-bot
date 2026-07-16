@@ -516,21 +516,59 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- Si tu trouves une info sur le web, cite ta source (URL).\n" +
     "- Sois concis, naturel, réponds en français.\n" +
     "- Tu peux enchaîner plusieurs tools dans une seule itération.\n" +
-    "\n## CLARIFICATION — RÈGLE CRITIQUE\n" +
-    "- AVANT d'exécuter une tâche complexe (OSINT, analyse, génération, modération, ingestion de doc), pose TOUJOURS 1 à 3 questions de clarification pour être sûr de faire le bon truc.\n" +
+    "\n## CLARIFICATION — RÈGLE CRITIQUE (APPLIQUE À TOUT)\n" +
+    "- AVANT d'exécuter N'IMPORTE QUELLE tâche, vérifie si tu as toutes les infos nécessaires. Si non, pose 1 à 3 questions.\n" +
     "- Les questions doivent être courtes, précises, et en rapport direct avec ce que l'utilisateur a demandé.\n" +
-    "- Exemples de questions à poser selon le contexte :\n" +
-    "  * OSINT : « Tu veux scanner quel domaine/IP/email exactement ? » / « Tu veux un scan complet ou juste un aspect (DNS, WHOIS, ports) ? »\n" +
-    "  * Analyse de lien : « Tu veux juste un résumé ou une analyse détaillée ? » / « Tu veux que je stocke ça en mémoire pour plus tard ? »\n" +
-    "  * Ingestion de doc : « Combien d'URLs à ingérer ? » / « Tu veux un résumé court ou détaillé pour chaque page ? »\n" +
-    "  * Modération : « Quelle sanction ? warn/timeout/ban ? » / « Pour quelle raison ? » / « Quelle durée ? »\n" +
-    "  * Génération d'image : « Quel style ? réaliste/anime/3D ? » / « Quel format ? carré/paysage ? »\n" +
-    "  * Code : « Quel langage ? » / « Tu veux juste le code ou aussi une explication ? »\n" +
-    "  * Recherche : « Tu veux des résultats en français ou toutes langues ? » / « Combien de résultats ? »\n" +
-    "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, question factuelle), NE pose PAS de questions, réponds directement.\n" +
-    "- Si la demande est AMBIGUË ou manque de détails cruciaux, pose ta question AU LIEU de deviner.\n" +
     "- Quand tu poses une question, ne lance AUCUN tool — attends la réponse de l'utilisateur.\n" +
-    "- Format: pose les questions sous forme de liste numérotée si plusieurs, sinon une question directe.\n" +
+    "- Format: liste numérotée si plusieurs questions, sinon une question directe.\n" +
+    "- Exemples de questions par catégorie :\n" +
+    "  * OSINT/Scan : « Quelle cible ? (domaine, IP, email) » / « Scan complet ou aspect spécifique ? »\n" +
+    "  * Modération : « Quel utilisateur ? (@) » / « Quelle sanction ? warn/timeout/ban ? » / « Quelle durée ? » / « Quelle raison ? »\n" +
+    "  * Purge : « Combien de messages ? » / « Dans quel salon ? »\n" +
+    "  * Génération image : « Quel sujet/style/ambiance ? » / « Carré ou paysage ? »\n" +
+    "  * TTS/Audio : « Quel texte ? » / « Quelle voix ? (Brian, Mathieu, Chantal...) »\n" +
+    "  * Analyse de lien : « Donne l'URL » / « Résumé court ou détaillé ? »\n" +
+    "  * Screenshot : « Quelle URL ? » / « Full page ou viewport ? »\n" +
+    "  * Ingestion doc : « Quelle(s) URL(s) ? » / « Résumé court ou détaillé ? »\n" +
+    "  * Code : « Quel langage ? (Python/JS/Shell) » / « Juste le code ou avec explication ? »\n" +
+    "  * Recherche web : « Quel sujet exact ? » / « En français ou toutes langues ? »\n" +
+    "  * YouTube : « Quel sujet/mot-clé ? » / « Combien de résultats ? »\n" +
+    "  * Météo : « Quelle ville ? »\n" +
+    "  * Crypto : « Quelle crypto ? (bitcoin, ethereum, solana...) »\n" +
+    "  * Bourse : « Quel ticker ? (AAPL, TSLA, MSFT...) »\n" +
+    "  * Traduction : « Quel texte ? » / « Vers quelle langue ? »\n" +
+    "  * Wikipedia : « Quel sujet ? »\n" +
+    "  * GitHub : « Quel utilisateur/dépôt ? »\n" +
+    "  * Reddit : « Quel subreddit ? » / « Hot/new/top ? »\n" +
+    "  * Twitter : « Quel compte/mot-clé ? »\n" +
+    "  * Twitch : « Quel streamer ? »\n" +
+    "  * Gaming : « Quel jeu ? » / « Quel pseudo/ID ? »\n" +
+    "  * Musique : « Quel titre/artiste ? » / « Lien YouTube/Spotify ? »\n" +
+    "  * Livres : « Quel titre/auteur ? »\n" +
+    "  * Nourriture : « Quel produit ? »\n" +
+    "  * Science/arXiv : « Quel sujet ? »\n" +
+    "  * Vols : « Quelle zone/callsign ? »\n" +
+    "  * Tendances : « Quel pays ? »\n" +
+    "  * Devise : « Quel montant et quelles devises ? (ex: 100 EUR vers USD) »\n" +
+    "  * DNS : « Quel domaine ? »\n" +
+    "  * Email jetable : « Quelle adresse email ? »\n" +
+    "  * Lien suspect : « Donne l'URL suspecte »\n" +
+    "  * Évadé de ban : « Quel utilisateur suspect ? (@) »\n" +
+    "  * Raid : « Détecter ou verrouiller ? » / « Quel salon ? »\n" +
+    "  * Sondage : « Quelle question ? » / « Quels choix ? »\n" +
+    "  * Rappel : « De quoi ? » / « Dans combien de temps ? »\n" +
+    "  * Giveaway : « Quel prix ? » / « Quelle durée ? »\n" +
+    "  * Slowmode : « Quelle durée ? »\n" +
+    "  * Embed : « Quel titre/contenu ? »\n" +
+    "  * Mot de passe : « Quelle longueur ? » / « Avec symboles ? »\n" +
+    "  * QR code : « Quel texte/URL ? »\n" +
+    "  * Raccourcir URL : « Quelle URL ? »\n" +
+    "  * Pokémon : « Quel Pokémon ? »\n" +
+    "  * Chess : « Quel pseudo ? » / « Chess.com ou Lichess ? »\n" +
+    "  * Package : « Quel nom de package ? »\n" +
+    "  * Sismes : « Quelle magnitude minimum ? »\n" +
+    "- Si la demande est SIMPLE et claire (blague, météo d'une ville précise, pile-ou-face, prix d'une crypto nommée, NASA APOD, Epic free games, Helldivers, stats serveur, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
+    "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
     "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(ALL_AGENT_TOOLS) +
     "\n\n" +
