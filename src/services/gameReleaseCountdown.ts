@@ -49,6 +49,94 @@ function getAllTargetChannels(): ServerConfig[] {
   return [];
 }
 
+// ─── Platform → Discord channel mapping ─────────────────────────────────────
+// Format .env: GAME_RELEASE_PC_CHANNEL=123, GAME_RELEASE_PS_CHANNEL=456, etc.
+function getPlatformChannelId(platforms: string[]): string | null {
+  const map: Record<string, string> = {
+    pc: process.env.GAME_RELEASE_PC_CHANNEL || "",
+    steam: process.env.GAME_RELEASE_PC_CHANNEL || "",
+    gog: process.env.GAME_RELEASE_PC_CHANNEL || "",
+    playstation: process.env.GAME_RELEASE_PS_CHANNEL || "",
+    ps: process.env.GAME_RELEASE_PS_CHANNEL || "",
+    ps4: process.env.GAME_RELEASE_PS_CHANNEL || "",
+    ps5: process.env.GAME_RELEASE_PS_CHANNEL || "",
+    xbox: process.env.GAME_RELEASE_XBOX_CHANNEL || "",
+    nintendo: process.env.GAME_RELEASE_NINTENDO_CHANNEL || "",
+    switch: process.env.GAME_RELEASE_NINTENDO_CHANNEL || "",
+  };
+
+  for (const p of platforms) {
+    const key = p.toLowerCase().trim();
+    // Check exact match
+    if (map[key]) return map[key];
+    // Check partial match (e.g. "PlayStation 5" contains "playstation")
+    for (const [mapKey, channelId] of Object.entries(map)) {
+      if (channelId && (key.includes(mapKey) || mapKey.includes(key))) return channelId;
+    }
+  }
+  return null;
+}
+
+// ─── On-demand voice channel creation for screen share ──────────────────────
+const platformVoiceChannels = new Map<string, string>(); // platform → channelId
+const screenSharePages = new Map<string, string>(); // platform → page URL
+
+async function ensureVoiceChannelForPlatform(
+  client: Client,
+  platform: string,
+): Promise<string | null> {
+  // Check if we already have a channel
+  const existing = platformVoiceChannels.get(platform);
+  if (existing) {
+    const guild = client.guilds.cache.get(getGuildId());
+    if (guild?.channels.cache.has(existing)) return existing;
+  }
+
+  const guildId = getGuildId();
+  if (!guildId) return null;
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return null;
+
+  // Find or create a category for game releases
+  let category = guild.channels.cache.find(
+    (c) => c.type === 4 && c.name.toLowerCase() === "🎮 game releases",
+  );
+
+  if (!category) {
+    try {
+      category = await guild.channels.create({
+        name: "🎮 Game Releases",
+        type: 4, // Category
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // Create voice channel for this platform
+  const channelName = `📺 ${platform.toUpperCase()} Countdown`;
+  try {
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: 2, // Voice
+      parent: category.id,
+    });
+    platformVoiceChannels.set(platform, channel.id);
+    logger.info(`[GameReleaseCountdown] Salon vocal créé: ${channelName} (${channel.id})`);
+    return channel.id;
+  } catch (err) {
+    logger.error(
+      `[GameReleaseCountdown] Erreur création salon vocal: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
+function getGuildId(): string {
+  return process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
+}
+
 interface TrackedRelease {
   messageId: string | null;
   channelId: string;
@@ -449,9 +537,6 @@ async function sendWebhookNotification(release: TrackedRelease, daysLeft: number
 
 // ─── Notifications J-7, J-1, J-0 ─────────────────────────────────────────────
 async function checkReleaseNotifications(client: Client): Promise<void> {
-  const targets = getAllTargetChannels();
-  if (targets.length === 0) return;
-
   for (const tracked of trackedReleases) {
     const daysLeft = Math.ceil(
       (tracked.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
@@ -469,18 +554,62 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
             ? `${roleMention}${emoji} **${tracked.gameName}** sort AUJOURD'HUI ! 🎊`
             : `${roleMention}${emoji} **${tracked.gameName}** sort dans ${days} jour(s) !`;
 
-        for (const target of targets) {
+        // Determine target channel based on platform
+        const platformChannelId = getPlatformChannelId(tracked.platforms);
+
+        let targetChannelIds: string[] = [];
+
+        if (platformChannelId) {
+          // Use dedicated platform channel
+          targetChannelIds = [platformChannelId];
+        } else {
+          // Fallback to all target channels
+          targetChannelIds = getAllTargetChannels().map((t) => t.channelId);
+        }
+
+        for (const channelId of targetChannelIds) {
           try {
-            const channel = client.channels.cache.get(target.channelId);
+            const channel = client.channels.cache.get(channelId);
             if (channel && "send" in channel) {
               const embed = buildReleaseEmbed(tracked);
-              await channel.send({ content: message, embeds: [embed] });
-              logger.info(`[GameReleaseCountdown] Notif J-${days}: ${tracked.gameName}`);
+              const platformLabel =
+                tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
+              const pageUrl = `http://localhost:3000/releases?platform=${encodeURIComponent(tracked.platforms[0] || "all")}`;
+              embed.addFields({
+                name: "🔗 Page countdown",
+                value: `[Voir le compte à rebours](${pageUrl})`,
+                inline: false,
+              });
+              await channel.send({
+                content: `${message}\n*Plateforme: ${platformLabel}*`,
+                embeds: [embed],
+              });
+              logger.info(
+                `[GameReleaseCountdown] Notif J-${days}: ${tracked.gameName} → salon ${channelId}`,
+              );
             }
           } catch (err) {
             logger.error(
               `[GameReleaseCountdown] Erreur notif J-${days}: ${err instanceof Error ? err.message : String(err)}`,
             );
+          }
+        }
+
+        // Create on-demand voice channel for screen share if a release is approaching
+        if (days === 7 || days === 1 || days === 0) {
+          const primaryPlatform = tracked.platforms[0]?.toLowerCase() || "all";
+          const voiceChannelId = await ensureVoiceChannelForPlatform(client, primaryPlatform);
+          if (voiceChannelId) {
+            logger.info(
+              `[GameReleaseCountdown] Salon vocal prêt pour ${primaryPlatform}: ${voiceChannelId}`,
+            );
+            // Trigger screen share for this platform
+            try {
+              const { startPlatformScreenShare } = await import("./voiceScreenShare.js");
+              await startPlatformScreenShare(client, voiceChannelId, primaryPlatform);
+            } catch {
+              // Screen share module may not be ready
+            }
           }
         }
 

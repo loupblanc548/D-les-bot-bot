@@ -248,3 +248,138 @@ export function startVoiceScreenShare(client: Client): void {
 export function stopVoiceScreenShare(): void {
   stopScreenShare();
 }
+
+// ─── Per-platform screen share ───────────────────────────────────────────────
+
+const platformStreams = new Map<
+  string,
+  {
+    connection: VoiceConnection;
+    interval: NodeJS.Timeout;
+    ffmpeg: ReturnType<typeof spawn>;
+    browser: any;
+    page: any;
+  }
+>();
+
+export async function startPlatformScreenShare(
+  client: Client,
+  channelId: string,
+  platform: string,
+): Promise<void> {
+  // Don't create duplicate streams
+  if (platformStreams.has(platform)) {
+    logger.debug(`[VoiceScreenShare] Stream déjà actif pour ${platform}`);
+    return;
+  }
+
+  const guildId = getGuildId();
+  if (!guildId || !channelId) return;
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return;
+
+  logger.info(`[VoiceScreenShare] Démarrage stream plateforme ${platform} → salon ${channelId}`);
+
+  try {
+    const connection = joinVoiceChannel({
+      channelId,
+      guildId,
+      adapterCreator: guild.voiceAdapterCreator as never,
+      selfDeaf: false,
+      selfMute: false,
+    });
+
+    connection.on(VoiceConnectionStatus.Disconnected, () => {
+      logger.info(`[VoiceScreenShare] Déconnexion stream ${platform}`);
+      stopPlatformScreenShare(platform);
+    });
+
+    // Launch Playwright for this platform page
+    const { chromium } = await import("playwright");
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    const pg = await browser.newPage();
+    await pg.setViewportSize({ width: 1920, height: 1080 });
+    const url = `http://localhost:3000/releases?platform=${encodeURIComponent(platform)}`;
+    await pg.goto(url, { waitUntil: "networkidle" });
+    logger.info(`[VoiceScreenShare] Page ${url} chargée pour ${platform}`);
+
+    // ffmpeg to encode screenshots as video
+    const ffmpeg = spawn(
+      "ffmpeg",
+      [
+        "-re",
+        "-f",
+        "image2pipe",
+        "-vcodec",
+        "png",
+        "-r",
+        "10",
+        "-i",
+        "-",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-tune",
+        "zerolatency",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "opus",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "pipe:1",
+      ],
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
+
+    ffmpeg.stdin?.on("error", () => {});
+    ffmpeg.stdout?.on("error", () => {});
+    ffmpeg.stderr?.on("data", () => {});
+
+    const player = createAudioPlayer();
+    const resource = createAudioResource(ffmpeg.stdout!, {
+      inputType: "ogg/opus" as never,
+    });
+    player.play(resource);
+    connection.subscribe(player);
+
+    // Capture screenshots every 100ms
+    const interval = setInterval(async () => {
+      if (!pg || !ffmpeg.stdin?.writable) return;
+      try {
+        const screenshot = await pg.screenshot({ type: "png" });
+        ffmpeg.stdin.write(screenshot);
+      } catch {
+        // Page might be loading
+      }
+    }, 100);
+
+    platformStreams.set(platform, { connection, interval, ffmpeg, browser, page: pg });
+    logger.info(`[VoiceScreenShare] Stream ${platform} actif ✅`);
+  } catch (err) {
+    logger.error(
+      `[VoiceScreenShare] Erreur stream ${platform}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+function stopPlatformScreenShare(platform: string): void {
+  const stream = platformStreams.get(platform);
+  if (!stream) return;
+
+  clearInterval(stream.interval);
+  stream.ffmpeg.stdin?.end();
+  stream.ffmpeg.kill("SIGTERM");
+  stream.page?.close?.().catch(() => {});
+  stream.browser?.close?.().catch(() => {});
+  stream.connection.destroy();
+  platformStreams.delete(platform);
+  logger.info(`[VoiceScreenShare] Stream ${platform} arrêté`);
+}

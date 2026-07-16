@@ -216,17 +216,28 @@ function buildReleasesPage(): string {
 </head>
 <body>
 <div id="app">
-  <div class="header">🎮 GAME RELEASE COUNTDOWN — PARTAGE D'ÉCRAN</div>
+  <div class="header">🎮 <span id="header-title">GAME RELEASE COUNTDOWN</span> — PARTAGE D'ÉCRAN</div>
   <div class="games-container" id="games"></div>
   <div class="footer">Mise à jour automatique • Données IGDB • Actualisation toutes les 60 secondes</div>
 </div>
 <script>
   let releases = [];
+  const urlParams = new URLSearchParams(window.location.search);
+  const platformFilter = (urlParams.get('platform') || 'all').toLowerCase();
+  const platformTitle = platformFilter === 'all' ? 'GAME RELEASE COUNTDOWN' : platformFilter.toUpperCase() + ' — GAME RELEASE COUNTDOWN';
 
   async function fetchData() {
     try {
       const res = await fetch('/releases/data');
-      releases = await res.json();
+      let all = await res.json();
+      if (platformFilter !== 'all') {
+        all = all.filter(function(g) {
+          return (g.platforms || []).some(function(p) {
+            return p.toLowerCase().includes(platformFilter) || platformFilter.includes(p.toLowerCase());
+          });
+        });
+      }
+      releases = all;
       render();
     } catch (e) {
       console.error('Fetch error:', e);
@@ -300,6 +311,7 @@ function buildReleasesPage(): string {
   }
 
   // Fetch data every 60s
+  document.getElementById('header-title').textContent = platformTitle;
   fetchData();
   setInterval(fetchData, 60000);
   setInterval(tick, 1000);
