@@ -6,6 +6,7 @@ import { handleWebhookRequest } from "./webhookTriggers.js";
 import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
 import { getModelRotationStatus } from "./modelRotation.js";
 import { getCacheStats } from "./aiCache.js";
+import { attachReleasesEndpoint } from "./gameReleaseCountdownWeb.js";
 import type { Client } from "discord.js";
 
 let server: http.Server | null = null;
@@ -119,6 +120,11 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /health/cache - AI cache stats`);
     logger.info(`  - GET /metrics - Prometheus metrics`);
     logger.info(`  - POST /webhook/<secret> - External webhook triggers`);
+    logger.info(`  - GET /releases - Game release countdown (partage d'écran)`);
+    logger.info(`  - GET /releases/data - Game release JSON data`);
+
+    // Attach releases endpoint for screen share
+    if (server) attachReleasesEndpoint(server);
   });
 }
 
