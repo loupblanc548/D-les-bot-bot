@@ -14,8 +14,69 @@ export function startBackupService(client: Client) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
     logger.info("[Backup] Dossier ./backups/ cree");
   }
-  cron.schedule("0 2 * * 1", () => { performBackup(client); });
-  logger.info("[Backup] Service de sauvegarde programmé (lundi 02:00, hebdomadaire)");
+  // Backup hebdomadaire complet (lundi 02:00)
+  cron.schedule("0 2 * * 1", () => {
+    performBackup(client);
+  });
+  // Backup automatique DB toutes les 6 heures
+  cron.schedule("0 */6 * * *", () => {
+    performAutoBackup(client);
+  });
+  logger.info("[Backup] Service de sauvegarde programmé (hebdomadaire + auto 6h)");
+}
+
+async function performAutoBackup(client: Client) {
+  try {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const ts =
+      now.getFullYear() +
+      "-" +
+      pad(now.getMonth() + 1) +
+      "-" +
+      pad(now.getDate()) +
+      "-" +
+      pad(now.getHours()) +
+      pad(now.getMinutes());
+    const backupName = "auto-backup-" + ts + ".db";
+    const backupPath = path.join(BACKUP_DIR, backupName);
+
+    // Try pg_dump for Neon/PostgreSQL
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && dbUrl.startsWith("postgresql")) {
+      const { execFile } = await import("child_process");
+      const { promisify } = await import("util");
+      const execFileAsync = promisify(execFile);
+      try {
+        await execFileAsync("pg_dump", [dbUrl, "-f", backupPath], { timeout: 120_000 });
+        logger.info(`[Backup] Auto-backup PostgreSQL: ${backupName}`);
+      } catch {
+        // Fallback: just copy sqlite if exists
+        if (fs.existsSync(DB_PATH)) {
+          fs.copyFileSync(DB_PATH, backupPath);
+          logger.info(`[Backup] Auto-backup SQLite: ${backupName}`);
+        }
+      }
+    } else if (fs.existsSync(DB_PATH)) {
+      fs.copyFileSync(DB_PATH, backupPath);
+      logger.info(`[Backup] Auto-backup SQLite: ${backupName}`);
+    }
+
+    // Cleanup old auto-backups (keep last 7)
+    const files = fs
+      .readdirSync(BACKUP_DIR)
+      .filter((f) => f.startsWith("auto-backup-"))
+      .map((f) => ({ name: f, time: fs.statSync(path.join(BACKUP_DIR, f)).mtime.getTime() }))
+      .sort((a, b) => b.time - a.time);
+
+    for (const file of files.slice(7)) {
+      fs.unlinkSync(path.join(BACKUP_DIR, file.name));
+    }
+  } catch (err) {
+    logger.error(
+      `[Backup] Erreur auto-backup: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 async function performBackup(client: Client) {
@@ -26,12 +87,23 @@ async function performBackup(client: Client) {
     }
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    const ts = now.getFullYear() + "-" + pad(now.getMonth()+1) + "-" + pad(now.getDate()) + "-" + pad(now.getHours()) + pad(now.getMinutes());
+    const ts =
+      now.getFullYear() +
+      "-" +
+      pad(now.getMonth() + 1) +
+      "-" +
+      pad(now.getDate()) +
+      "-" +
+      pad(now.getHours()) +
+      pad(now.getMinutes());
     const backupName = "backup-db-" + ts + ".db";
     const backupPath = path.join(BACKUP_DIR, backupName);
     fs.copyFileSync(DB_PATH, backupPath);
     logger.info("[Backup] Sauvegarde creee : " + backupName);
-    const files = fs.readdirSync(BACKUP_DIR).filter((f: string) => f.startsWith("backup-db-") && f.endsWith(".db")).sort();
+    const files = fs
+      .readdirSync(BACKUP_DIR)
+      .filter((f: string) => f.startsWith("backup-db-") && f.endsWith(".db"))
+      .sort();
     while (files.length > MAX_BACKUPS) {
       const oldest = files.shift()!;
       fs.unlinkSync(path.join(BACKUP_DIR, oldest));
@@ -42,7 +114,10 @@ async function performBackup(client: Client) {
         const channel = await client.channels.fetch(config.logChannel);
         if (channel?.isTextBased()) {
           const sizeKB = (fs.statSync(backupPath).size / 1024).toFixed(1);
-          await (channel as TextChannel).send({ content: "📁 **Sauvegarde automatique** — " + backupName + "\nTaille : " + sizeKB + " Ko" });
+          await (channel as TextChannel).send({
+            content:
+              "📁 **Sauvegarde automatique** — " + backupName + "\nTaille : " + sizeKB + " Ko",
+          });
         }
       } catch (err) {
         logger.error("[Backup] Impossible d envoyer la notification Discord:", String(err));

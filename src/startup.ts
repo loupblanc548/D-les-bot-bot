@@ -91,6 +91,9 @@ import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
 import { startProactiveAgent } from "./services/agentProactive.js";
 import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
+import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
+import { startAutoTranslate } from "./services/autoTranslate.js";
+import { startAiSpamDetector } from "./services/aiSpamDetector.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -316,6 +319,9 @@ export function attachStartupLogic(
       () => startMultiSiteDealsMonitor(client),
       () => startProactiveAgent(client),
       () => startGameReleaseCountdown(client),
+      () => startSteamWishlistMonitor(client),
+      () => startAutoTranslate(client),
+      () => startAiSpamDetector(client),
     ];
     for (const start of services) {
       try {

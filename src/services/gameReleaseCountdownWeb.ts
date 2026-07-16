@@ -8,6 +8,11 @@
 
 import { getTrackedReleases } from "./gameReleaseCountdown.js";
 
+// ─── HTTP response cache (5 min TTL) ────────────────────────────────────────
+let cachedHtml: string | null = null;
+let cachedHtmlAt = 0;
+const HTML_CACHE_TTL_MS = 5 * 60 * 1000;
+
 interface ReleaseData {
   gameName: string;
   releaseDate: string;
@@ -304,9 +309,91 @@ function buildReleasesPage(): string {
 }
 
 export function getReleasesPage(): string {
-  return buildReleasesPage();
+  if (cachedHtml && Date.now() - cachedHtmlAt < HTML_CACHE_TTL_MS) {
+    return cachedHtml;
+  }
+  cachedHtml = buildReleasesPage();
+  cachedHtmlAt = Date.now();
+  return cachedHtml;
 }
 
 export function getReleasesJson(): string {
   return JSON.stringify(getReleasesData());
+}
+
+export function getReleasesStatsPage(): string {
+  const releases = getReleasesData();
+  const total = releases.length;
+  const byPlatform: Record<string, number> = {};
+  const byGenre: Record<string, number> = {};
+  const byMonth: Record<string, number> = {};
+
+  for (const r of releases) {
+    for (const p of r.platforms) {
+      byPlatform[p] = (byPlatform[p] || 0) + 1;
+    }
+    for (const g of r.genres) {
+      byGenre[g] = (byGenre[g] || 0) + 1;
+    }
+    const month = new Date(r.releaseDate).toLocaleDateString("fr-FR", {
+      month: "long",
+      year: "numeric",
+    });
+    byMonth[month] = (byMonth[month] || 0) + 1;
+  }
+
+  const platformBars = Object.entries(byPlatform)
+    .sort((a, b) => b[1] - a[1])
+    .map(
+      ([name, count]) =>
+        `<div class="stat-row"><span>${name}</span><div class="bar"><div style="width:${(count / total) * 100}%"></div></div><span>${count}</span></div>`,
+    )
+    .join("");
+
+  const genreBars = Object.entries(byGenre)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(
+      ([name, count]) =>
+        `<div class="stat-row"><span>${name}</span><div class="bar"><div style="width:${(count / total) * 100}%"></div></div><span>${count}</span></div>`,
+    )
+    .join("");
+
+  const monthBars = Object.entries(byMonth)
+    .map(
+      ([name, count]) =>
+        `<div class="stat-row"><span>${name}</span><div class="bar"><div style="width:${(count / total) * 100}%"></div></div><span>${count}</span></div>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>📊 Stats — Game Releases</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a1a; color:#fff; font-family:'Segoe UI',system-ui,sans-serif; padding:20px; }
+h1 { text-align:center; margin-bottom:20px; background:linear-gradient(135deg,#5865f2,#eb459e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(350px,1fr)); gap:20px; max-width:1200px; margin:0 auto; }
+.stat-card { background:#141428; border:2px solid #2a2a4a; border-radius:12px; padding:20px; }
+.stat-card h2 { color:#5865f2; margin-bottom:15px; font-size:1.1em; }
+.stat-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:0.9em; }
+.stat-row span:first-child { flex:0 0 120px; text-align:right; color:#b0b0c8; }
+.stat-row span:last-child { flex:0 0 30px; text-align:left; font-weight:bold; }
+.bar { flex:1; height:20px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden; }
+.bar div { height:100%; background:linear-gradient(90deg,#5865f2,#eb459e); border-radius:4px; }
+.total { text-align:center; font-size:2em; font-weight:bold; color:#5865f2; margin-bottom:20px; }
+</style>
+</head>
+<body>
+<h1>📊 Statistiques des sorties</h1>
+<div class="total">${total} jeu(x) suivi(s)</div>
+<div class="stats-grid">
+  <div class="stat-card"><h2>🎯 Plateformes</h2>${platformBars || "<p>Aucune donnée</p>"}</div>
+  <div class="stat-card"><h2>🏷️ Genres</h2>${genreBars || "<p>Aucune donnée</p>"}</div>
+  <div class="stat-card"><h2>📅 Par mois</h2>${monthBars || "<p>Aucune donnée</p>"}</div>
+</div>
+</body>
+</html>`;
 }

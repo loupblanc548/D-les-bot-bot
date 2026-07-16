@@ -6,7 +6,11 @@ import { handleWebhookRequest } from "./webhookTriggers.js";
 import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
 import { getModelRotationStatus } from "./modelRotation.js";
 import { getCacheStats } from "./aiCache.js";
-import { getReleasesPage, getReleasesJson } from "./gameReleaseCountdownWeb.js";
+import {
+  getReleasesPage,
+  getReleasesJson,
+  getReleasesStatsPage,
+} from "./gameReleaseCountdownWeb.js";
 import type { Client } from "discord.js";
 
 let server: http.Server | null = null;
@@ -47,16 +51,43 @@ export function setDiscordClient(client: Client): void {
   discordClient = client;
 }
 
+// ─── Rate limiting (simple in-memory, 60 req/min per IP) ─────────────────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 60;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 export function startHealthServer(port = 3000): void {
   if (server) return;
 
   server = http.createServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
     const path = url.pathname;
+    const clientIp =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
+      req.socket.remoteAddress ||
+      "unknown";
+
+    // Rate limiting
+    if (!checkRateLimit(clientIp)) {
+      res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "60" });
+      res.end(JSON.stringify({ error: "Too Many Requests", retryAfter: 60 }));
+      return;
+    }
 
     try {
       // CORS headers — restrict to configured origin
-      const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:3721";
+      const allowedOrigin = process.env.CORS_ORIGIN || "*";
       res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
       res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -109,6 +140,31 @@ export function startHealthServer(port = 3000): void {
           "Access-Control-Allow-Origin": "*",
         });
         res.end(getReleasesJson());
+        return;
+      } else if (path === "/releases/stats") {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(getReleasesStatsPage());
+        return;
+      } else if (path === "/api/releases") {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(getReleasesJson());
+        return;
+      } else if (path === "/api/health") {
+        await handleBasicHealth(res);
+        return;
+      } else if (path === "/api/stats") {
+        const stats = {
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+          timestamp: new Date().toISOString(),
+          releases: JSON.parse(getReleasesJson()),
+        };
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(stats, null, 2));
+        return;
+      } else if (path === "/api/models") {
+        res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end(getModelRotationStatus());
         return;
       } else {
         res.writeHead(404, { "Content-Type": "application/json" });

@@ -102,6 +102,7 @@ import {
 } from "./commands/trackGroup.js";
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
+import { commands as releasesCommands, handleReleasesCommand } from "./commands/releases.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -461,6 +462,8 @@ export const allCommands = [
   ...trackGroupCommands, // /track
   // ── Context Menus (clic droit) ──
   ...contextMenuCommands,
+  // ── Releases (game release countdown) ──
+  ...releasesCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -516,6 +519,11 @@ export function buildCommandRouter(): void {
   registerGroup(["game2"], handleGame2Group);
   registerGroup(["music"], handleMusicGroup);
   registerGroup(["track"], handleTrackGroup);
+  // ─── Releases command ───
+  commandRouter["releases"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleReleasesCommand(interaction as ChatInputCommandInteraction);
+  };
   // ─── Context Menus ───
   registerGroup(
     [

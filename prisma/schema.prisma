@@ -1344,3 +1344,17 @@ model AiHistory {
   @@index([guildId])
   @@index([command])
 }
+
+model GameReleaseCache {
+  id          Int      @id @default(autoincrement())
+  gameName    String
+  releaseDate DateTime
+  coverUrl    String?
+  summary     String   @db.Text
+  platforms   String
+  genres      String
+  fetchedAt   DateTime @default(now())
+
+  @@index([gameName])
+  @@index([releaseDate])
+}

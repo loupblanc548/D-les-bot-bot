@@ -17,13 +17,37 @@
 import { Client, EmbedBuilder, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
-import { isIgdbAvailable, searchGame } from "./igdb.js";
+import { isIgdbAvailable } from "./igdb.js";
+import prisma from "../prisma.js";
 
 const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
 const PLATFORM_FILTER = process.env.GAME_RELEASE_PLATFORM || "all";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h: refresh release list
 const COUNTDOWN_UPDATE_MS = 60 * 1000; // 1 min: update countdown text
 const MAX_TRACKED_GAMES = 5; // Max simultaneous countdowns
+const RELEASE_WEBHOOK_URL = process.env.GAME_RELEASE_WEBHOOK_URL || "";
+const RELEASE_NOTIFICATION_ROLE = process.env.GAME_RELEASE_NOTIFICATION_ROLE || "";
+
+// ─── Multi-server config ────────────────────────────────────────────────────
+interface ServerConfig {
+  channelId: string;
+  platform: string;
+}
+const serverConfigs: ServerConfig[] = (() => {
+  const raw = process.env.GAME_RELEASE_SERVERS || "";
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as ServerConfig[];
+  } catch {
+    return [];
+  }
+})();
+
+function getAllTargetChannels(): ServerConfig[] {
+  if (serverConfigs.length > 0) return serverConfigs;
+  if (VOICE_CHANNEL_ID) return [{ channelId: VOICE_CHANNEL_ID, platform: PLATFORM_FILTER }];
+  return [];
+}
 
 interface TrackedRelease {
   messageId: string | null;
@@ -35,6 +59,7 @@ interface TrackedRelease {
   platforms: string[];
   genres: string[];
   posted: boolean;
+  notifiedDays: Set<number>; // Track which notifications were sent (7, 1, 0)
 }
 
 const trackedReleases: TrackedRelease[] = [];
@@ -115,7 +140,7 @@ async function fetchUpcomingReleases(): Promise<
       genres?: Array<{ name: string }>;
     }>;
 
-    return games.map((g) => ({
+    const result = games.map((g) => ({
       name: g.name,
       releaseDate: new Date(g.first_release_date * 1000),
       coverUrl: g.cover
@@ -125,7 +150,50 @@ async function fetchUpcomingReleases(): Promise<
       platforms: g.platforms?.map((p) => p.name) ?? [],
       genres: g.genres?.map((g2) => g2.name) ?? [],
     }));
+
+    // Cache to DB
+    try {
+      await prisma.gameReleaseCache.deleteMany({
+        where: { fetchedAt: { lt: new Date(Date.now() - 6 * 60 * 60 * 1000) } },
+      });
+      await prisma.gameReleaseCache.createMany({
+        data: result.map((r) => ({
+          gameName: r.name,
+          releaseDate: r.releaseDate,
+          coverUrl: r.coverUrl,
+          summary: r.summary,
+          platforms: r.platforms.join(","),
+          genres: r.genres.join(","),
+        })),
+        skipDuplicates: true,
+      });
+    } catch (dbErr) {
+      logger.debug(
+        `[GameReleaseCountdown] Cache DB échoué: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`,
+      );
+    }
+
+    return result;
   } catch (err) {
+    // Try DB cache as fallback
+    try {
+      const cached = await prisma.gameReleaseCache.findMany({
+        where: { releaseDate: { gt: new Date() } },
+        orderBy: { releaseDate: "asc" },
+        take: MAX_TRACKED_GAMES,
+      });
+      if (cached.length > 0) {
+        logger.info(`[GameReleaseCountdown] Utilisation cache DB (${cached.length} jeux)`);
+        return cached.map((c) => ({
+          name: c.gameName,
+          releaseDate: c.releaseDate,
+          coverUrl: c.coverUrl,
+          summary: c.summary,
+          platforms: c.platforms.split(",").filter(Boolean),
+          genres: c.genres.split(",").filter(Boolean),
+        }));
+      }
+    } catch {}
     logger.error(
       `[GameReleaseCountdown] Erreur fetch IGDB: ${err instanceof Error ? err.message : String(err)}`,
     );
@@ -231,12 +299,20 @@ async function refreshReleaseList(client: Client): Promise<void> {
   }
 
   const releases = await fetchUpcomingReleases();
-  if (releases.length === 0) return;
+  if (releases.length === 0) {
+    logger.warn("[GameReleaseCountdown] IGDB vide — tentative fallback CheapShark");
+    const fallback = await fetchReleasesFallback();
+    if (fallback.length === 0) return;
+    logger.info(`[GameReleaseCountdown] ${fallback.length} sorties via fallback CheapShark`);
+    // Continue with fallback data
+  }
+  const allReleases = releases.length > 0 ? releases : await fetchReleasesFallback();
+  if (allReleases.length === 0) return;
 
-  logger.info(`[GameReleaseCountdown] ${releases.length} sorties récupérées depuis IGDB`);
+  logger.info(`[GameReleaseCountdown] ${allReleases.length} sorties récupérées`);
 
   // Track the next N releases (closest dates first, already sorted by IGDB)
-  const toTrack = releases.slice(0, MAX_TRACKED_GAMES);
+  const toTrack = allReleases.slice(0, MAX_TRACKED_GAMES);
 
   // Remove tracked releases that are no longer in the new list or have passed
   for (let i = trackedReleases.length - 1; i >= 0; i--) {
@@ -269,6 +345,7 @@ async function refreshReleaseList(client: Client): Promise<void> {
         platforms: release.platforms,
         genres: release.genres,
         posted: false,
+        notifiedDays: new Set<number>(),
       });
     }
   }
@@ -302,8 +379,123 @@ async function refreshReleaseList(client: Client): Promise<void> {
   }
 }
 
+// ─── Fallback API: CheapShark (free, no key needed) ──────────────────────────
+async function fetchReleasesFallback(): Promise<
+  Array<{
+    name: string;
+    releaseDate: Date;
+    coverUrl: string | null;
+    summary: string;
+    platforms: string[];
+    genres: string[];
+  }>
+> {
+  try {
+    const res = await fetch(
+      "https://www.cheapshark.com/api/1.0/deals?storeID=1&sortBy=Release&desc=0&pageSize=10",
+      {
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!res.ok) return [];
+    const deals = (await res.json()) as Array<{
+      title: string;
+      releaseDate: number;
+      steamAppID: string | null;
+      thumb: string | null;
+    }>;
+    return deals
+      .filter((d) => d.releaseDate > 0)
+      .map((d) => ({
+        name: d.title,
+        releaseDate: new Date(d.releaseDate * 1000),
+        coverUrl: d.thumb || null,
+        summary: "Jeu disponible sur Steam.",
+        platforms: ["PC"],
+        genres: [],
+      }))
+      .filter((d) => d.releaseDate.getTime() > Date.now())
+      .slice(0, MAX_TRACKED_GAMES);
+  } catch (err) {
+    logger.warn(
+      `[GameReleaseCountdown] Fallback CheapShark échoué: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
+// ─── Webhook notifications ───────────────────────────────────────────────────
+async function sendWebhookNotification(release: TrackedRelease, daysLeft: number): Promise<void> {
+  if (!RELEASE_WEBHOOK_URL) return;
+  try {
+    await fetch(RELEASE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `🎮 ${release.gameName} sort dans ${daysLeft} jour(s) ! (${release.releaseDate.toLocaleDateString("fr-FR")})`,
+        game: release.gameName,
+        releaseDate: release.releaseDate.toISOString(),
+        daysLeft,
+        platforms: release.platforms,
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch (err) {
+    logger.debug(
+      `[GameReleaseCountdown] Webhook échoué: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+// ─── Notifications J-7, J-1, J-0 ─────────────────────────────────────────────
+async function checkReleaseNotifications(client: Client): Promise<void> {
+  const targets = getAllTargetChannels();
+  if (targets.length === 0) return;
+
+  for (const tracked of trackedReleases) {
+    const daysLeft = Math.ceil(
+      (tracked.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    );
+    const notificationDays = [7, 1, 0];
+
+    for (const days of notificationDays) {
+      if (daysLeft === days && !tracked.notifiedDays.has(days)) {
+        tracked.notifiedDays.add(days);
+
+        const emoji = days === 0 ? "🎉" : days === 1 ? "🔥" : "⏰";
+        const roleMention = RELEASE_NOTIFICATION_ROLE ? `<@&${RELEASE_NOTIFICATION_ROLE}> ` : "";
+        const message =
+          days === 0
+            ? `${roleMention}${emoji} **${tracked.gameName}** sort AUJOURD'HUI ! 🎊`
+            : `${roleMention}${emoji} **${tracked.gameName}** sort dans ${days} jour(s) !`;
+
+        for (const target of targets) {
+          try {
+            const channel = client.channels.cache.get(target.channelId);
+            if (channel && "send" in channel) {
+              const embed = buildReleaseEmbed(tracked);
+              await channel.send({ content: message, embeds: [embed] });
+              logger.info(`[GameReleaseCountdown] Notif J-${days}: ${tracked.gameName}`);
+            }
+          } catch (err) {
+            logger.error(
+              `[GameReleaseCountdown] Erreur notif J-${days}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+
+        // Webhook
+        await sendWebhookNotification(tracked, days);
+      }
+    }
+  }
+}
+
 async function updateCountdowns(client: Client): Promise<void> {
   if (trackedReleases.length === 0) return;
+
+  // Check for J-7, J-1, J-0 notifications
+  await checkReleaseNotifications(client);
 
   for (const tracked of trackedReleases) {
     if (!tracked.messageId) continue;
