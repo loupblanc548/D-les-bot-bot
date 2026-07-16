@@ -28,17 +28,27 @@ function getGuildId(): string {
 async function getNextGamePreviewUrl(): Promise<string> {
   try {
     const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return `${HTTP_BASE}/releases`;
+    if (!res.ok) {
+      logger.warn(`[VideoStream] /releases/data HTTP ${res.status} — fallback /releases`);
+      return `${HTTP_BASE}/releases`;
+    }
     const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
     const now = Date.now();
     const upcoming = games
       .filter((g) => new Date(g.releaseDate).getTime() > now)
       .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
+    logger.info(`[VideoStream] ${games.length} jeux, ${upcoming.length} à venir`);
     if (upcoming.length > 0) {
-      return `${HTTP_BASE}/releases/preview?game=${encodeURIComponent(upcoming[0].gameName)}`;
+      const url = `${HTTP_BASE}/releases/preview?game=${encodeURIComponent(upcoming[0].gameName)}`;
+      logger.info(`[VideoStream] Prochain jeu: ${upcoming[0].gameName} → ${url}`);
+      return url;
     }
+    logger.info(`[VideoStream] Aucun jeu à venir — fallback /releases`);
     return `${HTTP_BASE}/releases`;
-  } catch {
+  } catch (err) {
+    logger.warn(
+      `[VideoStream] Erreur fetch /releases/data: ${err instanceof Error ? err.message : String(err)} — fallback /releases`,
+    );
     return `${HTTP_BASE}/releases`;
   }
 }
