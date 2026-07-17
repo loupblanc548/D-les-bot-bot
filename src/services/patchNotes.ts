@@ -269,7 +269,7 @@ async function checkAllFeeds(client: Client) {
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null") || errMsg === "") {
+      if (!errMsg || errMsg.length < 5 || errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null")) {
         logger.debug(`[PatchNotes] Flux ${feed.game} indisponible: ${errMsg}`);
       } else {
         logger.error(
