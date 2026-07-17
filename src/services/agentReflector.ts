@@ -19,7 +19,7 @@ import logger from "../utils/logger.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ReflectionAction = "continue" | "retry" | "retry_different" | "abort" | "done";
+export type ReflectionAction = "continue" | "retry" | "retry_different" | "abort" | "done" | "pivot";
 
 export interface ReflectionResult {
   action: ReflectionAction;
@@ -27,6 +27,8 @@ export interface ReflectionResult {
   confidence: number;
   corrected_args?: Record<string, unknown>;
   alternative_tool?: string;
+  /** Set when STRATEGY_STEREOTYPY_DETECTED is injected — forces radical strategy mutation */
+  stereotypyDetected?: boolean;
 }
 
 export interface ToolExecutionResult {
@@ -215,6 +217,7 @@ async function llmReflection(
     "retry_different",
     "abort",
     "done",
+    "pivot",
   ];
   if (!validActions.includes(result.action)) {
     result.action = "continue";
@@ -247,4 +250,109 @@ export function resetRetries(interactionId: string): void {
  */
 export function clearAllRetries(): void {
   retryCount.clear();
+}
+
+// ─── STRATEGY_STEREOTYPY_DETECTED handler ────────────────────────────────────
+
+/**
+ * Called when the Cognitive Loop Engine detects stasis (similarity ≥ 0.95).
+ * Forces the reflector to mutate the system prompt dynamics, drop the failing
+ * tool chain sequence, and either pivot to an alternative tool path or cleanly
+ * prompt the user for clarification.
+ *
+ * @param userMessage The original user message
+ * @param stasisThought The repetitive thought that triggered the detection
+ * @param matchedIterations The two iterations that were too similar
+ * @param similarity The cosine similarity score
+ * @returns ReflectionResult with action "pivot" or "abort"
+ */
+export async function reflectOnStasis(
+  userMessage: string,
+  stasisThought: string,
+  matchedIterations: [number, number],
+  similarity: number,
+): Promise<ReflectionResult> {
+  const CYAN = "\x1b[36m";
+  const YELLOW = "\x1b[33m";
+  const RESET = "\x1b[0m";
+  const BOLD = "\x1b[1m";
+
+  logger.warn(
+    `${CYAN}${BOLD}[Reflector]${RESET} ${YELLOW}STRATEGY_STEREOTYPY_DETECTED${RESET} — ` +
+      `iterations #${matchedIterations[0] + 1} ↔ #${matchedIterations[1] + 1} (sim: ${similarity.toFixed(4)})`,
+  );
+
+  try {
+    const client = getOpenAIClient();
+    const response = await client.chat.completions.create(
+      {
+        model: config.openRouterModel,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es un méta-évaluateur d'agent IA. L'agent est bloqué dans une boucle cognitive — " +
+              "il répète les mêmes pensées sans progresser. Tu dois décider d'une action radicale:\n" +
+              "Réponds UNIQUEMENT en JSON:\n" +
+              '{"action": "pivot|abort", "reasoning": "...", "alternative_tool": "...", "confidence": 0.0-1.0}\n' +
+              "Actions:\n" +
+              "- pivot: changer radicalement d'approche, utiliser un tool complètement différent\n" +
+              "- abort: abandonner et demander des précisions à l'utilisateur",
+          },
+          {
+            role: "user",
+            content:
+              `Requête utilisateur: ${userMessage.slice(0, 300)}\n` +
+              `Pensée répétée: "${stasisThought.slice(0, 200)}"\n` +
+              `Similarité cosinus: ${similarity.toFixed(4)}\n` +
+              `Itérations matchées: #${matchedIterations[0] + 1} et #${matchedIterations[1] + 1}\n` +
+              `L'agent doit sortir de cette boucle immédiatement.`,
+          },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      },
+      { timeout: REFLECTION_TIMEOUT_MS },
+    );
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return stasisFallback(userMessage, similarity);
+    }
+
+    const result = JSON.parse(jsonMatch[0]) as ReflectionResult;
+    result.stereotypyDetected = true;
+    result.confidence = Math.max(0, Math.min(1, result.confidence || 0.8));
+
+    const validPivotActions: ReflectionAction[] = ["pivot", "abort"];
+    if (!validPivotActions.includes(result.action)) {
+      result.action = "pivot";
+    }
+
+    logger.info(
+      `[Reflector] Stasis resolution → ${result.action}: ${result.reasoning?.slice(0, 100)}`,
+    );
+    return result;
+  } catch (err) {
+    logger.warn(
+      `[Reflector] Stasis LLM call failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return stasisFallback(userMessage, similarity);
+  }
+}
+
+/**
+ * Fallback when the LLM stasis reflection fails.
+ * Returns a pivot action with a generic strategy mutation message.
+ */
+function stasisFallback(userMessage: string, similarity: number): ReflectionResult {
+  return {
+    action: "pivot",
+    reasoning:
+      `STRATEGY_STEREOTYPY_DETECTED: Cognitive loop stasis (similarity ${similarity.toFixed(4)}). ` +
+      `Dropping current tool chain. Pivoting to alternative approach or requesting user clarification.`,
+    confidence: 0.7,
+    stereotypyDetected: true,
+  };
 }

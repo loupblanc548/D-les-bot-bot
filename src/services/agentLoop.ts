@@ -32,7 +32,12 @@ import {
 } from "./circuitBreaker.js";
 import { generatePlan, formatPlanForPrompt, detectAmbiguity } from "./agentPlanner.js";
 import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
-import { reflectOnToolResult, resetRetries, type ToolExecutionResult } from "./agentReflector.js";
+import { reflectOnToolResult, resetRetries, reflectOnStasis, type ToolExecutionResult } from "./agentReflector.js";
+import {
+  initSession as initCognitiveSession,
+  purgeSession as purgeCognitiveSession,
+  checkCognitiveStasis,
+} from "./cognitiveLoopEngine.js";
 import {
   routeTools,
   getToolHints,
@@ -362,6 +367,10 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
   // ─── MODULE 1: Circuit Breaker — track execution state ───
   const breakerState = beginInteraction(message.author.id, message.guildId || "");
+
+  // ─── Cognitive Loop Engine — init embedding cache for this run ───
+  const cognitiveSessionId = breakerState.interactionId;
+  initCognitiveSession(cognitiveSessionId);
 
   // ─── MODULE 0a: Semantic cache check — skip API if we already answered this ───
   const cacheCtx = message.guildId || "dm";
@@ -772,6 +781,64 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
     const assistantMessage = choice.message;
 
+    // ─── Cognitive Loop Engine: check for stasis before consuming tool tokens ───
+    const thoughtContent = (assistantMessage.content || "").trim();
+    if (thoughtContent.length > 10 && iteration > 0) {
+      try {
+        const stasisResult = await checkCognitiveStasis(cognitiveSessionId, iteration, thoughtContent);
+        if (stasisResult.stasisDetected && stasisResult.matchedIterations) {
+          logger.warn(
+            `[AgentLoop] 🧠 Cognitive stasis at iteration ${iteration + 1} — routing to reflector`,
+          );
+
+          // Short-circuit: route to reflector with STRATEGY_STEREOTYPY_DETECTED
+          const stasisReflection = await reflectOnStasis(
+            userMessage,
+            stasisResult.thought,
+            stasisResult.matchedIterations,
+            stasisResult.maxSimilarity,
+          ).catch((): import("./agentReflector.js").ReflectionResult => ({
+            action: "pivot" as const,
+            reasoning: "STRATEGY_STEREOTYPY_DETECTED: Forcing strategy mutation due to cognitive loop.",
+            confidence: 0.7,
+            stereotypyDetected: true,
+            alternative_tool: undefined,
+          }));
+
+          if (stasisReflection.action === "abort") {
+            // Ask user for clarification
+            completeInteraction(breakerState);
+            agentLoopIterations.observe(iteration + 1);
+            agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
+            purgeCognitiveSession(cognitiveSessionId);
+            return `🧠 J'ai détecté que je tournais en rond sur ce problème. ${stasisReflection.reasoning}\n\nPeux-tu reformuler ou préciser ta demande ?`;
+          }
+
+          // action === "pivot": inject strategy mutation into conversation and continue
+          conversation.push({
+            role: "system",
+            content: `[STRATEGY_STEREOTYPY_DETECTED] L'approche actuelle est stéréotypée (similarité ${stasisResult.maxSimilarity.toFixed(4)}). ` +
+              `Change radicalement de stratégie. ${stasisReflection.alternative_tool ? `Utilise plutôt: ${stasisReflection.alternative_tool}.` : "Essaie un tool ou une approche complètement différent."} ` +
+              `Ne répète PAS la même séquence d'outils. Raisonnement: ${stasisReflection.reasoning}`,
+          });
+          logger.info(`[AgentLoop] 🔄 Strategy pivot injected — continuing with mutated approach`);
+          continue; // Skip tool execution for this iteration, let LLM rethink
+        }
+      } catch (cogErr) {
+        // Cognitive engine should never crash the agent loop
+        logger.debug(
+          `[AgentLoop] Cognitive engine error (non-fatal): ${cogErr instanceof Error ? cogErr.message : String(cogErr)}`,
+        );
+      }
+    } else if (thoughtContent.length > 10) {
+      // First iteration — just record the thought without stasis check
+      try {
+        await checkCognitiveStasis(cognitiveSessionId, iteration, thoughtContent);
+      } catch {
+        // Silent — never crash the loop
+      }
+    }
+
     // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
       const finalReply = assistantMessage.content || "*(silence)*";
@@ -812,6 +879,9 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
       // ─── MODULE C: Reset retry state ───
       resetRetries(breakerState.interactionId);
+
+      // ─── Cognitive Loop Engine: purge on success ───
+      purgeCognitiveSession(cognitiveSessionId);
 
       return finalReply;
     }
@@ -940,6 +1010,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   // Si on a épuisé les itérations, retourner la dernière réponse
   logger.warn(`[AgentLoop] ⚠️ Max iterations (${MAX_ITERATIONS}) atteint`);
   tripBreaker(breakerState, `Max iterations (${MAX_ITERATIONS}) reached without final reply`);
+  purgeCognitiveSession(cognitiveSessionId);
   return "J'ai analysé la situation mais j'ai besoin de plus de contexte pour répondre. Peux-tu préciser ?";
 }
 
