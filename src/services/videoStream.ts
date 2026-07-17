@@ -89,6 +89,11 @@ let reconnectTimer: NodeJS.Timeout | null = null;
 let reloadTimer: NodeJS.Timeout | null = null;
 let frameCount = 0;
 let streamManuallyStopped = false;
+let mainClient: any = null;
+
+export function setMainClient(client: any): void {
+  mainClient = client;
+}
 
 export function startVideoStream(): void {
   streamManuallyStopped = false;
@@ -143,28 +148,20 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Create client with bot token using discord.js
-    const { Client, GatewayIntentBits } = await import("discord.js");
+    // 3. Use existing bot client + @discordjs/voice for voice + Streamer for video
     const { joinVoiceChannel, VoiceConnectionStatus } = await import("@discordjs/voice");
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
 
-    selfbotClient = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-      ],
-    });
-    streamerInstance = new Streamer(selfbotClient);
+    if (!mainClient) {
+      logger.error("[VideoStream] Client principal non défini — appel setMainClient() d'abord");
+      isVideoStreaming = false;
+      return;
+    }
 
-    await new Promise<void>((resolve, reject) => {
-      selfbotClient.once("ready", () => {
-        logger.info(`[VideoStream] Bot stream connecté: ${selfbotClient.user?.username}`);
-        resolve();
-      });
-      selfbotClient.once("error", reject);
-      selfbotClient.login(streamToken).catch(reject);
-    });
+    selfbotClient = mainClient;
+    streamerInstance = new Streamer(selfbotClient);
+    logger.info(`[VideoStream] Bot stream: ${selfbotClient.user?.username || "unknown"}`);
 
     // 4. Join voice channel with @discordjs/voice (bot visible dans le salon)
     const guild = selfbotClient.guilds.cache.get(guildId);
@@ -407,10 +404,8 @@ function cleanupResources(): void {
     activeBrowser.close().catch(() => {});
     activeBrowser = null;
   }
-  if (selfbotClient) {
-    selfbotClient.destroy?.();
-    selfbotClient = null;
-  }
+  // Ne pas détruire mainClient — c'est le client principal du bot
+  selfbotClient = null;
   streamerInstance = null;
 }
 
