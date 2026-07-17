@@ -622,7 +622,11 @@ export function getShowcasePage(): string {
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Game Releases — Showcase</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -875,6 +879,72 @@ body::before {
   text-align: center;
   padding: 80px;
   grid-column: 1/-1;
+}
+
+/* ── Responsive: tablet ── */
+@media (max-width: 768px) {
+  .showcase { padding: 10px 12px; }
+  .showcase-header h1 { font-size: 1.4em; }
+  .showcase-header .subtitle { font-size: 0.7em; }
+  .games-grid { grid-template-columns: 1fr; gap: 8px; padding: 16px 4px; }
+  .game-card { max-height: 120px; }
+  .gc-cover { width: 70px; height: 96px; margin: 6px; }
+  .gc-info { padding: 6px 10px 6px 4px; }
+  .gc-title { font-size: 0.95em; }
+  .gc-countdown { font-size: 1em; }
+  .gc-date { font-size: 0.68em; }
+  .gc-genres { font-size: 0.58em; }
+  .pcard { font-size: 0.55em; padding: 2px 6px; }
+  .footer { font-size: 0.5em; }
+}
+
+/* ── Responsive: phone ── */
+@media (max-width: 480px) {
+  .showcase { padding: 8px 8px; }
+  .showcase-header { margin-bottom: 6px; }
+  .showcase-header h1 { font-size: 1.15em; letter-spacing: 0.5px; }
+  .showcase-header .subtitle { font-size: 0.62em; }
+  .showcase-header::after { width: 80%; height: 1px; margin-top: 4px; }
+  .games-grid { grid-template-columns: 1fr; gap: 6px; padding: 12px 2px; }
+  .game-card { max-height: 100px; border-radius: 8px; }
+  .gc-cover { width: 56px; height: 78px; margin: 5px; border-radius: 4px; }
+  .gc-info { padding: 5px 8px 5px 3px; }
+  .gc-title { font-size: 0.82em; white-space: normal; line-height: 1.1; max-height: 2.2em; overflow: hidden; }
+  .gc-date { font-size: 0.6em; margin-bottom: 2px; }
+  .gc-countdown { font-size: 0.88em; margin-bottom: 3px; }
+  .gc-genres { font-size: 0.5em; margin-bottom: 3px; }
+  .gc-platforms { gap: 3px; }
+  .pcard { font-size: 0.48em; padding: 1px 5px; border-radius: 4px; }
+  .footer { font-size: 0.42em; padding: 2px 0; }
+  /* Reduce heavy effects on mobile for performance */
+  body::before { animation: none; opacity: 0.7; }
+  .game-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .games-grid.spotlight .game-card:not(.imminent) { filter: blur(2px) grayscale(0.5); }
+  .games-grid.spotlight .game-card.imminent { transform: scale(1.04); }
+}
+
+/* ── Responsive: very small phones ── */
+@media (max-width: 360px) {
+  .showcase-header h1 { font-size: 1em; }
+  .gc-cover { width: 48px; height: 68px; margin: 4px; }
+  .gc-title { font-size: 0.72em; }
+  .gc-countdown { font-size: 0.78em; }
+  .gc-date { font-size: 0.54em; }
+  .pcard { font-size: 0.42em; }
+}
+
+/* ── Touch-friendly: larger tap targets on mobile ── */
+@media (hover: none) and (pointer: coarse) {
+  .game-card:hover { transform: none; }
+  .pcard:hover { transform: none; }
+}
+
+/* ── Landscape phone: 2 columns ── */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .games-grid { grid-template-columns: 1fr 1fr; }
+  .showcase-header h1 { font-size: 1.1em; }
+  .game-card { max-height: 90px; }
+  .gc-cover { width: 50px; height: 70px; }
 }
 </style>
 </head>
