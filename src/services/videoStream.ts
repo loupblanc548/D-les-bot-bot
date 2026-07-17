@@ -455,9 +455,9 @@ export function startStreamWatchdog(): NodeJS.Timeout {
       watchdogFailures = 0;
     }
     lastFrameCount = frameCount;
-  }, 60_000); // Check every 60s
+  }, 30_000); // Check every 30s for faster recovery
 
   if (watchdogTimer.unref) watchdogTimer.unref();
-  logger.info("[VideoStream] Watchdog démarré (check 60s)");
+  logger.info("[VideoStream] Watchdog démarré (check 30s)");
   return watchdogTimer;
 }

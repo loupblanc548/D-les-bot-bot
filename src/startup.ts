@@ -60,6 +60,7 @@ import { startLogRetention } from "./cron/logRetention.js";
 import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
 import { startLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { startBrokenImageCleanup } from "./cron/brokenImageCleanup.js";
+import { startShowcaseLinkCron } from "./cron/showcaseLinkCron.js";
 import { startSecurityIntegration } from "./services/securityIntegration.js";
 import { initHoneypotMonitoring } from "./services/cyberDefense.js";
 import { startPriceAlertsMonitoring } from "./services/price-alerts.js";
@@ -178,6 +179,7 @@ async function initSchedulers(client: Client): Promise<void> {
   startShadowBrokerCron(client);
   startLogChannelCleanup(client);
   startBrokenImageCleanup(client);
+  startShowcaseLinkCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 

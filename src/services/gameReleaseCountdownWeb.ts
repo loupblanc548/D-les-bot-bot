@@ -633,10 +633,26 @@ body {
   height: 100vh;
   overflow: hidden;
 }
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(88,101,242,0.08) 0%, transparent 50%),
+              radial-gradient(circle at 80% 70%, rgba(255,200,50,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  animation: ambientGlow 8s ease-in-out infinite alternate;
+}
+@keyframes ambientGlow {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
 .showcase {
   width: 100%; height: 100%;
   display: flex; flex-direction: column;
   padding: 14px 24px;
+  position: relative;
+  z-index: 1;
 }
 .showcase-header {
   text-align: center;
@@ -739,7 +755,8 @@ body {
   will-change: transform, opacity;
 }
 .game-card:hover {
-  box-shadow: 0 8px 30px rgba(88,101,242,0.25), 0 0 0 1px rgba(88,101,242,0.15);
+  box-shadow: 0 8px 30px rgba(88,101,242,0.3), 0 0 0 1px rgba(88,101,242,0.2);
+  transform: translateZ(0) scale(1.02);
 }
 .game-card.imminent {
   background: rgba(40,30,5,0.55);
@@ -837,6 +854,11 @@ body {
   font-size: 0.6em; font-weight: 600;
   color: rgba(255,255,255,0.92);
   text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.pcard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 .pcard-name { white-space: nowrap; }
 .footer {
