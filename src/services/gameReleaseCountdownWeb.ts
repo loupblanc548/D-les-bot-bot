@@ -663,13 +663,14 @@ body {
 .games-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
   padding: 30px 10px;
-  animation: scrollUp 180s linear infinite;
+  animation: scrollUp 240s linear infinite;
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
+  contain: layout style;
 }
 @keyframes scrollUp {
   0% { transform: translateY(0) translateZ(0); }
@@ -680,19 +681,21 @@ body {
 }
 .game-card {
   display: flex;
-  background: rgba(15,15,35,0.50);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15,15,35,0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
-  transition: opacity 0.4s ease, transform 0.4s ease, box-shadow 0.3s, max-height 0.4s ease, margin 0.4s ease, padding 0.4s ease, background 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.2s, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
   max-height: 130px;
   opacity: 1;
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  content-visibility: auto;
+  contain: layout style paint;
 }
 .game-card.entering {
   opacity: 0;

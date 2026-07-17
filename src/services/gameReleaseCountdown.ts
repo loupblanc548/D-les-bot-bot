@@ -24,7 +24,7 @@ const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
 const PLATFORM_FILTER = process.env.GAME_RELEASE_PLATFORM || "all";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h: refresh release list
 const COUNTDOWN_UPDATE_MS = 60 * 1000; // 1 min: update countdown text
-const MAX_TRACKED_GAMES = 100; // Max simultaneous countdowns
+const MAX_TRACKED_GAMES = 500; // Max simultaneous countdowns — maximisé pour AAA/AA
 const RELEASE_WEBHOOK_URL = process.env.GAME_RELEASE_WEBHOOK_URL || "";
 const RELEASE_NOTIFICATION_ROLE = process.env.GAME_RELEASE_NOTIFICATION_ROLE || "";
 
@@ -146,7 +146,7 @@ async function fetchUpcomingReleases(): Promise<
     const body =
       platformId >= 0
         ? `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 365 * 86400} & platforms = (${platformId}); sort hypes desc; limit 500;`
-        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 365 * 86400}; sort hypes desc; limit 500;`;
+        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 365 * 86400}; sort hypes desc; limit 500; offset 0;`;
 
     const res = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
@@ -174,14 +174,13 @@ async function fetchUpcomingReleases(): Promise<
       hypes?: number;
     }>;
 
-    // Filter: prioritize AAA/AA (hypes > 0 or multi-platform), deprioritize pure indie
+    // Filter: maximize AAA/AA — keep everything except pure indie with no hypes
     const result = games
       .filter((g) => {
         const isPureIndie = (g.genres || []).every((gen) => gen.name.toLowerCase() === "indie");
-        const platformCount = (g.platforms || []).length;
         const hypes = g.hypes || 0;
-        // Keep if: has hypes (AAA/AA), OR multi-platform (2+), OR not pure indie
-        return hypes > 0 || (platformCount >= 2 && !isPureIndie) || !isPureIndie;
+        // Keep if: has hypes (AAA/AA), OR not pure indie
+        return hypes > 0 || !isPureIndie;
       })
       .sort((a, b) => {
         // Sort by hypes desc first, then by release date asc
