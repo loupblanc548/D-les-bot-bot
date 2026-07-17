@@ -694,8 +694,7 @@ body {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  content-visibility: auto;
-  contain: layout style paint;
+  contain: layout style;
 }
 .game-card.entering {
   opacity: 0;
@@ -735,6 +734,18 @@ body {
 }
 .game-card:hover {
   box-shadow: 0 8px 30px rgba(88,101,242,0.25), 0 0 0 1px rgba(88,101,242,0.15);
+}
+.game-card.imminent {
+  background: rgba(40,30,5,0.55);
+  border: 1px solid rgba(255,200,50,0.4);
+  box-shadow: 0 4px 20px rgba(255,180,0,0.15), 0 0 0 1px rgba(255,200,50,0.2);
+}
+.game-card.imminent .gc-countdown {
+  color: #ffc832;
+  text-shadow: 0 0 12px rgba(255,200,50,0.5);
+}
+.game-card.imminent .gc-title {
+  color: #ffe082;
 }
 .gc-cover {
   width: 80px; height: 110px;
@@ -854,6 +865,10 @@ function buildCard(game) {
   card.className = 'game-card entering';
   card.dataset.gameName = game.gameName;
   card.dataset.releaseTime = releaseDate.getTime().toString();
+  // Highlight games releasing within 7 days in gold
+  if (diff > 0 && diff <= 7 * 86400000) {
+    card.classList.add('imminent');
+  }
   card.innerHTML =
     '<div class="gc-cover"' + (cover ? ' style="background-image:url(\\'' + cover + '\\')"' : '') + '></div>' +
     '<div class="gc-info">' +
@@ -905,6 +920,15 @@ function updateCountdowns() {
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
     el.innerHTML = d + 'j ' + h + 'h ' + m + 'm ' + s + 's';
+    // Add/remove imminent class based on 7-day threshold
+    const card = el.closest('.game-card');
+    if (card) {
+      if (diff > 0 && diff <= 7 * 86400000) {
+        card.classList.add('imminent');
+      } else {
+        card.classList.remove('imminent');
+      }
+    }
   });
 }
 
