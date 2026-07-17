@@ -45,6 +45,8 @@ import { startBotHealthCheck } from "./cron/botHealthCheck.js";
 import { startNotificationCleanup } from "./cron/notificationCleanup.js";
 import { startAlertDigest } from "./cron/alertDigest.js";
 import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
+import { startSyncFreeForDev } from "./cron/syncFreeForDev.js";
+import { startSyncTypeScriptSkills } from "./cron/syncTypeScriptSkills.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -338,11 +340,15 @@ export function attachStartupLogic(
       () => startAiSpamDetector(client),
       () => { setMainClient(client); return startVideoStream(); },
       () => startStreamWatchdog(),
+      () => startSyncFreeForDev(),
+      () => startSyncTypeScriptSkills(),
     ] : [
       // Stream-only mode: Go Live stream + watchdog + release data for showcase
       () => startGameReleaseCountdown(client),
       () => { setMainClient(client); return startVideoStream(); },
       () => startStreamWatchdog(),
+      () => startSyncFreeForDev(),
+      () => startSyncTypeScriptSkills(),
     ];
     for (const start of services) {
       try {

@@ -1482,7 +1482,7 @@ async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallR
 
   try {
     const result = await executeCode(code, language);
-    const formatted = formatSandboxResult(result);
+    const formatted = await formatSandboxResult(result);
     const mode = isE2BConfigured() ? "E2B cloud" : "local";
     logger.info(
       `[CodeSandbox] ${language} executed (${mode}) — ${result.success ? "OK" : "FAIL"} in ${result.executionTimeMs}ms`,

@@ -7,6 +7,7 @@
 
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 import {
   generateImage,
   generateTTSUrl,
@@ -358,6 +359,38 @@ export const FREE_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── Knowledge Ingestion Tools ───
+  {
+    type: "function",
+    function: {
+      name: "search_developer_resources",
+      description:
+        "Recherche des ressources gratuites pour développeurs (free-for-dev). Retourne les 5 meilleurs résultats avec nom, URL, catégorie et description.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Terme de recherche (ex: 'database', 'CI/CD', 'monitoring')" },
+          category: { type: "string", description: "Filtrer par catégorie (optionnel)" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_typescript_skill",
+      description:
+        "Recherche un pattern TypeScript avancé (Matt Pocock skills). Retourne le titre, l'explication et le code solution. Utiliser pour résoudre des erreurs de typage complexes.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Terme de recherche ou message d'erreur TypeScript (ex: 'conditional types', 'Type 'X' is not assignable')" },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -576,11 +609,130 @@ export async function executeFreeTool(
       }
 
       default:
+        // Knowledge Ingestion Tools
+        if (toolName === "search_developer_resources") {
+          return await handleSearchDeveloperResources(args);
+        }
+        if (toolName === "lookup_typescript_skill") {
+          return await handleLookupTypeScriptSkill(args);
+        }
         return null;
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     logger.warn(`[AgentToolsFree] ❌ ${toolName} failed: ${errMsg}`);
     return { success: false, data: `Erreur ${toolName}: ${errMsg}` };
+  }
+}
+
+// ─── Knowledge Ingestion Tool Handlers ───────────────────────────────────────
+
+async function handleSearchDeveloperResources(
+  args: Record<string, unknown>,
+): Promise<ToolCallResult> {
+  const query = String(args.query ?? "").trim();
+  const category = String(args.category ?? "").trim();
+
+  if (!query) return { success: false, data: "Query vide" };
+
+  try {
+    const where = category
+      ? {
+          category: { contains: category, mode: "insensitive" as const },
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : {
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } },
+            { category: { contains: query, mode: "insensitive" as const } },
+          ],
+        };
+
+    const results = await prisma.freeResource.findMany({
+      where,
+      take: 5,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (results.length === 0) {
+      return { success: true, data: `Aucune ressource trouvée pour "${query}"` };
+    }
+
+    const formatted = results.map((r, i) =>
+      `${i + 1}. **${r.name}** [${r.category}]\n   ${r.url}\n   ${r.description.slice(0, 150)}`,
+    ).join("\n\n");
+
+    return { success: true, data: `Ressources gratuites pour "${query}":\n\n${formatted}` };
+  } catch (err) {
+    logger.warn(`[AgentToolsFree] search_developer_resources DB error: ${err instanceof Error ? err.message : String(err)}`);
+    return { success: false, data: "Base de données indisponible pour la recherche de ressources" };
+  }
+}
+
+async function handleLookupTypeScriptSkill(
+  args: Record<string, unknown>,
+): Promise<ToolCallResult> {
+  const query = String(args.query ?? "").trim();
+
+  if (!query) return { success: false, data: "Query vide" };
+
+  try {
+    const results = await prisma.typeScriptSkill.findMany({
+      where: {
+        OR: [
+          { title: { contains: query, mode: "insensitive" as const } },
+          { category: { contains: query, mode: "insensitive" as const } },
+          { explanation: { contains: query, mode: "insensitive" as const } },
+          { problemStatement: { contains: query, mode: "insensitive" as const } },
+        ],
+      },
+      take: 3,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (results.length === 0) {
+      return { success: true, data: `Aucun pattern TypeScript trouvé pour "${query}"` };
+    }
+
+    const formatted = results.map((r, i) =>
+      `${i + 1}. **${r.title}** [${r.category}]\n` +
+      `   Problème: ${r.problemStatement.slice(0, 200)}\n` +
+      `   Solution:\n   \`\`\`typescript\n   ${r.solutionCode.slice(0, 500)}\n   \`\`\`\n` +
+      `   Explication: ${r.explanation.slice(0, 200)}`,
+    ).join("\n---\n");
+
+    return { success: true, data: `Patterns TypeScript pour "${query}":\n\n${formatted}` };
+  } catch (err) {
+    logger.warn(`[AgentToolsFree] lookup_typescript_skill DB error: ${err instanceof Error ? err.message : String(err)}`);
+    return { success: false, data: "Base de données indisponible pour la recherche de patterns TS" };
+  }
+}
+
+/**
+ * Exported for codeSandbox auto-heal — looks up TS skills by compiler error.
+ */
+export async function autoHealTypeScriptError(errorMessage: string): Promise<string | null> {
+  try {
+    const results = await prisma.typeScriptSkill.findMany({
+      where: {
+        OR: [
+          { problemStatement: { contains: errorMessage.slice(0, 100), mode: "insensitive" as const } },
+          { title: { contains: errorMessage.slice(0, 50), mode: "insensitive" as const } },
+          { explanation: { contains: errorMessage.slice(0, 50), mode: "insensitive" as const } },
+        ],
+      },
+      take: 1,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (results.length === 0) return null;
+    const r = results[0];
+    return `Pattern suggéré: **${r.title}**\nSolution:\n\`\`\`typescript\n${r.solutionCode.slice(0, 800)}\n\`\`\`\n${r.explanation.slice(0, 300)}`;
+  } catch {
+    return null;
   }
 }

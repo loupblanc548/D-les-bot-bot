@@ -20,6 +20,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import logger from "../utils/logger.js";
+import { autoHealTypeScriptError } from "./agentToolsFree.js";
 
 const execAsync = promisify(exec);
 
@@ -227,7 +228,7 @@ function truncate(text: string): string {
 /**
  * Formate le résultat pour l'agent IA.
  */
-export function formatSandboxResult(result: SandboxResult): string {
+export async function formatSandboxResult(result: SandboxResult): Promise<string> {
   const parts: string[] = [];
 
   parts.push(`Status: ${result.success ? "SUCCESS" : "FAILED"}`);
@@ -240,6 +241,24 @@ export function formatSandboxResult(result: SandboxResult): string {
 
   if (result.stderr) {
     parts.push(`\n--- STDERR ---\n${result.stderr}`);
+
+    // ─── TS-Wizard Auto-Heal: detect TypeScript errors and suggest patterns ───
+    if (!result.success && isTypeError(result.stderr)) {
+      try {
+        const healingSuggestion = await autoHealTypeScriptError(result.stderr);
+        if (healingSuggestion) {
+          const CYAN = "\x1b[36m";
+          const GREEN = "\x1b[32m";
+          const RESET = "\x1b[0m";
+          logger.info(
+            `${CYAN}[CodeSandbox]${RESET} ${GREEN}TS-Wizard auto-heal triggered — pattern found${RESET}`,
+          );
+          parts.push(`\n--- TS-WIZARD SUGGESTION ---\n${healingSuggestion}`);
+        }
+      } catch {
+        // Auto-heal should never crash the sandbox result formatting
+      }
+    }
   }
 
   if (result.files && result.files.length > 0) {
@@ -251,6 +270,24 @@ export function formatSandboxResult(result: SandboxResult): string {
   }
 
   return parts.join("\n");
+}
+
+/**
+ * Detect if a stderr output contains TypeScript compilation errors.
+ */
+function isTypeError(stderr: string): boolean {
+  const lower = stderr.toLowerCase();
+  return (
+    lower.includes("error ts") ||
+    lower.includes("type '") ||
+    lower.includes("is not assignable") ||
+    lower.includes("does not exist on type") ||
+    lower.includes("argument of type") ||
+    lower.includes("no overload matches") ||
+    lower.includes("type assertion") ||
+    lower.includes("generic type") ||
+    (lower.includes("syntaxerror") && lower.includes(".ts"))
+  );
 }
 
 /**

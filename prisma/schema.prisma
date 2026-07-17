@@ -1358,3 +1358,33 @@ model GameReleaseCache {
   @@index([gameName])
   @@index([releaseDate])
 }
+
+// ===== Knowledge Ingestion: Free-for-Dev + TypeScript Skills =====
+
+model FreeResource {
+  id          String   @id @default(uuid())
+  category    String
+  name        String
+  url         String
+  description String   @db.Text
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([name])
+  @@index([url])
+}
+
+model TypeScriptSkill {
+  id               String   @id @default(uuid())
+  slug             String   @unique
+  title            String
+  category         String
+  problemStatement String   @db.Text
+  solutionCode     String   @db.Text
+  explanation      String   @db.Text
+  rawUrl           String
+  updatedAt        DateTime @updatedAt
+
+  @@index([category])
+  @@index([title])
+}
