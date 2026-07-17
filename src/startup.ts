@@ -335,7 +335,6 @@ export function attachStartupLogic(
       () => startSteamWishlistMonitor(client),
       () => startAutoTranslate(client),
       () => startAiSpamDetector(client),
-      () => startVoiceScreenShare(client),
       () => startVideoStream(),
       () => startStreamWatchdog(),
       () => startDiscordEventsService(client),
