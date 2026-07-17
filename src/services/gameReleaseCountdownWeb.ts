@@ -734,6 +734,36 @@ body {
 .game-card.imminent .gc-title {
   color: #ffe082;
 }
+
+/* ── Spotlight mode: non-imminent cards fade out, imminent cards zoom in ── */
+.games-grid.spotlight .game-card:not(.imminent) {
+  opacity: 0.12;
+  filter: blur(3px) grayscale(0.7);
+  transform: scale(0.9);
+  transition: opacity 0.6s ease, filter 0.6s ease, transform 0.6s ease;
+}
+.games-grid.spotlight .game-card.imminent {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.08);
+  box-shadow: 0 0 30px rgba(255,200,50,0.5), 0 0 0 2px rgba(255,200,50,0.4);
+  transition: opacity 0.6s ease, filter 0.6s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.6s ease;
+  z-index: 10;
+}
+.games-grid.spotlight .game-card.imminent .gc-countdown {
+  animation: goldPulse 2s ease-in-out infinite;
+}
+@keyframes goldPulse {
+  0%, 100% { text-shadow: 0 0 12px rgba(255,200,50,0.5); transform: scale(1); }
+  50% { text-shadow: 0 0 25px rgba(255,200,50,0.9), 0 0 40px rgba(255,180,0,0.4); transform: scale(1.05); }
+}
+.games-grid.spotlight .game-card.imminent .gc-title {
+  animation: titleShimmer 3s ease-in-out infinite;
+}
+@keyframes titleShimmer {
+  0%, 100% { color: #ffe082; text-shadow: 0 0 0 transparent; }
+  50% { color: #fff8e1; text-shadow: 0 0 15px rgba(255,220,100,0.7); }
+}
 .gc-cover {
   width: 80px; height: 110px;
   background-size: cover; background-position: center;
@@ -996,6 +1026,30 @@ if (gridEl && track) {
     gridEl.style.transform = 'translateY(' + (-scrollY) + 'px)';
   }, 50);
 }
+
+// ── Spotlight cycle: every 25s, highlight imminent games for 8s ──
+// Non-imminent cards fade out + blur, imminent cards zoom in with gold glow
+let spotlightActive = false;
+function startSpotlightCycle() {
+  setInterval(() => {
+    const imminentCards = gridEl ? gridEl.querySelectorAll('.game-card.imminent') : [];
+    if (!gridEl || imminentCards.length === 0) return; // No imminent games yet
+
+    // Enter spotlight mode
+    spotlightActive = true;
+    scrollPaused = true; // Pause scroll during spotlight
+    gridEl.classList.add('spotlight');
+
+    // Exit spotlight after 8 seconds
+    setTimeout(() => {
+      gridEl.classList.remove('spotlight');
+      spotlightActive = false;
+      scrollPaused = false;
+    }, 8000);
+  }, 25000); // Every 25s
+}
+// Start spotlight after initial render (let cards load first)
+setTimeout(startSpotlightCycle, 5000);
 </script>
 </body>
 </html>`;
