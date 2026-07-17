@@ -47,6 +47,9 @@ import { startAlertDigest } from "./cron/alertDigest.js";
 import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
 import { startSyncFreeForDev } from "./cron/syncFreeForDev.js";
 import { startSyncTypeScriptSkills } from "./cron/syncTypeScriptSkills.js";
+import { startWazuhWatchdog } from "./cron/wazuhWatchdog.js";
+import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
+import { handleSoarInteractions, handleAlertInteractions } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -342,6 +345,8 @@ export function attachStartupLogic(
       () => startStreamWatchdog(),
       () => startSyncFreeForDev(),
       () => startSyncTypeScriptSkills(),
+      () => { setSoarClient(client); return startWazuhWatchdog(); },
+      () => { handleSoarInteractions(client); handleAlertInteractions(client); },
     ] : [
       // Stream-only mode: Go Live stream + watchdog + release data for showcase
       () => startGameReleaseCountdown(client),
@@ -349,6 +354,8 @@ export function attachStartupLogic(
       () => startStreamWatchdog(),
       () => startSyncFreeForDev(),
       () => startSyncTypeScriptSkills(),
+      () => { setSoarClient(client); return startWazuhWatchdog(); },
+      () => { handleSoarInteractions(client); handleAlertInteractions(client); },
     ];
     for (const start of services) {
       try {

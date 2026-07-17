@@ -10,6 +10,98 @@ import logger from "../utils/logger.js";
 import { createLog } from "../services/logs.js";
 import { resolveAlert, type AlertAction } from "../services/alert-service.js";
 import { recordSanction } from "../services/risk-engine.js";
+import { undoNetworkBan, markFalsePositive, investigateAlert } from "../services/activeDefenseEngine.js";
+
+// ============================================================
+// Gestionnaire des boutons interactifs SOAR (Active Defense)
+// ============================================================
+export function handleSoarInteractions(client: Client): void {
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    if (!customId.startsWith("soar_")) return;
+
+    // Format: soar_ACTION_wazuhAlertId
+    const parts = customId.split("_");
+    if (parts.length < 3) return;
+
+    const action = parts[1];
+    const alertId = parts.slice(2).join("_");
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      switch (action) {
+        case "undo": {
+          // Extract the banned IP from the incident
+          const incident = await prisma.securityIncident.findUnique({
+            where: { wazuhAlertId: alertId },
+          }).catch(() => null);
+
+          if (!incident) {
+            await interaction.editReply({ content: "⚠️ Incident introuvable dans la base." });
+            return;
+          }
+
+          // Parse IP from agentAssessment
+          const ipMatch = incident.agentAssessment.match(/Source:\s*([\d.]+)/);
+          const ip = ipMatch?.[1] ?? "";
+
+          if (ip) {
+            const undone = await undoNetworkBan(ip);
+            if (undone) {
+              await prisma.securityIncident.update({
+                where: { wazuhAlertId: alertId },
+                data: { status: "RESOLVED" },
+              }).catch(() => {});
+              await interaction.editReply({ content: `🔓 Rollback exécuté — IP ${ip} débannie.` });
+            } else {
+              await interaction.editReply({ content: `⚠️ Échec du rollback pour IP ${ip}.` });
+            }
+          } else {
+            await interaction.editReply({ content: "⚠️ Aucune IP à débannir trouvée pour cet incident." });
+          }
+          break;
+        }
+
+        case "investigate": {
+          const incident = await prisma.securityIncident.findUnique({
+            where: { wazuhAlertId: alertId },
+          }).catch(() => null);
+
+          if (!incident) {
+            await interaction.editReply({ content: "⚠️ Incident introuvable." });
+            return;
+          }
+
+          const ipMatch = incident.agentAssessment.match(/Source:\s*([\d.]+)/);
+          const ip = ipMatch?.[1];
+          const investigation = await investigateAlert(alertId, ip);
+
+          await interaction.editReply({
+            content: `🔍 Investigation pour ${alertId}:\n\`\`\`\n${investigation.slice(0, 1800)}\n\`\`\``,
+          });
+          break;
+        }
+
+        case "falsepos": {
+          await markFalsePositive(alertId);
+          await interaction.editReply({
+            content: `🟢 Alert ${alertId} marquée comme FALSE POSITIVE. Signature whitelisted.`,
+          });
+          break;
+        }
+
+        default:
+          await interaction.editReply({ content: "Action SOAR inconnue." });
+      }
+    } catch (err) {
+      logger.error(`[SOAR-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action SOAR." });
+    }
+  });
+}
 
 // ============================================================
 // Gestionnaire des boutons interactifs d'alerte

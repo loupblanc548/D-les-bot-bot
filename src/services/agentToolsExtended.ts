@@ -1187,6 +1187,27 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
+  // ── Secure DM-Exclusive: Wi-Fi QR Generator ──
+  {
+    type: "function",
+    function: {
+      name: "generate_wifi_qr",
+      description: "Génère un QR code WiFi. ⚠️ SÉCURITÉ: Cet outil ne fonctionne QUE en messages privés (DM). Refuse de s'exécuter dans un salon public pour protéger les identifiants réseau.",
+      parameters: {
+        type: "object",
+        properties: {
+          ssid: { type: "string", description: "Nom du réseau WiFi (SSID)" },
+          password: { type: "string", description: "Mot de passe WiFi" },
+          encryptionType: {
+            type: "string",
+            description: "Type de chiffrement",
+            enum: ["WPA", "WEP", "nopass"],
+          },
+        },
+        required: ["ssid", "password"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -1369,6 +1390,8 @@ export async function executeExtendedTool(
         return await tOrDocsSearch(args);
       case "or_credits":
         return await tOrCredits();
+      case "generate_wifi_qr":
+        return await tGenerateWifiQr(args, ctx);
       default:
         return null;
     }
@@ -3621,4 +3644,49 @@ async function tOrCredits(): Promise<ToolCallResult> {
   const credits = await mcpGetCredits();
   if (credits === null) return { success: false, data: "Crédits indisponibles (MCP non connecté)" };
   return { success: true, data: `Crédits restants: $${credits.toFixed(2)}` };
+}
+
+// ─── Secure DM-Exclusive: Wi-Fi QR Generator ─────────────────────────────────
+
+async function tGenerateWifiQr(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  // ─── CHANNEL GUARD: DM-only enforcement ───
+  if (!ctx.message.channel.isDMBased()) {
+    logger.warn(
+      `[AgentToolsExt] 🚫 generate_wifi_qr blocked — channel is not DM (type: ${ctx.message.channel.type})`,
+    );
+    return {
+      success: false,
+      data: "🚫 Security Violation: This network provisioning tool can only be executed within private Direct Messages (DMs) to protect sensitive environment credentials.",
+    };
+  }
+
+  const ssid = String(args.ssid ?? "").trim();
+  const password = String(args.password ?? "").trim();
+  const encryptionType = String(args.encryptionType ?? "WPA").trim().toUpperCase();
+
+  if (!ssid) return { success: false, data: "SSID requis" };
+  if (!password && encryptionType !== "nopass") return { success: false, data: "Mot de passe requis" };
+
+  const validEncryptions = ["WPA", "WEP", "nopass"];
+  if (!validEncryptions.includes(encryptionType)) {
+    return { success: false, data: "Type de chiffrement invalide. Utilisez: WPA, WEP, ou nopass" };
+  }
+
+  // Build WiFi QR string: WIFI:T:WPA;S:mynetwork;P:mypass;;
+  const escapedSsid = ssid.replace(/([\\;,:"])/g, "\\$1");
+  const escapedPass = password.replace(/([\\;,:"])/g, "\\$1");
+  const wifiString = `WIFI:T:${encryptionType};S:${escapedSsid};P:${escapedPass};;`;
+
+  // Generate QR code via public API (qrcode.monster — free, no key)
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(wifiString)}`;
+
+  logger.info(`[AgentToolsExt] 📶 WiFi QR generated for SSID: ${ssid} (encryption: ${encryptionType})`);
+
+  return {
+    success: true,
+    data: `📶 QR Code WiFi généré pour "${ssid}" (${encryptionType})\n\nScanne ce QR code avec ton téléphone pour te connecter automatiquement:\n${qrUrl}\n\n⚠️ Ce lien contient vos identifiants — ne le partage pas.`,
+  };
 }

@@ -1388,3 +1388,20 @@ model TypeScriptSkill {
   @@index([category])
   @@index([title])
 }
+
+// ===== Wazuh SIEM/EDR Integration =====
+
+model SecurityIncident {
+  id            String   @id @default(uuid())
+  wazuhAlertId  String   @unique
+  level         Int
+  description   String
+  endpointName  String
+  agentAssessment String @db.Text
+  status        String   @default("OPEN") // OPEN, MUTATED_AND_CONTAINED, RESOLVED, FALSE_POSITIVE
+  createdAt     DateTime @default(now())
+
+  @@index([level])
+  @@index([status])
+  @@index([createdAt])
+}
