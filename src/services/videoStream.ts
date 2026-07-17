@@ -20,8 +20,7 @@ const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
 function getStreamToken(): string {
-  // Utiliser le token du bot, fallback sur le token utilisateur si configuré
-  return process.env.DISCORD_TOKEN || process.env.SCREEN_SHARE_USER_TOKEN || "";
+  return process.env.DISCORD_TOKEN || "";
 }
 
 function getVoiceChannelId(): string {
