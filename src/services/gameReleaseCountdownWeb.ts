@@ -663,9 +663,9 @@ body {
 .games-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 30px 10px;
-  animation: scrollUp 240s linear infinite;
+  gap: 6px;
+  padding: 20px 8px;
+  animation: scrollUp 300s linear infinite;
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;

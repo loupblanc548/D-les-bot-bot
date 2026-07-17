@@ -15,7 +15,7 @@ import type { ChildProcess } from "child_process";
 const HTTP_BASE = "http://localhost:3000";
 const STREAM_WIDTH = 1280;
 const STREAM_HEIGHT = 720;
-const STREAM_FPS = 45;
+const STREAM_FPS = 30;
 const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
