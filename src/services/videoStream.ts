@@ -140,17 +140,22 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Create client and streamer (utilise le token du bot)
-    const { Client } = await import("discord.js-selfbot-v13");
+    // 3. Create client and streamer (utilise le token du bot avec discord.js)
+    const { Client, GatewayIntentBits } = await import("discord.js");
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
 
-    selfbotClient = new Client();
+    selfbotClient = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+      ],
+    });
     streamerInstance = new Streamer(selfbotClient);
 
     await new Promise<void>((resolve, reject) => {
       selfbotClient.once("ready", () => {
-        logger.info(`[VideoStream] Client stream connecté: ${selfbotClient.user?.username}`);
+        logger.info(`[VideoStream] Bot stream connecté: ${selfbotClient.user?.username}`);
         resolve();
       });
       selfbotClient.once("error", reject);
