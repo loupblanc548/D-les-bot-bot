@@ -665,15 +665,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   padding: 20px 8px;
-  animation: scrollUp 300s linear infinite;
   will-change: transform;
-}
-@keyframes scrollUp {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
-}
-.games-grid:hover {
-  animation-play-state: paused;
 }
 .game-card {
   display: flex;
@@ -985,6 +977,27 @@ fetchAndRender();
 setInterval(updateCountdowns, 1000);
 // Refresh data every 30s (picks up new games, removes expired ones)
 setInterval(fetchAndRender, 30000);
+
+// JS-driven smooth scroll — more reliable than CSS animation with dynamic DOM
+let scrollY = 0;
+let scrollPaused = false;
+const track = document.querySelector('.games-track');
+const gridEl = document.getElementById('grid');
+gridEl.addEventListener('mouseenter', () => { scrollPaused = true; });
+gridEl.addEventListener('mouseleave', () => { scrollPaused = false; });
+
+function scrollLoop() {
+  if (!scrollPaused && gridEl.scrollHeight > 0) {
+    scrollY += 0.3; // pixels per frame — smooth slow scroll
+    const maxScroll = gridEl.scrollHeight - track.clientHeight;
+    if (maxScroll > 0) {
+      if (scrollY >= maxScroll) scrollY = 0; // loop back to top
+      gridEl.style.transform = 'translateY(' + (-scrollY) + 'px)';
+    }
+  }
+  requestAnimationFrame(scrollLoop);
+}
+requestAnimationFrame(scrollLoop);
 </script>
 </body>
 </html>`;
