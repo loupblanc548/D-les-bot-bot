@@ -4,7 +4,7 @@
  */
 
 import { schedule, ScheduledTask } from "node-cron";
-import { ChannelType, EmbedBuilder } from "discord.js";
+import { EmbedBuilder } from "discord.js";
 import type { Client } from "discord.js";
 import logger from "../utils/logger.js";
 
@@ -21,12 +21,15 @@ async function postShowcaseLink(client: Client): Promise<void> {
 
   try {
     const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
-    if (!channel || channel.type !== ChannelType.GuildText) {
-      // Voice channels can have text too
-      if (!channel) {
-        logger.warn(`[ShowcaseLink] Salon ${VOICE_CHANNEL_ID} introuvable`);
-        return;
-      }
+    if (!channel) {
+      logger.warn(`[ShowcaseLink] Salon ${VOICE_CHANNEL_ID} introuvable`);
+      return;
+    }
+    // Accept both text and voice channels (voice channels support text in Discord)
+    const isTextBased = (channel as any).messages !== undefined;
+    if (!isTextBased) {
+      logger.warn(`[ShowcaseLink] Salon ${VOICE_CHANNEL_ID} ne supporte pas les messages texte`);
+      return;
     }
 
     // Delete previous message if exists
