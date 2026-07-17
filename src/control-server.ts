@@ -993,8 +993,14 @@ export async function startControlServer(port: number, client: Client): Promise<
       logger.info(`[ControlServer] Écoute sur 0.0.0.0:${port}`);
       resolve();
     });
-    server!.on("error", (err) => {
-      logger.error("[ControlServer] Erreur:", err);
+    server!.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE") {
+        logger.warn(`[ControlServer] Port ${port} déjà utilisé — control server désactivé`);
+        server = null;
+        resolve();
+      } else {
+        logger.error("[ControlServer] Erreur:", err);
+      }
     });
   });
 }

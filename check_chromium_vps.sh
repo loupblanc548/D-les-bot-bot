@@ -1,0 +1,2 @@
+#!/bin/bash
+sshpass -p 'Si62u1j55exIO8' ssh -o StrictHostKeyChecking=no root@31.220.79.90 'which chromium-browser 2>/dev/null || which chromium 2>/dev/null || which google-chrome 2>/dev/null || echo "NO CHROMIUM"; ls /opt/discord-bot/node_modules/puppeteer 2>/dev/null && echo "PUPPETEER OK" || echo "NO PUPPETEER"; journalctl -u discord-bot --no-pager --since "3 min ago" 2>&1 | grep -iE "error|warn|Video|stream|Désactivé|SCREEN_SHARE" | tail -10'

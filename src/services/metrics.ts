@@ -189,6 +189,15 @@ export function startMetricsServer(port = parseInt(process.env.METRICS_PORT || "
     logger.info(`  - GET /metrics - Prometheus metrics`);
   });
 
+  metricsServer.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      logger.warn(`[Metrics] Port ${port} déjà utilisé — serveur metrics désactivé`);
+      metricsServer = null;
+    } else {
+      logger.error(`[Metrics] Erreur: ${err.message}`);
+    }
+  });
+
   // Update metrics every 30 seconds
   const _metricsInterval = setInterval(() => {
     updateProcessMetrics();

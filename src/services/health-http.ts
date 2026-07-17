@@ -201,6 +201,15 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /releases - Game release countdown (partage d'écran)`);
     logger.info(`  - GET /releases/data - Game release JSON data`);
   });
+
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      logger.warn(`[HealthServer] Port ${port} déjà utilisé — serveur health désactivé`);
+      server = null;
+    } else {
+      logger.error(`[HealthServer] Erreur: ${err.message}`);
+    }
+  });
 }
 
 /**
