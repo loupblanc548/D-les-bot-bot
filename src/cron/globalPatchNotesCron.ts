@@ -187,10 +187,22 @@ async function processPatchNote(client: Client, item: PatchNoteItem): Promise<vo
   }
 }
 
+// Circuit breaker for Reddit RSS feed
+const redditFeedFailures = { count: 0, skipUntil: 0 };
+const MAX_REDDIT_FAILURES = 3;
+const REDDIT_SKIP_MS = 60 * 60 * 1000; // 1h
+
 async function checkPatchNotes(client: Client): Promise<void> {
   // 🔒 Recharge le cache anti-doublon depuis le disque (persistance inter-cycles)
   await dedupCache.reloadFromDisk();
-  logger.info("[GlobalPatchNotes] VÃ©rification des patch notes Reddit...");
+
+  // Circuit breaker: skip Reddit RSS if too many failures
+  if (Date.now() < redditFeedFailures.skipUntil) {
+    logger.debug("[GlobalPatchNotes] Flux Reddit en circuit breaker — skip");
+    return;
+  }
+
+  logger.info("[GlobalPatchNotes] Vérification des patch notes Reddit...");
 
   try {
     // Fetch via Scrapling adaptive scraper (anti-bot bypass + self-healing selectors)
@@ -254,9 +266,18 @@ async function checkPatchNotes(client: Client): Promise<void> {
     }
 
     if (!Array.isArray(items) || items.length === 0) {
+      redditFeedFailures.count++;
+      if (redditFeedFailures.count >= MAX_REDDIT_FAILURES) {
+        redditFeedFailures.skipUntil = Date.now() + REDDIT_SKIP_MS;
+        redditFeedFailures.count = 0;
+        logger.warn(`[GlobalPatchNotes] Flux Reddit désactivé ${REDDIT_SKIP_MS / 60000}min (${MAX_REDDIT_FAILURES} échecs)`);
+      }
       logger.warn("[GlobalPatchNotes] Format RSS invalide ou aucun item");
       return;
     }
+
+    // Reset failures on success
+    redditFeedFailures.count = 0;
 
     let processedCount = 0;
     for (const item of items.slice(0, 20)) {

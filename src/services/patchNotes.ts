@@ -27,7 +27,7 @@ function initFeeds() {
   if (config.dedicatedChannel)
     RSS_FEEDS.push({
       game: "Helldivers 2",
-      url: "steam:553850",
+      url: "https://store.steampowered.com/feeds/news/app/553850/",
       channelId: config.dedicatedChannel,
     });
   if (config.dedicatedChannel)

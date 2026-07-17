@@ -27,7 +27,7 @@ interface TrackedRepo {
 }
 
 // Repos à surveiller — modifiable via env ou directement ici
-const LOG_CHANNEL = process.env.LOG_CHANNEL_ID || "1504526701282197544";
+const LOG_CHANNEL = process.env.LOG_CHANNEL_ID || "";
 const TRACKED_REPOS: TrackedRepo[] = [
   // ── Emulateurs ──
   { owner: "PCSX2", repo: "pcsx2", platform: "playstation", label: "PCSX2 (PS2 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },

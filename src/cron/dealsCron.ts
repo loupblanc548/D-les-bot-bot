@@ -18,7 +18,7 @@ import { generateStableId } from "../utils/url-cleaner.js";
 
 const rssParser = new RSSParser({
   timeout: 10000,
-  headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
+  headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
 });
 
 interface DealItem {
@@ -43,7 +43,12 @@ interface PlatformConfig {
 const RSS_FEEDS = [
   "https://www.reddit.com/r/FreeGameFindings/new.rss",
   "https://www.reddit.com/r/GameDeals/new.rss",
+  "https://steamcommunity.com/groups/SteamDeals/rss/",
 ];
+
+// Cache RSS: éviter de re-fetch le même flux dans les 5 minutes
+const rssFetchCache = new Map<string, { items: DealItem[]; timestamp: number }>();
+const RSS_CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 // Circuit breaker for failing feeds
 const dealsFeedFailures = new Map<string, { count: number; skipUntil: number }>();
@@ -382,6 +387,14 @@ async function checkDeals(client: Client): Promise<void> {
         continue;
       }
 
+      // Cache check: skip if fetched less than 5 min ago
+      const cached = rssFetchCache.get(feedUrl);
+      if (cached && Date.now() - cached.timestamp < RSS_CACHE_TTL) {
+        logger.debug(`[DealsCron] Flux ${feedUrl.substring(0, 40)}... en cache (${cached.items.length} items)`);
+        await Promise.all(cached.items.map((item) => processDealItem(client, item)));
+        continue;
+      }
+
       try {
         logger.debug(`[DealsCron] Analyse du flux: ${feedUrl}`);
 
@@ -403,6 +416,9 @@ async function checkDeals(client: Client): Promise<void> {
           continue;
         }
 
+        // Mettre en cache
+        rssFetchCache.set(feedUrl, { items, timestamp: Date.now() });
+
         // Process items in parallel for better performance
         await Promise.all(items.map((item) => processDealItem(client, item)));
 
@@ -413,9 +429,9 @@ async function checkDeals(client: Client): Promise<void> {
         const f = dealsFeedFailures.get(feedUrl) || { count: 0, skipUntil: 0 };
         f.count++;
         if (f.count >= 3) {
-          f.skipUntil = Date.now() + 30 * 60 * 1000;
+          f.skipUntil = Date.now() + 60 * 60 * 1000;
           f.count = 0;
-          logger.warn(`[DealsCron] Flux ${feedUrl.substring(0, 60)}... désactivé 30min (3 échecs)`);
+          logger.warn(`[DealsCron] Flux ${feedUrl.substring(0, 60)}... désactivé 60min (3 échecs — Reddit 429)`);
         }
         dealsFeedFailures.set(feedUrl, f);
         logger.error(

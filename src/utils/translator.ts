@@ -235,7 +235,33 @@ export async function translateText(
     // Ollama indisponible — fallback sur la chaîne existante
   }
 
-  // ── PLAN A: MyMemory API (avec Circuit Breaker) ──────────────────────
+  // ── PLAN A: OpenRouter API (primaire — plus fiable) ─────────────────
+  if (Date.now() < openRouterRateLimitedUntil) {
+    const remaining = Math.ceil((openRouterRateLimitedUntil - Date.now()) / 1000);
+    logger.warn(`[Translator] OpenRouter rate-limited (${remaining}s restants) — bascule MyMemory`);
+  } else {
+    try {
+      const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
+      if (openRouterResult) {
+        // Cache the result
+        if (translationCache.size >= CACHE_MAX_SIZE) {
+          const firstKey = translationCache.keys().next().value;
+          if (firstKey) translationCache.delete(firstKey);
+        }
+        translationCache.set(cacheKey, openRouterResult);
+        return openRouterResult;
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.warn(`[Translator] OpenRouter API échouée: ${errMsg}`);
+      if (errMsg.includes("429")) {
+        openRouterRateLimitedUntil = Date.now() + 60_000; // 1 min cooldown
+        logger.warn("[Translator] OpenRouter rate-limited — cooldown 60s");
+      }
+    }
+  }
+
+  // ── PLAN B: MyMemory API (fallback — avec Circuit Breaker) ──────────
   const isBanned = checkCircuitBreaker();
 
   if (!isBanned) {
@@ -251,38 +277,6 @@ export async function translateText(
       // Si 429 ou timeout → Circuit Breaker: bannir 1h
       if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("timeout")) {
         banMyMemory(errMsg);
-      }
-    }
-  } else {
-    logger.info(
-      "[Translator] MyMemory banni (Circuit Breaker) → basculement direct sur OpenRouter",
-    );
-  }
-
-  // ── PLAN B: OpenRouter API (Failover) ────────────────────────────────
-  // Skip if OpenRouter is rate-limited
-  if (Date.now() < openRouterRateLimitedUntil) {
-    const remaining = Math.ceil((openRouterRateLimitedUntil - Date.now()) / 1000);
-    logger.warn(`[Translator] OpenRouter rate-limited (${remaining}s restants) — texte original`);
-  } else {
-    try {
-      const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
-      if (openRouterResult) {
-        // Cache the result
-        if (translationCache.size >= CACHE_MAX_SIZE) {
-          const firstKey = translationCache.keys().next().value;
-          if (firstKey) translationCache.delete(firstKey);
-        }
-        translationCache.set(cacheKey, openRouterResult);
-        return openRouterResult;
-      }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`[Translator] OpenRouter API échouée également: ${errMsg}`);
-      // If rate limited, set cooldown
-      if (errMsg.includes("429")) {
-        openRouterRateLimitedUntil = Date.now() + 60_000; // 1 min cooldown
-        logger.warn("[Translator] OpenRouter rate-limited — cooldown 60s");
       }
     }
   }

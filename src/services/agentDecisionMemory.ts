@@ -32,6 +32,7 @@ export async function recordDecision(decision: Omit<AgentDecision, "id" | "creat
       ON CONFLICT DO NOTHING
     `;
   } catch {
+    // Table may not exist — fallback to in-memory store (silent to avoid log spam)
     memoryStore.push({ ...decision, id: `mem_${memoryStore.length}`, createdAt: new Date() });
     if (memoryStore.length > MAX_MEMORY) memoryStore.shift();
   }

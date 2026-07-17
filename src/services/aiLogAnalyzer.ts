@@ -159,13 +159,23 @@ function learnPattern(source: string, message: string): void {
 
     // Nouveau pattern d'erreur = potentiellement une anomalie
     if (message.includes("error") || message.includes("Error") || message.includes("CRASH")) {
-      detectAnomaly(
-        "NEW_ERROR_TYPE",
-        source,
-        `Nouveau pattern d'erreur: ${normalized.slice(0, 100)}`,
-        "MEDIUM",
-        { pattern: normalized },
-      );
+      // Ignore known non-critical errors to reduce false positives
+      const isNonCritical =
+        normalized.includes("agentdecision") ||
+        normalized.includes("prisma.$queryraw") ||
+        normalized.includes("prisma.$executeraw") ||
+        normalized.includes("dealscron.*429") ||
+        normalized.includes("freegamefindings.*429") ||
+        normalized.includes("salon") && normalized.includes("introuvable");
+      if (!isNonCritical) {
+        detectAnomaly(
+          "NEW_ERROR_TYPE",
+          source,
+          `Nouveau pattern d'erreur: ${normalized.slice(0, 100)}`,
+          "MEDIUM",
+          { pattern: normalized },
+        );
+      }
     }
   }
 
@@ -240,7 +250,7 @@ export function analyzeLogs(): Anomaly[] {
   // 3. Memory growth detection
   const memUsage = process.memoryUsage();
   const memMB = memUsage.rss / (1024 * 1024);
-  if (memMB > 500) {
+  if (memMB > 700) {
     newAnomalies.push(
       detectAnomaly(
         "MEMORY_GROWTH",

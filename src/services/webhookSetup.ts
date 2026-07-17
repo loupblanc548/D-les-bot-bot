@@ -86,7 +86,7 @@ const WEBHOOK_SETUP: ChannelWebhookSetup[] = [
   },
   {
     name: "Log",
-    channelId: "1504526701282197544",
+    channelId: process.env.LOG_CHANNEL_ID || "",
     discordWebhookUrl: "https://discord.com/api/webhooks/1524239753732559039/imSEdRTq6t-QsGzMFQ93sJId2TYaewMCuVhZTWKvz8bJMV2WHDlLvdNZjvcwM7nczKuw",
     provider: "generic",
     secret: "wh_log_9e4d2a7c5b",
