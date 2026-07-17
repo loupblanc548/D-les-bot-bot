@@ -20,7 +20,8 @@ const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
 function getStreamToken(): string {
-  return process.env.DISCORD_TOKEN || "";
+  // Go Live vidéo nécessite un token utilisateur — les tokens de bot ne supportent pas le streaming vidéo
+  return process.env.SCREEN_SHARE_USER_TOKEN || "";
 }
 
 function getVoiceChannelId(): string {
@@ -95,7 +96,8 @@ export function startVideoStream(): void {
   const guildId = getGuildId();
 
   if (!streamToken) {
-    logger.info("[VideoStream] Désactivé — DISCORD_TOKEN non configuré");
+    logger.info("[VideoStream] Désactivé — SCREEN_SHARE_USER_TOKEN non configuré");
+    logger.info("[VideoStream] Le Go Live vidéo nécessite un token utilisateur (les bots ne peuvent pas streamer de vidéo)");
     return;
   }
 
