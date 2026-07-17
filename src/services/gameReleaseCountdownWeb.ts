@@ -627,7 +627,7 @@ export function getShowcasePage(): string {
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background: linear-gradient(rgba(10,10,26,0.45), rgba(10,10,26,0.55)), url('https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimages.wallpapersden.com%2Fimage%2Fdownload%2Fhelldivers-2-super-citizen_bmdoa2yUmZqaraWkpJRmbmdlrWZlbWU.jpg&f=1&nofb=1&ipt=71c088dfc355d8b3b741c672ff276afcd49bb38cc57cc23e1d6d28d17c6c7401') center/cover no-repeat fixed;
+  background: linear-gradient(rgba(10,10,26,0.35), rgba(10,10,26,0.50)), url('https://images.wallpapersden.com/image/download/helldivers-2-super-citizen_bmdoa2yUmZqaraWkpJRmbmdlrWZlbWU.jpg') center/cover no-repeat fixed;
   color: #fff;
   font-family: 'Segoe UI', system-ui, sans-serif;
   height: 100vh;
