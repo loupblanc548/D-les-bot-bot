@@ -495,9 +495,10 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
       const message = `${roleMention}⏳ **${tracked.gameName}** sort dans moins d'1 heure ! Préparez-vous ! 🔥`;
 
       const platformChannelId = getPlatformChannelId(tracked.platforms);
-      const targetChannelIds = platformChannelId
+      const targetChannelIds = (platformChannelId
         ? [platformChannelId]
-        : getAllTargetChannels().map((t) => t.channelId);
+        : getAllTargetChannels().map((t) => t.channelId)
+      ).filter((id) => id !== VOICE_CHANNEL_ID); // Ne pas notifier dans le salon vocal
 
       for (const channelId of targetChannelIds) {
         try {
@@ -537,6 +538,8 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
           // Fallback to all target channels
           targetChannelIds = getAllTargetChannels().map((t) => t.channelId);
         }
+        // Ne pas notifier dans le salon vocal (réservé au stream)
+        targetChannelIds = targetChannelIds.filter((id) => id !== VOICE_CHANNEL_ID);
 
         for (const channelId of targetChannelIds) {
           try {
@@ -579,26 +582,33 @@ async function updateCountdowns(client: Client): Promise<void> {
   // Check for J-7, J-1, J-0 notifications
   await checkReleaseNotifications(client);
 
-  // Post release history when games come out (instead of posting upcoming messages)
-  const channel = client.channels.cache.get(VOICE_CHANNEL_ID);
-  const hasChannel = channel && "send" in channel;
-
+  // Post release history when games come out — only in platform channels, NOT voice channel
   for (const tracked of trackedReleases) {
     // Post a "released" message when the game comes out (J-0)
-    if (hasChannel && tracked.releaseDate.getTime() <= Date.now() && !tracked.notifiedDays.has(0)) {
+    if (tracked.releaseDate.getTime() <= Date.now() && !tracked.notifiedDays.has(0)) {
       tracked.notifiedDays.add(0);
-      try {
-        const embed = buildReleaseEmbed(tracked);
-        embed.setColor(0x00d26a);
-        embed.setTitle(`🎉 ${tracked.gameName} — Sorti aujourd'hui !`);
-        const platformLabel = tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
-        await (channel as any).send({
-          content: `📜 **Historique des sorties**\n🎮 **${tracked.gameName}** est maintenant disponible !\n*Plateforme: ${platformLabel}*`,
-          embeds: [embed],
-        });
-        logger.info(`[GameReleaseCountdown] Historique posté: ${tracked.gameName} (sorti)`);
-      } catch (err) {
-        logger.error(`[GameReleaseCountdown] Erreur post historique: ${err instanceof Error ? err.message : String(err)}`);
+      const platformChannelId = getPlatformChannelId(tracked.platforms);
+      const historyChannelIds = (platformChannelId
+        ? [platformChannelId]
+        : getAllTargetChannels().map((t) => t.channelId)
+      ).filter((id) => id !== VOICE_CHANNEL_ID);
+      for (const channelId of historyChannelIds) {
+        try {
+          const histChannel = client.channels.cache.get(channelId);
+          if (histChannel && "send" in histChannel) {
+            const embed = buildReleaseEmbed(tracked);
+            embed.setColor(0x00d26a);
+            embed.setTitle(`🎉 ${tracked.gameName} — Sorti aujourd'hui !`);
+            const platformLabel = tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
+            await (histChannel as any).send({
+              content: `📜 **Historique des sorties**\n🎮 **${tracked.gameName}** est maintenant disponible !\n*Plateforme: ${platformLabel}*`,
+              embeds: [embed],
+            });
+            logger.info(`[GameReleaseCountdown] Historique posté: ${tracked.gameName} → salon ${channelId}`);
+          }
+        } catch (err) {
+          logger.error(`[GameReleaseCountdown] Erreur post historique: ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
     }
 
