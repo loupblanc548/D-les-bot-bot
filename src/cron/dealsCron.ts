@@ -43,7 +43,6 @@ interface PlatformConfig {
 const RSS_FEEDS = [
   "https://www.reddit.com/r/FreeGameFindings/new.rss",
   "https://www.reddit.com/r/GameDeals/new.rss",
-  "https://steamcommunity.com/groups/SteamDeals/rss/",
 ];
 
 // Cache RSS: éviter de re-fetch le même flux dans les 5 minutes

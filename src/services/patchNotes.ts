@@ -27,7 +27,7 @@ function initFeeds() {
   if (config.dedicatedChannel)
     RSS_FEEDS.push({
       game: "Helldivers 2",
-      url: "https://store.steampowered.com/feeds/news/app/553850/",
+      url: "steam:553850",
       channelId: config.dedicatedChannel,
     });
   if (config.dedicatedChannel)
@@ -268,11 +268,16 @@ async function checkAllFeeds(client: Client) {
         );
       }
     } catch (err) {
-      logger.error(
-        `[PatchNotes] Erreur flux ${feed.game}:`,
-        err instanceof Error ? err.message : String(err),
-        err instanceof Error ? err.stack : undefined,
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null") || errMsg === "") {
+        logger.debug(`[PatchNotes] Flux ${feed.game} indisponible: ${errMsg}`);
+      } else {
+        logger.error(
+          `[PatchNotes] Erreur flux ${feed.game}:`,
+          errMsg,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
     }
   }
 }
