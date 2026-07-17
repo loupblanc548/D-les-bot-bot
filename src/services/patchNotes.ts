@@ -268,9 +268,9 @@ async function checkAllFeeds(client: Client) {
         );
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (!errMsg || errMsg.length < 5 || errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null")) {
-        logger.debug(`[PatchNotes] Flux ${feed.game} indisponible: ${errMsg}`);
+      const errMsg = err instanceof Error ? err.message : (err ? String(err) : "");
+      if (!errMsg || errMsg === "undefined" || errMsg.length < 5 || errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null")) {
+        logger.debug(`[PatchNotes] Flux ${feed.game} indisponible (non-critique)`);
       } else {
         logger.error(
           `[PatchNotes] Erreur flux ${feed.game}:`,
