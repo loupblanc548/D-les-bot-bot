@@ -627,7 +627,7 @@ export function getShowcasePage(): string {
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background: linear-gradient(rgba(10,10,26,0.35), rgba(10,10,26,0.50)), url('https://images.wallpapersden.com/image/download/helldivers-2-super-citizen_bmdoa2yUmZqaraWkpJRmbmdlrWZlbWU.jpg') center/cover no-repeat fixed;
+  background: linear-gradient(rgba(10,10,26,0.30), rgba(10,10,26,0.45)), url('https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimages.wallpapersden.com%2Fimage%2Fdownload%2Fhelldivers-2-super-citizen_bmdoa2yUmZqaraWkpJRmbmdlrWZlbWU.jpg&f=1&nofb=1&ipt=71c088dfc355d8b3b741c672ff276afcd49bb38cc57cc23e1d6d28d17c6c7401') center/cover no-repeat fixed;
   color: #fff;
   font-family: 'Segoe UI', system-ui, sans-serif;
   height: 100vh;
@@ -665,34 +665,42 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   padding: 30px 10px;
-  animation: scrollUp 120s linear infinite;
+  animation: scrollUp 180s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 @keyframes scrollUp {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
+  0% { transform: translateY(0) translateZ(0); }
+  100% { transform: translateY(-50%) translateZ(0); }
 }
 .games-grid:hover {
   animation-play-state: paused;
 }
 .game-card {
   display: flex;
-  background: rgba(15,15,35,0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15,15,35,0.50);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
-  transition: opacity 0.6s ease, transform 0.6s ease, box-shadow 0.3s, max-height 0.6s ease, margin 0.6s ease, padding 0.6s ease, background 0.3s ease;
+  transition: opacity 0.4s ease, transform 0.4s ease, box-shadow 0.3s, max-height 0.4s ease, margin 0.4s ease, padding 0.4s ease, background 0.3s ease;
   max-height: 130px;
   opacity: 1;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 .game-card.entering {
   opacity: 0;
-  transform: translateY(30px) scale(0.9) rotateX(-15deg);
+  transform: translateY(20px) scale(0.92);
 }
 .game-card.entered {
   opacity: 1;
-  transform: translateY(0) scale(1) rotateX(0);
+  transform: translateY(0) scale(1);
 }
 .game-card.expiring {
   animation: expireGlow 2s ease;
@@ -706,20 +714,21 @@ body {
 }
 .game-card.expired {
   opacity: 0;
-  transform: scale(0.7) translateX(80px) rotateZ(5deg);
+  transform: scale(0.8) translateX(50px);
   max-height: 0;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  filter: blur(8px);
+  filter: blur(4px);
 }
 @keyframes slideInFromRight {
-  0% { opacity: 0; transform: translateX(60px) scale(0.85) rotateY(20deg); }
-  60% { opacity: 0.8; transform: translateX(-5px) scale(1.02) rotateY(-3deg); }
-  100% { opacity: 1; transform: translateX(0) scale(1) rotateY(0); }
+  0% { opacity: 0; transform: translateX(40px) scale(0.9); }
+  60% { opacity: 0.9; transform: translateX(-3px) scale(1.01); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 .game-card.slide-in {
-  animation: slideInFromRight 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: slideInFromRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
 }
 .game-card:hover {
   box-shadow: 0 8px 30px rgba(88,101,242,0.25), 0 0 0 1px rgba(88,101,242,0.15);
