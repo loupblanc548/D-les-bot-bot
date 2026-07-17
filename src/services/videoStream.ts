@@ -148,8 +148,7 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Use existing bot client + @discordjs/voice for voice + Streamer for video
-    const { joinVoiceChannel, VoiceConnectionStatus } = await import("@discordjs/voice");
+    // 3. Use existing bot client + Streamer for voice+video
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
 
@@ -163,36 +162,9 @@ async function startVideoStreamAsync(): Promise<void> {
     streamerInstance = new Streamer(selfbotClient);
     logger.info(`[VideoStream] Bot stream: ${selfbotClient.user?.username || "unknown"}`);
 
-    // 4. Join voice channel with @discordjs/voice (bot visible dans le salon)
-    const guild = selfbotClient.guilds.cache.get(guildId);
-    const voiceChannel = guild?.channels.cache.get(voiceChannelId);
-    if (!voiceChannel?.isVoiceBased()) {
-      logger.error(`[VideoStream] Salon vocal ${voiceChannelId} introuvable`);
-      isVideoStreaming = false;
-      return;
-    }
-
-    const voiceConnection = joinVoiceChannel({
-      channelId: voiceChannelId,
-      guildId: guildId,
-      adapterCreator: guild!.voiceAdapterCreator,
-      selfDeaf: false,
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Timeout connexion vocale (15s)"));
-      }, 15000);
-      voiceConnection.once(VoiceConnectionStatus.Ready, () => {
-        clearTimeout(timeout);
-        logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
-        resolve();
-      });
-      voiceConnection.once(VoiceConnectionStatus.Disconnected, () => {
-        clearTimeout(timeout);
-        reject(new Error("Déconnecté du salon vocal"));
-      });
-    });
+    // 4. Join voice channel via Streamer (gère la connexion vidéo Go Live)
+    await streamerInstance.joinVoice(guildId, voiceChannelId);
+    logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
 
     // 4b. Monitor for voice connection drops
     selfbotClient.on("error", (err: Error) => {
