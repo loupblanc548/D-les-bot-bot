@@ -97,7 +97,6 @@ import { startAutoTranslate } from "./services/autoTranslate.js";
 import { startAiSpamDetector } from "./services/aiSpamDetector.js";
 import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
 import { startVideoStream, startStreamWatchdog, setMainClient } from "./services/videoStream.js";
-import { startDiscordEventsService } from "./services/discordEvents.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -339,7 +338,6 @@ export function attachStartupLogic(
       () => startAiSpamDetector(client),
       () => { setMainClient(client); return startVideoStream(); },
       () => startStreamWatchdog(),
-      () => startDiscordEventsService(client),
     ] : [
       // Stream-only mode: Go Live stream + watchdog + release data for showcase
       () => startGameReleaseCountdown(client),
