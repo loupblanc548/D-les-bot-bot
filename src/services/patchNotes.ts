@@ -268,15 +268,13 @@ async function checkAllFeeds(client: Client) {
         );
       }
     } catch (err) {
+      // Most PatchNotes errors are just empty API responses or 403s — log as debug to reduce noise
       const errMsg = err instanceof Error ? err.message : (err ? String(err) : "");
-      if (!errMsg || errMsg === "undefined" || errMsg.length < 5 || errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null")) {
+      if (!errMsg || errMsg === "undefined" || errMsg === "[object Object]" || errMsg.length < 10 ||
+          errMsg.includes("403") || errMsg.includes("empty") || errMsg.includes("null") || errMsg.includes("fetch")) {
         logger.debug(`[PatchNotes] Flux ${feed.game} indisponible (non-critique)`);
       } else {
-        logger.error(
-          `[PatchNotes] Erreur flux ${feed.game}:`,
-          errMsg,
-          err instanceof Error ? err.stack : undefined,
-        );
+        logger.error(`[PatchNotes] Erreur flux ${feed.game}: ${errMsg}`);
       }
     }
   }
