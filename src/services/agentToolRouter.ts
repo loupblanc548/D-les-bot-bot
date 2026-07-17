@@ -181,6 +181,29 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     tools: ["generate_tts"],
   },
   {
+    keywords: [
+      "free", "gratuit", "free tier", "free plan", "gratuit pour dev",
+      "hébergement gratuit", "hebergement gratuit", "hosting free",
+      "api gratuite", "api gratuit", "saas gratuit",
+      "base de données gratuite", "database free", "ci/cd gratuit",
+      "monitoring gratuit", "outil gratuit", "outils gratuits",
+      "service gratuit", "services gratuits", "ressource gratuite",
+      "ressources gratuites", "free for dev", "free-for-dev",
+    ],
+    tools: ["search_developer_resources"],
+  },
+  {
+    keywords: [
+      "typescript", "ts error", "erreur ts", "type error", "typage",
+      "generic", "generics", "générique", "conditional type", "type conditionnel",
+      "mapped type", "inference", "inférence", "type assertion",
+      "is not assignable", "does not exist on type", "no overload",
+      "type guard", "narrowing", "typeof", "instanceof",
+      "pattern typescript", "ts pattern", "matt pocock",
+    ],
+    tools: ["lookup_typescript_skill"],
+  },
+  {
     keywords: ["code", "python", "javascript", "script", "exécute", "compile"],
     tools: ["execute_code"],
   },
@@ -561,6 +584,29 @@ export function suggestToolChain(userMessage: string): string[][] {
     lowerMsg.includes("documentation")
   ) {
     chains.push(["ingestDocumentation", "searchKnowledge"]);
+  }
+
+  // "Ressources gratuites" → search_developer_resources
+  if (
+    lowerMsg.includes("gratuit") ||
+    lowerMsg.includes("free") ||
+    lowerMsg.includes("free tier") ||
+    lowerMsg.includes("free plan") ||
+    lowerMsg.includes("hébergement") ||
+    lowerMsg.includes("api gratuite")
+  ) {
+    chains.push(["search_developer_resources"]);
+  }
+
+  // "Erreur TypeScript" → lookup_typescript_skill + execute_code (fix + test)
+  if (
+    lowerMsg.includes("typescript") ||
+    lowerMsg.includes("ts error") ||
+    lowerMsg.includes("type error") ||
+    lowerMsg.includes("typage") ||
+    lowerMsg.includes("generic")
+  ) {
+    chains.push(["lookup_typescript_skill", "execute_code"]);
   }
 
   // "Scan ce domaine/IP" → osint_scan + verify_link_safety + domain_age

@@ -460,6 +460,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- get_npm_package : infos d'un package NPM\n" +
     "- get_pypi_package : infos d'un package Python PyPI\n" +
     "- get_devto_articles : articles Dev.to\n" +
+    "- search_developer_resources : recherche des ressources gratuites pour devs (free-for-dev, 1250+ ressources indexées). Utilise-le quand on demande des services gratuits, des free tiers, des outils pour développeurs.\n" +
+    "- lookup_typescript_skill : recherche un pattern TypeScript avancé (Matt Pocock skills). Utilise-le pour les erreurs de typage TS, les questions sur les types génériques, conditional types, etc.\n" +
     "### Finance (gratuit)\n" +
     "- get_stock_price : prix d'une action (Alpha Vantage)\n" +
     "- get_currency_rate : conversion de devises\n" +
@@ -623,6 +625,12 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
     "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
     "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
+    "\n## USAGE PROACTIF — KNOWLEDGE INGESTION\n" +
+    "- search_developer_resources : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur demande des services gratuits, des free tiers, des hébergeurs gratuits, des outils CI/CD, des bases de données gratuites, du monitoring gratuit, des APIs gratuites. N'attends pas qu'il le demande explicitement.\n" +
+    "- lookup_typescript_skill : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur a une erreur TypeScript, demande comment typer quelque chose, pose une question sur les generics/conditional types/inference/mapped types, ou montre du code TS qui ne compile pas.\n" +
+    "- Ces tools interrogent une base locale de 1250+ ressources et patterns — c'est PLUS RAPIDE et PLUS PRÉCIS qu'une recherche web.\n" +
+    "- Après search_developer_resources, présente les résultats de façon lisible avec nom, URL et description courte.\n" +
+    "- Après lookup_typescript_skill, montre le code solution avec explication. Si l'erreur correspond, propose directement la correction.\n" +
     "\n## CLARIFICATION — RÈGLE CRITIQUE (APPLIQUE À TOUT)\n" +
     "- AVANT d'exécuter N'IMPORTE QUELLE tâche, vérifie si tu as toutes les infos nécessaires. Si non, pose 1 à 3 questions.\n" +
     "- Les questions doivent être courtes, précises, et en rapport direct avec ce que l'utilisateur a demandé.\n" +
