@@ -667,14 +667,10 @@ body {
   padding: 20px 8px;
   animation: scrollUp 300s linear infinite;
   will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform: translateZ(0);
-  contain: layout style;
 }
 @keyframes scrollUp {
-  0% { transform: translateY(0) translateZ(0); }
-  100% { transform: translateY(-50%) translateZ(0); }
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
 }
 .games-grid:hover {
   animation-play-state: paused;
@@ -694,7 +690,6 @@ body {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  contain: layout style;
 }
 .game-card.entering {
   opacity: 0;
