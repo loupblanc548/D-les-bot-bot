@@ -20,8 +20,9 @@ const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
 function getStreamToken(): string {
-  // Go Live vidéo nécessite un token utilisateur — les tokens de bot ne supportent pas le streaming vidéo
-  return process.env.SCREEN_SHARE_USER_TOKEN || "";
+  // Utilise le token du bot — Discord bloque le streaming vidéo pour les bots normaux
+  // mais on utilise @discordjs/voice + @dank074/discord-video-stream pour contourner
+  return process.env.DISCORD_TOKEN || "";
 }
 
 function getVoiceChannelId(): string {
@@ -142,13 +143,18 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Create client and streamer (utilise le token du bot)
-    // discord.js-selfbot-v13 gère la connexion vocale vidéo différemment de discord.js
-    const { Client } = await import("discord.js-selfbot-v13");
+    // 3. Create client with bot token using discord.js
+    const { Client, GatewayIntentBits } = await import("discord.js");
+    const { joinVoiceChannel, VoiceConnectionStatus } = await import("@discordjs/voice");
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
 
-    selfbotClient = new Client();
+    selfbotClient = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+      ],
+    });
     streamerInstance = new Streamer(selfbotClient);
 
     await new Promise<void>((resolve, reject) => {
@@ -160,9 +166,36 @@ async function startVideoStreamAsync(): Promise<void> {
       selfbotClient.login(streamToken).catch(reject);
     });
 
-    // 4. Join voice channel
-    await streamerInstance.joinVoice(guildId, voiceChannelId);
-    logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
+    // 4. Join voice channel with @discordjs/voice (bot visible dans le salon)
+    const guild = selfbotClient.guilds.cache.get(guildId);
+    const voiceChannel = guild?.channels.cache.get(voiceChannelId);
+    if (!voiceChannel?.isVoiceBased()) {
+      logger.error(`[VideoStream] Salon vocal ${voiceChannelId} introuvable`);
+      isVideoStreaming = false;
+      return;
+    }
+
+    const voiceConnection = joinVoiceChannel({
+      channelId: voiceChannelId,
+      guildId: guildId,
+      adapterCreator: guild!.voiceAdapterCreator,
+      selfDeaf: false,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Timeout connexion vocale (15s)"));
+      }, 15000);
+      voiceConnection.once(VoiceConnectionStatus.Ready, () => {
+        clearTimeout(timeout);
+        logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
+        resolve();
+      });
+      voiceConnection.once(VoiceConnectionStatus.Disconnected, () => {
+        clearTimeout(timeout);
+        reject(new Error("Déconnecté du salon vocal"));
+      });
+    });
 
     // 4b. Monitor for voice connection drops
     selfbotClient.on("error", (err: Error) => {
