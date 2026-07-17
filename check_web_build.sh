@@ -1,0 +1,2 @@
+#!/bin/bash
+sshpass -p 'Si62u1j55exIO8' ssh -o StrictHostKeyChecking=no root@31.220.79.90 'ls -la /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js && md5sum /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js && grep -c "backdrop-filter" /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js && grep -c "0.55" /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js && grep -c "AJAX\|fetch.*releases/data\|setInterval.*1000" /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js'

@@ -1,10 +1,10 @@
 /**
- * videoStream.ts — Stream la page web /releases/showcase en "Go Live" (vrai partage d'écran)
+ * videoStream.ts — Stream la page web /releases/showcase en "Go Live" (partage d'écran)
  * dans le salon vocal Discord using @dank074/discord-video-stream.
  *
- * Discord bloque la vidéo des bots — il faut un token utilisateur (selfbot).
+ * Utilise le token du bot (DISCORD_TOKEN) pour le Go Live.
  * Config .env:
- * - SCREEN_SHARE_USER_TOKEN : token utilisateur Discord
+ * - DISCORD_TOKEN : token du bot Discord
  * - GAME_RELEASE_VOICE_CHANNEL_ID : ID du salon vocal
  * - DISCORD_GUILD_ID : ID du serveur
  */
@@ -19,8 +19,9 @@ const STREAM_FPS = 30;
 const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
-function getUserToken(): string {
-  return process.env.SCREEN_SHARE_USER_TOKEN || "";
+function getStreamToken(): string {
+  // Utiliser le token du bot, fallback sur le token utilisateur si configuré
+  return process.env.DISCORD_TOKEN || process.env.SCREEN_SHARE_USER_TOKEN || "";
 }
 
 function getVoiceChannelId(): string {
@@ -90,16 +91,12 @@ let streamManuallyStopped = false;
 
 export function startVideoStream(): void {
   streamManuallyStopped = false;
-  const userToken = getUserToken();
+  const streamToken = getStreamToken();
   const voiceChannelId = getVoiceChannelId();
   const guildId = getGuildId();
 
-  if (!userToken) {
-    logger.info("[VideoStream] Désactivé — SCREEN_SHARE_USER_TOKEN non configuré");
-    logger.info(
-      "[VideoStream] Pour activer le vrai Go Live (partage d'écran vidéo), ajoutez un token utilisateur dans .env:",
-    );
-    logger.info("[VideoStream] SCREEN_SHARE_USER_TOKEN=votre_token_utilisateur_discord");
+  if (!streamToken) {
+    logger.info("[VideoStream] Désactivé — DISCORD_TOKEN non configuré");
     return;
   }
 
@@ -115,7 +112,7 @@ export function startVideoStream(): void {
 }
 
 async function startVideoStreamAsync(): Promise<void> {
-  const userToken = getUserToken();
+  const streamToken = getStreamToken();
   const voiceChannelId = getVoiceChannelId();
   const guildId = getGuildId();
 
@@ -144,7 +141,7 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Create selfbot client and streamer
+    // 3. Create client and streamer (utilise le token du bot)
     const { Client } = await import("discord.js-selfbot-v13");
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
@@ -154,11 +151,11 @@ async function startVideoStreamAsync(): Promise<void> {
 
     await new Promise<void>((resolve, reject) => {
       selfbotClient.once("ready", () => {
-        logger.info(`[VideoStream] Selfbot connecté: ${selfbotClient.user?.username}`);
+        logger.info(`[VideoStream] Client stream connecté: ${selfbotClient.user?.username}`);
         resolve();
       });
       selfbotClient.once("error", reject);
-      selfbotClient.login(userToken).catch(reject);
+      selfbotClient.login(streamToken).catch(reject);
     });
 
     // 4. Join voice channel
@@ -167,15 +164,15 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 4b. Monitor for voice connection drops
     selfbotClient.on("error", (err: Error) => {
-      logger.error(`[VideoStream] Selfbot error: ${err.message}`);
+      logger.error(`[VideoStream] Client stream error: ${err.message}`);
     });
     selfbotClient.on("disconnect", () => {
-      logger.warn("[VideoStream] Selfbot déconnecté — arrêt du stream");
+      logger.warn("[VideoStream] Client stream déconnecté — arrêt du stream");
       screencastActive = false;
       isVideoStreaming = false;
     });
     selfbotClient.on("close", () => {
-      logger.warn("[VideoStream] Selfbot connexion fermée");
+      logger.warn("[VideoStream] Client stream connexion fermée");
       screencastActive = false;
       isVideoStreaming = false;
     });
@@ -339,7 +336,7 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 9. Auto-reconnect if stream stops (check every 30s)
     reconnectTimer = setInterval(() => {
-      if (!isVideoStreaming && getUserToken() && getVoiceChannelId()) {
+      if (!isVideoStreaming && getStreamToken() && getVoiceChannelId()) {
         logger.info("[VideoStream] Stream arrêté — nettoyage + reconnexion...");
         cleanupResources();
         void startVideoStreamAsync().catch(() => {});

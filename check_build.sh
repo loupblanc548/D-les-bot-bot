@@ -1,0 +1,2 @@
+#!/bin/bash
+sshpass -p 'Si62u1j55exIO8' ssh -o StrictHostKeyChecking=no root@31.220.79.90 'grep -c "MAX_TRACKED_GAMES" /opt/discord-bot/dist/services/gameReleaseCountdown.js && grep "MAX_TRACKED_GAMES" /opt/discord-bot/dist/services/gameReleaseCountdown.js | head -1 && grep -c "glassmorphism\|backdrop-filter\|0.55" /opt/discord-bot/dist/services/gameReleaseCountdownWeb.js && grep -c "500" /opt/discord-bot/dist/services/gameReleaseCountdown.js'
