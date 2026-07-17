@@ -113,10 +113,10 @@ export function extractAllNamesFromEntry(entry: Record<string, unknown>): string
     }
   }
 
-  // 3. Si rien trouvé, log un avertissement (uniquement si on n'a vraiment aucun nom)
+  // 3. Si rien trouvé, log en debug uniquement (évite le spam de warnings)
   if (names.size === 0) {
-    fortniteLogger.warn(
-      `[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable détectée (offerId: ${entry.offerId || "inconnu"})`,
+    fortniteLogger.debug(
+      `[FortniteAPI] Entrée sans nom (offerId: ${entry.offerId || "inconnu"})`,
     );
   }
 
@@ -282,9 +282,8 @@ export async function fetchShop(): Promise<FortniteShopResponse | null> {
             `(section: ${section || "inconnue"}, offerId: ${entry.offerId || "inconnu"})`,
         );
       } else if (itemsProcessed === 0) {
-        // Vraiment rien : ni items avec nom, ni nom de premier niveau
-        fortniteLogger.warn(
-          `[FortniteAPI] \u26a0\ufe0f Entrée sans nom exploitable — ignorée ` +
+        fortniteLogger.debug(
+          `[FortniteAPI] Entrée sans nom — ignorée ` +
             `(section: ${section || "inconnue"}, offerId: ${entry.offerId || "inconnu"})`,
         );
       }

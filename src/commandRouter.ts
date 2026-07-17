@@ -103,6 +103,9 @@ import {
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
 import { commands as releasesCommands, handleReleasesCommand } from "./commands/releases.js";
+import { commands as trendingCommands, handleTrendingCommand } from "./commands/trending.js";
+import { commands as gameUpdatesCommands, handleGameUpdatesCommand } from "./commands/gameupdates.js";
+import { commands as streamCommands, handleStreamCommand } from "./commands/stream.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -464,6 +467,12 @@ export const allCommands = [
   ...contextMenuCommands,
   // ── Releases (game release countdown) ──
   ...releasesCommands,
+  // ── Trending (most anticipated games) ──
+  ...trendingCommands,
+  // ── Game Updates (Steam news) ──
+  ...gameUpdatesCommands,
+  // ── Stream (Go Live controller) ──
+  ...streamCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -523,6 +532,21 @@ export function buildCommandRouter(): void {
   commandRouter["releases"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleReleasesCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Trending command ───
+  commandRouter["trending"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleTrendingCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Game Updates command ───
+  commandRouter["gameupdates"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleGameUpdatesCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Stream command ───
+  commandRouter["stream"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleStreamCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Context Menus ───
   registerGroup(
@@ -618,11 +642,14 @@ export async function registerCommands(): Promise<void> {
         `✓ ${mergedCommands.length} commandes enregistrées pour la guilde ${config.guildId}`,
       );
 
-      // Nettoyer les commandes globales orphelines (sans flash côté guilde)
+      // Enregistrer aussi globalement pour le badge Active Developer
       try {
-        await rest.put(Routes.applicationCommands(config.clientId), { body: [] });
-      } catch {
-        // Non critique — les commandes globales orphelines disparaissent d'elles-mêmes
+        await rest.put(Routes.applicationCommands(config.clientId), { body: mergedCommands });
+        logger.info(`✓ ${mergedCommands.length} commandes aussi enregistrées globalement (badge Active Developer)`);
+      } catch (globalErr) {
+        logger.warn(
+          `[Register] Enregistrement global échoué (non critique pour la guilde): ${globalErr instanceof Error ? globalErr.message : String(globalErr)}`,
+        );
       }
     } else {
       // Mode global: déploiement partout (peut prendre jusqu'à 1h)

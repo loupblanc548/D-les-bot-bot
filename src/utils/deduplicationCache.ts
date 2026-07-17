@@ -166,10 +166,12 @@ class DeduplicationCache {
       const arr = [...set];
       this.memoryCache.set(platform, new Set(arr.slice(arr.length - MAX_IDS_PER_PLATFORM)));
     }
-    // Persistance Neon (ignore doublons)
+    // Persistance Neon (upsert pour éviter P2002)
     try {
-      await prisma.processedCache.create({
-        data: { platform, uniqueId },
+      await prisma.processedCache.upsert({
+        where: { platform_uniqueId: { platform, uniqueId } },
+        create: { platform, uniqueId },
+        update: {},
       });
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };

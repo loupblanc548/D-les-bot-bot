@@ -16,25 +16,29 @@ import { joinVoiceChannel, VoiceConnectionStatus, type VoiceConnection } from "@
 import logger from "../utils/logger.js";
 
 const HTTP_BASE = "http://localhost:3000";
-const RELEASES_URL = `${HTTP_BASE}/releases`;
+const SHOWCASE_URL = `${HTTP_BASE}/releases/showcase`;
 const SCREENSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 min between screenshots
 
-async function getNextGamePreviewUrl(): Promise<string> {
-  try {
-    const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return RELEASES_URL;
-    const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
-    const now = Date.now();
-    const upcoming = games
-      .filter((g) => new Date(g.releaseDate).getTime() > now)
-      .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
-    if (upcoming.length > 0) {
-      return `${HTTP_BASE}/releases/preview?game=${encodeURIComponent(upcoming[0].gameName)}`;
+async function getShowcaseUrl(): Promise<string> {
+  // Wait for game data to be available
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
+      if (games.length === 0) {
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      return SHOWCASE_URL;
+    } catch {
+      await new Promise((r) => setTimeout(r, 3000));
     }
-    return RELEASES_URL;
-  } catch {
-    return RELEASES_URL;
   }
+  return SHOWCASE_URL;
 }
 
 async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean> {
@@ -130,8 +134,8 @@ async function startScreenShare(client: Client): Promise<void> {
     }
     logger.info(`[VoiceScreenShare] Serveur HTTP ${HTTP_BASE} prêt`);
 
-    // 3. Launch Playwright — open the next game's preview page
-    const previewUrl = await getNextGamePreviewUrl();
+    // 3. Launch Playwright — open the showcase page
+    const previewUrl = await getShowcaseUrl();
     const { chromium } = await import("playwright");
     browserContext = await chromium.launch({
       headless: true,
@@ -196,7 +200,7 @@ async function takeAndPostScreenshot(client: Client, voiceChannelId: string): Pr
       .setColor(0x5865f2)
       .setImage("attachment://releases-countdown.png")
       .setFooter({
-        text: `Mise à jour • ${new Date().toLocaleTimeString("fr-FR")} • ${RELEASES_URL}`,
+        text: `Mise à jour • ${new Date().toLocaleTimeString("fr-FR")} • ${SHOWCASE_URL}`,
       })
       .setTimestamp();
 
@@ -228,7 +232,7 @@ async function takeAndPostScreenshot(client: Client, voiceChannelId: string): Pr
       }
 
       const sent = await targetChannel.send({
-        content: `📊 **Countdown en temps réel** → ${RELEASES_URL}`,
+        content: `📊 **Countdown en temps réel** → ${SHOWCASE_URL}`,
         embeds: [embed],
         files: [attachment],
       });

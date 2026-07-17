@@ -23,20 +23,20 @@ export const MEMORY_CONFIG = {
   V8_HEAP_LIMIT_MB: isVPS ? 1536 : 4096,
 
   /** RSS threshold (in MB) at which GC is forced */
-  GC_THRESHOLD_MB: isVPS ? 1536 : 4096,
+  GC_THRESHOLD_MB: isVPS ? 600 : 800,
 
   /** CRITICAL threshold (in MB) — near-absolute limit */
-  CRITICAL_THRESHOLD_MB: isVPS ? 2304 : 6144,
+  CRITICAL_THRESHOLD_MB: isVPS ? 900 : 1200,
 
   /** Check interval in ms */
-  CHECK_INTERVAL_MS: isVPS ? 30 * 1000 : 60 * 1000,
+  CHECK_INTERVAL_MS: isVPS ? 30 * 1000 : 45 * 1000,
 
   /** Alert level thresholds in absolute MB */
   LEVELS: {
     OK: 0,
-    SURVEILLANCE: isVPS ? 768 : 2048,
-    WARNING: isVPS ? 1536 : 4096,
-    CRITICAL: isVPS ? 2304 : 6144,
+    SURVEILLANCE: isVPS ? 400 : 500,
+    WARNING: isVPS ? 600 : 800,
+    CRITICAL: isVPS ? 900 : 1200,
   },
 } as const;
 

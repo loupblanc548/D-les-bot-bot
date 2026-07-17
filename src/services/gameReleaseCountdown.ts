@@ -24,7 +24,7 @@ const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
 const PLATFORM_FILTER = process.env.GAME_RELEASE_PLATFORM || "all";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h: refresh release list
 const COUNTDOWN_UPDATE_MS = 60 * 1000; // 1 min: update countdown text
-const MAX_TRACKED_GAMES = 5; // Max simultaneous countdowns
+const MAX_TRACKED_GAMES = 100; // Max simultaneous countdowns
 const RELEASE_WEBHOOK_URL = process.env.GAME_RELEASE_WEBHOOK_URL || "";
 const RELEASE_NOTIFICATION_ROLE = process.env.GAME_RELEASE_NOTIFICATION_ROLE || "";
 
@@ -92,6 +92,7 @@ interface TrackedRelease {
   genres: string[];
   posted: boolean;
   notifiedDays: Set<number>; // Track which notifications were sent (7, 1, 0)
+  notifiedHour: boolean; // J-1h notification
 }
 
 const trackedReleases: TrackedRelease[] = [];
@@ -141,11 +142,11 @@ async function fetchUpcomingReleases(): Promise<
     const platformId = PLATFORM_MAP[PLATFORM_FILTER.toLowerCase()] ?? -1;
     const nowSec = Math.floor(Date.now() / 1000);
 
-    // Fetch games releasing in the next 90 days — prioritize AAA/AA via hypes
+    // Fetch ALL upcoming games — AAA/AA prioritized via hypes, no limit
     const body =
       platformId >= 0
-        ? `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400} & platforms = (${platformId}); sort hypes desc; limit 40;`
-        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 90 * 86400}; sort hypes desc; limit 40;`;
+        ? `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 365 * 86400} & platforms = (${platformId}); sort hypes desc; limit 500;`
+        : `fields name,first_release_date,summary,cover.image_id,platforms.name,genres.name,hypes; where first_release_date > ${nowSec} & first_release_date < ${nowSec + 365 * 86400}; sort hypes desc; limit 500;`;
 
     const res = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
@@ -188,7 +189,6 @@ async function fetchUpcomingReleases(): Promise<
         if (hypesDiff !== 0) return hypesDiff;
         return a.first_release_date - b.first_release_date;
       })
-      .slice(0, 20)
       .map((g) => ({
         name: g.name,
         releaseDate: new Date(g.first_release_date * 1000),
@@ -395,35 +395,19 @@ async function refreshReleaseList(client: Client): Promise<void> {
         genres: release.genres,
         posted: false,
         notifiedDays: new Set<number>(),
+        notifiedHour: false,
       });
     }
   }
 
-  // Post new releases that haven't been posted yet
-  const channel = client.channels.cache.get(VOICE_CHANNEL_ID);
-  if (!channel || !("send" in channel)) {
-    logger.warn(`[GameReleaseCountdown] Salon ${VOICE_CHANNEL_ID} inaccessible ou non textuel`);
-    return;
-  }
-
+  // Ne plus poster de messages dans le salon stream — la page showcase gère l'affichage
+  // Marquer comme posté sans envoyer de message Discord
   for (const tracked of trackedReleases) {
     if (!tracked.posted) {
-      try {
-        const embed = buildReleaseEmbed(tracked);
-        const msg = await channel.send({
-          content: `🚨 **Nouvelle sortie à venir !**`,
-          embeds: [embed],
-        });
-        tracked.messageId = msg.id;
-        tracked.posted = true;
-        logger.info(
-          `[GameReleaseCountdown] Posté: ${tracked.gameName} (${tracked.releaseDate.toDateString()})`,
-        );
-      } catch (err) {
-        logger.error(
-          `[GameReleaseCountdown] Erreur envoi ${tracked.gameName}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
+      tracked.posted = true;
+      logger.info(
+        `[GameReleaseCountdown] Tracké (sans post): ${tracked.gameName} (${tracked.releaseDate.toDateString()})`,
+      );
     }
   }
 }
@@ -502,7 +486,34 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
     const daysLeft = Math.ceil(
       (tracked.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
     );
+    const hoursLeft = (tracked.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60);
     const notificationDays = [7, 1, 0];
+
+    // J-1h notification
+    if (hoursLeft <= 1 && hoursLeft > 0 && !tracked.notifiedHour) {
+      tracked.notifiedHour = true;
+      const roleMention = RELEASE_NOTIFICATION_ROLE ? `<@&${RELEASE_NOTIFICATION_ROLE}> ` : "";
+      const message = `${roleMention}⏳ **${tracked.gameName}** sort dans moins d'1 heure ! Préparez-vous ! 🔥`;
+
+      const platformChannelId = getPlatformChannelId(tracked.platforms);
+      const targetChannelIds = platformChannelId
+        ? [platformChannelId]
+        : getAllTargetChannels().map((t) => t.channelId);
+
+      for (const channelId of targetChannelIds) {
+        try {
+          const channel = client.channels.cache.get(channelId);
+          if (channel && "send" in channel) {
+            await channel.send({ content: message });
+            logger.info(`[GameReleaseCountdown] Notif J-1h: ${tracked.gameName} → salon ${channelId}`);
+          }
+        } catch (err) {
+          logger.error(
+            `[GameReleaseCountdown] Erreur notif J-1h: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
 
     for (const days of notificationDays) {
       if (daysLeft === days && !tracked.notifiedDays.has(days)) {
@@ -569,28 +580,33 @@ async function updateCountdowns(client: Client): Promise<void> {
   // Check for J-7, J-1, J-0 notifications
   await checkReleaseNotifications(client);
 
+  // Post release history when games come out (instead of posting upcoming messages)
+  const channel = client.channels.cache.get(VOICE_CHANNEL_ID);
+  const hasChannel = channel && "send" in channel;
+
   for (const tracked of trackedReleases) {
-    if (!tracked.messageId) continue;
+    // Post a "released" message when the game comes out (J-0)
+    if (hasChannel && tracked.releaseDate.getTime() <= Date.now() && !tracked.notifiedDays.has(0)) {
+      tracked.notifiedDays.add(0);
+      try {
+        const embed = buildReleaseEmbed(tracked);
+        embed.setColor(0x00d26a);
+        embed.setTitle(`🎉 ${tracked.gameName} — Sorti aujourd'hui !`);
+        const platformLabel = tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
+        await (channel as any).send({
+          content: `📜 **Historique des sorties**\n🎮 **${tracked.gameName}** est maintenant disponible !\n*Plateforme: ${platformLabel}*`,
+          embeds: [embed],
+        });
+        logger.info(`[GameReleaseCountdown] Historique posté: ${tracked.gameName} (sorti)`);
+      } catch (err) {
+        logger.error(`[GameReleaseCountdown] Erreur post historique: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
 
     // Remove releases that are more than 24h past
     if (tracked.releaseDate.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
       trackedReleases.splice(trackedReleases.indexOf(tracked), 1);
       continue;
-    }
-
-    try {
-      const channel = client.channels.cache.get(tracked.channelId);
-      if (!channel || !("messages" in channel)) continue;
-
-      const msg = await channel.messages.fetch(tracked.messageId).catch(() => null);
-      if (!msg) continue;
-
-      const embed = buildReleaseEmbed(tracked);
-      await (msg as Message).edit({ embeds: [embed] });
-    } catch (err) {
-      logger.debug(
-        `[GameReleaseCountdown] Erreur MAJ countdown ${tracked.gameName}: ${err instanceof Error ? err.message : String(err)}`,
-      );
     }
   }
 }

@@ -579,7 +579,35 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- scrape_epic_free_countdown : jeux gratuits Epic Games actuels/à venir\n" +
     "- check_community_streams : vérifie si un streamer Twitch est en live\n" +
     "- fetch_game_patchnotes : patch notes d'un jeu via Steam\n" +
-    "- get_galactic_war_status : statut guerre galactique Helldivers 2\n\n" +
+    "- get_galactic_war_status : statut guerre galactique Helldivers 2\n" +
+    "### Tech & News (auto-use)\n" +
+    "- get_hackernews_top : top stories Hacker News (tech, startups)\n" +
+    "- get_github_trending : repos GitHub trending du jour/semaine\n" +
+    "- get_github_gists : gists publics d'un utilisateur GitHub\n" +
+    "- get_producthunt_products : produits du jour sur Product Hunt\n" +
+    "### Météo & Science\n" +
+    "- get_weather_forecast : prévision météo 5 jours pour une ville\n" +
+    "- get_space_launches : prochains lancements spatiaux (Launch Library 2)\n" +
+    "### Gaming (auto-use)\n" +
+    "- search_igdb_games : recherche n'importe quel jeu dans IGDB (nom, date, plateformes, genres)\n" +
+    "- get_steam_requirements : configuration requise d'un jeu Steam (min/recommended)\n" +
+    "- get_discord_events : liste les événements Discord programmés (sorties de jeux)\n" +
+    "- get_minecraft_status : statut d'un serveur Minecraft (joueurs, version, MOTD)\n" +
+    "- get_valorant_agents : liste les agents Valorant avec capacités\n" +
+    "- get_twitch_clips : clips populaires d'un streamer Twitch\n" +
+    "### Crypto & Finance\n" +
+    "- get_crypto_top : top 10 cryptos par market cap (prix, volume, variation 24h)\n" +
+    "### Recherche & Savoir\n" +
+    "- search_wikipedia : recherche complète sur Wikipedia FR (plusieurs articles + résumés)\n" +
+    "### Utilitaires (auto-use)\n" +
+    "- validate_email : valide un email (format, MX, jetable)\n" +
+    "- generate_hash : hash MD5/SHA-1/SHA-256/SHA-512 d'un texte\n" +
+    "- generate_uuid : génère un UUID v4 aléatoire\n" +
+    "- base64_encode_decode : encode/décode en Base64\n" +
+    "- explain_cron : explique une expression cron en français\n" +
+    "- generate_palette : génère une palette de couleurs harmonieuses\n" +
+    "- get_emoji_info : infos sur un emoji (codepoints, HTML entity)\n" +
+    "- get_lorem_ipsum : génère du texte Lorem Ipsum (placeholder)\n\n" +
     "## RÈGLES\n" +
     "- Tu es le point d'entrée UNIQUE. L'utilisateur te @mention et tu fais TOUT.\n" +
     "- searchKnowledge EN PREMIER pour les questions techniques, puis searchWeb.\n" +

@@ -496,6 +496,32 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // ─── Discord client error handlers ───
+  client.on("error", (err) => {
+    const code = (err as any)?.code;
+    logger.error(`[Discord] Client error (code=${code}): ${err.message}`);
+    // 2012 = DISALLOWED_BOT_USER — usually from selfbot, non-fatal
+    if (code === 2012) {
+      logger.warn("[Discord] Erreur 2012 (DISALLOWED_BOT_USER) — probablement le selfbot, non-fatal");
+    }
+  });
+
+  client.on("warn", (msg) => {
+    logger.warn(`[Discord] ${msg}`);
+  });
+
+  client.on("shardError", (err, shardId) => {
+    logger.error(`[Discord] Shard ${shardId} error: ${err.message}`);
+  });
+
+  client.on("shardDisconnect", (event, shardId) => {
+    logger.warn(`[Discord] Shard ${shardId} disconnected: code=${event.code}, reason=${event.reason}`);
+  });
+
+  client.on("shardReconnecting", (shardId) => {
+    logger.info(`[Discord] Shard ${shardId} reconnecting...`);
+  });
+
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
 

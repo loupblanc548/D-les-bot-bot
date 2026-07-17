@@ -23,6 +23,7 @@ import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
+import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
 import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
@@ -539,6 +540,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...AUTONOMOUS_TOOLS,
   ...FREE_TOOLS,
   ...EXTERNAL_TOOLS,
+  ...EXTRA_TOOLS,
 ];
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
@@ -617,6 +619,9 @@ export async function executeTool(
         // Essayer les tools externes (VPS, HTTP, DB, Docker, Git)
         const extResult = await executeExternalTool(toolName, args, ctx);
         if (extResult) return extResult;
+        // Essayer les tools extra (HackerNews, GitHub trending, weather forecast, etc.)
+        const extraResult = await executeExtraTool(toolName, args, ctx);
+        if (extraResult) return extraResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }

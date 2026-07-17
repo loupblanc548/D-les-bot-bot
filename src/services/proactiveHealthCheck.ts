@@ -109,10 +109,11 @@ export function startProactiveHealthCheck(client: Client, intervalMs = 30000): v
       lastHealthOk = isOk;
     }
 
-    // Alerte mémoire si > 480MB (proche de la limite 512MB)
-    if (status.memoryMb >= 480) {
+    // Alerte mémoire si > threshold (adaptatif selon VPS/local)
+    const memThreshold = process.env.MEMORY_ALERT_THRESHOLD ? parseInt(process.env.MEMORY_ALERT_THRESHOLD) : 600;
+    if (status.memoryMb >= memThreshold) {
       logger.warn(
-        `[HealthCheck] ⚠️ Memory ${status.memoryMb}MB ≥ 480MB threshold — ${status.guildCount} guilds, ${status.ping}ms`,
+        `[HealthCheck] ⚠️ Memory ${status.memoryMb}MB ≥ ${memThreshold}MB threshold — ${status.guildCount} guilds, ${status.ping}ms`,
       );
     }
 

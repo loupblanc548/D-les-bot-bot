@@ -211,6 +211,24 @@ export const EXTERNAL_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "control_stream",
+      description:
+        "Contrôle le Go Live (stream des jeux en direct). Actions: start, stop, restart, status. Le stream utilise le selfbot johnhelldivers26 pour diffuser la page showcase des sorties de jeux.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            description: "Action: start, stop, restart, status",
+          },
+        },
+        required: ["action"],
+      },
+    },
+  },
 ];
 
 // ─── Cron jobs dynamiques ────────────────────────────────────────────────────
@@ -421,6 +439,31 @@ export async function executeExternalTool(
 
         const content = await readFile(path, "utf-8");
         return { success: true, data: truncate(content) };
+      }
+
+      // ─── 11. Stream Control ─────────
+      case "control_stream": {
+        const action = String(args.action ?? "status");
+        const { startVideoStream, stopVideoStream, isStreamActive } = await import("./videoStream.js");
+        const active = isStreamActive();
+        switch (action) {
+          case "start":
+            if (active) return { success: true, data: "Le stream est déjà en cours." };
+            startVideoStream();
+            return { success: true, data: "▶️ Go Live démarré — johnhelldivers26 rejoint le salon vocal." };
+          case "stop":
+            if (!active) return { success: true, data: "Le stream n'est pas en cours." };
+            stopVideoStream();
+            return { success: true, data: "⏹️ Stream arrêté." };
+          case "restart":
+            stopVideoStream();
+            setTimeout(() => startVideoStream(), 3000);
+            return { success: true, data: "🔄 Redémarrage du stream en cours..." };
+          case "status":
+            return { success: true, data: `Stream: ${active ? "🟢 En cours" : "🔴 Arrêté"}\nSelfbot: johnhelldivers26\nContrôlé par: Bot #6851` };
+          default:
+            return { success: false, data: "Action invalide. Utilise: start, stop, restart, status" };
+        }
       }
 
       default:

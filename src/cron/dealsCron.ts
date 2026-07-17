@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import cron from "node-cron";
 import axios from "axios";
+import RSSParser from "rss-parser";
 import { stripHtml } from "../utils/stripHtml.js";
 import { config } from "../config.js";
 import { retry } from "../utils/retry.js";
@@ -14,6 +15,11 @@ import { dedupCache } from "../utils/deduplicationCache.js";
 import { getOgImage, safeSetImage, isValidEmbedImageUrl } from "../utils/image-helpers.js";
 import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
 import { generateStableId } from "../utils/url-cleaner.js";
+
+const rssParser = new RSSParser({
+  timeout: 10000,
+  headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
+});
 
 interface DealItem {
   title: string;
@@ -35,9 +41,12 @@ interface PlatformConfig {
 }
 
 const RSS_FEEDS = [
-  `${config.rss2jsonBaseUrl}?rss_url=${encodeURIComponent("https://www.reddit.com/r/FreeGameFindings/new.rss")}`,
-  `${config.rss2jsonBaseUrl}?rss_url=${encodeURIComponent("https://www.reddit.com/r/GameDeals/new.rss")}`,
+  "https://www.reddit.com/r/FreeGameFindings/new.rss",
+  "https://www.reddit.com/r/GameDeals/new.rss",
 ];
+
+// Circuit breaker for failing feeds
+const dealsFeedFailures = new Map<string, { count: number; skipUntil: number }>();
 
 const PLATFORM_CONFIGS: PlatformConfig[] = [
   {
@@ -367,30 +376,50 @@ async function checkDeals(client: Client): Promise<void> {
 
   try {
     for (const feedUrl of RSS_FEEDS) {
+      // Circuit breaker check
+      const failure = dealsFeedFailures.get(feedUrl);
+      if (failure && Date.now() < failure.skipUntil) {
+        continue;
+      }
+
       try {
         logger.debug(`[DealsCron] Analyse du flux: ${feedUrl}`);
 
-        // Fetch via rss2json API (JSON direct, pas besoin de parser XML) with retry logic
-        const response = await retry(() => axios.get(feedUrl, { timeout: 10000 }), 3, 1000);
+        // Parse RSS directly (no more rss2json dependency)
+        const feed = await rssParser.parseURL(feedUrl);
+        const items = (feed.items || []).slice(0, 10).map((item): DealItem => ({
+          title: item.title || "",
+          link: item.link || "",
+          pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
+          content: item.content || "",
+          contentSnippet: item.contentSnippet || item.summary || "",
+          thumbnail: item.enclosure?.url,
+          enclosure: item.enclosure ? { url: item.enclosure.url, type: item.enclosure.type || "" } : undefined,
+          guid: item.guid || item.link,
+        }));
 
-        const feed = response.data;
-        const items = feed.items || [];
-
-        if (!items || items.length === 0) {
+        if (items.length === 0) {
           logger.debug(`[DealsCron] Aucun item trouve dans: ${feedUrl}`);
           continue;
         }
 
-        const recentItems = items.slice(0, 10) as DealItem[];
-
         // Process items in parallel for better performance
-        await Promise.all(recentItems.map((item) => processDealItem(client, item)));
+        await Promise.all(items.map((item) => processDealItem(client, item)));
 
-        logger.info(`[DealsCron] ${recentItems.length} item(s) traite(s) depuis ${feedUrl}`);
+        logger.info(`[DealsCron] ${items.length} item(s) traite(s) depuis ${feedUrl}`);
+        dealsFeedFailures.delete(feedUrl);
       } catch (error) {
+        // Circuit breaker: track failures
+        const f = dealsFeedFailures.get(feedUrl) || { count: 0, skipUntil: 0 };
+        f.count++;
+        if (f.count >= 3) {
+          f.skipUntil = Date.now() + 30 * 60 * 1000;
+          f.count = 0;
+          logger.warn(`[DealsCron] Flux ${feedUrl.substring(0, 60)}... désactivé 30min (3 échecs)`);
+        }
+        dealsFeedFailures.set(feedUrl, f);
         logger.error(
           `[DealsCron] Erreur analyse du flux ${feedUrl}: ${error instanceof Error ? error.message : String(error)}`,
-          { stack: error instanceof Error ? error.stack : undefined },
         );
       }
     }

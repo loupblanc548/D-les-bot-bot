@@ -27,13 +27,13 @@ function initFeeds() {
   if (config.dedicatedChannel)
     RSS_FEEDS.push({
       game: "Helldivers 2",
-      url: "https://store.steampowered.com/feeds/news/app/553850/?l=french",
+      url: "steam:553850",
       channelId: config.dedicatedChannel,
     });
   if (config.dedicatedChannel)
     RSS_FEEDS.push({
       game: "Call of Duty Warzone",
-      url: "https://www.callofduty.com/blog/rss",
+      url: "https://store.steampowered.com/feeds/news/app/1933590/",
       channelId: config.dedicatedChannel,
     });
 }
@@ -43,6 +43,11 @@ const xmlParser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
+// Circuit breaker: skip feeds that fail repeatedly
+const feedFailures = new Map<string, { count: number; skipUntil: number }>();
+const MAX_FAILURES = 3;
+const SKIP_DURATION_MS = 30 * 60 * 1000; // 30 min
+
 // Extrait le texte d'un champ XML : string simple ou objet { #text: "..." }
 function textOf(val: any): string {
   return typeof val === "string" ? val : val?.["#text"] || "";
@@ -50,6 +55,31 @@ function textOf(val: any): string {
 
 async function fetchPatchNotes(feed: { game: string; url: string }): Promise<PatchNote | null> {
   try {
+    // Steam Web API fallback for steam:appid URLs
+    if (feed.url.startsWith("steam:")) {
+      const appid = feed.url.split(":")[1];
+      const steamKey = process.env.STEAM_WEB_API_KEY;
+      const steamUrl = steamKey
+        ? `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}&count=1&maxlength=3000&format=json&key=${steamKey}`
+        : `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}&count=1&maxlength=3000&format=json`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const response = await fetch(steamUrl, {
+        signal: controller.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
+      });
+      clearTimeout(timeout);
+      if (!response.ok) return null;
+      const data = await response.json() as any;
+      const newsItem = data?.appnews?.newsitems?.[0];
+      if (!newsItem) return null;
+      const title = newsItem.title || `${feed.game} Update`;
+      const rawContent = (newsItem.contents || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 3000);
+      const url = newsItem.url || `https://store.steampowered.com/news/app/${appid}`;
+      if (!rawContent) return null;
+      return { game: feed.game, title, url, rawContent };
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(feed.url, {
@@ -167,9 +197,28 @@ export function stopPatchNotesService() {
 
 async function checkAllFeeds(client: Client) {
   for (const feed of RSS_FEEDS) {
+    // Circuit breaker: skip feeds in cooldown
+    const failure = feedFailures.get(feed.game);
+    if (failure && Date.now() < failure.skipUntil) {
+      continue;
+    }
+
     try {
       const patchNote = await fetchPatchNotes(feed);
-      if (!patchNote) continue;
+      if (!patchNote) {
+        // Track failures for circuit breaker
+        const f = feedFailures.get(feed.game) || { count: 0, skipUntil: 0 };
+        f.count++;
+        if (f.count >= MAX_FAILURES) {
+          f.skipUntil = Date.now() + SKIP_DURATION_MS;
+          f.count = 0;
+          logger.warn(`[PatchNotes] Flux ${feed.game} désactivé 30min (${MAX_FAILURES} échecs consécutifs)`);
+        }
+        feedFailures.set(feed.game, f);
+        continue;
+      }
+      // Reset failures on success
+      feedFailures.delete(feed.game);
       const alreadyNotified = await prisma.notification.findFirst({
         where: { sourceId: "patch-" + feed.game, content: patchNote.title },
       });

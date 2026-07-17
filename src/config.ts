@@ -262,9 +262,7 @@ export function validateConfig(): { errors: string[]; warnings: string[] } {
   if (!config.twitterAccounts)
     warnings.push("TWITTER_ACCOUNTS manquant dans .env (surveillance Twitter desactivee)");
   if (!config.twitchClientId)
-    warnings.push("TWITCH_CLIENT_ID manquant dans .env (monitoring Twitch desactive)");
-  if (!config.twitchClientSecret)
-    warnings.push("TWITCH_CLIENT_SECRET manquant dans .env (monitoring Twitch desactive)");
+    warnings.push("TWITCH_CLIENT_ID manquant (monitoring Twitch désactivé — optionnel)");
   // Monitoring (warning)
   if (!config.sentryDsn)
     warnings.push("SENTRY_DSN manquant dans .env (monitoring Sentry desactive)");

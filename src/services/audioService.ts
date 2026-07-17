@@ -58,13 +58,15 @@ try {
 let ffmpegPath: string | null;
 try {
   const ffmpegMod = await import("ffmpeg-static");
-  ffmpegPath = (ffmpegMod as unknown as string) || null;
+  ffmpegPath = (ffmpegMod as any).default || (ffmpegMod as unknown as string) || null;
   if (ffmpegPath) {
     process.env.FFMPEG_PATH = ffmpegPath;
     logger.info(`[AudioService] ffmpeg-static configuré: ${ffmpegPath}`);
+  } else {
+    logger.debug("[AudioService] ffmpeg-static: chemin vide — fallback système");
   }
 } catch {
-  logger.warn("[AudioService] ffmpeg-static non disponible — fallback système");
+  logger.debug("[AudioService] ffmpeg-static non disponible — fallback système");
 }
 
 // ─── libsodium-wrappers (Opus natif) ─────────────────────────────────────────

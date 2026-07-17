@@ -11,6 +11,13 @@ import logger from "./logger.js";
  * Support multi-langues et traduction inversée
  */
 
+// ─── Translation Cache (avoid re-translating same text) ──────────────────────
+const translationCache = new Map<string, TranslationResult>();
+const CACHE_MAX_SIZE = 500;
+
+// ─── OpenRouter Rate Limit State ─────────────────────────────────────────────
+let openRouterRateLimitedUntil = 0;
+
 // ─── Circuit Breaker State ───────────────────────────────────────────────────
 
 let isMyMemoryBanned = false;
@@ -187,6 +194,13 @@ export async function translateText(
     return null;
   }
 
+  // Check cache first
+  const cacheKey = `${text}|${targetLang}|${sourceLang}`;
+  const cached = translationCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   // Si sourceLang = targetLang, ne pas traduire
   if (sourceLang !== "auto" && sourceLang === targetLang) {
     return {
@@ -246,15 +260,65 @@ export async function translateText(
   }
 
   // ── PLAN B: OpenRouter API (Failover) ────────────────────────────────
-  try {
-    const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
-    if (openRouterResult) {
-      return openRouterResult;
+  // Skip if OpenRouter is rate-limited
+  if (Date.now() < openRouterRateLimitedUntil) {
+    const remaining = Math.ceil((openRouterRateLimitedUntil - Date.now()) / 1000);
+    logger.warn(`[Translator] OpenRouter rate-limited (${remaining}s restants) — texte original`);
+  } else {
+    try {
+      const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
+      if (openRouterResult) {
+        // Cache the result
+        if (translationCache.size >= CACHE_MAX_SIZE) {
+          const firstKey = translationCache.keys().next().value;
+          if (firstKey) translationCache.delete(firstKey);
+        }
+        translationCache.set(cacheKey, openRouterResult);
+        return openRouterResult;
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`[Translator] OpenRouter API échouée également: ${errMsg}`);
+      // If rate limited, set cooldown
+      if (errMsg.includes("429")) {
+        openRouterRateLimitedUntil = Date.now() + 60_000; // 1 min cooldown
+        logger.warn("[Translator] OpenRouter rate-limited — cooldown 60s");
+      }
     }
-  } catch (error) {
-    logger.error(
-      `[Translator] OpenRouter API échouée également: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  }
+
+  // ── PLAN C: LibreTranslate (gratuit, pas de clé, auto-hébergé ou public) ──
+  try {
+    const libreUrl = process.env.LIBRETRANSLATE_URL || "https://libretranslate.com/translate";
+    const libreRes = await fetch(libreUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        q: text,
+        source: sourceLang === "auto" ? "auto" : sourceLang,
+        target: targetLang,
+        format: "text",
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (libreRes.ok) {
+      const libreData = await libreRes.json() as any;
+      if (libreData?.translatedText) {
+        const result: TranslationResult = {
+          translatedText: libreData.translatedText,
+          detectedLanguage: sourceLang === "auto" ? (libreData.detectedLanguage?.language || "auto") : sourceLang,
+        };
+        if (translationCache.size >= CACHE_MAX_SIZE) {
+          const firstKey = translationCache.keys().next().value;
+          if (firstKey) translationCache.delete(firstKey);
+        }
+        translationCache.set(cacheKey, result);
+        logger.info("[Translator] LibreTranslate ✓ (Plan C)");
+        return result;
+      }
+    }
+  } catch (libreErr) {
+    logger.debug(`[Translator] LibreTranslate indisponible: ${libreErr instanceof Error ? libreErr.message : String(libreErr)}`);
   }
 
   // ── SÉCURITÉ ULTIME: Retourner le texte original si tout échoue ─────
@@ -344,12 +408,12 @@ async function translateWithOpenRouter(
     sourceLang === "auto" ? "la langue détectée" : SUPPORTED_LANGUAGES[sourceLang] || sourceLang;
 
   try {
-    // Retry sur 429 (rate limit) avec backoff exponentiel
+    // Retry sur 429 (rate limit) — 1 retry only to avoid spam
     let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) {
-        const delay = 2000 * Math.pow(2, attempt - 1); // 2s, 4s
-        logger.warn(`[Translator] OpenRouter 429 — retry ${attempt + 1}/3 dans ${delay}ms`);
+        const delay = 3000;
+        logger.warn(`[Translator] OpenRouter 429 — retry ${attempt + 1}/2 dans ${delay}ms`);
         await new Promise((r) => setTimeout(r, delay));
       }
 

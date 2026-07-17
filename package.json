@@ -18,6 +18,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "prepare": "husky",
+    "postinstall": "node scripts/patch-video-stream.cjs",
     "test:ci": "vitest run --coverage --reporter=verbose",
     "cli": "tsx scripts/cli.ts",
     "youtube:auth": "tsx scripts/youtube-auth.ts",

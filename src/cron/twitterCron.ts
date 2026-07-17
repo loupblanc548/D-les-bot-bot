@@ -45,6 +45,9 @@ const RSSHUB_INSTANCES = [
 const FOOTER = { text: "Twitter Monitor • Surveillance automatique" };
 const TWITTER_ICON = "https://abs.twimg.com/responsive-web/client-web/icon-default.522d363a.png";
 
+// Circuit breaker: skip accounts that fail repeatedly
+const twitterFailures = new Map<string, { count: number; skipUntil: number }>();
+
 const rssParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -223,6 +226,12 @@ function parseTweetsFromRss(xml: string, account: string): TweetData[] {
 }
 
 async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
+  // Circuit breaker: skip accounts in cooldown
+  const failure = twitterFailures.get(account);
+  if (failure && Date.now() < failure.skipUntil) {
+    return [];
+  }
+
   // Strategy: try Nitter instances first (RSS endpoint), then RSSHub instances
   const sources: string[] = [];
 
@@ -244,6 +253,7 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
         logger.info(
           `[TwitterCron] ✓ @${account}: ${tweets.length} tweet(s) via ${url.split("/")[2]}`,
         );
+        twitterFailures.delete(account);
         return tweets;
       }
     }
@@ -252,6 +262,17 @@ async function fetchTweetsForAccount(account: string): Promise<TweetData[]> {
   logger.warn(
     `[TwitterCron] ✗ @${account}: toutes les sources RSS ont échoué (${sources.length} essayées)`,
   );
+
+  // Circuit breaker: track failures, skip for 1h after 3 consecutive failures
+  const f = twitterFailures.get(account) || { count: 0, skipUntil: 0 };
+  f.count++;
+  if (f.count >= 3) {
+    f.skipUntil = Date.now() + 60 * 60 * 1000; // 1h
+    f.count = 0;
+    logger.warn(`[TwitterCron] @${account} désactivé 1h (3 échecs consécutifs)`);
+  }
+  twitterFailures.set(account, f);
+
   return [];
 }
 

@@ -95,7 +95,8 @@ import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startAutoTranslate } from "./services/autoTranslate.js";
 import { startAiSpamDetector } from "./services/aiSpamDetector.js";
 import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
-import { startVideoStream } from "./services/videoStream.js";
+import { startVideoStream, startStreamWatchdog } from "./services/videoStream.js";
+import { startDiscordEventsService } from "./services/discordEvents.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -228,17 +229,21 @@ export function attachStartupLogic(
     );
     registerInterval(wishlistInterval);
 
-    // Rattrapage startup
-    logger.info("[Startup] Rattrapage des actualites manquees...");
-    try {
-      await runStartupRetrospective(client);
-      await runDbSourcesRetrospective(client);
-      await runWishlistRetrospective(client);
-    } catch (e) {
-      logger.error(
-        `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
-        { stack: e instanceof Error ? e.stack : undefined },
-      );
+    // Rattrapage startup (skippable via SKIP_RETROSPECTIVE=true)
+    if (process.env.SKIP_RETROSPECTIVE === "true") {
+      logger.info("[Startup] Rattrapage ignoré (SKIP_RETROSPECTIVE=true)");
+    } else {
+      logger.info("[Startup] Rattrapage des actualites manquees...");
+      try {
+        await runStartupRetrospective(client);
+        await runDbSourcesRetrospective(client);
+        await runWishlistRetrospective(client);
+      } catch (e) {
+        logger.error(
+          `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
+          { stack: e instanceof Error ? e.stack : undefined },
+        );
+      }
     }
 
     // Validation des salons
@@ -262,7 +267,13 @@ export function attachStartupLogic(
 
     // Démarrage de tous les services
     logger.info("[Startup] Demarrage des services...");
-    const services = [
+    const botRole = process.env.BOT_ROLE || "primary"; // "primary" (VPS) or "stream-only" (PC local)
+    const isPrimary = botRole === "primary";
+    if (!isPrimary) {
+      logger.info("[Startup] Mode STREAM-ONLY — crons de notification désactivés (le VPS gère les notifications)");
+    }
+
+    const services: (() => void)[] = isPrimary ? [
       () => startMonitoring(client),
       () => startInactivityCheck(client),
       () => startTwitchMonitoring(client),
@@ -326,6 +337,13 @@ export function attachStartupLogic(
       () => startAiSpamDetector(client),
       () => startVoiceScreenShare(client),
       () => startVideoStream(),
+      () => startStreamWatchdog(),
+      () => startDiscordEventsService(client),
+    ] : [
+      // Stream-only mode: Go Live stream + watchdog + release data for showcase
+      () => startGameReleaseCountdown(client),
+      () => startVideoStream(),
+      () => startStreamWatchdog(),
     ];
     for (const start of services) {
       try {

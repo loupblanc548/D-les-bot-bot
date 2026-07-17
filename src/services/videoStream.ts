@@ -1,5 +1,5 @@
 /**
- * videoStream.ts — Stream la page web /releases en "Go Live" (vrai partage d'écran)
+ * videoStream.ts — Stream la page web /releases/showcase en "Go Live" (vrai partage d'écran)
  * dans le salon vocal Discord using @dank074/discord-video-stream.
  *
  * Discord bloque la vidéo des bots — il faut un token utilisateur (selfbot).
@@ -10,8 +10,14 @@
  */
 
 import logger from "../utils/logger.js";
+import type { ChildProcess } from "child_process";
 
 const HTTP_BASE = "http://localhost:3000";
+const STREAM_WIDTH = 1280;
+const STREAM_HEIGHT = 720;
+const STREAM_FPS = 30;
+const CAPTURE_WIDTH = 1280;
+const CAPTURE_HEIGHT = 720;
 
 function getUserToken(): string {
   return process.env.SCREEN_SHARE_USER_TOKEN || "";
@@ -73,8 +79,17 @@ async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean>
 let streamerInstance: any = null;
 let selfbotClient: any = null;
 let isVideoStreaming = false;
+let activeBrowser: any = null;
+let activePage: any = null;
+let activeFfmpeg: ChildProcess | null = null;
+let screencastActive = false;
+let reconnectTimer: NodeJS.Timeout | null = null;
+let reloadTimer: NodeJS.Timeout | null = null;
+let frameCount = 0;
+let streamManuallyStopped = false;
 
 export function startVideoStream(): void {
+  streamManuallyStopped = false;
   const userToken = getUserToken();
   const voiceChannelId = getVoiceChannelId();
   const guildId = getGuildId();
@@ -112,6 +127,9 @@ async function startVideoStreamAsync(): Promise<void> {
   isVideoStreaming = true;
   logger.info("[VideoStream] Démarrage du Go Live...");
 
+  // Cleanup any previous state
+  cleanupResources();
+
   try {
     // 1. Wait for HTTP server
     const serverReady = await waitForHttpServer(HTTP_BASE);
@@ -122,9 +140,9 @@ async function startVideoStreamAsync(): Promise<void> {
     }
     logger.info(`[VideoStream] Serveur HTTP ${HTTP_BASE} prêt`);
 
-    // 2. Get the preview URL for the next game
-    const previewUrl = await getNextGamePreviewUrl();
-    logger.info(`[VideoStream] Page de présentation: ${previewUrl}`);
+    // 2. Get the showcase URL
+    const showcaseUrl = await getNextGamePreviewUrl();
+    logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
     // 3. Create selfbot client and streamer
     const { Client } = await import("discord.js-selfbot-v13");
@@ -147,42 +165,102 @@ async function startVideoStreamAsync(): Promise<void> {
     await streamerInstance.joinVoice(guildId, voiceChannelId);
     logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
 
-    // 5. Launch Playwright to capture the page as a video stream
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    // 4b. Monitor for voice connection drops
+    selfbotClient.on("error", (err: Error) => {
+      logger.error(`[VideoStream] Selfbot error: ${err.message}`);
     });
-    const page = await browser.newPage();
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(previewUrl, { waitUntil: "networkidle", timeout: 30000 });
-    logger.info(`[VideoStream] Page ${previewUrl} chargée`);
+    selfbotClient.on("disconnect", () => {
+      logger.warn("[VideoStream] Selfbot déconnecté — arrêt du stream");
+      screencastActive = false;
+      isVideoStreaming = false;
+    });
+    selfbotClient.on("close", () => {
+      logger.warn("[VideoStream] Selfbot connexion fermée");
+      screencastActive = false;
+      isVideoStreaming = false;
+    });
 
-    // 6. Capture screenshots at 30fps and pipe to ffmpeg via discord-video-stream
+    // 5. Launch Playwright to capture the showcase page
+    const { chromium } = await import("playwright");
+    activeBrowser = await chromium.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--enable-features=PageCapture",
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--disable-background-networking",
+        "--disable-extensions",
+        "--disable-component-extensions-with-background-pages",
+        "--disable-default-extensions",
+        "--disable-sync",
+        "--disable-translate",
+        "--no-first-run",
+        "--disable-popup-blocking",
+      ],
+    });
+    activePage = await activeBrowser.newPage();
+    await activePage.setViewportSize({ width: CAPTURE_WIDTH, height: CAPTURE_HEIGHT });
+
+    let pageLoaded = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await activePage.goto(showcaseUrl, { waitUntil: "networkidle", timeout: 20000 });
+        pageLoaded = true;
+        break;
+      } catch (err) {
+        logger.warn(
+          `[VideoStream] Page load tentative ${attempt + 1}/5: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+    if (!pageLoaded) {
+      logger.error(`[VideoStream] Impossible de charger ${showcaseUrl}`);
+      isVideoStreaming = false;
+      cleanupResources();
+      return;
+    }
+    logger.info(`[VideoStream] Page ${showcaseUrl} chargée`);
+
+    // 6. Capture frames via screenshot loop with frame pacing
     const { PassThrough } = await import("stream");
     const videoStream = new PassThrough();
+    screencastActive = true;
+    frameCount = 0;
 
-    // Start capturing screenshots at 30fps and pipe to ffmpeg
-    const fps = 30;
-    const frameInterval = 1000 / fps;
-    let capturing = true;
-
+    const targetFrameTime = 1000 / STREAM_FPS;
     const captureLoop = async () => {
-      while (capturing) {
+      while (screencastActive) {
+        const frameStart = Date.now();
         try {
-          const screenshot: Buffer = await page.screenshot({ type: "jpeg", quality: 80 });
-          if (!videoStream.destroyed) {
+          if (!activePage || videoStream.destroyed) break;
+          const screenshot: Buffer = await activePage.screenshot({
+            type: "jpeg",
+            quality: 85,
+          });
+          frameCount++;
+          if (frameCount % 120 === 1) {
+            const fps = (120 / ((Date.now() - (frameCount > 120 ? frameStart : frameStart)) / 1000)).toFixed(1);
+            logger.info(`[VideoStream] Frame #${frameCount} (${screenshot.length} bytes)`);
+          }
+          if (!videoStream.destroyed && videoStream.writable) {
             videoStream.write(screenshot);
           }
         } catch {
           // Page might be loading
         }
-        await new Promise((r) => setTimeout(r, frameInterval));
+        const elapsed = Date.now() - frameStart;
+        const wait = targetFrameTime - elapsed;
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       }
     };
     void captureLoop();
 
-    // 7. Stream via discord-video-stream as Go Live
+    logger.info(`[VideoStream] Capture démarrée — ${STREAM_FPS}fps (screenshot max speed)`);
+
+    // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
     const encoder = Encoders.software({
       x264: {
         preset: "superfast",
@@ -190,71 +268,180 @@ async function startVideoStreamAsync(): Promise<void> {
       },
     });
 
-    const { command, output } = prepareStream(videoStream, {
+    const { command, output, promise: ffmpegPromise } = prepareStream(videoStream, {
       encoder,
-      height: 1080,
-      width: 1920,
-      frameRate: fps,
-      bitrateVideo: 5000,
-      bitrateVideoMax: 7500,
+      height: STREAM_HEIGHT,
+      width: STREAM_WIDTH,
+      frameRate: STREAM_FPS,
+      bitrateVideo: 6000,
+      bitrateVideoMax: 8000,
+      bitrateAudio: 0,
+      includeAudio: false,
       videoCodec: Utils.normalizeVideoCodec("H264"),
+      minimizeLatency: true,
+      customInputOptions: [
+        "-f", "image2pipe",
+        "-c:v", "mjpeg",
+        "-r", String(STREAM_FPS),
+      ],
+      customFfmpegFlags: [],
     });
+
+    activeFfmpeg = command;
 
     command.on("error", (err: Error) => {
       logger.error(`[VideoStream] ffmpeg error: ${err.message}`);
+      screencastActive = false;
+      isVideoStreaming = false;
     });
 
-    // 7b. Start streaming (don't await — keep it running)
+    command.on("close", (code: number) => {
+      logger.info(`[VideoStream] ffmpeg fermé (code ${code})`);
+      screencastActive = false;
+      isVideoStreaming = false;
+    });
+
+    ffmpegPromise?.catch((err: Error) => {
+      logger.error(`[VideoStream] ffmpeg promise error: ${err.message}`);
+    });
+
+    // 7b. playStream handles demux + createStream + VideoStream internally
+    logger.info("[VideoStream] Appel playStream...");
+    logger.info("[VideoStream] Go Live actif — streaming vidéo en temps réel ✅");
     playStream(output, streamerInstance, {
       type: "go-live",
+      format: "nut",
+      width: STREAM_WIDTH,
+      height: STREAM_HEIGHT,
+      frameRate: STREAM_FPS,
     })
       .then(() => {
         logger.info("[VideoStream] Go Live terminé");
-        capturing = false;
+        screencastActive = false;
         isVideoStreaming = false;
       })
       .catch((err: Error) => {
         logger.error(`[VideoStream] Go Live erreur: ${err.message}`);
-        capturing = false;
+        screencastActive = false;
         isVideoStreaming = false;
       });
 
-    logger.info("[VideoStream] Go Live actif — streaming vidéo en temps réel ✅");
-
-    // 8. Reload page every 60s to refresh countdown data
-    setInterval(async () => {
-      if (!capturing) return;
+    // 8. Reload page every 5min to refresh countdown data (page JS updates countdowns live)
+    reloadTimer = setInterval(async () => {
+      if (!screencastActive || !activePage) return;
       try {
-        await page.reload({ waitUntil: "networkidle", timeout: 10000 });
+        await activePage.reload({ waitUntil: "networkidle", timeout: 10000 });
         logger.debug("[VideoStream] Page rechargée");
       } catch {
         // Ignore reload errors
       }
-    }, 60_000);
+    }, 300_000);
 
     // 9. Auto-reconnect if stream stops (check every 30s)
-    setInterval(() => {
+    reconnectTimer = setInterval(() => {
       if (!isVideoStreaming && getUserToken() && getVoiceChannelId()) {
-        logger.info("[VideoStream] Stream arrêté — tentative de reconnexion...");
+        logger.info("[VideoStream] Stream arrêté — nettoyage + reconnexion...");
+        cleanupResources();
         void startVideoStreamAsync().catch(() => {});
       }
     }, 30_000);
   } catch (err) {
     logger.error(`[VideoStream] Erreur: ${err instanceof Error ? err.message : String(err)}`);
     isVideoStreaming = false;
+    cleanupResources();
   }
 }
 
-export function stopVideoStream(): void {
-  isVideoStreaming = false;
+function cleanupResources(): void {
+  screencastActive = false;
+
+  if (reloadTimer) {
+    clearInterval(reloadTimer);
+    reloadTimer = null;
+  }
+  if (reconnectTimer) {
+    clearInterval(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (activeFfmpeg) {
+    try { activeFfmpeg.kill("SIGTERM"); } catch { /* already dead */ }
+    activeFfmpeg = null;
+  }
+  if (activePage) {
+    activePage.close().catch(() => {});
+    activePage = null;
+  }
+  if (activeBrowser) {
+    activeBrowser.close().catch(() => {});
+    activeBrowser = null;
+  }
   if (selfbotClient) {
     selfbotClient.destroy?.();
     selfbotClient = null;
   }
   streamerInstance = null;
+}
+
+export function stopVideoStream(): void {
+  isVideoStreaming = false;
+  streamManuallyStopped = true;
+  cleanupResources();
   logger.info("[VideoStream] Arrêté");
 }
 
 export function isStreamActive(): boolean {
   return isVideoStreaming;
+}
+
+// ─── Stream Watchdog ─────────────────────────────────────────────────────────
+let watchdogTimer: NodeJS.Timeout | null = null;
+let lastFrameCount = 0;
+let watchdogFailures = 0;
+
+export function startStreamWatchdog(): NodeJS.Timeout {
+  if (watchdogTimer) return watchdogTimer;
+
+  watchdogTimer = setInterval(() => {
+    if (!isVideoStreaming) {
+      if (streamManuallyStopped) {
+        watchdogFailures = 0;
+        return;
+      }
+      watchdogFailures++;
+      if (watchdogFailures >= 2) {
+        logger.warn("[VideoStream] Watchdog: stream inactif (non-volontaire) — tentative de redémarrage");
+        watchdogFailures = 0;
+        try {
+          stopVideoStream();
+          setTimeout(() => startVideoStream(), 5000);
+        } catch (err) {
+          logger.error(`[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      return;
+    }
+
+    // Vérifier si les frames progressent (capture bloquée ?)
+    if (frameCount === lastFrameCount) {
+      watchdogFailures++;
+      logger.warn(`[VideoStream] Watchdog: frames bloquées (${frameCount} == ${lastFrameCount}), failures=${watchdogFailures}`);
+      if (watchdogFailures >= 3) {
+        logger.warn("[VideoStream] Watchdog: frames bloquées 3x — redémarrage forcé");
+        watchdogFailures = 0;
+        try {
+          stopVideoStream();
+          setTimeout(() => startVideoStream(), 5000);
+        } catch (err) {
+          logger.error(`[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    } else {
+      watchdogFailures = 0;
+    }
+    lastFrameCount = frameCount;
+  }, 60_000); // Check every 60s
+
+  if (watchdogTimer.unref) watchdogTimer.unref();
+  logger.info("[VideoStream] Watchdog démarré (check 60s)");
+  return watchdogTimer;
 }
