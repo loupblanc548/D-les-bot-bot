@@ -201,6 +201,11 @@ async function startVideoStreamAsync(): Promise<void> {
         "--disable-translate",
         "--no-first-run",
         "--disable-popup-blocking",
+        "--disable-gpu",
+        "--single-process",
+        "--disable-dev-shm-usage",
+        "--disable-features=TranslateUI,VizDisplayCompositor",
+        "--no-zygote",
       ],
     });
     activePage = await activeBrowser.newPage();
@@ -209,7 +214,7 @@ async function startVideoStreamAsync(): Promise<void> {
     let pageLoaded = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        await activePage.goto(showcaseUrl, { waitUntil: "networkidle", timeout: 20000 });
+        await activePage.goto(showcaseUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
         pageLoaded = true;
         break;
       } catch (err) {
@@ -267,7 +272,7 @@ async function startVideoStreamAsync(): Promise<void> {
     // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
     const encoder = Encoders.software({
       x264: {
-        preset: "veryfast",
+        preset: "ultrafast",
         tune: "zerolatency",
       },
     });
@@ -341,7 +346,7 @@ async function startVideoStreamAsync(): Promise<void> {
     reloadTimer = setInterval(async () => {
       if (!screencastActive || !activePage) return;
       try {
-        await activePage.reload({ waitUntil: "networkidle", timeout: 10000 });
+        await activePage.reload({ waitUntil: "domcontentloaded", timeout: 8000 });
         logger.debug("[VideoStream] Page rechargée");
       } catch {
         // Ignore reload errors
@@ -355,7 +360,7 @@ async function startVideoStreamAsync(): Promise<void> {
         cleanupResources();
         void startVideoStreamAsync().catch(() => {});
       }
-    }, 30_000);
+    }, 15_000);
   } catch (err) {
     logger.error(`[VideoStream] Erreur: ${err instanceof Error ? err.message : String(err)}`);
     isVideoStreaming = false;

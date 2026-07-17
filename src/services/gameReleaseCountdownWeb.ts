@@ -648,10 +648,29 @@ body {
   color: #fff;
   text-shadow: 0 4px 20px rgba(88,101,242,0.5);
   letter-spacing: 1px;
+  background: linear-gradient(90deg, #fff 0%, #a0b4ff 50%, #fff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmerHeader 4s linear infinite;
+}
+@keyframes shimmerHeader {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 .showcase-header .subtitle {
   font-size: 0.8em; color: rgba(255,255,255,0.5);
   margin-top: 2px;
+}
+.showcase-header::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 2px;
+  margin: 6px auto 0;
+  background: linear-gradient(90deg, transparent, rgba(88,101,242,0.6), transparent);
+  border-radius: 2px;
 }
 .games-track {
   flex: 1;
@@ -669,13 +688,13 @@ body {
 }
 .game-card {
   display: flex;
-  background: rgba(15,15,35,0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15,15,35,0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05);
-  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.2s, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.2s, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease, filter 0.6s ease;
   max-height: 130px;
   opacity: 1;
   will-change: transform, opacity;
@@ -771,6 +790,7 @@ body {
   flex-shrink: 0;
   border-radius: 6px;
   margin: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .gc-info {
   padding: 8px 12px 8px 4px;
@@ -796,7 +816,7 @@ body {
   color: #5865f2;
   font-variant-numeric: tabular-nums;
   margin-bottom: 5px;
-  text-shadow: 0 0 8px rgba(88,101,242,0.3);
+  text-shadow: 0 0 8px rgba(88,101,242,0.4);
 }
 .gc-countdown.released {
   color: #00d26a;
@@ -822,9 +842,10 @@ body {
 .footer {
   text-align: center;
   font-size: 0.55em;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.3);
   padding: 4px 0;
   flex-shrink: 0;
+  text-shadow: 0 0 8px rgba(88,101,242,0.2);
 }
 .loading {
   color: rgba(255,255,255,0.4);
@@ -1021,10 +1042,10 @@ if (gridEl && track) {
     if (scrollPaused) return;
     const maxScroll = gridEl.scrollHeight - track.clientHeight;
     if (maxScroll <= 0) return;
-    scrollY += 1; // 1px per tick = ~20px/s at 50ms interval
+    scrollY += 0.8; // smoother scroll speed
     if (scrollY >= maxScroll) scrollY = 0;
     gridEl.style.transform = 'translateY(' + (-scrollY) + 'px)';
-  }, 50);
+  }, 40);
 }
 
 // ── Spotlight cycle: every 25s, highlight imminent games for 8s ──
