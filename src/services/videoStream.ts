@@ -241,7 +241,7 @@ async function startVideoStreamAsync(): Promise<void> {
           if (!activePage || videoStream.destroyed) break;
           const screenshot: Buffer = await activePage.screenshot({
             type: "jpeg",
-            quality: 85,
+            quality: 95,
           });
           frameCount++;
           if (frameCount % 120 === 1) {
@@ -264,9 +264,10 @@ async function startVideoStreamAsync(): Promise<void> {
     logger.info(`[VideoStream] Capture démarrée — ${STREAM_FPS}fps (screenshot max speed)`);
 
     // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
+    // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
     const encoder = Encoders.software({
       x264: {
-        preset: "superfast",
+        preset: "veryfast",
         tune: "zerolatency",
       },
     });
@@ -276,8 +277,8 @@ async function startVideoStreamAsync(): Promise<void> {
       height: STREAM_HEIGHT,
       width: STREAM_WIDTH,
       frameRate: STREAM_FPS,
-      bitrateVideo: 6000,
-      bitrateVideoMax: 8000,
+      bitrateVideo: 2500,
+      bitrateVideoMax: 3000,
       bitrateAudio: 0,
       includeAudio: false,
       videoCodec: Utils.normalizeVideoCodec("H264"),
@@ -287,7 +288,14 @@ async function startVideoStreamAsync(): Promise<void> {
         "-c:v", "mjpeg",
         "-r", String(STREAM_FPS),
       ],
-      customFfmpegFlags: [],
+      customFfmpegFlags: [
+        "-pix_fmt", "yuv420p",
+        "-profile:v", "high",
+        "-bf", "0",
+        "-g", "60",
+        "-keyint_min", "30",
+        "-x264-params", "no-scenecut=1:force-cfr=1",
+      ],
     });
 
     activeFfmpeg = command;
