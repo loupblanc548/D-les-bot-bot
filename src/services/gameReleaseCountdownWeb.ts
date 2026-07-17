@@ -978,26 +978,24 @@ setInterval(updateCountdowns, 1000);
 // Refresh data every 30s (picks up new games, removes expired ones)
 setInterval(fetchAndRender, 30000);
 
-// JS-driven smooth scroll — more reliable than CSS animation with dynamic DOM
+// JS-driven smooth scroll via setInterval — reliable in headless Chromium
 let scrollY = 0;
 let scrollPaused = false;
 const track = document.querySelector('.games-track');
 const gridEl = document.getElementById('grid');
-gridEl.addEventListener('mouseenter', () => { scrollPaused = true; });
-gridEl.addEventListener('mouseleave', () => { scrollPaused = false; });
+if (gridEl && track) {
+  gridEl.addEventListener('mouseenter', () => { scrollPaused = true; });
+  gridEl.addEventListener('mouseleave', () => { scrollPaused = false; });
 
-function scrollLoop() {
-  if (!scrollPaused && gridEl.scrollHeight > 0) {
-    scrollY += 0.3; // pixels per frame — smooth slow scroll
+  setInterval(() => {
+    if (scrollPaused) return;
     const maxScroll = gridEl.scrollHeight - track.clientHeight;
-    if (maxScroll > 0) {
-      if (scrollY >= maxScroll) scrollY = 0; // loop back to top
-      gridEl.style.transform = 'translateY(' + (-scrollY) + 'px)';
-    }
-  }
-  requestAnimationFrame(scrollLoop);
+    if (maxScroll <= 0) return;
+    scrollY += 1; // 1px per tick = ~20px/s at 50ms interval
+    if (scrollY >= maxScroll) scrollY = 0;
+    gridEl.style.transform = 'translateY(' + (-scrollY) + 'px)';
+  }, 50);
 }
-requestAnimationFrame(scrollLoop);
 </script>
 </body>
 </html>`;
