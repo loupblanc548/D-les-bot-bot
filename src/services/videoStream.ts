@@ -20,9 +20,8 @@ const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
 function getStreamToken(): string {
-  // Utilise le token du bot — Discord bloque le streaming vidéo pour les bots normaux
-  // mais on utilise @discordjs/voice + @dank074/discord-video-stream pour contourner
-  return process.env.DISCORD_TOKEN || "";
+  // Token du compte utilisateur johnhelldivers26 (compte créé avec email/mdp, pas un bot)
+  return process.env.SCREEN_SHARE_USER_TOKEN || "";
 }
 
 function getVoiceChannelId(): string {
@@ -148,21 +147,24 @@ async function startVideoStreamAsync(): Promise<void> {
     const showcaseUrl = await getNextGamePreviewUrl();
     logger.info(`[VideoStream] Page de présentation: ${showcaseUrl}`);
 
-    // 3. Use existing bot client + Streamer for voice+video
+    // 3. Create selfbot client for johnhelldivers26 (compte utilisateur)
+    const { Client } = await import("discord.js-selfbot-v13");
     const { Streamer, prepareStream, playStream, Utils, Encoders } =
       await import("@dank074/discord-video-stream");
 
-    if (!mainClient) {
-      logger.error("[VideoStream] Client principal non défini — appel setMainClient() d'abord");
-      isVideoStreaming = false;
-      return;
-    }
-
-    selfbotClient = mainClient;
+    selfbotClient = new Client();
     streamerInstance = new Streamer(selfbotClient);
-    logger.info(`[VideoStream] Bot stream: ${selfbotClient.user?.username || "unknown"}`);
 
-    // 4. Join voice channel via Streamer (gère la connexion vidéo Go Live)
+    await new Promise<void>((resolve, reject) => {
+      selfbotClient.once("ready", () => {
+        logger.info(`[VideoStream] Stream connecté: ${selfbotClient.user?.username}`);
+        resolve();
+      });
+      selfbotClient.once("error", reject);
+      selfbotClient.login(streamToken).catch(reject);
+    });
+
+    // 4. Join voice channel via Streamer
     await streamerInstance.joinVoice(guildId, voiceChannelId);
     logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
 
@@ -376,7 +378,9 @@ function cleanupResources(): void {
     activeBrowser.close().catch(() => {});
     activeBrowser = null;
   }
-  // Ne pas détruire mainClient — c'est le client principal du bot
+  if (selfbotClient && selfbotClient !== mainClient) {
+    selfbotClient.destroy?.();
+  }
   selfbotClient = null;
   streamerInstance = null;
 }
