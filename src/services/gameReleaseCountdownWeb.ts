@@ -688,26 +688,38 @@ body {
 }
 .game-card.entering {
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateY(30px) scale(0.9) rotateX(-15deg);
 }
 .game-card.entered {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0) scale(1) rotateX(0);
 }
 .game-card.expiring {
-  animation: expirePulse 1.5s ease;
+  animation: expireGlow 2s ease;
 }
-@keyframes expirePulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-  50% { box-shadow: 0 0 30px rgba(0,210,106,0.6), 0 0 0 2px rgba(0,210,106,0.4); }
+@keyframes expireGlow {
+  0% { box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform: scale(1); }
+  20% { box-shadow: 0 0 40px rgba(0,210,106,0.8), 0 0 0 3px rgba(0,210,106,0.5); transform: scale(1.05); }
+  40% { box-shadow: 0 0 30px rgba(0,210,106,0.6), 0 0 0 2px rgba(0,210,106,0.3); transform: scale(1.02); }
+  60% { box-shadow: 0 0 50px rgba(0,210,106,0.7), 0 0 0 3px rgba(0,210,106,0.4); transform: scale(1.06); }
+  100% { box-shadow: 0 0 20px rgba(0,210,106,0.3); transform: scale(1); }
 }
 .game-card.expired {
   opacity: 0;
-  transform: scale(0.8) translateX(50px);
+  transform: scale(0.7) translateX(80px) rotateZ(5deg);
   max-height: 0;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  filter: blur(8px);
+}
+@keyframes slideInFromRight {
+  0% { opacity: 0; transform: translateX(60px) scale(0.85) rotateY(20deg); }
+  60% { opacity: 0.8; transform: translateX(-5px) scale(1.02) rotateY(-3deg); }
+  100% { opacity: 1; transform: translateX(0) scale(1) rotateY(0); }
+}
+.game-card.slide-in {
+  animation: slideInFromRight 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 .game-card:hover {
   box-shadow: 0 8px 30px rgba(88,101,242,0.25), 0 0 0 1px rgba(88,101,242,0.15);
@@ -842,13 +854,13 @@ function buildCard(game) {
       '<div class="gc-platforms">' + cards + '</div>' +
     '</div>';
 
-  // Animate in
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      card.classList.remove('entering');
-      card.classList.add('entered');
-    });
-  });
+  // Animate in with slide effect
+  card.classList.add('slide-in');
+  card.classList.remove('entering');
+  setTimeout(() => {
+    card.classList.add('entered');
+    card.classList.remove('slide-in');
+  }, 700);
   return card;
 }
 
@@ -863,7 +875,7 @@ function updateCountdowns() {
       const card = el.closest('.game-card');
       if (card && !card.classList.contains('expiring') && !card.classList.contains('expired')) {
         card.classList.add('expiring');
-        // After pulse animation, fade out and remove
+        // After glow animation, fade out with blur and remove
         setTimeout(() => {
           card.classList.remove('expiring');
           card.classList.add('expired');
@@ -871,7 +883,7 @@ function updateCountdowns() {
             const name = card.dataset.gameName;
             if (name) currentGames.delete(name);
             card.remove();
-          }, 700);
+          }, 800);
         }, 2000);
       }
       return;
