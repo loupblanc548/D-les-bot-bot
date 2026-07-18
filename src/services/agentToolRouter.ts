@@ -204,6 +204,18 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     tools: ["lookup_typescript_skill"],
   },
   {
+    keywords: [
+      "problème réseau", "network problem", "network issue", "attaque",
+      "ip suspecte", "suspicious ip", "intrusion", "brute force", "brute-force",
+      "port scan", "scan de ports", "whois", "dns lookup", "reverse dns",
+      "géolocalisation ip", "ip geo", "osint", "investigation réseau",
+      "network investigation", "sécurité réseau", "network security",
+      "menace", "threat", "wazuh", "siem", "alerte sécurité",
+      "firewall", "pare-feu", "ip ban", "bannir ip",
+    ],
+    tools: ["network_investigate", "ip_geolocation"],
+  },
+  {
     keywords: ["code", "python", "javascript", "script", "exécute", "compile"],
     tools: ["execute_code"],
   },

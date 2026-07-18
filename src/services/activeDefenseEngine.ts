@@ -18,6 +18,7 @@
 
 import { exec } from "child_process";
 import { promisify } from "util";
+import dns from "dns";
 import {
   EmbedBuilder,
   ActionRowBuilder,
@@ -31,6 +32,83 @@ import prisma from "../prisma.js";
 import type { WazuhAlert } from "./wazuhClient.js";
 
 const execAsync = promisify(exec);
+const reverseDns = promisify(dns.reverse);
+
+// ─── OSINT Enrichment ────────────────────────────────────────────────────────
+
+interface OsintEnrichment {
+  ip: string;
+  country?: string;
+  city?: string;
+  isp?: string;
+  org?: string;
+  as?: string;
+  hostname?: string;
+  lat?: number;
+  lon?: number;
+}
+
+/**
+ * Enrich an IP address with OSINT data (geolocation + reverse DNS).
+ */
+async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
+  if (!ip || isProtectedIP(ip)) return null;
+
+  const enrichment: OsintEnrichment = { ip };
+
+  // 1. IP geolocation via ip-api.com (free, no key)
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(
+      `http://ip-api.com/json/${ip}?fields=status,message,country,city,isp,org,as,lat,lon,timezone`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = (await res.json()) as Record<string, unknown>;
+      if (data.status !== "fail") {
+        enrichment.country = String(data.country ?? "");
+        enrichment.city = String(data.city ?? "");
+        enrichment.isp = String(data.isp ?? "");
+        enrichment.org = String(data.org ?? "");
+        enrichment.as = String(data.as ?? "");
+        enrichment.lat = data.lat as number | undefined;
+        enrichment.lon = data.lon as number | undefined;
+      }
+    }
+  } catch {
+    // Non-fatal — geolocation may fail
+  }
+
+  // 2. Reverse DNS
+  try {
+    const hostnames = await reverseDns(ip);
+    if (hostnames && hostnames.length > 0) {
+      enrichment.hostname = hostnames[0];
+    }
+  } catch {
+    // No PTR record — normal
+  }
+
+  return enrichment;
+}
+
+/**
+ * Build OSINT enrichment fields for the validation embed.
+ */
+function buildOsintFields(enr: OsintEnrichment | null): { name: string; value: string; inline: boolean }[] {
+  if (!enr) return [];
+  const fields: { name: string; value: string; inline: boolean }[] = [];
+  if (enr.country) fields.push({ name: "🌍 Pays", value: enr.country, inline: true });
+  if (enr.city) fields.push({ name: "🏙️ Ville", value: enr.city, inline: true });
+  if (enr.isp) fields.push({ name: "📡 ISP", value: enr.isp, inline: true });
+  if (enr.org) fields.push({ name: "🏢 Org", value: enr.org, inline: true });
+  if (enr.as) fields.push({ name: "🔗 AS", value: enr.as, inline: true });
+  if (enr.hostname) fields.push({ name: "🔄 Reverse DNS", value: enr.hostname, inline: true });
+  if (enr.lat && enr.lon) fields.push({ name: "📍 GPS", value: `${enr.lat}, ${enr.lon}`, inline: true });
+  return fields;
+}
 
 // ─── Immutable Safeguards ────────────────────────────────────────────────────
 
@@ -166,20 +244,24 @@ const pendingApprovals = new Map<string, PendingApproval>();
 
 // ─── Embed Builders ──────────────────────────────────────────────────────────
 
-function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction): EmbedBuilder {
+function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction, osintFields: { name: string; value: string; inline: boolean }[] = []): EmbedBuilder {
+  const baseFields = [
+    { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
+    { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
+    { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
+    { name: "🌐 Source IP", value: alert.data?.srcip ?? "N/A", inline: true },
+    { name: "🔧 PID", value: alert.data?.pid ?? "N/A", inline: true },
+    { name: "📁 FIM File", value: alert.data?.file ?? "N/A", inline: true },
+  ];
+
+  const allFields = [...baseFields, ...osintFields];
+  allFields.push({ name: "⚔️ Action Proposée", value: proposal.description, inline: false });
+  allFields.push({ name: "💻 Commande", value: `\`\`\`bash\n${proposal.command}\n\`\`\``, inline: false });
+
   return new EmbedBuilder()
     .setTitle("🚨 [ATTENTE DE VALIDATION - RIPOSTE REQUISE]")
     .setColor(0xFF8C00)
-    .addFields(
-      { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
-      { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
-      { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
-      { name: "🌐 Source IP", value: alert.data?.srcip ?? "N/A", inline: true },
-      { name: "🔧 PID", value: alert.data?.pid ?? "N/A", inline: true },
-      { name: "📁 FIM File", value: alert.data?.file ?? "N/A", inline: true },
-      { name: "⚔️ Action Proposée", value: proposal.description, inline: false },
-      { name: "💻 Commande", value: `\`\`\`bash\n${proposal.command}\n\`\`\``, inline: false },
-    )
+    .addFields(...allFields)
     .setFooter({ text: "⏱️ Auto-abort dans 5 minutes sans réponse" })
     .setTimestamp();
 }
@@ -253,7 +335,19 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
     return;
   }
 
-  const validationEmbed = buildValidationRequestEmbed(alert, proposal);
+  // OSINT enrichment — auto-investigate source IP
+  const srcIp = alert.data?.srcip ?? "";
+  let osintFields: { name: string; value: string; inline: boolean }[] = [];
+  if (srcIp) {
+    logger.info(`[SOAR] 🔍 OSINT enrichment for source IP: ${srcIp}`);
+    const enrichment = await enrichIP(srcIp);
+    osintFields = buildOsintFields(enrichment);
+    if (enrichment) {
+      logger.info(`[SOAR] 🔍 OSINT: ${srcIp} → ${enrichment.country ?? "?"} / ${enrichment.isp ?? "?"} / ${enrichment.hostname ?? "no PTR"}`);
+    }
+  }
+
+  const validationEmbed = buildValidationRequestEmbed(alert, proposal, osintFields);
   const approvalButtons = buildApprovalButtons(alert.id);
 
   let dmMessage: Message | null = null;

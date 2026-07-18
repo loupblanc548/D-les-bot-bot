@@ -989,6 +989,29 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── OSINT Network Investigation ──
+  {
+    type: "function",
+    function: {
+      name: "network_investigate",
+      description: "Investigation OSINT réseau complète : géolocalisation IP, reverse DNS, scan de ports, WHOIS domaine. Utilise cet outil quand il y a un problème réseau, une IP suspecte, ou pour investiguer une alerte de sécurité.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: {
+            type: "string",
+            description: "IP ou domaine à investiguer (ex: 8.8.8.8 ou example.com)",
+          },
+          modules: {
+            type: "array",
+            items: { type: "string", enum: ["geo", "reverse_dns", "port_scan", "whois", "dns_records"] },
+            description: "Modules à exécuter (défaut: tous)",
+          },
+        },
+        required: ["target"],
+      },
+    },
+  },
 ];
 
 // ─── 2. TOOL IMPLEMENTATIONS ─────────────────────────────────────────────────
@@ -2017,6 +2040,8 @@ export async function executeAutonomousTool(
         return await tDomainAge(args);
       case "github_profile":
         return await tGithubProfile(args);
+      case "network_investigate":
+        return await tNetworkInvestigate(args);
       // 9. Analytics & BI
       case "guild_analytics":
         return await tGuildAnalytics(args);
@@ -2960,4 +2985,138 @@ async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallRe
       data: `GitHub API indisponible: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+// ─── OSINT Network Investigation ─────────────────────────────────────────────
+
+async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "").trim().slice(0, 200);
+  if (!target) return { success: false, data: "target requis (IP ou domaine)" };
+
+  const modules = (args.modules as string[] | undefined) ?? ["geo", "reverse_dns", "port_scan", "whois", "dns_records"];
+  const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(target) || /^[0-9a-f:]+$/i.test(target);
+  const isDomain = !isIP && /\.[a-z]{2,}$/i.test(target);
+
+  if (!isIP && !isDomain) {
+    return { success: false, data: "Target invalide — doit être une IP ou un domaine" };
+  }
+
+  const results: Record<string, unknown> = { target, type: isIP ? "ip" : "domain" };
+
+  // 1. IP Geolocation
+  if (modules.includes("geo") && isIP) {
+    try {
+      const res = await fetchRetry(
+        `http://ip-api.com/json/${target}?fields=status,message,country,countryCode,region,city,zip,lat,lon,timezone,isp,org,as,query`,
+        { signal: AbortSignal.timeout(8_000) },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, unknown>;
+        if (data.status !== "fail") {
+          results.geo = {
+            country: data.country, city: data.city, region: data.region,
+            isp: data.isp, org: data.org, as: data.as,
+            lat: data.lat, lon: data.lon, timezone: data.timezone,
+          };
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  // 2. Reverse DNS
+  if (modules.includes("reverse_dns") && isIP) {
+    try {
+      const dns = await import("dns");
+      const reverseDns = dns.promises.reverse;
+      const hostnames = await reverseDns(target);
+      results.reverseDns = hostnames.length > 0 ? hostnames : ["No PTR record"];
+    } catch {
+      results.reverseDns = ["No PTR record"];
+    }
+  }
+
+  // 3. Port scan (common ports)
+  if (modules.includes("port_scan")) {
+    try {
+      const net = await import("net");
+      const commonPorts = [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 993, 995, 1433, 3306, 3389, 5432, 6379, 8080, 8443, 27017];
+      const openPorts: number[] = [];
+
+      await Promise.all(
+        commonPorts.map((port) =>
+          new Promise<void>((resolve) => {
+            const socket = new net.Socket();
+            socket.setTimeout(2000);
+            socket.once("connect", () => {
+              openPorts.push(port);
+              socket.destroy();
+              resolve();
+            });
+            socket.once("timeout", () => { socket.destroy(); resolve(); });
+            socket.once("error", () => { socket.destroy(); resolve(); });
+            socket.connect(port, target);
+          }),
+        ),
+      );
+
+      openPorts.sort((a, b) => a - b);
+      results.portScan = { openPorts, scanned: commonPorts.length };
+    } catch {
+      results.portScan = { error: "Port scan failed" };
+    }
+  }
+
+  // 4. WHOIS (for domains)
+  if (modules.includes("whois") && isDomain) {
+    try {
+      const res = await fetchRetry(`https://rdap.org/domain/${target}`, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { Accept: "application/rdap+json" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, unknown>;
+        const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
+        results.whois = {
+          registrar: ((data.entities || []) as Array<{ roles: string[]; vcardArray: unknown[] }>)
+            .find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
+            ? "available" : "unknown",
+          registration: events.find((e) => e.eventAction === "registration")?.eventDate ?? "N/A",
+          expiration: events.find((e) => e.eventAction === "expiration")?.eventDate ?? "N/A",
+          status: data.status || [],
+        };
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  // 5. DNS records (for domains)
+  if (modules.includes("dns_records") && isDomain) {
+    try {
+      const dns = await import("dns");
+      const resolveA = dns.promises.resolve4;
+      const resolveMx = dns.promises.resolveMx;
+      const resolveNs = dns.promises.resolveNs;
+      const resolveTxt = dns.promises.resolveTxt;
+
+      const [a, mx, ns, txt] = await Promise.all([
+        resolveA(target).catch(() => []),
+        resolveMx(target).catch(() => []),
+        resolveNs(target).catch(() => []),
+        resolveTxt(target).catch(() => []),
+      ]);
+
+      results.dnsRecords = {
+        a: a as string[],
+        mx: (mx as Array<{ priority: number; exchange: string }>).map((m) => `${m.priority} ${m.exchange}`),
+        ns: ns as string[],
+        txt: (txt as string[][]).map((t) => t.join("")),
+      };
+    } catch { /* non-fatal */ }
+  }
+
+  logger.info(`[AgentTools] 🔍 Network investigation completed for ${target}`);
+
+  return {
+    success: true,
+    data: JSON.stringify(results),
+  };
 }

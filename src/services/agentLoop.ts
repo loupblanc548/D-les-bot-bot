@@ -581,6 +581,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- shodan_search : recherche d'appareils/services exposés sur Internet\n" +
     "- github_profile : profil GitHub public d'un utilisateur\n" +
     "- domain_age : âge d'un domaine via RDAP\n" +
+    "- network_investigate : investigation OSINT réseau complète (géolocalisation IP, reverse DNS, scan de ports, WHOIS, DNS records). ⚠️ UTILISE CECI en priorité quand il y a un problème réseau, une IP suspecte, une alerte de sécurité, ou pour investiguer une attaque. Modules: geo, reverse_dns, port_scan, whois, dns_records.\n" +
     "- detect_disposable_email : détecte les emails jetables\n" +
     "- detect_typosquatting : détecte les domaines frauduleux (d1scord, stean)\n" +
     "- verify_link_safety : vérifie une URL via URLVoid (phishing/malware)\n" +
