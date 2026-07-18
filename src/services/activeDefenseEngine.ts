@@ -1,9 +1,16 @@
 /**
- * activeDefenseEngine.ts — Autonomous Retaliation (SOAR) Engine
+ * activeDefenseEngine.ts — Human-in-the-Loop SOAR Retaliation Engine
  *
- * Processes validated critical threats from Wazuh and executes
- * immediate system-level counter-measures with DM notification,
- * dynamic editing, and interactive rollback buttons.
+ * Processes validated critical threats from Wazuh. FREEZES execution
+ * and enters a pending state until admin approval via Discord DM.
+ *
+ * Pipeline:
+ * 1. Threat detected → Build validation request embed
+ * 2. Send DM to admin with [⚔️ AUTORISER] / [❌ IGNORER] buttons
+ * 3. WAIT for admin interaction (5-minute timeout auto-abort)
+ * 4a. On APPROVE → Execute retaliation → Edit DM with results + [🔓 UNDO]
+ * 4b. On REJECT → Log as DISMISSED_BY_ADMIN → Edit DM
+ * 4c. On TIMEOUT → Auto-abort → Edit DM
  *
  * IMMUTABLE SAFEGUARDS: Never touches DB PIDs, Node.js runtime PID,
  * Wazuh Manager PID, or the admin home IP.
@@ -18,7 +25,6 @@ import {
   ButtonStyle,
   Client,
   Message,
-  ChannelType,
 } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
@@ -30,6 +36,7 @@ const execAsync = promisify(exec);
 
 const ADMIN_DISCORD_ID = process.env.ADMIN_DISCORD_ID ?? "";
 const ADMIN_HOME_IP = process.env.ADMIN_HOME_IP ?? "";
+const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // PIDs that must NEVER be killed
 const PROTECTED_PROCESS_NAMES = [
@@ -77,7 +84,7 @@ async function isProtectedPID(pid: string): Promise<boolean> {
 
 // ─── Rules of Engagement ─────────────────────────────────────────────────────
 
-type DefenseAction = "NETWORK_BAN" | "PROCESS_TERMINATION" | "CLOUDFLARE_BLOCK" | "LOG_ONLY";
+type DefenseAction = "NETWORK_BAN" | "PROCESS_TERMINATION" | "LOG_ONLY";
 
 interface DefenseResult {
   action: DefenseAction;
@@ -87,363 +94,277 @@ interface DefenseResult {
   success: boolean;
 }
 
-/**
- * Determine the appropriate defense action based on alert severity.
- */
-function determineAction(alert: WazuhAlert): DefenseAction {
+interface ProposedAction {
+  action: DefenseAction;
+  command: string;
+  targetIp?: string;
+  targetPid?: string;
+  description: string;
+}
+
+function proposeAction(alert: WazuhAlert): ProposedAction {
   if (alert.level >= 14) {
-    // System intrusion / FIM unauthorized edits
-    if (alert.data?.pid) return "PROCESS_TERMINATION";
-    return "NETWORK_BAN";
+    if (alert.data?.pid) {
+      return { action: "PROCESS_TERMINATION", command: `kill -9 ${alert.data.pid}`, targetPid: alert.data.pid, description: `Terminer le processus malveillant PID ${alert.data.pid} via kill -9` };
+    }
+    if (alert.data?.srcip) {
+      return { action: "NETWORK_BAN", command: `sudo ufw deny from ${alert.data.srcip} to any`, targetIp: alert.data.srcip, description: `Bannir l'IP source ${alert.data.srcip} via UFW` };
+    }
   }
-  if (alert.level >= 12) {
-    // Brute-force / network attacks
-    if (alert.data?.srcip) return "NETWORK_BAN";
-    return "LOG_ONLY";
+  if (alert.level >= 12 && alert.data?.srcip) {
+    return { action: "NETWORK_BAN", command: `sudo ufw deny from ${alert.data.srcip} to any`, targetIp: alert.data.srcip, description: `Bannir l'IP source ${alert.data.srcip} via UFW (brute-force/network attack)` };
   }
-  return "LOG_ONLY";
+  return { action: "LOG_ONLY", command: "none", description: "Journalisation uniquement — aucune action pour ce niveau" };
 }
 
-/**
- * Execute a network ban via UFW or iptables.
- */
-async function executeNetworkBan(ip: string): Promise<DefenseResult> {
+async function executeApprovedAction(proposal: ProposedAction): Promise<DefenseResult> {
   const start = Date.now();
-
-  if (isProtectedIP(ip)) {
-    logger.warn(`[SOAR] ⛔ Refusing to ban protected IP: ${ip}`);
-    return {
-      action: "NETWORK_BAN",
-      command: "BLOCKED (protected IP)",
-      output: `IP ${ip} is whitelisted — action refused`,
-      latencyMs: 0,
-      success: false,
-    };
-  }
-
-  const command = `sudo ufw deny from ${ip} to any 2>&1 || sudo iptables -A INPUT -s ${ip} -j DROP 2>&1`;
-
-  try {
-    const { stdout, stderr } = await execAsync(command, { timeout: 5000 });
-    const latency = Date.now() - start;
-
-    logger.info(`[SOAR] 🔒 IP banned: ${ip} (${latency}ms)`);
-
-    return {
-      action: "NETWORK_BAN",
-      command: `ufw deny from ${ip} / iptables -A INPUT -s ${ip} -j DROP`,
-      output: (stdout + stderr).trim().slice(0, 200),
-      latencyMs: latency,
-      success: true,
-    };
-  } catch (err) {
-    const latency = Date.now() - start;
-    const errMsg = err instanceof Error ? err.message : String(err);
-    logger.error(`[SOAR] Network ban failed for ${ip}: ${errMsg}`);
-    return {
-      action: "NETWORK_BAN",
-      command,
-      output: errMsg.slice(0, 200),
-      latencyMs: latency,
-      success: false,
-    };
+  switch (proposal.action) {
+    case "NETWORK_BAN": {
+      const ip = proposal.targetIp ?? "";
+      if (!ip || isProtectedIP(ip)) return { action: "NETWORK_BAN", command: "BLOCKED (protected IP)", output: `IP ${ip} is whitelisted — action refused`, latencyMs: 0, success: false };
+      try {
+        const { stdout, stderr } = await execAsync(`sudo ufw deny from ${ip} to any 2>&1 || sudo iptables -A INPUT -s ${ip} -j DROP 2>&1`, { timeout: 5000 });
+        const latency = Date.now() - start;
+        logger.info(`[SOAR] 🔒 IP banned: ${ip} (${latency}ms)`);
+        return { action: "NETWORK_BAN", command: `ufw deny from ${ip} / iptables -A INPUT -s ${ip} -j DROP`, output: (stdout + stderr).trim().slice(0, 200), latencyMs: latency, success: true };
+      } catch (err) {
+        return { action: "NETWORK_BAN", command: proposal.command, output: (err instanceof Error ? err.message : String(err)).slice(0, 200), latencyMs: Date.now() - start, success: false };
+      }
+    }
+    case "PROCESS_TERMINATION": {
+      const pid = proposal.targetPid ?? "";
+      if (!pid || (await isProtectedPID(pid))) return { action: "PROCESS_TERMINATION", command: "BLOCKED (protected process)", output: `PID ${pid} belongs to a protected system process — action refused`, latencyMs: 0, success: false };
+      try {
+        const { stdout, stderr } = await execAsync(`kill -9 ${pid} 2>&1`, { timeout: 3000 });
+        const latency = Date.now() - start;
+        logger.info(`[SOAR] 💀 Process terminated: PID ${pid} (${latency}ms)`);
+        return { action: "PROCESS_TERMINATION", command: `kill -9 ${pid}`, output: (stdout + stderr).trim().slice(0, 200) || `Process ${pid} killed`, latencyMs: latency, success: true };
+      } catch (err) {
+        return { action: "PROCESS_TERMINATION", command: proposal.command, output: (err instanceof Error ? err.message : String(err)).slice(0, 200), latencyMs: Date.now() - start, success: false };
+      }
+    }
+    default:
+      return { action: "LOG_ONLY", command: "none", output: "Threat logged — no action taken", latencyMs: 0, success: true };
   }
 }
 
-/**
- * Execute process termination via kill -9.
- */
-async function executeProcessTermination(pid: string): Promise<DefenseResult> {
-  const start = Date.now();
+// ─── Pending Approval State ──────────────────────────────────────────────────
 
-  if (await isProtectedPID(pid)) {
-    logger.warn(`[SOAR] ⛔ Refusing to kill protected PID: ${pid}`);
-    return {
-      action: "PROCESS_TERMINATION",
-      command: "BLOCKED (protected process)",
-      output: `PID ${pid} belongs to a protected system process — action refused`,
-      latencyMs: 0,
-      success: false,
-    };
-  }
-
-  const command = `kill -9 ${pid} 2>&1`;
-
-  try {
-    const { stdout, stderr } = await execAsync(command, { timeout: 3000 });
-    const latency = Date.now() - start;
-
-    logger.info(`[SOAR] 💀 Process terminated: PID ${pid} (${latency}ms)`);
-
-    return {
-      action: "PROCESS_TERMINATION",
-      command,
-      output: (stdout + stderr).trim().slice(0, 200) || `Process ${pid} killed`,
-      latencyMs: latency,
-      success: true,
-    };
-  } catch (err) {
-    const latency = Date.now() - start;
-    const errMsg = err instanceof Error ? err.message : String(err);
-    logger.error(`[SOAR] Process termination failed for PID ${pid}: ${errMsg}`);
-    return {
-      action: "PROCESS_TERMINATION",
-      command,
-      output: errMsg.slice(0, 200),
-      latencyMs: latency,
-      success: false,
-    };
-  }
+interface PendingApproval {
+  alert: WazuhAlert;
+  dmMessage: Message;
+  proposedAction: DefenseAction;
+  proposedCommand: string;
+  targetIp?: string;
+  targetPid?: string;
+  timeoutHandle: NodeJS.Timeout;
+  resolved: boolean;
 }
 
-// ─── DM Notification Pipeline ────────────────────────────────────────────────
+const pendingApprovals = new Map<string, PendingApproval>();
 
-/**
- * Build the initial threat-signature embed (pre-action).
- */
-function buildThreatEmbed(alert: WazuhAlert): EmbedBuilder {
-  const color = alert.level >= 14 ? 0xDC143C : 0xFF8C00; // Crimson or Dark Orange
+// ─── Embed Builders ──────────────────────────────────────────────────────────
 
+function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction): EmbedBuilder {
   return new EmbedBuilder()
-    .setTitle("⚠️ [MENACE DÉTECTÉE - ACTION INBOUND]")
-    .setColor(color)
+    .setTitle("🚨 [ATTENTE DE VALIDATION - RIPOSTE REQUISE]")
+    .setColor(0xFF8C00)
     .addFields(
       { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
       { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
       { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
-      { name: "🔍 Règle", value: alert.rule?.description ?? "N/A", inline: true },
       { name: "🌐 Source IP", value: alert.data?.srcip ?? "N/A", inline: true },
-      { name: "⏱️ Timestamp", value: alert.timestamp, inline: true },
+      { name: "🔧 PID", value: alert.data?.pid ?? "N/A", inline: true },
+      { name: "📁 FIM File", value: alert.data?.file ?? "N/A", inline: true },
+      { name: "⚔️ Action Proposée", value: proposal.description, inline: false },
+      { name: "💻 Commande", value: `\`\`\`bash\n${proposal.command}\n\`\`\``, inline: false },
     )
+    .setFooter({ text: "⏱️ Auto-abort dans 5 minutes sans réponse" })
     .setTimestamp();
 }
 
-/**
- * Build the post-action embed (edited after retaliation executes).
- */
-function buildPostActionEmbed(
-  alert: WazuhAlert,
-  result: DefenseResult,
-): EmbedBuilder {
-  const color = 0xDC143C; // High-Alert Crimson
-
-  const fields = [
-    { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
-    { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
-    { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
-    { name: "⚔️ Action", value: result.action, inline: true },
-    { name: "⚡ Latence", value: `${result.latencyMs}ms`, inline: true },
-    { name: "✅ Statut", value: result.success ? "Exécuté" : "Échec/Refusé", inline: true },
-  ];
-
-  if (result.output) {
-    fields.push({
-      name: "📋 Output",
-      value: `\`\`\`${result.output.slice(0, 200)}\`\`\``,
-      inline: false,
-    });
-  }
-
-  return new EmbedBuilder()
-    .setTitle("⚔️ [RIPOSTE EXÉCUTÉE ET CONTENUE]")
-    .setColor(color)
-    .addFields(...fields)
-    .setTimestamp();
-}
-
-/**
- * Build interactive buttons for the post-action DM.
- */
-function buildActionButtons(wazuhAlertId: string): ActionRowBuilder<ButtonBuilder> {
+function buildApprovalButtons(wazuhAlertId: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`soar_undo_${wazuhAlertId}`)
-      .setLabel("🔓 UNDO / ROLLBACK")
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId(`soar_investigate_${wazuhAlertId}`)
-      .setLabel("🟡 INVESTIGATE")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`soar_falsepos_${wazuhAlertId}`)
-      .setLabel("🟢 FALSE POSITIVE")
-      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`soar_approve_${wazuhAlertId}`).setLabel("⚔️ AUTORISER LA RIPOSTE").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`soar_reject_${wazuhAlertId}`).setLabel("❌ IGNORER / REJETER").setStyle(ButtonStyle.Secondary),
   );
 }
 
-/**
- * Undo a network ban (rollback).
- */
-export async function undoNetworkBan(ip: string): Promise<boolean> {
-  if (!ip) return false;
-  try {
-    await execAsync(`sudo ufw delete deny from ${ip} 2>&1 || sudo iptables -D INPUT -s ${ip} -j DROP 2>&1`, {
-      timeout: 5000,
-    });
-    logger.info(`[SOAR] ↩️ Undo: IP ${ip} unbanned`);
-    return true;
-  } catch {
-    return false;
-  }
+function buildPostExecutionEmbed(alert: WazuhAlert, result: DefenseResult): EmbedBuilder {
+  const fields = [
+    { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
+    { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
+    { name: "⚔️ Action", value: result.action, inline: true },
+    { name: "⚡ Latence", value: `${result.latencyMs}ms`, inline: true },
+    { name: "✅ Statut", value: result.success ? "Exécuté" : "Échec/Refusé", inline: true },
+    { name: "💻 Commande", value: `\`\`\`bash\n${result.command}\n\`\`\``, inline: false },
+  ];
+  if (result.output) fields.push({ name: "📋 Output", value: `\`\`\`\n${result.output.slice(0, 200)}\n\`\`\``, inline: false });
+  return new EmbedBuilder().setTitle("⚔️ [RIPOSTE APPROUVÉE ET EXÉCUTÉE]").setColor(0xDC143C).addFields(...fields).setTimestamp();
 }
 
-// ─── Main Entry Point ────────────────────────────────────────────────────────
+function buildRejectedEmbed(alert: WazuhAlert): EmbedBuilder {
+  return new EmbedBuilder().setTitle("❌ [RIPOSTE REJETÉE PAR L'ADMIN]").setColor(0x808080)
+    .addFields(
+      { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
+      { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
+      { name: "📋 Statut", value: "DISMISSED_BY_ADMIN", inline: false },
+    ).setTimestamp();
+}
+
+function buildTimeoutEmbed(alert: WazuhAlert): EmbedBuilder {
+  return new EmbedBuilder().setTitle("⏱️ [VALIDATION EXPIRÉE - RIPOSTE AUTO-ABORTÉE]").setColor(0x808080)
+    .addFields(
+      { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
+      { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
+      { name: "📋 Statut", value: "TIMEOUT — No admin response within 5 minutes", inline: false },
+    ).setTimestamp();
+}
+
+function buildUndoButton(wazuhAlertId: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`soar_undo_${wazuhAlertId}`).setLabel("🔓 UNDO / ROLLBACK").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`soar_investigate_${wazuhAlertId}`).setLabel("🟡 INVESTIGATE").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`soar_falsepos_${wazuhAlertId}`).setLabel("🟢 FALSE POSITIVE").setStyle(ButtonStyle.Success),
+  );
+}
+
+// ─── Discord Client Reference ────────────────────────────────────────────────
 
 let discordClient: Client | null = null;
 
-/**
- * Set the Discord client reference (called from startup).
- */
 export function setDiscordClient(client: Client): void {
   discordClient = client;
 }
 
-/**
- * Execute the full SOAR pipeline for a validated critical threat.
- *
- * Order of execution:
- * 1. Build threat embed
- * 2. Send DM to admin
- * 3. Execute retaliation command
- * 4. Calculate latency
- * 5. Edit DM with post-action embed + buttons
- */
+// ─── Main Entry Point — Human-in-the-Loop Validation Gate ────────────────────
+
 export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
-  const CYAN = "\x1b[36m";
-  const RED = "\x1b[31m";
-  const GREEN = "\x1b[32m";
-  const RESET = "\x1b[0m";
-  const BOLD = "\x1b[1m";
+  const CYAN = "\x1b[36m", RED = "\x1b[31m", YELLOW = "\x1b[33m", RESET = "\x1b[0m", BOLD = "\x1b[1m";
 
-  logger.warn(
-    `${CYAN}${BOLD}[SOAR]${RESET} ${RED}Activating retaliation for L${alert.level} threat: ${alert.description}${RESET}`,
-  );
+  logger.warn(`${CYAN}${BOLD}[SOAR]${RESET} ${RED}Critical threat L${alert.level}: ${alert.description}${RESET}\n${YELLOW}→ Entering Human-in-the-Loop validation gate${RESET}`);
 
-  // Step 1: Build threat embed
-  const threatEmbed = buildThreatEmbed(alert);
+  const proposal = proposeAction(alert);
 
-  // Step 2: Send DM to admin
+  if (proposal.action === "LOG_ONLY") {
+    logger.info(`[SOAR] Threat L${alert.level} — log only, no validation needed`);
+    try { await prisma.securityIncident.update({ where: { wazuhAlertId: alert.id }, data: { status: "OPEN", agentAssessment: `Logged only — level ${alert.level} below retaliation threshold` } }).catch(() => {}); } catch { /* non-fatal */ }
+    return;
+  }
+
+  const validationEmbed = buildValidationRequestEmbed(alert, proposal);
+  const approvalButtons = buildApprovalButtons(alert.id);
+
   let dmMessage: Message | null = null;
   if (discordClient && ADMIN_DISCORD_ID) {
     try {
       const adminUser = await discordClient.users.fetch(ADMIN_DISCORD_ID);
-      dmMessage = await adminUser.send({ embeds: [threatEmbed] });
-      logger.info(`[SOAR] 📨 Threat DM sent to admin`);
+      dmMessage = await adminUser.send({ embeds: [validationEmbed], components: [approvalButtons] });
+      logger.info(`[SOAR] 📨 Validation request DM sent to admin — awaiting approval`);
     } catch (err) {
-      logger.error(`[SOAR] Failed to send DM: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(`[SOAR] Failed to send validation DM: ${err instanceof Error ? err.message : String(err)}`);
+      return;
     }
+  } else {
+    logger.warn(`[SOAR] No admin Discord ID configured — cannot request validation. Threat logged only.`);
+    return;
   }
 
-  // Step 3: Determine and execute retaliation
-  const action = determineAction(alert);
-  let result: DefenseResult;
+  // FREEZE — register pending approval with 5-min timeout
+  const timeoutHandle = setTimeout(() => { void handleApprovalTimeout(alert.id).catch(() => {}); }, APPROVAL_TIMEOUT_MS);
 
-  switch (action) {
-    case "NETWORK_BAN": {
-      const ip = alert.data?.srcip ?? "";
-      if (!ip) {
-        result = {
-          action: "LOG_ONLY",
-          command: "No source IP available",
-          output: "Cannot ban — no source IP in alert",
-          latencyMs: 0,
-          success: false,
-        };
-      } else {
-        result = await executeNetworkBan(ip);
-      }
-      break;
-    }
-    case "PROCESS_TERMINATION": {
-      const pid = alert.data?.pid ?? "";
-      if (!pid) {
-        result = {
-          action: "LOG_ONLY",
-          command: "No PID available",
-          output: "Cannot kill — no PID in alert",
-          latencyMs: 0,
-          success: false,
-        };
-      } else {
-        result = await executeProcessTermination(pid);
-      }
-      break;
-    }
-    default:
-      result = {
-        action: "LOG_ONLY",
-        command: "none",
-        output: "Threat logged — no automated action for this severity",
-        latencyMs: 0,
-        success: true,
-      };
-  }
+  pendingApprovals.set(alert.id, { alert, dmMessage, proposedAction: proposal.action, proposedCommand: proposal.command, targetIp: proposal.targetIp, targetPid: proposal.targetPid, timeoutHandle, resolved: false });
 
-  // Step 4: Log the result
-  logger.info(
-    `${CYAN}${BOLD}[SOAR]${RESET} ${GREEN}Action: ${result.action} | Latency: ${result.latencyMs}ms | Success: ${result.success}${RESET}`,
-  );
+  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alert.id }, data: { status: "OPEN", agentAssessment: `PENDING_ADMIN_APPROVAL — Proposed: ${proposal.description}` } }).catch(() => {}); } catch { /* non-fatal */ }
+}
 
-  // Step 5: Edit the DM with post-action embed + buttons
+// ─── Approval Resolution Handlers ────────────────────────────────────────────
+
+export async function handleApproval(alertId: string): Promise<void> {
+  const pending = pendingApprovals.get(alertId);
+  if (!pending || pending.resolved) return;
+  pending.resolved = true;
+  clearTimeout(pending.timeoutHandle);
+  pendingApprovals.delete(alertId);
+
+  const { alert, dmMessage, targetIp, targetPid } = pending;
+  const proposal: ProposedAction = { action: pending.proposedAction, command: pending.proposedCommand, targetIp, targetPid, description: pending.proposedCommand };
+
+  logger.info(`[SOAR] ⚔️ Admin APPROVED retaliation for alert ${alertId}`);
+  const result = await executeApprovedAction(proposal);
+  logger.info(`[SOAR] ✅ Action executed: ${result.action} | Latency: ${result.latencyMs}ms | Success: ${result.success}`);
+
   if (dmMessage) {
     try {
-      const postEmbed = buildPostActionEmbed(alert, result);
-      const buttons = buildActionButtons(alert.id);
-      await dmMessage.edit({ embeds: [postEmbed], components: [buttons] });
-      logger.info(`[SOAR] ✏️ DM edited with post-action results + buttons`);
+      const postEmbed = buildPostExecutionEmbed(alert, result);
+      const undoRow = buildUndoButton(alertId);
+      await dmMessage.edit({ embeds: [postEmbed], components: [undoRow] });
+      logger.info(`[SOAR] ✏️ DM edited with execution results + undo buttons`);
     } catch (err) {
       logger.error(`[SOAR] Failed to edit DM: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Update SecurityIncident in DB
-  try {
-    await prisma.securityIncident.update({
-      where: { wazuhAlertId: alert.id },
-      data: {
-        status: result.success ? "MUTATED_AND_CONTAINED" : "OPEN",
-        agentAssessment: `SOAR Action: ${result.action} | Latency: ${result.latencyMs}ms | Output: ${result.output.slice(0, 200)}`,
-      },
-    }).catch(() => {});
-  } catch {
-    // Non-fatal
-  }
+  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: result.success ? "MUTATED_AND_CONTAINED" : "OPEN", agentAssessment: `APPROVED & EXECUTED — Action: ${result.action} | Latency: ${result.latencyMs}ms | Output: ${result.output.slice(0, 200)}` } }).catch(() => {}); } catch { /* non-fatal */ }
 }
 
-/**
- * Mark an incident as false positive.
- */
+export async function handleRejection(alertId: string): Promise<void> {
+  const pending = pendingApprovals.get(alertId);
+  if (!pending || pending.resolved) return;
+  pending.resolved = true;
+  clearTimeout(pending.timeoutHandle);
+  pendingApprovals.delete(alertId);
+
+  const { alert, dmMessage } = pending;
+  logger.info(`[SOAR] ❌ Admin REJECTED retaliation for alert ${alertId}`);
+
+  if (dmMessage) {
+    try { await dmMessage.edit({ embeds: [buildRejectedEmbed(alert)], components: [] }); } catch (err) { logger.error(`[SOAR] Failed to edit DM on rejection: ${err instanceof Error ? err.message : String(err)}`); }
+  }
+
+  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: "FALSE_POSITIVE", agentAssessment: "DISMISSED_BY_ADMIN — Admin rejected the proposed retaliation" } }).catch(() => {}); } catch { /* non-fatal */ }
+}
+
+async function handleApprovalTimeout(alertId: string): Promise<void> {
+  const pending = pendingApprovals.get(alertId);
+  if (!pending || pending.resolved) return;
+  pending.resolved = true;
+  pendingApprovals.delete(alertId);
+
+  const { alert, dmMessage } = pending;
+  logger.warn(`[SOAR] ⏱️ Approval timeout for alert ${alertId} — auto-aborting`);
+
+  if (dmMessage) {
+    try { await dmMessage.edit({ embeds: [buildTimeoutEmbed(alert)], components: [] }); } catch (err) { logger.error(`[SOAR] Failed to edit DM on timeout: ${err instanceof Error ? err.message : String(err)}`); }
+  }
+
+  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: "OPEN", agentAssessment: "VALIDATION_TIMEOUT — No admin response within 5 minutes. Auto-aborted." } }).catch(() => {}); } catch { /* non-fatal */ }
+}
+
+// ─── Rollback & Investigation ────────────────────────────────────────────────
+
+export async function undoNetworkBan(ip: string): Promise<boolean> {
+  if (!ip) return false;
+  try { await execAsync(`sudo ufw delete deny from ${ip} 2>&1 || sudo iptables -D INPUT -s ${ip} -j DROP 2>&1`, { timeout: 5000 }); logger.info(`[SOAR] ↩️ Undo: IP ${ip} unbanned`); return true; } catch { return false; }
+}
+
 export async function markFalsePositive(wazuhAlertId: string): Promise<void> {
-  try {
-    await prisma.securityIncident.update({
-      where: { wazuhAlertId },
-      data: { status: "FALSE_POSITIVE" },
-    }).catch(() => {});
-    logger.info(`[SOAR] Alert ${wazuhAlertId} marked as FALSE POSITIVE`);
-  } catch {
-    // Non-fatal
-  }
+  try { await prisma.securityIncident.update({ where: { wazuhAlertId }, data: { status: "FALSE_POSITIVE" } }).catch(() => {}); logger.info(`[SOAR] Alert ${wazuhAlertId} marked as FALSE POSITIVE`); } catch { /* non-fatal */ }
 }
 
-/**
- * Investigate an alert — dump process tree.
- */
 export async function investigateAlert(wazuhAlertId: string, srcIp?: string): Promise<string> {
   try {
     let output = "";
-    if (srcIp) {
-      const { stdout } = await execAsync(
-        `ss -tunap | grep "${srcIp}" 2>/dev/null || netstat -tunap | grep "${srcIp}" 2>/dev/null`,
-        { timeout: 5000 },
-      );
-      output += `Connections from ${srcIp}:\n${stdout}\n\n`;
-    }
+    if (srcIp) { const { stdout } = await execAsync(`ss -tunap | grep "${srcIp}" 2>/dev/null || netstat -tunap | grep "${srcIp}" 2>/dev/null`, { timeout: 5000 }); output += `Connections from ${srcIp}:\n${stdout}\n\n`; }
     const { stdout: psOut } = await execAsync("ps aux --sort=-%cpu | head -20", { timeout: 5000 });
     output += `Top processes:\n${psOut}`;
-
     logger.info(`[SOAR] 🔍 Investigation completed for ${wazuhAlertId}`);
     return output.slice(0, 2000);
-  } catch (err) {
-    return `Investigation failed: ${err instanceof Error ? err.message : String(err)}`;
-  }
+  } catch (err) { return `Investigation failed: ${err instanceof Error ? err.message : String(err)}`; }
+}
+
+export function purgeAllPendingApprovals(): void {
+  for (const [id, pending] of pendingApprovals) { if (!pending.resolved) { clearTimeout(pending.timeoutHandle); pending.resolved = true; logger.info(`[SOAR] Purged pending approval ${id} on shutdown`); } }
+  pendingApprovals.clear();
 }

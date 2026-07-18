@@ -10,7 +10,7 @@ import logger from "../utils/logger.js";
 import { createLog } from "../services/logs.js";
 import { resolveAlert, type AlertAction } from "../services/alert-service.js";
 import { recordSanction } from "../services/risk-engine.js";
-import { undoNetworkBan, markFalsePositive, investigateAlert } from "../services/activeDefenseEngine.js";
+import { undoNetworkBan, markFalsePositive, investigateAlert, handleApproval, handleRejection } from "../services/activeDefenseEngine.js";
 
 // ============================================================
 // Gestionnaire des boutons interactifs SOAR (Active Defense)
@@ -33,6 +33,18 @@ export function handleSoarInteractions(client: Client): void {
 
     try {
       switch (action) {
+        case "approve": {
+          await handleApproval(alertId);
+          await interaction.editReply({ content: "⚔️ RiPOSTE APPROUVÉE — Exécution en cours..." });
+          break;
+        }
+
+        case "reject": {
+          await handleRejection(alertId);
+          await interaction.editReply({ content: "❌ RiPOSTE REJETÉE — Incident marqué DISMISSED_BY_ADMIN." });
+          break;
+        }
+
         case "undo": {
           // Extract the banned IP from the incident
           const incident = await prisma.securityIncident.findUnique({
