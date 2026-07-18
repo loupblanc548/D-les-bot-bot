@@ -229,8 +229,11 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "file hash", "hash fichier", "scan virus", "scan malware",
       "virustotal", "abuseipdb", "phishtank", "safe browsing",
       "threat intel", "renseignement de menace", "réputation ip",
+      "espace disque", "disk space", "stockage vps", "vps storage",
+      "disque plein", "disk full", "vps status", "état du vps",
+      "system resources", "ressources système", "disk usage",
     ],
-    tools: ["network_investigate", "ip_geolocation", "network_status", "open_web_page", "runKaliPortAudit", "runKaliWebAudit", "threat_intel_sweep"],
+    tools: ["network_investigate", "ip_geolocation", "network_status", "open_web_page", "runKaliPortAudit", "runKaliWebAudit", "threat_intel_sweep", "check_vps_storage"],
   },
   {
     keywords: ["code", "python", "javascript", "script", "exécute", "compile"],

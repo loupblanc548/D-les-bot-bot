@@ -229,6 +229,18 @@ export const EXTERNAL_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "check_vps_storage",
+      description: "Vérifie l'état du disque VPS (utilisation, espace libre), la mémoire RAM, le load average, et les top processes. ⚠️ UTILISE CECI quand l'utilisateur demande l'état du VPS, l'espace disque, ou si le bot est lent. Déclenche une alerte critique si le disque dépasse 90%.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 // ─── Cron jobs dynamiques ────────────────────────────────────────────────────
@@ -432,6 +444,11 @@ export async function executeExternalTool(
       }
 
       // ─── 10. File Read ─────────
+      case "check_vps_storage": {
+        const { vpsMaintenanceCheck } = await import("./vpsMaintenance.js");
+        return await vpsMaintenanceCheck();
+      }
+      // ─── 10b. File Read ─────────
       case "file_read": {
         const path = String(args.path ?? "");
         if (!path.startsWith("/")) return { success: false, data: "Chemin absolu requis (ex: /var/log/syslog)" };

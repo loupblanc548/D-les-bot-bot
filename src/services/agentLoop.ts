@@ -588,6 +588,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- runKaliPortAudit : scan de ports via nmap dans un conteneur Kali Linux isolé. ⚠️ REQUIERT validation admin (DM avec bouton [🟢 LANCER L'AUDIT]). Cible doit être dans la whitelist (localhost, 127.0.0.1, 192.168.1.*, VPS IP). Paramètres: target, speed (fast/intense).\n" +
     "- runKaliWebAudit : audit web via nikto dans Kali Linux. Inspecte les serveurs web pour en-têtes obsolètes, config flaws. ⚠️ REQUIERT validation admin. Paramètre: targetUrl.\n" +
     "- threat_intel_sweep : scan complet de threat intelligence sur une IP, URL, ou hash de fichier. Utilise TOUS les outils: VirusTotal, AbuseIPDB, PhishTank, Google Safe Browsing, IPVoid, GitHub Dorking. ⚠️ UTILISE CECI quand l'utilisateur parle de virus, malware, trojan, ransomware, phishing, IP suspecte, file hash, ou toute menace de sécurité. Auto-détecte le type (IP/URL/hash).\n" +
+    "### VPS MAINTENANCE (Layer 10)\n" +
+    "- check_vps_storage : vérifie l'état du disque VPS (utilisation, espace libre), mémoire RAM, load average, top processes. ⚠️ UTILISE CECI quand l'utilisateur demande l'état du VPS, l'espace disque, ou si le bot est lent. Déclenche une alerte critique (DM admin) si le disque dépasse 90%.\n" +
     "- detect_disposable_email : détecte les emails jetables\n" +
     "- detect_typosquatting : détecte les domaines frauduleux (d1scord, stean)\n" +
     "- verify_link_safety : vérifie une URL via URLVoid (phishing/malware)\n" +

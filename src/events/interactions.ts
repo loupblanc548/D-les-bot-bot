@@ -398,6 +398,50 @@ export function handleKaliInteractions(client: Client): void {
 }
 
 // ============================================================
+// Gestionnaire des boutons VPS Maintenance (Layer 10)
+// ============================================================
+export function handleVpsMaintenanceInteractions(client: Client): void {
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    if (!customId.startsWith("vps_")) return;
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const { purgeOldLogs, pruneDockerCache } = await import("../services/vpsMaintenance.js");
+
+      switch (customId) {
+        case "vps_purge_logs": {
+          const result = await purgeOldLogs(14);
+          await interaction.editReply({
+            content: result.success
+              ? `🧹 ${result.message}`
+              : `❌ ${result.message}`,
+          });
+          break;
+        }
+        case "vps_prune_docker": {
+          const result = await pruneDockerCache();
+          await interaction.editReply({
+            content: result.success
+              ? `🐳 ${result.message}`
+              : `❌ ${result.message}`,
+          });
+          break;
+        }
+        default:
+          await interaction.editReply({ content: "Action VPS inconnue." });
+      }
+    } catch (err) {
+      logger.error(`[VPS-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action VPS." });
+    }
+  });
+}
+
+// ============================================================
 // Gestionnaire des boutons Git-Healer (Layer 6.3)
 // ============================================================
 export function handleGitHealerInteractions(client: Client): void {
