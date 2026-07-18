@@ -1012,6 +1012,55 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── Live Network Status ──
+  {
+    type: "function",
+    function: {
+      name: "network_status",
+      description: "Affiche l'état du réseau en temps réel : connexions actives (IP source/dest, ports, états), ports en écoute, interfaces réseau, bande passante, routes. Utilise cet outil quand l'utilisateur demande d'ouvrir Internet, voir ce qu'il se passe sur le réseau, ou monitorer le trafic live.",
+      parameters: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["all", "listening", "established", "interfaces", "routes", "bandwidth", "top_connections"],
+            description: "Portée du diagnostic (défaut: all)",
+          },
+          filterIp: {
+            type: "string",
+            description: "Filtrer par IP spécifique (optionnel)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  // ── Open Web Page (Internet) ──
+  {
+    type: "function",
+    function: {
+      name: "open_web_page",
+      description: "Ouvre une page web sur Internet et affiche son contenu. Permet de consulter des dashboards de monitoring (Wazuh, Grafana, etc.), des outils réseau en ligne (ping, traceroute web), des pages de statut de services, ou n'importe quelle URL. Retourne le titre, le texte principal et les liens trouvés.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "URL complète à ouvrir (ex: https://monitoring.example.com, https://status.discord.com, https://www.he.net/network/tools/)",
+          },
+          extractLinks: {
+            type: "boolean",
+            description: "Extraire les liens de la page (défaut: true)",
+          },
+          maxLength: {
+            type: "number",
+            description: "Longueur max du contenu retourné (défaut: 4000 caractères)",
+          },
+        },
+        required: ["url"],
+      },
+    },
+  },
 ];
 
 // ─── 2. TOOL IMPLEMENTATIONS ─────────────────────────────────────────────────
@@ -2042,6 +2091,10 @@ export async function executeAutonomousTool(
         return await tGithubProfile(args);
       case "network_investigate":
         return await tNetworkInvestigate(args);
+      case "network_status":
+        return await tNetworkStatus(args);
+      case "open_web_page":
+        return await tOpenWebPage(args);
       // 9. Analytics & BI
       case "guild_analytics":
         return await tGuildAnalytics(args);
@@ -3119,4 +3172,132 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
     success: true,
     data: JSON.stringify(results),
   };
+}
+
+// ─── Live Network Status ─────────────────────────────────────────────────────
+
+async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const scope = String(args.scope || "all").trim();
+  const filterIp = String(args.filterIp || "").trim();
+
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+
+  const results: Record<string, string> = {};
+
+  async function run(cmd: string, key: string, timeout = 5000): Promise<void> {
+    try {
+      const { stdout } = await execFileAsync("bash", ["-c", cmd], { timeout, maxBuffer: 512 * 1024 });
+      results[key] = stdout.trim().slice(0, 3000);
+    } catch (err) {
+      results[key] = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+
+  // Filter helper
+  const grepFilter = filterIp ? ` | grep -i "${filterIp}"` : "";
+
+  if (scope === "all" || scope === "listening") {
+    await run(`ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null`, "listening_ports");
+  }
+
+  if (scope === "all" || scope === "established") {
+    await run(`ss -tunap state established${grepFilter} 2>/dev/null || netstat -tunap 2>/dev/null | grep ESTABLISHED${grepFilter}`, "established_connections");
+  }
+
+  if (scope === "all" || scope === "top_connections") {
+    await run(`ss -tunap 2>/dev/null | head -30 || netstat -tunap 2>/dev/null | head -30`, "top_connections");
+  }
+
+  if (scope === "all" || scope === "interfaces") {
+    await run(`ip addr show 2>/dev/null || ifconfig 2>/dev/null`, "interfaces");
+  }
+
+  if (scope === "all" || scope === "routes") {
+    await run(`ip route 2>/dev/null || route -n 2>/dev/null`, "routes");
+  }
+
+  if (scope === "all" || scope === "bandwidth") {
+    await run(`cat /proc/net/dev 2>/dev/null | awk 'NR>2{printf "%s: RX=%.1fMB TX=%.1fMB\\n", $1, $2/1048576, $10/1048576}'`, "bandwidth_by_interface");
+    await run(`vnstat 2>/dev/null || echo "vnstat not installed"`, "bandwidth_summary");
+  }
+
+  logger.info(`[AgentTools] 📡 Network status retrieved (scope: ${scope})`);
+
+  return {
+    success: true,
+    data: JSON.stringify({ scope, filterIp: filterIp || null, ...results }),
+  };
+}
+
+// ─── Open Web Page (Internet) ────────────────────────────────────────────────
+
+async function tOpenWebPage(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "").trim();
+  if (!url || !url.startsWith("http")) {
+    return { success: false, data: "URL invalide — doit commencer par http:// ou https://" };
+  }
+
+  const extractLinks = args.extractLinks !== false;
+  const maxLength = Number(args.maxLength) || 4000;
+
+  try {
+    // Use Jina Reader for clean content extraction
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const res = await fetchRetry(jinaUrl, {
+      signal: AbortSignal.timeout(15_000),
+      headers: { Accept: "application/json", "X-Return-Format": "markdown" },
+    });
+
+    if (!res.ok) {
+      // Fallback: direct fetch with basic HTML stripping
+      const directRes = await fetchRetry(url, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BotNetworkMonitor/1.0)" },
+      });
+
+      if (!directRes.ok) {
+        return { success: false, data: `Impossible d'ouvrir ${url} — HTTP ${directRes.status}` };
+      }
+
+      const html = await directRes.text();
+      const text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, maxLength);
+
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const title = titleMatch?.[1]?.trim() ?? url;
+
+      return {
+        success: true,
+        data: JSON.stringify({ url, title, content: text, links: [], method: "direct-fetch" }),
+      };
+    }
+
+    const data = (await res.json()) as Record<string, unknown>;
+    const title = String(data.title ?? url);
+    const content = String(data.content ?? "").slice(0, maxLength);
+
+    let links: string[] = [];
+    if (extractLinks && data.links) {
+      links = (data.links as Array<{ url: string }>).map((l) => l.url).slice(0, 20);
+    }
+
+    logger.info(`[AgentTools] 🌐 Opened web page: ${url} (${content.length} chars)`);
+
+    return {
+      success: true,
+      data: JSON.stringify({ url, title, content, links, method: "jina-reader" }),
+    };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur lors de l'ouverture de ${url}: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }

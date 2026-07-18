@@ -582,6 +582,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- github_profile : profil GitHub public d'un utilisateur\n" +
     "- domain_age : âge d'un domaine via RDAP\n" +
     "- network_investigate : investigation OSINT réseau complète (géolocalisation IP, reverse DNS, scan de ports, WHOIS, DNS records). ⚠️ UTILISE CECI en priorité quand il y a un problème réseau, une IP suspecte, une alerte de sécurité, ou pour investiguer une attaque. Modules: geo, reverse_dns, port_scan, whois, dns_records.\n" +
+    "- network_status : affiche l'état du réseau EN TEMPS RÉEL — connexions actives, ports en écoute, interfaces, routes, bande passante. UTILISE CECI quand l'utilisateur demande de voir ce qu'il se passe sur le réseau, d'ouvrir Internet, de monitorer le trafic, ou de voir les connexions actives. Scopes: all, listening, established, interfaces, routes, bandwidth, top_connections.\n" +
+    "- open_web_page : ouvre n'importe quelle page web sur Internet et affiche son contenu (titre, texte, liens). Permet de consulter des dashboards de monitoring (Wazuh, Grafana), des outils réseau en ligne, des pages de statut de services. UTILISE CECI quand l'utilisateur te demande d'ouvrir un site web, de consulter une page, ou d'afficher le contenu d'une URL.\n" +
     "- detect_disposable_email : détecte les emails jetables\n" +
     "- detect_typosquatting : détecte les domaines frauduleux (d1scord, stean)\n" +
     "- verify_link_safety : vérifie une URL via URLVoid (phishing/malware)\n" +
