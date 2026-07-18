@@ -18,11 +18,12 @@ import logger from "../utils/logger.js";
 // Ordre: du plus puissant au plus léger
 const FREE_MODELS_OPENROUTER = [
   // ─── Modèles gratuits avec tools/function calling ───
+  // Ordre: meilleur en français d'abord
+  "deepseek/deepseek-v3:free", // V3 — excellent en français, tools ✅
   "tencent/hy3:free", // 295B MoE, 262K context, tools ✅
   "deepseek/deepseek-r1:free", // Reasoning model, tools ✅
-  "deepseek/deepseek-v3:free", // V3, tools ✅
-  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
   "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅
+  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
   "nvidia/nemotron-3-ultra-550b-a55b:free", // 550B MoE, tools ✅
   "google/gemini-2.0-flash-exp:free", // Gemini 2.0, tools ✅
   "google/gemini-2.0-flash-lite-preview-02-05:free", // Gemini Flash Lite, tools ✅

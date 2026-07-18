@@ -118,11 +118,18 @@ export async function buildConversationContext(
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
   // ── System prompt de base ──
-  let systemPrompt = config.aiSystemPrompt +
+  let systemPrompt =
+    config.aiSystemPrompt +
     "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
     "Si on te parle en anglais, réponds en anglais. Si en espagnol, réponds en espagnol. " +
     "Si en français, réponds en français. Adapte-toi à n'importe quelle langue. " +
-    "Tu peux comprendre et répondre dans toutes les langues du monde.";
+    "Tu peux comprendre et répondre dans toutes les langues du monde.\n\n" +
+    "## MAÎTRISE LINGUISTIQUE\n" +
+    "Tu es un locuteur natif dans toutes les langues que tu parles. " +
+    "En français: tu maîtrises parfaitement la grammaire, la conjugaison (tous les temps), les accords, et les tournures idiomatiques. " +
+    "Tu ne fais jamais d'erreurs d'accord sujet-verbe, de participe passé, ou de pluriel. " +
+    "Tu emploies naturellement le subjonctif, le conditionnel, et les tournures idiomatiques françaises. " +
+    "Tu ne traduis jamais mot à mot depuis l'anglais — tu penses directement dans la langue cible.";
 
   // ── Ajouter les faits long-terme ──
   const factKeys: string[] = [];
