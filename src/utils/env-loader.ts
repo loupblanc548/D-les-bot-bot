@@ -17,8 +17,12 @@ const envSchema = z.object({
 
   // OpenRouter AI (required)
   OPENROUTER_API_KEY: z.string().min(1, "OPENROUTER_API_KEY is required"),
-  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-ultra-550b-a55b:free"),
+  OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v3:free"),
   AI_SYSTEM_PROMPT: z.string().default("Tu es un assistant utile et concis. Reponds en francais."),
+
+  // OpenAI (optional — premium tier, used first if available)
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
 
   // Twitch (optional)
   TWITTER_ACCOUNTS: z.string().optional(),
@@ -113,6 +117,7 @@ const envSchema = z.object({
   GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
+  OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
   BRAVE_SEARCH_API_KEY: z.string().optional(),
   BRAVE_AUTOSUGGEST_API_KEY: z.string().optional(),
   BRAVE_SPELLCHECK_API_KEY: z.string().optional(),
@@ -125,7 +130,6 @@ const envSchema = z.object({
   GOOGLE_CLOUD_API_KEY: z.string().optional(),
 
   // API Base URLs (with defaults)
-  OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
   TWITTER_API_BASE_URL: z.string().default("https://api.twitch.tv/helix"),
   TWITTER_OAUTH_URL: z.string().default("https://id.twitch.tv/oauth2/token"),
   STEAM_API_BASE_URL: z.string().default("https://api.steampowered.com"),

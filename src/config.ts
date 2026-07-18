@@ -18,6 +18,10 @@ export const config = {
   openRouterModel: env.OPENROUTER_MODEL,
   aiSystemPrompt: env.AI_SYSTEM_PROMPT,
 
+  // OpenAI (optional — premium tier)
+  openaiApiKey: env.OPENAI_API_KEY,
+  openaiModel: env.OPENAI_MODEL || "gpt-4o-mini",
+
   // Twitch
   twitterAccounts: env.TWITTER_ACCOUNTS || "",
   twitterChannel: env.TWITTER_CHANNEL_ID || env.LOG_CHANNEL_ID || "",

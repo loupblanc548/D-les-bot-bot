@@ -71,7 +71,9 @@ export const PERSONALITY_MAX_TOKENS = 2000;
 
 // ─── Model Configuration ─────────────────────────────────────────────────────
 
-export const PERSONALITY_MODEL = "deepseek/deepseek-v3:free";
+export const PERSONALITY_MODEL = process.env.OPENAI_API_KEY
+  ? "gpt-4o-mini"
+  : "deepseek/deepseek-v3:free";
 
 // ─── Middleware Function ─────────────────────────────────────────────────────
 

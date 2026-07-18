@@ -6,6 +6,7 @@ import { chatWithGroq, isGroqAvailable } from "./groq.js";
 import { chatWithGemini, isGeminiAvailable } from "./gemini.js";
 
 let openai: OpenAI | null = null;
+let openaiPremium: OpenAI | null = null;
 
 export function getOpenAIClient(): OpenAI {
   if (!openai) {
@@ -21,6 +22,23 @@ export function getOpenAIClient(): OpenAI {
     });
   }
   return openai;
+}
+
+export function getOpenAIPremiumClient(): OpenAI | null {
+  if (!config.openaiApiKey) return null;
+  if (!openaiPremium) {
+    openaiPremium = new OpenAI({
+      apiKey: config.openaiApiKey,
+      timeout: config.aiTimeoutMs,
+      maxRetries: 2,
+    });
+    logger.info("[AI] ✅ OpenAI premium client initialized (gpt-4o-mini, gpt-4o)");
+  }
+  return openaiPremium;
+}
+
+export function isOpenAIPremiumAvailable(): boolean {
+  return !!config.openaiApiKey;
 }
 
 export async function chatWithAI(message: string, username?: string): Promise<string> {
@@ -50,6 +68,28 @@ export async function chatWithAI(message: string, username?: string): Promise<st
       // Try Groq as fast fallback before giving up
     }
 
+    // Fallback 0: OpenAI premium (if API key configured)
+    if (isOpenAIPremiumAvailable()) {
+      try {
+        logger.warn("[AI] Tentative de fallback OpenAI premium...");
+        const premiumClient = getOpenAIPremiumClient()!;
+        const completion = await premiumClient.chat.completions.create({
+          model: config.openaiModel,
+          messages: [
+            { role: "system", content: config.aiSystemPrompt },
+            { role: "user", content: contextMessage },
+          ],
+          max_tokens: 1000,
+          temperature: 0.7,
+        });
+        return (
+          completion.choices[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse."
+        );
+      } catch (openaiErr) {
+        logger.error("[AI] OpenAI premium échoué:", String(openaiErr));
+      }
+    }
+
     // Fallback 1: Groq (ultra-fast, free)
     if (isGroqAvailable()) {
       try {
@@ -70,11 +110,7 @@ export async function chatWithAI(message: string, username?: string): Promise<st
     if (isGeminiAvailable()) {
       try {
         logger.warn("[AI] Tentative de fallback Gemini...");
-        const geminiResponse = await chatWithGemini(
-          config.aiSystemPrompt,
-          contextMessage,
-          800,
-        );
+        const geminiResponse = await chatWithGemini(config.aiSystemPrompt, contextMessage, 800);
         if (geminiResponse) return geminiResponse;
       } catch (geminiErr) {
         logger.error("[AI] Gemini fallback échoué:", String(geminiErr));

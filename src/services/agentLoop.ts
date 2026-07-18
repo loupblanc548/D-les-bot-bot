@@ -13,7 +13,7 @@
 import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import { getOpenAIClient } from "./ai.js";
+import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import {
@@ -729,8 +729,12 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     for (const modelName of modelsToTry) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
+        // Use OpenAI premium client for gpt-* models, OpenRouter for the rest
+        const isGptModel = modelName.startsWith("gpt-");
+        const activeClient =
+          isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! : client;
         response = await callLlmWithRetry(
-          client,
+          activeClient,
           {
             model: modelName,
             messages: conversation as never,

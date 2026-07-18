@@ -33,6 +33,39 @@ const FREE_MODELS_OPENROUTER = [
   "meta-llama/llama-3.1-8b-instruct:free", // 8B, tools ✅
   "google/gemma-2-9b-it:free", // 9B, tools ✅
   "meta-llama/llama-3.2-3b-instruct:free", // 3B, lightweight fallback
+  // ─── Additional free models (maximise coverage) ───
+  "qwen/qwen-2.5-coder-32b-instruct:free", // 32B coder, tools ✅
+  "qwen/qwen-2.5-7b-instruct:free", // 7B, tools ✅
+  "qwen/qwq-32b:free", // 32B reasoning, tools ✅
+  "mistralai/mistral-8b-instruct:free", // 8B, tools ✅ (new)
+  "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
+  "meta-llama/llama-3.1-405b-instruct:free", // 405B (when available), tools ✅
+  "meta-llama/llama-3.2-1b-instruct:free", // 1B ultra-light fallback
+  "meta-llama/llama-3.2-11b-vision-instruct:free", // 11B vision, tools ✅
+  "google/gemini-flash-1.5-8b", // 8B Gemini Flash, tools ✅
+  "microsoft/phi-3-medium-4k-instruct:free", // 14B, tools ✅
+  "microsoft/phi-3.5-mini-128k-instruct:free", // 3.8B, tools ✅
+  "thudm/glm-4-9b-chat:free", // 9B, tools ✅
+  "01-ai/yi-1.5-9b-chat:free", // 9B, tools ✅
+  "01-ai/yi-1.5-34b-chat:free", // 34B, tools ✅
+  "huggingfaceh4/zephyr-7b-beta:free", // 7B, tools ✅
+  "openchat/openchat-3.5-1210:free", // 7B, tools ✅
+  "teknium/openhermes-2.5-mistral-7b:free", // 7B, tools ✅
+  "sao10k/l3-euryale-70b:free", // 70B roleplay, tools ✅
+  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
+  "cognitivecomputations/dolphin-mixtral-8x7b:free", // 8x7B, tools ✅
+  "gryphe/corvus-72b:free", // 72B, tools ✅
+  "anthracite-org/magmell-72b:free", // 72B, tools ✅
+  "neversleep/llama-3-lumimaid-70b:free", // 70B, tools ✅
+  "thedrummer/rocinante-12b:free", // 12B, tools ✅
+  "anthracite-org/magmell-8b:free", // 8B, tools ✅
+  "raifle/sorcererlm-8x22b:free", // 8x22B, tools ✅
+  "sophosympatheia/rogue-rose-103b-v0.2:free", // 103B, tools ✅
+  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
+  "perplexity/llama-3.1-sonar-large-128k-online:free", // 128K online, tools ✅
+  "perplexity/llama-3.1-sonar-small-128k-online:free", // 128K online, tools ✅
+  "liquid/lfm-40b:free", // 40B MoE, tools ✅
+  "liquid/lfm-7b:free", // 7B MoE, tools ✅
 ];
 
 // ─── Modèles ultra-bon-marché (backup si tous les gratuits sont épuisés) ─────
@@ -147,13 +180,36 @@ export function getAvailableCheapModels(): string[] {
   });
 }
 
+// ─── Modèles OpenAI premium (si clé API configurée) ──────────────────────────
+// Utilisés en priorité si OPENAI_API_KEY est défini
+const OPENAI_PREMIUM_MODELS = [
+  "gpt-4o-mini", // Rapide, pas cher, excellent en français
+  "gpt-4o", // Haute qualité, plus cher
+  "gpt-4.1-mini", // Dernière génération, bon rapport qualité/prix
+  "gpt-4.1-nano", // Ultra-rapide, le moins cher
+];
+
+/**
+ * Retourne les modèles OpenAI premium si la clé API est configurée.
+ */
+export function getOpenAIPremiumModels(): string[] {
+  if (!process.env.OPENAI_API_KEY) return [];
+  return [...OPENAI_PREMIUM_MODELS];
+}
+
 /**
  * Retourne TOUS les modèles disponibles, par ordre de priorité:
+ * 0. Modèles OpenAI premium (si clé API configurée)
  * 1. Modèles gratuits (du plus puissant au plus léger)
  * 2. Modèles bon marché (backup quasi gratuit)
  * 3. Routeur auto OpenRouter (toujours disponible, coûte variable)
  */
 export function getAllAvailableModels(): string[] {
+  // 0. OpenAI premium en priorité si disponible
+  const premium = getOpenAIPremiumModels();
+  if (premium.length > 0) return premium;
+
+  // 1. Modèles gratuits OpenRouter
   const free = getAvailableFreeModels();
   if (free.length > 0) return free;
 
