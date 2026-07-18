@@ -347,6 +347,122 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
     }
   }
 
+  // ── VIRUS/MALWARE THREAT INTEL ENRICHMENT ──
+  // When a virus/malware alert is detected, automatically run ALL available
+  // threat intelligence tools: VirusTotal, AbuseIPDB, PhishTank, Google Safe
+  // Browsing, IPVoid. This provides maximum visibility on the threat.
+  const alertText = `${alert.description} ${alert.rule?.description ?? ""} ${alert.rule?.groups?.join(" ") ?? ""}`.toLowerCase();
+  const virusKeywords = ["virus", "malware", "trojan", "ransomware", "worm", "backdoor", "rootkit", "spyware", "adware", "botnet", "c2", "command and control", "exploit", "shellcode", "payload", "injection", "mining", "cryptominer"];
+  const isVirusAlert = virusKeywords.some((kw) => alertText.includes(kw));
+
+  if (isVirusAlert) {
+    logger.warn(`[SOAR] 🦠 Virus/malware detected — launching FULL threat intel sweep`);
+
+    const threatFields: { name: string; value: string; inline: boolean }[] = [];
+
+    // 1. IP Reputation (AbuseIPDB + IPVoid geo/proxy detection)
+    if (srcIp) {
+    try {
+      const { checkIPReputation } = await import("./threatIntel.js");
+      const ipRep = await checkIPReputation(srcIp);
+      const flags: string[] = [];
+      if (ipRep.isProxy) flags.push("PROXY/VPN");
+      if (ipRep.isHosting) flags.push("DATACENTER");
+      if (ipRep.isMalicious) flags.push("🚨 MALICIOUS");
+
+      threatFields.push({
+        name: "🛡️ IP Reputation (AbuseIPDB + IPVoid)",
+        value: `**Score:** ${ipRep.abuseScore}/100\n**Pays:** ${ipRep.country ?? "?"}\n**ISP:** ${ipRep.isp ?? "?"}\n**Flags:** ${flags.length > 0 ? flags.join(", ") : "Aucune"}\n**Malicious:** ${ipRep.isMalicious ? "⚠️ OUI" : "Non"}`,
+        inline: false,
+      });
+
+      // Log each source result
+      for (const r of ipRep.results) {
+        if (r.malicious) {
+          logger.warn(`[SOAR] 🦠 ${r.source}: ${r.query} → MALICIOUS (${r.confidence}%) — ${r.details}`);
+        }
+      }
+    } catch (err) {
+      logger.debug(`[SOAR] IP reputation failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    }
+
+    // 2. URL scanning (VirusTotal + PhishTank + Safe Browsing) if URL present
+    const alertUrl = (alert.data as Record<string, unknown>)?.url as string ?? "";
+    if (alertUrl && alertUrl.startsWith("http")) {
+    try {
+      const { scanURL } = await import("./threatIntel.js");
+      const urlScan = await scanURL(alertUrl);
+      const maliciousSources = urlScan.results.filter((r) => r.malicious).map((r) => r.source);
+      threatFields.push({
+        name: "🔬 URL Scan (VirusTotal + PhishTank + Safe Browsing)",
+        value: `**URL:** ${alertUrl.slice(0, 100)}\n**Malicious:** ${urlScan.overallMalicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${urlScan.overallConfidence}%\n**Sources malveillantes:** ${maliciousSources.length > 0 ? maliciousSources.join(", ") : "Aucune"}`,
+        inline: false,
+      });
+
+      if (urlScan.overallMalicious) {
+        logger.warn(`[SOAR] 🦠 URL ${alertUrl} flagged as MALICIOUS by ${maliciousSources.length} sources`);
+      }
+    } catch (err) {
+      logger.debug(`[SOAR] URL scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    }
+
+    // 3. File hash scanning via VirusTotal if file hash present
+    const fileHash = (alert.data as Record<string, unknown>)?.hash as string
+      ?? (alert.data as Record<string, unknown>)?.md5 as string
+      ?? (alert.data as Record<string, unknown>)?.sha256 as string
+      ?? "";
+    if (fileHash && fileHash.length >= 32) {
+    try {
+      const { scanFileHashVirusTotal } = await import("./threatIntel.js");
+      const hashResult = await scanFileHashVirusTotal(fileHash);
+      threatFields.push({
+        name: "🧬 File Hash Scan (VirusTotal)",
+        value: `**Hash:** ${fileHash.slice(0, 32)}...\n**Malicious:** ${hashResult.malicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${hashResult.confidence}%\n**Détails:** ${hashResult.details.slice(0, 200)}`,
+        inline: false,
+      });
+
+      if (hashResult.malicious) {
+        logger.warn(`[SOAR] 🦠 File hash ${fileHash.slice(0, 16)}... flagged as MALICIOUS by VirusTotal`);
+      }
+    } catch (err) {
+      logger.debug(`[SOAR] File hash scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    }
+
+    // 4. GitHub dorking for leaked credentials related to the threat
+    if (srcIp || alertUrl) {
+    try {
+      const { githubDorkSearch } = await import("./threatIntel.js");
+      const dorkQuery = srcIp ? `ip:${srcIp}` : `url:${alertUrl}`;
+      const leakResult = await githubDorkSearch(dorkQuery);
+      if (leakResult.found) {
+        threatFields.push({
+          name: "🔑 GitHub Leak Search",
+          value: `**Repos affectés:** ${leakResult.repositories.length}\n**Détails:** ${leakResult.repositories.slice(0, 3).map((r) => `${r.repo}/${r.file}`).join("\n")}`,
+          inline: false,
+        });
+        logger.warn(`[SOAR] 🦠 GitHub leaks found for threat query: ${leakResult.repositories.length} repos`);
+      }
+    } catch (err) {
+      logger.debug(`[SOAR] GitHub leak search failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    }
+
+    // Add all threat intel fields to the OSINT fields for the embed
+    if (threatFields.length > 0) {
+      osintFields.push({
+        name: "🦠 THREAT INTEL SWEEP — Virus/Malware Detected",
+        value: `**Alert type:** Virus/Malware\n**Tools used:** VirusTotal, AbuseIPDB, PhishTank, Safe Browsing, IPVoid, GitHub Dorking\n**Verdict:** ${threatFields.some((f) => f.value.includes("🚨")) ? "🚨 THREAT CONFIRMED" : "⚠️ Under investigation"}`,
+        inline: false,
+      });
+      osintFields.push(...threatFields);
+
+      logger.warn(`[SOAR] 🦠 Threat intel sweep complete — ${threatFields.length} results appended to validation embed`);
+    }
+  }
+
   const validationEmbed = buildValidationRequestEmbed(alert, proposal, osintFields);
   const approvalButtons = buildApprovalButtons(alert.id);
 

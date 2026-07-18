@@ -1061,6 +1061,29 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── Full Threat Intel Sweep (Virus/Malware) ──
+  {
+    type: "function",
+    function: {
+      name: "threat_intel_sweep",
+      description: "Lance un scan complet de threat intelligence sur une IP, URL, ou hash de fichier. Utilise TOUS les outils disponibles: VirusTotal, AbuseIPDB, PhishTank, Google Safe Browsing, IPVoid (géoloc + proxy/VPN detection), GitHub dorking. ⚠️ UTILISE CECI quand l'utilisateur parle de virus, malware, trojan, ransomware, phishing, IP suspecte, ou toute menace de sécurité.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: {
+            type: "string",
+            description: "IP, URL, ou hash de fichier (MD5/SHA1/SHA256) à scanner",
+          },
+          targetType: {
+            type: "string",
+            enum: ["auto", "ip", "url", "hash"],
+            description: "Type de cible (défaut: auto-détection)",
+          },
+        },
+        required: ["target"],
+      },
+    },
+  },
 ];
 
 // ─── 2. TOOL IMPLEMENTATIONS ─────────────────────────────────────────────────
@@ -2095,6 +2118,8 @@ export async function executeAutonomousTool(
         return await tNetworkStatus(args);
       case "open_web_page":
         return await tOpenWebPage(args);
+      case "threat_intel_sweep":
+        return await tThreatIntelSweep(args);
       // 9. Analytics & BI
       case "guild_analytics":
         return await tGuildAnalytics(args);
@@ -3298,6 +3323,123 @@ async function tOpenWebPage(args: Record<string, unknown>): Promise<ToolCallResu
     return {
       success: false,
       data: `Erreur lors de l'ouverture de ${url}: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ─── Threat Intel Sweep — Full virus/malware scan ────────────────────────────
+
+async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "").trim();
+  if (!target) return { success: false, data: "target requis (IP, URL, ou hash)" };
+
+  const targetType = String(args.targetType || "auto").trim();
+  const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(target) || /^[0-9a-f:]+$/i.test(target);
+  const isURL = target.startsWith("http://") || target.startsWith("https://");
+  const isHash = /^[0-9a-f]{32,64}$/i.test(target);
+
+  let detectedType: "ip" | "url" | "hash";
+  if (targetType === "ip" || (targetType === "auto" && isIP)) detectedType = "ip";
+  else if (targetType === "url" || (targetType === "auto" && isURL)) detectedType = "url";
+  else if (targetType === "hash" || (targetType === "auto" && isHash)) detectedType = "hash";
+  else return { success: false, data: "Type de cible non reconnu (doit être IP, URL, ou hash MD5/SHA1/SHA256)" };
+
+  const results: Record<string, unknown> = { target, type: detectedType, tools: [] as string[] };
+  const toolsUsed: string[] = [];
+
+  try {
+    const threatIntel = await import("./threatIntel.js");
+
+    if (detectedType === "ip") {
+      toolsUsed.push("AbuseIPDB", "IPVoid", "ip-api");
+      const ipRep = await threatIntel.checkIPReputation(target);
+      results.ipReputation = {
+        isMalicious: ipRep.isMalicious,
+        abuseScore: ipRep.abuseScore,
+        country: ipRep.country,
+        isp: ipRep.isp,
+        isProxy: ipRep.isProxy,
+        isHosting: ipRep.isHosting,
+        isMobile: ipRep.isMobile,
+        city: ipRep.city,
+        region: ipRep.region,
+        sources: ipRep.results.map((r: any) => ({
+          source: r.source,
+          malicious: r.malicious,
+          confidence: r.confidence,
+          details: r.details,
+        })),
+      };
+
+      toolsUsed.push("ip-api-geo");
+      try {
+        const geoRes = await fetchRetry(
+          `http://ip-api.com/json/${target}?fields=status,country,city,isp,as,reverse&lang=fr`,
+          { signal: AbortSignal.timeout(5000) },
+        );
+        if (geoRes.ok) {
+          const geoData = await geoRes.json() as Record<string, unknown>;
+          results.geolocation = geoData;
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    if (detectedType === "url") {
+      toolsUsed.push("VirusTotal", "PhishTank", "GoogleSafeBrowsing");
+      const urlScan = await threatIntel.scanURL(target);
+      results.urlScan = {
+        overallMalicious: urlScan.overallMalicious,
+        overallConfidence: urlScan.overallConfidence,
+        sources: urlScan.results.map((r: any) => ({
+          source: r.source,
+          malicious: r.malicious,
+          confidence: r.confidence,
+          details: r.details,
+        })),
+      };
+    }
+
+    if (detectedType === "hash") {
+      toolsUsed.push("VirusTotal-FileHash");
+      const hashResult = await threatIntel.scanFileHashVirusTotal(target);
+      results.fileHashScan = {
+        malicious: hashResult.malicious,
+        confidence: hashResult.confidence,
+        details: hashResult.details,
+        categories: hashResult.categories,
+      };
+    }
+
+    if (threatIntel.isConfigured("GITHUB_DORKING" as any)) {
+      toolsUsed.push("GitHubDorking");
+      try {
+        const leakResult = await threatIntel.githubDorkSearch(target, 5);
+        if (leakResult.found) {
+          results.githubLeaks = { found: true, repositories: leakResult.repositories };
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    const toolStatus: Record<string, boolean> = {};
+    for (const src of ["VIRUSTOTAL", "ABUSEIPDB", "PHISHTANK", "SAFE_BROWSING", "GITHUB_DORKING", "IPVOID"]) {
+      toolStatus[src] = threatIntel.isConfigured(src as any);
+    }
+    results.toolStatus = toolStatus;
+    results.tools = toolsUsed;
+
+    let isMalicious = false;
+    if (detectedType === "ip" && (results.ipReputation as any)?.isMalicious) isMalicious = true;
+    if (detectedType === "url" && (results.urlScan as any)?.overallMalicious) isMalicious = true;
+    if (detectedType === "hash" && (results.fileHashScan as any)?.malicious) isMalicious = true;
+    results.verdict = isMalicious ? "MALICIOUS — Threat confirmed by threat intelligence sources" : "No malicious indicators found";
+
+    logger.info(`[AgentTools] Threat intel sweep for ${target} (${detectedType}) — verdict: ${isMalicious ? "MALICIOUS" : "clean"}`);
+
+    return { success: true, data: JSON.stringify(results) };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur lors du threat intel sweep: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

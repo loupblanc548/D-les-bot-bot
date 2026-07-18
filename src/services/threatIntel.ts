@@ -159,6 +159,65 @@ export async function scanURLVirusTotal(url: string): Promise<ThreatResult> {
   return result;
 }
 
+// ─── 1b. VirusTotal File Hash Scan ──────────────────────────────────────────
+
+/**
+ * Scan un hash de fichier (MD5, SHA1, SHA256) via VirusTotal.
+ */
+export async function scanFileHashVirusTotal(hash: string): Promise<ThreatResult> {
+  const cacheKey = `vt_hash_${hash}`;
+  const cached = getCached<ThreatResult>(cacheKey);
+  if (cached) return cached;
+
+  const result: ThreatResult = {
+    source: "VIRUSTOTAL",
+    query: hash,
+    malicious: false,
+    confidence: 0,
+    details: "No API key configured",
+    categories: [],
+    detectedAt: new Date(),
+  };
+
+  if (!VIRUSTOTAL_API_KEY) {
+    result.details = "VirusTotal API key not configured";
+    return result;
+  }
+
+  try {
+    const res = await fetch(
+      `https://www.virustotal.com/api/v3/files/${hash}`,
+      {
+        headers: { "x-apikey": VIRUSTOTAL_API_KEY },
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+
+    if (!res.ok) {
+      result.details = `VirusTotal HTTP ${res.status}`;
+      return result;
+    }
+
+    const data = (await res.json()) as any;
+    const stats = data?.data?.attributes?.last_analysis_stats ?? {};
+    const maliciousCount = (stats.malicious ?? 0) + (stats.suspicious ?? 0);
+    const totalEngines = (stats.harmless ?? 0) + (stats.undetected ?? 0) + maliciousCount;
+
+    result.malicious = maliciousCount >= 3;
+    result.confidence = totalEngines > 0 ? Math.round((maliciousCount / totalEngines) * 100) : 0;
+    result.details = `${maliciousCount}/${totalEngines} engines flagged as malicious`;
+    result.categories = maliciousCount >= 3 ? ["malware"] : [];
+    result.raw = data;
+
+    setCached(cacheKey, result);
+  } catch (error) {
+    result.details = `VirusTotal error: ${error instanceof Error ? error.message : String(error)}`;
+    logger.warn(`[ThreatIntel] VirusTotal hash scan failed: ${result.details}`);
+  }
+
+  return result;
+}
+
 // ─── 2. AbuseIPDB ────────────────────────────────────────────────────────────
 
 /**
