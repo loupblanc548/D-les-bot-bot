@@ -17,6 +17,11 @@ import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } fro
 import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import {
+  classifyTaskComplexity,
+  getModelChainForTask,
+  type TaskComplexity,
+} from "./taskModelRouter.js";
+import {
   ALL_AGENT_TOOLS,
   executeTool,
   generateToolListPrompt,
@@ -718,13 +723,34 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
     let lastErrMsg = "";
 
-    // ─── Étape 1: Rotation sur les modèles OpenRouter (gratuits → bon marché → auto) ───
-    const availableModels = getAllAvailableModels();
+    // ─── Étape 1: Routeur intelligent — sélection du modèle selon la complexité ───
+    const taskComplexity = classifyTaskComplexity(userMessage, availableTools.length);
+    const modelChain = getModelChainForTask(taskComplexity);
     const preferredModel = getPersonalityModel(config.openRouterModel);
-    // Mettre le modèle préféré en premier s'il est disponible
-    const modelsToTry = availableModels.includes(preferredModel)
-      ? [preferredModel, ...availableModels.filter((m) => m !== preferredModel)]
-      : availableModels;
+
+    // Construire la liste des modèles à essayer:
+    // 1. Chaîne du routeur (triée par complexité)
+    // 2. Modèle préféré en premier s'il est disponible
+    // 3. Tous les modèles disponibles en fallback
+    const allModels = getAllAvailableModels();
+    const modelsToTry: string[] = [];
+
+    // Mettre le modèle préféré en premier s'il est dans la chaîne ou dans allModels
+    if (modelChain.includes(preferredModel)) {
+      modelsToTry.push(preferredModel);
+    }
+    // Ajouter le reste de la chaîne du routeur
+    for (const m of modelChain) {
+      if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+    // Ajouter les autres modèles disponibles non déjà inclus
+    for (const m of allModels) {
+      if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+
+    logger.info(
+      `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
+    );
 
     for (const modelName of modelsToTry) {
       try {
