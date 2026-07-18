@@ -16,6 +16,7 @@ import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
+import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
 import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
@@ -541,6 +542,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...FREE_TOOLS,
   ...EXTERNAL_TOOLS,
   ...EXTRA_TOOLS,
+  ...KALI_TOOLS,
 ];
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
@@ -622,6 +624,9 @@ export async function executeTool(
         // Essayer les tools extra (HackerNews, GitHub trending, weather forecast, etc.)
         const extraResult = await executeExtraTool(toolName, args, ctx);
         if (extraResult) return extraResult;
+        // Essayer les tools Kali Linux (Layer 7 — Docker isolé)
+        const kaliResult = await executeKaliTool(toolName, args);
+        if (kaliResult) return kaliResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }

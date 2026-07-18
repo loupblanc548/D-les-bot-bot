@@ -68,6 +68,26 @@ async function processAlert(alert: WazuhAlert): Promise<void> {
     // Non-fatal — DB may not have the table yet
   }
 
+  // ── HONEYTOKEN FIM TRIPWIRE ──
+  // If Wazuh FIM logs a READ or WRITE on a honeytoken file, bypass level checks
+  // and instantly route to Layer 4 SOAR Validation Gate.
+  const fimFile = alert.data?.file ?? "";
+  if (fimFile) {
+    try {
+      const { isHoneytokenHit } = await import("../services/honeytokenEngine.js");
+      if (isHoneytokenHit(fimFile)) {
+        logger.error(
+          `${RED}${BOLD}[HONEYTOKEN]${RESET} ${RED}FIM tripwire triggered! Bypassing level checks → SOAR${RESET}`,
+        );
+        const { executeActiveDefense } = await import("../services/activeDefenseEngine.js");
+        await executeActiveDefense(alert);
+        return;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
   // Trigger active defense engine for critical threats
   if (alert.level >= 12) {
     try {

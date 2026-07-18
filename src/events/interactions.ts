@@ -354,3 +354,88 @@ async function executeBan(userId: string, guildId: string, interaction: ButtonIn
     details: "Ban via bouton d'alerte",
   });
 }
+
+// ============================================================
+// Gestionnaire des boutons Kali Linux Audit (Layer 7)
+// ============================================================
+export function handleKaliInteractions(client: Client): void {
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    if (!customId.startsWith("kali_")) return;
+
+    const parts = customId.split("_");
+    if (parts.length < 3) return;
+
+    const action = parts[1]; // "approve" or "reject"
+    const auditId = parts.slice(2).join("_");
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const { handleKaliApprove, handleKaliReject } = await import("../services/agentToolsKali.js");
+
+      switch (action) {
+        case "approve": {
+          await handleKaliApprove(auditId);
+          await interaction.editReply({ content: "🟢 Audit Kali APPROUVÉ — Lancement en cours..." });
+          break;
+        }
+        case "reject": {
+          await handleKaliReject(auditId);
+          await interaction.editReply({ content: "❌ Audit Kali ANNULÉ." });
+          break;
+        }
+        default:
+          await interaction.editReply({ content: "Action Kali inconnue." });
+      }
+    } catch (err) {
+      logger.error(`[Kali-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action Kali." });
+    }
+  });
+}
+
+// ============================================================
+// Gestionnaire des boutons Git-Healer (Layer 6.3)
+// ============================================================
+export function handleGitHealerInteractions(client: Client): void {
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    if (!customId.startsWith("git_")) return;
+
+    const parts = customId.split("_");
+    if (parts.length < 3) return;
+
+    const action = parts[1]; // "merge" or "reject"
+    const issueNumber = parts[2];
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const { handleGitMerge, handleGitReject } = await import("../services/gitAutoHealer.js");
+
+      switch (action) {
+        case "merge": {
+          const branchName = parts.slice(3).join("_");
+          const result = await handleGitMerge(issueNumber, branchName);
+          await interaction.editReply({ content: result });
+          break;
+        }
+        case "reject": {
+          const result = await handleGitReject(issueNumber);
+          await interaction.editReply({ content: result });
+          break;
+        }
+        default:
+          await interaction.editReply({ content: "Action Git-Healer inconnue." });
+      }
+    } catch (err) {
+      logger.error(`[Git-Healer-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action Git-Healer." });
+    }
+  });
+}

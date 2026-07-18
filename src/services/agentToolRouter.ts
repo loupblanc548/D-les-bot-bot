@@ -224,7 +224,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "interfaces réseau", "bande passante", "bandwidth",
       "routes", "table de routage", "routing table",
     ],
-    tools: ["network_investigate", "ip_geolocation", "network_status", "open_web_page"],
+    tools: ["network_investigate", "ip_geolocation", "network_status", "open_web_page", "runKaliPortAudit", "runKaliWebAudit"],
   },
   {
     keywords: ["code", "python", "javascript", "script", "exécute", "compile"],

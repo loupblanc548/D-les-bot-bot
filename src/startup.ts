@@ -48,8 +48,12 @@ import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
 import { startSyncFreeForDev } from "./cron/syncFreeForDev.js";
 import { startSyncTypeScriptSkills } from "./cron/syncTypeScriptSkills.js";
 import { startWazuhWatchdog } from "./cron/wazuhWatchdog.js";
+import { startShodanWatchdog } from "./cron/shodanWatchdog.js";
+import { generateHoneytokens } from "./services/honeytokenEngine.js";
+import { setGitHealerClient } from "./services/gitAutoHealer.js";
+import { setKaliClient, ensureKaliContainer, KALI_TOOLS } from "./services/agentToolsKali.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
-import { handleSoarInteractions, handleAlertInteractions } from "./events/interactions.js";
+import { handleSoarInteractions, handleAlertInteractions, handleKaliInteractions, handleGitHealerInteractions } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -346,7 +350,11 @@ export function attachStartupLogic(
       () => startSyncFreeForDev(),
       () => startSyncTypeScriptSkills(),
       () => { setSoarClient(client); return startWazuhWatchdog(); },
-      () => { handleSoarInteractions(client); handleAlertInteractions(client); },
+      () => { handleSoarInteractions(client); handleAlertInteractions(client); handleKaliInteractions(client); handleGitHealerInteractions(client); },
+      () => { generateHoneytokens(); },
+      () => { setGitHealerClient(client); },
+      () => { setKaliClient(client); return ensureKaliContainer().catch(() => {}); },
+      () => startShodanWatchdog(),
     ] : [
       // Stream-only mode: Go Live stream + watchdog + release data for showcase
       () => startGameReleaseCountdown(client),
