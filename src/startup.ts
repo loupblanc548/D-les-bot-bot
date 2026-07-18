@@ -343,7 +343,7 @@ export function attachStartupLogic(
       () => startDealFusion(client),
       () => startGitHubReleasesMonitor(client),
       () => startMultiSiteDealsMonitor(client),
-      () => startProactiveAgent(client),
+      // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
       () => startGameReleaseCountdown(client),
       () => startSteamWishlistMonitor(client),
       () => startAutoTranslate(client),

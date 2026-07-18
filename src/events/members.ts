@@ -1,5 +1,5 @@
 import logger from "../utils/logger.js";
-import { Client, GuildMember, PartialGuildMember } from "discord.js";
+import { Client, GuildMember, PartialGuildMember, EmbedBuilder, TextChannel } from "discord.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
@@ -11,6 +11,8 @@ import { stealthGuildLeave } from "../services/stealthLeave.js";
 import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
 import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/reportChannel.js";
 import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
+
+const BOOST_CHANNEL_ID = "1203399031351545887";
 
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
@@ -108,8 +110,8 @@ export function handleMemberEvents(client: Client) {
       // ── Détection d'avatar généré par IA ──
       void checkAvatarForAI(client, member, true).catch(() => {});
 
-      // ── Message de bienvenue (si configuré et activé) ──
-      await sendWelcomeMessage(member);
+      // ── Message de bienvenue (STANDBY — désactivé) ──
+      // await sendWelcomeMessage(member);
     } catch (error) {
       logger.error("[MemberEvents] Erreur lors du traitement guildMemberAdd:", error);
     }
@@ -155,6 +157,13 @@ export function handleMemberEvents(client: Client) {
       newMember: GuildMember | PartialGuildMember,
     ) => {
       try {
+        // ── Détection de boost serveur ──
+        const wasBoosting = oldMember.premiumSinceTimestamp !== null;
+        const isBoosting = newMember.premiumSinceTimestamp !== null;
+        if (!wasBoosting && isBoosting) {
+          await sendBoostAnnouncement(client, newMember);
+        }
+
         // Detection changement de pseudo
         if (oldMember.displayName !== newMember.displayName) {
           try {
@@ -248,4 +257,71 @@ export function handleMemberEvents(client: Client) {
       logger.error("[GuildDelete] Erreur lors du nettoyage:", error);
     }
   });
+}
+
+// ─── Boost Announcement ──────────────────────────────────────────────────────
+
+async function sendBoostAnnouncement(client: Client, member: GuildMember | PartialGuildMember): Promise<void> {
+  try {
+    const channel = await client.channels.fetch(BOOST_CHANNEL_ID).catch(() => null);
+    if (!channel || !channel.isTextBased()) {
+      logger.warn(`[Boost] Channel ${BOOST_CHANNEL_ID} introuvable ou non textuel`);
+      return;
+    }
+
+    const guild = member.guild;
+    const boostCount = guild.premiumSubscriptionCount ?? 0;
+    const boostTier = guild.premiumTier;
+    const tierLabels = ["Niveau 1", "Niveau 2", "Niveau 3"];
+    const tierLabel = tierLabels[boostTier] ?? `Niveau ${boostTier}`;
+
+    const tierEmojis = ["🚀", "✨", "💎", "👑"];
+    const tierEmoji = tierEmojis[boostTier] ?? "🚀";
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${tierEmoji} Nouveau Boost Serveur !`)
+      .setColor(0xff73fa)
+      .setDescription(
+        `**${member.user?.tag ?? member.id}** vient de booster **${guild.name}** !\n` +
+        `Merci infiniment pour ton soutien ! 💜`
+      )
+      .setThumbnail(member.user?.displayAvatarURL({ size: 256, extension: "png" }) ?? null)
+      .addFields(
+        { name: "🚀 Total Boosts", value: `**${boostCount}**`, inline: true },
+        { name: "📊 Niveau Serveur", value: `**${tierLabel}**`, inline: true },
+        { name: "👥 Membres", value: `**${guild.memberCount}**`, inline: true },
+      )
+      .addFields({
+        name: "💜 Avantages débloqués",
+        value: getBoostPerks(boostTier),
+        inline: false,
+      })
+      .setImage("https://cdn.discordapp.com/attachments/1203399031351545887/boost-banner.png")
+      .setFooter({ text: `${guild.name} • Server Boost`, iconURL: guild.iconURL() ?? undefined })
+      .setTimestamp();
+
+    await (channel as TextChannel).send({
+      content: `💜 **${member.toString()}** a boosté le serveur !`,
+      embeds: [embed],
+    }).catch(() => {});
+
+    logger.info(`[Boost] ${member.user?.tag ?? member.id} a boosté ${guild.name} — ${boostCount} boosts total (Tier ${boostTier})`);
+
+    await createLog({
+      type: "server_boost",
+      action: `${member.user?.tag ?? member.id} a boosté le serveur (${boostCount} total, Tier ${boostTier})`,
+      userId: member.id,
+    });
+  } catch (err) {
+    logger.error("[Boost] Erreur envoi annonce:", err);
+  }
+}
+
+function getBoostPerks(tier: number): string {
+  const perks = [
+    "• Plus d'emojis (50 slots)\n• Qualité audio améliorée\n• Icône serveur animée\n• Stickers personnalisés",
+    "• Plus d'emojis (100 slots)\n• Qualité audio HD\n• Bannière serveur\n• Icône serveur animée\n• Stickers personnalisés\n• 256 Kbps audio",
+    "• Plus d'emojis (150 slots)\n• Qualité audio HD+\n• Bannière serveur animée\n• Icône serveur animée\n• Stickers personnalisés\n• 384 Kbps audio\n• URL vanity",
+  ];
+  return perks[tier] ?? perks[0];
 }
