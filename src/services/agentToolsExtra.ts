@@ -27,6 +27,7 @@
 
 import logger from "../utils/logger.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
+import { RawgClient } from "../rawgClient.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 
 // ─── Tool Definitions ───────────────────────────────────────────────────────
@@ -134,7 +135,10 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Nom du jeu à rechercher (ex: Helldivers, GTA, Minecraft)" },
+          query: {
+            type: "string",
+            description: "Nom du jeu à rechercher (ex: Helldivers, GTA, Minecraft)",
+          },
           limit: { type: "number", description: "Nombre de résultats (défaut 5, max 10)" },
         },
         required: ["query"],
@@ -150,7 +154,10 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Terme de recherche (ex: Napoléon, quantum, photosynthèse)" },
+          query: {
+            type: "string",
+            description: "Terme de recherche (ex: Napoléon, quantum, photosynthèse)",
+          },
           limit: { type: "number", description: "Nombre de résultats (défaut 3, max 5)" },
         },
         required: ["query"],
@@ -343,7 +350,10 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          channel: { type: "string", description: "Nom de la chaîne Twitch (ex: shroud, pokimane)" },
+          channel: {
+            type: "string",
+            description: "Nom de la chaîne Twitch (ex: shroud, pokimane)",
+          },
           limit: { type: "number", description: "Nombre de clips (défaut 5, max 10)" },
         },
         required: ["channel"],
@@ -375,6 +385,40 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
           username: { type: "string", description: "Nom d'utilisateur GitHub" },
         },
         required: ["username"],
+      },
+    },
+  },
+  // ═══ New Tools (Part A) ═══
+  {
+    type: "function",
+    function: {
+      name: "getAirQuality",
+      description:
+        "Récupère la qualité de l'air (PM2.5, PM10, ozone, NO2, SO2, CO) pour une ville ou coordonnées via OpenAQ API v3. Gratuit, pas de clé. Complète get_weather_forecast.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "Nom de la ville (ex: Paris, Tokyo)" },
+          lat: { type: "number", description: "Latitude (optionnel, alternative à city)" },
+          lon: { type: "number", description: "Longitude (optionnel, alternative à city)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "searchRawgGames",
+      description:
+        "Recherche des jeux vidéo dans la base RAWG (350k+ jeux). Retourne nom, note, plateformes, date de sortie. Complète search_igdb_games. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Nom du jeu ou mot-clé (ex: 'Elden Ring')" },
+          page_size: { type: "number", description: "Nombre de résultats (défaut 5, max 20)" },
+        },
+        required: ["query"],
       },
     },
   },
@@ -433,6 +477,11 @@ export async function executeExtraTool(
         return await toolProductHunt();
       case "get_github_gists":
         return await toolGithubGists(args);
+      // New Tools (Part A)
+      case "getAirQuality":
+        return await toolGetAirQuality(args);
+      case "searchRawgGames":
+        return await toolSearchRawgGames(args);
       default:
         return null;
     }
@@ -488,10 +537,9 @@ async function toolGithubTrending(args: Record<string, unknown>): Promise<ToolCa
   while (repos.length < 10 && (match = repoRegex.exec(html)) !== null) {
     repos.push(match[1]);
   }
-  if (repos.length === 0) return { success: false, data: "Aucun repo trending trouvé (parsing échoué)" };
-  const formatted = repos
-    .map((r, i) => `${i + 1}. **${r}** — https://github.com/${r}`)
-    .join("\n");
+  if (repos.length === 0)
+    return { success: false, data: "Aucun repo trending trouvé (parsing échoué)" };
+  const formatted = repos.map((r, i) => `${i + 1}. **${r}** — https://github.com/${r}`).join("\n");
   return { success: true, data: `Top repos GitHub (${since}):\n${formatted}` };
 }
 
@@ -550,7 +598,10 @@ async function toolSteamRequirements(args: Record<string, unknown>): Promise<Too
   const formatted = reqs
     .map((r: any) => `**${r.title}**:\n${r.minimum || r.recommended || "N/A"}`)
     .join("\n\n");
-  return { success: true, data: `Configuration requise pour **${app.name}**:\n${formatted || "Aucune config trouvée"}` };
+  return {
+    success: true,
+    data: `Configuration requise pour **${app.name}**:\n${formatted || "Aucune config trouvée"}`,
+  };
 }
 
 async function toolDiscordEvents(ctx: ToolContext): Promise<ToolCallResult> {
@@ -562,7 +613,12 @@ async function toolDiscordEvents(ctx: ToolContext): Promise<ToolCallResult> {
   if (!events || events.size === 0) return { success: true, data: "Aucun événement programmé" };
   const formatted = events
     .map((e, i) => {
-      const date = e.scheduledStartAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      const date = e.scheduledStartAt?.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
       return `${i + 1}. **${e.name}**\n📅 ${date} | 👥 ${e.userCount || 0} intéressés\n${e.description?.slice(0, 200) || ""}`;
     })
     .join("\n\n");
@@ -609,7 +665,10 @@ async function toolSearchIgdb(args: Record<string, unknown>): Promise<ToolCallRe
       .join("\n\n");
     return { success: true, data: `Résultats IGDB pour "${query}":\n${formatted}` };
   } catch (err) {
-    return { success: false, data: `Erreur IGDB: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      success: false,
+      data: `Erreur IGDB: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 
@@ -623,7 +682,8 @@ async function toolSearchWikipedia(args: Record<string, unknown>): Promise<ToolC
   if (!res.ok) return { success: false, data: "Erreur Wikipedia API" };
   const data = (await res.json()) as any;
   const results = data.query?.search || [];
-  if (results.length === 0) return { success: true, data: `Aucun article Wikipedia pour "${query}"` };
+  if (results.length === 0)
+    return { success: true, data: `Aucun article Wikipedia pour "${query}"` };
   const formatted = results
     .map((r: any, i: number) => {
       const url = `https://fr.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, "_"))}`;
@@ -646,7 +706,12 @@ async function toolSpaceLaunches(args: Record<string, unknown>): Promise<ToolCal
   if (launches.length === 0) return { success: true, data: "Aucun lancement à venir" };
   const formatted = launches
     .map((l: any, i: number) => {
-      const date = new Date(l.net).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      const date = new Date(l.net).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
       const mission = l.mission?.name || l.name || "N/A";
       const rocket = l.rocket?.configuration?.full_name || "N/A";
       const pad = l.pad?.location?.name || "N/A";
@@ -659,16 +724,22 @@ async function toolSpaceLaunches(args: Record<string, unknown>): Promise<ToolCal
 async function toolValidateEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
   const email = args.email as string;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email))
-    return { success: true, data: `❌ Format invalide: ${email}` };
+  if (!emailRegex.test(email)) return { success: true, data: `❌ Format invalide: ${email}` };
   const domain = email.split("@")[1];
   const dnsRes = await fetch(`https://dns.google/resolve?name=${domain}&type=MX`, {
     signal: AbortSignal.timeout(5_000),
   });
-  if (!dnsRes.ok) return { success: true, data: `✅ Format valide mais impossible de vérifier le domaine` };
+  if (!dnsRes.ok)
+    return { success: true, data: `✅ Format valide mais impossible de vérifier le domaine` };
   const dnsData = (await dnsRes.json()) as any;
   const hasMx = dnsData.Answer && dnsData.Answer.length > 0;
-  const disposableDomains = ["mailinator.com", "tempmail.com", "guerrillamail.com", "10minutemail.com", "yopmail.com"];
+  const disposableDomains = [
+    "mailinator.com",
+    "tempmail.com",
+    "guerrillamail.com",
+    "10minutemail.com",
+    "yopmail.com",
+  ];
   const isDisposable = disposableDomains.includes(domain.toLowerCase());
   return {
     success: true,
@@ -713,7 +784,10 @@ async function toolExplainCron(args: Record<string, unknown>): Promise<ToolCallR
   const expr = args.expression as string;
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5)
-    return { success: false, data: "Expression cron invalide (5 champs requis: min hour day month weekday)" };
+    return {
+      success: false,
+      data: "Expression cron invalide (5 champs requis: min hour day month weekday)",
+    };
   const [min, hour, day, month, weekday] = parts;
   const explanations: string[] = [];
   const descField = (val: string, unit: string, names?: string[]) => {
@@ -738,7 +812,10 @@ async function toolGeneratePalette(args: Record<string, unknown>): Promise<ToolC
   const r = parseInt(baseColor.substring(0, 2), 16) || 0;
   const g = parseInt(baseColor.substring(2, 4), 16) || 0;
   const b = parseInt(baseColor.substring(4, 6), 16) || 0;
-  const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  const toHex = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n)))
+      .toString(16)
+      .padStart(2, "0");
   const palette = [
     `#${toHex(r * 0.7)}${toHex(g * 0.7)}${toHex(b * 0.7)}`,
     `#${toHex(r * 0.85)}${toHex(g * 0.85)}${toHex(b * 0.85)}`,
@@ -746,12 +823,17 @@ async function toolGeneratePalette(args: Record<string, unknown>): Promise<ToolC
     `#${toHex(255 - r)}${toHex(255 - g)}${toHex(255 - b)}`,
     `#${toHex(r * 1.3)}${toHex(g * 1.3)}${toHex(b * 1.3)}`,
   ];
-  return { success: true, data: `Palette depuis #${baseColor}:\n${palette.map((c, i) => `${i + 1}. ${c}`).join("\n")}` };
+  return {
+    success: true,
+    data: `Palette depuis #${baseColor}:\n${palette.map((c, i) => `${i + 1}. ${c}`).join("\n")}`,
+  };
 }
 
 async function toolEmojiInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
   const emoji = args.emoji as string;
-  const codePoints = [...emoji].map((c) => `U+${c.codePointAt(0)?.toString(16).toUpperCase()}`).join(" ");
+  const codePoints = [...emoji]
+    .map((c) => `U+${c.codePointAt(0)?.toString(16).toUpperCase()}`)
+    .join(" ");
   return {
     success: true,
     data: `Emoji: ${emoji}\nCodepoints: ${codePoints}\nHTML: ${[...emoji].map((c) => `&#${c.codePointAt(0)};`).join("")}`,
@@ -776,27 +858,39 @@ async function toolMinecraftStatus(args: Record<string, unknown>): Promise<ToolC
 }
 
 async function toolValorantAgents(): Promise<ToolCallResult> {
-  const res = await fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=fr-FR", {
-    signal: AbortSignal.timeout(10_000),
-  });
+  const res = await fetch(
+    "https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=fr-FR",
+    {
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
   if (!res.ok) return { success: false, data: "Erreur Valorant API" };
   const data = (await res.json()) as any;
   const agents = data.data || [];
   const formatted = agents
-    .map((a: any) => `**${a.displayName}** (${a.role?.displayName || "N/A"}) — ${a.description?.slice(0, 100) || ""}`)
+    .map(
+      (a: any) =>
+        `**${a.displayName}** (${a.role?.displayName || "N/A"}) — ${a.description?.slice(0, 100) || ""}`,
+    )
     .join("\n");
   return { success: true, data: `Agents Valorant (${agents.length}):\n${formatted}` };
 }
 
 async function toolLoremIpsum(args: Record<string, unknown>): Promise<ToolCallResult> {
   const paragraphs = Math.min(10, Math.max(1, Number(args.paragraphs) || 2));
-  const words = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum".split(" ");
+  const words =
+    "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum".split(
+      " ",
+    );
   const generateParagraph = () => {
     const sentences = 4 + Math.floor(Math.random() * 3);
     const parts: string[] = [];
     for (let i = 0; i < sentences; i++) {
       const wordCount = 8 + Math.floor(Math.random() * 10);
-      const wordsSlice = Array.from({ length: wordCount }, () => words[Math.floor(Math.random() * words.length)]);
+      const wordsSlice = Array.from(
+        { length: wordCount },
+        () => words[Math.floor(Math.random() * words.length)],
+      );
       wordsSlice[0] = wordsSlice[0].charAt(0).toUpperCase() + wordsSlice[0].slice(1);
       parts.push(wordsSlice.join(" ") + ".");
     }
@@ -809,11 +903,15 @@ async function toolLoremIpsum(args: Record<string, unknown>): Promise<ToolCallRe
 async function toolTwitchClips(args: Record<string, unknown>): Promise<ToolCallResult> {
   const channel = args.channel as string;
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
-  const res = await fetch(`https://twitchtracker.com/api/channels/${channel}/clips?limit=${limit}`, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) return { success: false, data: "Erreur Twitch clips (le scraping peut être bloqué)" };
+  const res = await fetch(
+    `https://twitchtracker.com/api/channels/${channel}/clips?limit=${limit}`,
+    {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  if (!res.ok)
+    return { success: false, data: "Erreur Twitch clips (le scraping peut être bloqué)" };
   const clips = (await res.json()) as any[];
   if (!clips || clips.length === 0)
     return { success: false, data: `Aucun clip trouvé pour ${channel}` };
@@ -857,4 +955,118 @@ async function toolGithubGists(args: Record<string, unknown>): Promise<ToolCallR
     })
     .join("\n\n");
   return { success: true, data: `Gists de ${username}:\n${formatted}` };
+}
+
+// ─── New Tools (Part A) ──────────────────────────────────────────────────────
+
+async function toolGetAirQuality(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const city = String(args.city || "").trim();
+  const lat = args.lat as number | undefined;
+  const lon = args.lon as number | undefined;
+
+  if (!city && (lat === undefined || lon === undefined)) {
+    return {
+      success: false,
+      data: "Fournis soit 'city' (nom de ville) soit 'lat' + 'lon' (coordonnées).",
+    };
+  }
+
+  try {
+    // OpenAQ API v3 — free, no API key required
+    let url: string;
+    if (city) {
+      // Geocode city name first via OpenAQ cities endpoint
+      const geoUrl = `https://api.openaq.org/v3/cities?limit=1&q=${encodeURIComponent(city)}`;
+      const geoRes = await fetch(geoUrl, { signal: AbortSignal.timeout(10_000) });
+      if (!geoRes.ok)
+        return { success: false, data: `OpenAQ geocoding erreur HTTP ${geoRes.status}` };
+      const geoData = (await geoRes.json()) as {
+        results?: Array<{
+          id?: number;
+          name?: string;
+          country?: string;
+          coordinates?: { latitude?: number; longitude?: number };
+        }>;
+      };
+      const cityData = geoData.results?.[0];
+      if (!cityData) return { success: false, data: `Ville "${city}" non trouvée dans OpenAQ.` };
+
+      // Search for latest measurements near this city
+      url = `https://api.openaq.org/v3/measurements?limit=10&sort=desc&order_by=datetime&city=${encodeURIComponent(city)}`;
+    } else {
+      url = `https://api.openaq.org/v3/measurements?limit=10&sort=desc&order_by=datetime&coordinates=${lat},${lon}&radius=25000`;
+    }
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return { success: false, data: `OpenAQ erreur HTTP ${res.status}` };
+
+    const data = (await res.json()) as {
+      results?: Array<{
+        parameter?: string;
+        value?: number;
+        unit?: string;
+        location?: string;
+        date?: { utc?: string };
+        country?: string;
+      }>;
+    };
+    const measurements = data.results || [];
+
+    if (measurements.length === 0) {
+      return {
+        success: true,
+        data: `Aucune mesure de qualité de l'air disponible pour ${city || `(${lat}, ${lon})`}.`,
+      };
+    }
+
+    const lines = measurements.map((m) => {
+      const date = m.date?.utc ? new Date(m.date.utc).toLocaleDateString("fr-FR") : "?";
+      return `- **${m.parameter?.toUpperCase()}**: ${m.value} ${m.unit} (${m.location}, ${date})`;
+    });
+
+    return {
+      success: true,
+      data: `🌬️ **Qualité de l'air — ${city || `(${lat}, ${lon})`}**\n\n${lines.join("\n")}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur OpenAQ: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+async function toolSearchRawgGames(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+
+  if (!query) {
+    return { success: false, data: "Requête vide. Ex: 'Elden Ring', 'The Witcher'" };
+  }
+
+  try {
+    const client = new RawgClient();
+    const game = await client.searchByTitle(query);
+
+    if (!game) {
+      return { success: true, data: `Aucun jeu trouvé pour "${query}" sur RAWG.` };
+    }
+
+    const rating = (game as unknown as Record<string, unknown>).rating ?? "N/A";
+    const released = (game as unknown as Record<string, unknown>).released ?? "N/A";
+    const name = (game as unknown as Record<string, unknown>).name ?? "Unknown";
+    const bgImage = (game as unknown as Record<string, unknown>).background_image as string | null;
+
+    let report = `🎮 **${name}**\n`;
+    report += `⭐ Note: ${rating} | 📅 Sortie: ${released}\n`;
+    if (bgImage) report += `🖼️ Image: ${bgImage}\n`;
+    const nameStr = String(name);
+    report += `🔗 https://rawg.io/games/${encodeURIComponent(nameStr.toLowerCase().replace(/\s+/g, "-"))}`;
+
+    return { success: true, data: report };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur RAWG: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }

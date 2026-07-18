@@ -29,6 +29,8 @@ import { stopLogRetention } from "./cron/logRetention.js";
 import { stopLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { stopAgentBrain } from "./services/agentBrain.js";
 import { stopPersonalityEngine } from "./services/personalityEngine.js";
+import { stopMediaWorker } from "./infrastructure/processIsolator.js";
+import { shutdownLogQueue } from "./queues/logQueue.js";
 import type {} from "discord.js";
 
 export type ClientDestroyFn = () => void;
@@ -67,6 +69,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopLogChannelCleanup,
     stopAgentBrain,
     stopPersonalityEngine,
+    stopMediaWorker,
+    () => {
+      void shutdownLogQueue();
+    },
   ];
 
   for (const fn of stopFns) {

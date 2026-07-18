@@ -2,6 +2,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { EmbedBuilder, Client, TextChannel } from "discord.js";
 import { config } from "../config.js";
+import { enqueueLog, initLogQueue } from "../queues/logQueue.js";
 
 export interface LogEntry {
   type: string;
@@ -12,17 +13,14 @@ export interface LogEntry {
   moderator?: string;
 }
 
+/**
+ * Directive 3: createLog now routes through Redis/BullMQ LogQueue.
+ * Direct Prisma write is avoided to prevent Neon connection pool exhaustion.
+ * The queue batches entries and flushes every 20s.
+ * Falls back to direct write if Redis is unavailable.
+ */
 export async function createLog(entry: LogEntry) {
-  return prisma.log.create({
-    data: {
-      type: entry.type,
-      action: entry.action,
-      userId: entry.userId || null,
-      targetId: entry.targetId || null,
-      details: entry.details || null,
-      moderator: entry.moderator || null,
-    },
-  });
+  enqueueLog(entry);
 }
 
 export async function getLogs(limit: number = 50) {

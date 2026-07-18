@@ -32,7 +32,12 @@ import {
 } from "./circuitBreaker.js";
 import { generatePlan, formatPlanForPrompt, detectAmbiguity } from "./agentPlanner.js";
 import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
-import { reflectOnToolResult, resetRetries, reflectOnStasis, type ToolExecutionResult } from "./agentReflector.js";
+import {
+  reflectOnToolResult,
+  resetRetries,
+  reflectOnStasis,
+  type ToolExecutionResult,
+} from "./agentReflector.js";
 import {
   initSession as initCognitiveSession,
   purgeSession as purgeCognitiveSession,
@@ -43,7 +48,11 @@ import {
   getToolHints,
   suggestToolChain,
   getApiKeyStatusLine,
+  isPrivateChannel,
+  RESTRICTED_TOOLS as RESTRICTED_TOOL_NAMES,
 } from "./agentToolRouter.js";
+import { isRestrictedTool, requestToolApproval, setSoarGateClient } from "./agentSoarGate.js";
+import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
@@ -401,7 +410,9 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
   }
 
   // ─── MODULE A: Planification multi-étapes ───
-  const routedTools = routeTools(userMessage, ALL_AGENT_TOOLS);
+  // Directive 2: Context Guard — detect if this is a public channel
+  const isPublic = !isPrivateChannel(message.channelId, message.guildId);
+  const routedTools = routeTools(userMessage, ALL_AGENT_TOOLS, isPublic);
   // Filter out auto-disabled tools
   const availableTools = routedTools.filter((t) => !isToolDisabled(t.function.name));
   const toolNames = availableTools.map((t) => t.function.name);
@@ -802,7 +813,11 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     const thoughtContent = (assistantMessage.content || "").trim();
     if (thoughtContent.length > 10 && iteration > 0) {
       try {
-        const stasisResult = await checkCognitiveStasis(cognitiveSessionId, iteration, thoughtContent);
+        const stasisResult = await checkCognitiveStasis(
+          cognitiveSessionId,
+          iteration,
+          thoughtContent,
+        );
         if (stasisResult.stasisDetected && stasisResult.matchedIterations) {
           logger.warn(
             `[AgentLoop] 🧠 Cognitive stasis at iteration ${iteration + 1} — routing to reflector`,
@@ -816,7 +831,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
             stasisResult.maxSimilarity,
           ).catch((): import("./agentReflector.js").ReflectionResult => ({
             action: "pivot" as const,
-            reasoning: "STRATEGY_STEREOTYPY_DETECTED: Forcing strategy mutation due to cognitive loop.",
+            reasoning:
+              "STRATEGY_STEREOTYPY_DETECTED: Forcing strategy mutation due to cognitive loop.",
             confidence: 0.7,
             stereotypyDetected: true,
             alternative_tool: undefined,
@@ -834,7 +850,8 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
           // action === "pivot": inject strategy mutation into conversation and continue
           conversation.push({
             role: "system",
-            content: `[STRATEGY_STEREOTYPY_DETECTED] L'approche actuelle est stéréotypée (similarité ${stasisResult.maxSimilarity.toFixed(4)}). ` +
+            content:
+              `[STRATEGY_STEREOTYPY_DETECTED] L'approche actuelle est stéréotypée (similarité ${stasisResult.maxSimilarity.toFixed(4)}). ` +
               `Change radicalement de stratégie. ${stasisReflection.alternative_tool ? `Utilise plutôt: ${stasisReflection.alternative_tool}.` : "Essaie un tool ou une approche complètement différent."} ` +
               `Ne répète PAS la même séquence d'outils. Raisonnement: ${stasisReflection.reasoning}`,
           });
@@ -943,13 +960,54 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
               data: `Tool ${toolName} temporairement limité (trop d'appels récents). Réessaie dans 1 minute.`,
             };
           } else {
-            result = await executeTool(toolName, args, ctx);
-            if (result.success) {
-              recordToolSuccess(toolName);
-              agentToolCalls.labels(toolName, "success").inc();
+            // Directive 2: SOAR Validation Gate for restricted tools
+            // Low-risk tools execute autonomously — no approval needed
+            if (isLowRisk(toolName)) {
+              logger.info(`[AgentLoop] ⚡ Autonomous execution (low-risk): ${toolName}`);
+              result = await executeTool(toolName, args, ctx);
+              if (result.success) {
+                recordToolSuccess(toolName);
+                agentToolCalls.labels(toolName, "success").inc();
+              } else {
+                recordToolFailure(toolName);
+                agentToolCalls.labels(toolName, "fail").inc();
+              }
+            } else if (isRestrictedTool(toolName)) {
+              // Medium/high risk — SOAR gate required
+              const risk = getRiskLevel(toolName) ?? "unclassified";
+              logger.info(`[AgentLoop] 🛡️ SOAR Gate required (risk: ${risk}): ${toolName}`);
+              const approved = await requestToolApproval(toolName, args, message.author.id);
+              if (!approved) {
+                logger.warn(
+                  `[AgentLoop] 🛡️ SOAR Gate: ${toolName} BLOCKED — admin rejected or timeout`,
+                );
+                result = {
+                  success: false,
+                  data: `Outil ${toolName} bloqué par la porte de validation SOAR. L'administrateur a rejeté ou n'a pas répondu à temps.`,
+                };
+                recordToolFailure(toolName);
+                agentToolCalls.labels(toolName, "fail").inc();
+              } else {
+                logger.info(`[AgentLoop] ✅ SOAR Gate: ${toolName} APPROVED by admin — executing`);
+                result = await executeTool(toolName, args, ctx);
+                if (result.success) {
+                  recordToolSuccess(toolName);
+                  agentToolCalls.labels(toolName, "success").inc();
+                } else {
+                  recordToolFailure(toolName);
+                  agentToolCalls.labels(toolName, "fail").inc();
+                }
+              }
             } else {
-              recordToolFailure(toolName);
-              agentToolCalls.labels(toolName, "fail").inc();
+              // Unclassified tools — default to direct execution (backward compat)
+              result = await executeTool(toolName, args, ctx);
+              if (result.success) {
+                recordToolSuccess(toolName);
+                agentToolCalls.labels(toolName, "success").inc();
+              } else {
+                recordToolFailure(toolName);
+                agentToolCalls.labels(toolName, "fail").inc();
+              }
             }
           }
         } catch (toolErr) {

@@ -11,6 +11,7 @@ import { ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
+import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
@@ -1192,7 +1193,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "generate_wifi_qr",
-      description: "Génère un QR code WiFi. ⚠️ SÉCURITÉ: Cet outil ne fonctionne QUE en messages privés (DM). Refuse de s'exécuter dans un salon public pour protéger les identifiants réseau.",
+      description:
+        "Génère un QR code WiFi. ⚠️ SÉCURITÉ: Cet outil ne fonctionne QUE en messages privés (DM). Refuse de s'exécuter dans un salon public pour protéger les identifiants réseau.",
       parameters: {
         type: "object",
         properties: {
@@ -1205,6 +1207,49 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["ssid", "password"],
+      },
+    },
+  },
+  // ═══ New Tools (Part A) — replacements for solveMath and translateText ═══
+  {
+    type: "function",
+    function: {
+      name: "solveMathAdvanced",
+      description:
+        "Résout des expressions mathématiques complexes via Wolfram Alpha: calcul symbolique, dérivées, intégrales, équations, conversions d'unités, physique, chimie. Remplace solveMath.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Requête mathématique en langage naturel (ex: 'derive x^2 + 3x', 'integrate sin(x)', 'convert 5 km to miles')",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "translateTextDeepL",
+      description:
+        "Traduit un texte via DeepL API — qualité nettement supérieure à MyMemory pour les langues européennes. Remplace translateText.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à traduire (max 5000 caractères)" },
+          targetLang: {
+            type: "string",
+            description: "Langue cible (FR, EN, DE, ES, IT, PT, NL, PL, RU, JA, KO, ZH)",
+          },
+          sourceLang: {
+            type: "string",
+            description: "Langue source (optionnel, auto-détection si omis)",
+          },
+        },
+        required: ["text", "targetLang"],
       },
     },
   },
@@ -1392,6 +1437,11 @@ export async function executeExtendedTool(
         return await tOrCredits();
       case "generate_wifi_qr":
         return await tGenerateWifiQr(args, ctx);
+      // New Tools (Part A)
+      case "solveMathAdvanced":
+        return await tSolveMathAdvanced(args);
+      case "translateTextDeepL":
+        return await tTranslateTextDeepL(args);
       default:
         return null;
     }
@@ -3665,10 +3715,13 @@ async function tGenerateWifiQr(
 
   const ssid = String(args.ssid ?? "").trim();
   const password = String(args.password ?? "").trim();
-  const encryptionType = String(args.encryptionType ?? "WPA").trim().toUpperCase();
+  const encryptionType = String(args.encryptionType ?? "WPA")
+    .trim()
+    .toUpperCase();
 
   if (!ssid) return { success: false, data: "SSID requis" };
-  if (!password && encryptionType !== "nopass") return { success: false, data: "Mot de passe requis" };
+  if (!password && encryptionType !== "nopass")
+    return { success: false, data: "Mot de passe requis" };
 
   const validEncryptions = ["WPA", "WEP", "nopass"];
   if (!validEncryptions.includes(encryptionType)) {
@@ -3683,10 +3736,120 @@ async function tGenerateWifiQr(
   // Generate QR code via public API (qrcode.monster — free, no key)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(wifiString)}`;
 
-  logger.info(`[AgentToolsExt] 📶 WiFi QR generated for SSID: ${ssid} (encryption: ${encryptionType})`);
+  logger.info(
+    `[AgentToolsExt] 📶 WiFi QR generated for SSID: ${ssid} (encryption: ${encryptionType})`,
+  );
 
   return {
     success: true,
     data: `📶 QR Code WiFi généré pour "${ssid}" (${encryptionType})\n\nScanne ce QR code avec ton téléphone pour te connecter automatiquement:\n${qrUrl}\n\n⚠️ Ce lien contient vos identifiants — ne le partage pas.`,
+  };
+}
+
+// ─── New Tools (Part A) ──────────────────────────────────────────────────────
+
+async function tSolveMathAdvanced(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) {
+    return {
+      success: false,
+      data: "Requête vide. Ex: 'derive x^2 + 3x', 'integrate sin(x)', 'convert 5 km to miles'",
+    };
+  }
+
+  const appId = process.env.WOLFRAM_APP_ID || "";
+  if (!appId) {
+    return {
+      success: false,
+      data: "Wolfram Alpha non configuré (WOLFRAM_APP_ID manquant dans .env)",
+    };
+  }
+
+  try {
+    const url = `https://api.wolframalpha.com/v2/query?input=${encodeURIComponent(query)}&format=plaintext&output=JSON&appid=${appId}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) {
+      return { success: false, data: `Wolfram Alpha erreur HTTP ${res.status}` };
+    }
+
+    const data = (await res.json()) as {
+      queryresult?: {
+        success?: boolean;
+        pods?: Array<{ title?: string; subpods?: Array<{ plaintext?: string }> }>;
+        error?: string;
+      };
+    };
+    const qr = data.queryresult;
+    if (!qr || !qr.success) {
+      return { success: false, data: `Wolfram Alpha n'a pas pu interpréter: "${query}"` };
+    }
+
+    const pods = qr.pods || [];
+    const resultPod = pods.find((p) => p.title === "Result" || p.title === "Résultat");
+    const inputPod = pods.find((p) => p.title === "Input" || p.title === "Input interpretation");
+
+    let output = "";
+    if (inputPod?.subpods?.[0]?.plaintext) {
+      output += `**Input:** ${inputPod.subpods[0].plaintext}\n`;
+    }
+    if (resultPod?.subpods?.[0]?.plaintext) {
+      output += `**Result:** ${resultPod.subpods[0].plaintext}\n`;
+    }
+    // Fallback: show all pods
+    if (!output) {
+      for (const pod of pods.slice(0, 5)) {
+        const text = pod.subpods?.[0]?.plaintext;
+        if (text) output += `**${pod.title}:** ${text}\n`;
+      }
+    }
+
+    return { success: true, data: output || "Aucun résultat exploitable de Wolfram Alpha." };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur Wolfram Alpha: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+async function tTranslateTextDeepL(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "").trim();
+  const targetLang = String(args.targetLang || "FR").toUpperCase() as
+    "FR" | "EN" | "DE" | "ES" | "IT" | "PT" | "NL" | "PL" | "RU" | "JA" | "KO" | "ZH";
+  const sourceLang = args.sourceLang
+    ? (String(args.sourceLang).toUpperCase() as
+        | "FR"
+        | "EN"
+        | "DE"
+        | "ES"
+        | "IT"
+        | "PT"
+        | "NL"
+        | "PL"
+        | "RU"
+        | "JA"
+        | "KO"
+        | "ZH"
+        | undefined)
+    : undefined;
+
+  if (!text) {
+    return { success: false, data: "Texte vide à traduire." };
+  }
+  if (text.length > 5000) {
+    return { success: false, data: "Texte trop long (max 5000 caractères pour DeepL)." };
+  }
+
+  const result = await deeplTranslate(text, targetLang, sourceLang);
+  if (result === text) {
+    return {
+      success: false,
+      data: "DeepL non configuré (DEEPL_API_KEY manquant) ou erreur. Texte retourné inchangé.",
+    };
+  }
+
+  return {
+    success: true,
+    data: `🌐 Traduction DeepL (${sourceLang || "auto"} → ${targetLang}):\n\n${result}`,
   };
 }

@@ -49,6 +49,7 @@ import {
   isSlackConfigured,
 } from "./notifications.js";
 import { translateAny, detectLanguageAuto } from "./libreTranslate.js";
+import { checkEmail as hibpCheckEmail } from "../utils/hibp.js";
 import { detectAnomalies } from "./anomalyDetector.js";
 import {
   buildComparisonEmbed,
@@ -994,7 +995,8 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "network_investigate",
-      description: "Investigation OSINT réseau complète : géolocalisation IP, reverse DNS, scan de ports, WHOIS domaine. Utilise cet outil quand il y a un problème réseau, une IP suspecte, ou pour investiguer une alerte de sécurité.",
+      description:
+        "Investigation OSINT réseau complète : géolocalisation IP, reverse DNS, scan de ports, WHOIS domaine. Utilise cet outil quand il y a un problème réseau, une IP suspecte, ou pour investiguer une alerte de sécurité.",
       parameters: {
         type: "object",
         properties: {
@@ -1004,7 +1006,10 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
           },
           modules: {
             type: "array",
-            items: { type: "string", enum: ["geo", "reverse_dns", "port_scan", "whois", "dns_records"] },
+            items: {
+              type: "string",
+              enum: ["geo", "reverse_dns", "port_scan", "whois", "dns_records"],
+            },
             description: "Modules à exécuter (défaut: tous)",
           },
         },
@@ -1017,13 +1022,22 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "network_status",
-      description: "Affiche l'état du réseau en temps réel : connexions actives (IP source/dest, ports, états), ports en écoute, interfaces réseau, bande passante, routes. Utilise cet outil quand l'utilisateur demande d'ouvrir Internet, voir ce qu'il se passe sur le réseau, ou monitorer le trafic live.",
+      description:
+        "Affiche l'état du réseau en temps réel : connexions actives (IP source/dest, ports, états), ports en écoute, interfaces réseau, bande passante, routes. Utilise cet outil quand l'utilisateur demande d'ouvrir Internet, voir ce qu'il se passe sur le réseau, ou monitorer le trafic live.",
       parameters: {
         type: "object",
         properties: {
           scope: {
             type: "string",
-            enum: ["all", "listening", "established", "interfaces", "routes", "bandwidth", "top_connections"],
+            enum: [
+              "all",
+              "listening",
+              "established",
+              "interfaces",
+              "routes",
+              "bandwidth",
+              "top_connections",
+            ],
             description: "Portée du diagnostic (défaut: all)",
           },
           filterIp: {
@@ -1040,13 +1054,15 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "open_web_page",
-      description: "Ouvre une page web sur Internet et affiche son contenu. Permet de consulter des dashboards de monitoring (Wazuh, Grafana, etc.), des outils réseau en ligne (ping, traceroute web), des pages de statut de services, ou n'importe quelle URL. Retourne le titre, le texte principal et les liens trouvés.",
+      description:
+        "Ouvre une page web sur Internet et affiche son contenu. Permet de consulter des dashboards de monitoring (Wazuh, Grafana, etc.), des outils réseau en ligne (ping, traceroute web), des pages de statut de services, ou n'importe quelle URL. Retourne le titre, le texte principal et les liens trouvés.",
       parameters: {
         type: "object",
         properties: {
           url: {
             type: "string",
-            description: "URL complète à ouvrir (ex: https://monitoring.example.com, https://status.discord.com, https://www.he.net/network/tools/)",
+            description:
+              "URL complète à ouvrir (ex: https://monitoring.example.com, https://status.discord.com, https://www.he.net/network/tools/)",
           },
           extractLinks: {
             type: "boolean",
@@ -1066,7 +1082,8 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "threat_intel_sweep",
-      description: "Lance un scan complet de threat intelligence sur une IP, URL, ou hash de fichier. Utilise TOUS les outils disponibles: VirusTotal, AbuseIPDB, PhishTank, Google Safe Browsing, IPVoid (géoloc + proxy/VPN detection), GitHub dorking. ⚠️ UTILISE CECI quand l'utilisateur parle de virus, malware, trojan, ransomware, phishing, IP suspecte, ou toute menace de sécurité.",
+      description:
+        "Lance un scan complet de threat intelligence sur une IP, URL, ou hash de fichier. Utilise TOUS les outils disponibles: VirusTotal, AbuseIPDB, PhishTank, Google Safe Browsing, IPVoid (géoloc + proxy/VPN detection), GitHub dorking. ⚠️ UTILISE CECI quand l'utilisateur parle de virus, malware, trojan, ransomware, phishing, IP suspecte, ou toute menace de sécurité.",
       parameters: {
         type: "object",
         properties: {
@@ -1081,6 +1098,43 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["target"],
+      },
+    },
+  },
+  // ═══ 15. Data Breach & URL Safety ═══
+  {
+    type: "function",
+    function: {
+      name: "checkDataBreach",
+      description:
+        "Vérifie si un email a été compromis dans des fuites de données connues (Have I Been Pwned). Affiche le nom, la date et la description de chaque breach. Medium risk — données personnelles.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: {
+            type: "string",
+            description: "Adresse email à vérifier (ex: user@example.com)",
+          },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "scanUrlSafety",
+      description:
+        "Scanne une URL via urlscan.io pour détecter des menaces (malware, phishing, redirects suspects, JS malveillant). Complète verify_link_safety avec un rapport plus détaillé. Low risk.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "URL à scanner (ex: https://example.com)",
+          },
+        },
+        required: ["url"],
       },
     },
   },
@@ -2160,6 +2214,11 @@ export async function executeAutonomousTool(
         return await tBuildTimelineEmbed(args);
       case "build_stat_cards_embed":
         return await tBuildStatCardsEmbed(args);
+      // 15. Data Breach & URL Safety
+      case "checkDataBreach":
+        return await tCheckDataBreach(args);
+      case "scanUrlSafety":
+        return await tScanUrlSafety(args);
       default:
         return null;
     }
@@ -3068,10 +3127,18 @@ async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallRe
 // ─── OSINT Network Investigation ─────────────────────────────────────────────
 
 async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolCallResult> {
-  const target = String(args.target || "").trim().slice(0, 200);
+  const target = String(args.target || "")
+    .trim()
+    .slice(0, 200);
   if (!target) return { success: false, data: "target requis (IP ou domaine)" };
 
-  const modules = (args.modules as string[] | undefined) ?? ["geo", "reverse_dns", "port_scan", "whois", "dns_records"];
+  const modules = (args.modules as string[] | undefined) ?? [
+    "geo",
+    "reverse_dns",
+    "port_scan",
+    "whois",
+    "dns_records",
+  ];
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(target) || /^[0-9a-f:]+$/i.test(target);
   const isDomain = !isIP && /\.[a-z]{2,}$/i.test(target);
 
@@ -3092,13 +3159,21 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
         const data = (await res.json()) as Record<string, unknown>;
         if (data.status !== "fail") {
           results.geo = {
-            country: data.country, city: data.city, region: data.region,
-            isp: data.isp, org: data.org, as: data.as,
-            lat: data.lat, lon: data.lon, timezone: data.timezone,
+            country: data.country,
+            city: data.city,
+            region: data.region,
+            isp: data.isp,
+            org: data.org,
+            as: data.as,
+            lat: data.lat,
+            lon: data.lon,
+            timezone: data.timezone,
           };
         }
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   // 2. Reverse DNS
@@ -3117,23 +3192,33 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
   if (modules.includes("port_scan")) {
     try {
       const net = await import("net");
-      const commonPorts = [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 993, 995, 1433, 3306, 3389, 5432, 6379, 8080, 8443, 27017];
+      const commonPorts = [
+        21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 993, 995, 1433, 3306, 3389, 5432, 6379, 8080,
+        8443, 27017,
+      ];
       const openPorts: number[] = [];
 
       await Promise.all(
-        commonPorts.map((port) =>
-          new Promise<void>((resolve) => {
-            const socket = new net.Socket();
-            socket.setTimeout(2000);
-            socket.once("connect", () => {
-              openPorts.push(port);
-              socket.destroy();
-              resolve();
-            });
-            socket.once("timeout", () => { socket.destroy(); resolve(); });
-            socket.once("error", () => { socket.destroy(); resolve(); });
-            socket.connect(port, target);
-          }),
+        commonPorts.map(
+          (port) =>
+            new Promise<void>((resolve) => {
+              const socket = new net.Socket();
+              socket.setTimeout(2000);
+              socket.once("connect", () => {
+                openPorts.push(port);
+                socket.destroy();
+                resolve();
+              });
+              socket.once("timeout", () => {
+                socket.destroy();
+                resolve();
+              });
+              socket.once("error", () => {
+                socket.destroy();
+                resolve();
+              });
+              socket.connect(port, target);
+            }),
         ),
       );
 
@@ -3155,15 +3240,19 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
         const data = (await res.json()) as Record<string, unknown>;
         const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
         results.whois = {
-          registrar: ((data.entities || []) as Array<{ roles: string[]; vcardArray: unknown[] }>)
-            .find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
-            ? "available" : "unknown",
+          registrar: (
+            (data.entities || []) as Array<{ roles: string[]; vcardArray: unknown[] }>
+          ).find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
+            ? "available"
+            : "unknown",
           registration: events.find((e) => e.eventAction === "registration")?.eventDate ?? "N/A",
           expiration: events.find((e) => e.eventAction === "expiration")?.eventDate ?? "N/A",
           status: data.status || [],
         };
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   // 5. DNS records (for domains)
@@ -3184,11 +3273,15 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
 
       results.dnsRecords = {
         a: a as string[],
-        mx: (mx as Array<{ priority: number; exchange: string }>).map((m) => `${m.priority} ${m.exchange}`),
+        mx: (mx as Array<{ priority: number; exchange: string }>).map(
+          (m) => `${m.priority} ${m.exchange}`,
+        ),
         ns: ns as string[],
         txt: (txt as string[][]).map((t) => t.join("")),
       };
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   logger.info(`[AgentTools] 🔍 Network investigation completed for ${target}`);
@@ -3213,7 +3306,10 @@ async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallRe
 
   async function run(cmd: string, key: string, timeout = 5000): Promise<void> {
     try {
-      const { stdout } = await execFileAsync("bash", ["-c", cmd], { timeout, maxBuffer: 512 * 1024 });
+      const { stdout } = await execFileAsync("bash", ["-c", cmd], {
+        timeout,
+        maxBuffer: 512 * 1024,
+      });
       results[key] = stdout.trim().slice(0, 3000);
     } catch (err) {
       results[key] = `Error: ${err instanceof Error ? err.message : String(err)}`;
@@ -3228,11 +3324,17 @@ async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallRe
   }
 
   if (scope === "all" || scope === "established") {
-    await run(`ss -tunap state established${grepFilter} 2>/dev/null || netstat -tunap 2>/dev/null | grep ESTABLISHED${grepFilter}`, "established_connections");
+    await run(
+      `ss -tunap state established${grepFilter} 2>/dev/null || netstat -tunap 2>/dev/null | grep ESTABLISHED${grepFilter}`,
+      "established_connections",
+    );
   }
 
   if (scope === "all" || scope === "top_connections") {
-    await run(`ss -tunap 2>/dev/null | head -30 || netstat -tunap 2>/dev/null | head -30`, "top_connections");
+    await run(
+      `ss -tunap 2>/dev/null | head -30 || netstat -tunap 2>/dev/null | head -30`,
+      "top_connections",
+    );
   }
 
   if (scope === "all" || scope === "interfaces") {
@@ -3244,7 +3346,10 @@ async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallRe
   }
 
   if (scope === "all" || scope === "bandwidth") {
-    await run(`cat /proc/net/dev 2>/dev/null | awk 'NR>2{printf "%s: RX=%.1fMB TX=%.1fMB\\n", $1, $2/1048576, $10/1048576}'`, "bandwidth_by_interface");
+    await run(
+      `cat /proc/net/dev 2>/dev/null | awk 'NR>2{printf "%s: RX=%.1fMB TX=%.1fMB\\n", $1, $2/1048576, $10/1048576}'`,
+      "bandwidth_by_interface",
+    );
     await run(`vnstat 2>/dev/null || echo "vnstat not installed"`, "bandwidth_summary");
   }
 
@@ -3342,7 +3447,11 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
   if (targetType === "ip" || (targetType === "auto" && isIP)) detectedType = "ip";
   else if (targetType === "url" || (targetType === "auto" && isURL)) detectedType = "url";
   else if (targetType === "hash" || (targetType === "auto" && isHash)) detectedType = "hash";
-  else return { success: false, data: "Type de cible non reconnu (doit être IP, URL, ou hash MD5/SHA1/SHA256)" };
+  else
+    return {
+      success: false,
+      data: "Type de cible non reconnu (doit être IP, URL, ou hash MD5/SHA1/SHA256)",
+    };
 
   const results: Record<string, unknown> = { target, type: detectedType, tools: [] as string[] };
   const toolsUsed: string[] = [];
@@ -3378,10 +3487,12 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
           { signal: AbortSignal.timeout(5000) },
         );
         if (geoRes.ok) {
-          const geoData = await geoRes.json() as Record<string, unknown>;
+          const geoData = (await geoRes.json()) as Record<string, unknown>;
           results.geolocation = geoData;
         }
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
     }
 
     if (detectedType === "url") {
@@ -3417,11 +3528,20 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
         if (leakResult.found) {
           results.githubLeaks = { found: true, repositories: leakResult.repositories };
         }
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
     }
 
     const toolStatus: Record<string, boolean> = {};
-    for (const src of ["VIRUSTOTAL", "ABUSEIPDB", "PHISHTANK", "SAFE_BROWSING", "GITHUB_DORKING", "IPVOID"]) {
+    for (const src of [
+      "VIRUSTOTAL",
+      "ABUSEIPDB",
+      "PHISHTANK",
+      "SAFE_BROWSING",
+      "GITHUB_DORKING",
+      "IPVOID",
+    ]) {
       toolStatus[src] = threatIntel.isConfigured(src as any);
     }
     results.toolStatus = toolStatus;
@@ -3431,15 +3551,136 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
     if (detectedType === "ip" && (results.ipReputation as any)?.isMalicious) isMalicious = true;
     if (detectedType === "url" && (results.urlScan as any)?.overallMalicious) isMalicious = true;
     if (detectedType === "hash" && (results.fileHashScan as any)?.malicious) isMalicious = true;
-    results.verdict = isMalicious ? "MALICIOUS — Threat confirmed by threat intelligence sources" : "No malicious indicators found";
+    results.verdict = isMalicious
+      ? "MALICIOUS — Threat confirmed by threat intelligence sources"
+      : "No malicious indicators found";
 
-    logger.info(`[AgentTools] Threat intel sweep for ${target} (${detectedType}) — verdict: ${isMalicious ? "MALICIOUS" : "clean"}`);
+    logger.info(
+      `[AgentTools] Threat intel sweep for ${target} (${detectedType}) — verdict: ${isMalicious ? "MALICIOUS" : "clean"}`,
+    );
 
     return { success: true, data: JSON.stringify(results) };
   } catch (err) {
     return {
       success: false,
       data: `Erreur lors du threat intel sweep: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ─── 15. Data Breach & URL Safety ────────────────────────────────────────────
+
+async function tCheckDataBreach(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const email = String(args.email || "")
+    .trim()
+    .toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { success: false, data: "Email invalide. Format attendu: user@example.com" };
+  }
+
+  const breaches = await hibpCheckEmail(email);
+  if (breaches === null) {
+    return {
+      success: false,
+      data: "API Have I Been Pwned non configurée (HIBP_API_KEY manquant) ou erreur. Impossible de vérifier.",
+    };
+  }
+
+  if (breaches.length === 0) {
+    return {
+      success: true,
+      data: `✅ Aucune fuite de données trouvée pour **${email}**. Cet email n'apparaît dans aucune breach connue.`,
+    };
+  }
+
+  const lines = breaches.map(
+    (b) => `- **${b.name}** (${b.breachDate}): ${b.description.slice(0, 200)}`,
+  );
+  return {
+    success: true,
+    data: `🚨 **${breaches.length} fuite(s)** trouvée(s) pour ${email}:\n\n${lines.join("\n")}`,
+  };
+}
+
+async function tScanUrlSafety(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "").trim();
+  if (!url || !url.startsWith("http")) {
+    return { success: false, data: "URL invalide. Doit commencer par http:// ou https://" };
+  }
+
+  const apiKey = process.env.URLSCAN_API_KEY || "";
+  const baseUrl = "https://urlscan.io/api/v1";
+
+  try {
+    // Submit scan
+    const submitRes = await fetch(`${baseUrl}/scan/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { "API-Key": apiKey } : {}),
+      },
+      body: JSON.stringify({ url, visibility: "public" }),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!submitRes.ok) {
+      const errBody = await submitRes.text().catch(() => "");
+      return {
+        success: false,
+        data: `urlscan.io erreur HTTP ${submitRes.status}: ${errBody.slice(0, 200)}`,
+      };
+    }
+
+    const submitData = (await submitRes.json()) as { uuid?: string; message?: string };
+    if (!submitData.uuid) {
+      return { success: false, data: `urlscan.io: ${submitData.message || "pas d'UUID retourné"}` };
+    }
+
+    // Poll for result (max 3 attempts, 5s apart)
+    let result: Record<string, unknown> | null = null;
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const pollRes = await fetch(`${baseUrl}/result/${submitData.uuid}/`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (pollRes.ok) {
+        result = (await pollRes.json()) as Record<string, unknown>;
+        break;
+      }
+    }
+
+    if (!result) {
+      return {
+        success: true,
+        data: `⏳ Scan urlscan.io en cours pour ${url} (UUID: ${submitData.uuid}). Résultat disponible sur https://urlscan.io/result/${submitData.uuid}/`,
+      };
+    }
+
+    const verdicts = result.verdicts as Record<string, unknown> | undefined;
+    const overall = verdicts?.overall as Record<string, unknown> | undefined;
+    const stats = result.stats as Record<string, unknown> | undefined;
+    const page = result.page as Record<string, unknown> | undefined;
+
+    const malicious = (overall?.malicious as number) ?? 0;
+    const suspicious = (overall?.suspicious as number) ?? 0;
+    const redirects = (stats?.redirected as number) ?? 0;
+    const pageTitle = (page?.title as string) ?? "(inconnu)";
+    const pageIp = (page?.ip as string) ?? "(inconnu)";
+    const pageServer = (page?.server as string) ?? "(inconnu)";
+
+    let report = `**Scan urlscan.io pour ${url}**\n`;
+    report += `- Verdict: ${malicious > 0 ? "🚨 MALICIOUS" : suspicious > 0 ? "⚠️ SUSPICIOUS" : "✅ CLEAN"}\n`;
+    report += `- Malicious: ${malicious}, Suspicious: ${suspicious}\n`;
+    report += `- Page title: ${pageTitle}\n`;
+    report += `- Serveur: ${pageServer}, IP: ${pageIp}\n`;
+    report += `- Redirects: ${redirects}\n`;
+    report += `- Rapport complet: https://urlscan.io/result/${submitData.uuid}/`;
+
+    return { success: true, data: report };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur scan urlscan.io: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

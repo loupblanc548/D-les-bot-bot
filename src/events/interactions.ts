@@ -10,7 +10,13 @@ import logger from "../utils/logger.js";
 import { createLog } from "../services/logs.js";
 import { resolveAlert, type AlertAction } from "../services/alert-service.js";
 import { recordSanction } from "../services/risk-engine.js";
-import { undoNetworkBan, markFalsePositive, investigateAlert, handleApproval, handleRejection } from "../services/activeDefenseEngine.js";
+import {
+  undoNetworkBan,
+  markFalsePositive,
+  investigateAlert,
+  handleApproval,
+  handleRejection,
+} from "../services/activeDefenseEngine.js";
 
 // ============================================================
 // Gestionnaire des boutons interactifs SOAR (Active Defense)
@@ -41,15 +47,19 @@ export function handleSoarInteractions(client: Client): void {
 
         case "reject": {
           await handleRejection(alertId);
-          await interaction.editReply({ content: "❌ RiPOSTE REJETÉE — Incident marqué DISMISSED_BY_ADMIN." });
+          await interaction.editReply({
+            content: "❌ RiPOSTE REJETÉE — Incident marqué DISMISSED_BY_ADMIN.",
+          });
           break;
         }
 
         case "undo": {
           // Extract the banned IP from the incident
-          const incident = await prisma.securityIncident.findUnique({
-            where: { wazuhAlertId: alertId },
-          }).catch(() => null);
+          const incident = await prisma.securityIncident
+            .findUnique({
+              where: { wazuhAlertId: alertId },
+            })
+            .catch(() => null);
 
           if (!incident) {
             await interaction.editReply({ content: "⚠️ Incident introuvable dans la base." });
@@ -63,24 +73,30 @@ export function handleSoarInteractions(client: Client): void {
           if (ip) {
             const undone = await undoNetworkBan(ip);
             if (undone) {
-              await prisma.securityIncident.update({
-                where: { wazuhAlertId: alertId },
-                data: { status: "RESOLVED" },
-              }).catch(() => {});
+              await prisma.securityIncident
+                .update({
+                  where: { wazuhAlertId: alertId },
+                  data: { status: "RESOLVED" },
+                })
+                .catch(() => {});
               await interaction.editReply({ content: `🔓 Rollback exécuté — IP ${ip} débannie.` });
             } else {
               await interaction.editReply({ content: `⚠️ Échec du rollback pour IP ${ip}.` });
             }
           } else {
-            await interaction.editReply({ content: "⚠️ Aucune IP à débannir trouvée pour cet incident." });
+            await interaction.editReply({
+              content: "⚠️ Aucune IP à débannir trouvée pour cet incident.",
+            });
           }
           break;
         }
 
         case "investigate": {
-          const incident = await prisma.securityIncident.findUnique({
-            where: { wazuhAlertId: alertId },
-          }).catch(() => null);
+          const incident = await prisma.securityIncident
+            .findUnique({
+              where: { wazuhAlertId: alertId },
+            })
+            .catch(() => null);
 
           if (!incident) {
             await interaction.editReply({ content: "⚠️ Incident introuvable." });
@@ -379,7 +395,9 @@ export function handleKaliInteractions(client: Client): void {
       switch (action) {
         case "approve": {
           await handleKaliApprove(auditId);
-          await interaction.editReply({ content: "🟢 Audit Kali APPROUVÉ — Lancement en cours..." });
+          await interaction.editReply({
+            content: "🟢 Audit Kali APPROUVÉ — Lancement en cours...",
+          });
           break;
         }
         case "reject": {
@@ -414,20 +432,16 @@ export function handleVpsMaintenanceInteractions(client: Client): void {
 
       switch (customId) {
         case "vps_purge_logs": {
-          const result = await purgeOldLogs(14);
+          const result = await purgeOldLogs(45);
           await interaction.editReply({
-            content: result.success
-              ? `🧹 ${result.message}`
-              : `❌ ${result.message}`,
+            content: result.success ? `🧹 ${result.message}` : `❌ ${result.message}`,
           });
           break;
         }
         case "vps_prune_docker": {
           const result = await pruneDockerCache();
           await interaction.editReply({
-            content: result.success
-              ? `🐳 ${result.message}`
-              : `❌ ${result.message}`,
+            content: result.success ? `🐳 ${result.message}` : `❌ ${result.message}`,
           });
           break;
         }
@@ -478,8 +492,49 @@ export function handleGitHealerInteractions(client: Client): void {
           await interaction.editReply({ content: "Action Git-Healer inconnue." });
       }
     } catch (err) {
-      logger.error(`[Git-Healer-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
-      await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action Git-Healer." });
+      logger.error(
+        `[Git-Healer-Button] Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      await interaction.editReply({
+        content: "❌ Erreur lors du traitement de l'action Git-Healer.",
+      });
+    }
+  });
+}
+
+// ============================================================
+// Gestionnaire des boutons SOAR Tool Gate (Directive 2)
+// ============================================================
+export function handleSoarToolInteractions(client: Client): void {
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    if (!customId.startsWith("soar_tool_")) return;
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const { handleSoarToolInteraction } = await import("../services/agentSoarGate.js");
+      const approved = customId.includes("_approve_");
+      const handled = await handleSoarToolInteraction(customId, approved);
+
+      if (handled) {
+        await interaction.editReply({
+          content: approved
+            ? "✅ Outil autorisé — exécution en cours."
+            : "❌ Outil rejeté — exécution bloquée.",
+        });
+      } else {
+        await interaction.editReply({
+          content: "⚠️ Demande de validation expirée ou déjà traitée.",
+        });
+      }
+    } catch (err) {
+      logger.error(`[SOAR-Tool-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply({
+        content: "❌ Erreur lors du traitement de la validation SOAR.",
+      });
     }
   });
 }

@@ -11,6 +11,63 @@
 import logger from "../utils/logger.js";
 import type { AgentToolDef } from "./agentTools.js";
 
+// ─── Directive 2: Restricted tools — blocked in public channels ───────────────
+
+export const RESTRICTED_TOOLS = new Set<string>([
+  "ssh_command",
+  "db_query",
+  "docker_manage",
+  "git_operations",
+  "file_read",
+  "cron_create",
+  "system_stats",
+  "http_request",
+  // Module 7: Kali Linux audit tools — high risk, admin-only DM execution
+  "runKaliPortAudit",
+  "runKaliWebAudit",
+  "runWifiSecurityAudit",
+  "runWifiConfigScan",
+  "runRogueApDetection",
+  "runArpScan",
+  "runArpWatch",
+  "runNetworkIdsSnapshot",
+  "runSystemHardeningAudit",
+  // New tools — medium risk (personal data / email)
+  "checkDataBreach",
+  // New tools — high risk (external communication)
+  "sendAlertEmail",
+]);
+
+/**
+ * Check if a channel is private (DM or admin-only).
+ * Public channels = any guild text channel that is not a DM.
+ */
+export function isPrivateChannel(channelId: string, guildId: string | null): boolean {
+  // DM channels have no guildId
+  if (!guildId) return true;
+  // Admin DM channel — check if it matches admin DM pattern
+  const adminDmChannel = process.env.ADMIN_DISCORD_ID;
+  if (adminDmChannel && channelId === adminDmChannel) return true;
+  return false;
+}
+
+/**
+ * Directive 2: Context Guarding — strip restricted tools from public channels.
+ * Prevents prompt injection from public chats accessing ssh/db/docker.
+ */
+export function applyContextGuard(tools: AgentToolDef[], isPublic: boolean): AgentToolDef[] {
+  if (!isPublic) return tools;
+
+  const filtered = tools.filter((t) => !RESTRICTED_TOOLS.has(t.function.name));
+  const stripped = tools.length - filtered.length;
+  if (stripped > 0) {
+    logger.warn(
+      `[ToolRouter] 🛡️ Context Guard: stripped ${stripped} restricted tool(s) from public channel`,
+    );
+  }
+  return filtered;
+}
+
 // ─── API Key Registry ────────────────────────────────────────────────────────
 
 interface ApiKeyRequirement {
@@ -44,6 +101,11 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "AGENT_DOCKER_ENABLED", tools: ["docker_manage"], optional: false },
   { envVar: "AGENT_GIT_ENABLED", tools: ["git_operations"], optional: false },
   { envVar: "AGENT_DB_ENABLED", tools: ["db_query"], optional: true },
+  { envVar: "HIBP_API_KEY", tools: ["checkDataBreach"], optional: true },
+  { envVar: "URLSCAN_API_KEY", tools: ["scanUrlSafety"], optional: true },
+  { envVar: "WOLFRAM_APP_ID", tools: ["solveMathAdvanced"], optional: true },
+  { envVar: "DEEPL_API_KEY", tools: ["translateTextDeepL"], optional: true },
+  { envVar: "RAWG_API_KEY", tools: ["searchRawgGames"], optional: true },
 ];
 
 /**
@@ -182,58 +244,174 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     keywords: [
-      "free", "gratuit", "free tier", "free plan", "gratuit pour dev",
-      "hébergement gratuit", "hebergement gratuit", "hosting free",
-      "api gratuite", "api gratuit", "saas gratuit",
-      "base de données gratuite", "database free", "ci/cd gratuit",
-      "monitoring gratuit", "outil gratuit", "outils gratuits",
-      "service gratuit", "services gratuits", "ressource gratuite",
-      "ressources gratuites", "free for dev", "free-for-dev",
+      "free",
+      "gratuit",
+      "free tier",
+      "free plan",
+      "gratuit pour dev",
+      "hébergement gratuit",
+      "hebergement gratuit",
+      "hosting free",
+      "api gratuite",
+      "api gratuit",
+      "saas gratuit",
+      "base de données gratuite",
+      "database free",
+      "ci/cd gratuit",
+      "monitoring gratuit",
+      "outil gratuit",
+      "outils gratuits",
+      "service gratuit",
+      "services gratuits",
+      "ressource gratuite",
+      "ressources gratuites",
+      "free for dev",
+      "free-for-dev",
     ],
     tools: ["search_developer_resources"],
   },
   {
     keywords: [
-      "typescript", "ts error", "erreur ts", "type error", "typage",
-      "generic", "generics", "générique", "conditional type", "type conditionnel",
-      "mapped type", "inference", "inférence", "type assertion",
-      "is not assignable", "does not exist on type", "no overload",
-      "type guard", "narrowing", "typeof", "instanceof",
-      "pattern typescript", "ts pattern", "matt pocock",
+      "typescript",
+      "ts error",
+      "erreur ts",
+      "type error",
+      "typage",
+      "generic",
+      "generics",
+      "générique",
+      "conditional type",
+      "type conditionnel",
+      "mapped type",
+      "inference",
+      "inférence",
+      "type assertion",
+      "is not assignable",
+      "does not exist on type",
+      "no overload",
+      "type guard",
+      "narrowing",
+      "typeof",
+      "instanceof",
+      "pattern typescript",
+      "ts pattern",
+      "matt pocock",
     ],
     tools: ["lookup_typescript_skill"],
   },
   {
     keywords: [
-      "problème réseau", "network problem", "network issue", "attaque",
-      "ip suspecte", "suspicious ip", "intrusion", "brute force", "brute-force",
-      "port scan", "scan de ports", "whois", "dns lookup", "reverse dns",
-      "géolocalisation ip", "ip geo", "osint", "investigation réseau",
-      "network investigation", "sécurité réseau", "network security",
-      "menace", "threat", "wazuh", "siem", "alerte sécurité",
-      "firewall", "pare-feu", "ip ban", "bannir ip",
-      "ouvre internet", "ouvrir internet", "open internet",
-      "voir le réseau", "voir réseau", "voir ce qu'il se passe",
-      "voir le trafic", "trafic réseau", "network traffic",
-      "connexions actives", "active connections", "ports ouverts",
-      "monitoring réseau", "network monitoring", "état du réseau",
-      "network status", "statut réseau", "dashboard réseau",
-      "what's happening", "que se passe-t-il", "activité réseau",
-      "network activity", "live network", "réseau live",
-      "connexions en cours", "listening ports", "ports en écoute",
-      "interfaces réseau", "bande passante", "bandwidth",
-      "routes", "table de routage", "routing table",
-      "virus", "malware", "trojan", "ransomware", "worm", "backdoor",
-      "rootkit", "spyware", "botnet", "cryptominer", "payload",
-      "phishing", "hameçonnage", "unsafe url", "url suspecte",
-      "file hash", "hash fichier", "scan virus", "scan malware",
-      "virustotal", "abuseipdb", "phishtank", "safe browsing",
-      "threat intel", "renseignement de menace", "réputation ip",
-      "espace disque", "disk space", "stockage vps", "vps storage",
-      "disque plein", "disk full", "vps status", "état du vps",
-      "system resources", "ressources système", "disk usage",
+      "problème réseau",
+      "network problem",
+      "network issue",
+      "attaque",
+      "ip suspecte",
+      "suspicious ip",
+      "intrusion",
+      "brute force",
+      "brute-force",
+      "port scan",
+      "scan de ports",
+      "whois",
+      "dns lookup",
+      "reverse dns",
+      "géolocalisation ip",
+      "ip geo",
+      "osint",
+      "investigation réseau",
+      "network investigation",
+      "sécurité réseau",
+      "network security",
+      "menace",
+      "threat",
+      "wazuh",
+      "siem",
+      "alerte sécurité",
+      "firewall",
+      "pare-feu",
+      "ip ban",
+      "bannir ip",
+      "ouvre internet",
+      "ouvrir internet",
+      "open internet",
+      "voir le réseau",
+      "voir réseau",
+      "voir ce qu'il se passe",
+      "voir le trafic",
+      "trafic réseau",
+      "network traffic",
+      "connexions actives",
+      "active connections",
+      "ports ouverts",
+      "monitoring réseau",
+      "network monitoring",
+      "état du réseau",
+      "network status",
+      "statut réseau",
+      "dashboard réseau",
+      "what's happening",
+      "que se passe-t-il",
+      "activité réseau",
+      "network activity",
+      "live network",
+      "réseau live",
+      "connexions en cours",
+      "listening ports",
+      "ports en écoute",
+      "interfaces réseau",
+      "bande passante",
+      "bandwidth",
+      "routes",
+      "table de routage",
+      "routing table",
+      "virus",
+      "malware",
+      "trojan",
+      "ransomware",
+      "worm",
+      "backdoor",
+      "rootkit",
+      "spyware",
+      "botnet",
+      "cryptominer",
+      "payload",
+      "phishing",
+      "hameçonnage",
+      "unsafe url",
+      "url suspecte",
+      "file hash",
+      "hash fichier",
+      "scan virus",
+      "scan malware",
+      "virustotal",
+      "abuseipdb",
+      "phishtank",
+      "safe browsing",
+      "threat intel",
+      "renseignement de menace",
+      "réputation ip",
+      "espace disque",
+      "disk space",
+      "stockage vps",
+      "vps storage",
+      "disque plein",
+      "disk full",
+      "vps status",
+      "état du vps",
+      "system resources",
+      "ressources système",
+      "disk usage",
     ],
-    tools: ["network_investigate", "ip_geolocation", "network_status", "open_web_page", "runKaliPortAudit", "runKaliWebAudit", "threat_intel_sweep", "check_vps_storage"],
+    tools: [
+      "network_investigate",
+      "ip_geolocation",
+      "network_status",
+      "open_web_page",
+      "runKaliPortAudit",
+      "runKaliWebAudit",
+      "threat_intel_sweep",
+      "check_vps_storage",
+    ],
   },
   {
     keywords: ["code", "python", "javascript", "script", "exécute", "compile"],
@@ -505,12 +683,85 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     keywords: ["reload", "recharger", "redémarrer module", "hot reload"],
     tools: ["triggerGarbageCollection"],
   },
+  // ═══ New Tools (Part A) ═══
+  {
+    keywords: [
+      "breach",
+      "fuite",
+      "fuite de données",
+      "have i been pwned",
+      "hibp",
+      "email compromis",
+      "mot de passe volé",
+      "data leak",
+    ],
+    tools: ["checkDataBreach"],
+  },
+  {
+    keywords: [
+      "scan url",
+      "url safety",
+      "sécurité url",
+      "urlscan",
+      "url suspecte",
+      "verifie ce lien",
+      "scan ce site",
+    ],
+    tools: ["scanUrlSafety", "verify_link_safety"],
+  },
+  {
+    keywords: [
+      "qualité air",
+      "air quality",
+      "pollution",
+      "pm2.5",
+      "pm10",
+      "ozone",
+      "no2",
+      "openaq",
+      "air pollution",
+    ],
+    tools: ["getAirQuality"],
+  },
+  {
+    keywords: ["rawg", "jeu vidéo", "game database", "fiche jeu", "game info", "game rating"],
+    tools: ["searchRawgGames", "search_igdb_games"],
+  },
+  {
+    keywords: [
+      "wolfram",
+      "calcul complexe",
+      "derivee",
+      "intégrale",
+      "integral",
+      "equation",
+      "solve equation",
+      "conversion unité",
+      "unit conversion",
+      "math avancé",
+    ],
+    tools: ["solveMathAdvanced"],
+  },
+  {
+    keywords: [
+      "deepl",
+      "traduction professionnelle",
+      "traduire en",
+      "translate to",
+      "traduction précise",
+    ],
+    tools: ["translateTextDeepL"],
+  },
 ];
 
 /**
  * Analyse une requête et retourne les tools pertinents.
  */
-export function routeTools(userMessage: string, allTools: AgentToolDef[]): AgentToolDef[] {
+export function routeTools(
+  userMessage: string,
+  allTools: AgentToolDef[],
+  isPublic: boolean = true,
+): AgentToolDef[] {
   const lowerMsg = userMessage.toLowerCase();
   const relevantToolNames = new Set<string>();
 
@@ -534,7 +785,10 @@ export function routeTools(userMessage: string, allTools: AgentToolDef[]): Agent
   }
 
   // Filtrer les tools désactivés (clés manquantes)
-  return filterAvailableTools(allTools);
+  const filtered = filterAvailableTools(allTools);
+
+  // Directive 2: Context Guard — strip restricted tools in public channels
+  return applyContextGuard(filtered, isPublic);
 }
 
 /**

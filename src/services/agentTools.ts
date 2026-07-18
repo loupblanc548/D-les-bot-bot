@@ -625,7 +625,7 @@ export async function executeTool(
         const extraResult = await executeExtraTool(toolName, args, ctx);
         if (extraResult) return extraResult;
         // Essayer les tools Kali Linux (Layer 7 — Docker isolé)
-        const kaliResult = await executeKaliTool(toolName, args);
+        const kaliResult = await executeKaliTool(toolName, args, { userId: ctx.userId });
         if (kaliResult) return kaliResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }

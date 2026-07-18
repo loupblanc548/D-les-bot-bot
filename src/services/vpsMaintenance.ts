@@ -2,24 +2,19 @@
  * vpsMaintenance.ts — Layer 10.2: Active VPS Storage Watchdog
  *
  * Tool 'checkVpsStorage': Monitors disk utilization on the VPS root partition.
- *  - >80%: Yellow telemetry alert
- *  - >90%: Freeze non-essential loops, route to Layer 4 Validation Gate
+ *  - >80% (~120 GB on 150GB SSD): Yellow telemetry alert, low-priority logging
+ *  - >92% (~138 GB on 150GB SSD): Red/Critical — freeze non-essential cron loops,
+ *    push urgent SOAR alert to Admin DMs with remediation buttons
  *
  * Also exposes:
- *  - purgeOldLogs(): Delete Prisma SecurityIncident logs older than 14 days
+ *  - purgeOldLogs(): Delete Prisma SecurityIncident logs older than 45 days
  *  - pruneDockerCache(): Execute 'docker system prune -f'
  *  - checkVpsUptime(): Heartbeat ping to monitoring endpoint
  */
 
 import { exec } from "child_process";
 import { promisify } from "util";
-import {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-} from "discord.js";
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 
@@ -27,8 +22,8 @@ const execAsync = promisify(exec);
 
 const ADMIN_DISCORD_ID = process.env.ADMIN_DISCORD_ID || "";
 const HEARTBEAT_ENDPOINT = process.env.HEARTBEAT_ENDPOINT || "";
-const DISK_WARN_THRESHOLD = 80;
-const DISK_CRITICAL_THRESHOLD = 90;
+const DISK_WARN_THRESHOLD = 80; // Yellow: ~120 GB on 150GB SSD
+const DISK_CRITICAL_THRESHOLD = 92; // Red: ~138 GB on 150GB SSD
 
 let discordClient: Client | null = null;
 
@@ -77,7 +72,12 @@ export async function checkVpsStorage(): Promise<{
   status: "healthy" | "warning" | "critical";
   message: string;
 }> {
-  const CYAN = "\x1b[36m", YELLOW = "\x1b[33m", RED = "\x1b[31m", GREEN = "\x1b[32m", RESET = "\x1b[0m", BOLD = "\x1b[1m";
+  const CYAN = "\x1b[36m",
+    YELLOW = "\x1b[33m",
+    RED = "\x1b[31m",
+    GREEN = "\x1b[32m",
+    RESET = "\x1b[0m",
+    BOLD = "\x1b[1m";
 
   const disk = await getDiskInfo();
 
@@ -89,10 +89,14 @@ export async function checkVpsStorage(): Promise<{
     };
   }
 
-  logger.info(`${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Disk: ${disk.used}/${disk.size} (${disk.usePercent}%) — ${disk.available} available${RESET}`);
+  logger.info(
+    `${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Disk: ${disk.used}/${disk.size} (${disk.usePercent}%) — ${disk.available} available${RESET}`,
+  );
 
   if (disk.usePercent >= DISK_CRITICAL_THRESHOLD) {
-    logger.error(`${CYAN}${BOLD}[VPS-STORAGE]${RESET} ${RED}${BOLD}CRITICAL: Disk at ${disk.usePercent}% — freezing non-essential loops${RESET}`);
+    logger.error(
+      `${CYAN}${BOLD}[VPS-STORAGE]${RESET} ${RED}${BOLD}CRITICAL: Disk at ${disk.usePercent}% — freezing non-essential loops${RESET}`,
+    );
     await triggerCriticalDiskAlert(disk);
     return {
       disk,
@@ -102,7 +106,9 @@ export async function checkVpsStorage(): Promise<{
   }
 
   if (disk.usePercent >= DISK_WARN_THRESHOLD) {
-    logger.warn(`${CYAN}${BOLD}[VPS-STORAGE]${RESET} ${YELLOW}WARNING: Disk at ${disk.usePercent}% — approaching capacity${RESET}`);
+    logger.warn(
+      `${CYAN}${BOLD}[VPS-STORAGE]${RESET} ${YELLOW}WARNING: Disk at ${disk.usePercent}% — approaching capacity${RESET}`,
+    );
     return {
       disk,
       status: "warning",
@@ -131,14 +137,23 @@ async function triggerCriticalDiskAlert(disk: DiskInfo): Promise<void> {
     const adminUser = await discordClient.users.fetch(ADMIN_DISCORD_ID);
 
     const embed = new EmbedBuilder()
-     .setTitle("⚠️ [ALERTE RESSOUCES VPS - DISQUE SATURÉ]")
+      .setTitle("⚠️ [ALERTE RESSOUCES VPS - DISQUE SATURÉ]")
       .setColor(0xff4444)
       .setDescription(`Le disque principal du VPS approche la saturation critique.`)
       .addFields(
-        { name: "📊 Utilisation", value: `${disk.used} / ${disk.size} (${disk.usePercent}%)`, inline: true },
+        {
+          name: "📊 Utilisation",
+          value: `${disk.used} / ${disk.size} (${disk.usePercent}%)`,
+          inline: true,
+        },
         { name: "💾 Disponible", value: disk.available, inline: true },
         { name: "📁 Filesystem", value: disk.filesystem, inline: true },
-        { name: "🔧 Actions proposées", value: "Cliquez sur un bouton ci-dessous pour exécuter une action de nettoyage automatique.", inline: false },
+        {
+          name: "🔧 Actions proposées",
+          value:
+            "Cliquez sur un bouton ci-dessous pour exécuter une action de nettoyage automatique.",
+          inline: false,
+        },
       )
       .setTimestamp()
       .setFooter({ text: "Layer 10.2 — VPS Storage Watchdog" });
@@ -157,21 +172,25 @@ async function triggerCriticalDiskAlert(disk: DiskInfo): Promise<void> {
     await adminUser.send({ embeds: [embed], components: [buttons] });
     logger.warn("[VPS-STORAGE] Critical disk alert DM sent to admin");
   } catch (err) {
-    logger.error(`[VPS-STORAGE] Failed to send DM: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[VPS-STORAGE] Failed to send DM: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
 // ─── Cleanup Actions ─────────────────────────────────────────────────────────
 
 /**
- * Purge Prisma SecurityIncident logs older than 14 days.
+ * Purge Prisma SecurityIncident logs older than 45 days (Directive 4 recalibration).
  */
-export async function purgeOldLogs(daysToKeep: number = 14): Promise<{
+export async function purgeOldLogs(daysToKeep: number = 45): Promise<{
   success: boolean;
   deletedCount: number;
   message: string;
 }> {
-  const CYAN = "\x1b[36m", GREEN = "\x1b[32m", RESET = "\x1b[0m";
+  const CYAN = "\x1b[36m",
+    GREEN = "\x1b[32m",
+    RESET = "\x1b[0m";
   try {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - daysToKeep);
@@ -180,7 +199,9 @@ export async function purgeOldLogs(daysToKeep: number = 14): Promise<{
       where: { createdAt: { lt: cutoff } },
     });
 
-    logger.info(`${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Purged ${result.count} old SecurityIncident logs (older than ${daysToKeep} days)${RESET}`);
+    logger.info(
+      `${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Purged ${result.count} old SecurityIncident logs (older than ${daysToKeep} days)${RESET}`,
+    );
 
     return {
       success: true,
@@ -188,7 +209,9 @@ export async function purgeOldLogs(daysToKeep: number = 14): Promise<{
       message: `Purged ${result.count} SecurityIncident logs older than ${daysToKeep} days`,
     };
   } catch (err) {
-    logger.error(`[VPS-STORAGE] Purge logs failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[VPS-STORAGE] Purge logs failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return {
       success: false,
       deletedCount: 0,
@@ -205,16 +228,24 @@ export async function pruneDockerCache(): Promise<{
   reclaimedSpace: string;
   message: string;
 }> {
-  const CYAN = "\x1b[36m", GREEN = "\x1b[32m", RED = "\x1b[31m", RESET = "\x1b[0m";
+  const CYAN = "\x1b[36m",
+    GREEN = "\x1b[32m",
+    RED = "\x1b[31m",
+    RESET = "\x1b[0m";
   try {
     logger.info(`${CYAN}[VPS-STORAGE]${RESET} Pruning Docker cache...`);
-    const { stdout } = await execAsync("docker system prune -f 2>&1", { timeout: 30_000, maxBuffer: 1024 * 1024 });
+    const { stdout } = await execAsync("docker system prune -f 2>&1", {
+      timeout: 30_000,
+      maxBuffer: 1024 * 1024,
+    });
 
     // Parse reclaimed space from output
     const match = stdout.match(/Total reclaimed space:\s*(.+)/);
     const reclaimed = match ? match[1].trim() : "unknown";
 
-    logger.info(`${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Docker prune complete — reclaimed: ${reclaimed}${RESET}`);
+    logger.info(
+      `${CYAN}[VPS-STORAGE]${RESET} ${GREEN}Docker prune complete — reclaimed: ${reclaimed}${RESET}`,
+    );
 
     return {
       success: true,
@@ -222,7 +253,9 @@ export async function pruneDockerCache(): Promise<{
       message: `Docker cache pruned — reclaimed ${reclaimed}`,
     };
   } catch (err) {
-    logger.error(`${CYAN}[VPS-STORAGE]${RESET} ${RED}Docker prune failed: ${err instanceof Error ? err.message : String(err)}${RESET}`);
+    logger.error(
+      `${CYAN}[VPS-STORAGE]${RESET} ${RED}Docker prune failed: ${err instanceof Error ? err.message : String(err)}${RESET}`,
+    );
     return {
       success: false,
       reclaimedSpace: "0B",
@@ -274,7 +307,9 @@ export function startUptimeHeartbeat(): void {
         logger.warn(`[VPS-HEARTBEAT] Endpoint returned ${res.status}`);
       }
     } catch (err) {
-      logger.debug(`[VPS-HEARTBEAT] Ping failed: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[VPS-HEARTBEAT] Ping failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   };
 
@@ -282,9 +317,12 @@ export function startUptimeHeartbeat(): void {
   void sendHeartbeat();
 
   // Schedule recurring
-  heartbeatInterval = setInterval(() => {
-    void sendHeartbeat();
-  }, 5 * 60 * 1000);
+  heartbeatInterval = setInterval(
+    () => {
+      void sendHeartbeat();
+    },
+    5 * 60 * 1000,
+  );
 }
 
 /**
@@ -292,7 +330,10 @@ export function startUptimeHeartbeat(): void {
  * Called on startup to record that the process was restarted.
  */
 export async function logRecoveryState(): Promise<void> {
-  const CYAN = "\x1b[36m", GREEN = "\x1b[32m", RESET = "\x1b[0m", BOLD = "\x1b[1m";
+  const CYAN = "\x1b[36m",
+    GREEN = "\x1b[32m",
+    RESET = "\x1b[0m",
+    BOLD = "\x1b[1m";
 
   try {
     // Check if we have a previous crash record
@@ -302,13 +343,19 @@ export async function logRecoveryState(): Promise<void> {
     });
 
     if (lastIncident) {
-      logger.info(`${CYAN}${BOLD}[VPS-RECOVERY]${RESET} ${GREEN}Process restarted — previous state recovered${RESET}`);
+      logger.info(
+        `${CYAN}${BOLD}[VPS-RECOVERY]${RESET} ${GREEN}Process restarted — previous state recovered${RESET}`,
+      );
     }
 
     // Log startup recovery
-    logger.info(`${CYAN}[VPS-RECOVERY]${RESET} ${GREEN}Heartbeat active — systemd/pm2 auto-restart enabled${RESET}`);
+    logger.info(
+      `${CYAN}[VPS-RECOVERY]${RESET} ${GREEN}Heartbeat active — systemd/pm2 auto-restart enabled${RESET}`,
+    );
   } catch (err) {
-    logger.debug(`[VPS-RECOVERY] State log failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[VPS-RECOVERY] State log failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -328,19 +375,27 @@ export async function vpsMaintenanceCheck(): Promise<{
   try {
     const { stdout: memOut } = await execAsync("free -h 2>/dev/null | head -2", { timeout: 5000 });
     memInfo = memOut.trim();
-  } catch { /* non-critical */ }
+  } catch {
+    /* non-critical */
+  }
 
   let loadAvg = "N/A";
   try {
     const { stdout: loadOut } = await execAsync("cat /proc/loadavg 2>/dev/null", { timeout: 3000 });
     loadAvg = loadOut.trim();
-  } catch { /* non-critical */ }
+  } catch {
+    /* non-critical */
+  }
 
   let topProcs = "N/A";
   try {
-    const { stdout: topOut } = await execAsync("ps aux --sort=-%mem 2>/dev/null | head -6", { timeout: 5000 });
+    const { stdout: topOut } = await execAsync("ps aux --sort=-%mem 2>/dev/null | head -6", {
+      timeout: 5000,
+    });
     topProcs = topOut.trim();
-  } catch { /* non-critical */ }
+  } catch {
+    /* non-critical */
+  }
 
   const diskStr = disk
     ? `${disk.used}/${disk.size} (${disk.usePercent}%) — ${disk.available} available`
@@ -355,13 +410,15 @@ export async function vpsMaintenanceCheck(): Promise<{
     : "unknown";
 
   const data = JSON.stringify({
-    disk: disk ? {
-      used: disk.used,
-      size: disk.size,
-      available: disk.available,
-      usePercent: disk.usePercent,
-      filesystem: disk.filesystem,
-    } : null,
+    disk: disk
+      ? {
+          used: disk.used,
+          size: disk.size,
+          available: disk.available,
+          usePercent: disk.usePercent,
+          filesystem: disk.filesystem,
+        }
+      : null,
     diskStatus: status,
     memory: memInfo,
     loadAverage: loadAvg,

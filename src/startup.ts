@@ -55,8 +55,17 @@ import { setVpsMaintenanceClient } from "./services/vpsMaintenance.js";
 import { generateHoneytokens } from "./services/honeytokenEngine.js";
 import { setGitHealerClient } from "./services/gitAutoHealer.js";
 import { setKaliClient, ensureKaliContainer, KALI_TOOLS } from "./services/agentToolsKali.js";
+import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
-import { handleSoarInteractions, handleAlertInteractions, handleKaliInteractions, handleGitHealerInteractions, handleVpsMaintenanceInteractions } from "./events/interactions.js";
+import { setSoarGateClient } from "./services/agentSoarGate.js";
+import {
+  handleSoarInteractions,
+  handleAlertInteractions,
+  handleKaliInteractions,
+  handleGitHealerInteractions,
+  handleVpsMaintenanceInteractions,
+  handleSoarToolInteractions,
+} from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -109,10 +118,21 @@ import { startAutoTranslate } from "./services/autoTranslate.js";
 import { startAiSpamDetector } from "./services/aiSpamDetector.js";
 import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
 import { startVideoStream, startStreamWatchdog, setMainClient } from "./services/videoStream.js";
+import { startMediaWorker, stopMediaWorker } from "./infrastructure/processIsolator.js";
+import { initLogQueue } from "./queues/logQueue.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
 async function initSchedulers(client: Client): Promise<void> {
+  // ═══════════════════════════════════════════════════════════════════════
+  // Directive 3: Initialize Redis/BullMQ Log Queue before anything else
+  // ═══════════════════════════════════════════════════════════════════════
+  try {
+    initLogQueue();
+  } catch (e) {
+    logger.warn(`[Startup] LogQueue init failed (non-critical): ${e}`);
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // 🔒 PHASE 0 : Prime silencieuse (cache uniquement, AUCUN envoi Discord)
   // Charge les posts des dernieres 24h dans le cache pour creer une
@@ -283,94 +303,126 @@ export function attachStartupLogic(
     const botRole = process.env.BOT_ROLE || "primary"; // "primary" (VPS) or "stream-only" (PC local)
     const isPrimary = botRole === "primary";
     if (!isPrimary) {
-      logger.info("[Startup] Mode STREAM-ONLY — crons de notification désactivés (le VPS gère les notifications)");
+      logger.info(
+        "[Startup] Mode STREAM-ONLY — crons de notification désactivés (le VPS gère les notifications)",
+      );
     }
 
-    const services: (() => void)[] = isPrimary ? [
-      () => startMonitoring(client),
-      () => startInactivityCheck(client),
-      () => startTwitchMonitoring(client),
-      () => startPatchNotesService(client),
-      () => startBackupService(client),
-      () => startInstantGamingCheck(client),
-      () => startSteamNewsMonitoring(client),
-      () => startDealsMonitoring(client),
-      () => startMonthlyMaintenance(client),
-      () => startGlobalPatchNotesMonitoring(client),
-      () => startAutoCleanup(client),
-      () => startBotHealthCheck(client),
-      () => startNotificationCleanup(client),
-      () => startAlertDigest(client),
-      () => startDailyGamingContent(client),
-      () => handleAutoModeration(client),
-      () => handleInviteTracker(client),
-      () => handleServerCloneDetect(client),
-      () => handleAutoEvents(client),
-      () => startAutoEscalation(client),
-      () => startMiscCrons(client),
-      () => startCommandAutomation(client),
-      () => startMemoryGrooming(client),
-      () => startRadioGamingCron(client),
-      () => attachDramaPrediction(client),
-      () => startToxicityScanCron(client),
-      () => startLogRetention(),
-      () => startSecurityIntegration(client),
-      () => initHoneypotMonitoring(client),
-      () => startPriceAlertsMonitoring(client),
-      () => startGameUpdatesMonitoring(client),
-      () => startReportScheduler(client),
-      () => enableSmartAlerts(client),
-      () => startTikTokMonitoring(client),
-      () => startKickMonitoring(client),
-      () => startVodMonitoring(client),
-      () => startClipForwarding(client),
-      () => startScheduledMessages(client),
-      () => startOnboardingFlow(client),
-      () => startReactionRoles(client),
-      () => startTicketSystem(client),
-      () => startFaqAutoResponder(client),
-      () => startCreatorRoleSync(client),
-      () => startRateLimitDashboard(client),
-      () => startCommandAnalytics(client),
-      () => startReleaseCalendar(client),
-      () => startHotTopicsDetector(client),
-      () => startConversationSummarizer(client),
-      () => startChurnPrediction(client),
-      () => startLFGMatchmaker(client),
-      () => startActivityHeatmap(client),
-      () => startPinRotation(client),
-      () => startPresenceTracker(client),
-      () => startDealFusion(client),
-      () => startGitHubReleasesMonitor(client),
-      () => startMultiSiteDealsMonitor(client),
-      // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
-      () => startGameReleaseCountdown(client),
-      () => startSteamWishlistMonitor(client),
-      () => startAutoTranslate(client),
-      () => startAiSpamDetector(client),
-      () => { setMainClient(client); return startVideoStream(); },
-      () => startStreamWatchdog(),
-      () => startSyncFreeForDev(),
-      () => startSyncTypeScriptSkills(),
-      () => { setSoarClient(client); return startWazuhWatchdog(); },
-      () => { handleSoarInteractions(client); handleAlertInteractions(client); handleKaliInteractions(client); handleGitHealerInteractions(client); handleVpsMaintenanceInteractions(client); },
-      () => { generateHoneytokens(); },
-      () => { setGitHealerClient(client); },
-      () => { setKaliClient(client); return ensureKaliContainer().catch(() => {}); },
-      () => { setVpsMaintenanceClient(client); },
-      () => startShodanWatchdog(),
-      () => startVpsBackupCron(),
-      () => startVpsStorageWatchdog(),
-    ] : [
-      // Stream-only mode: Go Live stream + watchdog + release data for showcase
-      () => startGameReleaseCountdown(client),
-      () => { setMainClient(client); return startVideoStream(); },
-      () => startStreamWatchdog(),
-      () => startSyncFreeForDev(),
-      () => startSyncTypeScriptSkills(),
-      () => { setSoarClient(client); return startWazuhWatchdog(); },
-      () => { handleSoarInteractions(client); handleAlertInteractions(client); },
-    ];
+    const services: (() => void)[] = isPrimary
+      ? [
+          () => startMonitoring(client),
+          () => startInactivityCheck(client),
+          () => startTwitchMonitoring(client),
+          () => startPatchNotesService(client),
+          () => startBackupService(client),
+          () => startInstantGamingCheck(client),
+          () => startSteamNewsMonitoring(client),
+          () => startDealsMonitoring(client),
+          () => startMonthlyMaintenance(client),
+          () => startGlobalPatchNotesMonitoring(client),
+          () => startAutoCleanup(client),
+          () => startBotHealthCheck(client),
+          () => startNotificationCleanup(client),
+          () => startAlertDigest(client),
+          () => startDailyGamingContent(client),
+          () => handleAutoModeration(client),
+          () => handleInviteTracker(client),
+          () => handleServerCloneDetect(client),
+          () => handleAutoEvents(client),
+          () => startAutoEscalation(client),
+          () => startMiscCrons(client),
+          () => startCommandAutomation(client),
+          () => startMemoryGrooming(client),
+          () => startRadioGamingCron(client),
+          () => attachDramaPrediction(client),
+          () => startToxicityScanCron(client),
+          () => startLogRetention(),
+          () => startSecurityIntegration(client),
+          () => initHoneypotMonitoring(client),
+          () => startPriceAlertsMonitoring(client),
+          () => startGameUpdatesMonitoring(client),
+          () => startReportScheduler(client),
+          () => enableSmartAlerts(client),
+          () => startTikTokMonitoring(client),
+          () => startKickMonitoring(client),
+          () => startVodMonitoring(client),
+          () => startClipForwarding(client),
+          () => startScheduledMessages(client),
+          () => startOnboardingFlow(client),
+          () => startReactionRoles(client),
+          () => startTicketSystem(client),
+          () => startFaqAutoResponder(client),
+          () => startCreatorRoleSync(client),
+          () => startRateLimitDashboard(client),
+          () => startCommandAnalytics(client),
+          () => startReleaseCalendar(client),
+          () => startHotTopicsDetector(client),
+          () => startConversationSummarizer(client),
+          () => startChurnPrediction(client),
+          () => startLFGMatchmaker(client),
+          () => startActivityHeatmap(client),
+          () => startPinRotation(client),
+          () => startPresenceTracker(client),
+          () => startDealFusion(client),
+          () => startGitHubReleasesMonitor(client),
+          () => startMultiSiteDealsMonitor(client),
+          // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
+          () => startGameReleaseCountdown(client),
+          () => startSteamWishlistMonitor(client),
+          () => startAutoTranslate(client),
+          () => startAiSpamDetector(client),
+          // ── Directive 1: Media/gaming offloaded to isolated child process ──
+          () => startMediaWorker(),
+          () => startSyncFreeForDev(),
+          () => startSyncTypeScriptSkills(),
+          () => {
+            setSoarClient(client);
+            setSoarGateClient(client);
+            return startWazuhWatchdog();
+          },
+          () => {
+            handleSoarInteractions(client);
+            handleAlertInteractions(client);
+            handleKaliInteractions(client);
+            handleGitHealerInteractions(client);
+            handleVpsMaintenanceInteractions(client);
+            handleSoarToolInteractions(client);
+          },
+          () => {
+            generateHoneytokens();
+          },
+          () => {
+            setGitHealerClient(client);
+          },
+          () => {
+            setKaliClient(client);
+            setWhitelistClient(client);
+            return ensureKaliContainer().catch(() => {});
+          },
+          () => {
+            setVpsMaintenanceClient(client);
+          },
+          () => startShodanWatchdog(),
+          () => startVpsBackupCron(),
+          () => startVpsStorageWatchdog(),
+        ]
+      : [
+          // Stream-only mode: Go Live stream + watchdog + release data for showcase
+          () => startGameReleaseCountdown(client),
+          () => startMediaWorker(),
+          () => startSyncFreeForDev(),
+          () => startSyncTypeScriptSkills(),
+          () => {
+            setSoarClient(client);
+            setSoarGateClient(client);
+            return startWazuhWatchdog();
+          },
+          () => {
+            handleSoarInteractions(client);
+            handleAlertInteractions(client);
+            handleSoarToolInteractions(client);
+          },
+        ];
     for (const start of services) {
       try {
         start();

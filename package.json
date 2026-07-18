@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --expose-gc --import tsx src/index.ts",
+    "start:prod": "node --expose-gc --max-old-space-size=4096 dist/index.js",
     "start:worker": "node --max-old-space-size=4096 --import tsx src/infrastructure/workerRuntime.ts",
     "dev": "node --expose-gc --max-old-space-size=4096 --import tsx --inspect src/index.ts",
     "build": "tsc",
