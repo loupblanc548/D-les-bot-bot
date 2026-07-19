@@ -32,7 +32,7 @@ const FREE_MODELS_OPENROUTER = [
   "mistralai/mistral-7b-instruct:free", // 7B, tools ✅
   "meta-llama/llama-3.1-8b-instruct:free", // 8B, tools ✅
   "google/gemma-2-9b-it:free", // 9B, tools ✅
-  "meta-llama/llama-3.2-3b-instruct:free", // 3B, lightweight fallback
+  "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (min size for reliable tool calls)
   // ─── Additional free models (maximise coverage) ───
   "qwen/qwen-2.5-coder-32b-instruct:free", // 32B coder, tools ✅
   "qwen/qwen-2.5-7b-instruct:free", // 7B, tools ✅
@@ -40,7 +40,7 @@ const FREE_MODELS_OPENROUTER = [
   "mistralai/mistral-8b-instruct:free", // 8B, tools ✅ (new)
   "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
   "meta-llama/llama-3.1-405b-instruct:free", // 405B (when available), tools ✅
-  "meta-llama/llama-3.2-1b-instruct:free", // 1B ultra-light fallback
+  // llama-3.2-1b removed — does NOT support function calling (too small, 1B params)
   "meta-llama/llama-3.2-11b-vision-instruct:free", // 11B vision, tools ✅
   "google/gemini-flash-1.5-8b", // 8B Gemini Flash, tools ✅
   "microsoft/phi-3-medium-4k-instruct:free", // 14B, tools ✅
@@ -75,6 +75,12 @@ const CHEAP_FALLBACK_MODELS = [
   "qwen/qwen-2.5-7b-instruct", // $0.04/$0.10 per 1M tokens
   "mistralai/mistral-nemo", // $0.02/$0.04 per 1M tokens
   "meta-llama/llama-3.2-3b-instruct", // $0.05/$0.33 per 1M tokens
+];
+
+// ─── Modèles gratuits SANS function calling — chat texte simple uniquement ────
+// Ne jamais utiliser pendant une boucle d'outils active
+const NO_TOOLS_MODELS = [
+  "meta-llama/llama-3.2-1b-instruct:free", // 1B — too small for tool calls
 ];
 
 // ─── Routeur auto OpenRouter (toujours disponible) ───────────────────────────
@@ -203,8 +209,10 @@ export function getOpenAIPremiumModels(): string[] {
  * 1. Modèles gratuits (du plus puissant au plus léger)
  * 2. Modèles bon marché (backup quasi gratuit)
  * 3. Routeur auto OpenRouter (toujours disponible, coûte variable)
+ *
+ * @param requiresTools Si true, exclut l'auto-router et les modèles sans function calling
  */
-export function getAllAvailableModels(): string[] {
+export function getAllAvailableModels(requiresTools = false): string[] {
   // 0. OpenAI premium en priorité si disponible
   const premium = getOpenAIPremiumModels();
   if (premium.length > 0) return premium;
@@ -223,6 +231,15 @@ export function getAllAvailableModels(): string[] {
   }
 
   // Dernier recours: routeur auto (coût variable mais toujours dispo)
+  // Mais pas si on a besoin de function calling — l'auto-router ne garantit pas le support tools
+  if (requiresTools) {
+    logger.warn(
+      `[ModelRotation] ⚠️ Tous les modèles avec tools sont en cooldown — utilisation des modèles sans tools en mode texte seul`,
+    );
+    // Retourner les modèles sans tools quand même (mieux que rien)
+    return [...NO_TOOLS_MODELS];
+  }
+
   logger.warn(`[ModelRotation] 🔄 Tous les modèles en cooldown — fallback routeur auto OpenRouter`);
   return [AUTO_ROUTER_MODEL];
 }

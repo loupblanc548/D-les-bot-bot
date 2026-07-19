@@ -732,7 +732,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     // 1. Chaîne du routeur (triée par complexité)
     // 2. Modèle préféré en premier s'il est disponible
     // 3. Tous les modèles disponibles en fallback
-    const allModels = getAllAvailableModels();
+    const allModels = getAllAvailableModels(availableTools.length > 0);
     const modelsToTry: string[] = [];
 
     // Mettre le modèle préféré en premier s'il est dans la chaîne ou dans allModels
