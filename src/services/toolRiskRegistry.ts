@@ -686,6 +686,78 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "runSystemHardeningAudit",
       { level: "high", module: "kali", reason: "Active system audit — infrastructure" },
     ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 8: Threat Intel Extended (threatIntelExtended.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "securityTrailsDnsHistory",
+      {
+        level: "low",
+        module: "threat-intel",
+        reason: "Read-only DNS history lookup — no personal data, no cost within quota",
+      },
+    ],
+    [
+      "censysAttackSurface",
+      {
+        level: "low",
+        module: "threat-intel",
+        reason: "Read-only attack surface scan of an IP — no active scanning of third parties",
+      },
+    ],
+    [
+      "greyNoiseClassify",
+      {
+        level: "low",
+        module: "threat-intel",
+        reason: "Read-only noise classification — reduces false positives, no personal data",
+      },
+    ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 9: Google Calendar (googleCalendar.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "listUpcomingEvents",
+      {
+        level: "low",
+        module: "calendar",
+        reason: "Read-only calendar event listing — no persistence, no cost",
+      },
+    ],
+    [
+      "createCalendarEvent",
+      {
+        level: "medium",
+        module: "calendar",
+        reason: "Writes to shared calendar — persistent state visible to others, reversible",
+      },
+    ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 10: ElevenLabs TTS (elevenLabsTts.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "elevenLabsTTS",
+      {
+        level: "medium",
+        module: "tts",
+        reason: "Real financial cost per character — metered API, not free",
+      },
+    ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 11: Remove.bg (removeBg.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "removeBackground",
+      {
+        level: "medium",
+        module: "image",
+        reason: "Real financial cost per call beyond free quota — metered API",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

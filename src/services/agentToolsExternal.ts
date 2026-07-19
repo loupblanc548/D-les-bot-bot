@@ -26,6 +26,11 @@ import Parser from "rss-parser";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
+import {
+  getSecurityTrailsDnsHistory,
+  getCensysAttackSurface,
+  getGreyNoiseClassification,
+} from "./threatIntelExtended.js";
 
 const execAsync = promisify(exec);
 const rssParser = new Parser();
@@ -303,6 +308,52 @@ export const EXTERNAL_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["subject", "message", "severity"],
+      },
+    },
+  },
+  // ─── Threat Intel Extended (read-only enrichment) ───
+  {
+    type: "function",
+    function: {
+      name: "securityTrailsDnsHistory",
+      description:
+        "Récupère l'historique DNS (enregistrements A) d'un domaine via SecurityTrails. Utile pour investiguer un incident (changement d'IP, infrastructure). Lecture seule.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Nom de domaine à investiguer (ex: example.com)" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "censysAttackSurface",
+      description:
+        "Récupère la surface d'attaque exposée d'une IP via Censys (ports ouverts, services, localisation, ASN). Lecture seule — aucun scan actif. Complète les outils Kali.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP à analyser (ex: 1.2.3.4)" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "greyNoiseClassify",
+      description:
+        "Classifie une IP via GreyNoise: distingue le bruit de scan Internet (benign/malicious) d'une menace ciblée. Réduit les faux positifs du pipeline SOAR.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP à classifier (ex: 1.2.3.4)" },
+        },
+        required: ["ip"],
       },
     },
   },
@@ -614,6 +665,50 @@ export async function executeExternalTool(
         return {
           success: true,
           data: `📧 Email d'alerte envoyé (sévérité: ${severity})\nSujet: ${subject}`,
+        };
+      }
+
+      // ─── Threat Intel Extended ─────────
+      case "securityTrailsDnsHistory": {
+        const domain = String(args.domain ?? "").trim();
+        if (!domain) return { success: false, data: "Domaine requis" };
+        const history = await getSecurityTrailsDnsHistory(domain);
+        if (!history)
+          return {
+            success: false,
+            data: "SecurityTrails indisponible (clé API manquante ou erreur)",
+          };
+        if (history.length === 0)
+          return { success: true, data: `Aucun historique DNS trouvé pour ${domain}` };
+        const formatted = history
+          .map((h) => `${h.firstSeen} → ${h.lastSeen}: ${h.type} = ${h.value}`)
+          .join("\n");
+        return { success: true, data: `📋 Historique DNS pour ${domain}:\n${formatted}` };
+      }
+
+      case "censysAttackSurface": {
+        const ip = String(args.ip ?? "").trim();
+        if (!ip) return { success: false, data: "IP requise" };
+        const surface = await getCensysAttackSurface(ip);
+        if (!surface)
+          return { success: false, data: "Censys indisponible (credentials manquants ou erreur)" };
+        const services = surface.services.map((s) => `${s.port}/${s.service}`).join(", ");
+        return {
+          success: true,
+          data: `🔍 ${surface.ip} — ${surface.location ?? "?"} ${surface.asn ?? ""}\nServices: ${services || "aucun"}`,
+        };
+      }
+
+      case "greyNoiseClassify": {
+        const ip = String(args.ip ?? "").trim();
+        if (!ip) return { success: false, data: "IP requise" };
+        const result = await getGreyNoiseClassification(ip);
+        if (!result)
+          return { success: false, data: "GreyNoise indisponible (clé API manquante ou erreur)" };
+        const tag = result.noise ? "🌐 Internet noise" : "🎯 Targeted";
+        return {
+          success: true,
+          data: `${tag} — ${result.ip}: ${result.classification}${result.name ? ` (${result.name})` : ""}${result.riot ? " [RIOT]" : ""}`,
         };
       }
 

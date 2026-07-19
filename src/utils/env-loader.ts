@@ -226,6 +226,22 @@ const envSchema = z.object({
 
   // Fortnite Party Bot (fnbr.js)
   FORTNITE_AUTH_CODE: z.string().optional(),
+
+  // ─── New Agent Tools (optional — graceful degradation) ──────────────────
+  // Threat Intel Extended
+  SECURITYTRAILS_API_KEY: z.string().optional(),
+  CENSYS_API_ID: z.string().optional(),
+  CENSYS_API_SECRET: z.string().optional(),
+  GREYNOISE_API_KEY: z.string().optional(),
+  // Google Calendar
+  GOOGLE_CALENDAR_ID: z.string().optional(),
+  GOOGLE_CALENDAR_CREDENTIALS_JSON: z.string().optional(),
+  // ElevenLabs TTS
+  ELEVENLABS_API_KEY: z.string().optional(),
+  ELEVENLABS_VOICE_ID: z.string().optional(),
+  ELEVENLABS_MONTHLY_CHAR_LIMIT: z.string().default("50000"),
+  // Remove.bg
+  REMOVEBG_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

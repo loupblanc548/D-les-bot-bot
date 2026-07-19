@@ -36,6 +36,10 @@ export const RESTRICTED_TOOLS = new Set<string>([
   "checkDataBreach",
   // New tools — high risk (external communication)
   "sendAlertEmail",
+  // New tools — medium risk (financial cost or persistent state change)
+  "createCalendarEvent",
+  "elevenLabsTTS",
+  "removeBackground",
 ]);
 
 /**
@@ -106,6 +110,20 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "WOLFRAM_APP_ID", tools: ["solveMathAdvanced"], optional: true },
   { envVar: "DEEPL_API_KEY", tools: ["translateTextDeepL"], optional: true },
   { envVar: "RAWG_API_KEY", tools: ["searchRawgGames"], optional: true },
+  // Threat Intel Extended
+  { envVar: "SECURITYTRAILS_API_KEY", tools: ["securityTrailsDnsHistory"], optional: true },
+  { envVar: "CENSYS_API_ID", tools: ["censysAttackSurface"], optional: true },
+  { envVar: "GREYNOISE_API_KEY", tools: ["greyNoiseClassify"], optional: true },
+  // Google Calendar
+  {
+    envVar: "GOOGLE_CALENDAR_ID",
+    tools: ["listUpcomingEvents", "createCalendarEvent"],
+    optional: true,
+  },
+  // ElevenLabs TTS
+  { envVar: "ELEVENLABS_API_KEY", tools: ["elevenLabsTTS"], optional: true },
+  // Remove.bg
+  { envVar: "REMOVEBG_API_KEY", tools: ["removeBackground"], optional: true },
 ];
 
 /**
@@ -751,6 +769,89 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "traduction précise",
     ],
     tools: ["translateTextDeepL"],
+  },
+  // ═══ Threat Intel Extended ═══
+  {
+    keywords: [
+      "securitytrails",
+      "dns history",
+      "historique dns",
+      "dns lookup",
+      "dns records",
+      "domain history",
+      "historique domaine",
+    ],
+    tools: ["securityTrailsDnsHistory"],
+  },
+  {
+    keywords: [
+      "censys",
+      "attack surface",
+      "surface d'attaque",
+      "exposed services",
+      "services exposés",
+      "open ports ip",
+      "ports ouverts ip",
+    ],
+    tools: ["censysAttackSurface"],
+  },
+  {
+    keywords: [
+      "greynoise",
+      "internet noise",
+      "bruit internet",
+      "noise classification",
+      "scan noise",
+      "false positive",
+      "faux positif",
+      "targeted attack",
+      "attaque ciblée",
+    ],
+    tools: ["greyNoiseClassify"],
+  },
+  // ═══ Google Calendar ═══
+  {
+    keywords: [
+      "calendrier",
+      "calendar",
+      "événement",
+      "event",
+      "prochain événement",
+      "upcoming event",
+      "réunion",
+      "meeting",
+      "planning",
+      "schedule",
+    ],
+    tools: ["listUpcomingEvents", "createCalendarEvent"],
+  },
+  // ═══ ElevenLabs TTS ═══
+  {
+    keywords: [
+      "voix haute qualité",
+      "premium voice",
+      "elevenlabs",
+      "tts premium",
+      "voix réaliste",
+      "realistic voice",
+      "voix naturelle",
+      "natural voice",
+    ],
+    tools: ["elevenLabsTTS"],
+  },
+  // ═══ Remove.bg ═══
+  {
+    keywords: [
+      "remove bg",
+      "remove background",
+      "supprimer fond",
+      "supprimer arrière-plan",
+      "fond transparent",
+      "transparent background",
+      "removebg",
+      "couper fond",
+    ],
+    tools: ["removeBackground"],
   },
 ];
 

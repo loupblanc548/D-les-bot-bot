@@ -25,6 +25,8 @@ import {
   getCredits as mcpGetCredits,
 } from "./openrouterMcp.js";
 
+import { listUpcomingEvents, createCalendarEvent } from "./googleCalendar.js";
+
 // ─── Cache partagé ────────────────────────────────────────────────────────────
 
 const extCache = new Map<string, { data: string; ts: number }>();
@@ -1253,6 +1255,44 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── Google Calendar ──
+  {
+    type: "function",
+    function: {
+      name: "listUpcomingEvents",
+      description:
+        "Liste les prochains événements du calendrier partagé du serveur (Google Calendar). Retourne titre, date, description et lieu.",
+      parameters: {
+        type: "object",
+        properties: {
+          maxResults: { type: "number", description: "Nombre max d'événements (défaut 10)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "createCalendarEvent",
+      description:
+        "Crée un événement sur le calendrier partagé du serveur (Google Calendar). L'événement est visible par tous les membres du calendrier.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string", description: "Titre de l'événement" },
+          description: { type: "string", description: "Description (optionnel)" },
+          start: {
+            type: "string",
+            description: "Date/heure de début ISO 8601 (ex: 2026-07-20T18:00:00)",
+          },
+          end: { type: "string", description: "Date/heure de fin ISO 8601" },
+          location: { type: "string", description: "Lieu (optionnel)" },
+        },
+        required: ["summary", "start", "end"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -1442,6 +1482,44 @@ export async function executeExtendedTool(
         return await tSolveMathAdvanced(args);
       case "translateTextDeepL":
         return await tTranslateTextDeepL(args);
+      // ── Google Calendar ──
+      case "listUpcomingEvents": {
+        const max = Number(args.maxResults) || 10;
+        const events = await listUpcomingEvents(max);
+        if (!events)
+          return {
+            success: false,
+            data: "Google Calendar non configuré (GOOGLE_CALENDAR_ID ou credentials manquants)",
+          };
+        if (events.length === 0) return { success: true, data: "Aucun événement à venir" };
+        const formatted = events
+          .map(
+            (e) =>
+              `📅 ${e.summary}\n${e.start} → ${e.end}${e.location ? `\n📍 ${e.location}` : ""}`,
+          )
+          .join("\n\n");
+        return { success: true, data: formatted };
+      }
+      case "createCalendarEvent": {
+        const summary = String(args.summary ?? "").trim();
+        const start = String(args.start ?? "").trim();
+        const end = String(args.end ?? "").trim();
+        if (!summary || !start || !end)
+          return { success: false, data: "summary, start et end sont requis" };
+        const event = await createCalendarEvent({
+          summary,
+          description: args.description ? String(args.description) : undefined,
+          start,
+          end,
+          location: args.location ? String(args.location) : undefined,
+        });
+        if (!event)
+          return { success: false, data: "Google Calendar non configuré ou erreur de création" };
+        return {
+          success: true,
+          data: `✅ Événement créé: ${event.summary} (${event.start} → ${event.end})`,
+        };
+      }
       default:
         return null;
     }

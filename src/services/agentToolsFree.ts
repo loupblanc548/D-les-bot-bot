@@ -24,6 +24,8 @@ import {
   isRssHubConfigured,
   getDevToArticles,
 } from "./freeApis.js";
+import { generateElevenLabsTTS, getMonthlyUsage } from "./elevenLabsTts.js";
+import { removeBackground } from "./removeBg.js";
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
@@ -223,6 +225,42 @@ export const FREE_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── ElevenLabs TTS (premium, metered) ───
+  {
+    type: "function",
+    function: {
+      name: "elevenLabsTTS",
+      description:
+        "Génère un audio haute qualité à partir de texte via ElevenLabs (payant, quota mensuel limité). Voix plus naturelles que le TTS gratuit. Utilise cet outil quand l'utilisateur demande une voix de haute qualité ou quand le TTS gratuit ne suffit pas.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à convertir en audio (max 5000 caractères)" },
+          voiceId: {
+            type: "string",
+            description: "ID de voix ElevenLabs (optionnel, défaut: Rachel)",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  // ─── Remove.bg (metered, premium) ───
+  {
+    type: "function",
+    function: {
+      name: "removeBackground",
+      description:
+        "Supprime le fond d'une image via Remove.bg. Retourne l'image traitée (PNG sans fond). Payant au-delà du quota gratuit. Utilise cet outil quand l'utilisateur demande de retirer le fond d'une image.",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: { type: "string", description: "URL de l'image à traiter" },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
   // ─── Knowledge Ingestion Tools ───
   {
     type: "function",
@@ -399,6 +437,39 @@ export async function executeFreeTool(
           .map((a) => `📝 ${a.title} — ${a.author} (${a.reactions} reactions)\n${a.url}`)
           .join("\n\n");
         return { success: true, data: formatted };
+      }
+
+      case "elevenLabsTTS": {
+        const text = String(args.text ?? "");
+        if (!text) return { success: false, data: "Texte vide" };
+        const result = await generateElevenLabsTTS(
+          text,
+          args.voiceId ? String(args.voiceId) : undefined,
+        );
+        if (!result) {
+          const usage = getMonthlyUsage();
+          return {
+            success: false,
+            data: `ElevenLabs indisponible (clé API manquante ou quota mensuel atteint: ${usage.used}/${usage.limit} chars)`,
+          };
+        }
+        const usage = getMonthlyUsage();
+        return {
+          success: true,
+          data: `🎙️ Audio ElevenLabs généré (${result.charsUsed} chars, quota: ${usage.used}/${usage.limit})\n${result.audioUrl}`,
+        };
+      }
+
+      case "removeBackground": {
+        const imageUrl = String(args.imageUrl ?? "").trim();
+        if (!imageUrl) return { success: false, data: "URL d'image requise" };
+        const result = await removeBackground(imageUrl);
+        if (!result)
+          return { success: false, data: "Remove.bg indisponible (clé API manquante ou erreur)" };
+        return {
+          success: true,
+          data: `🖼️ Fond supprimé (${result.creditsUsed} crédits utilisés)\n${result.resultUrl}`,
+        };
       }
 
       default:
