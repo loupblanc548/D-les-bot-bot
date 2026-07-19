@@ -15,7 +15,6 @@ updates:
     versioning-strategy: increase
     labels:
       - "dependencies"
-      - "automerge"
     groups:
       eslint:
         patterns:
