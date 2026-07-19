@@ -123,6 +123,31 @@ export const modelsAvailable = new Gauge({
   registers: [registry],
 });
 
+// ─── Agent observability metrics (P3) ───
+export const agentLoopMaxedOut = new Counter({
+  name: "agent_loop_maxed_out_total",
+  help: "Agent loops that hit the max iteration limit (8) without resolution",
+  registers: [registry],
+});
+export const agentCognitiveStasis = new Counter({
+  name: "agent_cognitive_stasis_total",
+  help: "Cognitive stasis detections (cosine similarity > threshold)",
+  labelNames: ["action"],
+  registers: [registry],
+});
+export const agentCircuitBreakerTransitions = new Counter({
+  name: "agent_circuit_breaker_transitions_total",
+  help: "LLM model circuit breaker state transitions",
+  labelNames: ["model", "transition"],
+  registers: [registry],
+});
+export const agentToolCallsDaily = new Gauge({
+  name: "agent_tool_calls_daily",
+  help: "Daily tool call count (reset every 24h by cron) — for dedup audit",
+  labelNames: ["tool"],
+  registers: [registry],
+});
+
 export async function getMetrics(): Promise<string> {
   return registry.metrics();
 }

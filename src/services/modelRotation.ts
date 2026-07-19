@@ -12,6 +12,7 @@
  */
 
 import logger from "../utils/logger.js";
+import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
 
 // ─── Modèles OpenRouter gratuits supportant le function calling ─────────────
 // Liste étendue — maximise l'utilisation de la clé OpenRouter
@@ -164,6 +165,7 @@ function openCircuit(modelName: string, reason: string): void {
   logger.warn(
     `[ModelRotation] 🔴 Circuit OPEN for ${modelName} (${wasState} → open). Reason: ${reason}. Backoff: ${backoffMs / 1000}s. Failures: ${health.failures}`,
   );
+  agentCircuitBreakerTransitions.labels(modelName, "open").inc();
 }
 
 function halfOpenCircuit(modelName: string): void {
@@ -175,6 +177,7 @@ function halfOpenCircuit(modelName: string): void {
   logger.info(
     `[ModelRotation] 🟡 Circuit HALF-OPEN for ${modelName} (${wasState} → half-open). Test call allowed.`,
   );
+  agentCircuitBreakerTransitions.labels(modelName, "half-open").inc();
 }
 
 function closeCircuit(modelName: string): void {
@@ -188,6 +191,7 @@ function closeCircuit(modelName: string): void {
   logger.info(
     `[ModelRotation] 🟢 Circuit CLOSED for ${modelName} (${wasState} → closed). Normal operation resumed.`,
   );
+  agentCircuitBreakerTransitions.labels(modelName, "closed").inc();
 }
 
 /**

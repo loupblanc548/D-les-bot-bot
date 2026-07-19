@@ -73,6 +73,9 @@ import {
   agentToolCalls,
   agentCacheHits,
   agentCacheMisses,
+  agentLoopMaxedOut,
+  agentCognitiveStasis,
+  agentToolCallsDaily,
 } from "./prometheusExporter.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -876,6 +879,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
           if (stasisReflection.action === "abort") {
             // Ask user for clarification
+            agentCognitiveStasis.labels("abort").inc();
             completeInteraction(breakerState);
             agentLoopIterations.observe(iteration + 1);
             agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
@@ -884,6 +888,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
           }
 
           // action === "pivot": inject strategy mutation into conversation and continue
+          agentCognitiveStasis.labels("pivot").inc();
           conversation.push({
             role: "system",
             content:
@@ -1004,9 +1009,11 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
               if (result.success) {
                 recordToolSuccess(toolName);
                 agentToolCalls.labels(toolName, "success").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               } else {
                 recordToolFailure(toolName);
                 agentToolCalls.labels(toolName, "fail").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               }
             } else if (isRestrictedTool(toolName)) {
               // Medium/high risk — SOAR gate required
@@ -1023,15 +1030,18 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
                 };
                 recordToolFailure(toolName);
                 agentToolCalls.labels(toolName, "fail").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               } else {
                 logger.info(`[AgentLoop] ✅ SOAR Gate: ${toolName} APPROVED by admin — executing`);
                 result = await executeTool(toolName, args, ctx);
                 if (result.success) {
                   recordToolSuccess(toolName);
                   agentToolCalls.labels(toolName, "success").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
                 } else {
                   recordToolFailure(toolName);
                   agentToolCalls.labels(toolName, "fail").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
                 }
               }
             } else {
@@ -1040,9 +1050,11 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
               if (result.success) {
                 recordToolSuccess(toolName);
                 agentToolCalls.labels(toolName, "success").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               } else {
                 recordToolFailure(toolName);
                 agentToolCalls.labels(toolName, "fail").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               }
             }
           }
@@ -1120,6 +1132,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
 
   // Si on a épuisé les itérations, retourner la dernière réponse
   logger.warn(`[AgentLoop] ⚠️ Max iterations (${MAX_ITERATIONS}) atteint`);
+  agentLoopMaxedOut.inc();
   tripBreaker(breakerState, `Max iterations (${MAX_ITERATIONS}) reached without final reply`);
   purgeCognitiveSession(cognitiveSessionId);
   return "J'ai analysé la situation mais j'ai besoin de plus de contexte pour répondre. Peux-tu préciser ?";

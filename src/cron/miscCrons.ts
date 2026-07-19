@@ -11,6 +11,7 @@ import cron, { ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import prisma from "../prisma.js";
+import { agentToolCallsDaily } from "../services/prometheusExporter.js";
 
 // ─── Birthday Notifier (CRON-15) ─────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export async function runAiServerHealth(client: Client): Promise<void> {
 
 let birthdayCron: ScheduledTask | null = null;
 let healthCron: ScheduledTask | null = null;
+let toolMetricsResetCron: ScheduledTask | null = null;
 
 export function startMiscCrons(client: Client): void {
   // CRON-15: Birthday notifier — daily at 09:00
@@ -155,12 +157,22 @@ export function startMiscCrons(client: Client): void {
     runAiServerHealth(client).catch((err) => logger.error("[AiHealth] Erreur:", err));
   });
 
-  logger.info("[MiscCrons] Crons activés: birthday (09:00), ai-health (lun 23:00)");
+  // CRON-28: Daily tool metrics reset — midnight (for dedup audit: tools never called = deletion candidates)
+  toolMetricsResetCron = cron.schedule("0 0 * * *", () => {
+    logger.info("[MiscCrons] Resetting daily tool call metrics");
+    agentToolCallsDaily.reset();
+  });
+
+  logger.info(
+    "[MiscCrons] Crons activés: birthday (09:00), ai-health (lun 23:00), tool-metrics-reset (00:00)",
+  );
 }
 
 export function stopMiscCrons(): void {
   if (birthdayCron) birthdayCron.stop();
   if (healthCron) healthCron.stop();
+  if (toolMetricsResetCron) toolMetricsResetCron.stop();
   birthdayCron = null;
   healthCron = null;
+  toolMetricsResetCron = null;
 }
