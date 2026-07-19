@@ -35,6 +35,7 @@ import {
 } from "discord.js";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import prisma from "../prisma.js";
 import { PermissionLevel, getPermissionLevel } from "../services/permissions.js";
 import {
   searchUsername,
@@ -211,25 +212,33 @@ export const commands = [
       sub
         .setName("headers")
         .setDescription("Récupère les headers HTTP d'une URL")
-        .addStringOption((opt) => opt.setName("url").setDescription("L'URL à analyser").setRequired(true)),
+        .addStringOption((opt) =>
+          opt.setName("url").setDescription("L'URL à analyser").setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
       sub
         .setName("ssl-check")
         .setDescription("Vérifie le certificat SSL d'un domaine")
-        .addStringOption((opt) => opt.setName("domaine").setDescription("Le domaine (ex: example.com)").setRequired(true)),
+        .addStringOption((opt) =>
+          opt.setName("domaine").setDescription("Le domaine (ex: example.com)").setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
       sub
         .setName("port-scan")
         .setDescription("Scan de ports communs sur un host")
-        .addStringOption((opt) => opt.setName("host").setDescription("Le host ou IP").setRequired(true)),
+        .addStringOption((opt) =>
+          opt.setName("host").setDescription("Le host ou IP").setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
       sub
         .setName("username-gen")
         .setDescription("Génère des usernames à partir de mots-clés")
-        .addStringOption((opt) => opt.setName("mots").setDescription("Mots-clés séparés par espaces").setRequired(true)),
+        .addStringOption((opt) =>
+          opt.setName("mots").setDescription("Mots-clés séparés par espaces").setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
       sub
@@ -241,7 +250,14 @@ export const commands = [
       sub
         .setName("tech-detect")
         .setDescription("Détecte les technologies d'un site web (headers)")
-        .addStringOption((opt) => opt.setName("url").setDescription("L'URL du site").setRequired(true)),
+        .addStringOption((opt) =>
+          opt.setName("url").setDescription("L'URL du site").setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("audit")
+        .setDescription("📋 Consulte l'historique des recherches OSINT (Admin uniquement)"),
     ),
 ];
 
@@ -265,6 +281,39 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       flags: [MessageFlags.Ephemeral],
     });
     return;
+  }
+
+  // ─── Traçabilité OSINT : log structuré en base avant exécution ───
+  const targetOption =
+    interaction.options.getString("pseudo") ??
+    interaction.options.getString("email") ??
+    interaction.options.getString("numero") ??
+    interaction.options.getString("domaine") ??
+    interaction.options.getString("url") ??
+    interaction.options.getString("host") ??
+    interaction.options.getString("mots") ??
+    "N/A";
+
+  if (sub !== "audit") {
+    try {
+      await prisma.log.create({
+        data: {
+          type: "OSINT",
+          action: sub,
+          userId: interaction.user.id,
+          targetId: targetOption,
+          guildId: interaction.guildId,
+          details: JSON.stringify({
+            moderator: interaction.user.tag,
+            target: targetOption,
+            subcommand: sub,
+          }),
+          moderator: interaction.user.tag,
+        },
+      });
+    } catch (logErr) {
+      logger.error(`[OSINT] Failed to write audit log: ${logErr}`);
+    }
   }
 
   switch (sub) {
@@ -311,6 +360,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       const { handleShadowExtra } = await import("./stubHandlers.js");
       return handleShadowExtra(interaction, undefined as unknown as import("discord.js").Client);
     }
+    case "audit":
+      return handleAudit(interaction);
     default:
       await interaction.reply({
         content: "Sous-commande inconnue.",
@@ -1159,5 +1210,73 @@ async function handleInstaDeep(interaction: ChatInputCommandInteraction) {
   } catch (error) {
     logger.error("[OSINT/insta-deep] Erreur:", error);
     await interaction.editReply({ content: "Erreur lors de la recherche Instagram." });
+  }
+}
+
+// ─── /osint audit ────────────────────────────────────────────────────────────
+
+async function handleAudit(interaction: ChatInputCommandInteraction) {
+  // Admin only — not moderator
+  const member = interaction.member;
+  if (member && "roles" in member) {
+    const permLevel = await getPermissionLevel(member as any);
+    if (permLevel < PermissionLevel.ADMIN && interaction.user.id !== config.ownerId) {
+      await interaction.reply({
+        content: "❌ Cette sous-commande nécessite le grade **Admin**.",
+        flags: [MessageFlags.Ephemeral],
+      });
+      return;
+    }
+  }
+
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  try {
+    const logs = await prisma.log.findMany({
+      where: { type: "OSINT" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    if (logs.length === 0) {
+      await interaction.editReply({ content: "📋 Aucune recherche OSINT enregistrée." });
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📋 Audit OSINT — ${logs.length} recherches`)
+      .setColor(0x0099ff)
+      .setTimestamp()
+      .setFooter({ text: `${logs.length} entrées les plus récentes` });
+
+    const fields = logs.slice(0, 25).map((entry) => {
+      let details: { moderator?: string; target?: string; subcommand?: string } = {};
+      try {
+        details = JSON.parse(entry.details || "{}");
+      } catch {
+        // keep empty
+      }
+      const date = entry.createdAt.toISOString().slice(0, 19).replace("T", " ");
+      const mod = details.moderator || entry.moderator || entry.userId || "Unknown";
+      const target = details.target || entry.targetId || "N/A";
+      const cmd = details.subcommand || entry.action || "unknown";
+
+      return {
+        name: `🔍 ${cmd} → \`${target}\``,
+        value: `👤 ${mod} | 📅 ${date} | 🏠 ${entry.guildId || "DM"}`,
+        inline: false,
+      };
+    });
+
+    embed.addFields(...fields);
+
+    if (logs.length > 25) {
+      embed.setFooter({ text: `${logs.length} entrées au total — 25 affichées` });
+    }
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.error("[OSINT/audit] Erreur:", error);
+    await interaction.editReply({ content: "Erreur lors de la récupération de l'audit." });
   }
 }

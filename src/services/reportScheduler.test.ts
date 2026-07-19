@@ -44,11 +44,6 @@ vi.mock("./autoDefense.js", () => ({
   getUnhealthyScrapers: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock("./aiHotPatcher.js", () => ({
-  getAllPatches: vi.fn().mockReturnValue([]),
-  getPatchesByStatus: vi.fn().mockReturnValue([]),
-}));
-
 import {
   addReportSchedule,
   removeReportSchedule,

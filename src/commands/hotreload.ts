@@ -1,4 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  Client,
+  PermissionFlagsBits,
+} from "discord.js";
 import logger from "../utils/logger.js";
 import { requireAdmin } from "../services/permissions.js";
 import {
@@ -46,7 +52,8 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((subcommand) =>
     subcommand.setName("status").setDescription("Affiche le statut du hot reload"),
-  );
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client) {
   if (!(await requireAdmin(interaction))) return;

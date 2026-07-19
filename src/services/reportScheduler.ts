@@ -16,7 +16,6 @@ import { createLog } from "./logs.js";
 import { getGuildSecurityPosture, getEvents } from "./socExtension.js";
 import { getAnomalies, generateAnalysisReport } from "./aiLogAnalyzer.js";
 import { getUnhealthyScrapers } from "./autoDefense.js";
-import { getPatchesByStatus } from "./aiHotPatcher.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -104,7 +103,7 @@ export async function generateSecurityReport(
   const anomalies = getAnomalies(20);
   const _analysisReport = generateAnalysisReport();
   const unhealthyScrapers = getUnhealthyScrapers();
-  const appliedPatches = getPatchesByStatus("APPLIED");
+  const appliedPatches: unknown[] = []; // aiHotPatcher removed — dead code eliminated
 
   // Calculer les métriques
   const periodEvents = events.filter((e) => e.timestamp >= from);

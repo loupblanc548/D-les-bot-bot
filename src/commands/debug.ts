@@ -1,4 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Client } from "discord.js";
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  Client,
+  PermissionFlagsBits,
+} from "discord.js";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
 import { requireAdmin } from "../services/permissions.js";
@@ -17,7 +23,8 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((subcommand) =>
     subcommand.setName("memory").setDescription("Affiche l'utilisation mémoire"),
-  );
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client) {
   await requireAdmin(interaction);
