@@ -48,7 +48,11 @@ import { initTelegramNotifications } from "./services/telegram-notifications.js"
 import { setClient } from "./services/clientRef.js";
 import { initNetworkResilience, savePresence } from "./services/networkResilience.js";
 import { startInfraWatchdog, stopInfraWatchdog } from "./services/infraWatchdog.js";
-import { startConfigCacheCleanup, stopConfigCache } from "./services/configCache.js";
+import {
+  startConfigCacheCleanup,
+  stopConfigCache,
+  prewarmAllGuildConfigs,
+} from "./services/configCache.js";
 import { registerAlertDispatcher } from "./services/circuitBreaker.js";
 import { formatSecurityAlert } from "./services/loreAlertDispatcher.js";
 import { loadMemoriesFromDb } from "./services/agentMemory.js";
@@ -397,9 +401,10 @@ async function main(): Promise<void> {
   startInfraWatchdog(client, process.env.ALERT_CHANNEL_ID);
   logger.info("✓ Infrastructure watchdog initialise (3.2/3.8/4.0GB thresholds)");
 
-  // ─── MODULE 2: Config Cache — start background cleanup ───
+  // ─── MODULE 2: Config Cache — start background cleanup + pre-warm ───
   startConfigCacheCleanup();
-  logger.info("✓ Config cache initialise (TTL 15min, max 500 guilds)");
+  await prewarmAllGuildConfigs();
+  logger.info("✓ Config cache initialise (TTL 15min, max 500 guilds, pre-warmed)");
 
   // ─── MODULE 3: Task Worker — register client ref ───
   setClient(client);
@@ -502,7 +507,9 @@ async function main(): Promise<void> {
     logger.error(`[Discord] Client error (code=${code}): ${err.message}`);
     // 2012 = DISALLOWED_BOT_USER — usually from selfbot, non-fatal
     if (code === 2012) {
-      logger.warn("[Discord] Erreur 2012 (DISALLOWED_BOT_USER) — probablement le selfbot, non-fatal");
+      logger.warn(
+        "[Discord] Erreur 2012 (DISALLOWED_BOT_USER) — probablement le selfbot, non-fatal",
+      );
     }
   });
 
@@ -515,7 +522,9 @@ async function main(): Promise<void> {
   });
 
   client.on("shardDisconnect", (event, shardId) => {
-    logger.warn(`[Discord] Shard ${shardId} disconnected: code=${event.code}, reason=${event.reason}`);
+    logger.warn(
+      `[Discord] Shard ${shardId} disconnected: code=${event.code}, reason=${event.reason}`,
+    );
   });
 
   client.on("shardReconnecting", (shardId) => {

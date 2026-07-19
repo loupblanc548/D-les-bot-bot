@@ -11,6 +11,7 @@ import { stealthGuildLeave } from "../services/stealthLeave.js";
 import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
 import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/reportChannel.js";
 import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
+import { invalidateGuild } from "../services/configCache.js";
 
 const BOOST_CHANNEL_ID = "1203399031351545887";
 
@@ -234,6 +235,8 @@ export function handleMemberEvents(client: Client) {
       );
 
       // Nettoyer les données DB liées au serveur
+      invalidateGuild(guild.id);
+
       await Promise.allSettled([
         prisma.log.deleteMany({ where: { guildId: guild.id } }),
         prisma.commandLog.deleteMany({ where: { guildId: guild.id } }),

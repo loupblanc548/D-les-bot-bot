@@ -66,6 +66,7 @@ import {
   getPersonalityMaxTokens,
 } from "../infrastructure/middleware/personalityMiddleware.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
+import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
 import {
   agentLoopIterations,
   agentLoopDuration,
@@ -1001,60 +1002,87 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
               data: `Tool ${toolName} temporairement limité (trop d'appels récents). Réessaie dans 1 minute.`,
             };
           } else {
-            // Directive 2: SOAR Validation Gate for restricted tools
-            // Low-risk tools execute autonomously — no approval needed
-            if (isLowRisk(toolName)) {
-              logger.info(`[AgentLoop] ⚡ Autonomous execution (low-risk): ${toolName}`);
-              result = await executeTool(toolName, args, ctx);
-              if (result.success) {
-                recordToolSuccess(toolName);
+            // ─── Tool result cache: skip API call if cached result is fresh ───
+            if (isToolCacheable(toolName)) {
+              const cached = getCachedToolResult(toolName, args);
+              if (cached !== null) {
+                logger.info(`[AgentLoop] 📦 Tool cache hit: ${toolName}`);
+                result = { success: true, data: cached };
+                agentCacheHits.inc();
                 agentToolCalls.labels(toolName, "success").inc();
                 agentToolCallsDaily.labels(toolName).inc();
+                // Skip actual execution — use cached result
+                // Continue to tool result processing below
               } else {
-                recordToolFailure(toolName);
-                agentToolCalls.labels(toolName, "fail").inc();
-                agentToolCallsDaily.labels(toolName).inc();
+                agentCacheMisses.inc();
               }
-            } else if (isRestrictedTool(toolName)) {
-              // Medium/high risk — SOAR gate required
-              const risk = getRiskLevel(toolName) ?? "unclassified";
-              logger.info(`[AgentLoop] 🛡️ SOAR Gate required (risk: ${risk}): ${toolName}`);
-              const approved = await requestToolApproval(toolName, args, message.author.id);
-              if (!approved) {
-                logger.warn(
-                  `[AgentLoop] 🛡️ SOAR Gate: ${toolName} BLOCKED — admin rejected or timeout`,
-                );
-                result = {
-                  success: false,
-                  data: `Outil ${toolName} bloqué par la porte de validation SOAR. L'administrateur a rejeté ou n'a pas répondu à temps.`,
-                };
-                recordToolFailure(toolName);
-                agentToolCalls.labels(toolName, "fail").inc();
-                agentToolCallsDaily.labels(toolName).inc();
-              } else {
-                logger.info(`[AgentLoop] ✅ SOAR Gate: ${toolName} APPROVED by admin — executing`);
+            }
+
+            if (result === null || result === undefined) {
+              // Directive 2: SOAR Validation Gate for restricted tools
+              // Low-risk tools execute autonomously — no approval needed
+              if (isLowRisk(toolName)) {
+                logger.info(`[AgentLoop] ⚡ Autonomous execution (low-risk): ${toolName}`);
                 result = await executeTool(toolName, args, ctx);
                 if (result.success) {
                   recordToolSuccess(toolName);
                   agentToolCalls.labels(toolName, "success").inc();
                   agentToolCallsDaily.labels(toolName).inc();
+                  if (isToolCacheable(toolName)) {
+                    setCachedToolResult(toolName, args, result.data);
+                  }
                 } else {
                   recordToolFailure(toolName);
                   agentToolCalls.labels(toolName, "fail").inc();
                   agentToolCallsDaily.labels(toolName).inc();
                 }
-              }
-            } else {
-              // Unclassified tools — default to direct execution (backward compat)
-              result = await executeTool(toolName, args, ctx);
-              if (result.success) {
-                recordToolSuccess(toolName);
-                agentToolCalls.labels(toolName, "success").inc();
-                agentToolCallsDaily.labels(toolName).inc();
+              } else if (isRestrictedTool(toolName)) {
+                // Medium/high risk — SOAR gate required
+                const risk = getRiskLevel(toolName) ?? "unclassified";
+                logger.info(`[AgentLoop] 🛡️ SOAR Gate required (risk: ${risk}): ${toolName}`);
+                const approved = await requestToolApproval(toolName, args, message.author.id);
+                if (!approved) {
+                  logger.warn(
+                    `[AgentLoop] 🛡️ SOAR Gate: ${toolName} BLOCKED — admin rejected or timeout`,
+                  );
+                  result = {
+                    success: false,
+                    data: `Outil ${toolName} bloqué par la porte de validation SOAR. L'administrateur a rejeté ou n'a pas répondu à temps.`,
+                  };
+                  recordToolFailure(toolName);
+                  agentToolCalls.labels(toolName, "fail").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
+                } else {
+                  logger.info(
+                    `[AgentLoop] ✅ SOAR Gate: ${toolName} APPROVED by admin — executing`,
+                  );
+                  result = await executeTool(toolName, args, ctx);
+                  if (result.success) {
+                    recordToolSuccess(toolName);
+                    agentToolCalls.labels(toolName, "success").inc();
+                    agentToolCallsDaily.labels(toolName).inc();
+                  } else {
+                    recordToolFailure(toolName);
+                    agentToolCalls.labels(toolName, "fail").inc();
+                    agentToolCallsDaily.labels(toolName).inc();
+                  }
+                }
               } else {
-                recordToolFailure(toolName);
-                agentToolCalls.labels(toolName, "fail").inc();
-                agentToolCallsDaily.labels(toolName).inc();
+                // Unclassified tools — default to direct execution (backward compat)
+                result = await executeTool(toolName, args, ctx);
+                if (result.success) {
+                  recordToolSuccess(toolName);
+                  agentToolCalls.labels(toolName, "success").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
+                  // Cache successful results for cacheable tools
+                  if (isToolCacheable(toolName)) {
+                    setCachedToolResult(toolName, args, result.data);
+                  }
+                } else {
+                  recordToolFailure(toolName);
+                  agentToolCalls.labels(toolName, "fail").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
+                }
               }
             }
           }

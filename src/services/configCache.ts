@@ -257,3 +257,28 @@ export function stopConfigCache(): void {
   cache.clear();
   logger.info("[ConfigCache] Stopped and cleared");
 }
+
+/**
+ * Pre-warm cache by loading all guild configs from DB on startup.
+ * This avoids cold-start latency on the first message from each guild.
+ */
+export async function prewarmAllGuildConfigs(): Promise<void> {
+  try {
+    const configs = await prisma.guildConfig.findMany({
+      take: MAX_CACHE_ENTRIES,
+    });
+
+    let count = 0;
+    for (const config of configs) {
+      if (cache.has(config.guildId)) continue;
+      cacheConfig(config.guildId, config);
+      count++;
+    }
+
+    logger.info(`[ConfigCache] Pre-warmed ${count} guild configs from DB`);
+  } catch (error) {
+    logger.warn(
+      `[ConfigCache] Pre-warm failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
