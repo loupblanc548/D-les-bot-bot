@@ -58,6 +58,7 @@ import {
 } from "./agentToolRouter.js";
 import { isRestrictedTool, requestToolApproval, setSoarGateClient } from "./agentSoarGate.js";
 import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
+import { isKilled } from "./killSwitch.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
@@ -370,6 +371,11 @@ async function callLlmWithRetry(
 }
 
 async function runAgentLoopInternal(message: Message, userMessage: string): Promise<string> {
+  if (isKilled()) {
+    logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
+    return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";
+  }
+
   const client = getOpenAIClient();
   const ctx: ToolContext = {
     client: message.client as Client,

@@ -238,7 +238,7 @@ export function handleMemberEvents(client: Client) {
         prisma.log.deleteMany({ where: { guildId: guild.id } }),
         prisma.commandLog.deleteMany({ where: { guildId: guild.id } }),
         prisma.modAction.deleteMany({ where: { guildId: guild.id } }),
-        prisma.warningLog.deleteMany({ where: { guildId: guild.id } }),
+        prisma.sanction.deleteMany({ where: { guildId: guild.id, type: "WARN" } }),
         prisma.userActivityLog.deleteMany({ where: { guildId: guild.id } }),
         prisma.nameHistory.deleteMany({ where: { guildId: guild.id } }),
         prisma.avatarHistory.deleteMany({ where: { guildId: guild.id } }),
@@ -261,7 +261,10 @@ export function handleMemberEvents(client: Client) {
 
 // ─── Boost Announcement ──────────────────────────────────────────────────────
 
-async function sendBoostAnnouncement(client: Client, member: GuildMember | PartialGuildMember): Promise<void> {
+async function sendBoostAnnouncement(
+  client: Client,
+  member: GuildMember | PartialGuildMember,
+): Promise<void> {
   try {
     const channel = await client.channels.fetch(BOOST_CHANNEL_ID).catch(() => null);
     if (!channel || !channel.isTextBased()) {
@@ -283,7 +286,7 @@ async function sendBoostAnnouncement(client: Client, member: GuildMember | Parti
       .setColor(0xff73fa)
       .setDescription(
         `**${member.user?.tag ?? member.id}** vient de booster **${guild.name}** !\n` +
-        `Merci infiniment pour ton soutien ! 💜`
+          `Merci infiniment pour ton soutien ! 💜`,
       )
       .setThumbnail(member.user?.displayAvatarURL({ size: 256, extension: "png" }) ?? null)
       .addFields(
@@ -300,12 +303,16 @@ async function sendBoostAnnouncement(client: Client, member: GuildMember | Parti
       .setFooter({ text: `${guild.name} • Server Boost`, iconURL: guild.iconURL() ?? undefined })
       .setTimestamp();
 
-    await (channel as TextChannel).send({
-      content: `💜 **${member.toString()}** a boosté le serveur !`,
-      embeds: [embed],
-    }).catch(() => {});
+    await (channel as TextChannel)
+      .send({
+        content: `💜 **${member.toString()}** a boosté le serveur !`,
+        embeds: [embed],
+      })
+      .catch(() => {});
 
-    logger.info(`[Boost] ${member.user?.tag ?? member.id} a boosté ${guild.name} — ${boostCount} boosts total (Tier ${boostTier})`);
+    logger.info(
+      `[Boost] ${member.user?.tag ?? member.id} a boosté ${guild.name} — ${boostCount} boosts total (Tier ${boostTier})`,
+    );
 
     await createLog({
       type: "server_boost",

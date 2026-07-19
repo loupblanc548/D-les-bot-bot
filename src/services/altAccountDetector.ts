@@ -55,7 +55,10 @@ function similarity(a: string, b: string): number {
 
 // ─── Detect ───────────────────────────────────────────────────────────
 
-export async function detectAltAccount(member: GuildMember, guild: Guild): Promise<AltAccountFlag | null> {
+export async function detectAltAccount(
+  member: GuildMember,
+  guild: Guild,
+): Promise<AltAccountFlag | null> {
   const reasons: string[] = [];
   let riskScore = 0;
 
@@ -68,10 +71,14 @@ export async function detectAltAccount(member: GuildMember, guild: Guild): Promi
 
   // 2. Sequential join detection — check recent joins
   const recentJoins = guild.members.cache.filter(
-    (m) => Math.abs(m.joinedTimestamp! - member.joinedTimestamp!) < SEQUENTIAL_JOIN_MINUTES * 60_000 && m.id !== member.id,
+    (m) =>
+      Math.abs(m.joinedTimestamp! - member.joinedTimestamp!) < SEQUENTIAL_JOIN_MINUTES * 60_000 &&
+      m.id !== member.id,
   );
   if (recentJoins.size >= 2) {
-    reasons.push(`${recentJoins.size} comptes ont rejoint dans les ${SEQUENTIAL_JOIN_MINUTES} minutes`);
+    reasons.push(
+      `${recentJoins.size} comptes ont rejoint dans les ${SEQUENTIAL_JOIN_MINUTES} minutes`,
+    );
     riskScore += 25;
   }
 
@@ -99,7 +106,9 @@ export async function detectAltAccount(member: GuildMember, guild: Guild): Promi
       const matchingBan = bans.find((b) => {
         const banReason = b.reason?.toLowerCase() ?? "";
         const userName = member.user.username.toLowerCase();
-        return banReason.includes(userName) || similarity(b.user.username, member.user.username) > 0.85;
+        return (
+          banReason.includes(userName) || similarity(b.user.username, member.user.username) > 0.85
+        );
       });
       if (matchingBan) {
         reasons.push(`Possible évasion de ban: similaire à ${matchingBan.user.tag}`);
@@ -107,19 +116,25 @@ export async function detectAltAccount(member: GuildMember, guild: Guild): Promi
         riskScore += 40;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // 6. Check warning history for linked accounts
   try {
-    const warnings = await prisma.warning.findMany({
-      where: { guildId: guild.id, userId: member.id },
-      take: 1,
-    }).catch(() => []);
+    const warnings = await prisma.sanction
+      .findMany({
+        where: { guildId: guild.id, userId: member.id, type: "WARN" },
+        take: 1,
+      })
+      .catch(() => []);
     if (warnings.length > 0) {
       reasons.push("Historique de warnings existant");
       riskScore += 10;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (reasons.length === 0 || riskScore < 20) return null;
 
@@ -133,7 +148,9 @@ export async function detectAltAccount(member: GuildMember, guild: Guild): Promi
   };
 
   flags.set(member.id, flag);
-  logger.warn(`[AltDetector] Flagged ${member.user.tag} (risk: ${riskScore}): ${reasons.join(", ")}`);
+  logger.warn(
+    `[AltDetector] Flagged ${member.user.tag} (risk: ${riskScore}): ${reasons.join(", ")}`,
+  );
   return flag;
 }
 
@@ -150,7 +167,11 @@ export function generateAltAlertEmbed(flag: AltAccountFlag, member: GuildMember)
     .addFields(
       { name: "👤 Utilisateur", value: `${member.user.tag}\n<@${member.id}>`, inline: true },
       { name: "📊 Risk Score", value: `${flag.riskScore}/100 (${riskLevel})`, inline: true },
-      { name: "📅 Compte créé", value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+      {
+        name: "📅 Compte créé",
+        value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
+        inline: true,
+      },
       { name: "📝 Raisons", value: flag.reasons.map((r) => `• ${r}`).join("\n"), inline: false },
     )
     .setTimestamp();
@@ -168,7 +189,11 @@ export function generateAltAlertEmbed(flag: AltAccountFlag, member: GuildMember)
 
 // ─── Notify staff ─────────────────────────────────────────────────────
 
-export async function notifyStaff(guild: Guild, flag: AltAccountFlag, logChannelId: string): Promise<void> {
+export async function notifyStaff(
+  guild: Guild,
+  flag: AltAccountFlag,
+  logChannelId: string,
+): Promise<void> {
   const channel = guild.channels.cache.get(logChannelId) as TextChannel | undefined;
   if (!channel || channel.type !== ChannelType.GuildText) return;
 
@@ -176,7 +201,12 @@ export async function notifyStaff(guild: Guild, flag: AltAccountFlag, logChannel
   if (!member) return;
 
   const embed = generateAltAlertEmbed(flag, member);
-  await channel.send({ content: `⚠️ <@&${guild.roles.cache.find((r) => r.name === "Modérateur" || r.name === "Admin")?.id ?? ""}>`, embeds: [embed] }).catch(() => {});
+  await channel
+    .send({
+      content: `⚠️ <@&${guild.roles.cache.find((r) => r.name === "Modérateur" || r.name === "Admin")?.id ?? ""}>`,
+      embeds: [embed],
+    })
+    .catch(() => {});
 }
 
 // ─── Stats & management ───────────────────────────────────────────────
@@ -189,7 +219,12 @@ export function clearFlag(userId: string): boolean {
   return flags.delete(userId);
 }
 
-export function getAltStats(guildId: string): { total: number; critical: number; high: number; moderate: number } {
+export function getAltStats(guildId: string): {
+  total: number;
+  critical: number;
+  high: number;
+  moderate: number;
+} {
   const guildFlags = getFlaggedAccounts(guildId);
   return {
     total: guildFlags.length,

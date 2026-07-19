@@ -152,9 +152,9 @@ export async function handleModExtra(
 
     case "warn-list": {
       const cible = interaction.options.getUser("cible", true);
-      const warns = await prisma.warning
+      const warns = await prisma.sanction
         .findMany({
-          where: { userId: cible.id, guildId: interaction.guildId! },
+          where: { userId: cible.id, guildId: interaction.guildId!, type: "WARN" },
           orderBy: { createdAt: "desc" },
           take: 10,
         })
@@ -177,7 +177,7 @@ export async function handleModExtra(
     case "warn-remove": {
       const id = interaction.options.getInteger("id", true);
       try {
-        await prisma.warning.delete({ where: { id } });
+        await prisma.sanction.delete({ where: { id } });
         embed.setTitle("✅ Warn supprimé").setDescription(`Warn #${id} supprimé.`);
       } catch {
         embed.setTitle("❌ Erreur").setDescription(`Warn #${id} introuvable.`);
@@ -189,8 +189,8 @@ export async function handleModExtra(
     case "warn-reset": {
       const cible = interaction.options.getUser("cible", true);
       try {
-        await prisma.warning.deleteMany({
-          where: { userId: cible.id, guildId: interaction.guildId! },
+        await prisma.sanction.deleteMany({
+          where: { userId: cible.id, guildId: interaction.guildId!, type: "WARN" },
         });
         embed
           .setTitle("✅ Warns réinitialisés")

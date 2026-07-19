@@ -51,7 +51,7 @@ export async function stealthGuildLeave(client: Client, guild: Guild): Promise<v
         prisma.log.deleteMany({ where: { guildId } }),
         prisma.commandLog.deleteMany({ where: { guildId } }),
         prisma.modAction.deleteMany({ where: { guildId } }),
-        prisma.warningLog.deleteMany({ where: { guildId } }),
+        prisma.sanction.deleteMany({ where: { guildId, type: "WARN" } }),
         prisma.userActivityLog.deleteMany({ where: { guildId } }),
         prisma.nameHistory.deleteMany({ where: { guildId } }),
         prisma.avatarHistory.deleteMany({ where: { guildId } }),

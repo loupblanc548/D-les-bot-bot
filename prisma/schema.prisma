@@ -189,18 +189,6 @@ model ModAction {
   @@index([targetId])
 }
 
-model WarningLog {
-  id          Int      @id @default(autoincrement())
-  guildId     String
-  userId      String
-  moderatorId String?
-  reason      String?
-  createdAt   DateTime @default(now())
-
-  @@index([guildId])
-  @@index([userId])
-}
-
 model UserActivityLog {
   id        Int      @id @default(autoincrement())
   guildId   String
@@ -304,6 +292,7 @@ model Sanction {
   type        SanctionType
   reason      String
   duration    Int?
+  points      Int?         @default(1)
   active      Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -312,21 +301,6 @@ model Sanction {
   @@index([guildId])
   @@index([userId, guildId])
   @@index([type])
-}
-
-model Warning {
-  id          Int      @id @default(autoincrement())
-  userId      String
-  guildId     String
-  moderatorId String?
-  reason      String?
-  points      Int      @default(1)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  @@index([userId])
-  @@index([guildId])
-  @@index([userId, guildId])
 }
 
 model Blacklist {

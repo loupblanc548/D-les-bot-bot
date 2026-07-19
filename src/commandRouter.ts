@@ -104,8 +104,15 @@ import { commands as helpCommands, handleCommand as handleHelp } from "./command
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
 import { commands as releasesCommands, handleReleasesCommand } from "./commands/releases.js";
 import { commands as trendingCommands, handleTrendingCommand } from "./commands/trending.js";
-import { commands as gameUpdatesCommands, handleGameUpdatesCommand } from "./commands/gameupdates.js";
+import {
+  commands as gameUpdatesCommands,
+  handleGameUpdatesCommand,
+} from "./commands/gameupdates.js";
 import { commands as streamCommands, handleStreamCommand } from "./commands/stream.js";
+import {
+  data as killswitchCommandData,
+  execute as killswitchExecute,
+} from "./commands/killswitch.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -473,6 +480,8 @@ export const allCommands = [
   ...gameUpdatesCommands,
   // ── Stream (Go Live controller) ──
   ...streamCommands,
+  // ── Kill Switch (admin emergency) ──
+  killswitchCommandData,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -547,6 +556,11 @@ export function buildCommandRouter(): void {
   commandRouter["stream"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleStreamCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Kill Switch command ───
+  commandRouter["killswitch"] = async (interaction, client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await killswitchExecute(interaction as ChatInputCommandInteraction, client);
   };
   // ─── Context Menus ───
   registerGroup(
@@ -645,7 +659,9 @@ export async function registerCommands(): Promise<void> {
       // Enregistrer aussi globalement pour le badge Active Developer
       try {
         await rest.put(Routes.applicationCommands(config.clientId), { body: mergedCommands });
-        logger.info(`✓ ${mergedCommands.length} commandes aussi enregistrées globalement (badge Active Developer)`);
+        logger.info(
+          `✓ ${mergedCommands.length} commandes aussi enregistrées globalement (badge Active Developer)`,
+        );
       } catch (globalErr) {
         logger.warn(
           `[Register] Enregistrement global échoué (non critique pour la guilde): ${globalErr instanceof Error ? globalErr.message : String(globalErr)}`,
