@@ -113,6 +113,7 @@ import {
   data as killswitchCommandData,
   execute as killswitchExecute,
 } from "./commands/killswitch.js";
+import { data as privacyCommandData, execute as privacyExecute } from "./commands/privacy.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -482,6 +483,8 @@ export const allCommands = [
   ...streamCommands,
   // ── Kill Switch (admin emergency) ──
   killswitchCommandData,
+  // ── Privacy (RGPD compliance) ──
+  privacyCommandData,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -561,6 +564,11 @@ export function buildCommandRouter(): void {
   commandRouter["killswitch"] = async (interaction, client) => {
     if (!interaction.isChatInputCommand()) return;
     await killswitchExecute(interaction as ChatInputCommandInteraction, client);
+  };
+  // ─── Privacy (RGPD) command ───
+  commandRouter["privacy"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await privacyExecute(interaction as ChatInputCommandInteraction);
   };
   // ─── Context Menus ───
   registerGroup(

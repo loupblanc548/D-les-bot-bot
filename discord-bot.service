@@ -1,0 +1,33 @@
+# discord-bot.service — Directive 5: Native Node.js Execution
+#
+# Place in /etc/systemd/system/discord-bot.service on the VPS.
+# This replaces the tsx dev runtime with native Node.js execution
+# of the compiled JavaScript bundle (dist/index.js).
+#
+# After updating, run:
+#   systemctl daemon-reload
+#   systemctl restart discord-bot
+
+[Unit]
+Description=Discord Surveillance Bot (Native Node.js)
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/discord-bot
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--expose-gc --max-old-space-size=4096
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=false
+
+[Install]
+WantedBy=multi-user.target

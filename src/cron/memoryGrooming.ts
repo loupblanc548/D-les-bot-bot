@@ -12,6 +12,7 @@ import { Client } from "discord.js";
 import * as Sentry from "@sentry/node";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
+import { purgeStaleMemory, MEMORY_RETENTION_MONTHS } from "../services/privacyService.js";
 
 const GROOMING_CRON_EXPRESSION = "5 4 * * *"; // 04h05 tous les jours
 const GROOMING_MODEL = process.env.GROOMING_MODEL || "z-ai/glm-4.6:free";
@@ -43,6 +44,7 @@ interface ConsolidationPlan {
 }
 
 let cronJob: ScheduledTask | null = null;
+let rgpdPurgeJob: ScheduledTask | null = null;
 
 /**
  * Récupère les utilisateurs actifs dans les dernières 24h.
@@ -322,7 +324,25 @@ export function startMemoryGrooming(_client: Client): void {
     void runMemoryGrooming();
   });
 
-  logger.info("[MemoryGrooming] Cron planifié à 04h05 (après NotificationCleanup)");
+  // RGPD retention purge — runs weekly (Sunday 03h00) to delete memory data
+  // older than MEMORY_RETENTION_MONTHS without interaction
+  rgpdPurgeJob = cron.schedule("0 3 * * 0", async () => {
+    logger.info(
+      `[MemoryGrooming] Starting RGPD retention purge (>${MEMORY_RETENTION_MONTHS} months)`,
+    );
+    try {
+      const result = await purgeStaleMemory();
+      logger.info(
+        `[MemoryGrooming] RGPD purge done: ${result.factsDeleted} facts, ${result.messagesDeleted} messages`,
+      );
+    } catch (err) {
+      logger.error(
+        `[MemoryGrooming] RGPD purge failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  });
+
+  logger.info("[MemoryGrooming] Cron planifié à 04h05 (grooming) + 03h00 dimanche (RGPD purge)");
 }
 
 /**
@@ -332,6 +352,10 @@ export function stopMemoryGrooming(): void {
   if (cronJob) {
     cronJob.stop();
     cronJob = null;
-    logger.info("[MemoryGrooming] Cron arrêté");
   }
+  if (rgpdPurgeJob) {
+    rgpdPurgeJob.stop();
+    rgpdPurgeJob = null;
+  }
+  logger.info("[MemoryGrooming] Cron arrêté");
 }
