@@ -501,10 +501,9 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "generate_tts",
       { level: "low", module: "free", reason: "Generates TTS audio, no persistence, free API" },
     ],
-    [
-      "get_nasa_apod",
-      { level: "low", module: "free", reason: "Read-only NASA APOD (duplicate of getNasaApod)" },
-    ],
+    // Duplicates removed: get_nasa_apod, get_cat_image, get_pokemon, get_npm_package,
+    // get_pypi_package, get_country_info, get_urban_dict, get_currency_rate,
+    // get_random_user, get_stock_price — all exist in Extended module
     ["get_earthquakes", { level: "low", module: "free", reason: "Read-only USGS earthquake data" }],
     ["get_chess_stats", { level: "low", module: "free", reason: "Read-only Chess.com stats" }],
     ["get_lichess_stats", { level: "low", module: "free", reason: "Read-only Lichess stats" }],
@@ -515,58 +514,6 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ["get_google_trends", { level: "low", module: "free", reason: "Read-only Google Trends" }],
     ["get_rsshub_feed", { level: "low", module: "free", reason: "Read-only RSSHub feed" }],
     ["get_devto_articles", { level: "low", module: "free", reason: "Read-only Dev.to articles" }],
-    [
-      "get_cat_image",
-      { level: "low", module: "free", reason: "Read-only cat image (duplicate of getCatImage)" },
-    ],
-    [
-      "get_pokemon",
-      { level: "low", module: "free", reason: "Read-only PokeAPI (duplicate of getPokemon)" },
-    ],
-    [
-      "get_npm_package",
-      { level: "low", module: "free", reason: "Read-only npm (duplicate of getNpmPackage)" },
-    ],
-    [
-      "get_pypi_package",
-      { level: "low", module: "free", reason: "Read-only PyPI (duplicate of getPypiPackage)" },
-    ],
-    [
-      "get_country_info",
-      {
-        level: "low",
-        module: "free",
-        reason: "Read-only country info (duplicate of getCountryInfo)",
-      },
-    ],
-    [
-      "get_urban_dict",
-      { level: "low", module: "free", reason: "Read-only Urban Dictionary (duplicate)" },
-    ],
-    [
-      "get_currency_rate",
-      {
-        level: "low",
-        module: "free",
-        reason: "Read-only exchange rate (duplicate of getCurrencyRate)",
-      },
-    ],
-    [
-      "get_random_user",
-      {
-        level: "low",
-        module: "free",
-        reason: "Read-only random user (duplicate of getRandomUser)",
-      },
-    ],
-    [
-      "get_stock_price",
-      {
-        level: "low",
-        module: "free",
-        reason: "Read-only stock price (duplicate of getStockPrice)",
-      },
-    ],
     [
       "search_developer_resources",
       { level: "low", module: "free", reason: "Read-only free-for-dev search" },
