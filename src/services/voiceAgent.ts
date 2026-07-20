@@ -136,6 +136,116 @@ export function isInVoiceChannel(guildId: string): boolean {
   return activeConnections.has(guildId);
 }
 
+/**
+ * Fait parler le bot dans le salon vocal de l'utilisateur qui a envoyé le message.
+ * - Détecte le salon vocal de l'utilisateur
+ * - Rejoint le salon
+ * - Génère le TTS de la réponse
+ * - Joue l'audio
+ * - Quitte le salon après avoir fini de parler
+ *
+ * @param client Le client Discord
+ * @param guildId L'ID de la guilde
+ * @param userId L'ID de l'utilisateur (pour trouver son salon vocal)
+ * @param text Le texte à parler
+ * @param lang La langue du TTS (défaut: fr)
+ * @returns true si l'audio a été joué, false sinon
+ */
+export async function speakResponseInVoice(
+  client: Client,
+  guildId: string,
+  userId: string,
+  text: string,
+  lang = "fr",
+): Promise<boolean> {
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return false;
+
+    // Trouver le salon vocal de l'utilisateur
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member?.voice.channelId) return false;
+
+    const voiceChannelId = member.voice.channelId;
+    const wasAlreadyInVoice = activeConnections.get(guildId) === voiceChannelId;
+
+    // Rejoindre le salon vocal
+    if (!wasAlreadyInVoice) {
+      const joined = await joinVoiceChannelById(client, guildId, voiceChannelId);
+      if (!joined) return false;
+    }
+
+    // Nettoyer le texte pour le TTS (retirer markdown, emojis, blocs de code)
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, " (code) ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/~~([^~]+)~~/g, "$1")
+      .replace(/#[^\s]+/g, "") // hashtags
+      .replace(/<:[^:]+:\d+>/g, "") // custom emojis
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, "") // unicode emojis
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+      .replace(/https?:\/\/\S+/g, "") // URLs
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 500); // Google TTS limite à ~500 chars
+
+    if (!cleanText) return false;
+
+    // Générer l'audio TTS
+    const audioBuffer = await generateTTS(cleanText, lang, 1.0);
+    if (!audioBuffer) {
+      logger.warn("[VoiceAgent] TTS non disponible pour réponse vocale");
+      if (!wasAlreadyInVoice) leaveVoiceChannel(guildId);
+      return false;
+    }
+
+    // Jouer l'audio
+    const connection = getVoiceConnection(guildId);
+    if (!connection) {
+      if (!wasAlreadyInVoice) leaveVoiceChannel(guildId);
+      return false;
+    }
+
+    const player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
+    const { Readable } = await import("node:stream");
+    const stream = Readable.from(audioBuffer);
+    const resource = createAudioResource(stream);
+    player.play(resource);
+
+    connection.subscribe(player);
+
+    return new Promise<boolean>((resolve) => {
+      let resolved = false;
+      const finish = (result: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        // Quitter le salon si on l'a rejoint uniquement pour parler
+        if (!wasAlreadyInVoice) {
+          setTimeout(() => leaveVoiceChannel(guildId), 2000);
+        }
+        resolve(result);
+      };
+
+      player.on(AudioPlayerStatus.Idle, () => finish(true));
+      player.on("error", (err) => {
+        logger.error(`[VoiceAgent] Audio player error: ${err.message}`);
+        finish(false);
+      });
+
+      // Timeout de sécurité (30s max)
+      setTimeout(() => finish(true), 30_000);
+    });
+  } catch (err) {
+    logger.error(
+      `[VoiceAgent] speakResponseInVoice error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return false;
+  }
+}
+
 // ─── Queue d'alertes vocales ─────────────────────────────────────────────────
 
 /**

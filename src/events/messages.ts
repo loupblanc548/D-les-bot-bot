@@ -28,7 +28,11 @@ import {
   checkMessageMediaForAI,
   checkMessageLinksForSecurity,
 } from "../services/aiAvatarDetector.js";
-import { joinVoiceChannelById, isInVoiceChannel } from "../services/voiceAgent.js";
+import {
+  joinVoiceChannelById,
+  isInVoiceChannel,
+  speakResponseInVoice,
+} from "../services/voiceAgent.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -477,6 +481,18 @@ async function handleAiChatMention(
       // ── Envoyer en plusieurs messages si la réponse est longue ──
       await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
 
+      // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
+      if (message.guildId && message.member?.voice?.channelId) {
+        const detectedLang = cleanedContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+        void speakResponseInVoice(
+          message.client,
+          message.guildId,
+          message.author.id,
+          aiResponse,
+          detectedLang,
+        ).catch(() => {});
+      }
+
       // ── Sauvegarder la réponse dans la conversation ──
       await addMessageToConversation(
         message.author.id,
@@ -580,6 +596,18 @@ async function handleDMMessage(
 
       // ── Envoyer en plusieurs messages si la réponse est longue ──
       await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
+
+      // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
+      if (message.guildId && message.member?.voice?.channelId) {
+        const detectedLang = content.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+        void speakResponseInVoice(
+          message.client,
+          message.guildId,
+          message.author.id,
+          aiResponse,
+          detectedLang,
+        ).catch(() => {});
+      }
 
       // Sauvegarder en mémoire conversation + extraire faits long-terme
       void extractAndSaveMemory(message.author.id, content, aiResponse).catch(() => {});
