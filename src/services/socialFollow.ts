@@ -6,7 +6,23 @@ import { safeInterval } from "../utils/safe-interval.js";
 
 let monitoringInterval: ReturnType<typeof setInterval> | null = null;
 
-type Platform = "twitch" | "youtube" | "twitter";
+type Platform =
+  | "twitch"
+  | "youtube"
+  | "twitter"
+  | "instagram"
+  | "tiktok"
+  | "facebook"
+  | "reddit"
+  | "bluesky"
+  | "mastodon"
+  | "kick"
+  | "telegram"
+  | "snapchat"
+  | "linkedin"
+  | "pinterest"
+  | "dailymotion"
+  | "vimeo";
 
 // ─── Twitch ──────────────────────────────────────────────────────────────────
 
@@ -196,6 +212,269 @@ async function checkTwitter(follows: typeof followsType): Promise<void> {
   }
 }
 
+// ─── RSS-based platforms (Instagram, TikTok, Reddit, Kick, etc.) ─────────────
+
+const PLATFORM_CONFIG: Record<
+  string,
+  {
+    color: number;
+    emoji: string;
+    rssBuilder: (name: string) => string | null;
+    idExtractor: (xml: string) => string | null;
+    titleExtractor: (xml: string) => string;
+    urlBuilder: (name: string, id: string) => string;
+  }
+> = {
+  instagram: {
+    color: 0xe1306c,
+    emoji: "📸",
+    rssBuilder: (name) => `https://rsshub.app/instagram/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/p\/([A-Za-z0-9_-]+)/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau post Instagram";
+    },
+    urlBuilder: (name, id) => `https://instagram.com/p/${id}`,
+  },
+  tiktok: {
+    color: 0x000000,
+    emoji: "🎵",
+    rssBuilder: (name) => `https://rsshub.app/tiktok/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/video\/(\d+)/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouvelle vidéo TikTok";
+    },
+    urlBuilder: (name, id) => `https://tiktok.com/@${name}/video/${id}`,
+  },
+  reddit: {
+    color: 0xff4500,
+    emoji: "🤖",
+    rssBuilder: (name) => `https://www.reddit.com/user/${name}/.rss`,
+    idExtractor: (xml) => {
+      const m = xml.match(/<id>t3_([a-z0-9]+)<\/id>/i);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau post Reddit";
+    },
+    urlBuilder: (name, id) => `https://reddit.com/comments/${id}`,
+  },
+  kick: {
+    color: 0x53fc18,
+    emoji: "🟢",
+    rssBuilder: (name) => `https://rsshub.app/kick/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/<guid>[^<]*\/([^<]+)<\/guid>/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau live Kick";
+    },
+    urlBuilder: (name, _id) => `https://kick.com/${name}`,
+  },
+  bluesky: {
+    color: 0x0085ff,
+    emoji: "☁️",
+    rssBuilder: (name) => `https://rsshub.app/bluesky/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/post\/([a-z0-9]+)/i);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau post Bluesky";
+    },
+    urlBuilder: (name, id) => `https://bsky.app/profile/${name}/post/${id}`,
+  },
+  mastodon: {
+    color: 0x6364ff,
+    emoji: "🐘",
+    rssBuilder: (name) => {
+      // name format: user@instance
+      const [user, instance] = name.split("@");
+      if (!instance) return null;
+      return `https://${instance}/@${user}.rss`;
+    },
+    idExtractor: (xml) => {
+      const m = xml.match(/<guid>[^<]*\/([^\/<]+)<\/guid>/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau pouet Mastodon";
+    },
+    urlBuilder: (name, id) => {
+      const [user, instance] = name.split("@");
+      return `https://${instance}/@${user}/${id}`;
+    },
+  },
+  dailymotion: {
+    color: 0x0066dc,
+    emoji: "🎥",
+    rssBuilder: (name) => `https://www.dailymotion.com/rss/user/${name}/1`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/video\/([a-z0-9]+)/i);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouvelle vidéo Dailymotion";
+    },
+    urlBuilder: (_name, id) => `https://dailymotion.com/video/${id}`,
+  },
+  vimeo: {
+    color: 0x1ab7ea,
+    emoji: "🎬",
+    rssBuilder: (name) => `https://vimeo.com/${name}/videos/rss`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/(\d+)$/m);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouvelle vidéo Vimeo";
+    },
+    urlBuilder: (_name, id) => `https://vimeo.com/${id}`,
+  },
+  facebook: {
+    color: 0x1877f2,
+    emoji: "👍",
+    rssBuilder: (name) => `https://rsshub.app/facebook/page/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/posts\/(\d+)/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau post Facebook";
+    },
+    urlBuilder: (name, id) => `https://facebook.com/${name}/posts/${id}`,
+  },
+  telegram: {
+    color: 0x0088cc,
+    emoji: "✈️",
+    rssBuilder: (name) => `https://rsshub.app/telegram/channel/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/(\d+)$/m);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau message Telegram";
+    },
+    urlBuilder: (name, id) => `https://t.me/${name}/${id}`,
+  },
+  snapchat: {
+    color: 0xfffc00,
+    emoji: "👻",
+    rssBuilder: (name) => `https://rsshub.app/snapchat/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/<guid>[^<]*\/([^<]+)<\/guid>/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau snap Snapchat";
+    },
+    urlBuilder: (name, _id) => `https://snapchat.com/add/${name}`,
+  },
+  linkedin: {
+    color: 0x0a66c2,
+    emoji: "💼",
+    rssBuilder: (name) => `https://rsshub.app/linkin/company/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/<guid>[^<]*\/([^<]+)<\/guid>/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau post LinkedIn";
+    },
+    urlBuilder: (name, _id) => `https://linkedin.com/company/${name}`,
+  },
+  pinterest: {
+    color: 0xe60023,
+    emoji: "📌",
+    rssBuilder: (name) => `https://rsshub.app/pinterest/user/${name}`,
+    idExtractor: (xml) => {
+      const m = xml.match(/\/pin\/(\d+)/);
+      return m?.[1] ?? null;
+    },
+    titleExtractor: (xml) => {
+      const m = xml.match(/<title>([^<]+)<\/title>/);
+      return m?.[1] ?? "Nouveau pin Pinterest";
+    },
+    urlBuilder: (_name, id) => `https://pinterest.com/pin/${id}`,
+  },
+};
+
+async function checkRSSPlatforms(follows: typeof followsType): Promise<void> {
+  const rssPlatforms = Object.keys(PLATFORM_CONFIG);
+  const rssFollows = follows.filter((f) => rssPlatforms.includes(f.platform));
+  if (rssFollows.length === 0) return;
+
+  for (const follow of rssFollows) {
+    const cfg = PLATFORM_CONFIG[follow.platform];
+    if (!cfg) continue;
+
+    const rssUrl = cfg.rssBuilder(follow.channelName);
+    if (!rssUrl) continue;
+
+    try {
+      const res = await fetch(rssUrl, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
+      });
+      if (!res.ok) continue;
+      const xml = await res.text();
+
+      const latestId = cfg.idExtractor(xml);
+      if (!latestId) continue;
+
+      const lastSeenKey = follow.lastVideoId || follow.lastTweetId;
+      if (lastSeenKey && lastSeenKey === latestId) continue;
+
+      // Update last seen ID
+      const updateData: Record<string, string> = {};
+      if (follow.platform === "twitter") {
+        updateData.lastTweetId = latestId;
+      } else {
+        updateData.lastVideoId = latestId;
+      }
+      await prisma.socialFollow.update({
+        where: { id: follow.id },
+        data: updateData,
+      });
+
+      // Only notify if we had a previous entry
+      if (lastSeenKey) {
+        const title = cfg.titleExtractor(xml);
+        await sendNotification(follow, {
+          title: `${cfg.emoji} ${title}`,
+          url: cfg.urlBuilder(follow.channelName, latestId),
+          description: `**${follow.channelName}** sur ${follow.platform}\n${title.slice(0, 200)}`,
+          thumbnail: null,
+          color: cfg.color,
+          footerText: follow.platform,
+        });
+      }
+    } catch (err) {
+      logger.debug(
+        `[SocialFollow] ${follow.platform} check failed for ${follow.channelName}: ${err}`,
+      );
+    }
+  }
+}
+
 // ─── Notification dispatch ───────────────────────────────────────────────────
 
 interface NotificationPayload {
@@ -268,7 +547,12 @@ async function checkAllPlatforms(client: Client): Promise<void> {
     const follows = await prisma.socialFollow.findMany({ take: 500 });
     if (follows.length === 0) return;
 
-    await Promise.allSettled([checkTwitch(follows), checkYouTube(follows), checkTwitter(follows)]);
+    await Promise.allSettled([
+      checkTwitch(follows),
+      checkYouTube(follows),
+      checkTwitter(follows),
+      checkRSSPlatforms(follows),
+    ]);
   } catch (err) {
     logger.error("[SocialFollow] Monitoring error:", err);
   }

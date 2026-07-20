@@ -24,7 +24,7 @@ const FOOTER = { text: "Social Follow System" };
 export const commands = [
   new SlashCommandBuilder()
     .setName("follow")
-    .setDescription("Suit une chaîne Twitch, YouTube ou un compte Twitter/X")
+    .setDescription("Suit une chaîne ou un compte sur n'importe quelle plateforme sociale")
     .addSubcommand((sub) =>
       sub
         .setName("add")
@@ -38,6 +38,19 @@ export const commands = [
               { name: "🟣 Twitch", value: "twitch" },
               { name: "🔴 YouTube", value: "youtube" },
               { name: "🔵 Twitter / X", value: "twitter" },
+              { name: "📸 Instagram", value: "instagram" },
+              { name: "🎵 TikTok", value: "tiktok" },
+              { name: "👍 Facebook", value: "facebook" },
+              { name: "🤖 Reddit", value: "reddit" },
+              { name: "☁️ Bluesky", value: "bluesky" },
+              { name: "🐘 Mastodon", value: "mastodon" },
+              { name: "🟢 Kick", value: "kick" },
+              { name: "✈️ Telegram", value: "telegram" },
+              { name: "👻 Snapchat", value: "snapchat" },
+              { name: "💼 LinkedIn", value: "linkedin" },
+              { name: "📌 Pinterest", value: "pinterest" },
+              { name: "🎥 Dailymotion", value: "dailymotion" },
+              { name: "🎬 Vimeo", value: "vimeo" },
             ),
         )
         .addStringOption((o) =>
@@ -61,6 +74,19 @@ export const commands = [
               { name: "🟣 Twitch", value: "twitch" },
               { name: "🔴 YouTube", value: "youtube" },
               { name: "🔵 Twitter / X", value: "twitter" },
+              { name: "📸 Instagram", value: "instagram" },
+              { name: "🎵 TikTok", value: "tiktok" },
+              { name: "👍 Facebook", value: "facebook" },
+              { name: "🤖 Reddit", value: "reddit" },
+              { name: "☁️ Bluesky", value: "bluesky" },
+              { name: "🐘 Mastodon", value: "mastodon" },
+              { name: "🟢 Kick", value: "kick" },
+              { name: "✈️ Telegram", value: "telegram" },
+              { name: "👻 Snapchat", value: "snapchat" },
+              { name: "💼 LinkedIn", value: "linkedin" },
+              { name: "📌 Pinterest", value: "pinterest" },
+              { name: "🎥 Dailymotion", value: "dailymotion" },
+              { name: "🎬 Vimeo", value: "vimeo" },
             ),
         )
         .addStringOption((o) =>
@@ -212,7 +238,23 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
     if (response.customId === "follow_dm") {
       const result = await addSocialFollow({
         guildId,
-        platform: platform as "twitch" | "youtube" | "twitter",
+        platform: platform as
+          | "twitch"
+          | "youtube"
+          | "twitter"
+          | "instagram"
+          | "tiktok"
+          | "facebook"
+          | "reddit"
+          | "bluesky"
+          | "mastodon"
+          | "kick"
+          | "telegram"
+          | "snapchat"
+          | "linkedin"
+          | "pinterest"
+          | "dailymotion"
+          | "vimeo",
         channelName,
         notifyMode: "dm",
         notifyChannel: null,
@@ -284,7 +326,23 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
       if (channelResponse.customId === "follow_here") {
         const result = await addSocialFollow({
           guildId,
-          platform: platform as "twitch" | "youtube" | "twitter",
+          platform: platform as
+            | "twitch"
+            | "youtube"
+            | "twitter"
+            | "instagram"
+            | "tiktok"
+            | "facebook"
+            | "reddit"
+            | "bluesky"
+            | "mastodon"
+            | "kick"
+            | "telegram"
+            | "snapchat"
+            | "linkedin"
+            | "pinterest"
+            | "dailymotion"
+            | "vimeo",
           channelName,
           notifyMode: "channel",
           notifyChannel: interaction.channelId!,
@@ -413,7 +471,23 @@ async function handleRemove(interaction: ChatInputCommandInteraction) {
 
   const result = await removeSocialFollow(
     guildId,
-    platform as "twitch" | "youtube" | "twitter",
+    platform as
+      | "twitch"
+      | "youtube"
+      | "twitter"
+      | "instagram"
+      | "tiktok"
+      | "facebook"
+      | "reddit"
+      | "bluesky"
+      | "mastodon"
+      | "kick"
+      | "telegram"
+      | "snapchat"
+      | "linkedin"
+      | "pinterest"
+      | "dailymotion"
+      | "vimeo",
     channelName,
   );
 

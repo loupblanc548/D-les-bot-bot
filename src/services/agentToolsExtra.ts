@@ -427,18 +427,36 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
     function: {
       name: "follow_social",
       description:
-        "Permet de suivre une chaîne Twitch, YouTube, ou un compte Twitter/X pour recevoir des notifications quand le créateur poste du contenu ou passe en live. Demande à l'utilisateur s'il veut les notifications en MP ou dans un salon spécifique.",
+        "Permet de suivre une chaîne ou un compte sur n'importe quelle plateforme sociale (Twitch, YouTube, Twitter/X, Instagram, TikTok, Facebook, Reddit, Bluesky, Mastodon, Kick, Telegram, Snapchat, LinkedIn, Pinterest, Dailymotion, Vimeo) pour recevoir des notifications quand le créateur poste du contenu ou passe en live. Demande à l'utilisateur s'il veut les notifications en MP ou dans un salon spécifique.",
       parameters: {
         type: "object",
         properties: {
           platform: {
             type: "string",
-            enum: ["twitch", "youtube", "twitter"],
+            enum: [
+              "twitch",
+              "youtube",
+              "twitter",
+              "instagram",
+              "tiktok",
+              "facebook",
+              "reddit",
+              "bluesky",
+              "mastodon",
+              "kick",
+              "telegram",
+              "snapchat",
+              "linkedin",
+              "pinterest",
+              "dailymotion",
+              "vimeo",
+            ],
             description: "La plateforme sociale à suivre",
           },
           channel_name: {
             type: "string",
-            description: "Le nom de la chaîne ou du compte (ex: shroud, MrBeast, elonmusk)",
+            description:
+              "Le nom de la chaîne ou du compte (ex: shroud, MrBeast, elonmusk, charlidamelio, etc.)",
           },
           notify_mode: {
             type: "string",
@@ -460,13 +478,31 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "unfollow_social",
-      description: "Arrête de suivre une chaîne Twitch, YouTube, ou un compte Twitter/X.",
+      description:
+        "Arrête de suivre une chaîne ou un compte sur n'importe quelle plateforme sociale.",
       parameters: {
         type: "object",
         properties: {
           platform: {
             type: "string",
-            enum: ["twitch", "youtube", "twitter"],
+            enum: [
+              "twitch",
+              "youtube",
+              "twitter",
+              "instagram",
+              "tiktok",
+              "facebook",
+              "reddit",
+              "bluesky",
+              "mastodon",
+              "kick",
+              "telegram",
+              "snapchat",
+              "linkedin",
+              "pinterest",
+              "dailymotion",
+              "vimeo",
+            ],
             description: "La plateforme sociale",
           },
           channel_name: {
@@ -1161,10 +1197,28 @@ async function toolFollowSocial(
     return { success: false, data: "Paramètres manquants: platform et channel_name requis" };
   }
 
-  if (!["twitch", "youtube", "twitter"].includes(platform)) {
+  const validPlatforms = [
+    "twitch",
+    "youtube",
+    "twitter",
+    "instagram",
+    "tiktok",
+    "facebook",
+    "reddit",
+    "bluesky",
+    "mastodon",
+    "kick",
+    "telegram",
+    "snapchat",
+    "linkedin",
+    "pinterest",
+    "dailymotion",
+    "vimeo",
+  ];
+  if (!validPlatforms.includes(platform)) {
     return {
       success: false,
-      data: `Plateforme invalide: ${platform}. Utilisez twitch, youtube ou twitter`,
+      data: `Plateforme invalide: ${platform}. Plateformes supportées: ${validPlatforms.join(", ")}`,
     };
   }
 
@@ -1178,7 +1232,23 @@ async function toolFollowSocial(
   const { addSocialFollow } = await import("./socialFollow.js");
   const result = await addSocialFollow({
     guildId: ctx.message.guildId!,
-    platform: platform as "twitch" | "youtube" | "twitter",
+    platform: platform as
+      | "twitch"
+      | "youtube"
+      | "twitter"
+      | "instagram"
+      | "tiktok"
+      | "facebook"
+      | "reddit"
+      | "bluesky"
+      | "mastodon"
+      | "kick"
+      | "telegram"
+      | "snapchat"
+      | "linkedin"
+      | "pinterest"
+      | "dailymotion"
+      | "vimeo",
     channelName,
     notifyMode: notifyMode as "channel" | "dm",
     notifyChannel: notifyMode === "channel" ? channelId! : null,
@@ -1203,7 +1273,23 @@ async function toolUnfollowSocial(
   const { removeSocialFollow } = await import("./socialFollow.js");
   const result = await removeSocialFollow(
     ctx.message.guildId!,
-    platform as "twitch" | "youtube" | "twitter",
+    platform as
+      | "twitch"
+      | "youtube"
+      | "twitter"
+      | "instagram"
+      | "tiktok"
+      | "facebook"
+      | "reddit"
+      | "bluesky"
+      | "mastodon"
+      | "kick"
+      | "telegram"
+      | "snapchat"
+      | "linkedin"
+      | "pinterest"
+      | "dailymotion"
+      | "vimeo",
     channelName,
   );
 
