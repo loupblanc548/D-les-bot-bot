@@ -386,9 +386,56 @@ async function playTTSMessage(client: Client, alert: VoiceAlert): Promise<void> 
 }
 
 /**
- * Génère un audio TTS via l'API Google Translate (même méthode que tts.ts).
+ * Génère un audio TTS naturel via:
+ * 1. ElevenLabs (si configuré — voix neuronale ultra-réaliste, comme ChatGPT)
+ * 2. StreamElements / Amazon Polly (gratuit — voix neuronale naturelle)
+ * 3. Google Translate TTS (fallback dernier recours)
  */
 async function generateTTS(text: string, lang: string, _speed: number): Promise<Buffer | null> {
+  // 1. ElevenLabs si configuré (qualité maximale, type ChatGPT)
+  try {
+    const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("./elevenLabsTts.js");
+    if (isElevenLabsConfigured()) {
+      const result = await generateElevenLabsTTS(text.slice(0, 500));
+      if (result?.audioUrl && result.audioUrl.startsWith("data:audio/mpeg;base64,")) {
+        const base64Data = result.audioUrl.split(",")[1];
+        const buffer = Buffer.from(base64Data, "base64");
+        logger.info("[VoiceAgent] TTS via ElevenLabs (neural premium)");
+        return buffer;
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // 2. StreamElements / Amazon Polly (gratuit, voix neuronale naturelle)
+  try {
+    const voiceMap: Record<string, string> = {
+      fr: "Mathieu", // Voix masculine française neuronale
+      en: "Brian", // Voix masculine anglaise neuronale
+      es: "Enrique",
+      de: "Hans",
+      it: "Giorgio",
+      pt: "Ricardo",
+    };
+    const voice = voiceMap[lang] || "Brian";
+    const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
+    const seRes = await fetch(seUrl, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "DiscordBot/1.0" },
+    });
+    if (seRes.ok) {
+      const seBuffer = Buffer.from(await seRes.arrayBuffer());
+      if (seBuffer.length > 1000) {
+        logger.info(`[VoiceAgent] TTS via StreamElements/Polly (voix: ${voice})`);
+        return seBuffer;
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // 3. Fallback: Google Translate TTS (robotique mais toujours disponible)
   try {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 500))}&tl=${lang}&client=tw-ob`;
     const res = await fetch(url, {
@@ -396,15 +443,16 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Referer: "https://translate.google.com/",
       },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
-      logger.warn(`[VoiceAgent] TTS HTTP ${res.status}`);
+      logger.warn(`[VoiceAgent] TTS fallback HTTP ${res.status}`);
       return null;
     }
 
     const arrayBuffer = await res.arrayBuffer();
+    logger.info("[VoiceAgent] TTS via Google Translate (fallback)");
     return Buffer.from(arrayBuffer);
   } catch (error) {
     logger.error(
