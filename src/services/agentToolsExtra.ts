@@ -115,6 +115,7 @@ import {
   toolNameGenerator,
   toolZodiacCompatibility,
   toolTextToSpeechInfo,
+  toolTeraTermInfo,
 } from "./batch2/funMiscTools.js";
 
 // ─── Tool Definitions ───────────────────────────────────────────────────────
@@ -2265,6 +2266,26 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "teraterm_info",
+      description:
+        "Récupère les infos de Tera Term (terminal emulator): repo GitHub, dernière release, documentation, téléchargement. Gratuit via GitHub API. Supporte les requêtes en langage naturel sur Tera Term dans 12+ langues. Réponse vocale TTS disponible.",
+      parameters: {
+        type: "object",
+        properties: {
+          query_type: {
+            type: "string",
+            enum: ["info", "release", "download", "docs", "issues", "features"],
+            description:
+              "Type d'info: info (général), release (dernière version), download (liens), docs (documentation), issues (problèmes), features (fonctionnalités)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 export async function executeExtraTool(
@@ -2539,6 +2560,8 @@ export async function executeExtraTool(
         return await toolMarkdownToHtml(args);
       case "caniuse":
         return await toolCanIUse(args);
+      case "teraterm_info":
+        return await toolTeraTermInfo(args);
       default:
         return null;
     }

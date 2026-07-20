@@ -184,3 +184,105 @@ export async function toolTextToSpeechInfo(_a: Record<string, unknown>): Promise
     `🗣️ **Voix TTS:**\n\n**Edge TTS (neural, gratuit):**\nFR: Denise/Henri | EN: Jenny/Guy | ES: Elvira | DE: Katja | IT: Elsa | PT: Francisca | JP: Nanami | CN: Xiaoxiao | AR: Zariyah | +40 langues\n\n**StreamElements (Polly):**\nFR: Celine/Mathieu | EN: Joanna/Matthew\n\n**ElevenLabs (premium):**\nConfigure ELEVENLABS_API_KEY\n\nLe bot répond en vocal automatiquement!`,
   );
 }
+
+export async function toolTeraTermInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const queryType = String(args.query_type || "info")
+    .trim()
+    .toLowerCase();
+  const owner = "TeraTermProject";
+  const repo = "teraterm";
+
+  try {
+    if (queryType === "release" || queryType === "download") {
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
+        headers: { "User-Agent": "bot/1.0", Accept: "application/vnd.github.v3+json" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) return err(`GitHub API error: ${res.status}`);
+      const d = (await res.json()) as {
+        tag_name?: string;
+        name?: string;
+        published_at?: string;
+        body?: string;
+        html_url?: string;
+        assets?: Array<{
+          name: string;
+          browser_download_url: string;
+          size: number;
+          download_count: number;
+        }>;
+      };
+      const assets = (d.assets || []).slice(0, 10);
+      const date = d.published_at ? new Date(d.published_at).toLocaleDateString("fr-FR") : "N/A";
+      if (queryType === "download") {
+        return ok(
+          `📥 **Tera Term — Téléchargement**\nVersion: **${d.tag_name || "N/A"}** (${date})\n\n**Fichiers:**\n${assets.map((a) => `• [${a.name}](${a.browser_download_url}) — ${(a.size / 1048576).toFixed(1)} MB (${a.download_count} téléchargements)`).join("\n") || "Aucun fichier"}\n\n🔗 Page: ${d.html_url || `https://github.com/${owner}/${repo}/releases`}`,
+        );
+      }
+      return ok(
+        `🏷️ **Tera Term — Dernière Release**\nVersion: **${d.tag_name || "N/A"}**\nNom: ${d.name || "N/A"}\nDate: ${date}\n\n${d.body ? d.body.slice(0, 1500) : ""}\n\n🔗 ${d.html_url || `https://github.com/${owner}/${repo}/releases`}`,
+      );
+    }
+
+    if (queryType === "issues") {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=5&sort=updated`,
+        {
+          headers: { "User-Agent": "bot/1.0", Accept: "application/vnd.github.v3+json" },
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+      if (!res.ok) return err(`GitHub API error: ${res.status}`);
+      const issues = (await res.json()) as Array<{
+        number: number;
+        title: string;
+        user?: { login: string };
+        created_at?: string;
+        html_url?: string;
+        labels?: Array<{ name: string }>;
+      }>;
+      if (!issues.length) return ok("✅ Aucun issue ouvert pour Tera Term!");
+      return ok(
+        `🐛 **Tera Term — Issues ouverts (${issues.length}+):**\n\n${issues.map((i) => `• **#${i.number}** ${i.title}\n  👤 ${i.user?.login || "N/A"} | 🏷️ ${(i.labels || []).map((l) => l.name).join(", ") || "aucun"}\n  🔗 ${i.html_url || ""}`).join("\n\n")}`,
+      );
+    }
+
+    if (queryType === "docs") {
+      return ok(
+        `📚 **Tera Term — Documentation**\n\n🔗 **Wiki:** https://github.com/TeraTermProject/teraterm/wiki\n🔗 **Manuel:** https://teratermproject.github.io/manual/5/\n🔗 **README:** https://github.com/TeraTermProject/teraterm/blob/main/README.md\n🔗 **FAQ:** https://teratermproject.github.io/manual/5/faq/\n\nLangues supportées: JP, EN, FR, DE, CN, KR, RU, ES, IT, PT, PL, TR`,
+      );
+    }
+
+    if (queryType === "features") {
+      return ok(
+        `⭐ **Tera Term — Fonctionnalités**\n\n🖥️ Émulateur de terminal: VT100/VT200/VT300, ANSI, xterm\n📡 Support: SSH1/SSH2, Telnet, Serial port\n📁 Transfert: Kermit, ZMODEM, B-Plus, Quick-VAN\n🇯🇵 Support Unicode et langues (JP/EN/FR/DE/CN/KR/RU/ES/IT/PT/PL/TR)\n🔌 Macros: scripting Tera Term Language (TTL)\n🎨 Personnalisation: couleurs, polices, raccourcis\n🔒 SSH: clés RSA/DSA/ECDSA/Ed25519, agent forwarding\n🌐 Proxy: SOCKS4/5, HTTP\n📊 Logging: capture de session, replay\n\n🔗 https://github.com/TeraTermProject/teraterm`,
+      );
+    }
+
+    // Default: general info
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers: { "User-Agent": "bot/1.0", Accept: "application/vnd.github.v3+json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return err(`GitHub API error: ${res.status}`);
+    const d = (await res.json()) as {
+      full_name?: string;
+      description?: string;
+      html_url?: string;
+      stargazers_count?: number;
+      forks_count?: number;
+      open_issues_count?: number;
+      language?: string;
+      license?: { name: string };
+      homepage?: string;
+      created_at?: string;
+      updated_at?: string;
+      topics?: string[];
+    };
+    return ok(
+      `🖥️ **Tera Term — Terminal Emulator**\n\n${d.description || "Émulateur de terminal open-source"}\n\n⭐ Stars: ${d.stargazers_count?.toLocaleString() || "N/A"} | 🍴 Forks: ${d.forks_count?.toLocaleString() || "N/A"}\n🐛 Issues: ${d.open_issues_count || 0} | 💻 Langage: ${d.language || "C/C++"}\n📄 Licence: ${d.license?.name || "BSD-3-Clause"}\n🏠 Homepage: ${d.homepage || "https://teratermproject.github.io/"}\n\n🔗 **Repo:** ${d.html_url || `https://github.com/${owner}/${repo}`}\n📥 **Download:** https://github.com/${owner}/${repo}/releases/latest\n📚 **Docs:** https://teratermproject.github.io/manual/5/\n\n**Topics:** ${(d.topics || []).join(", ") || "terminal, emulator, ssh, telnet, serial"}`,
+    );
+  } catch (e) {
+    return err(`Erreur: ${e}`);
+  }
+}
