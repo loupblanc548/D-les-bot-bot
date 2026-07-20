@@ -815,6 +815,196 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "analyze_pdf",
+      description:
+        "Analyse et résume un document PDF à partir d'une URL. Extrait le texte, les métadonnées, et génère un résumé. Gratuit via pdf-parse.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL du fichier PDF à analyser" },
+          max_pages: { type: "number", description: "Nombre max de pages à lire (défaut: 10)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_qr_code",
+      description:
+        "Génère un QR code pour n'importe quel texte ou URL. Retourne une image PNG. Gratuit via API publique.",
+      parameters: {
+        type: "object",
+        properties: {
+          data: { type: "string", description: "Texte ou URL à encoder dans le QR code" },
+          size: { type: "number", description: "Taille en pixels (défaut: 300)" },
+        },
+        required: ["data"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "analyze_sentiment",
+      description:
+        "Analyse le sentiment et l'émotion d'un texte (positif, négatif, neutre, colère, joie, tristesse, peur, surprise). Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_reminder",
+      description:
+        "Définit un rappel. Le bot enverra un message à l'utilisateur après le délai spécifié. UTILISE-LE quand l'utilisateur dit 'rappelle-moi', 'dans 10 min', 'n'oublie pas', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: "Le message de rappel à envoyer" },
+          minutes: { type: "number", description: "Délai en minutes avant le rappel" },
+        },
+        required: ["message", "minutes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_poll",
+      description:
+        "Crée un sondage interactif dans le channel Discord avec des réactions emoji. UTILISE-LE quand l'utilisateur veut faire un vote.",
+      parameters: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "La question du sondage" },
+          options: {
+            type: "array",
+            items: { type: "string" },
+            description: "Les options du sondage (2 à 10 options)",
+          },
+        },
+        required: ["question", "options"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "solve_math",
+      description:
+        "Résout une expression mathématique complexe (équations, dérivées, algèbre, trigonométrie). Plus puissant que execute_code pour les maths. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: {
+            type: "string",
+            description:
+              "Expression mathématique à résoudre (ex: '2x + 5 = 15', 'derive(x^2)', 'sin(pi/4)')",
+          },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_image_advanced",
+      description:
+        "Génère une image avancée à partir de texte avec choix de modèle (Flux, SDXL, Turbo). Plus de qualité que generate_image. Gratuit via Pollinations.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: { type: "string", description: "Description de l'image à générer" },
+          model: {
+            type: "string",
+            enum: ["flux", "sdxl", "turbo", "flux-realism", "flux-anime", "flux-3d"],
+            description: "Modèle à utiliser. Défaut: flux",
+          },
+          width: { type: "number", description: "Largeur (défaut: 1024)" },
+          height: { type: "number", description: "Hauteur (défaut: 1024)" },
+        },
+        required: ["prompt"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_currency",
+      description:
+        "Convertit un montant entre devises (EUR, USD, GBP, JPY, BTC, etc.). Taux en temps réel. Gratuit via exchangerate-api.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: { type: "number", description: "Montant à convertir" },
+          from: { type: "string", description: "Devise source (ex: EUR, USD, BTC)" },
+          to: { type: "string", description: "Devise cible (ex: USD, EUR, JPY)" },
+        },
+        required: ["amount", "from", "to"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_stock_price",
+      description:
+        "Récupère le prix d'une action en temps réel (NYSE, NASDAQ). Gratuit via Yahoo Finance.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: {
+            type: "string",
+            description: "Symbole de l'action (ex: AAPL, TSLA, GOOGL, MSFT)",
+          },
+        },
+        required: ["symbol"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_horoscope",
+      description: "Récupère l'horoscope du jour pour un signe astrologique. Gratuit.",
+      parameters: {
+        type: "object",
+        properties: {
+          sign: {
+            type: "string",
+            enum: [
+              "aries",
+              "taurus",
+              "gemini",
+              "cancer",
+              "leo",
+              "virgo",
+              "libra",
+              "scorpio",
+              "sagittarius",
+              "capricorn",
+              "aquarius",
+              "pisces",
+            ],
+            description: "Signe astrologique",
+          },
+        },
+        required: ["sign"],
+      },
+    },
+  },
 ];
 
 export async function executeExtraTool(
@@ -911,6 +1101,26 @@ export async function executeExtraTool(
         return await toolGetSunMoonInfo(args);
       case "generate_ascii_art":
         return await toolGenerateAsciiArt(args);
+      case "analyze_pdf":
+        return await toolAnalyzePdf(args);
+      case "generate_qr_code":
+        return await toolGenerateQrCode(args);
+      case "analyze_sentiment":
+        return await toolAnalyzeSentiment(args);
+      case "set_reminder":
+        return await toolSetReminder(args, ctx);
+      case "create_poll":
+        return await toolCreatePoll(args, ctx);
+      case "solve_math":
+        return await toolSolveMath(args);
+      case "generate_image_advanced":
+        return await toolGenerateImageAdvanced(args);
+      case "convert_currency":
+        return await toolConvertCurrency(args);
+      case "get_stock_price":
+        return await toolGetStockPrice(args);
+      case "get_horoscope":
+        return await toolGetHoroscope(args);
       default:
         return null;
     }
@@ -2498,4 +2708,487 @@ async function toolGenerateAsciiArt(args: Record<string, unknown>): Promise<Tool
     }
   }
   return { success: true, data: "```\n" + lines.join("\n") + "\n```" };
+}
+
+// ─── PDF Analysis ────────────────────────────────────────────────────────────
+
+async function toolAnalyzePdf(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "").trim();
+  const maxPages = Number(args.max_pages) || 10;
+  if (!url) return { success: false, data: "Paramètre manquant: url" };
+  if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    if (buffer.length > 10 * 1024 * 1024)
+      return { success: false, data: "PDF trop volumineux (max 10MB)" };
+
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+    const pdfParse = require("pdf-parse") as (
+      buf: Buffer,
+      opts?: Record<string, unknown>,
+    ) => Promise<{ text: string; numpages: number; info?: Record<string, string> }>;
+    const data = await pdfParse(buffer, { max: maxPages });
+
+    const info = data.info as Record<string, string> | undefined;
+    const meta: string[] = [];
+    if (info?.Title) meta.push(`Titre: ${info.Title}`);
+    if (info?.Author) meta.push(`Auteur: ${info.Author}`);
+    if (data.numpages) meta.push(`Pages: ${data.numpages}`);
+
+    const text = (data.text || "").slice(0, 3000);
+    const summary = text.slice(0, 500) + (text.length > 500 ? "..." : "");
+
+    return {
+      success: true,
+      data: `📄 **PDF analysé**\n${meta.join(" | ")}\n\n**Aperçu:**\n${summary}\n\n**Texte complet (${text.length} chars):**\n${text}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur PDF: ${err}` };
+  }
+}
+
+// ─── QR Code Generator ───────────────────────────────────────────────────────
+
+async function toolGenerateQrCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const data = String(args.data || "").trim();
+  const size = Number(args.size) || 300;
+  if (!data) return { success: false, data: "Paramètre manquant: data" };
+
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
+  return { success: true, data: `📱 QR code généré:\n${url}` };
+}
+
+// ─── Sentiment Analysis ──────────────────────────────────────────────────────
+
+async function toolAnalyzeSentiment(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "").trim();
+  if (!text) return { success: false, data: "Paramètre manquant: text" };
+
+  const positiveWords = [
+    "bon",
+    "super",
+    "génial",
+    "excellent",
+    "heureux",
+    "content",
+    "aime",
+    "adore",
+    "parfait",
+    "merveilleux",
+    "fantastique",
+    "good",
+    "great",
+    "love",
+    "happy",
+    "excellent",
+    "amazing",
+    "wonderful",
+    "perfect",
+    "awesome",
+  ];
+  const negativeWords = [
+    "mauvais",
+    "nul",
+    "horrible",
+    "triste",
+    "déteste",
+    "colère",
+    "furieux",
+    "déçu",
+    "catastrophe",
+    "bad",
+    "hate",
+    "terrible",
+    "awful",
+    "sad",
+    "angry",
+    "disappointed",
+    "horrible",
+    "worst",
+  ];
+  const angerWords = ["colère", "furieux", "énervé", "rage", "angry", "furious", "mad", "rage"];
+  const joyWords = [
+    "joie",
+    "heureux",
+    "content",
+    "ravi",
+    "excité",
+    "happy",
+    "joy",
+    "excited",
+    "thrilled",
+  ];
+  const sadnessWords = [
+    "triste",
+    "déprimé",
+    "seul",
+    "malheureux",
+    "sad",
+    "depressed",
+    "lonely",
+    "unhappy",
+  ];
+  const fearWords = [
+    "peur",
+    "effrayé",
+    "angoisse",
+    "anxieux",
+    "fear",
+    "scared",
+    "anxious",
+    "afraid",
+  ];
+  const surpriseWords = [
+    "surpris",
+    "étonné",
+    "choqué",
+    "incroyable",
+    "surprised",
+    "shocked",
+    "amazing",
+    "unexpected",
+  ];
+
+  const lower = text.toLowerCase();
+  const count = (words: string[]) => words.filter((w) => lower.includes(w)).length;
+
+  const positive = count(positiveWords);
+  const negative = count(negativeWords);
+  const emotions = {
+    colère: count(angerWords),
+    joie: count(joyWords),
+    tristesse: count(sadnessWords),
+    peur: count(fearWords),
+    surprise: count(surpriseWords),
+  };
+
+  let sentiment: string;
+  if (positive > negative) sentiment = "😊 Positif";
+  else if (negative > positive) sentiment = "😞 Négatif";
+  else sentiment = "😐 Neutre";
+
+  const topEmotions = Object.entries(emotions)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const emotionStr =
+    topEmotions.length > 0
+      ? topEmotions.map(([k, v]) => `${k} (${v})`).join(", ")
+      : "aucune émotion forte détectée";
+
+  return {
+    success: true,
+    data: `🎭 **Analyse de sentiment**\nSentiment: ${sentiment}\nMots positifs: ${positive} | Mots négatifs: ${negative}\nÉmotions détectées: ${emotionStr}`,
+  };
+}
+
+// ─── Set Reminder ────────────────────────────────────────────────────────────
+
+async function toolSetReminder(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const message = String(args.message || "").trim();
+  const minutes = Number(args.minutes);
+  if (!message || isNaN(minutes) || minutes <= 0)
+    return { success: false, data: "Paramètres invalides: message et minutes requis" };
+  if (minutes > 1440) return { success: false, data: "Délai trop long (max 24h = 1440 min)" };
+
+  const channel = ctx.message?.channel;
+  const userId = ctx.message?.author?.id;
+  if (!channel || !userId) return { success: false, data: "Contexte Discord indisponible" };
+
+  setTimeout(
+    async () => {
+      try {
+        await (channel as { send: (s: string) => Promise<unknown> }).send(
+          `⏰ <@${userId}> **Rappel:** ${message}`,
+        );
+      } catch {
+        // Channel may be unavailable
+      }
+    },
+    minutes * 60 * 1000,
+  );
+
+  return {
+    success: true,
+    data: `⏰ Rappel défini: dans ${minutes} minute${minutes > 1 ? "s" : ""}, je te dirai: "${message}"`,
+  };
+}
+
+// ─── Create Poll ─────────────────────────────────────────────────────────────
+
+async function toolCreatePoll(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const question = String(args.question || "").trim();
+  const options = args.options as string[] | undefined;
+  if (!question || !options || options.length < 2)
+    return { success: false, data: "Question et au moins 2 options requises" };
+  if (options.length > 10) return { success: false, data: "Maximum 10 options" };
+
+  const channel = ctx.message?.channel;
+  if (!channel) return { success: false, data: "Contexte Discord indisponible" };
+
+  const emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  const pollText = `📊 **${question}**\n\n${options.map((opt, i) => `${emojis[i]} ${opt}`).join("\n")}`;
+
+  try {
+    const pollMsg = await (
+      channel as { send: (s: string) => Promise<{ react: (e: string) => Promise<unknown> }> }
+    ).send(pollText);
+    for (let i = 0; i < options.length; i++) {
+      await pollMsg.react(emojis[i]);
+    }
+    return { success: true, data: `Sondage créé: ${question} (${options.length} options)` };
+  } catch (err) {
+    return { success: false, data: `Erreur création sondage: ${err}` };
+  }
+}
+
+// ─── Math Solver ─────────────────────────────────────────────────────────────
+
+async function toolSolveMath(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const expr = String(args.expression || "").trim();
+  if (!expr) return { success: false, data: "Paramètre manquant: expression" };
+
+  try {
+    const vm = await import("node:vm");
+    const processed = expr.toLowerCase();
+
+    // Handle equations: "2x + 5 = 15" → solve for x
+    if (
+      processed.includes("=") &&
+      !processed.includes("==") &&
+      !processed.includes("<=") &&
+      !processed.includes(">=")
+    ) {
+      const [left, right] = processed.split("=").map((s) => s.trim());
+      // Simple linear equation solver: ax + b = c
+      const parseLinear = (s: string): { a: number; b: number } => {
+        const cleaned = s.replace(/\s/g, "").replace(/-/g, "+-").replace(/^\+/, "");
+        const terms = cleaned.split("+").filter((t) => t);
+        let a = 0,
+          b = 0;
+        for (const t of terms) {
+          if (t.includes("x")) {
+            const coef = t.replace("x", "").replace("*", "");
+            a += coef === "" || coef === "+" ? 1 : coef === "-" ? -1 : Number(coef);
+          } else {
+            b += Number(t);
+          }
+        }
+        return { a, b };
+      };
+      const l = parseLinear(left);
+      const r = parseLinear(right);
+      const a = l.a - r.a;
+      const b = r.b - l.b;
+      if (a === 0)
+        return {
+          success: true,
+          data: `Équation: ${expr}\nAucune variable x trouvée ou équation invalide.`,
+        };
+      const x = b / a;
+      return { success: true, data: `🧮 **Équation:** ${expr}\n**Solution:** x = ${x}` };
+    }
+
+    // Handle derivatives: "derive(x^2)" → 2x
+    if (processed.startsWith("derive(") || processed.startsWith("derivative(")) {
+      const inner = processed.replace(/^(derive|derivative)\(/, "").replace(/\)$/, "");
+      // Simple power rule: d/dx(ax^n) = a*n*x^(n-1)
+      const match = inner.match(/^(-?\d*\.?\d*)\*?x\^(-?\d+\.?\d*)$/);
+      if (match) {
+        const coef = match[1] === "" ? 1 : Number(match[1]);
+        const exp = Number(match[2]);
+        const newCoef = coef * exp;
+        const newExp = exp - 1;
+        const result = newExp === 0 ? `${newCoef}` : `${newCoef}x^${newExp}`;
+        return {
+          success: true,
+          data: `🧮 **Dérivée de:** ${expr}\n**Résultat:** d/dx(${inner}) = ${result}`,
+        };
+      }
+      return {
+        success: false,
+        data: "Dérivée non supportée pour cette forme. Utilise: derive(ax^n)",
+      };
+    }
+
+    // Evaluate expression: replace math functions
+    const safe = processed
+      .replace(/\bpi\b/g, "Math.PI")
+      .replace(/\be\b/g, "Math.E")
+      .replace(/\bsin\(/g, "Math.sin(")
+      .replace(/\bcos\(/g, "Math.cos(")
+      .replace(/\btan\(/g, "Math.tan(")
+      .replace(/\bsqrt\(/g, "Math.sqrt(")
+      .replace(/\babs\(/g, "Math.abs(")
+      .replace(/\bpow\(/g, "Math.pow(")
+      .replace(/\blog\(/g, "Math.log(")
+      .replace(/\bexp\(/g, "Math.exp(")
+      .replace(/\bfloor\(/g, "Math.floor(")
+      .replace(/\bceil\(/g, "Math.ceil(")
+      .replace(/\bround\(/g, "Math.round(")
+      .replace(/\^/g, "**")
+      .replace(/(\d)x/g, "$1*x");
+
+    const sandbox = { Math, PI: Math.PI, E: Math.E };
+    const context = vm.createContext(sandbox);
+    const result = vm.runInNewContext(safe, context, { timeout: 5000 });
+
+    if (typeof result === "number" && !isNaN(result)) {
+      return { success: true, data: `🧮 **${expr}** = **${result}**` };
+    }
+    return { success: false, data: `Expression invalide: ${expr}` };
+  } catch (err) {
+    return { success: false, data: `Erreur math: ${err}` };
+  }
+}
+
+// ─── Advanced Image Generation ───────────────────────────────────────────────
+
+async function toolGenerateImageAdvanced(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const prompt = String(args.prompt || "").trim();
+  const model = String(args.model || "flux").trim();
+  const width = Number(args.width) || 1024;
+  const height = Number(args.height) || 1024;
+  if (!prompt) return { success: false, data: "Paramètre manquant: prompt" };
+
+  const modelMap: Record<string, string> = {
+    flux: "flux",
+    sdxl: "sdxl",
+    turbo: "turbo",
+    "flux-realism": "flux-realism",
+    "flux-anime": "flux-anime",
+    "flux-3d": "flux-3d",
+  };
+  const modelName = modelMap[model] || "flux";
+  const seed = Math.floor(Math.random() * 1000000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=${modelName}`;
+
+  return { success: true, data: `🎨 Image générée (modèle: ${modelName}): ${url}` };
+}
+
+// ─── Currency Converter ──────────────────────────────────────────────────────
+
+async function toolConvertCurrency(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const amount = Number(args.amount);
+  const from = String(args.from || "")
+    .trim()
+    .toUpperCase();
+  const to = String(args.to || "")
+    .trim()
+    .toUpperCase();
+  if (isNaN(amount) || !from || !to)
+    return { success: false, data: "Paramètres manquants: amount, from, to" };
+
+  try {
+    const url = `https://api.exchangerate-api.com/v4/latest/${from}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `API error: ${res.status}` };
+    const data = (await res.json()) as { rates?: Record<string, number> };
+    const rate = data.rates?.[to];
+    if (!rate)
+      return {
+        success: false,
+        data: `Devise ${to} non trouvée. Devises: USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY, etc.`,
+      };
+    const result = (amount * rate).toFixed(2);
+    return {
+      success: true,
+      data: `💱 ${amount} ${from} = ${result} ${to} (taux: 1 ${from} = ${rate} ${to})`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur conversion: ${err}` };
+  }
+}
+
+// ─── Stock Price ─────────────────────────────────────────────────────────────
+
+async function toolGetStockPrice(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const symbol = String(args.symbol || "")
+    .trim()
+    .toUpperCase();
+  if (!symbol) return { success: false, data: "Paramètre manquant: symbol" };
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    if (!res.ok) return { success: false, data: `Action ${symbol} introuvable` };
+    const data = (await res.json()) as {
+      chart?: {
+        result?: Array<{
+          meta?: {
+            regularMarketPrice?: number;
+            previousClose?: number;
+            currency?: string;
+            shortName?: string;
+          };
+        }>;
+      };
+    };
+    const meta = data.chart?.result?.[0]?.meta;
+    if (!meta?.regularMarketPrice)
+      return { success: false, data: `Prix indisponible pour ${symbol}` };
+    const price = meta.regularMarketPrice;
+    const prevClose = meta.previousClose || price;
+    const change = price - prevClose;
+    const changePercent = ((change / prevClose) * 100).toFixed(2);
+    const arrow = change >= 0 ? "📈" : "📉";
+    return {
+      success: true,
+      data: `${arrow} **${meta.shortName || symbol}** (${symbol})\n💰 Prix: ${price.toFixed(2)} ${meta.currency || "USD"}\n${arrow} Variation: ${change >= 0 ? "+" : ""}${change.toFixed(2)} (${changePercent}%)`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur stock: ${err}` };
+  }
+}
+
+// ─── Horoscope ───────────────────────────────────────────────────────────────
+
+async function toolGetHoroscope(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const sign = String(args.sign || "")
+    .trim()
+    .toLowerCase();
+  if (!sign) return { success: false, data: "Paramètre manquant: sign" };
+
+  try {
+    const url = `https://horoscope-app-api.vercel.app/api/v1/get-horoscope/daily?sign=${sign}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `API horoscope error: ${res.status}` };
+    const data = (await res.json()) as { data?: { horoscope_data?: string } };
+    const horoscope = data.data?.horoscope_data;
+    if (!horoscope) return { success: false, data: "Horoscope indisponible" };
+    const signEmoji: Record<string, string> = {
+      aries: "♈",
+      taurus: "♉",
+      gemini: "♊",
+      cancer: "♋",
+      leo: "♌",
+      virgo: "♍",
+      libra: "♎",
+      scorpio: "♏",
+      sagittarius: "♐",
+      capricorn: "♑",
+      aquarius: "♒",
+      pisces: "♓",
+    };
+    return {
+      success: true,
+      data: `${signEmoji[sign] || "🔮"} **Horoscope du jour — ${sign}**\n${horoscope}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur horoscope: ${err}` };
+  }
 }

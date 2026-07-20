@@ -661,6 +661,16 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- convert_timestamp : convertit un timestamp Unix ↔ date lisible.\n" +
     "- get_sun_moon_info : heures de lever/coucher du soleil pour une ville.\n" +
     "- generate_ascii_art : génère un texte en ASCII art.\n" +
+    "- analyze_pdf : analyse et résume un PDF depuis une URL. UTILISE-LE quand l'utilisateur partage un lien PDF.\n" +
+    "- generate_qr_code : génère un QR code pour un texte/URL. UTILISE-LE quand on demande un QR code.\n" +
+    "- analyze_sentiment : analyse le sentiment/émotion d'un texte. UTILISE-LE pour détecter l'humeur.\n" +
+    "- set_reminder : définit un rappel temporisé. UTILISE-LE quand l'utilisateur dit 'rappelle-moi', 'dans X min', etc.\n" +
+    "- create_poll : crée un sondage Discord avec réactions. UTILISE-LE quand l'utilisateur veut voter.\n" +
+    "- solve_math : résout équations, dérivées, calculs complexes. UTILISE-LE pour les maths avancées.\n" +
+    "- generate_image_advanced : génère une image avec modèles avancés (Flux, SDXL, Turbo, anime, realism, 3D).\n" +
+    "- convert_currency : convertit entre devises (EUR, USD, GBP, JPY, etc.) en temps réel.\n" +
+    "- get_stock_price : prix d'action en temps réel (AAPL, TSLA, etc.).\n" +
+    "- get_horoscope : horoscope du jour pour un signe astrologique.\n" +
     "### Utilitaires (auto-use)\n" +
     "- validate_email : valide un email (format, MX, jetable)\n" +
     "- generate_hash : hash MD5/SHA-1/SHA-256/SHA-512 d'un texte\n" +
