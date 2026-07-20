@@ -65,6 +65,38 @@ const alertQueue: VoiceAlert[] = [];
 let isPlaying = false;
 const activeConnections = new Map<string, string>(); // guildId -> channelId
 
+// ─── Rate-limit: max 1 speak per 10s per guild ───
+const voiceRateLimit = new Map<string, number>(); // guildId -> lastSpeakTimestamp
+const VOICE_RATE_LIMIT_MS = 10_000;
+
+// ─── User opt-in for auto voice responses ───
+const voiceOptInUsers = new Set<string>(); // userId -> opted in
+const voiceOptOutUsers = new Set<string>(); // userId -> explicitly opted out
+
+export function isVoiceOptedIn(userId: string): boolean {
+  return voiceOptInUsers.has(userId);
+}
+
+export function voiceOptIn(userId: string): void {
+  voiceOptInUsers.add(userId);
+  voiceOptOutUsers.delete(userId);
+  logger.info(`[VoiceAgent] User ${userId} opted IN for voice responses`);
+}
+
+export function voiceOptOut(userId: string): void {
+  voiceOptOutUsers.add(userId);
+  voiceOptInUsers.delete(userId);
+  logger.info(`[VoiceAgent] User ${userId} opted OUT from voice responses`);
+}
+
+function checkVoiceRateLimit(guildId: string): boolean {
+  const now = Date.now();
+  const last = voiceRateLimit.get(guildId) || 0;
+  if (now - last < VOICE_RATE_LIMIT_MS) return false;
+  voiceRateLimit.set(guildId, now);
+  return true;
+}
+
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 export function getVoiceAgentConfig(): VoiceAgentConfig {
@@ -159,6 +191,18 @@ export async function speakResponseInVoice(
   lang = "fr",
 ): Promise<boolean> {
   try {
+    // ── Guard 1: Voice agent must be enabled ──
+    if (!currentConfig.enabled) return false;
+
+    // ── Guard 2: User must have opted in for auto voice responses ──
+    if (!voiceOptInUsers.has(userId)) return false;
+
+    // ── Guard 3: Rate-limit — max 1 speak per 10s per guild ──
+    if (!checkVoiceRateLimit(guildId)) {
+      logger.debug(`[VoiceAgent] Rate-limited for guild ${guildId}`);
+      return false;
+    }
+
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return false;
 

@@ -120,6 +120,10 @@ export async function previewUserDeletion(userId: string): Promise<DeletionPrevi
   const pollVotes = await prisma.pollVote.count({ where: { userId } });
   results.push({ table: "PollVote", count: pollVotes, excluded: false });
 
+  // Social follows (addedBy field contains userId)
+  const socialFollows = await prisma.socialFollow.count({ where: { addedBy: userId } });
+  results.push({ table: "SocialFollow", count: socialFollows, excluded: false });
+
   // ─── EXCLUDED (legitimate security interest) ───
   const sanctions = await prisma.sanction.count({ where: { userId } });
   results.push({
@@ -208,6 +212,10 @@ export async function forgetUser(userId: string): Promise<DeletionResult> {
   await prisma.pollVote.deleteMany({ where: { userId } });
   deletedTables.push("Reminder", "Afk", "Suggestion", "PollVote");
 
+  // Social follows (addedBy field contains userId)
+  await prisma.socialFollow.deleteMany({ where: { addedBy: userId } });
+  deletedTables.push("SocialFollow");
+
   const result: DeletionResult = {
     userId,
     deletedAt: new Date(),
@@ -283,6 +291,9 @@ export async function exportUserData(userId: string): Promise<Record<string, unk
   data.afk = await prisma.afk.findUnique({ where: { userId } });
   data.suggestions = await prisma.suggestion.findMany({ where: { userId } });
   data.pollVotes = await prisma.pollVote.findMany({ where: { userId } });
+
+  // Social follows
+  data.socialFollows = await prisma.socialFollow.findMany({ where: { addedBy: userId } });
 
   // Moderation data (included in export but not deletable)
   data.sanctions = await prisma.sanction.findMany({ where: { userId } });

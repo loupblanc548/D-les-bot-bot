@@ -758,6 +758,255 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         reason: "Real financial cost per call beyond free quota — metered API",
       },
     ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 12: Voice Auto-Response (voiceAgent.ts — speakResponseInVoice)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "speakResponseInVoice",
+      {
+        level: "medium",
+        module: "voice",
+        reason:
+          "Intrusive audible effect on all users in voice channel — requires opt-in + rate-limit",
+      },
+    ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 13: Batch 2 Free Tools (80+ tools, agentToolsExtra.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    // Text & crypto tools — all local, no persistence
+    [
+      "grammar_check",
+      { level: "low", module: "extra", reason: "Read-only LanguageTool API, no persistence" },
+    ],
+    [
+      "text_summarize",
+      { level: "low", module: "extra", reason: "Local text processing, no persistence" },
+    ],
+    [
+      "text_case_convert",
+      { level: "low", module: "extra", reason: "Local text transform, no persistence" },
+    ],
+    [
+      "word_counter",
+      { level: "low", module: "extra", reason: "Local text analysis, no persistence" },
+    ],
+    ["text_to_morse", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["rot13", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["caesar_cipher", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["palindrome_check", { level: "low", module: "extra", reason: "Local check, no persistence" }],
+    [
+      "anagram_solver",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "roman_numeral_convert",
+      { level: "low", module: "extra", reason: "Local conversion, no persistence" },
+    ],
+    ["leet_speak", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    [
+      "accent_remover",
+      { level: "low", module: "extra", reason: "Local text transform, no persistence" },
+    ],
+    [
+      "text_reverse",
+      { level: "low", module: "extra", reason: "Local text transform, no persistence" },
+    ],
+    [
+      "text_similarity",
+      { level: "low", module: "extra", reason: "Local comparison, no persistence" },
+    ],
+    ["text_diff", { level: "low", module: "extra", reason: "Local comparison, no persistence" }],
+    [
+      "markdown_to_html",
+      { level: "low", module: "extra", reason: "Local conversion, no persistence" },
+    ],
+    ["json_formatter", { level: "low", module: "extra", reason: "Local parsing, no persistence" }],
+    [
+      "url_encode_decode",
+      { level: "low", module: "extra", reason: "Local encoding, no persistence" },
+    ],
+    [
+      "html_entity_encode_decode",
+      { level: "low", module: "extra", reason: "Local encoding, no persistence" },
+    ],
+    [
+      "base32_encode_decode",
+      { level: "low", module: "extra", reason: "Local encoding, no persistence" },
+    ],
+    [
+      "hash_identifier",
+      { level: "low", module: "extra", reason: "Local pattern matching, no persistence" },
+    ],
+    // Calculators & dates — all local
+    [
+      "password_strength",
+      { level: "low", module: "extra", reason: "Local evaluation, no persistence" },
+    ],
+    [
+      "bmi_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "calorie_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "compound_interest",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "percentage_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "tip_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "days_between_dates",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "age_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    ["day_of_week", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    [
+      "leap_year_check",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    ["week_number", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    [
+      "random_number",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    ["dice_roll", { level: "low", module: "extra", reason: "Local generation, no persistence" }],
+    ["coin_flip", { level: "low", module: "extra", reason: "Local generation, no persistence" }],
+    [
+      "uuid_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "nano_id_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "sleep_calculator",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "gradient_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "cron_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "license_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    ["http_status_info", { level: "low", module: "extra", reason: "Local lookup, no persistence" }],
+    ["mime_type_lookup", { level: "low", module: "extra", reason: "Local lookup, no persistence" }],
+    [
+      "caniuse",
+      { level: "low", module: "extra", reason: "Read-only caniuse.com link, no persistence" },
+    ],
+    // API tools — read-only external APIs
+    ["search_anime", { level: "low", module: "extra", reason: "Read-only Jikan/MyAnimeList API" }],
+    ["iss_tracker", { level: "low", module: "extra", reason: "Read-only Open-Notify API" }],
+    ["moon_phase", { level: "low", module: "extra", reason: "Local astronomical computation" }],
+    ["reddit_hot", { level: "low", module: "extra", reason: "Read-only Reddit JSON API" }],
+    ["boardgame_search", { level: "low", module: "extra", reason: "Read-only BoardGameGeek API" }],
+    ["random_fact", { level: "low", module: "extra", reason: "Read-only Numbers API" }],
+    ["this_day_in_history", { level: "low", module: "extra", reason: "Read-only Wikipedia API" }],
+    [
+      "word_of_the_day",
+      { level: "low", module: "extra", reason: "Local selection, no persistence" },
+    ],
+    ["bored_activity", { level: "low", module: "extra", reason: "Read-only BoredAPI" }],
+    ["chuck_norris_fact", { level: "low", module: "extra", reason: "Read-only Chuck Norris API" }],
+    ["programming_joke", { level: "low", module: "extra", reason: "Read-only JokeAPI" }],
+    [
+      "would_you_rather",
+      { level: "low", module: "extra", reason: "Local selection, no persistence" },
+    ],
+    ["country_info", { level: "low", module: "extra", reason: "Read-only REST Countries API" }],
+    [
+      "geocode_address",
+      { level: "low", module: "extra", reason: "Read-only OpenStreetMap Nominatim API" },
+    ],
+    [
+      "distance_calculator",
+      { level: "low", module: "extra", reason: "Local haversine computation" },
+    ],
+    ["periodic_table", { level: "low", module: "extra", reason: "Read-only element API" }],
+    [
+      "fake_person_generator",
+      { level: "low", module: "extra", reason: "Read-only RandomUser API (fake data)" },
+    ],
+    [
+      "gitignore_generator",
+      { level: "low", module: "extra", reason: "Read-only gitignore.io API" },
+    ],
+    ["npm_package_info", { level: "low", module: "extra", reason: "Read-only npm registry API" }],
+    [
+      "open_library_search",
+      { level: "low", module: "extra", reason: "Read-only Open Library API" },
+    ],
+    ["aurora_forecast", { level: "low", module: "extra", reason: "Read-only NOAA SWPC API" }],
+    ["steam_player_count", { level: "low", module: "extra", reason: "Read-only Steam Web API" }],
+    ["esports_matches", { level: "low", module: "extra", reason: "Read-only PandaScore API" }],
+    ["pokemon_info", { level: "low", module: "extra", reason: "Read-only PokeAPI" }],
+    ["meme_generator", { level: "low", module: "extra", reason: "Read-only Imgflip API" }],
+    ["ssl_checker", { level: "low", module: "extra", reason: "Read-only TLS connection check" }],
+    ["dns_lookup", { level: "low", module: "extra", reason: "Read-only DNS resolution" }],
+    [
+      "color_palette_from_image",
+      { level: "low", module: "extra", reason: "Read-only color.pizza API" },
+    ],
+    ["uv_index", { level: "low", module: "extra", reason: "Informational, no persistence" }],
+    ["image_to_ascii", { level: "low", module: "extra", reason: "Informational, no persistence" }],
+    // Fun & misc
+    [
+      "workout_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "name_generator",
+      { level: "low", module: "extra", reason: "Local generation, no persistence" },
+    ],
+    [
+      "zodiac_compatibility",
+      { level: "low", module: "extra", reason: "Local computation, no persistence" },
+    ],
+    [
+      "text_to_speech_info",
+      { level: "low", module: "extra", reason: "Informational, no persistence" },
+    ],
+    [
+      "teraterm_info",
+      { level: "low", module: "extra", reason: "Read-only GitHub API for Tera Term project" },
+    ],
+    // Social follow — medium risk (notifications to other users)
+    [
+      "follow_social",
+      {
+        level: "medium",
+        module: "social",
+        reason: "Sends notifications to DMs/channels — can be used for spam",
+      },
+    ],
+    [
+      "unfollow_social",
+      { level: "low", module: "social", reason: "Removes a follow, no external effect" },
+    ],
+    [
+      "list_social_follows",
+      { level: "low", module: "social", reason: "Read-only list of follows" },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime
