@@ -1,4 +1,5 @@
 import type { ToolCallResult } from "../agentTools.js";
+import { checkUrlForSsrf } from "../../utils/ssrfGuard.js";
 
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
@@ -578,6 +579,8 @@ export async function toolMemeGenerator(args: Record<string, unknown>): Promise<
 export async function toolSslChecker(args: Record<string, unknown>): Promise<ToolCallResult> {
   const domain = String(args.domain || "").trim();
   if (!domain) return err("Paramètre: domain");
+  const ssrfCheck = await checkUrlForSsrf(`https://${domain}`, "toolSslChecker");
+  if (!ssrfCheck.allowed) return err(`Domaine bloqué (SSRF): ${ssrfCheck.reason}`);
   try {
     const tls = await import("node:tls");
     return new Promise((resolve) => {
@@ -638,6 +641,8 @@ export async function toolColorPaletteFromImage(
 ): Promise<ToolCallResult> {
   const url = String(args.url || "").trim();
   if (!url) return err("Paramètre: url");
+  const ssrfCheck = await checkUrlForSsrf(url, "toolColorPaletteFromImage");
+  if (!ssrfCheck.allowed) return err(`URL bloquée (SSRF): ${ssrfCheck.reason}`);
   try {
     const res = await fetch(`https://api.color.pizza/v1/img-url?url=${encodeURIComponent(url)}`, {
       signal: AbortSignal.timeout(15_000),

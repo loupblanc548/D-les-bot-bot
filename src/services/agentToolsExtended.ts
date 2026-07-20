@@ -11,6 +11,7 @@ import { ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
+import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import prisma from "../prisma.js";
@@ -2367,6 +2368,9 @@ async function tDnsLookup(args: Record<string, unknown>): Promise<ToolCallResult
 
 async function tGetHttpStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
   const url = String(args.url);
+  const ssrfCheck = await checkUrlForSsrf(url, "tGetHttpStatus");
+  if (!ssrfCheck.allowed)
+    return { success: false, data: `URL bloquée (SSRF): ${ssrfCheck.reason}` };
   try {
     const start = Date.now();
     const res = await fetchRetry(url, {

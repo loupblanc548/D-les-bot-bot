@@ -1,16 +1,9 @@
-# AUDIT OUVERT — 2026-07-21
+# AUDIT OUVERT — 2026-07-21 (mis à jour)
 
-## SECTION 0 — Dépôt GitHub PUBLIC (BLOQUANT)
+## SECTION 0 — Dépôt GitHub (RÉSOLU)
 
-**Constat**: Le dépôt `loupblanc548/D-les-bot-bot` est **PUBLIC** (`"private": false` confirmé via API GitHub).
-- Code source accessible à tous (incluant architecture, logique de sécurité, noms de tables)
-- Risque de fuite d'informations sensibles si des secrets ont été commités par le passé
-- Le bot peut être cloné et analysé pour trouver des vulnérabilités
-
-**Action requise**: Rendre le dépôt privé immédiatement.
-- GitHub Settings → Change visibility → Make private
-- OU: `gh repo edit loupblanc548/D-les-bot-bot --visibility private` (nécessite `gh auth login`)
-- **Statut**: En attente de l'utilisateur (token GitHub expiré côté assistant)
+**Constat initial**: Le dépôt `loupblanc548/D-les-bot-bot` était **PUBLIC**.
+**Statut actuel**: ✅ **RÉSOLU** — Le dépôt est maintenant **privé** (confirmé par l'utilisateur le 2026-07-21).
 
 ---
 
@@ -150,3 +143,44 @@
 | 2.7 | Permissions commandes | ✅ OK | setDefaultMemberPermissions présent |
 | 2.8 | Secrets en dur | ✅ OK | Aucun trouvé |
 | 2.9 | Qualité générale | ✅ OK | Structure propre |
+
+---
+
+## SECTION 3 — Faille SSRF via outils de lecture d'URL (CORRIGÉ)
+
+**Constat**: Les outils `readUrl`, `fetchAndSummarize`, `analyze_pdf`, `get_http_status`, `ssl_checker`, `color_palette_from_image`, et `readUrlViaJina` faisaient des requêtes HTTP vers des URLs fournies par l'utilisateur sans vérifier que l'IP résolue n'était pas privée/locale. Un message comme *"résume ce lien : http://localhost:9090/metrics"* pouvait faire sonder les services internes du VPS.
+
+**Correctifs appliqués** ✅:
+
+1. **Guard centralisé** — `src/utils/ssrfGuard.ts`:
+   - `checkUrlForSsrf(url, context)` — résout le DNS, vérifie les plages privées
+   - `safeFetch(url, options, context)` — wrapper fetch avec guard + suivi manuel des redirections (max 3, chaque destination re-vérifiée)
+   - Plages bloquées: 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 0.0.0.0/8, ::1, fc00::/7, fe80::/10, IPv4-mapped IPv6
+   - Notations alternatives: décimal (2130706433 → 127.0.0.1)
+   - Logging des tentatives bloquées (URL, IP résolue, contexte)
+
+2. **Points d'entrée patchés** (7 outils):
+   - `toolReadUrl` (agentTools.ts) → `safeFetch`
+   - `fetchAndExtract` (webIngestion.ts) → `safeFetch`
+   - `readUrlViaJina` (agentReach.ts) → `checkUrlForSsrf` avant passage à Jina
+   - `toolAnalyzePdf` (agentToolsExtra.ts) → `safeFetch`
+   - `tGetHttpStatus` (agentToolsExtended.ts) → `checkUrlForSsrf`
+   - `toolSslChecker` (batch2/apiTools.ts) → `checkUrlForSsrf` avant connexion TLS
+   - `toolColorPaletteFromImage` (batch2/apiTools.ts) → `checkUrlForSsrf` avant passage à color.pizza
+
+3. **Tests** — `src/utils/ssrfGuard.test.ts`: 15 tests, tous passent:
+   - Blocage: localhost, 127.0.0.1, 169.254.169.254 (AWS metadata), 10.x, 192.168.x, 172.16.x, 0.0.0.0, ::1, notation décimale
+   - Autorisation: URLs publiques, IPs publiques
+   - `safeFetch` lance une erreur SSRF sur localhost/127.0.0.1/AWS metadata
+
+4. **Outils batch2 sans risque SSRF**: Tous les autres fetchs du batch2 utilisent des APIs fixes avec des paramètres de recherche encodés (Jikan, Reddit, NumbersAPI, BoredAPI, NPM, PokeAPI, etc.) — pas de risque SSRF car l'URL de destination est toujours un hostname fixe.
+
+---
+
+## SECTION 4 — Améliorations notées mais non implémentées (hors périmètre de ce prompt)
+
+- **Opt-in vocal en base**: Actuellement en mémoire (Sets), se perd au redémarrage. Amélioration: persister dans une table `VoicePreference` + couverture RGPD.
+- **Limite de flux social follow**: Pas de limite sur le nombre de flux par serveur/utilisateur. Recommandation: max 20 par serveur, max 10 par utilisateur.
+- **`npm audit fix`**: Vulnérabilités high sur axios (CSRF, SSRF, prototype pollution). Recommandé mais non appliqué (risque de breaking change).
+- **TMDB API key en dur**: `agentToolsExtra.ts:3454` contient `api_key=8265bd1679663a7ea12ac168da84d2dd` — c'est une clé API publique TMDB gratuite, mais elle devrait être en variable d'environnement.
+

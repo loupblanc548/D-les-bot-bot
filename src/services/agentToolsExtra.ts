@@ -27,6 +27,7 @@
 
 import logger from "../utils/logger.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
+import { safeFetch } from "../utils/ssrfGuard.js";
 import { RawgClient } from "../rawgClient.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import {
@@ -4160,7 +4161,7 @@ async function toolAnalyzePdf(args: Record<string, unknown>): Promise<ToolCallRe
   if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    const res = await safeFetch(url, { signal: AbortSignal.timeout(30_000) }, "toolAnalyzePdf");
     if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
     const arrayBuffer = await res.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
