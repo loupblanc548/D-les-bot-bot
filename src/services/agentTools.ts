@@ -14,6 +14,7 @@ import { Client, Message, TextChannel, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
+import { safeFetch } from "../utils/ssrfGuard.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
@@ -1019,13 +1020,17 @@ async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResul
   if (cached) return { success: true, data: cached };
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "text/html,application/xhtml+xml",
+    const res = await safeFetch(
+      url,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        signal: AbortSignal.timeout(12000),
       },
-      signal: AbortSignal.timeout(12000),
-    });
+      "toolReadUrl",
+    );
 
     if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
 

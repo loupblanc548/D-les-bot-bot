@@ -13,6 +13,7 @@ import { JSDOM } from "jsdom";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { safeFetch } from "../utils/ssrfGuard.js";
 import { embedTexts, cosineSimilarity, isCohereAvailable } from "./cohere.js";
 
 const AI_BASE_URL = config.openRouterBaseUrl || "https://openrouter.ai/api/v1";
@@ -38,13 +39,17 @@ export async function fetchAndExtract(url: string): Promise<IngestedContent | nu
   if (!url.startsWith("http")) return null;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "text/html,application/xhtml+xml",
+    const res = await safeFetch(
+      url,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        signal: AbortSignal.timeout(15000),
       },
-      signal: AbortSignal.timeout(15000),
-    });
+      "fetchAndExtract",
+    );
 
     if (!res.ok) {
       logger.warn(`[WebIngestion] HTTP ${res.status} for ${url}`);
