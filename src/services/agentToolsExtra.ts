@@ -527,6 +527,28 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "define_word",
+      description:
+        "Définit n'importe quel mot dans n'importe quelle langue via le Wiktionnaire (gratuit, pas de clé). Utilise CET OUTIL automatiquement quand tu ne connais pas un mot, quand l'utilisateur demande la définition d'un mot, ou quand tu rencontres un terme inconnu dans un message. Supporte le français, anglais, espagnol, allemand, italien, et toutes les autres langues.",
+      parameters: {
+        type: "object",
+        properties: {
+          word: {
+            type: "string",
+            description: "Le mot à définir",
+          },
+          lang: {
+            type: "string",
+            description: "Code langue du Wiktionnaire (ex: fr, en, es, de, it). Défaut: fr",
+          },
+        },
+        required: ["word"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -593,6 +615,8 @@ export async function executeExtraTool(
         return await toolUnfollowSocial(args, ctx);
       case "list_social_follows":
         return await toolListSocialFollows(ctx);
+      case "define_word":
+        return await toolDefineWord(args);
       default:
         return null;
     }
@@ -1320,4 +1344,156 @@ async function toolListSocialFollows(ctx: ToolContext): Promise<ToolCallResult> 
     .join("\n");
 
   return { success: true, data: `Chaînes suivies (${follows.length}):\n${formatted}` };
+}
+
+// ─── Dictionary Tool (Wiktionary — free, all languages) ─────────────────────
+
+async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const word = String(args.word || "").trim();
+  const lang = String(args.lang || "fr")
+    .trim()
+    .toLowerCase();
+
+  if (!word) {
+    return { success: false, data: "Paramètre manquant: word requis" };
+  }
+
+  const results: string[] = [];
+
+  // 1. Wiktionary API (REST) — definitions in the specified language
+  try {
+    const wikiUrl = `https://${lang}.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+    const res = await fetch(wikiUrl, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "DiscordBot/1.0 (educational)" },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        language?: string;
+        definitions?: Array<{
+          partOfSpeech?: string;
+          text?: string[];
+        }>;
+      };
+      if (data.definitions && data.definitions.length > 0) {
+        results.push(`📖 **${word}** (${lang}) — Wiktionnaire`);
+        for (const def of data.definitions.slice(0, 4)) {
+          const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
+          const text = (def.text || [])
+            .join(" ")
+            .replace(/<[^>]+>/g, "")
+            .slice(0, 300);
+          if (text) {
+            results.push(`${pos} ${text}`.trim());
+          }
+        }
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // 2. Fallback: English Wiktionary if the lang-specific one failed
+  if (results.length === 0 && lang !== "en") {
+    try {
+      const enUrl = `https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+      const res = await fetch(enUrl, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "DiscordBot/1.0 (educational)" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          definitions?: Array<{
+            partOfSpeech?: string;
+            text?: string[];
+          }>;
+        };
+        if (data.definitions && data.definitions.length > 0) {
+          results.push(`📖 **${word}** (en) — Wiktionary`);
+          for (const def of data.definitions.slice(0, 3)) {
+            const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
+            const text = (def.text || [])
+              .join(" ")
+              .replace(/<[^>]+>/g, "")
+              .slice(0, 300);
+            if (text) {
+              results.push(`${pos} ${text}`.trim());
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // 3. Fallback: French Wiktionary if still nothing
+  if (results.length === 0 && lang !== "fr") {
+    try {
+      const frUrl = `https://fr.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+      const res = await fetch(frUrl, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "DiscordBot/1.0 (educational)" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          definitions?: Array<{
+            partOfSpeech?: string;
+            text?: string[];
+          }>;
+        };
+        if (data.definitions && data.definitions.length > 0) {
+          results.push(`📖 **${word}** (fr) — Wiktionnaire`);
+          for (const def of data.definitions.slice(0, 3)) {
+            const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
+            const text = (def.text || [])
+              .join(" ")
+              .replace(/<[^>]+>/g, "")
+              .slice(0, 300);
+            if (text) {
+              results.push(`${pos} ${text}`.trim());
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // 4. Final fallback: Wikipedia summary
+  if (results.length === 0) {
+    try {
+      const wikiUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`;
+      const res = await fetch(wikiUrl, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { "User-Agent": "DiscordBot/1.0 (educational)" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          title?: string;
+          extract?: string;
+          content_urls?: { desktop?: { page?: string } };
+        };
+        if (data.extract) {
+          results.push(`📖 **${data.title || word}** — Wikipedia (${lang})`);
+          results.push(data.extract.slice(0, 400));
+          if (data.content_urls?.desktop?.page) {
+            results.push(`🔗 ${data.content_urls.desktop.page}`);
+          }
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  if (results.length === 0) {
+    return {
+      success: false,
+      data: `Aucune définition trouvée pour "${word}" dans la langue "${lang}". Essayez une autre orthographe ou langue.`,
+    };
+  }
+
+  return { success: true, data: results.join("\n") };
 }

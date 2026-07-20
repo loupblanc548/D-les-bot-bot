@@ -645,6 +645,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- get_crypto_top : top 10 cryptos par market cap (prix, volume, variation 24h)\n" +
     "### Recherche & Savoir\n" +
     "- search_wikipedia : recherche complète sur Wikipedia FR (plusieurs articles + résumés)\n" +
+    "- define_word : définit n'importe quel mot dans n'importe quelle langue via le Wiktionnaire (gratuit). UTILISE-LE AUTOMATIQUEMENT quand tu ne connais pas un mot, quand l'utilisateur demande une définition, ou quand tu rencontres un terme inconnu. Paramètres: word (requis), lang (défaut: fr).\n" +
     "### Utilitaires (auto-use)\n" +
     "- validate_email : valide un email (format, MX, jetable)\n" +
     "- generate_hash : hash MD5/SHA-1/SHA-256/SHA-512 d'un texte\n" +
@@ -660,6 +661,7 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
     "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
     "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
+    "- define_word AUTOMATIQUEMENT quand tu rencontres un mot que tu ne connais pas ou qui semble technique/inhabituel. Ne dis JAMAIS 'je ne connais pas ce mot' — utilise define_word à la place.\n" +
     "\n## USAGE PROACTIF — KNOWLEDGE INGESTION\n" +
     "- search_developer_resources : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur demande des services gratuits, des free tiers, des hébergeurs gratuits, des outils CI/CD, des bases de données gratuites, du monitoring gratuit, des APIs gratuites. N'attends pas qu'il le demande explicitement.\n" +
     "- lookup_typescript_skill : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur a une erreur TypeScript, demande comment typer quelque chose, pose une question sur les generics/conditional types/inference/mapped types, ou montre du code TS qui ne compile pas.\n" +
