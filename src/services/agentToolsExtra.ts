@@ -549,9 +549,273 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_movies",
+      description:
+        "Recherche un film ou une série TV par titre. Retourne titre, date de sortie, note, synopsis, poster. Gratuit via TMDB. UTILISE-LE quand on demande un film, un acteur, une série.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Titre du film ou série à rechercher" },
+          type: {
+            type: "string",
+            enum: ["movie", "tv"],
+            description: "movie ou tv. Défaut: movie",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_music",
+      description:
+        "Recherche un artiste, album, ou chanson. Retourne artiste, titre, album, date. Gratuit via MusicBrainz.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Nom de l'artiste, album ou chanson" },
+          type: {
+            type: "string",
+            enum: ["artist", "release", "recording"],
+            description: "Type de recherche. Défaut: recording",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_stackoverflow",
+      description:
+        "Recherche des questions/réponses sur Stack Overflow. Retourne titre, lien, score, tags. Gratuit via StackExchange API.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Question ou mot-clé technique" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "execute_code",
+      description:
+        "Exécute du code JavaScript dans un sandbox sécurisé (Node.js vm). Retourne stdout, résultat, erreurs. Comme Code Interpreter de ChatGPT. Pas d'accès au système de fichiers ni au réseau.",
+      parameters: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Code JavaScript à exécuter" },
+        },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_units",
+      description:
+        "Convertit entre unités: longueur (m, km, cm, mm, mi, ft, in), poids (kg, g, lb, oz), température (C, F, K), volume (l, ml, gal, qt), vitesse (km/h, mph, m/s), données (B, KB, MB, GB, TB). Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "Valeur à convertir" },
+          from: { type: "string", description: "Unité source (ex: km, C, kg, MB)" },
+          to: { type: "string", description: "Unité cible (ex: mi, F, lb, GB)" },
+        },
+        required: ["value", "from", "to"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_timezone",
+      description:
+        "Convertit une heure d'un timezone à un autre. Ex: '14:00 Paris' → 'quelle heure à Tokyo?'. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          time: { type: "string", description: "Heure au format HH:MM (24h) ou ISO datetime" },
+          from_tz: { type: "string", description: "Timezone source (ex: Europe/Paris)" },
+          to_tz: { type: "string", description: "Timezone cible (ex: Asia/Tokyo)" },
+        },
+        required: ["time", "from_tz", "to_tz"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "test_regex",
+      description:
+        "Teste une expression régulière contre un texte. Retourne les matches trouvés. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "Expression régulière à tester" },
+          text: { type: "string", description: "Texte sur lequel tester la regex" },
+          flags: { type: "string", description: "Flags regex (ex: gi, g, i). Défaut: g" },
+        },
+        required: ["pattern", "text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "decode_jwt",
+      description:
+        "Décode un token JWT (header + payload) sans vérifier la signature. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          token: { type: "string", description: "Token JWT à décoder" },
+        },
+        required: ["token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_sports_scores",
+      description: "Récupère les scores et résultats sportifs. Gratuit via TheSportsDB.",
+      parameters: {
+        type: "object",
+        properties: {
+          league: {
+            type: "string",
+            description: "Ligue (ex: EPL, NBA, ATP, NFL, NHL). Défaut: toutes",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_recipe",
+      description:
+        "Recherche une recette de cuisine par ingrédient ou nom. Retourne nom, instructions, ingrédients, image. Gratuit via TheMealDB.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Nom du plat ou ingrédient" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_color",
+      description: "Convertit une couleur entre HEX, RGB, HSL. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          color: {
+            type: "string",
+            description: "Couleur à convertir (ex: #ff5733, rgb(255,87,51), hsl(11,100%,60%))",
+          },
+        },
+        required: ["color"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_number_base",
+      description:
+        "Convertit un nombre entre binaire, décimal, hexadécimal, octal. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "string", description: "Valeur à convertir" },
+          from_base: {
+            type: "string",
+            enum: ["bin", "dec", "hex", "oct"],
+            description: "Base source",
+          },
+          to_base: {
+            type: "string",
+            enum: ["bin", "dec", "hex", "oct"],
+            description: "Base cible",
+          },
+        },
+        required: ["value", "from_base", "to_base"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "convert_timestamp",
+      description:
+        "Convertit un timestamp Unix en date lisible, ou une date en timestamp. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: {
+            type: "string",
+            description: "Timestamp Unix (ex: 1700000000) ou date ISO (ex: 2024-01-01)",
+          },
+          direction: {
+            type: "string",
+            enum: ["to_date", "to_timestamp"],
+            description: "Sens de conversion",
+          },
+        },
+        required: ["value", "direction"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_sun_moon_info",
+      description:
+        "Récupère les heures de lever/coucher du soleil pour une ville. Gratuit via Sunrise Sunset API.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "Nom de la ville" },
+        },
+        required: ["city"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_ascii_art",
+      description: "Génère un texte en ASCII art. Gratuit, local.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à convertir en ASCII art" },
+          font: {
+            type: "string",
+            description: "Police (ex: Standard, Block, Banner, Big). Défaut: Standard",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
 ];
-
-// ─── Dispatcher ──────────────────────────────────────────────────────────────
 
 export async function executeExtraTool(
   toolName: string,
@@ -617,6 +881,36 @@ export async function executeExtraTool(
         return await toolListSocialFollows(ctx);
       case "define_word":
         return await toolDefineWord(args);
+      case "search_movies":
+        return await toolSearchMovies(args);
+      case "search_music":
+        return await toolSearchMusic(args);
+      case "search_stackoverflow":
+        return await toolSearchStackOverflow(args);
+      case "execute_code":
+        return await toolExecuteCode(args);
+      case "convert_units":
+        return await toolConvertUnits(args);
+      case "convert_timezone":
+        return await toolConvertTimezone(args);
+      case "test_regex":
+        return await toolTestRegex(args);
+      case "decode_jwt":
+        return await toolDecodeJwt(args);
+      case "get_sports_scores":
+        return await toolGetSportsScores(args);
+      case "search_recipe":
+        return await toolSearchRecipe(args);
+      case "convert_color":
+        return await toolConvertColor(args);
+      case "convert_number_base":
+        return await toolConvertNumberBase(args);
+      case "convert_timestamp":
+        return await toolConvertTimestamp(args);
+      case "get_sun_moon_info":
+        return await toolGetSunMoonInfo(args);
+      case "generate_ascii_art":
+        return await toolGenerateAsciiArt(args);
       default:
         return null;
     }
@@ -1496,4 +1790,712 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
   }
 
   return { success: true, data: results.join("\n") };
+}
+
+// ─── TMDB Movie/TV Search ────────────────────────────────────────────────────
+
+async function toolSearchMovies(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  const type = String(args.type || "movie").trim();
+  if (!query) return { success: false, data: "Paramètre manquant: query" };
+
+  try {
+    const url = `https://api.themoviedb.org/3/search/${type}?query=${encodeURIComponent(query)}&language=fr-FR&api_key=8265bd1679663a7ea12ac168da84d2dd`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `TMDB error: ${res.status}` };
+    const data = (await res.json()) as {
+      results?: Array<{
+        id: number;
+        title?: string;
+        name?: string;
+        overview?: string;
+        release_date?: string;
+        first_air_date?: string;
+        vote_average?: number;
+        poster_path?: string;
+      }>;
+    };
+    const results = (data.results || []).slice(0, 5);
+    if (results.length === 0) return { success: false, data: `Aucun résultat pour "${query}"` };
+    const formatted = results
+      .map((r) => {
+        const title = r.title || r.name || "N/A";
+        const date = r.release_date || r.first_air_date || "N/A";
+        const note = r.vote_average ? `⭐ ${r.vote_average}/10` : "";
+        const poster = r.poster_path ? `https://image.tmdb.org/t/p/w200${r.poster_path}` : "";
+        const overview = (r.overview || "").slice(0, 200);
+        return `🎬 **${title}** (${date}) ${note}\n${overview}${poster ? `\n🖼️ ${poster}` : ""}`;
+      })
+      .join("\n\n");
+    return { success: true, data: formatted };
+  } catch (err) {
+    return { success: false, data: `Erreur TMDB: ${err}` };
+  }
+}
+
+// ─── MusicBrainz Search ──────────────────────────────────────────────────────
+
+async function toolSearchMusic(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  const type = String(args.type || "recording").trim();
+  if (!query) return { success: false, data: "Paramètre manquant: query" };
+
+  try {
+    const url = `https://musicbrainz.org/ws/2/${type}?query=${encodeURIComponent(query)}&limit=5&fmt=json`;
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "DiscordBot/1.0 (educational)" },
+    });
+    if (!res.ok) return { success: false, data: `MusicBrainz error: ${res.status}` };
+    const data = (await res.json()) as {
+      recordings?: Array<{ title: string; artist?: string; release?: string; date?: string }>;
+      artists?: Array<{ name: string; type?: string; country?: string; disambiguation?: string }>;
+      releases?: Array<{ title: string; artist?: string; date?: string; track_count?: number }>;
+    };
+    if (type === "artist" && data.artists) {
+      const formatted = data.artists
+        .slice(0, 5)
+        .map(
+          (a) =>
+            `🎤 **${a.name}**${a.disambiguation ? ` (${a.disambiguation})` : ""}${a.country ? ` — ${a.country}` : ""}${a.type ? ` [${a.type}]` : ""}`,
+        )
+        .join("\n");
+      return { success: true, data: formatted || "Aucun artiste trouvé" };
+    }
+    if (type === "release" && data.releases) {
+      const formatted = data.releases
+        .slice(0, 5)
+        .map(
+          (r) =>
+            `💿 **${r.title}**${r.artist ? ` — ${r.artist}` : ""}${r.date ? ` (${r.date})` : ""}${r.track_count ? ` ${r.track_count} pistes` : ""}`,
+        )
+        .join("\n");
+      return { success: true, data: formatted || "Aucun album trouvé" };
+    }
+    if (data.recordings) {
+      const formatted = data.recordings
+        .slice(0, 5)
+        .map(
+          (r) =>
+            `🎵 **${r.title}**${r.artist ? ` — ${r.artist}` : ""}${r.release ? ` (${r.release})` : ""}${r.date ? ` ${r.date}` : ""}`,
+        )
+        .join("\n");
+      return { success: true, data: formatted || "Aucune chanson trouvée" };
+    }
+    return { success: false, data: "Aucun résultat" };
+  } catch (err) {
+    return { success: false, data: `Erreur MusicBrainz: ${err}` };
+  }
+}
+
+// ─── Stack Overflow Search ───────────────────────────────────────────────────
+
+async function toolSearchStackOverflow(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "Paramètre manquant: query" };
+
+  try {
+    const url = `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&q=${encodeURIComponent(query)}&site=stackoverflow&pagesize=5&filter=withbody`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `StackExchange error: ${res.status}` };
+    const data = (await res.json()) as {
+      items?: Array<{
+        title: string;
+        link: string;
+        score: number;
+        tags?: string[];
+        body_markdown?: string;
+        is_answered: boolean;
+      }>;
+    };
+    const items = (data.items || []).slice(0, 5);
+    if (items.length === 0) return { success: false, data: "Aucune question trouvée" };
+    const formatted = items
+      .map((i) => {
+        const tags = i.tags?.length ? ` [${i.tags.slice(0, 3).join(", ")}]` : "";
+        const answered = i.is_answered ? "✅" : "❌";
+        const body = (i.body_markdown || "").replace(/<[^>]+>/g, "").slice(0, 200);
+        return `${answered} **${i.title}**${tags} (score: ${i.score})\n🔗 ${i.link}${body ? `\n${body}` : ""}`;
+      })
+      .join("\n\n");
+    return { success: true, data: formatted };
+  } catch (err) {
+    return { success: false, data: `Erreur StackExchange: ${err}` };
+  }
+}
+
+// ─── Code Execution Sandbox ──────────────────────────────────────────────────
+
+async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const code = String(args.code || "");
+  if (!code) return { success: false, data: "Paramètre manquant: code" };
+  if (code.length > 5000) return { success: false, data: "Code trop long (max 5000 caractères)" };
+
+  try {
+    const vm = await import("node:vm");
+    const logs: string[] = [];
+    const sandbox = {
+      console: {
+        log: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+        error: (...args: unknown[]) => logs.push(`[ERROR] ${args.map(String).join(" ")}`),
+        warn: (...args: unknown[]) => logs.push(`[WARN] ${args.map(String).join(" ")}`),
+      },
+      Math,
+      Date,
+      JSON,
+      Array,
+      Object,
+      String,
+      Number,
+      Boolean,
+      RegExp,
+      Map,
+      Set,
+      parseInt,
+      parseFloat,
+      isNaN,
+      isFinite,
+      encodeURIComponent,
+      decodeURIComponent,
+      setTimeout: () => {},
+      setInterval: () => {},
+      clearTimeout: () => {},
+      clearInterval: () => {},
+    };
+    const context = vm.createContext(sandbox);
+    const script = new vm.Script(code);
+    const result = script.runInContext(context, { timeout: 5000 });
+    const output: string[] = [];
+    if (logs.length > 0) output.push(`stdout:\n${logs.join("\n")}`);
+    if (result !== undefined)
+      output.push(`result: ${JSON.stringify(result, null, 2)?.slice(0, 1000)}`);
+    return { success: true, data: output.join("\n") || "Code exécuté (pas de sortie)" };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur d'exécution: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ─── Unit Converter ──────────────────────────────────────────────────────────
+
+async function toolConvertUnits(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = Number(args.value);
+  const from = String(args.from || "").trim();
+  const to = String(args.to || "").trim();
+  if (isNaN(value)) return { success: false, data: "Valeur invalide" };
+  if (!from || !to) return { success: false, data: "Unités manquantes" };
+
+  const conversions: Record<string, number> = {
+    m: 1,
+    km: 1000,
+    cm: 0.01,
+    mm: 0.001,
+    mi: 1609.34,
+    ft: 0.3048,
+    in: 0.0254,
+    kg: 1,
+    g: 0.001,
+    lb: 0.453592,
+    oz: 0.0283495,
+    l: 1,
+    ml: 0.001,
+    gal: 3.78541,
+    qt: 0.946353,
+    "km/h": 1,
+    mph: 1.60934,
+    "m/s": 3.6,
+    B: 1,
+    KB: 1024,
+    MB: 1048576,
+    GB: 1073741824,
+    TB: 1099511627776,
+  };
+
+  if (from === "C" && to === "F")
+    return { success: true, data: `${value}°C = ${((value * 9) / 5 + 32).toFixed(2)}°F` };
+  if (from === "F" && to === "C")
+    return { success: true, data: `${value}°F = ${(((value - 32) * 5) / 9).toFixed(2)}°C` };
+  if (from === "C" && to === "K")
+    return { success: true, data: `${value}°C = ${(value + 273.15).toFixed(2)}K` };
+  if (from === "K" && to === "C")
+    return { success: true, data: `${value}K = ${(value - 273.15).toFixed(2)}°C` };
+  if (from === "F" && to === "K")
+    return { success: true, data: `${value}°F = ${(((value - 32) * 5) / 9 + 273.15).toFixed(2)}K` };
+  if (from === "K" && to === "F")
+    return { success: true, data: `${value}K = ${(((value - 273.15) * 9) / 5 + 32).toFixed(2)}°F` };
+
+  const fromFactor = conversions[from];
+  const toFactor = conversions[to];
+  if (!fromFactor || !toFactor)
+    return {
+      success: false,
+      data: `Unités non supportées. Disponibles: ${Object.keys(conversions).join(", ")}, C, F, K`,
+    };
+
+  const result = (value * fromFactor) / toFactor;
+  return { success: true, data: `${value} ${from} = ${result.toFixed(4)} ${to}` };
+}
+
+// ─── Timezone Converter ──────────────────────────────────────────────────────
+
+async function toolConvertTimezone(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const time = String(args.time || "").trim();
+  const fromTz = String(args.from_tz || "").trim();
+  const toTz = String(args.to_tz || "").trim();
+  if (!time || !fromTz || !toTz)
+    return { success: false, data: "Paramètres manquants: time, from_tz, to_tz" };
+
+  try {
+    let date: Date;
+    if (/^\d{1,2}:\d{2}$/.test(time)) {
+      const [h, m] = time.split(":").map(Number);
+      const now = new Date();
+      date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
+      const fromOffset = getTimezoneOffsetMs(fromTz);
+      date = new Date(date.getTime() - fromOffset);
+    } else {
+      date = new Date(time);
+    }
+    if (isNaN(date.getTime())) return { success: false, data: "Date/heure invalide" };
+
+    const fromTime = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: fromTz,
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+    }).format(date);
+    const toTime = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: toTz,
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+    }).format(date);
+    return { success: true, data: `${fromTime} (${fromTz}) → ${toTime} (${toTz})` };
+  } catch (err) {
+    return { success: false, data: `Erreur timezone: ${err}` };
+  }
+}
+
+function getTimezoneOffsetMs(tz: string): number {
+  const now = new Date();
+  const local = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(now);
+  const map: Record<string, string> = {};
+  for (const p of local) map[p.type] = p.value;
+  const tzDate = new Date(
+    Date.UTC(
+      Number(map.year),
+      Number(map.month) - 1,
+      Number(map.day),
+      Number(map.hour),
+      Number(map.minute),
+      Number(map.second),
+    ),
+  );
+  return tzDate.getTime() - now.getTime();
+}
+
+// ─── Regex Tester ────────────────────────────────────────────────────────────
+
+async function toolTestRegex(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const pattern = String(args.pattern || "");
+  const text = String(args.text || "");
+  const flags = String(args.flags || "g");
+  if (!pattern || !text)
+    return { success: false, data: "Paramètres manquants: pattern et text requis" };
+
+  try {
+    const regex = new RegExp(pattern, flags);
+    const matches: string[] = [];
+    if (flags.includes("g")) {
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(text)) !== null) {
+        matches.push(m[0]);
+        if (m.index === regex.lastIndex) regex.lastIndex++;
+      }
+    } else {
+      const m = regex.exec(text);
+      if (m) matches.push(m[0]);
+    }
+    if (matches.length === 0) return { success: true, data: "Aucun match trouvé" };
+    return {
+      success: true,
+      data: `✅ ${matches.length} match(s) trouvé(s):\n${matches
+        .slice(0, 20)
+        .map((m, i) => `${i + 1}. "${m}"`)
+        .join("\n")}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Regex invalide: ${err}` };
+  }
+}
+
+// ─── JWT Decoder ─────────────────────────────────────────────────────────────
+
+async function toolDecodeJwt(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const token = String(args.token || "").trim();
+  if (!token) return { success: false, data: "Paramètre manquant: token" };
+
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2)
+      return {
+        success: false,
+        data: "Token JWT invalide (format attendu: header.payload.signature)",
+      };
+    const decode = (s: string) =>
+      JSON.parse(Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString());
+    const header = decode(parts[0]);
+    const payload = decode(parts[1]);
+    return {
+      success: true,
+      data: `📋 **Header:**\n\`\`\`json\n${JSON.stringify(header, null, 2)}\n\`\`\`\n\n📦 **Payload:**\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur décodage JWT: ${err}` };
+  }
+}
+
+// ─── Sports Scores ───────────────────────────────────────────────────────────
+
+async function toolGetSportsScores(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const league = String(args.league || "")
+    .trim()
+    .toLowerCase();
+
+  try {
+    const leagueMap: Record<string, string> = {
+      epl: "4328",
+      nba: "4387",
+      nfl: "4391",
+      nhl: "4380",
+      mls: "4346",
+      atp: "4364",
+      wta: "4363",
+      seriea: "4332",
+      laliga: "4335",
+      bundesliga: "4331",
+    };
+    const leagueId = leagueMap[league] || "4328";
+    const url = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?s=2024-01-01&l=${leagueId}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `TheSportsDB error: ${res.status}` };
+    const data = (await res.json()) as {
+      events?: Array<{
+        strEvent?: string;
+        strHomeTeam?: string;
+        strAwayTeam?: string;
+        intHomeScore?: string;
+        intAwayScore?: string;
+        strTimestamp?: string;
+        strSport?: string;
+      }>;
+    };
+    const events = (data.events || []).slice(0, 10);
+    if (events.length === 0) return { success: true, data: "Aucun événement récent trouvé" };
+    const formatted = events
+      .map((e) => {
+        const score =
+          e.intHomeScore && e.intAwayScore ? `${e.intHomeScore} - ${e.intAwayScore}` : "à venir";
+        return `⚽ **${e.strHomeTeam || "?"}** vs **${e.strAwayTeam || "?"}** — ${score}${e.strTimestamp ? ` (${e.strTimestamp})` : ""}`;
+      })
+      .join("\n");
+    return { success: true, data: formatted };
+  } catch (err) {
+    return { success: false, data: `Erreur sports: ${err}` };
+  }
+}
+
+// ─── Recipe Search ───────────────────────────────────────────────────────────
+
+async function toolSearchRecipe(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "Paramètre manquant: query" };
+
+  try {
+    const url = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return { success: false, data: `TheMealDB error: ${res.status}` };
+    const data = (await res.json()) as {
+      meals?: Array<{
+        strMeal?: string;
+        strCategory?: string;
+        strArea?: string;
+        strInstructions?: string;
+        strMealThumb?: string;
+        strYoutube?: string;
+        strIngredient1?: string;
+        strIngredient2?: string;
+        strIngredient3?: string;
+        strIngredient4?: string;
+        strIngredient5?: string;
+        strIngredient6?: string;
+        strMeasure1?: string;
+        strMeasure2?: string;
+        strMeasure3?: string;
+        strMeasure4?: string;
+        strMeasure5?: string;
+        strMeasure6?: string;
+      }>;
+    };
+    const meals = (data.meals || []).slice(0, 3);
+    if (meals.length === 0) return { success: false, data: `Aucune recette pour "${query}"` };
+    const formatted = meals
+      .map((m) => {
+        const ingredients: string[] = [];
+        for (let i = 1; i <= 6; i++) {
+          const ing = (m as Record<string, string | undefined>)[`strIngredient${i}`];
+          const measure = (m as Record<string, string | undefined>)[`strMeasure${i}`];
+          if (ing) ingredients.push(`${measure || ""} ${ing}`.trim());
+        }
+        const instructions = (m.strInstructions || "").slice(0, 300);
+        return `🍽️ **${m.strMeal}** (${m.strArea || ""} ${m.strCategory || ""})\nIngrédients: ${ingredients.join(", ")}\n${instructions}${m.strMealThumb ? `\n🖼️ ${m.strMealThumb}` : ""}${m.strYoutube ? `\n▶️ ${m.strYoutube}` : ""}`;
+      })
+      .join("\n\n");
+    return { success: true, data: formatted };
+  } catch (err) {
+    return { success: false, data: `Erreur recette: ${err}` };
+  }
+}
+
+// ─── Color Converter ─────────────────────────────────────────────────────────
+
+async function toolConvertColor(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const color = String(args.color || "").trim();
+  if (!color) return { success: false, data: "Paramètre manquant: color" };
+
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    r = parseInt(hex.slice(0, 2), 16);
+    g = parseInt(hex.slice(2, 4), 16);
+    b = parseInt(hex.slice(4, 6), 16);
+  } else if (color.startsWith("rgb")) {
+    const m = color.match(/(\d+),\s*(\d+),\s*(\d+)/);
+    if (m) {
+      r = +m[1];
+      g = +m[2];
+      b = +m[3];
+    }
+  } else if (color.startsWith("hsl")) {
+    const m = color.match(/(\d+),\s*(\d+)%,\s*(\d+)%/);
+    if (m) {
+      const h = +m[1] / 360,
+        s = +m[2] / 100,
+        l = +m[3] / 100;
+      const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
+      g = Math.round(hue2rgb(p, q, h) * 255);
+      b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
+    }
+  } else {
+    return {
+      success: false,
+      data: "Format non reconnu. Utilisez #hex, rgb(r,g,b) ou hsl(h,s%,l%)",
+    };
+  }
+
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  const hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  const rgb = `rgb(${r}, ${g}, ${b})`;
+  const hslR = r / 255,
+    hslG = g / 255,
+    hslB = b / 255;
+  const max = Math.max(hslR, hslG, hslB),
+    min = Math.min(hslR, hslG, hslB);
+  let h = 0,
+    s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === hslR) h = ((hslG - hslB) / d + (hslG < hslB ? 6 : 0)) / 6;
+    else if (max === hslG) h = ((hslB - hslR) / d + 2) / 6;
+    else h = ((hslR - hslG) / d + 4) / 6;
+  }
+  const hsl = `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+  return { success: true, data: `🎨 **HEX:** ${hex}\n**RGB:** ${rgb}\n**HSL:** ${hsl}` };
+}
+
+// ─── Number Base Converter ───────────────────────────────────────────────────
+
+async function toolConvertNumberBase(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = String(args.value || "").trim();
+  const fromBase = String(args.from_base || "").trim();
+  const toBase = String(args.to_base || "").trim();
+  if (!value || !fromBase || !toBase) return { success: false, data: "Paramètres manquants" };
+
+  const baseMap: Record<string, number> = { bin: 2, dec: 10, hex: 16, oct: 8 };
+  const fromRadix = baseMap[fromBase];
+  const toRadix = baseMap[toBase];
+  if (!fromRadix || !toRadix)
+    return { success: false, data: "Base invalide. Utilisez: bin, dec, hex, oct" };
+
+  try {
+    const decimal = parseInt(value, fromRadix);
+    if (isNaN(decimal)) return { success: false, data: `Valeur invalide en base ${fromBase}` };
+    const result = decimal.toString(toRadix).toUpperCase();
+    return {
+      success: true,
+      data: `${value} (${fromBase}) = ${result} (${toBase})\nValeur décimale: ${decimal}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur conversion: ${err}` };
+  }
+}
+
+// ─── Timestamp Converter ─────────────────────────────────────────────────────
+
+async function toolConvertTimestamp(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = String(args.value || "").trim();
+  const direction = String(args.direction || "").trim();
+  if (!value || !direction) return { success: false, data: "Paramètres manquants" };
+
+  try {
+    if (direction === "to_date") {
+      const ts = Number(value);
+      if (isNaN(ts)) return { success: false, data: "Timestamp invalide" };
+      const date = new Date(ts * 1000);
+      return {
+        success: true,
+        data: `⏰ ${ts} → ${date.toUTCString()}\nLocal: ${date.toLocaleString("fr-FR")}`,
+      };
+    } else {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return { success: false, data: "Date invalide" };
+      return {
+        success: true,
+        data: `📅 ${value} → Timestamp Unix: ${Math.floor(date.getTime() / 1000)}`,
+      };
+    }
+  } catch (err) {
+    return { success: false, data: `Erreur: ${err}` };
+  }
+}
+
+// ─── Sun/Moon Info ───────────────────────────────────────────────────────────
+
+async function toolGetSunMoonInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const city = String(args.city || "").trim();
+  if (!city) return { success: false, data: "Paramètre manquant: city" };
+
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+    const geoRes = await fetch(geoUrl, { signal: AbortSignal.timeout(8000) });
+    if (!geoRes.ok) return { success: false, data: "Ville introuvable" };
+    const geoData = (await geoRes.json()) as {
+      results?: Array<{ latitude: number; longitude: number; name: string; country: string }>;
+    };
+    if (!geoData.results?.length) return { success: false, data: `Ville "${city}" introuvable` };
+    const { latitude, longitude, name, country } = geoData.results[0];
+
+    const sunUrl = `https://api.sunrisesunset.io/json?lat=${latitude}&lng=${longitude}&date=today`;
+    const sunRes = await fetch(sunUrl, { signal: AbortSignal.timeout(8000) });
+    if (!sunRes.ok) return { success: false, data: "API sunrise indisponible" };
+    const sunData = (await sunRes.json()) as {
+      results?: {
+        sunrise?: string;
+        sunset?: string;
+        solar_noon?: string;
+        day_length?: string;
+        golden_hour?: string;
+      };
+    };
+    const s = sunData.results;
+    if (!s) return { success: false, data: "Données indisponibles" };
+    return {
+      success: true,
+      data: `🌅 **${name}, ${country}**\n☀️ Lever: ${s.sunrise || "N/A"}\n🌇 Coucher: ${s.sunset || "N/A"}\n🕛 Midi solaire: ${s.solar_noon || "N/A"}\n⏱️ Durée du jour: ${s.day_length || "N/A"}\n🌟 Golden hour: ${s.golden_hour || "N/A"}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur: ${err}` };
+  }
+}
+
+// ─── ASCII Art Generator ─────────────────────────────────────────────────────
+
+async function toolGenerateAsciiArt(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "").trim();
+  if (!text) return { success: false, data: "Paramètre manquant: text" };
+  if (text.length > 20)
+    return { success: false, data: "Texte trop long (max 20 caractères pour l'ASCII art)" };
+
+  const fonts: Record<string, Record<string, string[]>> = {
+    Standard: {},
+    Block: {},
+  };
+
+  const simpleFont: Record<string, string[]> = {
+    A: ["  ▄▀█  ", " █▀█  "],
+    B: [" ▄▀█  ", " █▀▀  "],
+    C: [" █▀▀  ", " █▄▄  "],
+    D: [" ▄▀█  ", " █▀▀  "],
+    E: [" █▀▀  ", " ██▄  "],
+    F: [" █▀▀  ", " █    "],
+    G: [" █▀▀  ", " █ ▀█ "],
+    H: [" █ █  ", " █▄█  "],
+    I: [" ▀█▀  ", "  █   "],
+    J: ["  █▀  ", " █▄▄  "],
+    K: [" █ █  ", " █▄█  "],
+    L: [" █    ", " █▄▄  "],
+    M: [" █▀▄  ", " █ ▀█ "],
+    N: [" █▀▄  ", " █▄▀  "],
+    O: [" ▄▀█  ", " █▀█  "],
+    P: [" ▄▀█  ", " █▀   "],
+    Q: [" ▄▀█  ", " █▀█  "],
+    R: [" ▄▀█  ", " █▀█  "],
+    S: [" █▀▀  ", " █▄▄  "],
+    T: [" ▀█▀  ", "  █   "],
+    U: [" █ █  ", " █▄█  "],
+    V: [" █ █  ", " ▀▄▀  "],
+    W: [" █ █  ", " █▄█  "],
+    X: [" █ █  ", " ▀▄▀  "],
+    Y: [" █ █  ", "  █   "],
+    Z: [" ▀█▀  ", " █▄▄  "],
+    " ": ["      ", "      "],
+    "0": [" ▄▀█  ", " █▀█  "],
+    "1": ["  ▄█  ", "  █   "],
+    "2": [" ▄▀█  ", " █▀▀  "],
+    "3": [" ▄▀█  ", " █▀▀  "],
+    "4": [" █▀█  ", "  █   "],
+    "5": [" █▀▀  ", " ██▄  "],
+    "6": [" █▀▀  ", " █▄▄  "],
+    "7": [" ▀█▀  ", "  █   "],
+    "8": [" ▄▀█  ", " █▀█  "],
+    "9": [" ▄▀█  ", " █▀█  "],
+  };
+
+  const upper = text.toUpperCase();
+  const lines: string[] = ["", ""];
+  for (const char of upper) {
+    const art = simpleFont[char];
+    if (art) {
+      lines[0] += art[0];
+      lines[1] += art[1];
+    }
+  }
+  return { success: true, data: "```\n" + lines.join("\n") + "\n```" };
 }

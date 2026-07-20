@@ -646,6 +646,21 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
     "### Recherche & Savoir\n" +
     "- search_wikipedia : recherche complète sur Wikipedia FR (plusieurs articles + résumés)\n" +
     "- define_word : définit n'importe quel mot dans n'importe quelle langue via le Wiktionnaire (gratuit). UTILISE-LE AUTOMATIQUEMENT quand tu ne connais pas un mot, quand l'utilisateur demande une définition, ou quand tu rencontres un terme inconnu. Paramètres: word (requis), lang (défaut: fr).\n" +
+    "- search_movies : recherche un film ou série TV (TMDB, gratuit). UTILISE-LE pour les questions sur les films, séries, acteurs.\n" +
+    "- search_music : recherche un artiste, album ou chanson (MusicBrainz, gratuit).\n" +
+    "- search_stackoverflow : recherche sur Stack Overflow (gratuit). UTILISE-LE pour les questions de programmation spécifiques.\n" +
+    "- execute_code : exécute du JavaScript en sandbox (comme Code Interpreter de ChatGPT). UTILISE-LE pour calculer, tester du code, manipuler des données.\n" +
+    "- convert_units : convertit entre unités (m, km, C, F, kg, lb, MB, GB, etc.).\n" +
+    "- convert_timezone : convertit une heure entre timezones.\n" +
+    "- test_regex : teste une expression régulière contre un texte.\n" +
+    "- decode_jwt : décode un token JWT (header + payload).\n" +
+    "- get_sports_scores : scores sportifs en temps réel (TheSportsDB, gratuit).\n" +
+    "- search_recipe : recherche une recette de cuisine (TheMealDB, gratuit).\n" +
+    "- convert_color : convertit entre HEX, RGB, HSL.\n" +
+    "- convert_number_base : convertit entre binaire, décimal, hex, octal.\n" +
+    "- convert_timestamp : convertit un timestamp Unix ↔ date lisible.\n" +
+    "- get_sun_moon_info : heures de lever/coucher du soleil pour une ville.\n" +
+    "- generate_ascii_art : génère un texte en ASCII art.\n" +
     "### Utilitaires (auto-use)\n" +
     "- validate_email : valide un email (format, MX, jetable)\n" +
     "- generate_hash : hash MD5/SHA-1/SHA-256/SHA-512 d'un texte\n" +
