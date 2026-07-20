@@ -29,6 +29,93 @@ import logger from "../utils/logger.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
 import { RawgClient } from "../rawgClient.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import {
+  toolGrammarCheck,
+  toolTextSummarize,
+  toolTextCaseConvert,
+  toolWordCounter,
+  toolTextToMorse,
+  toolRot13,
+  toolCaesarCipher,
+  toolPalindromeCheck,
+  toolAnagramSolver,
+  toolRomanNumeralConvert,
+  toolLeetSpeak,
+  toolAccentRemover,
+  toolTextReverse,
+  toolTextSimilarity,
+  toolTextDiff,
+  toolMarkdownToHtml,
+  toolJsonFormatter,
+  toolUrlEncodeDecode,
+  toolHtmlEntityEncodeDecode,
+  toolBase32EncodeDecode,
+  toolHashIdentifier,
+} from "./batch2/textCryptoTools.js";
+import {
+  toolGeneratePassword,
+  toolPasswordStrength,
+  toolBmiCalculator,
+  toolCalorieCalculator,
+  toolCompoundInterest,
+  toolPercentageCalculator,
+  toolTipCalculator,
+  toolDaysBetweenDates,
+  toolAgeCalculator,
+  toolDayOfWeek,
+  toolLeapYearCheck,
+  toolWeekNumber,
+  toolRandomNumber,
+  toolDiceRoll,
+  toolCoinFlip,
+  toolUuidGenerator,
+  toolNanoIdGenerator,
+  toolSleepCalculator,
+  toolGradientGenerator,
+  toolCronGenerator,
+  toolLicenseGenerator,
+  toolHttpStatusInfo,
+  toolMimeTypeLookup,
+  toolCanIUse,
+} from "./batch2/calcDateTools.js";
+import {
+  toolSearchAnime,
+  toolIssTracker,
+  toolMoonPhase,
+  toolRedditHot,
+  toolBoardgameSearch,
+  toolRandomFact,
+  toolThisDayInHistory,
+  toolWordOfTheDay,
+  toolBoredActivity,
+  toolChuckNorrisFact,
+  toolProgrammingJoke,
+  toolWouldYouRather,
+  toolCountryInfo,
+  toolGeocodeAddress,
+  toolDistanceCalculator,
+  toolPeriodicTable,
+  toolFakePersonGenerator,
+  toolGitignoreGenerator,
+  toolNpmPackageInfo,
+  toolOpenLibrarySearch,
+  toolAuroraForecast,
+  toolSteamPlayerCount,
+  toolPokemonInfo,
+  toolEsportsMatches,
+  toolMemeGenerator,
+  toolSslChecker,
+  toolDnsLookup,
+  toolColorPaletteFromImage,
+  toolUvIndex,
+  toolImageToAscii,
+} from "./batch2/apiTools.js";
+import {
+  toolWorkoutGenerator,
+  toolNameGenerator,
+  toolZodiacCompatibility,
+  toolTextToSpeechInfo,
+} from "./batch2/funMiscTools.js";
 
 // ─── Tool Definitions ───────────────────────────────────────────────────────
 
@@ -1005,6 +1092,1179 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── Batch 2: More free tools ───
+  {
+    type: "function",
+    function: {
+      name: "grammar_check",
+      description:
+        "Vérifie la grammaire et l'orthographe d'un texte dans 30+ langues via LanguageTool (gratuit).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à vérifier" },
+          language: { type: "string", description: "Code langue (fr, en, es, de, etc.)" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_password",
+      description:
+        "Génère un mot de passe sécurisé avec critères personnalisables (longueur, symboles, nombres).",
+      parameters: {
+        type: "object",
+        properties: {
+          length: { type: "number", description: "Longueur (défaut 16)" },
+          uppercase: { type: "boolean", description: "Inclure majuscules" },
+          lowercase: { type: "boolean", description: "Inclure minuscules" },
+          numbers: { type: "boolean", description: "Inclure chiffres" },
+          symbols: { type: "boolean", description: "Inclure symboles" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "password_strength",
+      description: "Évalue la force d'un mot de passe (entropie, temps de crack, faiblesses).",
+      parameters: {
+        type: "object",
+        properties: { password: { type: "string", description: "Mot de passe à évaluer" } },
+        required: ["password"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_summarize",
+      description:
+        "Résume un long texte en extrayant les phrases les plus importantes (extractive summarization).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à résumer" },
+          sentences: { type: "number", description: "Nombre de phrases du résumé (défaut 3)" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_anime",
+      description:
+        "Recherche un anime ou manga via Jikan (MyAnimeList API, gratuit). Retourne titre, score, synopsis, épisodes.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Nom de l'anime/manga" },
+          type: { type: "string", enum: ["anime", "manga"], description: "Type de recherche" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "iss_tracker",
+      description:
+        "Position en temps réel de la Station Spatiale Internationale (ISS). Gratuit via Open Notify.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "moon_phase",
+      description: "Phase actuelle de la lune avec pourcentage d'illumination. Gratuit via NOAA.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date au format YYYY-MM-DD (défaut: aujourd'hui)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reddit_hot",
+      description: "Posts populaires d'un subreddit. Gratuit via Reddit JSON API.",
+      parameters: {
+        type: "object",
+        properties: {
+          subreddit: {
+            type: "string",
+            description: "Nom du subreddit (ex: programming, funny, news)",
+          },
+          count: { type: "number", description: "Nombre de posts (défaut 5)" },
+        },
+        required: ["subreddit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "boardgame_search",
+      description:
+        "Recherche un jeu de société via BoardGameGeek (gratuit). Retourne nom, année, joueurs, durée, note.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "Nom du jeu" } },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_case_convert",
+      description:
+        "Convertit la casse d'un texte: UPPER, lower, Title Case, camelCase, snake_case, kebab-case, PascalCase.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à convertir" },
+          mode: {
+            type: "string",
+            enum: ["upper", "lower", "title", "camel", "snake", "kebab", "pascal"],
+            description: "Mode de conversion",
+          },
+        },
+        required: ["text", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "word_counter",
+      description: "Compte mots, caractères, phrases, paragraphes et temps de lecture estimé.",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Texte à analyser" } },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_to_morse",
+      description: "Convertit du texte en code Morse et inversement.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte ou code Morse" },
+          mode: { type: "string", enum: ["encode", "decode"], description: "Encoder ou décoder" },
+        },
+        required: ["text", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rot13",
+      description: "Encode ou décode en ROT13 (chiffrement par décalage de 13).",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Texte à encoder/décoder" } },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "caesar_cipher",
+      description: "Chiffre ou déchiffre avec le code César (décalage paramétrable).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte" },
+          shift: { type: "number", description: "Décalage (1-25)" },
+          mode: {
+            type: "string",
+            enum: ["encrypt", "decrypt"],
+            description: "Chiffrer ou déchiffrer",
+          },
+        },
+        required: ["text", "shift"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "palindrome_check",
+      description: "Vérifie si un texte est un palindrome (se lit pareil dans les deux sens).",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Texte à vérifier" } },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "anagram_solver",
+      description: "Trouve les anagrammes d'un mot.",
+      parameters: {
+        type: "object",
+        properties: { word: { type: "string", description: "Mot à anagrammer" } },
+        required: ["word"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "roman_numeral_convert",
+      description: "Convertit entre nombres romains et nombres arabes.",
+      parameters: {
+        type: "object",
+        properties: { input: { type: "string", description: "Nombre romain (XIV) ou arabe (14)" } },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "leet_speak",
+      description: "Convertit du texte en leet speak (1337 5p34k).",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Texte à convertir" } },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "accent_remover",
+      description: "Supprime les accents d'un texte (é→e, à→a, ç→c, etc.).",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Texte avec accents" } },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_reverse",
+      description: "Inverse un texte (caractère par caractère ou mot par mot).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à inverser" },
+          mode: {
+            type: "string",
+            enum: ["chars", "words"],
+            description: "Inverser par caractère ou par mot",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bmi_calculator",
+      description: "Calcule l'IMC (Indice de Masse Corporelle) et la catégorie de poids.",
+      parameters: {
+        type: "object",
+        properties: {
+          weight: { type: "number", description: "Poids en kg" },
+          height: { type: "number", description: "Taille en cm" },
+        },
+        required: ["weight", "height"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "calorie_calculator",
+      description: "Calcule les besoins caloriques quotidiens (BMR + TDEE) selon activité.",
+      parameters: {
+        type: "object",
+        properties: {
+          weight: { type: "number", description: "Poids en kg" },
+          height: { type: "number", description: "Taille en cm" },
+          age: { type: "number", description: "Âge" },
+          gender: { type: "string", enum: ["male", "female"], description: "Sexe" },
+          activity: {
+            type: "string",
+            enum: ["sedentary", "light", "moderate", "active", "very_active"],
+            description: "Niveau d'activité",
+          },
+        },
+        required: ["weight", "height", "age", "gender"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "compound_interest",
+      description: "Calculateur d'intérêts composés.",
+      parameters: {
+        type: "object",
+        properties: {
+          principal: { type: "number", description: "Capital initial" },
+          rate: { type: "number", description: "Taux d'intérêt annuel (%)" },
+          years: { type: "number", description: "Durée en années" },
+          frequency: {
+            type: "number",
+            description: "Fréquence de capitalisation par an (défaut 12)",
+          },
+        },
+        required: ["principal", "rate", "years"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "percentage_calculator",
+      description:
+        "Tous les calculs de pourcentage: X% de Y, X est quel % de Y, augmentation/diminution.",
+      parameters: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["of", "is_what", "increase", "decrease"],
+            description: "Type de calcul",
+          },
+          value1: { type: "number", description: "Première valeur" },
+          value2: { type: "number", description: "Deuxième valeur" },
+        },
+        required: ["mode", "value1", "value2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "tip_calculator",
+      description: "Calcule le pourboire et divise l'addition entre plusieurs personnes.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: { type: "number", description: "Montant total" },
+          tip_percent: { type: "number", description: "Pourcentage de pourboire (défaut 15)" },
+          people: { type: "number", description: "Nombre de personnes (défaut 1)" },
+        },
+        required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "days_between_dates",
+      description: "Calcule le nombre de jours entre deux dates.",
+      parameters: {
+        type: "object",
+        properties: {
+          date1: { type: "string", description: "Première date (YYYY-MM-DD)" },
+          date2: { type: "string", description: "Deuxième date (YYYY-MM-DD)" },
+        },
+        required: ["date1", "date2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "age_calculator",
+      description: "Calcule l'âge précis en années, mois et jours.",
+      parameters: {
+        type: "object",
+        properties: {
+          birthdate: { type: "string", description: "Date de naissance (YYYY-MM-DD)" },
+        },
+        required: ["birthdate"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "day_of_week",
+      description: "Quel jour de la semaine était/sera une date donnée.",
+      parameters: {
+        type: "object",
+        properties: { date: { type: "string", description: "Date (YYYY-MM-DD)" } },
+        required: ["date"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "random_fact",
+      description: "Fait aléatoire intéressant sur un nombre (Numbers API, gratuit).",
+      parameters: {
+        type: "object",
+        properties: {
+          number: { type: "number", description: "Nombre spécifique (optionnel, sinon aléatoire)" },
+          type: {
+            type: "string",
+            enum: ["trivia", "math", "date", "year"],
+            description: "Type de fait",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "this_day_in_history",
+      description: "Événements historiques arrivés ce jour-là (Wikipedia, gratuit).",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "word_of_the_day",
+      description: "Mot du jour avec définition (Wordnik API gratuite ou fallback local).",
+      parameters: {
+        type: "object",
+        properties: { language: { type: "string", description: "Langue (fr ou en)" } },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "would_you_rather",
+      description: "Question 'tu préfères' aléatoire (gratuit).",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bored_activity",
+      description: "Suggère une activité aléatoire quand on s'ennuie (Bored API, gratuit).",
+      parameters: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: [
+              "education",
+              "recreational",
+              "social",
+              "diy",
+              "charity",
+              "cooking",
+              "relaxation",
+              "music",
+              "busywork",
+            ],
+            description: "Type d'activité (optionnel)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "chuck_norris_fact",
+      description: "Blague aléatoire sur Chuck Norris (Chuck Norris API, gratuit).",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "programming_joke",
+      description: "Blague de programmation aléatoire (JokeAPI, gratuit).",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "uuid_generator",
+      description: "Génère un ou plusieurs UUID v4.",
+      parameters: {
+        type: "object",
+        properties: { count: { type: "number", description: "Nombre d'UUIDs (défaut 1, max 10)" } },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "nano_id_generator",
+      description: "Génère un Nano ID (court, URL-safe, unique).",
+      parameters: {
+        type: "object",
+        properties: { size: { type: "number", description: "Taille (défaut 21)" } },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "base32_encode_decode",
+      description: "Encode ou décode en Base32.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte" },
+          mode: { type: "string", enum: ["encode", "decode"], description: "Encoder ou décoder" },
+        },
+        required: ["text", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "url_encode_decode",
+      description: "Encode ou décode une URL (percent-encoding).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte ou URL" },
+          mode: { type: "string", enum: ["encode", "decode"], description: "Encoder ou décoder" },
+        },
+        required: ["text", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "html_entity_encode_decode",
+      description: "Encode ou décode les entités HTML.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte" },
+          mode: { type: "string", enum: ["encode", "decode"], description: "Encoder ou décoder" },
+        },
+        required: ["text", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "json_formatter",
+      description: "Formate, indente et valide du JSON. Détecte les erreurs de syntaxe.",
+      parameters: {
+        type: "object",
+        properties: {
+          json: { type: "string", description: "Chaîne JSON à formater" },
+          minify: { type: "boolean", description: "Minifier au lieu d'indenter" },
+        },
+        required: ["json"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "http_status_info",
+      description: "Description détaillée d'un code HTTP (signification, usage).",
+      parameters: {
+        type: "object",
+        properties: { code: { type: "number", description: "Code HTTP (ex: 404, 200, 500)" } },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mime_type_lookup",
+      description: "Trouve le MIME type d'une extension de fichier.",
+      parameters: {
+        type: "object",
+        properties: { extension: { type: "string", description: "Extension (ex: pdf, jpg, mp4)" } },
+        required: ["extension"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssl_checker",
+      description: "Vérifie le certificat SSL/TLS d'un domaine (émetteur, expiration, validité).",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine à vérifier (ex: example.com)" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_lookup",
+      description: "Résolution DNS avancée: A, AAAA, MX, TXT, NS, CNAME records.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine" },
+          record_type: {
+            type: "string",
+            enum: ["A", "AAAA", "MX", "TXT", "NS", "CNAME", "CAA", "SOA"],
+            description: "Type d'enregistrement (défaut: A)",
+          },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "country_info",
+      description:
+        "Infos détaillées d'un pays: capitale, population, drapeau, monnaie, langue, région. Gratuit via REST Countries.",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "Nom ou code pays (ex: France, FR, Japan)" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "geocode_address",
+      description:
+        "Convertit une adresse en coordonnées GPS (latitude/longitude). Gratuit via Nominatim/OpenStreetMap.",
+      parameters: {
+        type: "object",
+        properties: { address: { type: "string", description: "Adresse à géocoder" } },
+        required: ["address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "distance_calculator",
+      description:
+        "Calcule la distance à vol d'oiseau entre deux points GPS (formule de Haversine).",
+      parameters: {
+        type: "object",
+        properties: {
+          lat1: { type: "number", description: "Latitude point 1" },
+          lon1: { type: "number", description: "Longitude point 1" },
+          lat2: { type: "number", description: "Latitude point 2" },
+          lon2: { type: "number", description: "Longitude point 2" },
+        },
+        required: ["lat1", "lon1", "lat2", "lon2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "periodic_table",
+      description:
+        "Infos sur un élément chimique du tableau périodique (numéro, masse, catégorie, configuration).",
+      parameters: {
+        type: "object",
+        properties: {
+          element: { type: "string", description: "Symbole ou nom (ex: H, Hydrogen, Fe, Fer)" },
+        },
+        required: ["element"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_similarity",
+      description:
+        "Calcule la similarité entre deux textes (distance de Levenshtein, pourcentage).",
+      parameters: {
+        type: "object",
+        properties: {
+          text1: { type: "string", description: "Premier texte" },
+          text2: { type: "string", description: "Deuxième texte" },
+        },
+        required: ["text1", "text2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "fake_person_generator",
+      description:
+        "Génère un profil de personne fictive (nom, email, adresse, téléphone). Gratuit via RandomUser.",
+      parameters: {
+        type: "object",
+        properties: {
+          nationality: { type: "string", description: "Nationalité (ex: fr, us, gb, de)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gitignore_generator",
+      description: "Génère un fichier .gitignore pour un stack technique donné.",
+      parameters: {
+        type: "object",
+        properties: {
+          stack: {
+            type: "string",
+            description: "Technologies (ex: node, python, java, react, vue, go, rust)",
+          },
+        },
+        required: ["stack"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "npm_package_info",
+      description: "Infos détaillées d'un package npm (version, description, dépendances, taille).",
+      parameters: {
+        type: "object",
+        properties: { package: { type: "string", description: "Nom du package npm" } },
+        required: ["package"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "open_library_search",
+      description:
+        "Recherche un livre sur Open Library (gratuit): titre, auteur, ISBN, couverture, résumé.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "Titre, auteur ou ISBN" } },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "uv_index",
+      description: "Indice UV actuel pour une ville. Gratuit via OpenUV ou météo.",
+      parameters: {
+        type: "object",
+        properties: { city: { type: "string", description: "Ville" } },
+        required: ["city"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "aurora_forecast",
+      description: "Prévision des aurores boréales (KP index, probabilité). Gratuit via NOAA.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "steam_player_count",
+      description: "Nombre de joueurs connectés sur un jeu Steam. Gratuit via Steam API.",
+      parameters: {
+        type: "object",
+        properties: {
+          appid: { type: "number", description: "App ID Steam du jeu" },
+          name: { type: "string", description: "Nom du jeu (recherche auto)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "esports_matches",
+      description: "Matchs esports à venir (LoL, CS2, Valorant, Dota2). Gratuit via pandascore.",
+      parameters: {
+        type: "object",
+        properties: {
+          game: {
+            type: "string",
+            enum: ["lol", "csgo", "valorant", "dota2", "ow"],
+            description: "Jeu",
+          },
+        },
+        required: ["game"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pokemon_info",
+      description:
+        "Infos détaillées d'un Pokémon: types, stats, capacités, évolution. Gratuit via PokéAPI.",
+      parameters: {
+        type: "object",
+        properties: { pokemon: { type: "string", description: "Nom ou ID du Pokémon" } },
+        required: ["pokemon"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sleep_calculator",
+      description: "Calcule les meilleurs horaires de sommeil basés sur les cycles de 90 minutes.",
+      parameters: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["wake_at", "sleep_now"],
+            description: "Heure de réveil souhaitée ou coucher maintenant",
+          },
+          time: { type: "string", description: "Heure HH:MM (si mode wake_at)" },
+        },
+        required: ["mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "workout_generator",
+      description: "Génère une séance de sport personnalisée selon objectif et niveau.",
+      parameters: {
+        type: "object",
+        properties: {
+          goal: {
+            type: "string",
+            enum: ["strength", "cardio", "flexibility", "weight_loss", "muscle_gain"],
+            description: "Objectif",
+          },
+          level: {
+            type: "string",
+            enum: ["beginner", "intermediate", "advanced"],
+            description: "Niveau",
+          },
+          duration: { type: "number", description: "Durée en minutes (défaut 30)" },
+        },
+        required: ["goal"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "name_generator",
+      description: "Génère des noms aléatoires (fantasy, sci-fi, medieval, pirate, superhero).",
+      parameters: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: ["fantasy", "scifi", "medieval", "pirate", "superhero", "band", "startup"],
+            description: "Type de nom",
+          },
+          count: { type: "number", description: "Nombre de noms (défaut 3)" },
+        },
+        required: ["type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "zodiac_compatibility",
+      description: "Compatibilité amoureuse entre deux signes du zodiaque.",
+      parameters: {
+        type: "object",
+        properties: {
+          sign1: { type: "string", description: "Premier signe" },
+          sign2: { type: "string", description: "Deuxième signe" },
+        },
+        required: ["sign1", "sign2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gradient_generator",
+      description: "Génère un dégradé CSS avec preview URL.",
+      parameters: {
+        type: "object",
+        properties: {
+          colors: {
+            type: "array",
+            items: { type: "string" },
+            description: "Liste de couleurs hex (ex: [#ff0000, #00ff00])",
+          },
+          direction: { type: "string", description: "Direction (to right, 45deg, etc.)" },
+        },
+        required: ["colors"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "random_number",
+      description: "Génère un nombre aléatoire dans une plage donnée.",
+      parameters: {
+        type: "object",
+        properties: {
+          min: { type: "number", description: "Minimum (défaut 1)" },
+          max: { type: "number", description: "Maximum (défaut 100)" },
+          count: { type: "number", description: "Nombre de nombres (défaut 1)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dice_roll",
+      description: "Lance un dé (d4, d6, d8, d10, d12, d20, d100) ou plusieurs.",
+      parameters: {
+        type: "object",
+        properties: {
+          sides: { type: "number", description: "Nombre de faces (4, 6, 8, 10, 12, 20, 100)" },
+          count: { type: "number", description: "Nombre de dés (défaut 1)" },
+        },
+        required: ["sides"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "coin_flip",
+      description: "Tire à pile ou face.",
+      parameters: {
+        type: "object",
+        properties: { count: { type: "number", description: "Nombre de lancers (défaut 1)" } },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "meme_generator",
+      description: "Crée un meme avec texte personnalisé via Imgflip (gratuit).",
+      parameters: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            description: "Nom du template (ex: Drake, DistractedBoyfriend) ou ID",
+          },
+          top_text: { type: "string", description: "Texte du haut" },
+          bottom_text: { type: "string", description: "Texte du bas" },
+        },
+        required: ["template", "top_text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_to_speech_info",
+      description: "Liste les voix TTS disponibles et langues supportées par le bot.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hash_identifier",
+      description: "Identifie le type d'un hash (MD5, SHA-1, SHA-256, bcrypt, argon2, etc.).",
+      parameters: {
+        type: "object",
+        properties: { hash: { type: "string", description: "Hash à identifier" } },
+        required: ["hash"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "leap_year_check",
+      description: "Vérifie si une année est bissextile.",
+      parameters: {
+        type: "object",
+        properties: { year: { type: "number", description: "Année à vérifier" } },
+        required: ["year"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "week_number",
+      description: "Numéro de semaine ISO d'une date.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date (YYYY-MM-DD, défaut: aujourd'hui)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "image_to_ascii",
+      description: "Convertit une image (URL) en ASCII art.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL de l'image" },
+          width: { type: "number", description: "Largeur en caractères (défaut 50)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "color_palette_from_image",
+      description: "Extrait la palette de couleurs dominantes d'une image (URL).",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL de l'image" },
+          count: { type: "number", description: "Nombre de couleurs (défaut 5)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_diff",
+      description: "Compare deux textes et affiche les différences ligne par ligne.",
+      parameters: {
+        type: "object",
+        properties: {
+          text1: { type: "string", description: "Premier texte" },
+          text2: { type: "string", description: "Deuxième texte" },
+        },
+        required: ["text1", "text2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cron_generator",
+      description:
+        "Génère une expression cron depuis du texte naturel (ex: 'tous les jours à 9h').",
+      parameters: {
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Description en langage naturel" },
+        },
+        required: ["description"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "license_generator",
+      description: "Génère une licence open source (MIT, Apache 2.0, GPL 3.0, BSD, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: ["mit", "apache", "gpl", "bsd", "lgpl", "mpl"],
+            description: "Type de licence",
+          },
+          author: { type: "string", description: "Nom de l'auteur" },
+          year: { type: "number", description: "Année (défaut: année courante)" },
+        },
+        required: ["type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "markdown_to_html",
+      description: "Convertit du Markdown en HTML.",
+      parameters: {
+        type: "object",
+        properties: { markdown: { type: "string", description: "Texte en Markdown" } },
+        required: ["markdown"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "caniuse",
+      description:
+        "Vérifie la compatibilité navigateur d'une feature CSS/JS/HTML. Gratuit via caniuse.com.",
+      parameters: {
+        type: "object",
+        properties: {
+          feature: {
+            type: "string",
+            description: "Nom de la feature (ex: flexbox, grid, websocket)",
+          },
+        },
+        required: ["feature"],
+      },
+    },
+  },
 ];
 
 export async function executeExtraTool(
@@ -1121,6 +2381,164 @@ export async function executeExtraTool(
         return await toolGetStockPrice(args);
       case "get_horoscope":
         return await toolGetHoroscope(args);
+      case "grammar_check":
+        return await toolGrammarCheck(args);
+      case "generate_password":
+        return await toolGeneratePassword(args);
+      case "password_strength":
+        return await toolPasswordStrength(args);
+      case "text_summarize":
+        return await toolTextSummarize(args);
+      case "search_anime":
+        return await toolSearchAnime(args);
+      case "iss_tracker":
+        return await toolIssTracker(args);
+      case "moon_phase":
+        return await toolMoonPhase(args);
+      case "reddit_hot":
+        return await toolRedditHot(args);
+      case "boardgame_search":
+        return await toolBoardgameSearch(args);
+      case "text_case_convert":
+        return await toolTextCaseConvert(args);
+      case "word_counter":
+        return await toolWordCounter(args);
+      case "text_to_morse":
+        return await toolTextToMorse(args);
+      case "rot13":
+        return await toolRot13(args);
+      case "caesar_cipher":
+        return await toolCaesarCipher(args);
+      case "palindrome_check":
+        return await toolPalindromeCheck(args);
+      case "anagram_solver":
+        return await toolAnagramSolver(args);
+      case "roman_numeral_convert":
+        return await toolRomanNumeralConvert(args);
+      case "leet_speak":
+        return await toolLeetSpeak(args);
+      case "accent_remover":
+        return await toolAccentRemover(args);
+      case "text_reverse":
+        return await toolTextReverse(args);
+      case "bmi_calculator":
+        return await toolBmiCalculator(args);
+      case "calorie_calculator":
+        return await toolCalorieCalculator(args);
+      case "compound_interest":
+        return await toolCompoundInterest(args);
+      case "percentage_calculator":
+        return await toolPercentageCalculator(args);
+      case "tip_calculator":
+        return await toolTipCalculator(args);
+      case "days_between_dates":
+        return await toolDaysBetweenDates(args);
+      case "age_calculator":
+        return await toolAgeCalculator(args);
+      case "day_of_week":
+        return await toolDayOfWeek(args);
+      case "random_fact":
+        return await toolRandomFact(args);
+      case "this_day_in_history":
+        return await toolThisDayInHistory(args);
+      case "word_of_the_day":
+        return await toolWordOfTheDay(args);
+      case "would_you_rather":
+        return await toolWouldYouRather(args);
+      case "bored_activity":
+        return await toolBoredActivity(args);
+      case "chuck_norris_fact":
+        return await toolChuckNorrisFact(args);
+      case "programming_joke":
+        return await toolProgrammingJoke(args);
+      case "uuid_generator":
+        return await toolUuidGenerator(args);
+      case "nano_id_generator":
+        return await toolNanoIdGenerator(args);
+      case "base32_encode_decode":
+        return await toolBase32EncodeDecode(args);
+      case "url_encode_decode":
+        return await toolUrlEncodeDecode(args);
+      case "html_entity_encode_decode":
+        return await toolHtmlEntityEncodeDecode(args);
+      case "json_formatter":
+        return await toolJsonFormatter(args);
+      case "http_status_info":
+        return await toolHttpStatusInfo(args);
+      case "mime_type_lookup":
+        return await toolMimeTypeLookup(args);
+      case "ssl_checker":
+        return await toolSslChecker(args);
+      case "dns_lookup":
+        return await toolDnsLookup(args);
+      case "country_info":
+        return await toolCountryInfo(args);
+      case "geocode_address":
+        return await toolGeocodeAddress(args);
+      case "distance_calculator":
+        return await toolDistanceCalculator(args);
+      case "periodic_table":
+        return await toolPeriodicTable(args);
+      case "text_similarity":
+        return await toolTextSimilarity(args);
+      case "fake_person_generator":
+        return await toolFakePersonGenerator(args);
+      case "gitignore_generator":
+        return await toolGitignoreGenerator(args);
+      case "npm_package_info":
+        return await toolNpmPackageInfo(args);
+      case "open_library_search":
+        return await toolOpenLibrarySearch(args);
+      case "uv_index":
+        return await toolUvIndex(args);
+      case "aurora_forecast":
+        return await toolAuroraForecast(args);
+      case "steam_player_count":
+        return await toolSteamPlayerCount(args);
+      case "esports_matches":
+        return await toolEsportsMatches(args);
+      case "pokemon_info":
+        return await toolPokemonInfo(args);
+      case "sleep_calculator":
+        return await toolSleepCalculator(args);
+      case "workout_generator":
+        return await toolWorkoutGenerator(args);
+      case "name_generator":
+        return await toolNameGenerator(args);
+      case "zodiac_compatibility":
+        return await toolZodiacCompatibility(args);
+      case "gradient_generator":
+        return await toolGradientGenerator(args);
+      case "random_number":
+        return await toolRandomNumber(args);
+      case "dice_roll":
+        return await toolDiceRoll(args);
+      case "coin_flip":
+        return await toolCoinFlip(args);
+      case "meme_generator":
+        return await toolMemeGenerator(args);
+      case "text_to_speech_info":
+        return await toolTextToSpeechInfo(args);
+      case "hash_identifier":
+        return await toolHashIdentifier(args);
+      case "leap_year_check":
+        return await toolLeapYearCheck(args);
+      case "week_number":
+        return await toolWeekNumber(args);
+      case "image_to_ascii":
+        return await toolImageToAscii(args);
+      case "color_palette_from_image":
+        return await toolColorPaletteFromImage(args);
+      case "text_diff":
+        return await toolTextDiff(args);
+      case "cron_generator":
+        return await toolCronGenerator(args);
+      case "license_generator":
+        return await toolLicenseGenerator(args);
+      case "markdown_to_html":
+        return await toolMarkdownToHtml(args);
+      case "caniuse":
+        return await toolCanIUse(args);
       default:
         return null;
     }
