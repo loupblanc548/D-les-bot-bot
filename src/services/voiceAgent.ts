@@ -388,8 +388,9 @@ async function playTTSMessage(client: Client, alert: VoiceAlert): Promise<void> 
 /**
  * Génère un audio TTS naturel via:
  * 1. ElevenLabs (si configuré — voix neuronale ultra-réaliste, comme ChatGPT)
- * 2. StreamElements / Amazon Polly (gratuit — voix neuronale naturelle)
- * 3. Google Translate TTS (fallback dernier recours)
+ * 2. Microsoft Edge TTS (gratuit — voix neuronale Azure, même tech que Copilot)
+ * 3. StreamElements / Amazon Polly (gratuit — voix neuronale naturelle)
+ * 4. Google Translate TTS (fallback dernier recours)
  */
 async function generateTTS(text: string, lang: string, _speed: number): Promise<Buffer | null> {
   // 1. ElevenLabs si configuré (qualité maximale, type ChatGPT)
@@ -408,11 +409,22 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
     // Continue to fallback
   }
 
-  // 2. StreamElements / Amazon Polly (gratuit, voix neuronale naturelle)
+  // 2. Microsoft Edge TTS (gratuit, voix neuronales Azure — qualité ChatGPT/Copilot)
+  try {
+    const edgeBuffer = await generateEdgeTTS(text.slice(0, 500), lang);
+    if (edgeBuffer && edgeBuffer.length > 1000) {
+      logger.info(`[VoiceAgent] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
+      return edgeBuffer;
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // 3. StreamElements / Amazon Polly (gratuit, voix neuronale naturelle)
   try {
     const voiceMap: Record<string, string> = {
-      fr: "Mathieu", // Voix masculine française neuronale
-      en: "Brian", // Voix masculine anglaise neuronale
+      fr: "Mathieu",
+      en: "Brian",
       es: "Enrique",
       de: "Hans",
       it: "Giorgio",
@@ -435,7 +447,7 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
     // Continue to fallback
   }
 
-  // 3. Fallback: Google Translate TTS (robotique mais toujours disponible)
+  // 4. Fallback: Google Translate TTS (robotique mais toujours disponible)
   try {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 500))}&tl=${lang}&client=tw-ob`;
     const res = await fetch(url, {
@@ -460,6 +472,106 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
     );
     return null;
   }
+}
+
+/**
+ * Microsoft Edge TTS — voix neuronales Azure gratuites (même technologie que Copilot/ChatGPT).
+ * Utilise le WebSocket public de Microsoft (pas de clé, pas d'abonnement).
+ * Supporte 40+ langues avec voix naturelles.
+ */
+async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | null> {
+  const { WebSocket } = await import("ws");
+
+  const voiceMap: Record<string, string> = {
+    fr: "fr-FR-HenriNeural",
+    en: "en-US-AndrewMultilingualNeural",
+    es: "es-ES-AlvaroNeural",
+    de: "de-DE-ConradNeural",
+    it: "it-IT-DiegoNeural",
+    pt: "pt-BR-AntonioNeural",
+    ja: "ja-JP-KeitaNeural",
+    ko: "ko-KR-InJoonNeural",
+    zh: "zh-CN-XiaoxiaoNeural",
+    ru: "ru-RU-DmitryNeural",
+    ar: "ar-SA-HamedNeural",
+    hi: "hi-IN-MadhurNeural",
+    nl: "nl-NL-MaartenNeural",
+    pl: "pl-PL-MarekNeural",
+    tr: "tr-TR-EmirNeural",
+  };
+
+  const voice = voiceMap[lang] || "en-US-AndrewMultilingualNeural";
+  const SSML = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</voice></speak>`;
+
+  return new Promise<Buffer | null>((resolve) => {
+    const chunks: Buffer[] = [];
+    let resolved = false;
+
+    const finish = (result: Buffer | null) => {
+      if (resolved) return;
+      resolved = true;
+      try {
+        ws.close();
+      } catch {}
+      resolve(result);
+    };
+
+    const ws = new WebSocket(
+      "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1",
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          Origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        },
+      },
+    );
+
+    const timeout = setTimeout(() => {
+      logger.warn("[VoiceAgent] Edge TTS timeout");
+      finish(null);
+    }, 10_000);
+
+    ws.on("open", () => {
+      ws.send(
+        `Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n${JSON.stringify({ context: { synthesis: { audio: { outputFormat: "audio-24khz-48kbitrate-mono-mp3" } } } })}`,
+      );
+      ws.send(
+        `Content-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toISOString()}\r\nPath:ssml\r\n\r\n${SSML}`,
+      );
+    });
+
+    ws.on("message", (data: Buffer) => {
+      const str = data.toString();
+      if (str.includes("Path:audio")) {
+        const idx = str.indexOf("\r\n\r\n");
+        if (idx !== -1) {
+          const audioData = data.subarray(idx + 4);
+          if (audioData.length > 0) chunks.push(audioData);
+        }
+      }
+      if (str.includes("Path:turn.end")) {
+        clearTimeout(timeout);
+        const combined = Buffer.concat(chunks);
+        finish(combined.length > 100 ? combined : null);
+      }
+    });
+
+    ws.on("error", (err) => {
+      clearTimeout(timeout);
+      logger.warn(`[VoiceAgent] Edge TTS error: ${err.message}`);
+      finish(null);
+    });
+
+    ws.on("close", () => {
+      clearTimeout(timeout);
+      if (chunks.length > 0) {
+        const combined = Buffer.concat(chunks);
+        finish(combined.length > 100 ? combined : null);
+      } else {
+        finish(null);
+      }
+    });
+  });
 }
 
 // ─── Surveillance vocale ─────────────────────────────────────────────────────
