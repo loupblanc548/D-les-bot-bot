@@ -1007,6 +1007,28 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "list_social_follows",
       { level: "low", module: "social", reason: "Read-only list of follows" },
     ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 14: Voice Subtitles & Conversation (voiceSubtitles.ts, voiceConversation.ts)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "voice_subtitles",
+      {
+        level: "high",
+        module: "voice",
+        reason:
+          "Continuous listening of all users in voice channel — privacy-sensitive, requires opt-in + toggle",
+      },
+    ],
+    [
+      "voice_conversation",
+      {
+        level: "high",
+        module: "voice",
+        reason:
+          "Full conversational loop: listens to user speech, sends to AI, speaks response — most intrusive voice feature, requires opt-in + toggle + rate-limit",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime
