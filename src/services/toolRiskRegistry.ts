@@ -1029,6 +1029,36 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
           "Full conversational loop: listens to user speech, sends to AI, speaks response — most intrusive voice feature, requires opt-in + toggle + rate-limit",
       },
     ],
+    // MODULE 15: Voice Translation (voiceTranslation.ts)
+    [
+      "voice_translation",
+      {
+        level: "high",
+        module: "voice",
+        reason:
+          "Real-time speech translation: captures audio, transcribes, translates via DeepL, generates AI response, speaks it — requires opt-in + toggle + rate-limit, audio is ephemeral (not stored)",
+      },
+    ],
+    // MODULE 16: NSFW Classifier (nsfwClassifier.ts)
+    [
+      "nsfw_classifier",
+      {
+        level: "medium",
+        module: "moderation",
+        reason:
+          "Classifies images for NSFW content via Sightengine/Gemini — read-only API call, no data stored, cache LRU for efficiency",
+      },
+    ],
+    // MODULE 17: Community Digest (communityDigest.ts)
+    [
+      "community_digest",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "Periodic aggregated server activity report — opt-in per guild, uses only aggregated data (no individual PII), configurable frequency",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime
