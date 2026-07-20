@@ -38,7 +38,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@resvg/resvg-js": "^2.6.2",
-    "@sentry/node": "^10.57.0",
+    "@sentry/node": "^10.67.0",
     "assemblyai": "^4.35.3",
     "axios": "^1.17.0",
     "bedrock-protocol": "^3.5.1",
