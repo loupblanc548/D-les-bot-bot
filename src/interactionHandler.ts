@@ -26,6 +26,7 @@ import { handleTriviaButton } from "./services/triviaService.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
+import { handleAutocomplete as handleFollowAutocomplete } from "./commands/follow.js";
 import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
 import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
 
@@ -257,6 +258,9 @@ export function attachInteractionHandlers(client: Client): void {
         break;
       case "twitch":
         await handleTwitchAutocomplete(interaction);
+        break;
+      case "follow":
+        await handleFollowAutocomplete(interaction);
         break;
       case "game": {
         const sub = interaction.options.getSubcommand();

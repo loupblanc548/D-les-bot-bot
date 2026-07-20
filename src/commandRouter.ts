@@ -114,6 +114,11 @@ import {
   execute as killswitchExecute,
 } from "./commands/killswitch.js";
 import { data as privacyCommandData, execute as privacyExecute } from "./commands/privacy.js";
+import {
+  commands as followCommands,
+  handleCommand as handleFollowCommand,
+  handleAutocomplete as handleFollowAutocomplete,
+} from "./commands/follow.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -485,6 +490,8 @@ export const allCommands = [
   killswitchCommandData,
   // ── Privacy (RGPD compliance) ──
   privacyCommandData,
+  // ── Follow (social media tracking) ──
+  ...followCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -569,6 +576,11 @@ export function buildCommandRouter(): void {
   commandRouter["privacy"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await privacyExecute(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Follow (social media tracking) command ───
+  commandRouter["follow"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleFollowCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Context Menus ───
   registerGroup(

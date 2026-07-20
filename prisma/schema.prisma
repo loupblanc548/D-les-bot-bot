@@ -523,6 +523,26 @@ model StreamAlert {
   @@index([streamerId])
 }
 
+model SocialFollow {
+  id            Int      @id @default(autoincrement())
+  guildId       String
+  platform      String   // "twitch" | "youtube" | "twitter"
+  channelName   String   // username/handle
+  channelId     String   // platform-specific ID
+  notifyMode    String   @default("channel") // "channel" | "dm"
+  notifyChannel String?  // Discord channel ID (null if DM)
+  notifyUserId  String?  // Discord user ID for DM notifications
+  isLive        Boolean  @default(false)
+  lastVideoId   String?  // YouTube: last checked video ID
+  lastTweetId   String?  // Twitter: last checked tweet ID
+  addedBy       String
+  addedAt       DateTime @default(now())
+
+  @@unique([guildId, platform, channelName])
+  @@index([guildId])
+  @@index([platform, channelName])
+}
+
 model StreamHighlight {
   id           Int      @id @default(autoincrement())
   guildId      String

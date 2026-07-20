@@ -9,6 +9,7 @@ import { Client, Events } from "discord.js";
 import logger from "./utils/logger.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
+import { startSocialFollowMonitoring } from "./services/socialFollow.js";
 import { runStartupRetrospective } from "./services/feeds.js";
 import {
   startMonitoring,
@@ -313,6 +314,7 @@ export function attachStartupLogic(
           () => startMonitoring(client),
           () => startInactivityCheck(client),
           () => startTwitchMonitoring(client),
+          () => startSocialFollowMonitoring(client),
           () => startPatchNotesService(client),
           () => startBackupService(client),
           () => startInstantGamingCheck(client),

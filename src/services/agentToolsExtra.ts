@@ -422,6 +422,75 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "follow_social",
+      description:
+        "Permet de suivre une chaîne Twitch, YouTube, ou un compte Twitter/X pour recevoir des notifications quand le créateur poste du contenu ou passe en live. Demande à l'utilisateur s'il veut les notifications en MP ou dans un salon spécifique.",
+      parameters: {
+        type: "object",
+        properties: {
+          platform: {
+            type: "string",
+            enum: ["twitch", "youtube", "twitter"],
+            description: "La plateforme sociale à suivre",
+          },
+          channel_name: {
+            type: "string",
+            description: "Le nom de la chaîne ou du compte (ex: shroud, MrBeast, elonmusk)",
+          },
+          notify_mode: {
+            type: "string",
+            enum: ["channel", "dm"],
+            description:
+              "Mode de notification: 'channel' pour un salon Discord, 'dm' pour message privé",
+          },
+          channel_id: {
+            type: "string",
+            description:
+              "ID du salon Discord pour les notifications (requis si notify_mode='channel')",
+          },
+        },
+        required: ["platform", "channel_name", "notify_mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "unfollow_social",
+      description: "Arrête de suivre une chaîne Twitch, YouTube, ou un compte Twitter/X.",
+      parameters: {
+        type: "object",
+        properties: {
+          platform: {
+            type: "string",
+            enum: ["twitch", "youtube", "twitter"],
+            description: "La plateforme sociale",
+          },
+          channel_name: {
+            type: "string",
+            description: "Le nom de la chaîne ou du compte à ne plus suivre",
+          },
+        },
+        required: ["platform", "channel_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_social_follows",
+      description:
+        "Liste toutes les chaînes Twitch, YouTube et comptes Twitter/X suivis sur ce serveur.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -482,6 +551,12 @@ export async function executeExtraTool(
         return await toolGetAirQuality(args);
       case "searchRawgGames":
         return await toolSearchRawgGames(args);
+      case "follow_social":
+        return await toolFollowSocial(args, ctx);
+      case "unfollow_social":
+        return await toolUnfollowSocial(args, ctx);
+      case "list_social_follows":
+        return await toolListSocialFollows(ctx);
       default:
         return null;
     }
@@ -1069,4 +1144,94 @@ async function toolSearchRawgGames(args: Record<string, unknown>): Promise<ToolC
       data: `Erreur RAWG: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+// ─── Social Follow Tools ─────────────────────────────────────────────────────
+
+async function toolFollowSocial(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const platform = args.platform as string;
+  const channelName = args.channel_name as string;
+  const notifyMode = args.notify_mode as string;
+  const channelId = args.channel_id as string | undefined;
+
+  if (!platform || !channelName) {
+    return { success: false, data: "Paramètres manquants: platform et channel_name requis" };
+  }
+
+  if (!["twitch", "youtube", "twitter"].includes(platform)) {
+    return {
+      success: false,
+      data: `Plateforme invalide: ${platform}. Utilisez twitch, youtube ou twitter`,
+    };
+  }
+
+  if (notifyMode === "channel" && !channelId) {
+    return {
+      success: false,
+      data: "channel_id requis quand notify_mode='channel'. Demande à l'utilisateur dans quel salon il veut les notifications.",
+    };
+  }
+
+  const { addSocialFollow } = await import("./socialFollow.js");
+  const result = await addSocialFollow({
+    guildId: ctx.message.guildId!,
+    platform: platform as "twitch" | "youtube" | "twitter",
+    channelName,
+    notifyMode: notifyMode as "channel" | "dm",
+    notifyChannel: notifyMode === "channel" ? channelId! : null,
+    notifyUserId: notifyMode === "dm" ? ctx.message.author.id : null,
+    addedBy: ctx.message.author.id,
+  });
+
+  return { success: result.success, data: result.message };
+}
+
+async function toolUnfollowSocial(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const platform = args.platform as string;
+  const channelName = args.channel_name as string;
+
+  if (!platform || !channelName) {
+    return { success: false, data: "Paramètres manquants: platform et channel_name requis" };
+  }
+
+  const { removeSocialFollow } = await import("./socialFollow.js");
+  const result = await removeSocialFollow(
+    ctx.message.guildId!,
+    platform as "twitch" | "youtube" | "twitter",
+    channelName,
+  );
+
+  return { success: result.success, data: result.message };
+}
+
+async function toolListSocialFollows(ctx: ToolContext): Promise<ToolCallResult> {
+  const { listSocialFollows } = await import("./socialFollow.js");
+  const follows = await listSocialFollows(ctx.message.guildId!);
+
+  if (follows.length === 0) {
+    return { success: true, data: "Aucune chaîne suivie. Utilisez follow_social pour en ajouter." };
+  }
+
+  const platformEmoji: Record<string, string> = {
+    twitch: "🟣",
+    youtube: "🔴",
+    twitter: "🔵",
+  };
+
+  const formatted = follows
+    .map((f) => {
+      const emoji = platformEmoji[f.platform] || "📡";
+      const status = f.isLive ? "🔴 LIVE" : "⚫ Offline";
+      const dest = f.notifyMode === "dm" ? "MP" : `<#${f.notifyChannel}>`;
+      return `${emoji} **${f.channelName}** (${f.platform}) — ${status} → ${dest}`;
+    })
+    .join("\n");
+
+  return { success: true, data: `Chaînes suivies (${follows.length}):\n${formatted}` };
 }
