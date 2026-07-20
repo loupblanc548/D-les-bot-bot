@@ -287,3 +287,39 @@ Statut: **Analyse — en attente de validation utilisateur avant toute migration
 ## Validation requise
 
 **Aucune migration ne sera exécutée tant que l'utilisateur n'a pas validé ce document.**
+
+---
+
+## Groupe Chat (ajout 2026-07-21)
+
+### `ChatHistory` (586-598) vs `ChatConversation` (600-613)
+
+| Champ | ChatHistory | ChatConversation |
+|-------|-------------|------------------|
+| id | Int (auto) | Int (auto) |
+| channelId | String (non-null) | String (non-null) |
+| userId | String? (nullable) | String (non-null) |
+| guildId | String? (nullable) | String (non-null) |
+| role | ChatRole (enum) | String (default "user") |
+| content | String | String |
+| model | absent | String? |
+| tokens | absent | Int? |
+| createdAt | DateTime | DateTime |
+| Indexes | channelId, channelId+createdAt, userId | channelId, userId |
+
+**Chevauchement**: ~90%. Les deux tables stockent l'historique de conversation Discord.
+
+**Différences**:
+- `ChatConversation` a `model` et `tokens` (nouveau système avec tracking de coût)
+- `ChatHistory` utilise un enum `ChatRole`, `ChatConversation` utilise un String
+- `ChatHistory` a des nullables plus permissifs (userId, guildId)
+
+**Décision**: **Fusionner `ChatHistory` → `ChatConversation`**
+**Priorité**: HAUTE — deux tables pour la même fonction est source de bugs et de confusion.
+
+**Plan de migration**:
+1. Script: `INSERT INTO chat_conversation (guildId, channelId, userId, role, content, createdAt) SELECT COALESCE(guildId, 'unknown'), channelId, COALESCE(userId, 'unknown'), role::text, content, createdAt FROM chat_history`
+2. Migrer le code utilisant `prisma.chatHistory` vers `prisma.chatConversation`
+3. Après validation, `DROP TABLE chat_history`
+
+**Note**: `MemoryMessage` (ligne 1030) est similaire mais lié par ForeignKey à `UserMemory` — conserver séparé car cycle de vie différent (decay, expiration liés au système de mémoire IA).

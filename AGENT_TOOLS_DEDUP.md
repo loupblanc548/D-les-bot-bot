@@ -359,3 +359,39 @@ Pour descendre à 160-180, il faudrait évaluer l'usage réel de chaque outil re
 ## Validation requise
 
 **Aucune suppression ne sera exécutée tant que l'utilisateur n'a pas validé ce document.**
+
+---
+
+## Ajout 2026-07-21 — Doublons avec le batch2 (80+ nouveaux outils)
+
+Le batch2 (`agentToolsExtra.ts` + `batch2/*.ts`) a ajouté ~80 outils. Voici les nouveaux doublons identifiés:
+
+### Nouveaux doublons exacts
+
+| # | Outil à supprimer | Remplacé par | Raison |
+|---|-------------------|-------------|--------|
+| 24 | `execute_code` (Extra déf) | `execute_code` (agentTools.ts) | Conflit de nom — la version agentTools.ts est multi-langage (Python/JS/shell) |
+| 25 | `getStockPrice` (Extended) | `get_stock_price` (Extra) | Doublon — Yahoo Finance vs Stooq, garder Yahoo |
+| 26 | `getCurrencyRate` (Extended) | `convert_currency` (Extra) | Doublon — convert_currency supporte BTC |
+| 27 | `getCountryInfo` (Extended) | `country_info` (batch2) | Doublon exact — même API REST Countries |
+| 28 | `getMeme` (Extended) | `meme_generator` (batch2) | meme_generator permet personnalisation |
+| 29 | `generate_uuid` (Extra) | `uuid_generator` (batch2) | uuid_generator a paramètre count |
+| 30 | `detect_disposable_email` (Autonomous) | `validate_email` (Extra) | validate_email est un sur-ensemble |
+
+### Nouveaux quasi-doublons (chevauchement partiel — conserver les deux)
+
+| Outil A | Outil B | Raison de conservation |
+|---------|---------|----------------------|
+| `getWeather` (Tools) | `get_weather_forecast` (Extra) | Météo actuelle vs prévisions 5 jours |
+| `getCryptoPrice` (Tools) | `get_crypto_top` (Extra) | Prix spécifique vs top 10 |
+| `scrape_urban_slang` (Autonomous) | `define_word` (Extra) | Urban Dictionary vs Wiktionnaire |
+| `getTrivia` (Extended) | `random_fact` (batch2) | Trivia vs fait numérique |
+| `generate_hash` (Extra) | `hash_identifier` (batch2) | Générer vs identifier |
+
+### Total mis à jour
+
+| Source | Doublons |
+|--------|---------|
+| Analyse initiale (2025-07-19) | 23 fusions |
+| Ajout batch2 (2026-07-21) | 7 fusions supplémentaires |
+| **Total** | **30 fusions/suppressions** → ~231 outils → ~201 outils |
