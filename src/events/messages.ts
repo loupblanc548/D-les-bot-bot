@@ -42,6 +42,7 @@ import {
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
+import { sendArtifacts } from "../services/artifacts.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -561,6 +562,9 @@ async function handleAiChatMention(
         await addFeedbackReactions(sentMessages[sentMessages.length - 1]);
       }
 
+      // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
+      void sendArtifacts(message as Message, aiResponse).catch(() => {});
+
       // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
       if (message.guildId && message.member?.voice?.channelId) {
         const detectedLang = cleanedContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
@@ -745,6 +749,9 @@ async function handleDMMessage(
       if (dmSentMessages && dmSentMessages.length > 0) {
         await addFeedbackReactions(dmSentMessages[dmSentMessages.length - 1]);
       }
+
+      // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
+      void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
       // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
       if (message.guildId && message.member?.voice?.channelId) {
