@@ -1200,6 +1200,51 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
           "Searches persisted chat history in database — can expose other users' messages, requires SOAR gate approval. Privacy: only searches within the requesting guild, limited to 20 results, max 90 days back",
       },
     ],
+    // MODULE 23: Memory, Persona & Conversation (V2 features)
+    [
+      "memory_search",
+      { level: "low", module: "utility", reason: "Read-only semantic search in user's own memory" },
+    ],
+    [
+      "memory_list",
+      { level: "low", module: "utility", reason: "Read-only listing of user's own stored facts" },
+    ],
+    [
+      "memory_forget",
+      {
+        level: "low",
+        module: "utility",
+        reason: "User-initiated deletion of their own memory data",
+      },
+    ],
+    [
+      "persona_set",
+      { level: "low", module: "utility", reason: "User sets their own custom instructions" },
+    ],
+    [
+      "persona_list",
+      {
+        level: "low",
+        module: "utility",
+        reason: "Read-only listing of user's own custom instructions",
+      },
+    ],
+    [
+      "persona_clear",
+      { level: "low", module: "utility", reason: "User clears their own custom instructions" },
+    ],
+    [
+      "conversation_start",
+      { level: "low", module: "utility", reason: "Starts a named conversation session" },
+    ],
+    [
+      "conversation_end",
+      { level: "low", module: "utility", reason: "Ends the active conversation session" },
+    ],
+    [
+      "conversation_status",
+      { level: "low", module: "utility", reason: "Read-only status of active conversation" },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

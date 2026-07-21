@@ -66,7 +66,7 @@ export async function getCustomInstructions(userId: string): Promise<string> {
 /**
  * Définit une custom instruction.
  */
-async function setInstruction(userId: string, key: string, value: string): Promise<void> {
+export async function setInstruction(userId: string, key: string, value: string): Promise<void> {
   await prisma.userMemory.upsert({
     where: { userId },
     update: { lastActiveAt: new Date() },
@@ -83,7 +83,7 @@ async function setInstruction(userId: string, key: string, value: string): Promi
 /**
  * Supprime une custom instruction.
  */
-async function clearInstruction(userId: string, key: string): Promise<boolean> {
+export async function clearInstruction(userId: string, key: string): Promise<boolean> {
   const result = await prisma.memoryFact.deleteMany({
     where: { userId, key, category: INSTRUCTION_CATEGORY },
   });

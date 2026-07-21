@@ -37,6 +37,7 @@ import { generatePassword, generateMultiplePasswords } from "./passwordGenerator
 import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEmail.js";
 import { generateImage } from "./freeApis.js";
 import { removeBackground } from "./removeBg.js";
+import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -737,6 +738,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...FREE_TOOLS,
   ...EXTERNAL_TOOLS,
   ...EXTRA_TOOLS,
+  ...MEMORY_TOOLS,
   ...ORPHAN_TOOLS,
   ...KALI_TOOLS,
 ];
@@ -825,6 +827,9 @@ export async function executeTool(
       case "compose_image":
         return await toolComposeImage(args);
       default: {
+        // Essayer les tools mémoire/persona/conversation
+        const memoryResult = await executeMemoryTool(toolName, args, { userId: ctx.userId });
+        if (memoryResult) return memoryResult;
         // Essayer les tools étendus
         const extToolResult = await executeExtendedTool(toolName, args, ctx);
         if (extToolResult) return extToolResult;
