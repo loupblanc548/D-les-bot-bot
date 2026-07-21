@@ -63,6 +63,12 @@ import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
 import { isKilled } from "./killSwitch.js";
 import {
+  detectLanguage,
+  getNativeName,
+  getFlag,
+  type SupportedLang,
+} from "../utils/languageDetector.js";
+import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
   getPersonalityTemperature,
@@ -502,10 +508,22 @@ async function runAgentLoopInternal(
     loadChannelHistory(message),
   ]);
 
+  // Detect user language for multilingual response
+  const langDetection = detectLanguage(userMessage);
+  const userLangName = getNativeName(langDetection.lang);
+  const userLangFlag = getFlag(langDetection.lang);
+  const langInstruction =
+    langDetection.lang === "fr"
+      ? "Tu réponds en français."
+      : `IMPORTANT: Tu réponds en ${userLangName} (${userLangFlag}). ` +
+        `L'utilisateur écrit en ${userLangName} — adapte TOUTE ta réponse (explications, suggestions, format) dans cette langue. ` +
+        `Ne réponds JAMAIS en français si l'utilisateur écrit dans une autre langue, sauf si l'utilisateur le demande explicitement. ` +
+        `Les noms d'outils et commandes techniques restent en anglais, mais tout le texte naturel doit être en ${userLangName}.`;
+
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
-    "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
-    "Adapte-toi à n'importe quelle langue du monde. " +
+    `\n\n## LANGUE DE RÉPONSE (DÉTECTION AUTO)\n${langInstruction}\n` +
+    "Si l'utilisateur change de langue en cours de conversation, adapte-toi immédiatement.\n" +
     "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
     "Tu as accès à Internet et à plus de 40 outils.\n\n" +
     getFeedbackHints(message.author.id) +

@@ -1,4 +1,5 @@
 import logger from "./logger.js";
+import { detectLanguage, type SupportedLang } from "./languageDetector.js";
 
 /**
  * Service de traduction intelligent avec Circuit Breaker (Disjoncteur réseau)
@@ -210,11 +211,14 @@ export async function translateText(
   }
 
   // Si le texte est déjà dans la langue cible, ne pas traduire
-  if (sourceLang === "auto" && targetLang === "fr" && containsFrench(text)) {
-    return {
-      translatedText: text,
-      detectedLanguage: "fr",
-    };
+  if (sourceLang === "auto") {
+    const detection = detectLanguage(text);
+    if (detection.lang === targetLang && detection.confidence > 0.3) {
+      return {
+        translatedText: text,
+        detectedLanguage: detection.lang,
+      };
+    }
   }
 
   // ── PLAN A0: Ollama local (GPU, gratuit, instantané) ─────────────────
@@ -296,11 +300,12 @@ export async function translateText(
       signal: AbortSignal.timeout(10_000),
     });
     if (libreRes.ok) {
-      const libreData = await libreRes.json() as any;
+      const libreData = (await libreRes.json()) as any;
       if (libreData?.translatedText) {
         const result: TranslationResult = {
           translatedText: libreData.translatedText,
-          detectedLanguage: sourceLang === "auto" ? (libreData.detectedLanguage?.language || "auto") : sourceLang,
+          detectedLanguage:
+            sourceLang === "auto" ? libreData.detectedLanguage?.language || "auto" : sourceLang,
         };
         if (translationCache.size >= CACHE_MAX_SIZE) {
           const firstKey = translationCache.keys().next().value;
@@ -312,7 +317,9 @@ export async function translateText(
       }
     }
   } catch (libreErr) {
-    logger.debug(`[Translator] LibreTranslate indisponible: ${libreErr instanceof Error ? libreErr.message : String(libreErr)}`);
+    logger.debug(
+      `[Translator] LibreTranslate indisponible: ${libreErr instanceof Error ? libreErr.message : String(libreErr)}`,
+    );
   }
 
   // ── SÉCURITÉ ULTIME: Retourner le texte original si tout échoue ─────
@@ -488,55 +495,12 @@ export async function translateToFrench(text: string): Promise<string> {
 }
 
 /**
- * Détection simple si le texte contient déjà du français
+ * Détection de langue utilisant le module languageDetector (17 langues).
+ * Remplace l'ancienne fonction containsFrench.
  */
-function containsFrench(text: string): boolean {
-  const frenchIndicators = [
-    "le ",
-    "la ",
-    "les ",
-    "un ",
-    "une ",
-    "des ",
-    "du ",
-    "au ",
-    "et ",
-    "ou ",
-    "mais ",
-    "pour ",
-    "avec ",
-    "sans ",
-    "sur ",
-    "dans ",
-    "par ",
-    "pour ",
-    "avec ",
-    "sans ",
-    "sur ",
-    "sous ",
-    "être ",
-    "avoir ",
-    "faire ",
-    "aller ",
-    "venir ",
-    "voir ",
-    "pas ",
-    "plus ",
-    "moins ",
-    "très ",
-    "bien ",
-    "aussi ",
-    "c'est ",
-    "il ",
-    "elle ",
-    "nous ",
-    "vous ",
-    "ils ",
-    "elles ",
-  ];
-
-  const lowerText = text.toLowerCase();
-  return frenchIndicators.some((indicator) => lowerText.includes(indicator));
+export function containsLanguage(text: string, lang: SupportedLang): boolean {
+  const detection = detectLanguage(text);
+  return detection.lang === lang && detection.confidence > 0.2;
 }
 
 /**
@@ -548,59 +512,10 @@ export async function translateBatchToFrench(texts: string[]): Promise<string[]>
 }
 
 /**
- * Vérifie si un texte est principalement en anglais
+ * Vérifie si un texte est principalement en anglais (utilise languageDetector)
  */
 export function isLikelyEnglish(text: string): boolean {
-  const englishIndicators = [
-    "the ",
-    "and ",
-    "or ",
-    "but ",
-    "for ",
-    "with ",
-    "without ",
-    "on ",
-    "in ",
-    "at ",
-    "to ",
-    "from ",
-    "by ",
-    "about ",
-    "this ",
-    "that ",
-    "these ",
-    "those ",
-    "is ",
-    "are ",
-    "was ",
-    "were ",
-    "be ",
-    "been ",
-    "being ",
-    "have ",
-    "has ",
-    "had ",
-    "will ",
-    "would ",
-    "could ",
-    "should ",
-    "may ",
-    "might ",
-    "can ",
-    "cannot ",
-    "not ",
-    "no ",
-    "yes ",
-    "very ",
-    "much ",
-  ];
-
-  const lowerText = text.toLowerCase();
-  const englishCount = englishIndicators.filter((indicator) =>
-    lowerText.includes(indicator),
-  ).length;
-
-  return englishCount >= 2;
+  return containsLanguage(text, "en");
 }
 
 /**
