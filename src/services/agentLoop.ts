@@ -60,6 +60,7 @@ import { isRestrictedTool, requestToolApproval, setSoarGateClient } from "./agen
 import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
+import { getCustomInstructions } from "./customInstructions.js";
 import { isKilled } from "./killSwitch.js";
 import {
   buildPersonalitySystemPrompt,
@@ -508,6 +509,7 @@ async function runAgentLoopInternal(
     "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
     "Tu as accès à Internet et à plus de 40 outils.\n\n" +
     getFeedbackHints(message.author.id) +
+    (await getCustomInstructions(message.author.id)) +
     "## PROCESSUS DE RAISONNEMENT\n" +
     "Tu DOIS suivre ce cycle pour chaque message utilisateur :\n" +
     "1. REASON : Analyse la demande, détermine quels tools sont nécessaires\n" +

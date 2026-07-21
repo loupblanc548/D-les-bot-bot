@@ -127,6 +127,10 @@ import {
   commands as conversationCommands,
   handleCommand as handleConversationCommand,
 } from "./commands/conversationCommands.js";
+import {
+  commands as personaCommands,
+  handleCommand as handlePersonaCommand,
+} from "./commands/personaCommands.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -504,6 +508,8 @@ export const allCommands = [
   ...memoryCommands,
   // ── Conversation (persistent sessions) ──
   ...conversationCommands,
+  // ── Persona (custom instructions per-user) ──
+  ...personaCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -598,6 +604,11 @@ export function buildCommandRouter(): void {
   commandRouter["conversation"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleConversationCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Persona (custom instructions) command ───
+  commandRouter["persona"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handlePersonaCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Follow (social media tracking) command ───
   commandRouter["follow"] = async (interaction, _client) => {
