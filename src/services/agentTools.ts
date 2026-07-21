@@ -26,6 +26,7 @@ import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
 import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
+import { ORPHAN_TOOLS, executeOrphanTool } from "./agentToolsOrphan.js";
 import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
@@ -694,6 +695,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...FREE_TOOLS,
   ...EXTERNAL_TOOLS,
   ...EXTRA_TOOLS,
+  ...ORPHAN_TOOLS,
   ...KALI_TOOLS,
 ];
 
@@ -792,6 +794,9 @@ export async function executeTool(
         // Essayer les tools extra (HackerNews, GitHub trending, weather forecast, etc.)
         const extraResult = await executeExtraTool(toolName, args, ctx);
         if (extraResult) return extraResult;
+        // Essayer les tools orphelins (lyrics, URL shortener, DNS, reminders, etc.)
+        const orphanResult = await executeOrphanTool(toolName, args, ctx);
+        if (orphanResult) return orphanResult;
         // Essayer les tools Kali Linux (Layer 7 — Docker isolé)
         const kaliResult = await executeKaliTool(toolName, args, { userId: ctx.userId });
         if (kaliResult) return kaliResult;

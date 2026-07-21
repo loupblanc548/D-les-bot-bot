@@ -1088,6 +1088,90 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
           "100% local password generation via crypto.randomInt() — no network calls, no storage, no PII. Response must be ephemeral to avoid leaking in channel history",
       },
     ],
+    // MODULE 20: Orphan Tools (agentToolsOrphan.ts)
+    [
+      "get_lyrics",
+      {
+        level: "low",
+        module: "entertainment",
+        reason: "Fetches song lyrics from public free APIs (lyrics.ovh/Genius) — no PII, read-only",
+      },
+    ],
+    [
+      "shorten_url",
+      {
+        level: "low",
+        module: "utility",
+        reason: "Shortens URLs via is.gd/v.gd free APIs — no auth, no PII, read-only",
+      },
+    ],
+    [
+      "screenshot_tweet",
+      {
+        level: "low",
+        module: "utility",
+        reason: "Captures a public tweet screenshot via Playwright headless — read-only, no auth",
+      },
+    ],
+    [
+      "get_game_artwork",
+      {
+        level: "low",
+        module: "entertainment",
+        reason:
+          "Fetches game artwork from SteamGridDB — read-only, requires API key but no user PII",
+      },
+    ],
+    [
+      "summarize_channel",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "Summarizes recent channel messages via AI — only reads messages the bot can already see",
+      },
+    ],
+    [
+      "export_chat",
+      {
+        level: "medium",
+        module: "utility",
+        reason:
+          "Exports channel messages to a file — could expose conversation history, requires channel access",
+      },
+    ],
+    [
+      "resolve_dns",
+      {
+        level: "low",
+        module: "utility",
+        reason: "DNS resolution via Node.js built-in — public data, no PII, read-only",
+      },
+    ],
+    [
+      "compare_game_prices",
+      {
+        level: "low",
+        module: "entertainment",
+        reason: "Compares game prices across stores — public data, read-only, no PII",
+      },
+    ],
+    [
+      "check_game_server",
+      {
+        level: "low",
+        module: "entertainment",
+        reason: "Queries game server status (Minecraft etc.) — public data, read-only",
+      },
+    ],
+    [
+      "set_reminder",
+      {
+        level: "low",
+        module: "utility",
+        reason: "Sets a personal reminder — only affects the requesting user, stored in memory",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime
