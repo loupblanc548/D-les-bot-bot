@@ -4255,6 +4255,48 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     ],
     tools: ["set_reminder"],
   },
+  // ═══ OCR / Extract Text from Image ═══
+  {
+    keywords: [
+      "ocr",
+      "extraire texte image",
+      "extract text from image",
+      "texte dans image",
+      "text in image",
+      "lire image",
+      "read image",
+      "extraire texte",
+      "extract text",
+      "texte scanné",
+      "scanned text",
+      "reconnaissance texte",
+      "text recognition",
+      "lire screenshot",
+      "read screenshot",
+      "texte sur image",
+      "text on image",
+      "bildtext",
+      "texto de imagen",
+    ],
+    tools: ["extract_text_from_image"],
+  },
+  // ═══ Compose Image (generate + remove bg) ═══
+  {
+    keywords: [
+      "compose image",
+      "générer image détourée",
+      "generate image transparent",
+      "crée image sans fond",
+      "create image no background",
+      "générer et détourer",
+      "generate and remove bg",
+      "image avec fond transparent",
+      "transparent background image",
+      "compose_image",
+      "génère image png transparent",
+    ],
+    tools: ["compose_image"],
+  },
 ];
 
 /**

@@ -35,6 +35,8 @@ import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.
 import { getDigestConfig, setDigestConfig, startDigestScheduler } from "./communityDigest.js";
 import { generatePassword, generateMultiplePasswords } from "./passwordGenerator.js";
 import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEmail.js";
+import { generateImage } from "./freeApis.js";
+import { removeBackground } from "./removeBg.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -670,6 +672,46 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "extract_text_from_image",
+      description:
+        "Extrait tout le texte visible dans une image (OCR) via Gemini Vision. Utile pour screenshots, documents scannés, memes avec texte, reçus, etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: { type: "string", description: "URL de l'image à analyser" },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "compose_image",
+      description:
+        "Génère une image via Pollinations (gratuit) puis optionnellement supprime le fond via Remove.bg. Utile pour créer des images détourées à la demande.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description:
+              "Description de l'image à générer (en anglais pour de meilleurs résultats)",
+          },
+          removeBackground: {
+            type: "boolean",
+            description: "Si true, supprime le fond après génération (nécessite Remove.bg API key)",
+          },
+          width: { type: "number", description: "Largeur en pixels (défaut 1024)" },
+          height: { type: "number", description: "Hauteur en pixels (défaut 1024)" },
+        },
+        required: ["prompt"],
+      },
+    },
+  },
 ];
 
 /**
@@ -778,6 +820,10 @@ export async function executeTool(
         return await toolCreateTempEmail();
       case "check_temp_email":
         return await toolCheckTempEmail(args);
+      case "extract_text_from_image":
+        return await toolExtractTextFromImage(args);
+      case "compose_image":
+        return await toolComposeImage(args);
       default: {
         // Essayer les tools étendus
         const extToolResult = await executeExtendedTool(toolName, args, ctx);
@@ -1977,6 +2023,66 @@ async function toolCheckTempEmail(args: Record<string, unknown>): Promise<ToolCa
     return {
       success: false,
       data: `Erreur: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ─── OCR: Extract text from image via Gemini Vision ──────────────────────────
+
+async function toolExtractTextFromImage(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imageUrl = String(args.imageUrl ?? "").trim();
+  if (!imageUrl) return { success: false, data: "URL d'image requise" };
+  if (!isGeminiAvailable())
+    return { success: false, data: "Gemini API non configuré (clé API manquante)" };
+
+  try {
+    const text = await analyzeImageWithGemini(
+      imageUrl,
+      "Extrais tout le texte visible dans cette image, exactement tel qu'il apparaît. Préserve la mise en forme (lignes, paragraphes). S'il n'y a pas de texte, réponds 'Aucun texte détecté'.",
+    );
+    if (!text)
+      return { success: false, data: "Analyse impossible (image inaccessible ou erreur API)" };
+    return { success: true, data: `📝 Texte extrait:\n\n${text.slice(0, 1800)}` };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur OCR: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ─── Compose image: generate + optional background removal ───────────────────
+
+async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const prompt = String(args.prompt ?? "").trim();
+  if (!prompt) return { success: false, data: "Prompt requis" };
+  const width = Number(args.width) || 1024;
+  const height = Number(args.height) || 1024;
+  const doRemoveBg = Boolean(args.removeBackground);
+
+  try {
+    const imageUrl = await generateImage(prompt, width, height);
+    if (!imageUrl) return { success: false, data: "Génération d'image échouée" };
+
+    if (doRemoveBg) {
+      const bgResult = await removeBackground(imageUrl);
+      if (bgResult) {
+        return {
+          success: true,
+          data: `🎨 Image générée et détourée (${bgResult.creditsUsed} crédits Remove.bg):\n${bgResult.resultUrl.slice(0, 200)}`,
+        };
+      }
+      return {
+        success: true,
+        data: `🎨 Image générée (fond non supprimé — Remove.bg indisponible):\n${imageUrl}`,
+      };
+    }
+
+    return { success: true, data: `🎨 Image générée:\n${imageUrl}` };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur compose_image: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

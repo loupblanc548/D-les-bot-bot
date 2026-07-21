@@ -1172,6 +1172,24 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         reason: "Sets a personal reminder — only affects the requesting user, stored in memory",
       },
     ],
+    // MODULE 21: Vision & Image Composition (Phase 2)
+    [
+      "extract_text_from_image",
+      {
+        level: "low",
+        module: "utility",
+        reason: "OCR via Gemini Vision — reads text from public images, no PII stored, read-only",
+      },
+    ],
+    [
+      "compose_image",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "Generates image via Pollinations (free) + optional Remove.bg — no PII, outputs are user-requested content",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

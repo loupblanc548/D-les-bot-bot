@@ -39,6 +39,7 @@ import {
   trackConversation,
   suggestThread,
 } from "../services/agentFeedback.js";
+import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -446,6 +447,30 @@ async function handleAiChatMention(
       message.guildId || undefined,
     );
 
+    // ── Vision auto: analyser les images jointes avec Gemini ──
+    let enrichedContent = cleanedContent;
+    const imageAttachments = [...message.attachments.values()].filter(
+      (a) => a.contentType?.startsWith("image/") && a.url,
+    );
+    if (imageAttachments.length > 0 && isGeminiAvailable()) {
+      for (const img of imageAttachments.slice(0, 3)) {
+        try {
+          const description = await analyzeImageWithGemini(
+            img.url,
+            "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
+          );
+          if (description) {
+            enrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
+            logger.info(`[AIChat] Vision auto: image analysée (${description.length} chars)`);
+          }
+        } catch (err) {
+          logger.debug(
+            `[AIChat] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
+
     // ── Indicateur d'activité: sendTyping avant l'agent loop ──
     const channel = message.channel as TextChannel;
     await channel.sendTyping().catch(() => {});
@@ -461,7 +486,7 @@ async function handleAiChatMention(
     // puis synthétise sa réponse finale.
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, cleanedContent, (toolName, iter) => {
+      aiResponse = await runAgentLoop(message as Message, enrichedContent, (toolName, iter) => {
         void statusIndicator.onToolCall(toolName, iter);
       });
     } catch (loopError) {
@@ -585,11 +610,35 @@ async function handleDMMessage(
     const dmChannel = message.channel as TextChannel;
     await dmChannel.sendTyping().catch(() => {});
 
+    // ── Vision auto: analyser les images jointes en DM aussi ──
+    let dmEnrichedContent = content;
+    const dmImageAttachments = [...message.attachments.values()].filter(
+      (a) => a.contentType?.startsWith("image/") && a.url,
+    );
+    if (dmImageAttachments.length > 0 && isGeminiAvailable()) {
+      for (const img of dmImageAttachments.slice(0, 3)) {
+        try {
+          const description = await analyzeImageWithGemini(
+            img.url,
+            "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
+          );
+          if (description) {
+            dmEnrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
+            logger.info(`[DM] Vision auto: image analysée (${description.length} chars)`);
+          }
+        } catch (err) {
+          logger.debug(
+            `[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
+
     // Lancer l'agent loop (Think → Act → Observe → Respond)
     // En DM, guildId est vide — les tools Discord seront limités mais les tools web/APIs fonctionnent
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, content, (toolName, iter) => {
+      aiResponse = await runAgentLoop(message as Message, dmEnrichedContent, (toolName, iter) => {
         void dmStatusIndicator.onToolCall(toolName, iter);
       });
     } catch (loopError) {
