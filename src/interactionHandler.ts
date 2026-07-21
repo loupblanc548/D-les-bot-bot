@@ -5,7 +5,15 @@
  * Regroupe les 3 events InteractionCreate : commandes, boutons+select, autocomplete.
  */
 
-import { Client, Events, Interaction, MessageFlags, StringSelectMenuInteraction } from "discord.js";
+import {
+  Client,
+  Events,
+  Interaction,
+  MessageFlags,
+  StringSelectMenuInteraction,
+  ChannelType,
+  TextChannel,
+} from "discord.js";
 import * as Sentry from "@sentry/node";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
@@ -23,6 +31,7 @@ import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
 import { createTicket, closeTicket, claimTicket, getPanel } from "./services/ticketService.js";
 import { handleTriviaButton } from "./services/triviaService.js";
+import { resetConversationTracking } from "./services/agentFeedback.js";
 import { handleAutocomplete as handleMp3Autocomplete } from "./commands/mp3.js";
 import { handleAutocomplete as handleWishlistAutocomplete } from "./commands/fun/wishlist.js";
 import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitch.js";
@@ -192,6 +201,37 @@ export function attachInteractionHandlers(client: Client): void {
             await interaction.reply({
               content:
                 "❌ Impossible de prendre en charge ce ticket (déjà pris en charge ou erreur).",
+              flags: [MessageFlags.Ephemeral],
+            });
+          }
+          return;
+        }
+
+        // ── Agent thread suggestion ──
+        if (interaction.customId.startsWith("agent_thread_")) {
+          const userId = interaction.customId.replace("agent_thread_", "");
+          if (interaction.user.id !== userId) {
+            await interaction.reply({
+              content: "Ce bouton n'est pas pour toi.",
+              flags: [MessageFlags.Ephemeral],
+            });
+            return;
+          }
+          if (!interaction.channel || !interaction.guild) return;
+          try {
+            const thread = await (interaction.channel as TextChannel).threads.create({
+              name: `💬 Conversation avec ${interaction.user.username}`,
+              autoArchiveDuration: 60,
+              type: ChannelType.PrivateThread,
+            });
+            resetConversationTracking(interaction.user.id, interaction.channelId);
+            await interaction.reply({
+              content: `✅ Fil créé: ${thread.toString()}. Continue notre conversation là-bas!`,
+              flags: [MessageFlags.Ephemeral],
+            });
+          } catch {
+            await interaction.reply({
+              content: "❌ Impossible de créer un fil dans ce salon.",
               flags: [MessageFlags.Ephemeral],
             });
           }

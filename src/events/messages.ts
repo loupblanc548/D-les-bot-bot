@@ -34,6 +34,12 @@ import {
   speakResponseInVoice,
 } from "../services/voiceAgent.js";
 import {
+  AgentStatusIndicator,
+  addFeedbackReactions,
+  trackConversation,
+  suggestThread,
+} from "../services/agentFeedback.js";
+import {
   touchConversation,
   checkExpiredConversations,
   buildConversationContext,
@@ -367,6 +373,7 @@ async function handleAiChatMention(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
   client: Client,
 ): Promise<void> {
+  const statusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
     // ── Si l'utilisateur est dans un vocal, le bot le rejoint automatiquement ──
     if (message.member?.voice?.channelId && message.guild) {
@@ -439,12 +446,24 @@ async function handleAiChatMention(
       message.guildId || undefined,
     );
 
+    // ── Indicateur d'activité: sendTyping avant l'agent loop ──
+    const channel = message.channel as TextChannel;
+    await channel.sendTyping().catch(() => {});
+
+    // ── Suivi de conversation pour suggestion de thread ──
+    const convTracker = trackConversation(message.author.id, message.channel.id);
+    if (convTracker.shouldSuggestThread && message.guildId) {
+      await suggestThread(message as Message);
+    }
+
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
     // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
     // puis synthétise sa réponse finale.
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, cleanedContent);
+      aiResponse = await runAgentLoop(message as Message, cleanedContent, (toolName, iter) => {
+        void statusIndicator.onToolCall(toolName, iter);
+      });
     } catch (loopError) {
       // Fallback : si l'agent loop échoue (ex: modèle sans function calling),
       // on retombe sur le simple fetch OpenRouter
@@ -479,7 +498,16 @@ async function handleAiChatMention(
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
 
       // ── Envoyer en plusieurs messages si la réponse est longue ──
-      await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
+      const sentMessages = await sendMultiMessage(
+        message.channel as TextChannel,
+        aiResponse,
+        message as Message,
+      );
+
+      // ── Ajouter réactions feedback (👍/👎) sur le dernier message ──
+      if (sentMessages && sentMessages.length > 0) {
+        await addFeedbackReactions(sentMessages[sentMessages.length - 1]);
+      }
 
       // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
       if (message.guildId && message.member?.voice?.channelId) {
@@ -507,12 +535,17 @@ async function handleAiChatMention(
       // ── Extraire et sauvegarder les faits importants en mémoire long-terme ──
       void extractAndSaveMemory(message.author.id, cleanedContent, aiResponse).catch(() => {});
 
+      // ── Nettoyer l'indicateur de statut ──
+      void statusIndicator.cleanup();
+
       logger.info(`[AIChat] Agent IA -> ${message.author.tag}`);
     } else {
       throw new Error("Agent loop: réponse vide");
     }
   } catch (error) {
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+    // Ensure status indicator is cleaned up on error
+    void statusIndicator.cleanup();
     // Ne pas spammer l'utilisateur avec une erreur à chaque fois — 1 chance sur 3
     if (Math.random() < 0.33) {
       await message.reply({
@@ -529,6 +562,7 @@ async function handleDMMessage(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
   _client: Client,
 ): Promise<void> {
+  const dmStatusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
     const content = message.content.trim();
     if (!content) return;
@@ -547,11 +581,17 @@ async function handleDMMessage(
     // Indicateur de frappe réaliste
     await simulateHumanTyping(message.channel as TextChannel, content.length);
 
+    // ── Indicateur d'activité: sendTyping avant l'agent loop ──
+    const dmChannel = message.channel as TextChannel;
+    await dmChannel.sendTyping().catch(() => {});
+
     // Lancer l'agent loop (Think → Act → Observe → Respond)
     // En DM, guildId est vide — les tools Discord seront limités mais les tools web/APIs fonctionnent
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, content);
+      aiResponse = await runAgentLoop(message as Message, content, (toolName, iter) => {
+        void dmStatusIndicator.onToolCall(toolName, iter);
+      });
     } catch (loopError) {
       // Fallback simple fetch si l'agent loop échoue
       logger.warn(
@@ -595,7 +635,16 @@ async function handleDMMessage(
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
 
       // ── Envoyer en plusieurs messages si la réponse est longue ──
-      await sendMultiMessage(message.channel as TextChannel, aiResponse, message as Message);
+      const dmSentMessages = await sendMultiMessage(
+        message.channel as TextChannel,
+        aiResponse,
+        message as Message,
+      );
+
+      // ── Ajouter réactions feedback (👍/👎) sur le dernier message ──
+      if (dmSentMessages && dmSentMessages.length > 0) {
+        await addFeedbackReactions(dmSentMessages[dmSentMessages.length - 1]);
+      }
 
       // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
       if (message.guildId && message.member?.voice?.channelId) {
@@ -612,10 +661,14 @@ async function handleDMMessage(
       // Sauvegarder en mémoire conversation + extraire faits long-terme
       void extractAndSaveMemory(message.author.id, content, aiResponse).catch(() => {});
 
+      // ── Nettoyer l'indicateur de statut ──
+      void dmStatusIndicator.cleanup();
+
       logger.info(`[DM] Agent IA -> ${message.author.tag}`);
     }
   } catch (error) {
     logger.error(`[DM] Erreur: ${error instanceof Error ? error.message : String(error)}`);
+    void dmStatusIndicator.cleanup();
     if (Math.random() < 0.33) {
       await message.reply({
         content: "🦉 *Static* - Communications brouillées ! Réessaie.",

@@ -22,29 +22,29 @@ const SIMPLE_MESSAGE_PATTERNS = [
 ];
 
 const EMOJI_FOR_SIMPLE: Record<string, string[]> = {
-  "mdr": ["😂", "🤣", "💀"],
-  "lol": ["😂", "🤣", "💀"],
-  "xd": ["😂", "🤣"],
-  "gg": ["🎉", "🔥", "👍"],
-  "wp": ["👏", "👍"],
-  "ez": ["😎", "💀"],
-  "rip": ["💀", "😢", "🪦"],
-  "wtf": ["😱", "💀", "🙄"],
-  "ok": ["👍", "✅"],
-  "ouais": ["👍", "💯"],
-  "oui": ["✅", "👍"],
-  "non": ["❌", "🙄"],
-  "cool": ["😎", "🔥"],
-  "nice": ["🔥", "👍", "💯"],
-  "vrai": ["💯", "✅"],
-  "salut": ["👋", "🫡"],
-  "bonjour": ["👋", "🫡"],
-  "bonsoir": ["👋", "🌙"],
-  "yo": ["👋", "🤙"],
-  "hey": ["👋"],
-  "merci": ["🙏", "👍", "❤️"],
-  "thanks": ["🙏", "👍"],
-  "thx": ["🙏", "👍"],
+  mdr: ["😂", "🤣", "💀"],
+  lol: ["😂", "🤣", "💀"],
+  xd: ["😂", "🤣"],
+  gg: ["🎉", "🔥", "👍"],
+  wp: ["👏", "👍"],
+  ez: ["😎", "💀"],
+  rip: ["💀", "😢", "🪦"],
+  wtf: ["😱", "💀", "🙄"],
+  ok: ["👍", "✅"],
+  ouais: ["👍", "💯"],
+  oui: ["✅", "👍"],
+  non: ["❌", "🙄"],
+  cool: ["😎", "🔥"],
+  nice: ["🔥", "👍", "💯"],
+  vrai: ["💯", "✅"],
+  salut: ["👋", "🫡"],
+  bonjour: ["👋", "🫡"],
+  bonsoir: ["👋", "🌙"],
+  yo: ["👋", "🤙"],
+  hey: ["👋"],
+  merci: ["🙏", "👍", "❤️"],
+  thanks: ["🙏", "👍"],
+  thx: ["🙏", "👍"],
 };
 
 /**
@@ -58,7 +58,8 @@ export function getSpontaneousReaction(content: string): string | null {
   if (trimmed.length > 60) return null;
 
   // Contient une question → l'IA doit répondre
-  if (trimmed.includes("?") || trimmed.includes("comment") || trimmed.includes("pourquoi")) return null;
+  if (trimmed.includes("?") || trimmed.includes("comment") || trimmed.includes("pourquoi"))
+    return null;
 
   // Contient une @mention → l'IA doit répondre
   if (trimmed.includes("@")) return null;
@@ -118,7 +119,8 @@ export function maybeAddTypo(text: string): string {
   } else if (typoType === 2 && targetWord.length >= 5) {
     // Inverser deux lettres adjacentes
     const pos = 1 + Math.floor(Math.random() * (targetWord.length - 3));
-    typoWord = targetWord.slice(0, pos) + targetWord[pos + 1] + targetWord[pos] + targetWord.slice(pos + 2);
+    typoWord =
+      targetWord.slice(0, pos) + targetWord[pos + 1] + targetWord[pos] + targetWord.slice(pos + 2);
   }
 
   return text.replace(targetWord, typoWord);
@@ -184,33 +186,42 @@ export async function sendMultiMessage(
   channel: TextChannel,
   text: string,
   replyTo?: Message,
-): Promise<void> {
+): Promise<Message[]> {
   const messages = splitIntoMessages(text);
+  const sentMessages: Message[] = [];
 
   if (messages.length === 1) {
-    // Appliquer une faute de frappe occasionnelle
     const finalText = maybeAddTypo(messages[0]).slice(0, 2000);
     if (replyTo) {
-      await replyTo.reply({ content: finalText, allowedMentions: { repliedUser: false } });
+      const sent = await replyTo.reply({
+        content: finalText,
+        allowedMentions: { repliedUser: false },
+      });
+      sentMessages.push(sent);
     } else {
-      await channel.send({ content: finalText });
+      const sent = await channel.send({ content: finalText });
+      sentMessages.push(sent);
     }
-    return;
+    return sentMessages;
   }
 
-  // Premier message en reply, les suivants en messages normaux
   for (let i = 0; i < messages.length; i++) {
     const msgText = maybeAddTypo(messages[i]).slice(0, 2000);
     if (i === 0 && replyTo) {
-      await replyTo.reply({ content: msgText, allowedMentions: { repliedUser: false } });
+      const sent = await replyTo.reply({
+        content: msgText,
+        allowedMentions: { repliedUser: false },
+      });
+      sentMessages.push(sent);
     } else {
-      // Petit délai entre les messages (1-3s)
       await sleep(1000 + Math.random() * 2000);
       await channel.sendTyping().catch(() => {});
       await sleep(500 + Math.random() * 1000);
-      await channel.send({ content: msgText });
+      const sent = await channel.send({ content: msgText });
+      sentMessages.push(sent);
     }
   }
+  return sentMessages;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -224,26 +235,26 @@ function sleep(ms: number): Promise<void> {
  * retourne une réponse ultra-courte au lieu de faire appel à l'IA.
  */
 const ULTRA_SHORT_REPLIES: Record<string, string[]> = {
-  "salut": ["yo", "salut", "hey", "cc"],
-  "bonjour": ["yo", "salut", "hello"],
-  "bonsoir": ["soir", "yo", "salut"],
-  "coucou": ["cc", "hey", "coucou"],
-  "hello": ["yo", "hello", "salut"],
-  "hey": ["hey", "yo", "salut"],
-  "yo": ["yo", "hey", "cc"],
-  "wesh": ["wesh", "yo", "ça va"],
-  "cc": ["cc", "hey", "salut"],
-  "merci": ["de rien", "pas de souci", "👍"],
-  "thanks": ["de rien", "pas de souci"],
-  "thx": ["de rien", "np"],
-  "ok": ["ok", "👍", "nickel"],
-  "ouais": ["ouais", "👍", "ok"],
-  "cool": ["ouais grave", "nicel", "🔥"],
-  "nice": ["nicel", "🔥", "grave"],
-  "gg": ["gg wp", "🔥", "bien joué"],
-  "mdr": ["😂", "mdrr", "💀"],
-  "lol": ["😂", "lol", "💀"],
-  "xd": ["😂", "xd", "💀"],
+  salut: ["yo", "salut", "hey", "cc"],
+  bonjour: ["yo", "salut", "hello"],
+  bonsoir: ["soir", "yo", "salut"],
+  coucou: ["cc", "hey", "coucou"],
+  hello: ["yo", "hello", "salut"],
+  hey: ["hey", "yo", "salut"],
+  yo: ["yo", "hey", "cc"],
+  wesh: ["wesh", "yo", "ça va"],
+  cc: ["cc", "hey", "salut"],
+  merci: ["de rien", "pas de souci", "👍"],
+  thanks: ["de rien", "pas de souci"],
+  thx: ["de rien", "np"],
+  ok: ["ok", "👍", "nickel"],
+  ouais: ["ouais", "👍", "ok"],
+  cool: ["ouais grave", "nicel", "🔥"],
+  nice: ["nicel", "🔥", "grave"],
+  gg: ["gg wp", "🔥", "bien joué"],
+  mdr: ["😂", "mdrr", "💀"],
+  lol: ["😂", "lol", "💀"],
+  xd: ["😂", "xd", "💀"],
 };
 
 export function getUltraShortReply(content: string): string | null {

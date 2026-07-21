@@ -283,7 +283,12 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
  * @param userMessage Le contenu du message (sans la mention du bot)
  * @returns La réponse finale de l'IA
  */
-export async function runAgentLoop(message: Message, userMessage: string): Promise<string> {
+export async function runAgentLoop(
+  message: Message,
+  userMessage: string,
+  onToolCall?: (toolName: string, iteration: number) => void,
+): Promise<string> {
+  const statusCallback = onToolCall;
   // Cooldown check: prevent spam @mentions
   const now = Date.now();
   const lastCall = userCooldowns.get(message.author.id);
@@ -301,7 +306,7 @@ export async function runAgentLoop(message: Message, userMessage: string): Promi
 
   try {
     return await Promise.race([
-      runAgentLoopInternal(message, userMessage),
+      runAgentLoopInternal(message, userMessage, statusCallback),
       new Promise<string>((_, reject) =>
         setTimeout(() => reject(new Error("AgentLoop timeout (45s)")), AGENT_LOOP_TIMEOUT_MS),
       ),
@@ -374,7 +379,11 @@ async function callLlmWithRetry(
   throw lastError ?? new Error("API call failed after retries");
 }
 
-async function runAgentLoopInternal(message: Message, userMessage: string): Promise<string> {
+async function runAgentLoopInternal(
+  message: Message,
+  userMessage: string,
+  statusCallback?: (toolName: string, iteration: number) => void,
+): Promise<string> {
   if (isKilled()) {
     logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
     return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";
@@ -1001,6 +1010,14 @@ async function runAgentLoopInternal(message: Message, userMessage: string): Prom
       id: string;
       function: { name: string; arguments: string };
     }>;
+
+    // Notify status indicator (if provided) about tool calls
+    if (statusCallback && toolCalls.length > 0) {
+      for (const tc of toolCalls) {
+        statusCallback(tc.function.name, iteration);
+      }
+    }
+
     const toolResults = await Promise.all(
       toolCalls.map(async (toolCall) => {
         const tc = toolCall;

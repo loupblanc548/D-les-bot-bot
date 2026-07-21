@@ -22,6 +22,7 @@ import prisma from "../prisma.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { checkVoiceSoundboard } from "../services/serverRules.js";
 import { handleReactionRoleAdd, handleReactionRoleRemove } from "../commands/reactionRoles.js";
+import { handleFeedbackReaction, resetConversationTracking } from "../services/agentFeedback.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -449,12 +450,13 @@ export function handleAutoEvents(client: Client): void {
     }
   });
 
-  // EVENT-20: Starboard + Reaction Roles
+  // EVENT-20: Starboard + Reaction Roles + Agent Feedback
   client.on("messageReactionAdd", async (reaction, user) => {
     try {
       if (reaction.partial) await reaction.fetch();
       await handleStarboard(reaction as MessageReaction, user as User, client);
       await handleReactionRoleAdd(reaction as MessageReaction, user as User);
+      await handleFeedbackReaction(reaction as MessageReaction, user as User);
     } catch (error) {
       logger.error("[AutoEvents] reactionAdd error:", error);
     }
