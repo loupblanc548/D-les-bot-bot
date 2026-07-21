@@ -50,6 +50,7 @@ import { startAlertDigest } from "./cron/alertDigest.js";
 import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
 import { startSyncFreeForDev } from "./cron/syncFreeForDev.js";
 import { startSyncTypeScriptSkills } from "./cron/syncTypeScriptSkills.js";
+import { startKnowledgeCrons } from "./cron/knowledgeCrons.js";
 import { startWazuhWatchdog } from "./cron/wazuhWatchdog.js";
 import { startShodanWatchdog } from "./cron/shodanWatchdog.js";
 import { startVpsBackupCron } from "./cron/vpsBackup.js";
@@ -379,6 +380,7 @@ export function attachStartupLogic(
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),
+          () => startKnowledgeCrons(),
           () => {
             setSoarClient(client);
             setSoarGateClient(client);
@@ -416,6 +418,7 @@ export function attachStartupLogic(
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),
+          () => startKnowledgeCrons(),
           () => {
             setSoarClient(client);
             setSoarGateClient(client);

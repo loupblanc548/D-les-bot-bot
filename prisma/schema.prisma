@@ -1075,11 +1075,14 @@ model AgentKnowledge {
   summary   String   @db.Text
   wordCount Int
   source    String   @default("web_ingestion")
+  category  String?  // SYSTEM_DESIGN, CHEAT_SHEET, ARCHITECTURE_PATTERN, etc.
+  tags      String?  // Comma-separated tags for FTS
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([source])
   @@index([updatedAt])
+  @@index([category])
   @@map("agent_knowledge")
 }
 
@@ -1357,15 +1360,22 @@ model GameReleaseCache {
 
 model FreeResource {
   id          String   @id @default(uuid())
-  category    String
+  category    String   // PUBLIC_API, CODE_SNIPPET, FREE_BOOK, SYSTEM_DESIGN, AWESOME_LIST, or legacy free-for-dev category
   name        String
   url         String
   description String   @db.Text
+  language    String?  // Programming language for snippets/books
+  tags        String?  // Comma-separated tags for FTS
+  sourceRepo  String?  // GitHub source repository
+  metadata    Json?    // Extra structured data (auth, https, cors, etc.)
   updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 
   @@index([category])
   @@index([name])
   @@index([url])
+  @@index([language])
+  @@index([sourceRepo])
 }
 
 model TypeScriptSkill {

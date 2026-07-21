@@ -1245,6 +1245,27 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "conversation_status",
       { level: "low", module: "utility", reason: "Read-only status of active conversation" },
     ],
+    // MODULE 24: Knowledge Base Tools (GitHub ingestion)
+    [
+      "search_public_apis",
+      { level: "low", module: "utility", reason: "Read-only search in public APIs database" },
+    ],
+    [
+      "get_dev_snippet",
+      { level: "low", module: "utility", reason: "Read-only search in code snippets database" },
+    ],
+    [
+      "search_programming_books",
+      { level: "low", module: "utility", reason: "Read-only search in free books database" },
+    ],
+    [
+      "search_system_design",
+      {
+        level: "low",
+        module: "utility",
+        reason: "Read-only search in system design knowledge base",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

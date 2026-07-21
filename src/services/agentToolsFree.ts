@@ -26,6 +26,7 @@ import {
 } from "./freeApis.js";
 import { generateElevenLabsTTS, getMonthlyUsage } from "./elevenLabsTts.js";
 import { removeBackground } from "./removeBg.js";
+import redisCache from "./redisCache.js";
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
@@ -300,6 +301,102 @@ export const FREE_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── Knowledge Base Tools (GitHub ingestion pipeline) ──────────────
+  {
+    type: "function",
+    function: {
+      name: "search_public_apis",
+      description:
+        "Recherche dans une base de données d'APIs gratuites (public-apis repository). " +
+        "Retourne le nom, la description, le statut HTTPS, et le lien direct. " +
+        "Utilise cet outil quand l'utilisateur demande une API gratuite pour un projet.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Terme de recherche (ex: 'weather', 'payment', 'authentication')",
+          },
+          category: {
+            type: "string",
+            description: "Catégorie optionnelle (ex: 'Data', 'Finance', 'Weather', 'Games')",
+          },
+          requiresAuth: {
+            type: "boolean",
+            description: "Si true, filtre les APIs qui nécessitent une authentification",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_dev_snippet",
+      description:
+        "Recherche un snippet de code concis (30-seconds-of-code). " +
+        "Retourne le code avec son explication. " +
+        "Utilise cet outil quand l'utilisateur demande un exemple de code rapide.",
+      parameters: {
+        type: "object",
+        properties: {
+          language: {
+            type: "string",
+            description: "Langage de programmation (ex: 'javascript', 'typescript', 'python')",
+          },
+          query: {
+            type: "string",
+            description:
+              "Sujet ou fonctionnalité recherchée (ex: 'debounce', 'array flatten', 'deep clone')",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_programming_books",
+      description:
+        "Recherche des livres de programmation gratuits et légaux (free-programming-books). " +
+        "Retourne le titre et le lien. " +
+        "Utilise cet outil quand l'utilisateur cherche un livre gratuit sur un sujet tech.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: {
+            type: "string",
+            description:
+              "Sujet ou langage (ex: 'python', 'machine learning', 'javascript', 'security')",
+          },
+        },
+        required: ["topic"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_system_design",
+      description:
+        "Recherche dans le system-design-primer (architecture, scalabilité, patterns). " +
+        "Retourne un résumé architectural et des recommandations. " +
+        "Utilise cet outil quand l'utilisateur pose une question de system design.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: {
+            type: "string",
+            description:
+              "Sujet architectural (ex: 'load balancing', 'caching', 'sharding', 'CAP theorem')",
+          },
+        },
+        required: ["topic"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -480,6 +577,19 @@ export async function executeFreeTool(
         if (toolName === "lookup_typescript_skill") {
           return await handleLookupTypeScriptSkill(args);
         }
+        // ── Knowledge Base Tools (GitHub ingestion) ──
+        if (toolName === "search_public_apis") {
+          return await handleSearchPublicApis(args);
+        }
+        if (toolName === "get_dev_snippet") {
+          return await handleGetDevSnippet(args);
+        }
+        if (toolName === "search_programming_books") {
+          return await handleSearchProgrammingBooks(args);
+        }
+        if (toolName === "search_system_design") {
+          return await handleSearchSystemDesign(args);
+        }
         return null;
     }
   } catch (err) {
@@ -615,4 +725,187 @@ export async function autoHealTypeScriptError(errorMessage: string): Promise<str
   } catch {
     return null;
   }
+}
+
+// ─── Knowledge Base Tool Handlers (GitHub ingestion pipeline) ───────────────
+
+const CACHE_TTL_24H = 86400;
+
+async function handleSearchPublicApis(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query ?? "");
+  const category = args.category ? String(args.category) : undefined;
+  const requiresAuth = args.requiresAuth === true;
+  if (!query) return { success: false, data: "Recherche vide" };
+
+  const cacheKey = `kb:apis:${query}:${category ?? ""}:${requiresAuth}`;
+  const cached = await redisCache.get<ToolCallResult>(cacheKey);
+  if (cached) return cached;
+
+  const where: Record<string, unknown> = {
+    category: "PUBLIC_API",
+    OR: [
+      { name: { contains: query, mode: "insensitive" as const } },
+      { description: { contains: query, mode: "insensitive" as const } },
+      { tags: { contains: query, mode: "insensitive" as const } },
+    ],
+  };
+  if (category) {
+    where.tags = { contains: category, mode: "insensitive" as const };
+  }
+
+  const results = await prisma.freeResource.findMany({
+    where: where as never,
+    take: 15,
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (results.length === 0) {
+    const res: ToolCallResult = { success: false, data: `Aucune API trouvée pour "${query}"` };
+    await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+    return res;
+  }
+
+  const formatted = results
+    .map((r, i) => {
+      const meta = (r as Record<string, unknown>).metadata as {
+        auth?: string;
+        https?: boolean;
+        cors?: string;
+      } | null;
+      return `${i + 1}. **${r.name}** — ${r.description.slice(0, 120)}\n   🔗 ${r.url}\n   Auth: ${meta?.auth ?? "?"} | HTTPS: ${meta?.https ?? "?"} | CORS: ${meta?.cors ?? "?"}`;
+    })
+    .join("\n\n");
+
+  const res: ToolCallResult = {
+    success: true,
+    data: `APIs trouvées (${results.length}):\n\n${formatted}`,
+  };
+  await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+  return res;
+}
+
+async function handleGetDevSnippet(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query ?? "");
+  const language = args.language ? String(args.language) : undefined;
+  if (!query) return { success: false, data: "Recherche vide" };
+
+  const cacheKey = `kb:snippet:${query}:${language ?? ""}`;
+  const cached = await redisCache.get<ToolCallResult>(cacheKey);
+  if (cached) return cached;
+
+  const where: Record<string, unknown> = {
+    category: "CODE_SNIPPET",
+    OR: [
+      { name: { contains: query, mode: "insensitive" as const } },
+      { description: { contains: query, mode: "insensitive" as const } },
+      { tags: { contains: query, mode: "insensitive" as const } },
+    ],
+  };
+  if (language) where.language = { contains: language, mode: "insensitive" as const };
+
+  const results = await prisma.freeResource.findMany({
+    where: where as never,
+    take: 5,
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (results.length === 0) {
+    const res: ToolCallResult = { success: false, data: `Aucun snippet trouvé pour "${query}"` };
+    await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+    return res;
+  }
+
+  const formatted = results
+    .map((r, i) => `${i + 1}. **${r.name}**\n${r.description.slice(0, 600)}`)
+    .join("\n\n---\n\n");
+
+  const res: ToolCallResult = {
+    success: true,
+    data: `Snippets trouvés (${results.length}):\n\n${formatted}`,
+  };
+  await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+  return res;
+}
+
+async function handleSearchProgrammingBooks(
+  args: Record<string, unknown>,
+): Promise<ToolCallResult> {
+  const topic = String(args.topic ?? "");
+  if (!topic) return { success: false, data: "Sujet vide" };
+
+  const cacheKey = `kb:books:${topic}`;
+  const cached = await redisCache.get<ToolCallResult>(cacheKey);
+  if (cached) return cached;
+
+  const results = await prisma.freeResource.findMany({
+    where: {
+      category: "FREE_BOOK",
+      OR: [
+        { name: { contains: topic, mode: "insensitive" as const } },
+        { description: { contains: topic, mode: "insensitive" as const } },
+        { tags: { contains: topic, mode: "insensitive" as const } } as never,
+      ],
+    } as never,
+    take: 15,
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (results.length === 0) {
+    const res: ToolCallResult = { success: false, data: `Aucun livre trouvé pour "${topic}"` };
+    await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+    return res;
+  }
+
+  const formatted = results
+    .map((r, i) => `${i + 1}. **${r.name}** — ${r.description.slice(0, 100)}\n   🔗 ${r.url}`)
+    .join("\n\n");
+
+  const res: ToolCallResult = {
+    success: true,
+    data: `Livres gratuits trouvés (${results.length}):\n\n${formatted}`,
+  };
+  await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+  return res;
+}
+
+async function handleSearchSystemDesign(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const topic = String(args.topic ?? "");
+  if (!topic) return { success: false, data: "Sujet vide" };
+
+  const cacheKey = `kb:sysdesign:${topic}`;
+  const cached = await redisCache.get<ToolCallResult>(cacheKey);
+  if (cached) return cached;
+
+  const results = await prisma.agentKnowledge.findMany({
+    where: {
+      OR: [
+        { title: { contains: topic, mode: "insensitive" as const } },
+        { summary: { contains: topic, mode: "insensitive" as const } },
+        { tags: { contains: topic, mode: "insensitive" as const } } as never,
+        { content: { contains: topic, mode: "insensitive" as const } },
+      ],
+    } as never,
+    take: 5,
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (results.length === 0) {
+    const res: ToolCallResult = {
+      success: false,
+      data: `Aucune ressource system design pour "${topic}"`,
+    };
+    await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+    return res;
+  }
+
+  const formatted = results
+    .map((r, i) => `${i + 1}. **${r.title}**\n${r.summary.slice(0, 400)}\n   🔗 ${r.url}`)
+    .join("\n\n---\n\n");
+
+  const res: ToolCallResult = {
+    success: true,
+    data: `Ressources system design (${results.length}):\n\n${formatted}`,
+  };
+  await redisCache.set(cacheKey, res, CACHE_TTL_24H);
+  return res;
 }
