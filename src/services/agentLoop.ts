@@ -59,6 +59,7 @@ import {
 import { isRestrictedTool, requestToolApproval, setSoarGateClient } from "./agentSoarGate.js";
 import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
+import { getAgentLoopModel } from "./modelRouter.js";
 import { isKilled } from "./killSwitch.js";
 import {
   buildPersonalitySystemPrompt,
@@ -820,15 +821,23 @@ async function runAgentLoopInternal(
     const modelChain = getModelChainForTask(taskComplexity);
     const preferredModel = getPersonalityModel(config.openRouterModel);
 
+    // ─── Étape 1b: Routeur multi-modèles (code/vision override) ───
+    const routedModel = getAgentLoopModel(userMessage);
+
     // Construire la liste des modèles à essayer:
+    // 0. Modèle routé (code/vision) en première position si détecté
     // 1. Chaîne du routeur (triée par complexité)
     // 2. Modèle préféré en premier s'il est disponible
     // 3. Tous les modèles disponibles en fallback
     const allModels = getAllAvailableModels(availableTools.length > 0);
     const modelsToTry: string[] = [];
 
+    // Modèle routé en priorité absolue
+    if (routedModel && !modelsToTry.includes(routedModel)) {
+      modelsToTry.push(routedModel);
+    }
     // Mettre le modèle préféré en premier s'il est dans la chaîne ou dans allModels
-    if (modelChain.includes(preferredModel)) {
+    if (modelChain.includes(preferredModel) && !modelsToTry.includes(preferredModel)) {
       modelsToTry.push(preferredModel);
     }
     // Ajouter le reste de la chaîne du routeur
