@@ -18,7 +18,7 @@
  */
 
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
-import { prisma } from "../backend/backend.js";
+import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
 export type DigestFrequency = "daily" | "weekly";
@@ -141,7 +141,7 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
   const memberCount = guild.memberCount;
   let newMembers = 0;
   try {
-    newMembers = (await guild.members.fetch({ after: "0", limit: 50 })).filter(
+    newMembers = (await guild.members.fetch({ limit: 50 })).filter(
       (m) => m.joinedAt && m.joinedAt >= periodStart,
     ).size;
   } catch {}
@@ -201,7 +201,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
       embed.addFields({
         name: "📡 Nouveaux suivis sociaux",
         value: follows
-          .map((f) => `• ${f.platform}: ${f.channelName}`)
+          .map(
+            (f: { platform: string; channelName: string }) => `• ${f.platform}: ${f.channelName}`,
+          )
           .join("\n")
           .slice(0, 1024),
         inline: false,

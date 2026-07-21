@@ -15,6 +15,7 @@ import logger from "../utils/logger.js";
 import { recordSecurityEvent } from "../services/risk-engine.js";
 import { createLog } from "../services/logs.js";
 import prisma from "../prisma.js";
+import { classifyNsfw } from "../services/nsfwClassifier.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -169,6 +170,52 @@ export function handleAutoModeration(client: Client): void {
             await recordSecurityEvent(message.author.id, guildId, "ANTI_SPAM").catch(() => {});
             logger.info(`[AutoMod] Blocked file: ${message.author.tag} — ${ext}`);
             return;
+          }
+        }
+      }
+
+      // ── 5b. NSFW auto-scan for image attachments ─────────────────────
+      if (message.attachments.size > 0) {
+        const imageExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"];
+        for (const [, attachment] of message.attachments) {
+          const ext = attachment.name.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
+          if (!imageExts.includes(ext)) continue;
+          if (!attachment.url || !attachment.url.startsWith("http")) continue;
+
+          const channel = message.channel as TextChannel;
+          if (channel.nsfw) continue;
+
+          try {
+            const nsfwResult = await classifyNsfw(attachment.url, { threshold: 0.5 });
+            if (nsfwResult.action === "block") {
+              await message.delete().catch(() => {});
+              const alert = await message.channel.send({
+                content: `🚫 ${message.author}, contenu NSFW explicite détecté (confiance: ${(nsfwResult.confidence * 100).toFixed(0)}%). Image supprimée.`,
+              });
+              setTimeout(() => alert.delete().catch(() => {}), 10000);
+              await recordSecurityEvent(message.author.id, guildId, "ANTI_SPAM").catch(() => {});
+              await createLog({
+                type: "automod",
+                action: `NSFW auto-scan: image explicite supprimée (${(nsfwResult.confidence * 100).toFixed(0)}%) par ${message.author.tag}`,
+                userId: message.author.id,
+              });
+              logger.info(
+                `[AutoMod] NSFW blocked: ${message.author.tag} — raw=${nsfwResult.categories.raw.toFixed(2)} partial=${nsfwResult.categories.partial.toFixed(2)}`,
+              );
+              return;
+            } else if (nsfwResult.action === "warn") {
+              const alert = await message.channel
+                .send({
+                  content: `⚠️ ${message.author}, contenu potentiellement suggestif détecté (confiance: ${(nsfwResult.confidence * 100).toFixed(0)}%). Sois prudent.`,
+                })
+                .catch(() => {});
+              if (alert) setTimeout(() => alert.delete().catch(() => {}), 8000);
+              logger.info(
+                `[AutoMod] NSFW warning: ${message.author.tag} — suggestive=${nsfwResult.categories.suggestive.toFixed(2)}`,
+              );
+            }
+          } catch (err) {
+            logger.debug(`[AutoMod] NSFW scan failed for ${attachment.url}: ${err}`);
           }
         }
       }

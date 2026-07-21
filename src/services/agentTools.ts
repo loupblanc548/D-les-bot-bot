@@ -29,6 +29,9 @@ import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
 import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
+import { classifyNsfw } from "./nsfwClassifier.js";
+import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.js";
+import { getDigestConfig, setDigestConfig, startDigestScheduler } from "./communityDigest.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -518,6 +521,92 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "classify_nsfw",
+      description:
+        "Classifie une image pour détecter du contenu NSFW (nudité, suggestif). Utilise Sightengine ou Gemini Vision. Retourne les scores raw/partial/suggestive et une action recommandée (block/warn/allow).",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: { type: "string", description: "URL de l'image à analyser" },
+          threshold: { type: "number", description: "Seuil de détection 0-1 (défaut 0.5)" },
+          strict: { type: "boolean", description: "Mode strict (bloque aussi le suggestif)" },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "voice_translation",
+      description:
+        "Démarre une session de traduction vocale en temps réel. L'utilisateur parle dans sa langue, le bot traduit et répond dans la langue cible. Nécessite opt-in vocal préalable (/voice opt-in).",
+      parameters: {
+        type: "object",
+        properties: {
+          targetLang: {
+            type: "string",
+            enum: ["FR", "EN", "DE", "ES", "IT", "PT", "JA", "KO", "ZH", "RU"],
+            description: "Langue cible de la traduction",
+          },
+          voiceChannelId: { type: "string", description: "ID du salon vocal" },
+          textChannelId: {
+            type: "string",
+            description: "ID du salon textuel pour afficher les transcriptions",
+          },
+        },
+        required: ["targetLang", "voiceChannelId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "stop_voice_translation",
+      description: "Arrête la session de traduction vocale en cours pour l'utilisateur.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "enable_digest",
+      description:
+        "Active le digest périodique communautaire pour ce serveur. Envoie un résumé de l'activité (membres, commandes, modération, événements) à intervalle régulier.",
+      parameters: {
+        type: "object",
+        properties: {
+          frequency: {
+            type: "string",
+            enum: ["daily", "weekly"],
+            description: "Fréquence du digest (daily = quotidien, weekly = hebdomadaire)",
+          },
+          channelId: { type: "string", description: "ID du salon où envoyer le digest" },
+          sendHour: { type: "number", description: "Heure d'envoi 0-23 (défaut 9)" },
+        },
+        required: ["frequency", "channelId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "disable_digest",
+      description: "Désactive le digest périodique communautaire pour ce serveur.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -609,6 +698,16 @@ export async function executeTool(
         return await toolAnalyzeImageGemini(args);
       case "execute_code":
         return await toolExecuteCode(args);
+      case "classify_nsfw":
+        return await toolClassifyNsfw(args);
+      case "voice_translation":
+        return await toolVoiceTranslation(args, ctx);
+      case "stop_voice_translation":
+        return await toolStopVoiceTranslation(ctx);
+      case "enable_digest":
+        return await toolEnableDigest(args, ctx);
+      case "disable_digest":
+        return await toolDisableDigest(ctx);
       default: {
         // Essayer les tools étendus
         const extToolResult = await executeExtendedTool(toolName, args, ctx);
@@ -1609,4 +1708,109 @@ async function toolSearchKnowledge(args: Record<string, unknown>): Promise<ToolC
     success: true,
     data: JSON.stringify(results),
   };
+}
+
+// ─── NSFW Classifier ──────────────────────────────────────────────────────────
+
+async function toolClassifyNsfw(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imageUrl = String(args.imageUrl || "").trim();
+  if (!imageUrl) return { success: false, data: "URL d'image requise" };
+  if (!imageUrl.startsWith("http"))
+    return { success: false, data: "L'URL doit commencer par http" };
+
+  const threshold = args.threshold ? Number(args.threshold) : 0.5;
+  const strict = args.strict === true;
+
+  const result = await classifyNsfw(imageUrl, { threshold, strict });
+
+  const actionEmoji = result.action === "block" ? "🚫" : result.action === "warn" ? "⚠️" : "✅";
+  const data =
+    `${actionEmoji} **Classification NSFW**\n` +
+    `Source: ${result.source}\n` +
+    `Action: **${result.action}**\n` +
+    `Confiance: ${(result.confidence * 100).toFixed(1)}%\n` +
+    `Raw (nudité explicite): ${(result.categories.raw * 100).toFixed(1)}%\n` +
+    `Partial (nudité partielle): ${(result.categories.partial * 100).toFixed(1)}%\n` +
+    `Suggestive (suggestif): ${(result.categories.suggestive * 100).toFixed(1)}%`;
+
+  return { success: true, data };
+}
+
+// ─── Voice Translation ────────────────────────────────────────────────────────
+
+async function toolVoiceTranslation(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const targetLang = String(args.targetLang || "FR").toUpperCase() as
+    "FR" | "EN" | "DE" | "ES" | "IT" | "PT" | "JA" | "KO" | "ZH" | "RU";
+  const voiceChannelId = String(args.voiceChannelId || "");
+  const textChannelId = String(args.textChannelId || ctx.channelId);
+
+  if (!voiceChannelId) return { success: false, data: "ID du salon vocal requis" };
+
+  const member = ctx.message.member;
+  if (!member?.voice.channelId) {
+    return {
+      success: false,
+      data: "Tu dois être dans un salon vocal pour utiliser la traduction vocale.",
+    };
+  }
+
+  const actualVoiceChannelId = voiceChannelId || member.voice.channelId;
+  const guild = ctx.message.guild;
+  if (!guild) return { success: false, data: "Serveur introuvable" };
+
+  const result = await startVoiceTranslation(
+    ctx.client,
+    guild.id,
+    actualVoiceChannelId,
+    ctx.userId,
+    ctx.message.author.username,
+    targetLang,
+    guild.voiceAdapterCreator as unknown,
+    textChannelId,
+  );
+
+  return { success: result.success, data: result.message };
+}
+
+async function toolStopVoiceTranslation(ctx: ToolContext): Promise<ToolCallResult> {
+  const result = await stopVoiceTranslation(ctx.userId);
+  return { success: result.success, data: result.message };
+}
+
+// ─── Community Digest ─────────────────────────────────────────────────────────
+
+async function toolEnableDigest(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const frequency = String(args.frequency || "daily") as "daily" | "weekly";
+  const channelId = String(args.channelId || ctx.channelId);
+  const sendHour =
+    args.sendHour !== undefined ? Math.min(23, Math.max(0, Number(args.sendHour))) : 9;
+
+  if (!ctx.guildId) return { success: false, data: "Commande serveur uniquement" };
+
+  setDigestConfig(ctx.guildId, {
+    enabled: true,
+    frequency,
+    channelId,
+    sendHour,
+    guildId: ctx.guildId,
+  });
+
+  const freqLabel = frequency === "daily" ? "quotidien" : "hebdomadaire";
+  return {
+    success: true,
+    data: `✅ Digest ${freqLabel} activé pour ce serveur. Envoi à ${sendHour}h dans <#${channelId}>. Utilise disable_digest pour désactiver.`,
+  };
+}
+
+async function toolDisableDigest(ctx: ToolContext): Promise<ToolCallResult> {
+  if (!ctx.guildId) return { success: false, data: "Commande serveur uniquement" };
+
+  setDigestConfig(ctx.guildId, { enabled: false });
+  return { success: true, data: "✅ Digest communautaire désactivé pour ce serveur." };
 }

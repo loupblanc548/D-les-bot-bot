@@ -37,6 +37,7 @@ import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalP
 import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
 import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
+import { startDigestScheduler } from "./services/communityDigest.js";
 import { registerInterval } from "./shutdown.js";
 import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
@@ -434,6 +435,7 @@ export function attachStartupLogic(
     }
 
     await initSchedulers(client);
+    startDigestScheduler(client);
     await sendHealthReport(client, healthResults);
 
     logger.info("");

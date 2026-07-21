@@ -41,8 +41,9 @@ function getCached(url: string): NsfwResult | null {
   if (result) {
     cache.delete(url);
     cache.set(url, result);
+    return result;
   }
-  return result;
+  return null;
 }
 
 function setCache(url: string, result: NsfwResult): void {
