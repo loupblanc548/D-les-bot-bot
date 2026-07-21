@@ -119,6 +119,10 @@ import {
   handleCommand as handleFollowCommand,
   handleAutocomplete as handleFollowAutocomplete,
 } from "./commands/follow.js";
+import {
+  commands as memoryCommands,
+  handleCommand as handleMemoryCommand,
+} from "./commands/memoryCommands.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -492,6 +496,8 @@ export const allCommands = [
   privacyCommandData,
   // ── Follow (social media tracking) ──
   ...followCommands,
+  // ── Memory (AI memory management) ──
+  ...memoryCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -576,6 +582,11 @@ export function buildCommandRouter(): void {
   commandRouter["privacy"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await privacyExecute(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Memory (AI memory) command ───
+  commandRouter["memory"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleMemoryCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Follow (social media tracking) command ───
   commandRouter["follow"] = async (interaction, _client) => {
