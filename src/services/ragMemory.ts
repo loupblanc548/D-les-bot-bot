@@ -1,6 +1,7 @@
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import multiLevelCache from "./multiLevelCache.js";
+import { searchVectorMemories, storeVectorMemory } from "./vectorMemory.js";
 
 interface MemoryContext {
   userId: string;
@@ -120,24 +121,30 @@ export async function addMemoryMessage(
 export async function addMemoryEmbedding(
   userId: string,
   content: string,
-  embedding: number[],
+  embedding?: number[],
   metadata?: any,
 ): Promise<void> {
   try {
-    await prisma.userMemory.upsert({
-      where: { userId },
-      update: { lastActiveAt: new Date() },
-      create: { userId, lastActiveAt: new Date() },
-    });
+    if (embedding && embedding.length > 0) {
+      // Use provided embedding
+      await prisma.userMemory.upsert({
+        where: { userId },
+        update: { lastActiveAt: new Date() },
+        create: { userId, lastActiveAt: new Date() },
+      });
 
-    await prisma.memoryEmbedding.create({
-      data: {
-        userId,
-        content,
-        embedding: JSON.stringify(embedding),
-        metadata: metadata as any,
-      },
-    });
+      await prisma.memoryEmbedding.create({
+        data: {
+          userId,
+          content,
+          embedding: JSON.stringify(embedding),
+          metadata: metadata as any,
+        },
+      });
+    } else {
+      // Auto-generate embedding via vector memory service
+      await storeVectorMemory(userId, content, metadata);
+    }
 
     await invalidateCache(userId);
     logger.info(`[RAGMemory] Added embedding for ${userId}`);
@@ -152,29 +159,13 @@ export async function searchRelevantMemories(
   limit: number = 5,
 ): Promise<Array<{ content: string; score: number }>> {
   try {
-    const context = await getUserMemory(userId);
-    const results: Array<{ content: string; score: number }> = [];
-
-    for (const embedding of context.embeddings) {
-      const score = calculateSimilarity(query, embedding.content);
-      if (score > 0.5) {
-        results.push({ content: embedding.content, score });
-      }
-    }
-
-    results.sort((a, b) => b.score - a.score);
-    return results.slice(0, limit);
+    // Use real vector cosine similarity search
+    const results = await searchVectorMemories(userId, query, limit, 0.3);
+    return results.map((r) => ({ content: r.content, score: r.score }));
   } catch (error) {
     logger.error("[RAGMemory] Error searching memories:", error);
     return [];
   }
-}
-
-function calculateSimilarity(query: string, content: string): number {
-  const queryWords = query.toLowerCase().split(/\s+/);
-  const contentWords = content.toLowerCase().split(/\s+/);
-  const intersection = queryWords.filter((word) => contentWords.includes(word));
-  return intersection.length / Math.max(queryWords.length, 1);
 }
 
 async function invalidateCache(userId: string): Promise<void> {
