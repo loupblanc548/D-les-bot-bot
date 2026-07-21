@@ -81,6 +81,8 @@ export class AgentStatusIndicator {
 
 // ─── Réactions feedback ───────────────────────────────────────────────────────
 
+import { recordFeedback } from "./proactiveAgent.js";
+
 const FEEDBACK_REACTIONS = ["👍", "👎"];
 
 export async function addFeedbackReactions(message: Message): Promise<void> {
@@ -120,6 +122,9 @@ export async function handleFeedbackReaction(reaction: MessageReaction, user: Us
     });
 
     logger.info(`[AgentFeedback] ${isPositive ? "👍" : "👎"} by ${user.tag} on msg ${message.id}`);
+
+    // Feed the proactive agent learning loop
+    recordFeedback(user.id, "agent_response", isPositive);
   } catch (err) {
     logger.debug(`[AgentFeedback] Failed to log: ${err}`);
   }
