@@ -41,6 +41,7 @@ import {
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
+import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -482,6 +483,16 @@ async function handleAiChatMention(
       await suggestThread(message as Message);
     }
 
+    // ── DEEP RESEARCH: si la requête demande une recherche approfondie ──
+    if (isDeepResearchRequest(enrichedContent)) {
+      const researchDone = await runDeepResearch(message as Message, enrichedContent);
+      if (researchDone) {
+        void statusIndicator.cleanup();
+        return;
+      }
+      // Si le deep research échoue, on continue vers l'agent loop
+    }
+
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
     // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
     // puis synthétise sa réponse finale.
@@ -647,6 +658,15 @@ async function handleDMMessage(
             `[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
+      }
+    }
+
+    // ── DEEP RESEARCH (DM): si la requête demande une recherche approfondie ──
+    if (isDeepResearchRequest(dmEnrichedContent)) {
+      const researchDone = await runDeepResearch(message as Message, dmEnrichedContent);
+      if (researchDone) {
+        void dmStatusIndicator.cleanup();
+        return;
       }
     }
 
