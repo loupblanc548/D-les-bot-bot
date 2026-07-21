@@ -1059,6 +1059,35 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
           "Periodic aggregated server activity report — opt-in per guild, uses only aggregated data (no individual PII), configurable frequency",
       },
     ],
+    // MODULE 18: Temporary Email (tempEmail.ts)
+    [
+      "create_temp_email",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "Creates a disposable email address via Mail.tm/1secmail — no PII involved, address is ephemeral by design, no API keys required",
+      },
+    ],
+    [
+      "check_temp_email",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "Reads inbox of a temporary email — content is not private (anyone with the address can read it), no PII stored, includes explicit privacy warning in response",
+      },
+    ],
+    // MODULE 19: Password Generator (passwordGenerator.ts)
+    [
+      "generate_password",
+      {
+        level: "low",
+        module: "utility",
+        reason:
+          "100% local password generation via crypto.randomInt() — no network calls, no storage, no PII. Response must be ephemeral to avoid leaking in channel history",
+      },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

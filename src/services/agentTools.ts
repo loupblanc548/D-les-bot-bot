@@ -32,6 +32,8 @@ import { config } from "../config.js";
 import { classifyNsfw } from "./nsfwClassifier.js";
 import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.js";
 import { getDigestConfig, setDigestConfig, startDigestScheduler } from "./communityDigest.js";
+import { generatePassword, generateMultiplePasswords } from "./passwordGenerator.js";
+import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEmail.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -607,6 +609,66 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "generate_password",
+      description:
+        "Génère un mot de passe sécurisé localement (crypto.randomInt). Aucun appel réseau. Retourne le mot de passe, l'entropie en bits et un label de force. Peut générer plusieurs mots de passe à la fois.",
+      parameters: {
+        type: "object",
+        properties: {
+          length: { type: "number", description: "Longueur du mot de passe (4-128, défaut 16)" },
+          uppercase: { type: "boolean", description: "Inclure majuscules (défaut true)" },
+          lowercase: { type: "boolean", description: "Inclure minuscules (défaut true)" },
+          numbers: { type: "boolean", description: "Inclure chiffres (défaut true)" },
+          symbols: { type: "boolean", description: "Inclure symboles (défaut true)" },
+          excludeAmbiguous: {
+            type: "boolean",
+            description: "Exclure caractères ambigus 0/O/1/l/I (défaut false)",
+          },
+          count: {
+            type: "number",
+            description: "Nombre de mots de passe à générer (1-10, défaut 1)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_temp_email",
+      description:
+        "Crée une adresse email temporaire/jetable via Mail.tm ou 1secmail (fallback). Aucune clé API requise. Retourne l'adresse et un identifiant pour relire la boîte.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_temp_email",
+      description:
+        "Vérifie la boîte de réception d'un email temporaire créé précédemment. Retourne les messages reçus. ⚠️ Le contenu n'est pas privé — toute personne connaissant l'adresse peut le lire.",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "L'adresse email temporaire" },
+          providerId: {
+            type: "string",
+            description: "L'identifiant fournisseur retourné par create_temp_email",
+          },
+          provider: { type: "string", description: "Le fournisseur (mail.tm ou 1secmail)" },
+        },
+        required: ["address", "providerId", "provider"],
+      },
+    },
+  },
 ];
 
 /**
@@ -708,6 +770,12 @@ export async function executeTool(
         return await toolEnableDigest(args, ctx);
       case "disable_digest":
         return await toolDisableDigest(ctx);
+      case "generate_password":
+        return await toolGeneratePassword(args);
+      case "create_temp_email":
+        return await toolCreateTempEmail();
+      case "check_temp_email":
+        return await toolCheckTempEmail(args);
       default: {
         // Essayer les tools étendus
         const extToolResult = await executeExtendedTool(toolName, args, ctx);
@@ -1813,4 +1881,97 @@ async function toolDisableDigest(ctx: ToolContext): Promise<ToolCallResult> {
 
   setDigestConfig(ctx.guildId, { enabled: false });
   return { success: true, data: "✅ Digest communautaire désactivé pour ce serveur." };
+}
+
+// ─── Password Generator ───────────────────────────────────────────────────────
+
+async function toolGeneratePassword(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const count = args.count !== undefined ? Math.min(10, Math.max(1, Number(args.count))) : 1;
+  const options = {
+    length: args.length !== undefined ? Math.min(128, Math.max(4, Number(args.length))) : 16,
+    uppercase: args.uppercase !== false,
+    lowercase: args.lowercase !== false,
+    numbers: args.numbers !== false,
+    symbols: args.symbols !== false,
+    excludeAmbiguous: args.excludeAmbiguous === true,
+  };
+
+  const passwords = generateMultiplePasswords(options, count);
+
+  const lines = passwords.map(
+    (p, i) =>
+      `${count > 1 ? `**${i + 1}.** ` : ""}\`${p.password}\`\n` +
+      `Entropie: **${p.entropyBits} bits** — Force: **${p.strengthLabel}**`,
+  );
+
+  const warning =
+    "\n\n⚠️ **Ce mot de passe n'est pas stocké par le bot.** Copie-le maintenant — il ne sera plus accessible ensuite.";
+
+  return {
+    success: true,
+    data: `${lines.join("\n\n")}${warning}`,
+  };
+}
+
+// ─── Temporary Email ──────────────────────────────────────────────────────────
+
+async function toolCreateTempEmail(): Promise<ToolCallResult> {
+  try {
+    const account = await createTempEmail();
+    return {
+      success: true,
+      data:
+        `📧 **Email temporaire créé**\n` +
+        `Adresse: \`${account.address}\`\n` +
+        `Fournisseur: ${account.provider}\n` +
+        `ID: \`${account.providerId}\`\n\n` +
+        `Pour vérifier la boîte, utilise \`check_temp_email\` avec:\n` +
+        `- address: \`${account.address}\`\n` +
+        `- providerId: \`${account.providerId}\`\n` +
+        `- provider: \`${account.provider}\`\n\n` +
+        PRIVACY_WARNING,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+async function toolCheckTempEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const address = String(args.address || "").trim();
+  const providerId = String(args.providerId || "").trim();
+  const provider = String(args.provider || "").trim() as "mail.tm" | "1secmail";
+
+  if (!address || !providerId || !provider) {
+    return { success: false, data: "Paramètres manquants: address, providerId, provider requis" };
+  }
+
+  try {
+    const account = { address, providerId, provider };
+    const messages = await checkTempEmailInbox(account);
+
+    if (messages.length === 0) {
+      return {
+        success: true,
+        data: `📭 Aucun message reçu sur \`${address}\`.\n\n${PRIVACY_WARNING}`,
+      };
+    }
+
+    const lines = messages.map(
+      (m) =>
+        `**De:** ${m.from}\n**Sujet:** ${m.subject}\n**Date:** ${m.date}\n\`\`\`${m.body.slice(0, 500)}\`\`\``,
+    );
+
+    return {
+      success: true,
+      data: `📬 **${messages.length} message(s)** sur \`${address}\`:\n\n${lines.join("\n\n")}\n\n${PRIVACY_WARNING}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      data: `Erreur: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }
