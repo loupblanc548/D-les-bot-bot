@@ -40,6 +40,7 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
+import { simulateStreamEdit } from "../services/streamingResponse.js";
 import {
   touchConversation,
   checkExpiredConversations,
@@ -522,12 +523,27 @@ async function handleAiChatMention(
     if (aiResponse) {
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
 
-      // ── Envoyer en plusieurs messages si la réponse est longue ──
-      const sentMessages = await sendMultiMessage(
-        message.channel as TextChannel,
-        aiResponse,
-        message as Message,
-      );
+      // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
+      let sentMessages: Message[] | null = null;
+      if (aiResponse.length <= 1900) {
+        try {
+          const streamMsg = await (message as Message).reply("💭 ...");
+          await simulateStreamEdit(streamMsg, aiResponse);
+          sentMessages = [streamMsg];
+        } catch {
+          sentMessages = await sendMultiMessage(
+            message.channel as TextChannel,
+            aiResponse,
+            message as Message,
+          );
+        }
+      } else {
+        sentMessages = await sendMultiMessage(
+          message.channel as TextChannel,
+          aiResponse,
+          message as Message,
+        );
+      }
 
       // ── Ajouter réactions feedback (👍/👎) sur le dernier message ──
       if (sentMessages && sentMessages.length > 0) {
@@ -683,12 +699,27 @@ async function handleDMMessage(
     if (aiResponse) {
       if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
 
-      // ── Envoyer en plusieurs messages si la réponse est longue ──
-      const dmSentMessages = await sendMultiMessage(
-        message.channel as TextChannel,
-        aiResponse,
-        message as Message,
-      );
+      // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
+      let dmSentMessages: Message[] | null = null;
+      if (aiResponse.length <= 1900) {
+        try {
+          const streamMsg = await (message as Message).reply("💭 ...");
+          await simulateStreamEdit(streamMsg, aiResponse);
+          dmSentMessages = [streamMsg];
+        } catch {
+          dmSentMessages = await sendMultiMessage(
+            message.channel as TextChannel,
+            aiResponse,
+            message as Message,
+          );
+        }
+      } else {
+        dmSentMessages = await sendMultiMessage(
+          message.channel as TextChannel,
+          aiResponse,
+          message as Message,
+        );
+      }
 
       // ── Ajouter réactions feedback (👍/👎) sur le dernier message ──
       if (dmSentMessages && dmSentMessages.length > 0) {
