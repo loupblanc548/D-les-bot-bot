@@ -123,6 +123,10 @@ import {
   commands as memoryCommands,
   handleCommand as handleMemoryCommand,
 } from "./commands/memoryCommands.js";
+import {
+  commands as conversationCommands,
+  handleCommand as handleConversationCommand,
+} from "./commands/conversationCommands.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -498,6 +502,8 @@ export const allCommands = [
   ...followCommands,
   // ── Memory (AI memory management) ──
   ...memoryCommands,
+  // ── Conversation (persistent sessions) ──
+  ...conversationCommands,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -587,6 +593,11 @@ export function buildCommandRouter(): void {
   commandRouter["memory"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleMemoryCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Conversation (persistent sessions) command ───
+  commandRouter["conversation"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleConversationCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Follow (social media tracking) command ───
   commandRouter["follow"] = async (interaction, _client) => {
