@@ -46,6 +46,28 @@ const TOOL_TTL_MS: Record<string, number> = {
   getAirQuality: 15 * 60 * 1000,
   // Tech news: 15 minutes
   getTechNews: 15 * 60 * 1000,
+  // ── Orphan tools (Phase 1) ──
+  // Lyrics: 24h (rarely changes)
+  get_lyrics: 24 * 60 * 60 * 1000,
+  // URL shortener: 24h (same URL = same short link)
+  shorten_url: 24 * 60 * 60 * 1000,
+  // DNS: 5 minutes (DNS can change)
+  resolve_dns: 5 * 60 * 1000,
+  // Game prices: 30 minutes
+  compare_game_prices: 30 * 60 * 1000,
+  // Game server status: 2 minutes (player count changes fast)
+  check_game_server: 2 * 60 * 1000,
+  // Game artwork: 24h (rarely changes)
+  get_game_artwork: 24 * 60 * 60 * 1000,
+};
+
+// ─── Adaptive TTL multipliers by risk level ──────────────────────────────────
+// Low risk tools get longer TTL, restricted tools get shorter TTL
+const TTL_MULTIPLIER_BY_LEVEL: Record<string, number> = {
+  low: 1.0,
+  medium: 0.5,
+  high: 0.25,
+  restricted: 0.25,
 };
 
 const MAX_CACHE_SIZE = 500;
@@ -112,7 +134,10 @@ export function setCachedToolResult(
   if (!isToolCacheable(toolName)) return;
 
   const key = generateCacheKey(toolName, args);
-  const ttlMs = TOOL_TTL_MS[toolName] ?? DEFAULT_TTL_MS;
+  const baseTtl = TOOL_TTL_MS[toolName] ?? DEFAULT_TTL_MS;
+  const level = getRiskLevel(toolName) ?? "low";
+  const multiplier = TTL_MULTIPLIER_BY_LEVEL[level] ?? 1.0;
+  const ttlMs = Math.floor(baseTtl * multiplier);
 
   // Evict oldest entries if cache is full
   if (cache.size >= MAX_CACHE_SIZE) {

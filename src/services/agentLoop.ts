@@ -82,9 +82,31 @@ import {
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 const MAX_ITERATIONS = 8;
+const MAX_ITERATIONS_LONG_TASK = 20;
 const MAX_HISTORY_MESSAGES = 15;
 const MAX_MEMORY_FACTS = 5;
-const AGENT_LOOP_TIMEOUT_MS = 45_000; // 45s max for the entire agent loop (was 30s)
+const AGENT_LOOP_TIMEOUT_MS = 45_000; // 45s max for the entire agent loop
+const AGENT_LOOP_TIMEOUT_LONG_MS = 120_000; // 120s for complex tasks
+
+// Heuristics for detecting complex tasks
+const COMPLEX_TASK_KEYWORDS = [
+  "analyse complète",
+  "audit",
+  "rapport détaillé",
+  "comprehensive analysis",
+  "full audit",
+  "detailed report",
+  "investigation complète",
+  "full investigation",
+  "deep dive",
+  "étude approfondie",
+  "thorough analysis",
+];
+
+function isComplexTask(userMessage: string): boolean {
+  const lower = userMessage.toLowerCase();
+  return COMPLEX_TASK_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 // Per-user concurrency lock: prevents the same user from triggering multiple agent loops
 const activeAgentLoops = new Set<string>();
@@ -101,16 +123,28 @@ const disabledTools = new Set<string>();
 
 // Global tool rate limiter: max calls per minute per tool
 const toolCallTimestamps = new Map<string, number[]>();
-const TOOL_GLOBAL_RATE_LIMIT = 10; // max 10 calls per minute per tool globally
 const TOOL_RATE_LIMIT_WINDOW_MS = 60_000;
+
+// Rate limits per risk level (calls per minute)
+const RATE_LIMITS_BY_LEVEL: Record<string, number> = {
+  low: 30,
+  medium: 15,
+  high: 5,
+  restricted: 5,
+};
 
 function isToolRateLimited(toolName: string): boolean {
   const now = Date.now();
   const timestamps = toolCallTimestamps.get(toolName) || [];
   const recent = timestamps.filter((t) => now - t < TOOL_RATE_LIMIT_WINDOW_MS);
-  if (recent.length >= TOOL_GLOBAL_RATE_LIMIT) {
+
+  // Get risk level for this tool, default to medium
+  const level = getRiskLevel(toolName) ?? "medium";
+  const limit = RATE_LIMITS_BY_LEVEL[level] ?? 10;
+
+  if (recent.length >= limit) {
     logger.warn(
-      `[AgentLoop] 🚦 Tool "${toolName}" rate-limited globally (${recent.length}/${TOOL_GLOBAL_RATE_LIMIT} per min)`,
+      `[AgentLoop] 🚦 Tool "${toolName}" rate-limited (${recent.length}/${limit} per min, level: ${level})`,
     );
     return true;
   }
@@ -305,10 +339,18 @@ export async function runAgentLoop(
   userCooldowns.set(message.author.id, now);
 
   try {
+    const complex = isComplexTask(userMessage);
+    const timeout = complex ? AGENT_LOOP_TIMEOUT_LONG_MS : AGENT_LOOP_TIMEOUT_MS;
+    const maxIter = complex ? MAX_ITERATIONS_LONG_TASK : MAX_ITERATIONS;
+    if (complex) {
+      logger.info(
+        `[AgentLoop] 🧠 Complex task detected — using ${maxIter} iterations, ${timeout / 1000}s timeout`,
+      );
+    }
     return await Promise.race([
-      runAgentLoopInternal(message, userMessage, statusCallback),
+      runAgentLoopInternal(message, userMessage, statusCallback, maxIter),
       new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error("AgentLoop timeout (45s)")), AGENT_LOOP_TIMEOUT_MS),
+        setTimeout(() => reject(new Error(`AgentLoop timeout (${timeout / 1000}s)`)), timeout),
       ),
     ]);
   } finally {
@@ -383,6 +425,7 @@ async function runAgentLoopInternal(
   message: Message,
   userMessage: string,
   statusCallback?: (toolName: string, iteration: number) => void,
+  maxIterations: number = MAX_ITERATIONS,
 ): Promise<string> {
   if (isKilled()) {
     logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
@@ -733,11 +776,12 @@ async function runAgentLoopInternal(
   ];
 
   // 2. Boucle Think → Act → Observe → Respond
-  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-    logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${MAX_ITERATIONS}`);
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${maxIterations}`);
 
-    // ─── Context compression: after iteration 4, summarize tool results to save tokens ───
-    if (iteration === 4 && conversation.length > 12) {
+    // ─── Context compression: after 1/3 of iterations, summarize tool results to save tokens ───
+    const compressionIteration = Math.floor(maxIterations / 3);
+    if (iteration === compressionIteration && conversation.length > 12) {
       const toolResults = conversation.filter((m) => m.role === "tool");
       if (toolResults.length > 3) {
         // Keep only the last 2 tool results, summarize older ones
@@ -1203,9 +1247,9 @@ async function runAgentLoopInternal(
   }
 
   // Si on a épuisé les itérations, retourner la dernière réponse
-  logger.warn(`[AgentLoop] ⚠️ Max iterations (${MAX_ITERATIONS}) atteint`);
+  logger.warn(`[AgentLoop] ⚠️ Max iterations (${maxIterations}) atteint`);
   agentLoopMaxedOut.inc();
-  tripBreaker(breakerState, `Max iterations (${MAX_ITERATIONS}) reached without final reply`);
+  tripBreaker(breakerState, `Max iterations (${maxIterations}) reached without final reply`);
   purgeCognitiveSession(cognitiveSessionId);
   return "J'ai analysé la situation mais j'ai besoin de plus de contexte pour répondre. Peux-tu préciser ?";
 }
