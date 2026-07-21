@@ -23,6 +23,7 @@ import { compareGamePrices } from "./priceComparator.js";
 import { queryMinecraft } from "./gameServerStatus.js";
 import { setReminder, getUserReminders, cancelReminder } from "./reminderService.js";
 import { AttachmentBuilder, TextChannel } from "discord.js";
+import prisma from "../prisma.js";
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
@@ -189,6 +190,27 @@ export const ORPHAN_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["text", "when"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_server_history",
+      description:
+        "Recherche dans l'historique des messages du serveur (base de données). Permet de retrouver qui a parlé d'un sujet, quand, et dans quel salon. Filtrable par utilisateur, salon et plage de dates. Limite 20 résultats.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Mots-clés à rechercher (insensible à la casse)" },
+          userId: { type: "string", description: "ID Discord de l'utilisateur (optionnel)" },
+          channelId: { type: "string", description: "ID du salon à filtrer (optionnel)" },
+          daysBack: {
+            type: "number",
+            description: "Nombre de jours en arrière (défaut 7, max 90)",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -429,6 +451,46 @@ export async function executeOrphanTool(
         return {
           success: true,
           data: `⏰ Rappel programmé pour ${remindAt.toLocaleString("fr-FR")}: "${text}" (ID: ${id})`,
+        };
+      }
+
+      // ── search_server_history ──
+      case "search_server_history": {
+        const query = String(args.query ?? "").trim();
+        if (!query) return { success: false, data: "Requête de recherche requise" };
+        const daysBack = Math.min(Number(args.daysBack ?? 7), 90);
+        const since = new Date(Date.now() - daysBack * 86400_000);
+
+        const where: Record<string, unknown> = {
+          content: { contains: query, mode: "insensitive" },
+          createdAt: { gte: since },
+        };
+        if (args.userId) where.userId = String(args.userId);
+        if (args.channelId) where.channelId = String(args.channelId);
+        else if (ctx.guildId) where.guildId = ctx.guildId;
+
+        const results = await prisma.chatHistory.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        });
+
+        if (results.length === 0) {
+          return {
+            success: true,
+            data: `Aucun message trouvé pour "${query}" dans les ${daysBack} derniers jours`,
+          };
+        }
+
+        const formatted = results
+          .map(
+            (m) =>
+              `[${m.createdAt.toISOString().slice(0, 16)}] <${m.userId ?? "unknown"}> #${m.channelId}: ${m.content.slice(0, 150)}`,
+          )
+          .join("\n");
+        return {
+          success: true,
+          data: `🔍 ${results.length} message(s) trouvé(s) pour "${query}" (${daysBack}j):\n${formatted}`,
         };
       }
 

@@ -22,7 +22,7 @@
 
 // ─── Risk Levels ─────────────────────────────────────────────────────────────
 
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "low" | "medium" | "high" | "restricted";
 
 export interface ToolRiskEntry {
   level: RiskLevel;
@@ -1188,6 +1188,16 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         module: "utility",
         reason:
           "Generates image via Pollinations (free) + optional Remove.bg — no PII, outputs are user-requested content",
+      },
+    ],
+    // MODULE 22: Server History Search (Phase 3)
+    [
+      "search_server_history",
+      {
+        level: "restricted",
+        module: "moderation",
+        reason:
+          "Searches persisted chat history in database — can expose other users' messages, requires SOAR gate approval. Privacy: only searches within the requesting guild, limited to 20 results, max 90 days back",
       },
     ],
   ]);

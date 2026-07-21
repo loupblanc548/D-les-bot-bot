@@ -4297,6 +4297,31 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     ],
     tools: ["compose_image"],
   },
+  // ═══ Server History Search ═══
+  {
+    keywords: [
+      "qui a parlé de",
+      "who talked about",
+      "recherche historique",
+      "search history",
+      "trouve message",
+      "find message",
+      "historique serveur",
+      "server history",
+      "qui a dit",
+      "who said",
+      "recherche messages",
+      "search messages",
+      "qui a mentionné",
+      "who mentioned",
+      "historique messages",
+      "message history search",
+      "recherche dans le salon",
+      "nachricht suchen",
+      "buscar mensajes",
+    ],
+    tools: ["search_server_history"],
+  },
 ];
 
 /**
