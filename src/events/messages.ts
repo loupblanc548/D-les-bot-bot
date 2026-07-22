@@ -42,6 +42,7 @@ import {
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
+import { isCapabilityQuery, generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
 import { sendArtifacts } from "../services/artifacts.js";
 import {
   touchConversation,
@@ -407,6 +408,13 @@ async function handleAiChatMention(
         content: getRandomHelldiverReply(),
         allowedMentions: { repliedUser: false },
       });
+      return;
+    }
+
+    // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
+    if (isCapabilityQuery(cleanedContent)) {
+      const embed = generateCapabilitiesEmbed();
+      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
       return;
     }
 
@@ -844,6 +852,13 @@ async function handleContextualAiChat(
 
     cleanedContent = cleanedContent.trim();
     if (!cleanedContent) return;
+
+    // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
+    if (isCapabilityQuery(cleanedContent)) {
+      const embed = generateCapabilitiesEmbed();
+      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+      return;
+    }
 
     // ── Cooldown géré par runAgentLoop (3s par user) ──
 
