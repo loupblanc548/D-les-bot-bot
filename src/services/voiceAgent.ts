@@ -50,7 +50,7 @@ export interface VoiceAgentConfig {
 }
 
 const DEFAULT_CONFIG: VoiceAgentConfig = {
-  enabled: false,
+  enabled: true,
   announceAlerts: true,
   announceInvestigations: true,
   voiceChannelId: null,
@@ -189,13 +189,14 @@ export async function speakResponseInVoice(
   userId: string,
   text: string,
   lang = "fr",
+  bypassOptIn = false,
 ): Promise<boolean> {
   try {
     // ── Guard 1: Voice agent must be enabled ──
     if (!currentConfig.enabled) return false;
 
-    // ── Guard 2: User must have opted in for auto voice responses ──
-    if (!voiceOptInUsers.has(userId)) return false;
+    // ── Guard 2: User must have opted in — unless bypassOptIn (explicit voice request) ──
+    if (!bypassOptIn && !voiceOptInUsers.has(userId)) return false;
 
     // ── Guard 3: Rate-limit — max 1 speak per 10s per guild ──
     if (!checkVoiceRateLimit(guildId)) {

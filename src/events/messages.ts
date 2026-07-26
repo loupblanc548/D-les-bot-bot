@@ -740,8 +740,8 @@ async function handleAiChatMention(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale: uniquement sur demande explicite ──
-      const voiceKeywords = /(?:en vocal|à voix haute|dis-le moi|parle-moi|speak it|say it|voice response|read it aloud)/i;
+      // ── Réponse vocale: sur demande explicite (parle-moi, en vocal, TTS, à voix haute, etc.) ──
+      const voiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|récite|récite-le|à l'oral|orally)/i;
       if (
         message.guildId &&
         message.member?.voice?.channelId &&
@@ -757,6 +757,7 @@ async function handleAiChatMention(
           message.author.id,
           aiResponse,
           detectedLang,
+          true, // bypassOptIn — l'utilisateur a explicitement demandé le vocal
         ).catch(() => {});
       }
 
@@ -990,8 +991,8 @@ async function handleDMMessage(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale: uniquement sur demande explicite ──
-      const dmVoiceKeywords = /(?:en vocal|à voix haute|dis-le moi|parle-moi|speak it|say it|voice response|read it aloud)/i;
+      // ── Réponse vocale (DM): sur demande explicite ──
+      const dmVoiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|récite|à l'oral)/i;
       if (
         message.guildId &&
         message.member?.voice?.channelId &&
@@ -1007,6 +1008,7 @@ async function handleDMMessage(
           message.author.id,
           aiResponse,
           detectedLang,
+          true, // bypassOptIn — l'utilisateur a explicitement demandé le vocal
         ).catch(() => {});
       }
 
