@@ -261,7 +261,7 @@ async function registerCommands(_client: Client) {
     try {
       const module = await import(`../commands/${file}`);
       if (module.data) {
-        commands.push(module.data.toJSON());
+        commands.push(module.data.toJSON() as never);
       }
     } catch (error) {
       logger.error(`[HotReload] Erreur lors du chargement de ${file}:`, error);

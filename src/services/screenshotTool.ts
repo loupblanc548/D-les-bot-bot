@@ -8,7 +8,7 @@
  * No persistent browser instance to avoid memory leaks.
  */
 
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
 import { AttachmentBuilder, TextChannel } from "discord.js";
 import logger from "../utils/logger.js";
 import type { ToolCallResult, ToolContext } from "./agentTools.js";
@@ -56,7 +56,7 @@ export async function takeScreenshot(
     return { success: false, data: "URL refusée: cible une adresse réseau privée/interne" };
   }
 
-  let browser = null;
+  let browser: Browser | null = null;
   try {
     logger.info(`[Screenshot] Capturing: ${url} (fullPage: ${fullPage})`);
 

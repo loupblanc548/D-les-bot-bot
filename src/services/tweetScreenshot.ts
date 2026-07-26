@@ -8,7 +8,7 @@
  * Fallback gracieux: si Playwright échoue, le flux existant (embed texte) continue.
  */
 
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
 import { AttachmentBuilder, TextChannel, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 
@@ -54,7 +54,7 @@ export async function captureTweetScreenshot(
     return null;
   }
 
-  let browser = null;
+  let browser: Browser | null = null;
 
   try {
     browser = await chromium.launch({

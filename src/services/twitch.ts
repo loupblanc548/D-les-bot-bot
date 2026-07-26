@@ -87,7 +87,7 @@ async function checkTwitchStreams(client: Client) {
 
     if (follows.length === 0) return;
 
-    const logins = [...new Set(follows.map((f) => f.streamerName.toLowerCase()))];
+    const logins = [...new Set(follows.map((f: { streamerName: string }) => f.streamerName.toLowerCase()))] as string[];
     const liveStreams = await getLiveStreams(logins);
     const liveLogins = new Set(liveStreams.map((s: TwitchStream) => s.user_login.toLowerCase()));
 

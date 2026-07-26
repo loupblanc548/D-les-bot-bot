@@ -60,7 +60,7 @@ async function checkTwitch(follows: typeof followsType): Promise<void> {
     return;
   }
 
-  const params = logins.map((l) => `user_login=${encodeURIComponent(l)}`).join("&");
+  const params = logins.map((l: string) => `user_login=${encodeURIComponent(l)}`).join("&");
   const res = await fetch(`https://api.twitch.tv/helix/streams?${params}`, {
     headers: { "Client-ID": config.twitchClientId, Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(10_000),
