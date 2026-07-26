@@ -16,6 +16,7 @@ import { config } from "../config.js";
 import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
+import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import {
   classifyTaskComplexity,
   getModelChainForTask,
@@ -61,6 +62,7 @@ import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
+import { summarizeWithGemini, isGeminiAvailable } from "./gemini.js";
 import { isKilled } from "./killSwitch.js";
 import {
   detectLanguage,
@@ -123,6 +125,16 @@ const activeAgentLoops = new Set<string>();
 // Per-user cooldown: prevents spam @mentions from saturating the API
 const userCooldowns = new Map<string, number>();
 const COOLDOWN_MS = 3_000; // 3s between agent calls per user
+
+// Cleanup expired user cooldowns every 5 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, lastCall] of userCooldowns.entries()) {
+    if (now - lastCall > COOLDOWN_MS * 20) {
+      userCooldowns.delete(userId);
+    }
+  }
+}, 5 * 60 * 1000).unref?.();
 
 // Tool failure tracker: auto-disable tools that crash repeatedly
 const toolFailureCounts = new Map<string, { count: number; lastFail: number }>();
@@ -551,7 +563,7 @@ async function runAgentLoopInternal(
     "- search_arxiv : papers scientifiques (arXiv)\n" +
     "- search_books : recherche de livres (OpenLibrary)\n" +
     "- search_food : produits alimentaires avec nutriscore (OpenFoodFacts)\n" +
-    "- get_flights : vols en temps réel (OpenSky)\n" +
+    "- get_flights : vols en temps réel (OpenSky Network). Tracker par callsign (AFR123) ou par région (Paris, London, France, Europe)\n" +
     "- get_google_trends : tendances de recherche Google\n" +
     "### Gaming (gratuit)\n" +
     "- get_chess_stats : stats Chess.com d'un joueur\n" +
@@ -762,6 +774,16 @@ async function runAgentLoopInternal(
     "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
     "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
     "- define_word AUTOMATIQUEMENT quand tu rencontres un mot que tu ne connais pas ou qui semble technique/inhabituel. Ne dis JAMAIS 'je ne connais pas ce mot' — utilise define_word à la place.\n" +
+    "\n## ANALYSE D'IMAGES\n" +
+    "- Quand le message contient [Image jointe: ...] avec une Description visuelle, UTILISE cette description pour répondre à la question de l'utilisateur.\n" +
+    "- La description visuelle a déjà été générée par Gemini Vision — tu n'as PAS besoin de rappeler analyzeImageGemini sauf si tu as besoin de plus de détails.\n" +
+    "- IMPORTANT: Si le message contient [Image jointe: URL] SANS 'Description visuelle', cela signifie que l'analyse auto a échoué. Tu DOIS utiliser l'outil analyzeImageGemini avec l'imageUrl fournie pour analyser l'image AVANT de répondre.\n" +
+    "- Ne dis JAMAIS 'aucune image' ou 'je ne vois pas d'image' si le message contient [Image jointe: ...]. L'image EST là, utilise l'outil analyzeImageGemini pour l'analyser.\n" +
+    "- Croise l'analyse visuelle avec la question de l'utilisateur pour donner une réponse cohérente et pertinente.\n" +
+    "- Si l'image contient du texte (screenshot, document), extrait et utilise les informations pertinentes.\n" +
+    "- Si l'utilisateur pose une question sur l'image, réponds directement en utilisant la description visuelle fournie.\n" +
+    "- RÉPONDS DANS LA LANGUE DE L'UTILISATEUR. Si la question est en anglais, réponds en anglais. Si en espagnol, réponds en espagnol. Etc. Détecte la langue et adapte-toi.\n" +
+    "- Langues supportées: français, anglais, allemand, espagnol, portugais, italien, néerlandais, suédois, norvégien, tchèque, polonais, turc, russe, japonais, chinois, arabe, coréen.\n" +
     "\n## USAGE PROACTIF — KNOWLEDGE INGESTION\n" +
     "- search_developer_resources : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur demande des services gratuits, des free tiers, des hébergeurs gratuits, des outils CI/CD, des bases de données gratuites, du monitoring gratuit, des APIs gratuites. N'attends pas qu'il le demande explicitement.\n" +
     "- lookup_typescript_skill : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur a une erreur TypeScript, demande comment typer quelque chose, pose une question sur les generics/conditional types/inference/mapped types, ou montre du code TS qui ne compile pas.\n" +
@@ -809,7 +831,17 @@ async function runAgentLoopInternal(
       if (toolResults.length > 3) {
         // Keep only the last 2 tool results, summarize older ones
         const oldToolResults = toolResults.slice(0, -2);
-        const summary = oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
+        const fullText = oldToolResults.map((m) => m.content).join("\n---\n");
+
+        // Try intelligent summarization with Gemini, fall back to naive truncation
+        let summary: string;
+        if (isGeminiAvailable() && fullText.length > 200) {
+          const geminiSummary = await summarizeWithGemini(fullText.slice(0, 8000), 300);
+          summary = geminiSummary || oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
+        } else {
+          summary = oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
+        }
+
         // Remove old tool messages and replace with a compact summary
         conversation = conversation.filter(
           (m) => m.role !== "tool" || toolResults.indexOf(m) >= oldToolResults.length,
@@ -817,10 +849,10 @@ async function runAgentLoopInternal(
         // Insert summary as a system message
         conversation.push({
           role: "system",
-          content: `[Résumé des tools précédents: ${summary.slice(0, 300)}]`,
+          content: `[Résumé des tools précédents: ${summary.slice(0, 500)}]`,
         });
         logger.info(
-          `[AgentLoop] 🗜️ Context compressed: ${oldToolResults.length} tool results summarized`,
+          `[AgentLoop] 🗜️ Context compressed: ${oldToolResults.length} tool results → ${summary.length} chars (Gemini: ${isGeminiAvailable() && fullText.length > 200 ? "yes" : "no"})`,
         );
       }
     }
@@ -876,10 +908,13 @@ async function runAgentLoopInternal(
     for (const modelName of modelsToTry) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
-        // Use OpenAI premium client for gpt-* models, OpenRouter for the rest
+        // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
         const isGptModel = modelName.startsWith("gpt-");
+        const isNvidia = isNvidiaModel(modelName);
         const activeClient =
-          isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! : client;
+          isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! :
+          isNvidia && isNvidiaNimAvailable() ? getNvidiaNimClient()! :
+          client;
         response = await callLlmWithRetry(
           activeClient,
           {
@@ -1212,14 +1247,14 @@ async function runAgentLoopInternal(
           result = { success: false, data: `Erreur interne (tool ${toolName}). Réessaie.` };
         }
         logger.info(
-          `[AgentLoop] 🔧 ${toolName} → ${result.success ? "OK" : "FAIL"}: ${result.data.slice(0, 100)}`,
+          `[AgentLoop] 🔧 ${toolName} → ${result.success ? "OK" : "FAIL"}: ${String(result.data ?? "").slice(0, 100)}`,
         );
 
         // ─── MODULE C: Auto-réflexion sur le résultat du tool ───
         const toolExecResult: ToolExecutionResult = {
           toolName,
           success: result.success,
-          data: result.data,
+          data: String(result.data ?? ""),
           args,
         };
         let reflection;
@@ -1269,7 +1304,7 @@ async function runAgentLoopInternal(
       conversation.push({
         role: "tool",
         tool_call_id: result.tool_call_id,
-        content: result.content,
+        content: String(result.content ?? ""),
       });
     }
 

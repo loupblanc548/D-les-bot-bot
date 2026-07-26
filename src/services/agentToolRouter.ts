@@ -6751,6 +6751,49 @@ export function suggestToolChain(userMessage: string): string[][] {
     chains.push(["getAdvice", "getQuote"]);
   }
 
+  // "Vol/avion" → get_flights
+  if (
+    lowerMsg.includes("vol ") ||
+    lowerMsg.includes("avion") ||
+    lowerMsg.includes("flight") ||
+    lowerMsg.includes("plane") ||
+    lowerMsg.includes("airport") ||
+    lowerMsg.includes("aéroport")
+  ) {
+    chains.push(["get_flights"]);
+  }
+
+  // "Séisme/catastrophe" → get_earthquakes
+  if (
+    lowerMsg.includes("séisme") ||
+    lowerMsg.includes("seisme") ||
+    lowerMsg.includes("earthquake") ||
+    lowerMsg.includes("tremblement") ||
+    lowerMsg.includes("catastrophe")
+  ) {
+    chains.push(["get_earthquakes"]);
+  }
+
+  // "Qualité air/pollution" → searchWeb (air quality)
+  if (
+    lowerMsg.includes("qualité de l'air") ||
+    lowerMsg.includes("qualite de l'air") ||
+    lowerMsg.includes("air quality") ||
+    lowerMsg.includes("pollution")
+  ) {
+    chains.push(["searchWeb"]);
+  }
+
+  // "Lever/coucher soleil" → searchWeb (sunrise/sunset)
+  if (
+    lowerMsg.includes("lever du soleil") ||
+    lowerMsg.includes("coucher du soleil") ||
+    lowerMsg.includes("sunrise") ||
+    lowerMsg.includes("sunset")
+  ) {
+    chains.push(["searchWeb"]);
+  }
+
   return chains;
 }
 

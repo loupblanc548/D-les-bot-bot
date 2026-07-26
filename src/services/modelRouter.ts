@@ -47,8 +47,8 @@ const MODELS: Record<string, ModelPreset> = {
     temperature: 0.3,
   },
   vision: {
-    id: "google/gemini-2.0-flash-exp:free",
-    label: "Gemini 2.0 Flash (vision)",
+    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    label: "Nemotron 3 Ultra (text + Gemini vision)",
     maxTokens: 1500,
     temperature: 0.5,
   },
@@ -65,8 +65,43 @@ const CODE_PATTERNS = [
 ];
 
 const VISION_PATTERNS = [
-  /\b(image|photo|picture|screenshot|vision|analyse.*image|décris.*image|ocr|texte.*image)\b/i,
+  // English
+  /\b(image|photo|picture|screenshot|vision|analyz.*image|describ.*image|ocr|text.*image|what.*see|what.*in.*image|read.*image|look.*at)\b/i,
+  // French
+  /\b(image|photo|capture|capture.*écran|vision|analyse.*image|décris.*image|ocr|texte.*image|qu.*est-ce.*image|que.*voit|regarde.*image|lis.*image)\b/i,
+  // German
+  /\b(bild|foto|bildschirmfoto|screenshot|vision|analys.*bild|beschreib.*bild|ocr|text.*bild|was.*siehst|sieh.*dir.*an|lies.*bild)\b/i,
+  // Spanish
+  /\b(imagen|foto|captura.*pantalla|captura|vision|analiz.*imagen|describ.*imagen|ocr|texto.*imagen|qué.*ves|qué.*hay.*imagen|mira.*imagen|lee.*imagen)\b/i,
+  // Portuguese
+  /\b(imagem|foto|captura.*tela|captura|visão|analisa.*imagem|descrev.*imagem|ocr|texto.*imagem|o.*que.*vê|o.*que.*tem.*imagem|olha.*imagem|lê.*imagem)\b/i,
+  // Italian
+  /\b(immagine|foto|schermata|screenshot|visione|analizz.*immagine|descriv.*immagine|ocr|testo.*immagine|cosa.*vedi|cosa.*c.*è.*immagine|guarda.*immagine|leggi.*immagine)\b/i,
+  // Dutch
+  /\b(afbeelding|foto|schermafbeelding|screenshot|visie|analyseer.*afbeelding|beschrijf.*afbeelding|ocr|tekst.*afbeelding|wat.*zie|kijk.*naar|lees.*afbeelding)\b/i,
+  // Swedish
+  /\b(bild|foto|skärmdump|screenshot|vision|analysera.*bild|beskriv.*bild|ocr|text.*bild|vad.*ser|titta.*på|läs.*bild)\b/i,
+  // Norwegian
+  /\b(bilde|foto|skjermbilde|screenshot|visjon|analyser.*bilde|beskriv.*bilde|ocr|tekst.*bilde|hva.*ser|se.*på|les.*bilde)\b/i,
+  // Czech
+  /\b(obrázek|foto|snímek.*obrazovky|screenshot|videní|analyzuj.*obrázek|popiš.*obrázek|ocr|text.*obrázek|co.*vidíš|podívej.*se|přečti.*obrázek)\b/i,
+  // Polish
+  /\b(obraz|zdjęcie|zrzut.*ekranu|screenshot|wizja|analizuj.*obraz|opisz.*obraz|ocr|tekst.*obraz|co.*widzisz|spójrz.*na|przeczytaj.*obraz)\b/i,
+  // Turkish
+  /\b(resim|foto|ekran.*görüntüsü|screenshot|görüntü|analiz.*resim|açıkla.*resim|ocr|metin.*resim|ne.*görüyorsun|bak.*resme|resmi.*oku)\b/i,
+  // Russian
+  /\b(изображение|фото|скриншот|картинка|видение|анализ.*изображен|опиши.*изображен|ocr|текст.*изображен|что.*видишь|посмотри.*на|прочитай.*изображен)\b/i,
+  // Japanese
+  /\b(画像|写真|スクリーンショット|ビジョン|分析.*画像|説明.*画像|ocr|テキスト.*画像|何.*見える|見て|読んで)\b/i,
+  // Chinese
+  /\b(图片|照片|截图|视觉|分析.*图片|描述.*图片|ocr|文字.*图片|看到.*什么|看看|读取.*图片)\b/i,
+  // Arabic
+  /\b(صورة|صورة.*ملتقطة|لقطة.*شاشة|رؤية|تحليل.*صورة|وصف.*صورة|ocr|نص.*صورة|ماذا.*ترى|انظر|اقرأ.*صورة)\b/i,
+  // Korean
+  /\b(이미지|사진|스크린샷|비전|분석.*이미지|설명.*이미지|ocr|텍스트.*이미지|뭐.*보여|봐|읽어)\b/i,
+  // Enriched content marker
   /\[Image jointe:/,
+  /\[Description visuelle:/,
 ];
 
 const COMPLEX_PATTERNS = [
@@ -132,8 +167,8 @@ export function routeModel(userMessage: string): RoutedModel {
  */
 export function getAgentLoopModel(userMessage: string): string | null {
   const routed = routeModel(userMessage);
-  // Only override for code and powerful categories
-  if (routed.category === "code" || routed.category === "powerful") {
+  // Override for code, powerful, and vision categories
+  if (routed.category === "code" || routed.category === "powerful" || routed.category === "vision") {
     return routed.model;
   }
   return null;

@@ -298,7 +298,7 @@ export function startVoiceScreenShare(client: Client): void {
   }
 
   // Auto-reconnect every 2 min
-  setInterval(
+  const _reconnectTimer = setInterval(
     () => {
       if (!isStreaming && getVoiceChannelId()) {
         logger.info("[VoiceScreenShare] Tentative de reconnexion...");
@@ -307,6 +307,7 @@ export function startVoiceScreenShare(client: Client): void {
     },
     2 * 60 * 1000,
   );
+  if (_reconnectTimer.unref) _reconnectTimer.unref();
 }
 
 export function stopVoiceScreenShare(): void {

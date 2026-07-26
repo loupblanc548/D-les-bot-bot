@@ -149,7 +149,7 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 3. Create selfbot client for johnhelldivers26 (compte utilisateur)
     const { Client } = await import("discord.js-selfbot-v13");
-    const { Streamer, prepareStream, playStream, Utils, Encoders } =
+    const { Streamer, prepareStream, playStream, Utils } =
       await import("@dank074/discord-video-stream");
 
     selfbotClient = new Client();
@@ -270,12 +270,12 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
     // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
-    const encoder = Encoders.software({
+    const encoder = (Utils as any).Encoders?.software?.({
       x264: {
         preset: "ultrafast",
         tune: "zerolatency",
       },
-    });
+    }) ?? { name: "software", options: { preset: "ultrafast", tune: "zerolatency" } };
 
     const { command, output, promise: ffmpegPromise } = prepareStream(videoStream, {
       encoder,
@@ -301,7 +301,7 @@ async function startVideoStreamAsync(): Promise<void> {
         "-keyint_min", "30",
         "-x264-params", "no-scenecut=1:force-cfr=1",
       ],
-    });
+    } as any);
 
     activeFfmpeg = command;
 
@@ -326,7 +326,7 @@ async function startVideoStreamAsync(): Promise<void> {
     logger.info("[VideoStream] Go Live actif — streaming vidéo en temps réel ✅");
     playStream(output, streamerInstance, {
       type: "go-live",
-      format: "nut",
+      ...({ format: "nut" } as any),
       width: STREAM_WIDTH,
       height: STREAM_HEIGHT,
       frameRate: STREAM_FPS,

@@ -34,9 +34,26 @@ export interface TweetScreenshotResult {
  * @param tweetUrl L'URL originale du tweet (https://x.com/user/status/123)
  * @returns Buffer + filename si succès, null si échec
  */
+const ALLOWED_TWEET_HOSTS = new Set(["x.com", "www.x.com", "twitter.com", "www.twitter.com", "xcancel.com"]);
+
+function isAllowedTweetUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_TWEET_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export async function captureTweetScreenshot(
   tweetUrl: string,
 ): Promise<TweetScreenshotResult | null> {
+  if (!isAllowedTweetUrl(tweetUrl)) {
+    logger.warn(`[TweetScreenshot] Blocked non-tweet URL (SSRF prevention): ${tweetUrl}`);
+    return null;
+  }
+
   let browser = null;
 
   try {

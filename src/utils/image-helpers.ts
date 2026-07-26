@@ -5,6 +5,7 @@ import * as cheerio from "cheerio";
 import type { EmbedBuilder } from "discord.js";
 import { AttachmentBuilder } from "discord.js";
 import logger from "./logger.js";
+import { checkUrlForSsrf } from "./ssrfGuard.js";
 
 // Fallback universel : image générique gaming (PNG valide, hébergée sur CDN)
 export const FALLBACK_EMBED_IMAGE =
@@ -45,6 +46,11 @@ export async function downloadImageAsBuffer(
   imageUrl: string,
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
+    const ssrfCheck = await checkUrlForSsrf(imageUrl, "downloadImageAsBuffer");
+    if (!ssrfCheck.allowed) {
+      logger.warn(`[ImageHelpers] SSRF blocked for downloadImageAsBuffer: ${ssrfCheck.reason}`);
+      return null;
+    }
     const res = await fetch(imageUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -196,6 +202,11 @@ export async function getYouTubeThumbnail(url: string): Promise<string | null> {
 export async function getOgImage(url: string): Promise<string | null> {
   return withCache("og:" + url, async () => {
     try {
+      const ssrfCheck = await checkUrlForSsrf(url, "getOgImage");
+      if (!ssrfCheck.allowed) {
+        logger.warn(`[ImageHelpers] SSRF blocked for getOgImage: ${ssrfCheck.reason}`);
+        return null;
+      }
       const res = await fetch(url, {
         headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
         signal: AbortSignal.timeout(5000),
@@ -224,6 +235,11 @@ export async function getOgImage(url: string): Promise<string | null> {
 export async function getBlogImage(url: string): Promise<string | null> {
   return withCache("blog:" + url, async () => {
     try {
+      const ssrfCheck = await checkUrlForSsrf(url, "getBlogImage");
+      if (!ssrfCheck.allowed) {
+        logger.warn(`[ImageHelpers] SSRF blocked for getBlogImage: ${ssrfCheck.reason}`);
+        return null;
+      }
       const res = await fetch(url, {
         headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
         signal: AbortSignal.timeout(5000),
@@ -294,6 +310,11 @@ export async function getBlogImage(url: string): Promise<string | null> {
 export async function getTweetImage(url: string): Promise<string | null> {
   return withCache("tweet:" + url, async () => {
     try {
+      const ssrfCheck = await checkUrlForSsrf(url, "getTweetImage");
+      if (!ssrfCheck.allowed) {
+        logger.warn(`[ImageHelpers] SSRF blocked for getTweetImage: ${ssrfCheck.reason}`);
+        return null;
+      }
       const res = await fetch(url, {
         headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
         signal: AbortSignal.timeout(5000),

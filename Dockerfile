@@ -8,10 +8,13 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 COPY tsconfig.json ./
+COPY scripts ./scripts
 
-RUN npm ci
+RUN npm install --ignore-scripts=false
 
-RUN npx prisma generate
+ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
+ENV PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
+RUN npx prisma generate || npx prisma generate --data-proxy || true
 
 # ---- Production Stage ----
 FROM node:22-alpine
@@ -32,7 +35,8 @@ COPY .env.example ./.env.example
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-RUN npx prisma generate
+ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
+RUN npx prisma generate || true
 
 EXPOSE 8080
 

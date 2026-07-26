@@ -166,6 +166,15 @@ function checkRestartLoop(): { isLoop: boolean; restartCount: number; waitMs: nu
     }
 
     const elapsed = now - data.lastRestart;
+    // Guard contre elapsed négatif (corruption de date ou clock skew)
+    if (elapsed < 0) {
+      logger.warn(`[AntiLoop] elapsed négatif (${elapsed}ms) — réinitialisation du lock`);
+      writeFileSync(
+        RESTART_LOCK_FILE,
+        JSON.stringify({ count: 1, lastRestart: now, createdAt: now }),
+      );
+      return { isLoop: false, restartCount: 1, waitMs: 0 };
+    }
     const newCount = elapsed < MIN_RESTART_INTERVAL_MS ? data.count + 1 : 1;
 
     writeFileSync(
@@ -239,16 +248,16 @@ async function main(): Promise<void> {
       setDiscordClient(client);
       startHealthServer(3000);
       setupAllWebhooks();
-    } catch {
-      logger.warn("Health server failed to start (port 3000 in use?)");
+    } catch (err) {
+      logger.warn(`Health server failed to start (port 3000): ${err instanceof Error ? err.message : String(err)}`);
     }
     try {
       startMetricsServer(metricsPort);
-    } catch {
-      logger.warn(`Metrics server failed to start (port ${metricsPort} in use?)`);
+    } catch (err) {
+      logger.warn(`Metrics server failed to start (port ${metricsPort}): ${err instanceof Error ? err.message : String(err)}`);
     }
-    startControlServer(config.controlPort || 3002, client).catch(() =>
-      logger.warn("[Startup] Control server failed to start"),
+    startControlServer(config.controlPort || 3002, client).catch((err) =>
+      logger.error(`[Startup] Control server failed to start on port ${config.controlPort || 3002}: ${err?.message || err}`),
     );
   }
 

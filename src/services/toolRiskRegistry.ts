@@ -1266,6 +1266,89 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         reason: "Read-only search in system design knowledge base",
       },
     ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE 25: Batch 2 Remaining Tools (agentToolsExtra.ts — 65 missing tools)
+    // ════════════════════════════════════════════════════════════════════════
+    // All read-only/local unless noted. Tools making network calls to user-supplied
+    // URLs are cross-referenced with SSRF guard (ssrfGuard.ts).
+
+    // ── Text & encoding (LOW — local) ──
+    ["caesar_cipher", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["text_to_morse", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["rot13", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["leet_speak", { level: "low", module: "extra", reason: "Local encoding, no persistence" }],
+    ["palindrome_check", { level: "low", module: "extra", reason: "Local check, no persistence" }],
+    ["text_diff", { level: "low", module: "extra", reason: "Local comparison, no persistence" }],
+    ["json_formatter", { level: "low", module: "extra", reason: "Local parsing, no persistence" }],
+    ["test_regex", { level: "low", module: "extra", reason: "Local regex testing, no persistence" }],
+    ["decode_jwt", { level: "low", module: "extra", reason: "Local JWT decode (no verification), no persistence" }],
+
+    // ── Converters (LOW — local) ──
+    ["convert_color", { level: "low", module: "extra", reason: "Local color conversion, no persistence" }],
+    ["convert_currency", { level: "low", module: "extra", reason: "Read-only exchange rate API" }],
+    ["convert_number_base", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    ["convert_timestamp", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    ["convert_timezone", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    ["convert_units", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+
+    // ── Calculators & dates (LOW — local) ──
+    ["day_of_week", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    ["week_number", { level: "low", module: "extra", reason: "Local computation, no persistence" }],
+    ["dice_roll", { level: "low", module: "extra", reason: "Local generation, no persistence" }],
+    ["coin_flip", { level: "low", module: "extra", reason: "Local generation, no persistence" }],
+    ["solve_math", { level: "low", module: "extra", reason: "Local math evaluation, no persistence" }],
+
+    // ── Generators (LOW — local) ──
+    ["generate_ascii_art", { level: "low", module: "extra", reason: "Local generation, no persistence" }],
+    ["generate_qr_code", { level: "low", module: "extra", reason: "Generates QR code image, no persistence" }],
+    ["generate_image_advanced", { level: "low", module: "extra", reason: "Generative image via free API, no persistence" }],
+    ["create_poll", { level: "low", module: "extra", reason: "Creates poll in chat — ephemeral, no DB write" }],
+
+    // ── Read-only API tools (LOW) ──
+    ["analyze_pdf", { level: "low", module: "extra", reason: "Read-only PDF analysis via Gemini, no persistence — SSRF guarded" }],
+    ["analyze_sentiment", { level: "low", module: "extra", reason: "Local sentiment analysis, no persistence" }],
+    ["aurora_forecast", { level: "low", module: "extra", reason: "Read-only NOAA aurora API" }],
+    ["boardgame_search", { level: "low", module: "extra", reason: "Read-only BoardGameGeek API" }],
+    ["bored_activity", { level: "low", module: "extra", reason: "Read-only BoredAPI" }],
+    ["chuck_norris_fact", { level: "low", module: "extra", reason: "Read-only Chuck Norris API" }],
+    ["country_info", { level: "low", module: "extra", reason: "Read-only REST Countries API" }],
+    ["define_word", { level: "low", module: "extra", reason: "Read-only Wiktionary lookup, no persistence" }],
+    ["dns_lookup", { level: "low", module: "extra", reason: "Read-only DNS resolution" }],
+    ["esports_matches", { level: "low", module: "extra", reason: "Read-only PandaScore API" }],
+    ["explain_cron", { level: "low", module: "extra", reason: "Local cron expression parser" }],
+    ["get_emoji_info", { level: "low", module: "extra", reason: "Read-only emoji info API" }],
+    ["get_github_gists", { level: "low", module: "extra", reason: "Read-only GitHub gists API" }],
+    ["get_horoscope", { level: "low", module: "extra", reason: "Read-only horoscope API" }],
+    ["get_lorem_ipsum", { level: "low", module: "extra", reason: "Local lorem ipsum generation" }],
+    ["get_sports_scores", { level: "low", module: "extra", reason: "Read-only sports scores API" }],
+    ["get_stock_price", { level: "low", module: "extra", reason: "Read-only stock price API" }],
+    ["get_sun_moon_info", { level: "low", module: "extra", reason: "Read-only astronomical data API" }],
+    ["get_valorant_agents", { level: "low", module: "extra", reason: "Read-only Valorant API" }],
+    ["http_status_info", { level: "low", module: "extra", reason: "Local HTTP status lookup, no persistence" }],
+    ["image_to_ascii", { level: "low", module: "extra", reason: "Local image-to-ASCII conversion, no persistence" }],
+    ["iss_tracker", { level: "low", module: "extra", reason: "Read-only Open-Notify ISS API" }],
+    ["mime_type_lookup", { level: "low", module: "extra", reason: "Local MIME type lookup, no persistence" }],
+    ["moon_phase", { level: "low", module: "extra", reason: "Local astronomical computation" }],
+    ["meme_generator", { level: "low", module: "extra", reason: "Read-only Imgflip API" }],
+    ["npm_package_info", { level: "low", module: "extra", reason: "Read-only npm registry API" }],
+    ["periodic_table", { level: "low", module: "extra", reason: "Read-only element API" }],
+    ["pokemon_info", { level: "low", module: "extra", reason: "Read-only PokeAPI" }],
+    ["programming_joke", { level: "low", module: "extra", reason: "Read-only JokeAPI" }],
+    ["random_fact", { level: "low", module: "extra", reason: "Read-only Numbers API" }],
+    ["reddit_hot", { level: "low", module: "extra", reason: "Read-only Reddit JSON API" }],
+    ["search_anime", { level: "low", module: "extra", reason: "Read-only Jikan/MyAnimeList API" }],
+    ["search_igdb_games", { level: "low", module: "extra", reason: "Read-only IGDB game search" }],
+    ["search_movies", { level: "low", module: "extra", reason: "Read-only movie database API" }],
+    ["search_music", { level: "low", module: "extra", reason: "Read-only music search API" }],
+    ["search_recipe", { level: "low", module: "extra", reason: "Read-only recipe API" }],
+    ["search_stackoverflow", { level: "low", module: "extra", reason: "Read-only StackOverflow API" }],
+    ["search_wikipedia", { level: "low", module: "extra", reason: "Read-only Wikipedia search" }],
+    ["ssl_checker", { level: "low", module: "extra", reason: "Read-only TLS connection check — SSRF guarded" }],
+    ["steam_player_count", { level: "low", module: "extra", reason: "Read-only Steam Web API" }],
+    ["this_day_in_history", { level: "low", module: "extra", reason: "Read-only Wikipedia API" }],
+    ["uv_index", { level: "low", module: "extra", reason: "Read-only UV index API" }],
+    ["would_you_rather", { level: "low", module: "extra", reason: "Local selection, no persistence" }],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

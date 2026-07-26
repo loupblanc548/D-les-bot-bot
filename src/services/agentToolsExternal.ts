@@ -16,7 +16,7 @@
  * Sécurité: whitelist de commandes, timeout, output truncation.
  */
 
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { createHash } from "crypto";
 import { promisify } from "util";
 import { readFile, writeFile, access } from "fs/promises";
@@ -31,50 +31,90 @@ import {
   getCensysAttackSurface,
   getGreyNoiseClassification,
 } from "./threatIntelExtended.js";
+import { safeFetch, checkUrlForSsrf } from "../utils/ssrfGuard.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const rssParser = new Parser();
 
 const SSH_ENABLED = process.env.AGENT_SSH_ENABLED === "true";
 const DOCKER_ENABLED = process.env.AGENT_DOCKER_ENABLED === "true";
 const GIT_ENABLED = process.env.AGENT_GIT_ENABLED === "true";
-const DB_ENABLED = process.env.AGENT_DB_ENABLED !== "false"; // default true
+const DB_ENABLED = process.env.AGENT_DB_ENABLED === "true"; // default false (opt-in)
 const MAX_OUTPUT = 3000;
 
-// Whitelist de commandes shell sûres
-const SHELL_WHITELIST = [
-  "uptime",
-  "free",
-  "df",
-  "top -bn1",
-  "ps aux",
-  "htop",
-  "systemctl status",
-  "systemctl list-units",
-  "pm2 list",
-  "pm2 status",
-  "pm2 info",
-  "pm2 logs --nostream --lines 20",
-  "docker ps",
-  "docker stats --no-stream",
-  "docker logs --tail 20",
-  "git status",
-  "git log --oneline -10",
-  "git diff --stat",
-  "curl -s",
-  "wget -q -O -",
-  "ls -la",
-  "cat /etc/os-release",
-  "uname -a",
-  "netstat -tlnp",
-  "ss -tlnp",
-  "du -sh",
-  "wc -l",
+// Whitelist de commandes shell sûres — format: { cmd: binary, args: fixed args prefix }
+// Only exact command + args match is allowed. No prefix matching.
+const SHELL_WHITELIST: Array<{ cmd: string; args: string[] }> = [
+  { cmd: "uptime", args: [] },
+  { cmd: "free", args: [] },
+  { cmd: "free", args: ["-h"] },
+  { cmd: "df", args: [] },
+  { cmd: "df", args: ["-h"] },
+  { cmd: "top", args: ["-bn1"] },
+  { cmd: "ps", args: ["aux"] },
+  { cmd: "systemctl", args: ["status"] },
+  { cmd: "systemctl", args: ["list-units"] },
+  { cmd: "pm2", args: ["list"] },
+  { cmd: "pm2", args: ["status"] },
+  { cmd: "pm2", args: ["info"] },
+  { cmd: "pm2", args: ["logs", "--nostream", "--lines", "20"] },
+  { cmd: "docker", args: ["ps"] },
+  { cmd: "docker", args: ["stats", "--no-stream"] },
+  { cmd: "docker", args: ["logs", "--tail", "20"] },
+  { cmd: "git", args: ["status"] },
+  { cmd: "git", args: ["log", "--oneline", "-10"] },
+  { cmd: "git", args: ["diff", "--stat"] },
+  { cmd: "ls", args: ["-la"] },
+  { cmd: "cat", args: ["/etc/os-release"] },
+  { cmd: "uname", args: ["-a"] },
+  { cmd: "netstat", args: ["-tlnp"] },
+  { cmd: "ss", args: ["-tlnp"] },
+  { cmd: "du", args: ["-sh"] },
+  { cmd: "wc", args: ["-l"] },
 ];
 
-function isCommandAllowed(cmd: string): boolean {
+// Shell metacharacters that allow command chaining/injection
+const SHELL_METACHARS = /[;|`$()><\n\r]/;
+
+function isCommandAllowed(cmd: string): { allowed: boolean; binary: string; args: string[] } {
   const trimmed = cmd.trim();
-  return SHELL_WHITELIST.some((allowed) => trimmed.startsWith(allowed));
+
+  // Reject if any shell metacharacter is present
+  if (SHELL_METACHARS.test(trimmed)) {
+    logger.warn(`[SSH] Rejected command containing shell metacharacters: ${trimmed.slice(0, 80)}`);
+    return { allowed: false, binary: "", args: [] };
+  }
+
+  // Parse command into binary + args
+  const parts = trimmed.split(/\s+/);
+  const binary = parts[0];
+  const args = parts.slice(1);
+
+  // Check against whitelist with exact match
+  for (const entry of SHELL_WHITELIST) {
+    if (entry.cmd === binary && entry.args.length === args.length) {
+      const match = entry.args.every((a, i) => a === args[i]);
+      if (match) return { allowed: true, binary, args };
+    }
+  }
+
+  // Special case: pm2 info <name> and docker logs --tail 20 <name> allow one variable arg
+  if (binary === "pm2" && args[0] === "info" && args.length === 2) {
+    return { allowed: true, binary, args };
+  }
+  if (binary === "docker" && args[0] === "logs" && args[1] === "--tail" && args[2] === "20" && args.length === 4) {
+    return { allowed: true, binary, args };
+  }
+  if (binary === "du" && args[0] === "-sh" && args.length === 2) {
+    return { allowed: true, binary, args };
+  }
+  if (binary === "wc" && args[0] === "-l" && args.length === 2) {
+    return { allowed: true, binary, args };
+  }
+
+  logger.warn(`[SSH] Rejected command not in whitelist: ${trimmed.slice(0, 80)}`);
+  return { allowed: false, binary: "", args: [] };
 }
 
 function truncate(s: string): string {
@@ -381,6 +421,11 @@ export async function executeExternalTool(
           "GET" | "POST" | "PUT" | "DELETE";
         if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
 
+        const ssrfCheck = await checkUrlForSsrf(url, "http_request");
+        if (!ssrfCheck.allowed) {
+          return { success: false, data: `URL bloquée (SSRF): ${ssrfCheck.reason}` };
+        }
+
         const headers: Record<string, string> = {};
         if (args.headers && typeof args.headers === "object") {
           for (const [k, v] of Object.entries(args.headers as Record<string, unknown>)) {
@@ -388,12 +433,12 @@ export async function executeExternalTool(
           }
         }
 
-        const res = await fetch(url, {
+        const res = await safeFetch(url, {
           method,
           headers,
           body: args.body ? String(args.body) : undefined,
           signal: AbortSignal.timeout(15_000),
-        });
+        }, "http_request");
 
         const text = await res.text();
         return {
@@ -441,13 +486,15 @@ export async function executeExternalTool(
         if (!SSH_ENABLED)
           return { success: false, data: "SSH désactivé. Set AGENT_SSH_ENABLED=true" };
         const command = String(args.command ?? "");
-        if (!isCommandAllowed(command)) {
+        const check = isCommandAllowed(command);
+        if (!check.allowed) {
           return {
             success: false,
-            data: `Commande non autorisée. Whitelist: ${SHELL_WHITELIST.join(", ")}`,
+            data: `Commande non autorisée. Whitelist: ${SHELL_WHITELIST.map(w => `${w.cmd} ${w.args.join(" ")}`).join(", ")}`,
           };
         }
-        const { stdout, stderr } = await execAsync(command, {
+        // Use execFile (no shell interpretation) instead of exec (passes through shell)
+        const { stdout, stderr } = await execFileAsync(check.binary, check.args, {
           timeout: 10_000,
           maxBuffer: 1024 * 1024,
         });
@@ -456,10 +503,20 @@ export async function executeExternalTool(
 
       // ─── 4. DB Query ─────────
       case "db_query": {
-        if (!DB_ENABLED) return { success: false, data: "DB query désactivé" };
+        if (!DB_ENABLED) return { success: false, data: "DB query désactivé. Set AGENT_DB_ENABLED=true pour activer." };
         const query = String(args.query ?? "").trim();
-        if (!query.toUpperCase().startsWith("SELECT")) {
+        const upperQuery = query.toUpperCase();
+        if (!upperQuery.startsWith("SELECT")) {
           return { success: false, data: "Seules les requêtes SELECT sont autorisées" };
+        }
+        if (upperQuery.includes(";") || upperQuery.includes("DROP") || upperQuery.includes("DELETE") || upperQuery.includes("INSERT") || upperQuery.includes("UPDATE") || upperQuery.includes("ALTER") || upperQuery.includes("TRUNCATE") || upperQuery.includes("CREATE") || upperQuery.includes("GRANT") || upperQuery.includes("--") || upperQuery.includes("/*")) {
+          return { success: false, data: "Requête non-autorisée (seul SELECT simple est permis, pas de commentaires ni d'empilement)" };
+        }
+        const FORBIDDEN_TABLES = ["_prisma_migrations", "session", "token", "apikey", "credential", "secret", "password"];
+        for (const ft of FORBIDDEN_TABLES) {
+          if (upperQuery.includes(ft.toUpperCase())) {
+            return { success: false, data: `Accès à la table '${ft}' interdit pour des raisons de sécurité` };
+          }
         }
         const rows = await prisma.$queryRawUnsafe(query);
         return { success: true, data: truncate(JSON.stringify(rows, null, 2)) };
@@ -488,7 +545,7 @@ export async function executeExternalTool(
         const limit = Number(args.limit) || 5;
         if (!url.startsWith("http")) return { success: false, data: "URL RSS invalide" };
 
-        const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+        const res = await safeFetch(url, { signal: AbortSignal.timeout(10_000) }, "rss_monitor");
         if (!res.ok) return { success: false, data: `RSS fetch ${res.status}` };
         const text = await res.text();
         const feed = await rssParser.parseString(text);
@@ -507,10 +564,13 @@ export async function executeExternalTool(
         const url = String(args.url ?? "");
         if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
 
-        const res = await fetch(url, {
+        const ssrfCheck = await checkUrlForSsrf(url, "website_diff");
+        if (!ssrfCheck.allowed) return { success: false, data: `URL bloquée (SSRF): ${ssrfCheck.reason}` };
+
+        const res = await safeFetch(url, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
           signal: AbortSignal.timeout(10_000),
-        });
+        }, "website_diff");
         if (!res.ok) return { success: false, data: `Fetch ${res.status}` };
         const html = await res.text();
         const contentHash = createHash("md5").update(html).digest("hex").slice(0, 16);
@@ -551,15 +611,16 @@ export async function executeExternalTool(
 
         const task = cron.schedule(schedule, () => {
           logger.info(`[DynamicCron] ${name}: ${command}`);
-          // Execute as shell command if SSH enabled, otherwise just log
-          if (SSH_ENABLED && isCommandAllowed(command)) {
-            execAsync(command, { timeout: 30_000 }).catch((err) =>
+          // Execute as shell command if SSH enabled AND whitelisted, otherwise just log
+          const cronCheck = isCommandAllowed(command);
+          if (SSH_ENABLED && cronCheck.allowed) {
+            execFileAsync(cronCheck.binary, cronCheck.args, { timeout: 30_000 }).catch((err) =>
               logger.warn(
                 `[DynamicCron] ${name} error: ${err instanceof Error ? err.message : String(err)}`,
               ),
             );
           } else {
-            logger.info(`[DynamicCron] ${name} (log only — SSH disabled): ${command}`);
+            logger.info(`[DynamicCron] ${name} (log only — SSH disabled or command not whitelisted): ${command}`);
           }
         });
 
@@ -574,16 +635,33 @@ export async function executeExternalTool(
         const action = String(args.action ?? "list");
         const container = String(args.container ?? "");
 
-        const dockerCmd =
-          {
-            list: "docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'",
-            logs: `docker logs --tail 30 ${container}`,
-            restart: `docker restart ${container}`,
-            stats:
-              "docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'",
-          }[action] ?? "docker ps";
+        if (container && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(container)) {
+          return { success: false, data: "Nom de container invalide (caractères autorisés: alphanumérique, -, _, .)" };
+        }
 
-        const { stdout } = await execAsync(dockerCmd, { timeout: 15_000, maxBuffer: 1024 * 1024 });
+        let dockerBinary: string;
+        let dockerArgs: string[];
+        switch (action) {
+          case "logs":
+            if (!container) return { success: false, data: "Paramètre 'container' requis pour 'logs'" };
+            dockerBinary = "docker";
+            dockerArgs = ["logs", "--tail", "30", container];
+            break;
+          case "restart":
+            if (!container) return { success: false, data: "Paramètre 'container' requis pour 'restart'" };
+            dockerBinary = "docker";
+            dockerArgs = ["restart", container];
+            break;
+          case "stats":
+            dockerBinary = "docker";
+            dockerArgs = ["stats", "--no-stream", "--format", "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"];
+            break;
+          default:
+            dockerBinary = "docker";
+            dockerArgs = ["ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"];
+        }
+
+        const { stdout } = await execFileAsync(dockerBinary, dockerArgs, { timeout: 15_000, maxBuffer: 1024 * 1024 });
         return { success: true, data: `Docker ${action}:\n${truncate(stdout)}` };
       }
 
@@ -594,9 +672,33 @@ export async function executeExternalTool(
       }
       // ─── 10b. File Read ─────────
       case "file_read": {
+        if (!SSH_ENABLED)
+          return { success: false, data: "file_read désactivé. Set AGENT_SSH_ENABLED=true" };
         const path = String(args.path ?? "");
         if (!path.startsWith("/"))
           return { success: false, data: "Chemin absolu requis (ex: /var/log/syslog)" };
+        if (path.includes("..")) {
+          return { success: false, data: "Chemin invalide (path traversal détecté)" };
+        }
+        const FORBIDDEN_PATH_PATTERNS = [
+          /\.env(\.|$)/i,
+          /\/\.ssh\//i,
+          /id_rsa/i,
+          /id_ed25519/i,
+          /\/etc\/shadow/i,
+          /\/etc\/passwd/i,
+          /\/etc\/gshadow/i,
+          /\.pem$/i,
+          /\.key$/i,
+          /credentials/i,
+          /\/root\/\.aws\//i,
+          /\/proc\/self\//i,
+          /docker\/config\.json/i,
+        ];
+        if (FORBIDDEN_PATH_PATTERNS.some((p) => p.test(path))) {
+          logger.warn(`[file_read] Blocked sensitive path access attempt: ${path}`);
+          return { success: false, data: "Accès à ce fichier interdit pour des raisons de sécurité" };
+        }
         if (!existsSync(path)) return { success: false, data: "Fichier introuvable" };
 
         const content = await readFile(path, "utf-8");

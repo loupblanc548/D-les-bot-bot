@@ -175,8 +175,9 @@ export async function autoBackup(): Promise<void> {
 
 export function startAutoBackup(scheduleHours = 168): void {
   const intervalMs = scheduleHours * 60 * 60 * 1000;
-  setInterval(() => {
+  const timer = setInterval(() => {
     void autoBackup();
   }, intervalMs);
+  if (timer.unref) timer.unref();
   logger.info(`[Backup] Auto-backup scheduled every ${scheduleHours}h (hebdomadaire)`);
 }

@@ -66,7 +66,7 @@ function authCheck(req: http.IncomingMessage): boolean {
 }
 
 function sendJson(res: http.ServerResponse, code: number, data: unknown) {
-  const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:3721";
+  const allowedOrigin = process.env.CORS_ORIGIN || "*";
   res.writeHead(code, {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": allowedOrigin,
@@ -110,7 +110,7 @@ export async function startControlServer(port: number, client: Client): Promise<
     const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:3721";
+      const allowedOrigin = process.env.CORS_ORIGIN || "*";
       res.writeHead(204, {
         "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",

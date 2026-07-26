@@ -250,7 +250,8 @@ export function disconnectBot(): { success: boolean; message: string } {
   }
   stopMining();
   try {
-    bot.disconnect();
+    if (typeof (bot as any).disconnect === "function") (bot as any).disconnect();
+    else if (typeof (bot as any).close === "function") (bot as any).close();
   } catch {
     // ignore
   }

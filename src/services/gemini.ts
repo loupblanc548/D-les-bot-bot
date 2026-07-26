@@ -62,15 +62,18 @@ async function callGemini(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      logger.debug(`[Gemini] HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      logger.error(`[Gemini] HTTP ${res.status}: ${errText.slice(0, 300)}`);
       return null;
     }
 
     const data = (await res.json()) as GeminiResponse;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      logger.error(`[Gemini] No text in response: ${JSON.stringify(data).slice(0, 300)}`);
+    }
     return text?.trim() || null;
   } catch (error) {
-    logger.debug(`[Gemini] Call failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(`[Gemini] Call failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -130,7 +133,7 @@ export async function analyzeImageWithGemini(
       500,
     );
   } catch (error) {
-    logger.debug(`[Gemini] Image analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(`[Gemini] Image analysis failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }

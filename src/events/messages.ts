@@ -40,6 +40,7 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
+import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
 import { isCapabilityQuery, generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
@@ -63,12 +64,25 @@ import {
   analyzeToxicity as analyzePerspectiveToxicity,
   isPerspectiveConfigured,
 } from "../services/perspectiveApi.js";
+import { getNextAvailableModel } from "../services/modelRotation.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
 const SPAM_MUTE_MS = 5 * 60 * 1000;
+
+// ─── Anti-spam pour messages d'erreur (30s par utilisateur) ──────────────────
+const errorSpamGuard = new Map<string, number>();
+const ERROR_SPAM_RETENTION_MS = 5 * 60 * 1000; // 5min retention
+
+// Periodic cleanup of errorSpamGuard to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, ts] of errorSpamGuard.entries()) {
+    if (now - ts > ERROR_SPAM_RETENTION_MS) errorSpamGuard.delete(userId);
+  }
+}, 60 * 60 * 1000).unref?.(); // every hour
 
 // ─── Relances humoristiques quand @mention sans message ──────────────────────
 
@@ -83,6 +97,101 @@ function getRandomHelldiverReply(): string {
   return HELPDIVER_EMPTY_MENTION_REPLIES[
     Math.floor(Math.random() * HELPDIVER_EMPTY_MENTION_REPLIES.length)
   ];
+}
+
+// Detect image/video attachments reliably — Discord often leaves contentType null
+const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|tiff?|heic|heif|avif|svg)$/i;
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|avi|mkv|wmv|flv|m4v)$/i;
+
+function isImageAttachment(a: { contentType?: string | null; url: string }): boolean {
+  if (a.contentType?.startsWith("image/")) return true;
+  return IMAGE_EXTENSIONS.test(a.url);
+}
+
+function isMediaAttachment(a: { contentType?: string | null; url: string }): boolean {
+  if (a.contentType?.startsWith("image/") || a.contentType?.startsWith("video/")) return true;
+  return IMAGE_EXTENSIONS.test(a.url) || VIDEO_EXTENSIONS.test(a.url);
+}
+
+// Multilingual Gemini image analysis prompts
+const GEMINI_VISION_PROMPTS: Record<SupportedLang, { withQuestion: string; withoutQuestion: string }> = {
+  fr: {
+    withQuestion: `L'utilisateur pose cette question: "{q}". Analyse l'image en détail pour répondre à cette question. Décris ce que tu vois (contexte, texte visible, détails pertinents) en lien avec la question. Sois concis (max 200 mots).`,
+    withoutQuestion: "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
+  },
+  en: {
+    withQuestion: `The user asks: "{q}". Analyze the image in detail to answer this question. Describe what you see (context, visible text, relevant details) in relation to the question. Be concise (max 200 words).`,
+    withoutQuestion: "Describe this image in detail: what do you see, what context, what text is visible? Be concise (max 200 words).",
+  },
+  de: {
+    withQuestion: `Der Nutzer fragt: "{q}". Analysiere das Bild im Detail, um die Frage zu beantworten. Beschreibe, was du siehst (Kontext, sichtbarer Text, relevante Details) im Zusammenhang mit der Frage. Sei prägnant (max 200 Wörter).`,
+    withoutQuestion: "Beschreibe dieses Bild im Detail: Was sieht man, welcher Kontext, welcher Text ist sichtbar? Sei prägnant (max 200 Wörter).",
+  },
+  es: {
+    withQuestion: `El usuario pregunta: "{q}". Analiza la imagen en detalle para responder a esta pregunta. Describe lo que ves (contexto, texto visible, detalles relevantes) en relación con la pregunta. Sé conciso (máx 200 palabras).`,
+    withoutQuestion: "Describe esta imagen en detalle: ¿qué se ve, qué contexto, qué texto es visible? Sé conciso (máx 200 palabras).",
+  },
+  pt: {
+    withQuestion: `O usuário pergunta: "{q}". Analisa a imagem em detalhe para responder a esta pergunta. Descreve o que vês (contexto, texto visível, detalhes relevantes) em relação à pergunta. Sé conciso (máx 200 palavras).`,
+    withoutQuestion: "Descreve esta imagem em detalhe: o que se vê, que contexto, que texto é visível? Sé conciso (máx 200 palavras).",
+  },
+  it: {
+    withQuestion: `L'utente chiede: "{q}". Analizza l'immagine in dettaglio per rispondere a questa domanda. Descrivi ciò che vedi (contesto, testo visibile, dettagli pertinenti) in relazione alla domanda. Sii conciso (max 200 parole).`,
+    withoutQuestion: "Descrivi questa immagine in dettaglio: cosa si vede, quale contesto, quale testo è visibile? Sii conciso (max 200 parole).",
+  },
+  nl: {
+    withQuestion: `De gebruiker vraagt: "{q}". Analyseer de afbeelding in detail om deze vraag te beantwoorden. Beschrijf wat je ziet (context, zichtbare tekst, relevante details) in relatie tot de vraag. Wees beknopt (max 200 woorden).`,
+    withoutQuestion: "Beschrijf deze afbeelding in detail: wat zie je, welke context, welke tekst is zichtbaar? Wees beknopt (max 200 woorden).",
+  },
+  sv: {
+    withQuestion: `Användaren frågar: "{q}". Analysera bilden i detalj för att svara på frågan. Beskriv vad du ser (kontext, synlig text, relevanta detaljer) i relation till frågan. Var koncis (max 200 ord).`,
+    withoutQuestion: "Beskriv denna bild i detalj: vad ser man, vilken kontext, vilken text är synlig? Var koncis (max 200 ord).",
+  },
+  no: {
+    withQuestion: `Brukeren spør: "{q}". Analyser bildet i detalj for å svare på spørsmålet. Beskriv hva du ser (kontekst, synlig tekst, relevante detaljer) i relasjon til spørsmålet. Vær kortfattet (maks 200 ord).`,
+    withoutQuestion: "Beskriv dette bildet i detalj: hva ser man, hvilken kontekst, hvilken tekst er synlig? Vær kortfattet (maks 200 ord).",
+  },
+  cs: {
+    withQuestion: `Uživatel se ptá: "{q}". Analyzujte obrázek podrobně, abyste odpověděli na tuto otázku. Popište, co vidíte (kontext, viditelný text, relevantní detaily) ve vztahu k otázce. Buďte struční (max 200 slov).`,
+    withoutQuestion: "Popište tento obrázek podrobně: co je vidět, jaký kontext, jaký text je viditelný? Buďte struční (max 200 slov).",
+  },
+  pl: {
+    withQuestion: `Użytkownik pyta: "{q}". Przeanalizuj obraz szczegółowo, aby odpowiedzieć na to pytanie. Opisz, co widzisz (kontekst, widoczny tekst, istotne szczegóły) w odniesieniu do pytania. Bądź zwięzły (max 200 słów).`,
+    withoutQuestion: "Opisz ten obraz szczegółowo: co widać, jaki kontekst, jaki tekst jest widoczny? Bądź zwięzły (max 200 słów).",
+  },
+  tr: {
+    withQuestion: `Kullanıcı soruyor: "{q}". Bu soruyu yanıtlamak için resmi detaylı olarak analiz et. Soruyla ilgili olarak gördüğünü (bağlam, görünür metin, ilgili detaylar) açıkla. Kısa ol (maks 200 kelime).`,
+    withoutQuestion: "Bu resmi detaylı olarak açıkla: ne görüyorsun, hangi bağlam, hangi metin görünür? Kısa ol (maks 200 kelime).",
+  },
+  ru: {
+    withQuestion: `Пользователь спрашивает: "{q}". Проанализируйте изображение подробно, чтобы ответить на этот вопрос. Опишите, что вы видите (контекст, видимый текст, релевантные детали) в связи с вопросом. Будьте кратки (макс 200 слов).`,
+    withoutQuestion: "Опишите это изображение подробно: что видно, какой контекст, какой текст виден? Будьте кратки (макс 200 слов).",
+  },
+  ja: {
+    withQuestion: `ユーザーの質問: "{q}"。この質問に答えるために画像を詳細に分析してください。質問に関連して見えるもの（コンテキスト、表示されているテキスト、関連する詳細）を説明してください。簡潔に（最大200語）。`,
+    withoutQuestion: "この画像を詳細に説明してください：何が見えますか、どのようなコンテキスト、どのようなテキストが表示されていますか？簡潔に（最大200語）。",
+  },
+  zh: {
+    withQuestion: `用户问："{q}"。详细分析图像以回答这个问题。描述你看到的（上下文、可见文本、相关细节）与问题的关系。简洁（最多200字）。`,
+    withoutQuestion: "详细描述这张图片：看到了什么，什么上下文，什么文本可见？简洁（最多200字）。",
+  },
+  ar: {
+    withQuestion: `يسأل المستخدم: "{q}". حلل الصورة بالتفصيل للإجابة على هذا السؤال. صف ما تراه (السياق، النص المرئي، التفاصيل ذات الصلة) فيما يتعلق بالسؤال. كن موجزاً (بحد أقصى 200 كلمة).`,
+    withoutQuestion: "صف هذه الصورة بالتفصيل: ماذا يرى، ما السياق، ما النص المرئي؟ كن موجزاً (بحد أقصى 200 كلمة).",
+  },
+  ko: {
+    withQuestion: `사용자가 질문합니다: "{q}". 이 질문에 답하기 위해 이미지를 자세히 분석하세요. 질문과 관련하여 보이는 것(문맥, 보이는 텍스트, 관련 세부사항)을 설명하세요. 간결하게 (최대 200단어).`,
+    withoutQuestion: "이 이미지를 자세히 설명하세요: 무엇이 보이나요, 어떤 문맥, 어떤 텍스트가 보이나요? 간결하게 (최대 200단어).",
+  },
+};
+
+function buildGeminiVisionPrompt(question: string, lang: SupportedLang): string {
+  const prompts = GEMINI_VISION_PROMPTS[lang] || GEMINI_VISION_PROMPTS.en;
+  const q = question.trim();
+  if (q) {
+    return prompts.withQuestion.replace("{q}", q.slice(0, 500));
+  }
+  return prompts.withoutQuestion;
 }
 
 // ─── Cleanup périodique ─────────────────────────────────────────────────────
@@ -380,36 +489,26 @@ async function handleAiChatMention(
 ): Promise<void> {
   const statusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
-    // ── Si l'utilisateur est dans un vocal, le bot le rejoint automatiquement ──
-    if (message.member?.voice?.channelId && message.guild) {
-      const guildId = message.guild.id;
-      const channelId = message.member.voice.channelId;
-      if (!isInVoiceChannel(guildId)) {
-        const joined = await joinVoiceChannelById(client, guildId, channelId);
-        if (joined) {
-          await message
-            .reply({
-              content: `🔊 J'ai rejoint <#${channelId}> !`,
-              allowedMentions: { repliedUser: false },
-            })
-            .catch(() => {});
-        }
-      }
-    }
-
     // Nettoyer le message : retirer la mention du bot
     const cleanedContent = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
 
-    // Si le message est vide après nettoyage → relance humoristique John Helldiver
-    if (!cleanedContent) {
+    // Si le message est vide après nettoyage → vérifier s'il y a des images jointes
+    const allAttachments = [...message.attachments.values()];
+    const hasAttachments = allAttachments.some(isMediaAttachment);
+    if (allAttachments.length > 0) {
+      logger.info(`[AIChat] Attachments: ${allAttachments.length} — types: ${allAttachments.map(a => `ct=${a.contentType || "null"} url=${a.url.slice(-30)}`).join(" | ")}`);
+    }
+    if (!cleanedContent && !hasAttachments) {
       await message.reply({
         content: getRandomHelldiverReply(),
         allowedMentions: { repliedUser: false },
       });
       return;
     }
+    // Si on a des attachments mais pas de texte, utiliser un prompt par défaut
+    const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
 
     // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
     if (isCapabilityQuery(cleanedContent)) {
@@ -423,7 +522,7 @@ async function handleAiChatMention(
     // L'IA gère toutes les langues et tous les types de messages.
 
     // Déclencher l'indicateur de frappe réaliste
-    await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
+    await simulateHumanTyping(message.channel as TextChannel, effectiveContent.length);
 
     // ── Vérifier les conversations expirées avant de continuer ──
     await checkExpiredConversations();
@@ -443,7 +542,7 @@ async function handleAiChatMention(
     // ── Construire le contexte : faits long-terme + historique conversation ──
     const messages = await buildConversationContext(
       message.author.id,
-      cleanedContent,
+      effectiveContent,
       message.author.username,
     );
 
@@ -454,31 +553,80 @@ async function handleAiChatMention(
     await addMessageToConversation(
       message.author.id,
       "user",
-      cleanedContent,
+      effectiveContent,
       message.guildId || undefined,
     );
 
     // ── Vision auto: analyser les images jointes avec Gemini ──
-    let enrichedContent = cleanedContent;
-    const imageAttachments = [...message.attachments.values()].filter(
-      (a) => a.contentType?.startsWith("image/") && a.url,
-    );
-    if (imageAttachments.length > 0 && isGeminiAvailable()) {
-      for (const img of imageAttachments.slice(0, 3)) {
-        try {
-          const description = await analyzeImageWithGemini(
-            img.url,
-            "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
-          );
-          if (description) {
-            enrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
-            logger.info(`[AIChat] Vision auto: image analysée (${description.length} chars)`);
+    let enrichedContent = effectiveContent;
+    const imageAttachments = [...message.attachments.values()].filter(isImageAttachment);
+
+    // Also check embeds for image URLs (when user posts a direct image link)
+    const embedImageUrls: string[] = [];
+    for (const embed of message.embeds) {
+      if (embed.image?.url) embedImageUrls.push(embed.image.url);
+      if (embed.thumbnail?.url) embedImageUrls.push(embed.thumbnail.url);
+    }
+
+    if (imageAttachments.length > 0 || embedImageUrls.length > 0) {
+      logger.info(`[AIChat] Images detected: ${imageAttachments.length} attachments + ${embedImageUrls.length} embeds — Gemini available: ${isGeminiAvailable()}`);
+
+      // Always pass image URLs to the agent so it can use analyzeImageGemini tool as fallback
+      const allImageUrls = [
+        ...imageAttachments.slice(0, 3).map(a => a.url),
+        ...embedImageUrls.slice(0, 2),
+      ];
+
+      if (isGeminiAvailable()) {
+        // Detect user language for multilingual image analysis
+        const userQuestion = cleanedContent.trim();
+        const langDetection = detectLanguage(userQuestion || effectiveContent);
+        const geminiPrompt = buildGeminiVisionPrompt(userQuestion, langDetection.lang);
+
+        let geminiSuccess = false;
+        for (const img of imageAttachments.slice(0, 3)) {
+          try {
+            const description = await analyzeImageWithGemini(
+              img.url,
+              geminiPrompt,
+            );
+            if (description) {
+              enrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
+              geminiSuccess = true;
+              logger.info(`[AIChat] Vision auto: image analysée (${description.length} chars, lang=${langDetection.lang}) — question: "${userQuestion.slice(0, 50)}"`);
+            }
+          } catch (err) {
+            logger.error(`[AIChat] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`);
           }
-        } catch (err) {
-          logger.debug(
-            `[AIChat] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
-          );
         }
+
+        // Also analyze embed images (URLs posted by user that Discord auto-embeds)
+        for (const imgUrl of embedImageUrls.slice(0, 2)) {
+          try {
+            const description = await analyzeImageWithGemini(imgUrl, geminiPrompt);
+            if (description) {
+              enrichedContent += `\n\n[Image jointe: ${imgUrl}]\nDescription visuelle: ${description}`;
+              geminiSuccess = true;
+              logger.info(`[AIChat] Vision auto (embed): image analysée (${description.length} chars)`);
+            }
+          } catch (err) {
+            logger.error(`[AIChat] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+
+        // If Gemini failed (e.g. 403), still pass URLs to agent so it can try analyzeImageGemini tool
+        if (!geminiSuccess) {
+          logger.warn(`[AIChat] Gemini Vision échoué — passage des URLs à l'agent pour fallback`);
+          for (const imgUrl of allImageUrls) {
+            enrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(La description visuelle automatique a échoué. Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
+          }
+        }
+      } else {
+        // Gemini not available — pass image URLs to the agent so it can use analyzeImageGemini tool
+        for (const imgUrl of allImageUrls) {
+          enrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
+        }
+        logger.info(`[AIChat] ${allImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`);
       }
     }
 
@@ -525,7 +673,7 @@ async function handleAiChatMention(
           "X-Title": "John Helldiver - Discord Bot",
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
+          model: process.env.OPENROUTER_MODEL || getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free",
           messages,
           max_tokens: 500,
           temperature: 0.7,
@@ -573,9 +721,17 @@ async function handleAiChatMention(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
-      if (message.guildId && message.member?.voice?.channelId) {
-        const detectedLang = cleanedContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+      // ── Réponse vocale: uniquement sur demande explicite ──
+      const voiceKeywords = /(?:en vocal|à voix haute|dis-le moi|parle-moi|speak it|say it|voice response|read it aloud)/i;
+      if (
+        message.guildId &&
+        message.member?.voice?.channelId &&
+        voiceKeywords.test(effectiveContent)
+      ) {
+        const detectedLang = effectiveContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+        if (!isInVoiceChannel(message.guildId)) {
+          await joinVoiceChannelById(client, message.guildId, message.member.voice.channelId).catch(() => {});
+        }
         void speakResponseInVoice(
           message.client,
           message.guildId,
@@ -597,7 +753,7 @@ async function handleAiChatMention(
       touchConversation(message.author.id);
 
       // ── Extraire et sauvegarder les faits importants en mémoire long-terme ──
-      void extractAndSaveMemory(message.author.id, cleanedContent, aiResponse).catch(() => {});
+      void extractAndSaveMemory(message.author.id, effectiveContent, aiResponse).catch(() => {});
 
       // ── Nettoyer l'indicateur de statut ──
       void statusIndicator.cleanup();
@@ -610,10 +766,18 @@ async function handleAiChatMention(
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
     // Ensure status indicator is cleaned up on error
     void statusIndicator.cleanup();
-    // Ne pas spammer l'utilisateur avec une erreur à chaque fois — 1 chance sur 3
-    if (Math.random() < 0.33) {
+    // Anti-spam: 1 message d'erreur max par utilisateur sur 30s
+    const now = Date.now();
+    const lastErr = errorSpamGuard.get(message.author.id) || 0;
+    if (now - lastErr > 30_000) {
+      errorSpamGuard.set(message.author.id, now);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
+      const userMsg = isOverload
+        ? "🦅 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat."
+        : "🦅 *Static* — Problème de transmission. Le QG est notifié. Réessaie.";
       await message.reply({
-        content: "\u{1f985} *Static* - Communications brouill\u00e9es ! R\u00e9essaie.",
+        content: userMsg,
         allowedMentions: { repliedUser: false },
       });
     }
@@ -629,7 +793,9 @@ async function handleDMMessage(
   const dmStatusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
     const content = message.content.trim();
-    if (!content) return;
+    const hasDmAttachments = [...message.attachments.values()].some(isMediaAttachment);
+    if (!content && !hasDmAttachments) return;
+    const effectiveDmContent = content || "Analyse cette image et dis-moi ce que tu vois.";
 
     // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
@@ -643,33 +809,77 @@ async function handleDMMessage(
     }
 
     // Indicateur de frappe réaliste
-    await simulateHumanTyping(message.channel as TextChannel, content.length);
+    await simulateHumanTyping(message.channel as TextChannel, effectiveDmContent.length);
 
     // ── Indicateur d'activité: sendTyping avant l'agent loop ──
     const dmChannel = message.channel as TextChannel;
     await dmChannel.sendTyping().catch(() => {});
 
     // ── Vision auto: analyser les images jointes en DM aussi ──
-    let dmEnrichedContent = content;
-    const dmImageAttachments = [...message.attachments.values()].filter(
-      (a) => a.contentType?.startsWith("image/") && a.url,
-    );
-    if (dmImageAttachments.length > 0 && isGeminiAvailable()) {
-      for (const img of dmImageAttachments.slice(0, 3)) {
-        try {
-          const description = await analyzeImageWithGemini(
-            img.url,
-            "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
-          );
-          if (description) {
-            dmEnrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
-            logger.info(`[DM] Vision auto: image analysée (${description.length} chars)`);
+    let dmEnrichedContent = effectiveDmContent;
+    const dmImageAttachments = [...message.attachments.values()].filter(isImageAttachment);
+
+    // Also check embeds for image URLs in DM
+    const dmEmbedImageUrls: string[] = [];
+    for (const embed of message.embeds) {
+      if (embed.image?.url) dmEmbedImageUrls.push(embed.image.url);
+      if (embed.thumbnail?.url) dmEmbedImageUrls.push(embed.thumbnail.url);
+    }
+
+    if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
+      const dmAllImageUrls = [
+        ...dmImageAttachments.slice(0, 3).map(a => a.url),
+        ...dmEmbedImageUrls.slice(0, 2),
+      ];
+
+      if (isGeminiAvailable()) {
+        const dmUserQuestion = content.trim();
+        const dmLangDetection = detectLanguage(dmUserQuestion || effectiveDmContent);
+        const dmGeminiPrompt = buildGeminiVisionPrompt(dmUserQuestion, dmLangDetection.lang);
+
+        let dmGeminiSuccess = false;
+        for (const img of dmImageAttachments.slice(0, 3)) {
+          try {
+            const description = await analyzeImageWithGemini(
+              img.url,
+              dmGeminiPrompt,
+            );
+            if (description) {
+              dmEnrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
+              dmGeminiSuccess = true;
+              logger.info(`[DM] Vision auto: image analysée (${description.length} chars, lang=${dmLangDetection.lang}) — question: "${dmUserQuestion.slice(0, 50)}"`);
+            }
+          } catch (err) {
+            logger.error(`[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`);
           }
-        } catch (err) {
-          logger.debug(
-            `[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
-          );
         }
+
+        // Also analyze embed images in DM
+        for (const imgUrl of dmEmbedImageUrls.slice(0, 2)) {
+          try {
+            const description = await analyzeImageWithGemini(imgUrl, dmGeminiPrompt);
+            if (description) {
+              dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\nDescription visuelle: ${description}`;
+              dmGeminiSuccess = true;
+              logger.info(`[DM] Vision auto (embed): image analysée (${description.length} chars)`);
+            }
+          } catch (err) {
+            logger.error(`[DM] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+
+        if (!dmGeminiSuccess) {
+          logger.warn(`[DM] Gemini Vision échoué — passage des URLs à l'agent pour fallback`);
+          for (const imgUrl of dmAllImageUrls) {
+            dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(La description visuelle automatique a échoué. Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
+          }
+        }
+      } else {
+        // Gemini not available — pass image URLs to the agent
+        for (const imgUrl of dmAllImageUrls) {
+          dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
+        }
+        logger.info(`[DM] ${dmAllImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`);
       }
     }
 
@@ -703,7 +913,7 @@ async function handleDMMessage(
           "X-Title": "John Helldiver - Discord Bot",
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free",
+          model: process.env.OPENROUTER_MODEL || getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free",
           messages: [
             {
               role: "system",
@@ -761,9 +971,17 @@ async function handleDMMessage(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale: si l'utilisateur est dans un salon vocal, parler ──
-      if (message.guildId && message.member?.voice?.channelId) {
+      // ── Réponse vocale: uniquement sur demande explicite ──
+      const dmVoiceKeywords = /(?:en vocal|à voix haute|dis-le moi|parle-moi|speak it|say it|voice response|read it aloud)/i;
+      if (
+        message.guildId &&
+        message.member?.voice?.channelId &&
+        dmVoiceKeywords.test(content)
+      ) {
         const detectedLang = content.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+        if (!isInVoiceChannel(message.guildId)) {
+          await joinVoiceChannelById(message.client, message.guildId, message.member.voice.channelId).catch(() => {});
+        }
         void speakResponseInVoice(
           message.client,
           message.guildId,
@@ -774,7 +992,7 @@ async function handleDMMessage(
       }
 
       // Sauvegarder en mémoire conversation + extraire faits long-terme
-      void extractAndSaveMemory(message.author.id, content, aiResponse).catch(() => {});
+      void extractAndSaveMemory(message.author.id, effectiveDmContent, aiResponse).catch(() => {});
 
       // ── Nettoyer l'indicateur de statut ──
       void dmStatusIndicator.cleanup();
@@ -784,9 +1002,18 @@ async function handleDMMessage(
   } catch (error) {
     logger.error(`[DM] Erreur: ${error instanceof Error ? error.message : String(error)}`);
     void dmStatusIndicator.cleanup();
-    if (Math.random() < 0.33) {
+    // Anti-spam: 1 message d'erreur max par utilisateur sur 30s
+    const now = Date.now();
+    const lastErr = errorSpamGuard.get(message.author.id) || 0;
+    if (now - lastErr > 30_000) {
+      errorSpamGuard.set(message.author.id, now);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
+      const userMsg = isOverload
+        ? "🦉 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat."
+        : "🦉 *Static* — Problème de transmission. Le QG est notifié. Réessaie.";
       await message.reply({
-        content: "🦉 *Static* - Communications brouillées ! Réessaie.",
+        content: userMsg,
         allowedMentions: { repliedUser: false },
       });
     }
@@ -1050,9 +1277,9 @@ async function handleSecurityModules(
       }
     }
   }
-  if (Math.random() < 0.01) {
-    for (const [k, v] of spamTracker) {
-      if (now - v.firstSeen > SPAM_WINDOW_MS * 2) spamTracker.delete(k);
-    }
+  // Deterministic cleanup: purge entries older than 2x spam window
+  const cleanupNow = Date.now();
+  for (const [k, v] of spamTracker) {
+    if (cleanupNow - v.firstSeen > SPAM_WINDOW_MS * 2) spamTracker.delete(k);
   }
 }

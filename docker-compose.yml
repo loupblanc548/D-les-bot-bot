@@ -9,7 +9,7 @@ services:
       - ./backups:/app/backups
       - ./logs:/app/logs
     ports:
-      - "3000:3000"
+      - "8080:3000"
     depends_on:
       postgres:
         condition: service_started

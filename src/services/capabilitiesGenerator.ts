@@ -243,6 +243,8 @@ const CAPABILITIES: CapabilityCategory[] = [
       "Indice UV (OpenUV)",
       "Phase de la lune (NOAA)",
       "Séismes temps réel (USGS)",
+      "Qualité de l'air (OpenAQ)",
+      "Lever/Coucher du soleil (sunrise-sunset.org)",
     ],
   },
   {
@@ -323,7 +325,7 @@ const CAPABILITIES: CapabilityCategory[] = [
     icon: "🤖",
     name: "IA & Agent",
     items: [
-      "Chat IA multi-modèles (OpenRouter, OpenAI, Groq, Gemini, HuggingFace)",
+      "Chat IA multi-modèles (OpenRouter, OpenAI, Groq, Gemini, HuggingFace, NVIDIA NIM)",
       "Boucle d'agent (Think → Act → Observe → Respond)",
       "Auto-réflexion sur les résultats d'outils",
       "Mémoire long-terme par utilisateur",
@@ -407,10 +409,11 @@ const CAPABILITIES: CapabilityCategory[] = [
   },
   {
     icon: "🌍",
-    name: "Géoloc & Divers",
+    name: "Géoloc & Transport",
     items: [
       "Géolocalisation IP (ip-api.com)",
       "Wayback Machine (archives web)",
+      "Tracking aérien temps réel (OpenSky Network)",
       "Trivia (Open Trivia DB)",
       "Blagues (JokeAPI)",
       "Conseils (Advice API)",

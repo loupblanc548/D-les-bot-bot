@@ -13,6 +13,7 @@
 
 import logger from "../utils/logger.js";
 import { getAvailableFreeModels, markModelFailure, markModelSuccess } from "./modelRotation.js";
+import { NVIDIA_MODEL_TIERS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 
 // ─── Niveaux de complexité ───────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
       /\b(traduis|translate|traduction)\b/i,
       /\b(résum|summariz|summary|tl;dr)\b/i,
       /\b(image|photo|picture|screenshot|capture)\b/i,
+      /\[Image jointe:/,
       /\b(sentiment|émotion|toxic|toxicité)\b/i,
       /\b(wiki|wikipedia|article|documentation|doc)\b/i,
       /\b(crypto|price|prix|stock|action|finance|devis)\b/i,
@@ -112,6 +114,8 @@ const MODEL_TIERS: Record<TaskComplexity, string[]> = {
     "qwen/qwen-2.5-7b-instruct:free",
     "huggingfaceh4/zephyr-7b-beta:free",
     "openchat/openchat-3.5-1210:free",
+    // NVIDIA NIM (si clé configurée)
+    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.trivial : []),
   ],
 
   // Léger: 8-14B — tâches simples avec tools
@@ -126,34 +130,35 @@ const MODEL_TIERS: Record<TaskComplexity, string[]> = {
     "anthracite-org/magmell-8b:free",
     "thedrummer/rocinante-12b:free",
     "cohere/north-mini-code:free",
+    // NVIDIA NIM (si clé configurée)
+    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.simple : []),
   ],
 
   // Moyen: 24-72B — tâches modérées avec tools + raisonnement
   moderate: [
-    "deepseek/deepseek-v3:free",
+    "z-ai/glm-4.5-air:free",
+    "google/gemma-3-27b-it:free",
     "qwen/qwen-2.5-72b-instruct:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "tencent/hy3:free",
     "mistralai/mistral-small-3.1-24b-instruct:free",
     "qwen/qwen-2.5-coder-32b-instruct:free",
-    "qwen/qwq-32b:free",
+    "openai/gpt-oss-20b:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
     "01-ai/yi-1.5-34b-chat:free",
-    "liquid/lfm-40b:free",
-    "poolside/laguna-xs-2.1:free",
-    "cognitivecomputations/dolphin-mixtral-8x7b:free",
     "sao10k/l3.1-euryale-70b:free",
     "gryphe/corvus-72b:free",
     "neversleep/llama-3-lumimaid-70b:free",
-    "google/gemini-2.0-flash-exp:free",
+    // NVIDIA NIM (si clé configurée)
+    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.moderate : []),
   ],
 
   // Lourd: 70B+ / MoE — tâches complexes nécessitant un raisonnement profond
   complex: [
-    "deepseek/deepseek-r1:free",
-    "tencent/hy3:free",
-    "deepseek/deepseek-v3:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "meta-llama/llama-3.1-405b-instruct:free",
+    "openai/gpt-oss-120b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "moonshotai/kimi-k2.6:free",
+    "z-ai/glm-4.5-air:free",
     "qwen/qwen-2.5-72b-instruct:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "sophosympatheia/rogue-rose-103b-v0.2:free",
@@ -161,6 +166,8 @@ const MODEL_TIERS: Record<TaskComplexity, string[]> = {
     "sao10k/l3-euryale-70b:free",
     "anthracite-org/magmell-72b:free",
     "perplexity/llama-3.1-sonar-large-128k-online:free",
+    // NVIDIA NIM (si clé configurée)
+    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.complex : []),
   ],
 };
 

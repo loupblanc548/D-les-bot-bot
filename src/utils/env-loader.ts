@@ -76,7 +76,7 @@ const envSchema = z.object({
   PATCH_CHANNEL_STEAM_ID: z.string().optional(),
 
   // Monitoring & Cache
-  SENTRY_DSN: z.string().url().optional().or(z.literal("")),
+  SENTRY_DSN: z.string().optional(),
   CONTROL_TOKEN: z.string().optional(),
   CONTROL_PORT: z.string().default("3002"),
   REDIS_URL: z.string().optional(),

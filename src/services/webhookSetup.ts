@@ -3,6 +3,9 @@
  *
  * Called at bot startup to register GitHub/CI/CD webhook endpoints.
  * Each channel gets a unique secret URL: POST /webhook/<secret>
+ *
+ * SECURITY: All webhook URLs and secrets are loaded from environment variables.
+ * No hardcoded secrets in this file.
  */
 
 import { registerTrigger } from "./webhookTriggers.js";
@@ -17,82 +20,115 @@ interface ChannelWebhookSetup {
   events: string[];
 }
 
-// Static secrets — deterministic so they survive restarts.
-// Format: wh_<channel>_<random>
-const WEBHOOK_SETUP: ChannelWebhookSetup[] = [
-  {
-    name: "Fortnite",
-    channelId: "1273878796260479026",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524241124242489406/9hY5j7JwfI-3TmS9arR1Q0lUAvh-icO6kU5WdOApCU9FsWriPFzpBtN4YZFKv2PhGFP0",
-    provider: "github",
-    secret: "wh_fortnite_4f8a2c1e9b",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "PlayStation",
-    channelId: "1504932450894221393",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524240020570112110/HwCA5O1oerGtivp4JV0DAPEf-lRuPK9PifDmcRBn9w_kAuos1UIMr0kyVylCjLaf4pcZ",
-    provider: "github",
-    secret: "wh_playstation_7d3e5a1c8f",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "Xbox",
-    channelId: "1504932534444757166",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524239753732559039/imSEdRTq6t-QsGzMFQ93sJId2TYaewMCuVhZTWKvz8bJMV2WHDlLvdNZjvcwM7nczKuw",
-    provider: "github",
-    secret: "wh_xbox_2b9f6e4d1a",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "Nintendo",
-    channelId: "1504932786040213626",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524239503512830163/-A7piEVNI_RGC5zzBvqJxBEy4McnxDYd3jB4z-SqzCvdoNikUJyH60pSt2pSQdVfk9Zg",
-    provider: "github",
-    secret: "wh_nintendo_8c1d3f7b2e",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "Steam/Epic",
-    channelId: "1504932229795549385",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524233298954420306/SFq4bKMh7s9I94e8y2LUv_sEh7xW3CA8VQNUpkkFBBoYDOeA-H6qRrYOwoIuTVmDKBYI",
-    provider: "github",
-    secret: "wh_steam_epic_5a9b3c7d1e",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "Instant Gaming",
-    channelId: "1508790088543502336",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524238391817015417/gaETr4yOqC08SFwSp9tetqiriz5iJuN9UNUaaK80fmCU5B3kxFFvIMLcJqotp0YMwgYm",
-    provider: "github",
-    secret: "wh_instant_gaming_6e2f8a4c3b",
-    events: ["push", "pull_request", "release", "workflow_run", "issues"],
-  },
-  {
-    name: "Créateurs",
-    channelId: "1524219631047540826",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524238048580075600/RHMLGtUivFXQTSPWpp4YL5QVtWbKGnCRXRG9_diK0g1ZiLS3m1gXVfVWnbAJ8v3t1HHE",
-    provider: "github",
-    secret: "wh_createurs_1d7a9e3f5c",
-    events: ["push", "pull_request", "release", "workflow_run", "issues", "star", "fork"],
-  },
-  {
-    name: "Boutique Fortnite",
-    channelId: "1373300746379858003",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524241625042259988/jwfkFAMIrt2dwjA5G-65iJRpZuo2wt1Hn3pxDle2OO9Z-Lj771K64UlitktnMYR5M_ha",
-    provider: "github",
-    secret: "wh_boutique_3f1c8b6e2d",
-    events: ["push", "pull_request", "release", "workflow_run"],
-  },
-  {
-    name: "Log",
-    channelId: process.env.LOG_CHANNEL_ID || "",
-    discordWebhookUrl: "https://discord.com/api/webhooks/1524239753732559039/imSEdRTq6t-QsGzMFQ93sJId2TYaewMCuVhZTWKvz8bJMV2WHDlLvdNZjvcwM7nczKuw",
-    provider: "generic",
-    secret: "wh_log_9e4d2a7c5b",
-    events: ["*"],
-  },
-];
+// Build webhook setup from environment variables
+function buildWebhookSetup(): ChannelWebhookSetup[] {
+  const channels: Array<{
+    name: string;
+    webhookEnv: string;
+    channelEnv: string;
+    secretEnv: string;
+    provider: "github" | "gitlab" | "generic";
+    events: string[];
+  }> = [
+    {
+      name: "Fortnite",
+      webhookEnv: "WEBHOOK_FORTNITE_URL",
+      channelEnv: "FORTNITE_CHANNEL_ID",
+      secretEnv: "WEBHOOK_FORTNITE_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "PlayStation",
+      webhookEnv: "WEBHOOK_PLAYSTATION_URL",
+      channelEnv: "PLAYSTATION_CHANNEL_ID",
+      secretEnv: "WEBHOOK_PLAYSTATION_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "Xbox",
+      webhookEnv: "WEBHOOK_XBOX_URL",
+      channelEnv: "XBOX_CHANNEL_ID",
+      secretEnv: "WEBHOOK_XBOX_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "Nintendo",
+      webhookEnv: "WEBHOOK_NINTENDO_URL",
+      channelEnv: "NINTENDO_CHANNEL_ID",
+      secretEnv: "WEBHOOK_NINTENDO_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "Steam/Epic",
+      webhookEnv: "WEBHOOK_STEAM_EPIC_URL",
+      channelEnv: "STEAM_EPIC_CHANNEL_ID",
+      secretEnv: "WEBHOOK_STEAM_EPIC_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "Instant Gaming",
+      webhookEnv: "WEBHOOK_INSTANT_GAMING_URL",
+      channelEnv: "INSTANT_GAMING_CHANNEL_ID",
+      secretEnv: "WEBHOOK_INSTANT_GAMING_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues"],
+    },
+    {
+      name: "Créateurs",
+      webhookEnv: "WEBHOOK_CREATEURS_URL",
+      channelEnv: "CREATEURS_CHANNEL_ID",
+      secretEnv: "WEBHOOK_CREATEURS_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run", "issues", "star", "fork"],
+    },
+    {
+      name: "Boutique Fortnite",
+      webhookEnv: "WEBHOOK_BOUTIQUE_URL",
+      channelEnv: "BOUTIQUE_CHANNEL_ID",
+      secretEnv: "WEBHOOK_BOUTIQUE_SECRET",
+      provider: "github",
+      events: ["push", "pull_request", "release", "workflow_run"],
+    },
+    {
+      name: "Log",
+      webhookEnv: "WEBHOOK_LOG_URL",
+      channelEnv: "LOG_CHANNEL_ID",
+      secretEnv: "WEBHOOK_LOG_SECRET",
+      provider: "generic",
+      events: ["*"],
+    },
+  ];
+
+  const setups: ChannelWebhookSetup[] = [];
+  for (const ch of channels) {
+    const url = process.env[ch.webhookEnv];
+    const channelId = process.env[ch.channelEnv] || "";
+    const secret = process.env[ch.secretEnv];
+
+    if (url && secret) {
+      setups.push({
+        name: ch.name,
+        channelId,
+        discordWebhookUrl: url,
+        provider: ch.provider,
+        secret,
+        events: ch.events,
+      });
+    } else {
+      logger.warn(`[WebhookSetup] ${ch.name} skipped — missing ${ch.webhookEnv} or ${ch.secretEnv}`);
+    }
+  }
+
+  return setups;
+}
+
+// Cache the setup at module load
+const WEBHOOK_SETUP = buildWebhookSetup();
 
 export function setupAllWebhooks(): void {
   const baseUrl = process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;

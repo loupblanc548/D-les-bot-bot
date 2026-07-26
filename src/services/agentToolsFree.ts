@@ -170,10 +170,19 @@ export const FREE_TOOLS: AgentToolDef[] = [
     function: {
       name: "get_flights",
       description:
-        "Récupère les vols en temps réel (OpenSky Network, gratuit). Retourne callsign, origine, altitude, vitesse.",
+        "Récupère les vols en temps réel (OpenSky Network, gratuit). Peut tracker un vol par callsign (ex: AFR123) ou lister les vols au-dessus d'une ville/région (ex: Paris, London, France, Europe). Retourne callsign, origine, position, altitude, vitesse, cap.",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          callsign: {
+            type: "string",
+            description: "Callsign du vol à tracker (ex: AFR123, BA456). Optionnel.",
+          },
+          region: {
+            type: "string",
+            description: "Ville ou région pour filtrer les vols (ex: Paris, London, France, Europe). Optionnel.",
+          },
+        },
         required: [],
       },
     },
@@ -490,16 +499,71 @@ export async function executeFreeTool(
       }
 
       case "get_flights": {
-        const flights = await getFlights();
-        if (flights.length === 0) return { success: true, data: "Aucun vol en cours trouvé" };
-        const formatted = flights
-          .slice(0, 10)
-          .map(
-            (f) =>
-              `✈️ ${f.callsign} (${f.origin}) — ${f.altitude}ft, ${f.velocity}km/h, cap ${f.heading}°`,
-          )
-          .join("\n");
-        return { success: true, data: formatted };
+        const callsign = args.callsign ? String(args.callsign).toUpperCase().trim() : null;
+        const region = args.region ? String(args.region).toLowerCase().trim() : null;
+
+        // Build OpenSky API URL
+        const bboxes: Record<string, [number, number, number, number]> = {
+          paris: [48.5, 1.8, 49.2, 2.6],
+          london: [51.2, -0.5, 51.7, 0.3],
+          "new york": [40.4, -74.3, 41.0, -73.5],
+          tokyo: [35.4, 139.4, 35.9, 140.1],
+          berlin: [52.3, 13.0, 52.7, 13.8],
+          moscow: [55.4, 37.2, 56.0, 38.0],
+          dubai: [24.8, 55.1, 25.4, 55.6],
+          france: [41.0, -5.5, 51.5, 10.0],
+          europe: [35.0, -10.0, 60.0, 30.0],
+          "los angeles": [33.7, -118.7, 34.4, -117.8],
+          sydney: [-34.1, 150.8, -33.6, 151.4],
+        };
+
+        let url: string;
+        if (callsign) {
+          // OpenSky doesn't support callsign filter — fetch all and filter client-side
+          url = `https://opensky-network.org/api/states/all`;
+        } else if (region && bboxes[region]) {
+          const [lamin, lomin, lamax, lomax] = bboxes[region];
+          url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+        } else {
+          url = `https://opensky-network.org/api/states/all`;
+        }
+
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+          if (!res.ok) return { success: false, data: `OpenSky API error: ${res.status}` };
+          const data = (await res.json()) as { states?: Array<Array<unknown>> };
+          let states = data.states;
+          if (!states || states.length === 0)
+            return { success: true, data: `Aucun vol trouvé${callsign ? ` pour ${callsign}` : region ? ` près de ${region}` : ""}` };
+
+          // Filter by callsign if specified
+          if (callsign) {
+            states = states.filter(
+              (s) => String(s[1] || "").trim().toUpperCase() === callsign,
+            );
+            if (states.length === 0)
+              return { success: true, data: `✈️ Vol ${callsign} non trouvé parmi les vols actifs.` };
+          }
+
+          const limited = states.slice(0, 10);
+          const formatted = limited
+            .map((s) => {
+              const cs = String(s[1] || "").trim() || "N/A";
+              const origin = String(s[2] || "?");
+              const alt = s[7] as number | null;
+              const vel = s[9] as number | null;
+              const heading = s[10] as number | null;
+              const onGround = s[8] as boolean;
+              const lat = s[6] as number | null;
+              const lon = s[5] as number | null;
+              const pos = lat !== null && lon !== null ? `${lat.toFixed(2)},${lon.toFixed(2)}` : "?";
+              return `✈️ **${cs}** (${origin}) — ${onGround ? "🛬 Sol" : `🛩️ ${alt?.toFixed(0) || "?"}m`} | 💨 ${vel ? (vel * 3.6).toFixed(0) : "?"}km/h | 🧭 ${heading?.toFixed(0) || "?"}° | 📍 ${pos}`;
+            })
+            .join("\n");
+          return { success: true, data: `✈️ **Vols en temps réel${callsign ? ` — ${callsign}` : region ? ` — ${region}` : ""}** (${states.length} au total, ${limited.length} affichés)\n\n${formatted}` };
+        } catch (err) {
+          return { success: false, data: `Erreur OpenSky: ${err instanceof Error ? err.message : String(err)}` };
+        }
       }
 
       case "get_google_trends": {

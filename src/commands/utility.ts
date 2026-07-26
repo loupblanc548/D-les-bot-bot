@@ -20,6 +20,7 @@ import {
 } from "discord.js";
 import { createLog } from "../services/logs.js";
 import { sanitizeMassMentions } from "../utils/sanitize.js";
+import { generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
 
 // ===== Définition des commandes =====
 
@@ -45,6 +46,10 @@ export const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .toJSON(),
+  new SlashCommandBuilder()
+    .setName("capabilities")
+    .setDescription("Affiche toutes les capacités et fonctionnalités du bot")
+    .toJSON(),
   // /poll
   new SlashCommandBuilder()
     .setName("poll")
@@ -69,6 +74,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     switch (interaction.commandName) {
       case "embed-builder":
         await handleEmbedBuilder(interaction);
+        break;
+      case "capabilities":
+        await handleCapabilities(interaction);
         break;
       case "poll":
         await handlePoll(interaction);
@@ -151,6 +159,25 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction, _cl
       });
     } catch {
       // silencieux
+    }
+  }
+}
+
+// ===== /capabilities =====
+
+async function handleCapabilities(interaction: ChatInputCommandInteraction) {
+  try {
+    const embed = generateCapabilitiesEmbed();
+    await interaction.reply({ embeds: [embed] });
+  } catch (err) {
+    logger.error("[Utility] Erreur /capabilities:", err);
+    try {
+      await interaction.reply({
+        content: "Erreur lors de la génération des capacités.",
+        flags: [MessageFlags.Ephemeral],
+      });
+    } catch {
+      // ignore
     }
   }
 }

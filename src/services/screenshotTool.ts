@@ -12,6 +12,7 @@ import { chromium } from "playwright";
 import { AttachmentBuilder, TextChannel } from "discord.js";
 import logger from "../utils/logger.js";
 import type { ToolCallResult, ToolContext } from "./agentTools.js";
+import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -47,6 +48,12 @@ export async function takeScreenshot(
 
   if (!["http:", "https:"].includes(parsedUrl.protocol)) {
     return { success: false, data: `Protocole non supporté: ${parsedUrl.protocol}` };
+  }
+
+  const ssrfCheck = await checkUrlForSsrf(url, "takeScreenshot");
+  if (!ssrfCheck.allowed) {
+    logger.warn(`[Screenshot] Blocked SSRF attempt: ${ssrfCheck.reason}`);
+    return { success: false, data: "URL refusée: cible une adresse réseau privée/interne" };
   }
 
   let browser = null;

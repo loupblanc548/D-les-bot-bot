@@ -1,6 +1,7 @@
 import { Client, TextChannel, EmbedBuilder, User, GuildMember } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
+import { addAlertToBuffer } from "../utils/smart-alerts.js";
 
 // Salon de sécurité — fallback hardcoded si pas configuré en DB
 const SECURITY_CHANNEL_FALLBACK = "1520866527753011220";
@@ -77,6 +78,15 @@ const REPORT_ROLE_ID = "1402362014264983762";
 
 export async function sendSecurityAlert(client: Client, alert: SecurityAlert): Promise<void> {
   try {
+    // Critical alerts send immediately, others are grouped via smart alerts
+    const criticalTypes: SecurityAlert["type"][] = ["ANTI_PHISHING", "ABUSE_FILTER"];
+    if (!criticalTypes.includes(alert.type)) {
+      const alertMsg = `${alert.userTag}: ${alert.reason}${alert.messageContent ? ` | "${alert.messageContent.slice(0, 80)}"` : ""}`;
+      const severity = alert.type === "ANTI_SPAM" || alert.type === "SPAM_DETECTOR" ? "medium" : "low";
+      addAlertToBuffer(alert.type, alertMsg, severity);
+      return;
+    }
+
     const channelId = await getReportChannelId(alert.guildId);
     if (!channelId) return;
 
@@ -173,6 +183,21 @@ export async function sendUserReport(
 const recentJoinTimestamps: Map<string, number[]> = new Map();
 const SUSPICIOUS_JOIN_THRESHOLD = 5; // 5 joins en 10 secondes = raid
 const SUSPICIOUS_JOIN_WINDOW = 10_000;
+
+// Periodic cleanup: purge stale entries from timestamp-tracking Maps to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of recentJoinTimestamps.entries()) {
+    const recent = timestamps.filter((t) => now - t < SUSPICIOUS_JOIN_WINDOW);
+    if (recent.length === 0) recentJoinTimestamps.delete(key);
+    else recentJoinTimestamps.set(key, recent);
+  }
+  for (const [key, timestamps] of messageTimestamps.entries()) {
+    const recent = timestamps.filter((t) => now - t < SPAM_WINDOW);
+    if (recent.length === 0) messageTimestamps.delete(key);
+    else messageTimestamps.set(key, recent);
+  }
+}, 60 * 60 * 1000).unref?.(); // every hour
 
 /**
  * Détecte un rush de joins (potentiel raid) et alerte le salon de sécurité

@@ -70,20 +70,50 @@ function loadSettings() {
       // Ignore — user can set manually
     }
   }
-  // Auto-detect local API URL if not set
+  // Auto-detect API URL: prefer VPS, fallback to localhost
   if (!settings.apiUrl) {
     const controlPort = (() => {
       try {
         const envPath = path.join(__dirname, "..", ".env");
         if (fs.existsSync(envPath)) {
           const envContent = fs.readFileSync(envPath, "utf8");
-          const match = envContent.match(/^CONTROL_PORT\s*=\s*(\d+)/m);
+          const match = envContent.match(/^CONTROL_PORT\s*=\s*["']?(\d+)["']?/m);
           if (match) return match[1];
         }
       } catch (e) {}
       return "3002";
     })();
-    settings.apiUrl = "http://localhost:" + controlPort;
+    // Check if VPS_HOST is set in .env, otherwise use localhost
+    const vpsHost = (() => {
+      try {
+        const envPath = path.join(__dirname, "..", ".env");
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, "utf8");
+          const match = envContent.match(/^VPS_HOST\s*=\s*["']?([^"'\s]+)["']?/m);
+          if (match) return match[1];
+        }
+      } catch (e) {}
+      return null;
+    })();
+    settings.apiUrl = vpsHost
+      ? `http://${vpsHost}:${controlPort}`
+      : `http://localhost:${controlPort}`;
+  } else {
+    // Migration: if apiUrl points to localhost but VPS_HOST is set, migrate
+    if (settings.apiUrl.includes("localhost") || settings.apiUrl.includes("127.0.0.1")) {
+      try {
+        const envPath = path.join(__dirname, "..", ".env");
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, "utf8");
+          const vpsMatch = envContent.match(/^VPS_HOST\s*=\s*["']?([^"'\s]+)["']?/m);
+          if (vpsMatch) {
+            const oldPort = settings.apiUrl.match(/:(\d+)$/)?.[1] || "3002";
+            settings.apiUrl = `http://${vpsMatch[1]}:${oldPort}`;
+            console.log(`[Settings] Migrated API URL from localhost to VPS: ${settings.apiUrl}`);
+          }
+        }
+      } catch (e) {}
+    }
   }
   return settings;
 }
@@ -109,7 +139,7 @@ function getToken() {
 function getApiBase() {
   const s = loadSettings();
   if (s.apiUrl) return s.apiUrl.replace(/\/$/, "");
-  return "http://localhost:3002";
+  return "http://31.220.79.90:3002";
 }
 
 // ─── API Helper ─────────────────────────────────────────────────────────
@@ -221,24 +251,41 @@ ipcMain.handle("window:close", () => mainWindow?.close());
 // ─── WebSocket ──────────────────────────────────────────────────────────
 
 let ws = null;
+let wsReconnectTimer = null;
+let wsReconnectAttempts = 0;
+const WS_MAX_RECONNECT_DELAY = 30000;
+const WS_BASE_RECONNECT_DELAY = 1000;
 
-ipcMain.handle("ws:connect", () => {
-  if (ws && ws.readyState === WebSocket.OPEN) return { ok: true };
+function scheduleWsReconnect() {
+  if (wsReconnectTimer) return;
+  wsReconnectAttempts++;
+  const delay = Math.min(WS_BASE_RECONNECT_DELAY * Math.pow(2, wsReconnectAttempts - 1), WS_MAX_RECONNECT_DELAY);
+  console.log(`[WS] Reconnecting in ${delay}ms (attempt ${wsReconnectAttempts})`);
+  mainWindow?.webContents.send("ws:status", "reconnecting");
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    doWsConnect().catch((err) => {
+      console.error("[WS] Reconnect failed:", err);
+      scheduleWsReconnect();
+    });
+  }, delay);
+}
 
-  return new Promise((resolve) => {
-    const apiBase = getApiBase();
-    const wsToken = getToken();
-    if (wsToken && !/^[a-zA-Z0-9_\-.]{0,256}$/.test(wsToken)) {
-      resolve({ ok: false, error: "Invalid token format" });
-      return;
-    }
-    const wsUrl = apiBase.replace(/^http/, "ws") + "/ws?token=" + encodeURIComponent(wsToken);
-    ws = new WebSocket(wsUrl);
+async function doWsConnect() {
+  const apiBase = getApiBase();
+  const wsToken = getToken();
+  if (wsToken && !/^[a-zA-Z0-9_\-.]{0,256}$/.test(wsToken)) {
+    throw new Error("Invalid token format");
+  }
+  const wsUrl = apiBase.replace(/^http/, "ws") + "/ws?token=" + encodeURIComponent(wsToken);
+  ws = new WebSocket(wsUrl);
 
+  return new Promise((resolve, reject) => {
     ws.onopen = () => {
       console.log("[WS] Connected");
+      wsReconnectAttempts = 0;
       mainWindow?.webContents.send("ws:status", "connected");
-      resolve({ ok: true });
+      resolve();
     };
 
     ws.onmessage = (event) => {
@@ -252,15 +299,51 @@ ipcMain.handle("ws:connect", () => {
     ws.onclose = () => {
       console.log("[WS] Disconnected");
       mainWindow?.webContents.send("ws:status", "disconnected");
+      ws = null;
+      scheduleWsReconnect();
     };
 
     ws.onerror = (err) => {
       console.error("[WS] Error:", err);
-      resolve({ ok: false, error: "WebSocket connection failed" });
+      reject(err);
     };
   });
+}
+
+ipcMain.handle("ws:connect", async () => {
+  if (ws && ws.readyState === WebSocket.OPEN) return { ok: true };
+  try {
+    await doWsConnect();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: "WebSocket connection failed" };
+  }
 });
 
 ipcMain.handle("ws:disconnect", () => {
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  wsReconnectAttempts = 0;
   if (ws) { ws.close(); ws = null; }
+});
+
+// ─── Backend Connection Status ───────────────────────────────────────────
+
+ipcMain.handle("backend:ping", async () => {
+  try {
+    const apiBase = getApiBase();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${apiBase}/api/health`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, status: data.status, uptime: data.uptime, url: apiBase };
+    }
+    return { ok: false, status: `HTTP ${res.status}`, url: apiBase };
+  } catch (err) {
+    return { ok: false, error: err.message || "Connection failed", url: getApiBase() };
+  }
 });

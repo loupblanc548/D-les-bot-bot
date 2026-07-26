@@ -2,6 +2,8 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
+import { braveWebSearch, formatSearchResults, isBraveSearchAvailable } from "./braveSearch.js";
+import { gatherFreeKnowledge } from "./knowledgeSources.js";
 
 // ── Configuration ────────────────────────────────────────────────
 const MAX_HISTORY = 20; // Max messages chargés depuis la DB
@@ -117,6 +119,139 @@ export async function clearHistory(channelId: string): Promise<number> {
 
 // ── Chat avec historique persistant ──────────────────────────────
 
+// ── Détection automatique des questions nécessitant une recherche ─────────────
+
+const SEARCH_TRIGGERS = [
+  "combien", "quelle est la", "quel est le", "qui est", "quand est", "où est",
+  "comment faire", "pourquoi", "qu'est-ce que", "que se passe", "actualité",
+  "news", "prix de", "prix du", "cours de", "cours du", "météo", "température",
+  "score", "résultat", "date de sortie", "release date", "patch notes",
+  "définition", "définition de", "qu'est-ce qu'un", "qu'est-ce qu'une",
+  "explique", "explique-moi", "raconte-moi", "parle-moi de",
+  "what is", "who is", "when is", "where is", "how to", "how much",
+  "tell me about", "explain", "latest", "recent", "today", "aujourd'hui",
+  "hier", "yesterday", "cette semaine", "this week",
+  "crypto", "bitcoin", "ethereum", "action", "bourse", "stock",
+  "météo", "weather", "température", "temperature",
+  "wikipedia", "définition", "definition",
+  "qui a gagné", "who won", "résultat", "result",
+  "nouveautés", "nouvelle", "new ", "latest ", "recent ",
+  "histoire de", "history of", "biographie", "biography",
+  "comparatif", "compare", "différence entre", "difference between",
+  "meilleur", "best", "top", "classement", "ranking",
+];
+
+const CASUAL_TRIGGERS = [
+  "merci", "thanks", "thank you", "ok", "okay", "d'accord", "cool",
+  "lol", "mdr", "ptdr", "haha", "xd", "👍", "❤️", "ah",
+  "oui", "no", "non", "yeah", "yep", "nope", "bien",
+  "bonjour", "salut", "hello", "hi", "hey", "coucou",
+  "bonne nuit", "good night", "à plus", "bye", "ciao",
+];
+
+function needsWebSearch(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+  if (lower.length < 10) return false;
+  if (CASUAL_TRIGGERS.some((t) => lower === t || lower === t + "!" || lower === t + ".")) return false;
+  return SEARCH_TRIGGERS.some((t) => lower.includes(t));
+}
+
+async function fetchWikipediaSummary(query: string): Promise<string | null> {
+  try {
+    const url = `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/\s+/g, "_"))}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { extract?: string; title?: string; content_urls?: { desktop?: { page?: string } } };
+    if (data.extract && data.extract.length > 20) {
+      const link = data.content_urls?.desktop?.page || "";
+      return `**${data.title}** (Wikipedia): ${data.extract}${link ? `\nSource: ${link}` : ""}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCryptoPrice(query: string): Promise<string | null> {
+  const lower = query.toLowerCase();
+  const cryptoMap: Record<string, string> = {
+    bitcoin: "bitcoin", btc: "bitcoin", ethereum: "ethereum", eth: "ethereum",
+    solana: "solana", sol: "solana", cardano: "cardano", ada: "cardano",
+    dogecoin: "dogecoin", doge: "dogecoin", ripple: "ripple", xrp: "ripple",
+    polygon: "matic-network", matic: "matic-network", litecoin: "litecoin", ltc: "litecoin",
+  };
+  for (const [key, id] of Object.entries(cryptoMap)) {
+    if (lower.includes(key)) {
+      try {
+        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd,eur&include_24hr_change=true`, { signal: AbortSignal.timeout(5_000) });
+        if (!res.ok) return null;
+        const data = (await res.json()) as Record<string, { usd: number; eur: number; usd_24h_change: number }>;
+        const coin = data[id];
+        if (coin) {
+          const change = coin.usd_24h_change?.toFixed(2) || "0";
+          const arrow = parseFloat(change) >= 0 ? "📈" : "📉";
+          return `💰 **${key.toUpperCase()}** — ${coin.usd}$ / ${coin.eur}€ ${arrow} ${change}% (24h)`;
+        }
+      } catch { return null; }
+    }
+  }
+  return null;
+}
+
+async function fetchWeather(query: string): Promise<string | null> {
+  const lower = query.toLowerCase();
+  const weatherMatch = lower.match(/m[éè]t[éè]o\s+(?:[àa]\s+)?(.+)/) || lower.match(/weather\s+(?:in\s+)?(.+)/) || lower.match(/temp[éè]rature\s+(?:[àa]\s+)?(.+)/);
+  if (!weatherMatch) return null;
+  const city = weatherMatch[1].trim();
+  try {
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr`, { signal: AbortSignal.timeout(5_000) });
+    if (!geoRes.ok) return null;
+    const geoData = (await geoRes.json()) as { results?: Array<{ latitude: number; longitude: number; name: string; country?: string }> };
+    if (!geoData.results?.[0]) return null;
+    const loc = geoData.results[0];
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto`, { signal: AbortSignal.timeout(5_000) });
+    if (!weatherRes.ok) return null;
+    const w = (await weatherRes.json()) as { current: { temperature_2m: number; relative_humidity_2m: number; wind_speed_10m: number; weather_code: number } };
+    const temp = w.current.temperature_2m;
+    const humidity = w.current.relative_humidity_2m;
+    const wind = w.current.wind_speed_10m;
+    const codeMap: Record<number, string> = { 0: "☀️ Ciel dégagé", 1: "🌤️ Peu nuageux", 2: "⛅ Nuageux", 3: "☁️ Couvert", 45: "🌫️ Brouillard", 51: "🌦️ Bruine légère", 61: "🌧️ Pluie", 71: "❄️ Neige", 80: "🌧️ Averses", 95: "⛈️ Orage" };
+    const desc = codeMap[w.current.weather_code] || "🌡️";
+    return `🌍 **${loc.name}${loc.country ? ", " + loc.country : ""}**\n${desc} — ${temp}°C\n💧 Humidité: ${humidity}% | 💨 Vent: ${wind} km/h`;
+  } catch { return null; }
+}
+
+async function gatherExternalKnowledge(userMessage: string): Promise<string | null> {
+  // 1. Crypto prices
+  const crypto = await fetchCryptoPrice(userMessage);
+  if (crypto) return crypto;
+
+  // 2. Weather
+  const weather = await fetchWeather(userMessage);
+  if (weather) return weather;
+
+  // 3. Wikipedia
+  const wikiQuery = userMessage.replace(/^(qu'est-ce que|qu'est-ce qu'un|qu'est-ce qu'une|définition de|qui est|parle-moi de|raconte-moi|explique-moi|what is|who is|tell me about)\s+/i, "").replace(/[?.!]/g, "").trim();
+  if (wikiQuery.length > 3) {
+    const wiki = await fetchWikipediaSummary(wikiQuery);
+    if (wiki) return wiki;
+  }
+
+  // 4. Sources gratuites (séismes, devises, dictionnaire, science, fact-check, QR, calcul, hash, IP, trivia, etc.)
+  const freeKnowledge = await gatherFreeKnowledge(userMessage);
+  if (freeKnowledge) return freeKnowledge;
+
+  // 5. Brave Search (fallback général)
+  if (isBraveSearchAvailable()) {
+    const results = await braveWebSearch(userMessage, 5);
+    if (results.length > 0) {
+      return `🔍 Résultats de recherche web:\n${formatSearchResults(results)}`;
+    }
+  }
+
+  return null;
+}
+
 export async function chatWithHistory(
   channelId: string,
   userMessage: string,
@@ -125,10 +260,9 @@ export async function chatWithHistory(
 ): Promise<string> {
   const client = getOpenAIClient();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25_000);
+  const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
-    // Charger depuis la DB si le buffer est vide (premier message après démarrage)
     let buffer = channelBuffers.get(channelId);
     if (!buffer || buffer.length === 0) {
       buffer = await loadHistory(channelId);
@@ -136,6 +270,16 @@ export async function chatWithHistory(
     }
 
     const displayName = username || "Utilisateur";
+
+    // ── Détection automatique: faut-il chercher sur le web ? ──
+    let externalContext = "";
+    if (needsWebSearch(userMessage)) {
+      logger.info(`[AIChat] Recherche auto déclenchée pour: "${userMessage.slice(0, 60)}..."`);
+      const knowledge = await gatherExternalKnowledge(userMessage);
+      if (knowledge) {
+        externalContext = `\n\n[CONTEXTE EXTERNE — utilise ces informations pour répondre]:\n${knowledge}\n[FIN CONTEXTE EXTERNE]`;
+      }
+    }
 
     const messages: Array<{
       role: "system" | "user" | "assistant";
@@ -152,27 +296,26 @@ export async function chatWithHistory(
           "de jouer ensemble, ou te demande ton pseudo, réponds naturellement que tu es un bot et que tu ne joues pas. " +
           "Si quelqu'un demande le lien du serveur Discord, tu peux donner https://discord.gg/hAVqWmpGV. " +
           "Sois concis, naturel et conversationnel. Réponds en quelques phrases maximum. " +
-          "Tu te souviens des messages précédents dans ce salon.",
+          "Tu te souviens des messages précédents dans ce salon. " +
+          "Si tu reçois du CONTEXTE EXTERNE, utilise-le pour répondre précisément et cite tes sources.",
       },
     ];
 
-    // Ajouter l'historique récent
     const recentHistory = buffer.slice(-MAX_HISTORY);
     for (const msg of recentHistory) {
       messages.push(msg);
     }
 
-    // Ajouter le nouveau message
     messages.push({
       role: "user",
-      content: `${displayName}: ${userMessage}`,
+      content: `${displayName}: ${userMessage}${externalContext}`,
     });
 
     const completion = await client.chat.completions.create(
       {
         model: config.openRouterModel,
         messages,
-        max_tokens: 500,
+        max_tokens: 600,
         temperature: 0.8,
       },
       { signal: controller.signal },
@@ -180,13 +323,11 @@ export async function chatWithHistory(
 
     const reply = completion.choices[0]?.message?.content || "(pas de reponse)";
 
-    // Sauvegarder dans le buffer
     buffer.push({ role: "user", content: userMessage });
     buffer.push({ role: "assistant", content: reply });
 
     while (buffer.length > MAX_HISTORY) buffer.shift();
 
-    // Persister dans la DB (fire-and-forget, pas de await pour ne pas bloquer)
     persistMessages(channelId, userMessage, reply);
     pruneOldMessages(channelId);
 
