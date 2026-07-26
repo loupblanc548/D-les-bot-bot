@@ -124,6 +124,7 @@ import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
 import { startVideoStream, startStreamWatchdog, setMainClient } from "./services/videoStream.js";
 import { startMediaWorker, stopMediaWorker } from "./infrastructure/processIsolator.js";
 import { initLogQueue } from "./queues/logQueue.js";
+import { waitForRedisWritable } from "./utils/redisClient.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -132,7 +133,13 @@ async function initSchedulers(client: Client): Promise<void> {
   // Directive 3: Initialize Redis/BullMQ Log Queue before anything else
   // ═══════════════════════════════════════════════════════════════════════
   try {
-    initLogQueue();
+    const redisReady = await waitForRedisWritable();
+    if (redisReady) {
+      initLogQueue();
+    } else {
+      logger.warn("[Startup] Redis not writable — LogQueue will use fallback direct writes");
+      initLogQueue(); // still call — it has internal fallback
+    }
   } catch (e) {
     logger.warn(`[Startup] LogQueue init failed (non-critical): ${e}`);
   }
