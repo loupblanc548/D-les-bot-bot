@@ -262,7 +262,7 @@ class DeduplicationCache {
           });
           if (oldestToDelete.length > 0) {
             await prisma.processedCache.deleteMany({
-              where: { id: { in: oldestToDelete.map((e) => e.id) } },
+              where: { id: { in: oldestToDelete.map((e: { id: number }) => e.id) } },
             });
           }
         }

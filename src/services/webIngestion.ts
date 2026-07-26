@@ -211,7 +211,7 @@ export async function searchKnowledge(
 
         // Calculer les embeddings manquants et scorer tous les docs
         const scored = await Promise.all(
-          allDocs.map(async (doc) => {
+          allDocs.map(async (doc: { url: string; title: string; summary: string | null; content: string }) => {
             let docEmbedding = knowledgeEmbeddings.get(doc.url);
             if (!docEmbedding) {
               const embeddings = await embedTexts([`${doc.title} ${doc.summary}`]);
@@ -226,8 +226,8 @@ export async function searchKnowledge(
         );
 
         // Trier par score de similarité
-        scored.sort((a, b) => b.score - a.score);
-        return scored.slice(0, limit).map(({ doc }) => ({
+        scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+        return scored.slice(0, limit).map(({ doc }: { doc: { url: string; title: string; summary: string | null; content: string }; score: number }) => ({
           title: doc.title,
           summary: doc.summary || doc.content.slice(0, 500),
           url: doc.url,

@@ -153,7 +153,7 @@ export async function searchVectorMemories(
     // Filter by threshold and return top results
     return scored
       .filter((r) => r.score >= threshold)
-      .sort((a, b) => b.score - a.score)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, limit);
   } catch (err) {
     logger.error(
@@ -181,7 +181,7 @@ export async function pruneVectorMemories(userId: string, maxKeep = 500): Promis
     });
 
     await prisma.memoryEmbedding.deleteMany({
-      where: { id: { in: oldest.map((e) => e.id) } },
+      where: { id: { in: oldest.map((e: { id: string }) => e.id) } },
     });
 
     logger.info(`[VectorMemory] Pruned ${toDelete} old embeddings for ${userId}`);

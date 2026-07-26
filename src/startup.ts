@@ -160,7 +160,7 @@ async function initSchedulers(client: Client): Promise<void> {
         orderBy: { createdAt: "desc" },
         take: 100,
       });
-      return entries.map((e) => e.uniqueId);
+      return entries.map((e: { uniqueId: string }) => e.uniqueId);
     });
     logger.info("🔒 Cache prime depuis Neon (ProcessedCache) : OK");
   } catch (err) {

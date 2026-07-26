@@ -45,9 +45,9 @@ async function loadCache(guildId: string): Promise<FilterCache> {
   ]);
 
   const result: FilterCache = {
-    words: new Set(entries.map((e) => e.word.toLowerCase())),
+    words: new Set(entries.map((e: { word: string }) => e.word.toLowerCase())),
     compiledRegexes: entries.map(
-      (e) => new RegExp(`\\b${escapeRegex(e.word.toLowerCase())}\\b`, "i"),
+      (e: { word: string }) => new RegExp(`\\b${escapeRegex(e.word.toLowerCase())}\\b`, "i"),
     ),
     config: config
       ? {
