@@ -112,6 +112,20 @@ const COMPLEX_TASK_KEYWORDS = [
   "deep dive",
   "étude approfondie",
   "thorough analysis",
+  "paroles",
+  "parole",
+  "lyrics",
+  "歌詞",
+  "letra",
+  "testo",
+  "songtext",
+  "tekst",
+  "trouve moi",
+  "cherche",
+  "search for",
+  "find me",
+  "recherche",
+  "youtube",
 ];
 
 function isComplexTask(userMessage: string): boolean {
@@ -463,7 +477,7 @@ async function runAgentLoopInternal(
   };
 
   // ─── MODULE 1: Circuit Breaker — track execution state ───
-  const breakerState = beginInteraction(message.author.id, message.guildId || "");
+  const breakerState = beginInteraction(message.author.id, message.guildId || "", maxIterations > 8);
 
   // ─── Cognitive Loop Engine — init embedding cache for this run ───
   const cognitiveSessionId = breakerState.interactionId;

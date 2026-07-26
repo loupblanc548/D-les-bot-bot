@@ -41,8 +41,9 @@ export interface CircuitBreakerState {
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const MAX_LOOPS = 5;
-const STATE_TTL_MS = 60_000; // Auto-clean state after 60s
+const MAX_LOOPS = 10;
+const MAX_LOOPS_LONG_TASK = 20;
+const STATE_TTL_MS = 120_000; // Auto-clean state after 120s (was 60s — too short for complex tasks)
 const MAX_CONCURRENT_AGENTS = 10; // Max simultaneous agent loops globally
 
 // ─── State Tracking ──────────────────────────────────────────────────────────
@@ -77,8 +78,9 @@ export function registerAlertDispatcher(cb: AlertCallback): void {
  * Begin tracking a new agent interaction.
  * Returns the initial state. Throws if too many concurrent agents are running.
  */
-export function beginInteraction(userId: string, guildId: string): CircuitBreakerState {
+export function beginInteraction(userId: string, guildId: string, isLongTask = false): CircuitBreakerState {
   const interactionId = `${userId}-${Date.now()}`;
+  const maxLoops = isLongTask ? MAX_LOOPS_LONG_TASK : MAX_LOOPS;
 
   // Enforce global concurrency limit
   if (activeStates.size >= MAX_CONCURRENT_AGENTS) {
@@ -100,7 +102,8 @@ export function beginInteraction(userId: string, guildId: string): CircuitBreake
     tripped: false,
     lastError: null,
     cleanupTimeout: setTimeout(() => cleanupState(interactionId), STATE_TTL_MS),
-  };
+  } as CircuitBreakerState & { _maxLoops: number };
+  (state as any)._maxLoops = maxLoops;
 
   activeStates.set(interactionId, state);
   return state;
@@ -115,15 +118,16 @@ export function recordLoop(state: CircuitBreakerState, tokensThisLoop: number): 
 
   state.loopCount++;
   state.tokensConsumed += tokensThisLoop;
-  state.phase = state.loopCount >= MAX_LOOPS ? "TRIPPED" : "ACT";
+  const maxLoops = (state as any)._maxLoops || MAX_LOOPS;
+  state.phase = state.loopCount >= maxLoops ? "TRIPPED" : "ACT";
 
-  if (state.loopCount >= MAX_LOOPS) {
-    tripBreaker(state, `Max loops (${MAX_LOOPS}) exceeded without final reply`);
+  if (state.loopCount >= maxLoops) {
+    tripBreaker(state, `Max loops (${maxLoops}) exceeded without final reply`);
     return false;
   }
 
   logger.info(
-    `[CircuitBreaker] Loop ${state.loopCount}/${MAX_LOOPS} — ${state.tokensConsumed} tokens consumed`,
+    `[CircuitBreaker] Loop ${state.loopCount}/${maxLoops} — ${state.tokensConsumed} tokens consumed`,
   );
   return true;
 }
@@ -201,7 +205,7 @@ export function createTrippedEmbed(state: CircuitBreakerState): EmbedBuilder {
         "\n" +
         boxLine(`Agent loop exceeded safety threshold`) +
         "\n" +
-        boxLine(`Max loops: ${MAX_LOOPS} | Reached: ${state.loopCount}`) +
+        boxLine(`Max loops: ${(state as any)._maxLoops || MAX_LOOPS} | Reached: ${state.loopCount}`) +
         "\n" +
         boxLine(`Tokens consumed: ${state.tokensConsumed}`) +
         "\n" +
