@@ -783,7 +783,7 @@ async function handleAiChatMention(
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
       // ── Réponse vocale: sur demande explicite (parle-moi, en vocal, TTS, à voix haute, etc.) ──
-      const voiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|récite|récite-le|à l'oral|orally)/i;
+      const voiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|parle sa|parle ça|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|lis le|lis sa|lis ça|lie sa|lie ça|lie le|récite|récite-le|récite le|à l'oral|orally|dit le|dit sa|dit ça|read it|say it out|dans le vocal|dans la voix)/i;
       if (
         message.guildId &&
         message.member?.voice?.channelId &&
@@ -1075,7 +1075,7 @@ async function handleDMMessage(
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
       // ── Réponse vocale (DM): sur demande explicite ──
-      const dmVoiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|récite|à l'oral)/i;
+      const dmVoiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|parle sa|parle ça|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|lis le|lis sa|lis ça|lie sa|lie ça|lie le|récite|récite le|à l'oral|dit le|dit sa|dit ça|read it|say it out|dans le vocal|dans la voix)/i;
       if (
         message.guildId &&
         message.member?.voice?.channelId &&
