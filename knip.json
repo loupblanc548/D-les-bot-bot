@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/index.ts",
+    "src/bot.ts",
+    "src/commandRouter.ts",
+    "src/interactionHandler.ts",
+    "src/control-server.ts",
+    "src/events/**/*.ts",
+    "src/commands/**/*.ts",
+    "src/cron/**/*.ts",
+    "src/services/**/*.test.ts",
+    "src/utils/**/*.test.ts"
+  ],
+  "project": ["src/**/*.ts"],
+  "ignore": [
+    "src/generated/**",
+    "src/config/**",
+    "src/test/mocks/**"
+  ],
+  "ignoreBinaries": ["ts-node", "cross-env", "node"],
+  "ignoreDependencies": [
+    "@sentry/node",
+    "sodium-native",
+    "zeromq",
+    "sharp",
+    "playwright",
+    "puppeteer"
+  ],
+  "typescript": true
+}

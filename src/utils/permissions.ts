@@ -1,8 +1,9 @@
 /**
- * permissions.ts — Helper de vérification de permissions Discord
+ * permissions.ts — Helper de vérification de permissions Discord (utilitaires simples)
  *
- * Fournit des fonctions réutilisables pour vérifier les permissions
- * d'un membre sur un serveur ou un salon spécifique.
+ * Note: Pour des vérifications plus avancées (hiérarchie de rôles, overrides de salon),
+ * utiliser services/permissions.ts qui est plus complet.
+ * Ce fichier garde les helpers simples pour utilisation légère dans les utils.
  */
 
 import { PermissionsBitField, type GuildMember, type TextChannel, type PermissionResolvable } from "discord.js";

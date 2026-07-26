@@ -1,35 +1,10 @@
 /**
- * Retry utility for handling transient errors
- * @param fn - Function to retry
- * @param maxRetries - Maximum number of retries (default: 3)
- * @param delayMs - Delay between retries in milliseconds (default: 1000)
- * @returns Promise with the result of the function
+ * Retry utility — re-exports from async.ts for backward compatibility.
+ * New code should import retryWithBackoff from async.ts directly.
+ * @deprecated Use retryWithBackoff from async.ts instead.
  */
-export async function retry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  delayMs: number = 1000
-): Promise<T> {
-  let lastError: Error | unknown;
-  
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      
-      if (attempt === maxRetries) {
-        throw error;
-      }
-      
-      // Exponential backoff
-      const backoffDelay = delayMs * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, backoffDelay));
-    }
-  }
-  
-  throw lastError;
-}
+
+export { retryWithBackoff as retry } from "./async.js";
 
 /**
  * Check if an error is retryable

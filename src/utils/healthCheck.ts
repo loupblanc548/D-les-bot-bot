@@ -1,11 +1,15 @@
 /**
- * healthCheck.ts — Health check enrichi pour le bot
+ * healthCheck.ts — Health check enrichi pour le bot (utilitaire réutilisable)
  *
  * Vérifie l'état de tous les sous-systèmes critiques:
  * - Discord (client ready + ping)
  * - Redis (connecté + writable)
  * - PostgreSQL (Prisma connexion)
  * - BullMQ (queues actives)
+ *
+ * Note: services/health-http.ts gère le serveur HTTP complet des health checks.
+ * services/healthcheck.ts gère les health checks périodiques avec alerting.
+ * Ce module fournit une fonction simple réutilisable depuis d'autres utils/services.
  *
  * Utilisable via endpoint HTTP ou commande /health
  */

@@ -1,8 +1,12 @@
 /**
- * llmCache.ts — Cache Redis des completions LLM
+ * llmCache.ts — Cache Redis des completions LLM (persistant, distribué)
  *
  * Clé = hash SHA256 du prompt + modèle, TTL configurable.
  * Évite les appels redondants pour des prompts identiques.
+ *
+ * Note: aiCache.ts (mémoire locale) gère le cache sémantique court-terme.
+ * Ce module gère le cache Redis persistant pour les completions identiques.
+ * Les deux sont complémentaires: aiCache = L1 (local), llmCache = L2 (Redis).
  */
 
 import { createHash } from "node:crypto";

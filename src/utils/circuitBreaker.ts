@@ -1,10 +1,14 @@
 /**
- * circuitBreaker.ts — Circuit breaker pour APIs externes
+ * circuitBreaker.ts — Circuit breaker léger pour APIs externes
  *
  * Protège contre les pannes en cascade en ouvrant le circuit
  * après N échecs consécutifs, puis en le fermant après un délai.
  *
  * États: CLOSED (normal) → OPEN (bloque) → HALF_OPEN (test) → CLOSED/OPEN
+ *
+ * Note: services/circuitBreaker.ts est une implémentation plus complète
+ * avec métriques Prometheus, fallback, et intégration agentLoop.
+ * Ce module est destiné aux utilitaires simples (healthCheck, webhook).
  */
 
 import logger from "./logger.js";
