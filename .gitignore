@@ -28,6 +28,16 @@ database.sqlite
 # Backups
 backups/
 
+# Sensitive config files
+src/config/*.bak
+src/config/*.json.bak
+src/config/*.env.bak
+src/config/aws_root_key_backup.json
+src/config/discord_bot_token_master.bak
+src/config/neon_root_credentials.json.bak
+src/config/redis_master_auth.env.bak
+src/config/ssh_root_private_key.bak
+
 # Logs
 logs/
 *.log

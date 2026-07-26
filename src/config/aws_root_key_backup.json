@@ -1,7 +1,0 @@
-{
-  "accessKeyId": "AKIA backup root key",
-  "secretAccessKey": "wJalrXUtneonBACKUP/root/key/2024",
-  "region": "eu-west-3",
-  "accountId": "123456789012",
-  "note": "AWS root key backup — emergency access only"
-}
