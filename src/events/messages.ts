@@ -697,7 +697,7 @@ async function handleAiChatMention(
     if (isErrorResponse) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback modèle gratuit`);
       try {
-        const fallbackModel = getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free";
+        const fallbackModel = getNextAvailableModel() || "openrouter/auto";
         const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -724,6 +724,11 @@ async function handleAiChatMention(
       } catch (fallbackErr) {
         logger.error(`[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
       }
+    }
+
+    // ── Si toujours vide ou erreur, message par défaut ──
+    if (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) {
+      aiResponse = "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
     }
 
     if (aiResponse) {
@@ -956,7 +961,7 @@ async function handleDMMessage(
     if (dmIsErrorResponse) {
       logger.warn(`[DM] AgentLoop a retourné une erreur, fallback modèle gratuit`);
       try {
-        const dmFallbackModel = getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free";
+        const dmFallbackModel = getNextAvailableModel() || "openrouter/auto";
         const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -993,6 +998,11 @@ async function handleDMMessage(
       } catch (fallbackErr) {
         logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
       }
+    }
+
+    // ── Si toujours vide ou erreur, message par défaut ──
+    if (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) {
+      aiResponse = "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
     }
 
     if (aiResponse) {
