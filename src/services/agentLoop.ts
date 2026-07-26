@@ -62,7 +62,7 @@ import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
-import { summarizeWithGemini, isGeminiAvailable } from "./gemini.js";
+import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
 import { isKilled } from "./killSwitch.js";
 import {
   detectLanguage,
@@ -919,7 +919,7 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
     );
 
-    for (const modelName of modelsToTry.slice(0, 5)) {
+    for (const modelName of modelsToTry.slice(0, 3)) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
         // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
@@ -940,7 +940,7 @@ async function runAgentLoopInternal(
             parallel_tool_calls: true,
             stream: false,
           },
-          { timeout: 15_000 },
+          { timeout: 8_000 },
         );
         markModelSuccess(modelName);
         agentModelUsed.labels(modelName, "success").inc();
@@ -985,6 +985,28 @@ async function runAgentLoopInternal(
         const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
         logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
         lastErrMsg = groqErrMsg;
+      }
+    }
+
+    // ─── Étape 2b: Fallback Gemini si OpenRouter + Groq ont échoué ───
+    if (!response && isGeminiAvailable()) {
+      try {
+        logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
+        const geminiReply = await chatWithGemini(
+          config.aiSystemPrompt + "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
+          userMessage,
+          800,
+        );
+        if (geminiReply) {
+          // Gemini ne supporte pas les tools ici — on retourne directement la réponse
+          logger.info(`[AgentLoop] ✅ Gemini fallback réussi`);
+          completeInteraction(breakerState);
+          return geminiReply;
+        }
+      } catch (geminiErr) {
+        const geminiErrMsg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+        logger.error(`[AgentLoop] Gemini fallback also failed: ${geminiErrMsg}`);
+        lastErrMsg = geminiErrMsg;
       }
     }
 
