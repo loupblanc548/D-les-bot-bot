@@ -821,8 +821,6 @@ async function handleAiChatMention(
       void statusIndicator.cleanup();
 
       logger.info(`[AIChat] Agent IA -> ${message.author.tag}`);
-    } else {
-      throw new Error("Agent loop: réponse vide");
     }
   } catch (error) {
     logger.error(`[AIChat] Erreur: ${error instanceof Error ? error.message : String(error)}`);
