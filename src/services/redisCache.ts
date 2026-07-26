@@ -86,7 +86,7 @@ async function get<T>(key: string): Promise<T | null> {
   try {
     if (redisClient && redisConnected) {
       const data = await redisClient.get(key);
-      if (data) return JSON.parse(data) as T;
+      if (data) return JSON.parse(data as string) as T;
       return null;
     }
   } catch {

@@ -44,12 +44,11 @@ export async function handleCommand(
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let rows: Array<{ type: string; _count: { _all: number } }>;
   try {
-    // @ts-expect-error - Prisma groupBy type issue
     rows = await prisma.sanction.groupBy({
       by: ["type"],
       where: { guildId, createdAt: { gte: since } },
       _count: { _all: true },
-    });
+    }) as Array<{ type: string; _count: { _all: number } }>;
   } catch (error) {
     logger.error("event", { cmd: "security-audit", err: error instanceof Error ? error.message : error },
       "Failed to query sanctions",

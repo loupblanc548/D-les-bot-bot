@@ -51,7 +51,7 @@ async function checkTwitch(follows: typeof followsType): Promise<void> {
   const twitchFollows = follows.filter((f) => f.platform === "twitch");
   if (twitchFollows.length === 0) return;
 
-  const logins = [...new Set(twitchFollows.map((f) => f.channelName.toLowerCase()))];
+  const logins = [...new Set(twitchFollows.map((f) => f.channelName.toLowerCase()))] as string[];
   let token: string;
   try {
     token = await getTwitchToken();

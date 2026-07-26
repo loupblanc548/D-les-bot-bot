@@ -67,7 +67,7 @@ async function getCachedData<T>(key: string): Promise<T | null> {
     const data = await redis.get(key);
     if (data) {
       cacheStats.hits++;
-      return JSON.parse(data) as T;
+      return JSON.parse(data as string) as T;
     }
     cacheStats.misses++;
     return null;

@@ -75,7 +75,7 @@ async function getContext(key: string): Promise<MessageContext[]> {
     const redis = await ensureConnected();
     if (!redis) return [];
     const data = await redis.get(key);
-    return data ? JSON.parse(data) : [];
+    return data ? (JSON.parse(data as string) as MessageContext[]) : [];
   } catch (error) {
     logger.error("[AIChat] Error getting context:", error);
     return [];
