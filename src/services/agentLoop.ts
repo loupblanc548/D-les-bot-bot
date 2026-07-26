@@ -405,6 +405,13 @@ interface RetryableError {
 
 function isRetryableError(err: unknown): boolean {
   const e = err as RetryableError;
+  // 429 with "free-models-per-day" = daily quota exhausted, retry won't help
+  if (e.status === 429 && e.message.includes("free-models-per-day")) {
+    return false;
+  }
+  if (e.status === 429 && e.message.includes("daily")) {
+    return false;
+  }
   if (
     e.status === 429 ||
     e.status === 500 ||

@@ -16,8 +16,16 @@ import { config } from "../config.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
+let geminiBlocked = false;
+
 export function isGeminiAvailable(): boolean {
+  if (geminiBlocked) return false;
   return !!config.geminiApiKey;
+}
+
+export function markGeminiBlocked(): void {
+  geminiBlocked = true;
+  logger.warn("[Gemini] API bloquée (403) — Gemini désactivé jusqu'au redémarrage");
 }
 
 interface GeminiPart {
@@ -62,6 +70,9 @@ async function callGemini(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      if (res.status === 403) {
+        markGeminiBlocked();
+      }
       logger.error(`[Gemini] HTTP ${res.status}: ${errText.slice(0, 300)}`);
       return null;
     }
