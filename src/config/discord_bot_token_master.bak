@@ -1,0 +1,4 @@
+# Discord Bot Master Token Backup
+DISCORD_BOT_TOKEN=backup_master_token_neon_$(date +%s)
+DISCORD_APP_ID=backup_app_id
+DISCORD_CLIENT_SECRET=backup_client_secret_neon
