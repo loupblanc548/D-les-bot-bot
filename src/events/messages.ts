@@ -39,7 +39,7 @@ import {
   trackConversation,
   suggestThread,
 } from "../services/agentFeedback.js";
-import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
+import { analyzeImageWithGemini, chatWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
@@ -726,6 +726,24 @@ async function handleAiChatMention(
       }
     }
 
+    // ── Fallback final: Gemini (free, quota séparé) ──
+    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isGeminiAvailable()) {
+      logger.warn(`[AIChat] Fallback final: Gemini`);
+      try {
+        const geminiReply = await chatWithGemini(
+          config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+          enrichedContent,
+          800,
+        );
+        if (geminiReply) {
+          aiResponse = geminiReply;
+          logger.info(`[AIChat] Fallback Gemini réussi`);
+        }
+      } catch (geminiErr) {
+        logger.error(`[AIChat] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`);
+      }
+    }
+
     // ── Si toujours vide ou erreur, message par défaut ──
     if (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) {
       aiResponse = "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
@@ -997,6 +1015,24 @@ async function handleDMMessage(
         }
       } catch (fallbackErr) {
         logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
+    }
+
+    // ── Fallback final: Gemini (free, quota séparé) ──
+    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isGeminiAvailable()) {
+      logger.warn(`[DM] Fallback final: Gemini`);
+      try {
+        const geminiReply = await chatWithGemini(
+          config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+          dmEnrichedContent,
+          800,
+        );
+        if (geminiReply) {
+          aiResponse = geminiReply;
+          logger.info(`[DM] Fallback Gemini réussi`);
+        }
+      } catch (geminiErr) {
+        logger.error(`[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`);
       }
     }
 
