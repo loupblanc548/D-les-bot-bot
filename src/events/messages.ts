@@ -683,28 +683,47 @@ async function handleAiChatMention(
       logger.warn(
         `[AIChat] AgentLoop échoué, fallback simple: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
       );
-      const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://discord-bot.com",
-          "X-Title": "John Helldiver - Discord Bot",
-        },
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free",
-          messages,
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!fallbackResponse.ok)
-        throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`, { cause: loopError });
-      const fallbackData = (await fallbackResponse.json()) as {
-        choices: Array<{ message: { content: string } }>;
-      };
-      aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+      aiResponse = "";
+    }
+
+    // ── Si l'agent loop a retourné un message d'erreur connu, fallback avec modèle gratuit ──
+    const isErrorResponse = !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated");
+
+    if (isErrorResponse) {
+      logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback modèle gratuit`);
+      try {
+        const fallbackModel = getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free";
+        const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://discord-bot.com",
+            "X-Title": "John Helldiver - Discord Bot",
+          },
+          body: JSON.stringify({
+            model: fallbackModel,
+            messages,
+            max_tokens: 500,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (fallbackResponse.ok) {
+          const fallbackData = (await fallbackResponse.json()) as {
+            choices: Array<{ message: { content: string } }>;
+          };
+          aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+          logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
+        }
+      } catch (fallbackErr) {
+        logger.error(`[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
     }
 
     if (aiResponse) {
@@ -920,42 +939,60 @@ async function handleDMMessage(
         void dmStatusIndicator.onToolCall(toolName, iter);
       });
     } catch (loopError) {
-      // Fallback simple fetch si l'agent loop échoue
       logger.warn(
         `[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
       );
-      const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://discord-bot.com",
-          "X-Title": "John Helldiver - Discord Bot",
-        },
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free",
-          messages: [
-            {
-              role: "system",
-              content:
-                config.aiSystemPrompt +
-                "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
-                "Adapte-toi à n'importe quelle langue du monde. " +
-                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            },
-            { role: "user", content: `${message.author.username}: ${content}` },
-          ],
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!fallbackResponse.ok)
-        throw new Error(`OpenRouter HTTP error: ${fallbackResponse.status}`, { cause: loopError });
-      const fallbackData = (await fallbackResponse.json()) as {
-        choices: Array<{ message: { content: string } }>;
-      };
-      aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+      aiResponse = "";
+    }
+
+    // ── Si l'agent loop a retourné une erreur, fallback avec modèle gratuit ──
+    const dmIsErrorResponse = !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated");
+
+    if (dmIsErrorResponse) {
+      logger.warn(`[DM] AgentLoop a retourné une erreur, fallback modèle gratuit`);
+      try {
+        const dmFallbackModel = getNextAvailableModel() || "nvidia/nemotron-3-ultra-550b-a55b:free";
+        const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://discord-bot.com",
+            "X-Title": "John Helldiver - Discord Bot",
+          },
+          body: JSON.stringify({
+            model: dmFallbackModel,
+            messages: [
+              {
+                role: "system",
+                content:
+                  config.aiSystemPrompt +
+                  "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
+                  "Adapte-toi à n'importe quelle langue du monde. " +
+                  "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+              },
+              { role: "user", content: `${message.author.username}: ${content}` },
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (fallbackResponse.ok) {
+          const fallbackData = (await fallbackResponse.json()) as {
+            choices: Array<{ message: { content: string } }>;
+          };
+          aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+          logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
+        }
+      } catch (fallbackErr) {
+        logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
     }
 
     if (aiResponse) {
