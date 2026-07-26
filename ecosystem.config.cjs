@@ -1,31 +1,34 @@
 /**
- * ecosystem.config.cjs — Configuration PM2 pour le bot Discord
+ * ecosystem.config.js — Configuration PM2 pour le bot Discord
  *
- * Lance le bot via tsx avec :
- *  - --import tsx : support TypeScript
- *  - --expose-gc : permet l'optimiseur mémoire de déclencher le GC
+ * Usage:
+ *   pm2 start ecosystem.config.js
+ *   pm2 restart bot
+ *   pm2 logs bot
  */
 module.exports = {
   apps: [
     {
-      name: "john-helldiver",
-      script: "src/index.ts",
-      interpreter: "node",
-      interpreter_args: "--expose-gc --max-old-space-size=2048 --import tsx",
-      cwd: __dirname,
-      autorestart: true,
-      max_restarts: 3,
-      min_uptime: "60s",
-      restart_delay: 15000,
-      exp_backoff_restart_delay: 200,
-      max_memory_restart: "3G",
+      name: "bot",
+      script: "dist/index.js",
+      cwd: "/opt/bot",
+      instances: 1,
+      exec_mode: "fork",
+      max_memory_restart: "4G",
       env: {
         NODE_ENV: "production",
+        NODE_OPTIONS: "--max-old-space-size=4096",
       },
-      out_file: "./logs/pm2-out.log",
-      error_file: "./logs/pm2-error.log",
+      error_file: "/root/.pm2/logs/bot-error.log",
+      out_file: "/root/.pm2/logs/bot-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
-      time: true,
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: "30s",
+      restart_delay: 5000,
+      kill_timeout: 10000,
+      wait_ready: false,
     },
   ],
 };
