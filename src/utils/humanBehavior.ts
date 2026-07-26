@@ -136,46 +136,56 @@ export function maybeAddTypo(text: string): string {
  */
 export function splitIntoMessages(text: string): string[] {
   // Si court, un seul message
-  if (text.length <= 200) return [text];
+  if (text.length <= 1900) return [text];
 
-  // Si contient des retours à la ligne, split dessus
-  if (text.includes("\n")) {
-    const lines = text.split("\n").filter((l) => l.trim().length > 0);
-    if (lines.length >= 2 && lines.length <= 4) {
-      // Regrouper les lignes trop courtes
-      const result: string[] = [];
-      let current = "";
+  const MAX_CHUNK = 1900;
+  const result: string[] = [];
+
+  // 1. Split sur les paragraphes (double newline)
+  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+
+  let current = "";
+  for (const para of paragraphs) {
+    // Si le paragraphe seul dépasse la limite, on le découpe par lignes
+    if (para.length > MAX_CHUNK) {
+      // Flush current chunk first
+      if (current.trim()) {
+        result.push(current.trim());
+        current = "";
+      }
+      // Split par lignes
+      const lines = para.split("\n");
+      let lineChunk = "";
       for (const line of lines) {
-        if (current.length + line.length < 250) {
-          current = current ? current + "\n" + line : line;
+        if (lineChunk.length + line.length + 1 > MAX_CHUNK) {
+          if (lineChunk) result.push(lineChunk.trim());
+          // Si une seule ligne dépasse la limite, la couper brutalement
+          if (line.length > MAX_CHUNK) {
+            for (let i = 0; i < line.length; i += MAX_CHUNK) {
+              result.push(line.slice(i, i + MAX_CHUNK));
+            }
+            lineChunk = "";
+          } else {
+            lineChunk = line;
+          }
         } else {
-          if (current) result.push(current);
-          current = line;
+          lineChunk = lineChunk ? lineChunk + "\n" + line : line;
         }
       }
-      if (current) result.push(current);
-      return result.length > 1 ? result : [text];
-    }
-  }
-
-  // Sinon, split sur les phrases (points suivis d'espace)
-  const sentences = text.match(/[^.!?]+[.!?]+\s*/g);
-  if (sentences && sentences.length >= 2) {
-    const result: string[] = [];
-    let current = "";
-    for (const sentence of sentences) {
-      if (current.length + sentence.length < 250) {
-        current += sentence;
-      } else {
-        if (current) result.push(current.trim());
-        current = sentence;
+      if (lineChunk.trim()) {
+        current = lineChunk;
       }
+    } else if (current.length + para.length + 2 > MAX_CHUNK) {
+      // Le paragraphe ne rentre pas dans le chunk courant → flush et nouveau chunk
+      if (current.trim()) result.push(current.trim());
+      current = para;
+    } else {
+      current = current ? current + "\n\n" + para : para;
     }
-    if (current) result.push(current.trim());
-    return result.length > 1 ? result : [text];
   }
+  if (current.trim()) result.push(current.trim());
 
-  return [text];
+  return result.length > 0 ? result : [text.slice(0, 1900)];
 }
 
 /**

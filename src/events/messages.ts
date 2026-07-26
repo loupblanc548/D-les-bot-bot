@@ -750,8 +750,6 @@ async function handleAiChatMention(
     }
 
     if (aiResponse) {
-      if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
-
       // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
       let sentMessages: Message[] | null = null;
       if (aiResponse.length <= 1900) {
@@ -1040,8 +1038,6 @@ async function handleDMMessage(
     }
 
     if (aiResponse) {
-      if (aiResponse.length > 2000) aiResponse = aiResponse.slice(0, 1997) + "...";
-
       // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
       let dmSentMessages: Message[] | null = null;
       if (aiResponse.length <= 1900) {
