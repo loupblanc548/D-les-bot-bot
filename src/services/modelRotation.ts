@@ -100,10 +100,10 @@ interface ModelHealth {
 
 const modelHealth = new Map<string, ModelHealth>();
 
-// Cooldown après un 429: 2 minutes par défaut (was 5 min — too aggressive)
-const RATE_LIMIT_COOLDOWN_MS = 2 * 60 * 1000;
-// Cooldown après une erreur générique: 15 secondes (was 60s — too aggressive for 404/400)
-const ERROR_COOLDOWN_MS = 15 * 1000;
+// Cooldown après un 429: 1 minute par défaut (was 2 min — still too aggressive)
+const RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+// Cooldown après une erreur générique: 5 secondes (was 15s — only real errors like timeout/network)
+const ERROR_COOLDOWN_MS = 5 * 1000;
 // Reset du compteur d'échecs après 30 minutes sans erreur
 const HEALTH_RESET_MS = 30 * 60 * 1000;
 // Max échecs avant de blacklister un modèle pour plus longtemps

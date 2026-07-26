@@ -919,7 +919,7 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
     );
 
-    for (const modelName of modelsToTry) {
+    for (const modelName of modelsToTry.slice(0, 5)) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
         // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
@@ -949,7 +949,11 @@ async function runAgentLoopInternal(
       } catch (modelErr) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
         const isRateLimit = msg.includes("429") || msg.includes("rate");
-        markModelFailure(modelName, isRateLimit);
+        // 404/400/402 = modèle invalide ou credits insuffisants, pas un vrai échec — ne pas mettre en cooldown
+        const isInvalidModel = msg.includes("404") || msg.includes("400") || msg.includes("is not a valid model") || msg.includes("402") || msg.includes("more credits");
+        if (!isInvalidModel) {
+          markModelFailure(modelName, isRateLimit);
+        }
         agentModelUsed.labels(modelName, "fail").inc();
         lastErrMsg = msg;
         logger.warn(`[AgentLoop] ❌ ${modelName} échoué: ${msg.slice(0, 100)}`);
