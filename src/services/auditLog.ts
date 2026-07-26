@@ -22,9 +22,9 @@ export interface AuditEntry {
 
 export async function logAuditAction(entry: AuditEntry): Promise<void> {
   try {
-    // Store in DB (if auditLog table exists)
+    // Store in DB
     try {
-      await (prisma as any).auditLog.create({
+      await prisma.auditLog.create({
         data: {
           guildId: entry.guildId,
           action: entry.action,
@@ -35,7 +35,7 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
         },
       });
     } catch {
-      // Table might not exist — graceful fallback to webhook only
+      // Table might not exist yet — graceful fallback to webhook only
     }
 
     // Send to webhook if configured
@@ -69,7 +69,7 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
 
 export async function getAuditLog(guildId: string, limit = 50) {
   try {
-    return await (prisma as any).auditLog.findMany({
+    return await prisma.auditLog.findMany({
       where: { guildId },
       orderBy: { createdAt: "desc" },
       take: limit,

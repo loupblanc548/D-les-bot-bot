@@ -101,6 +101,9 @@ import {
   handleCommand as handleTrackGroup,
 } from "./commands/trackGroup.js";
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
+import { data as statsCommandData, execute as statsExecute } from "./commands/stats.js";
+import { data as configCommandData, execute as configExecute } from "./commands/config.js";
+import { data as helpCommandData, execute as helpExecute } from "./commands/help.js";
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
 import { commands as releasesCommands, handleReleasesCommand } from "./commands/releases.js";
 import { commands as trendingCommands, handleTrendingCommand } from "./commands/trending.js";
@@ -271,7 +274,7 @@ const REMOVED_COMMANDS = new Set([
   "explain",
   // ─── Commandes regroupées en sous-commandes (vague 2) ───
   "start",
-  "help",
+  // "help" retiré de REMOVED_COMMANDS — nouvelle version standalone active
   "restart",
   "status",
   "uptime",
@@ -492,6 +495,10 @@ export const allCommands = [
   privacyCommandData,
   // ── Follow (social media tracking) ──
   ...followCommands,
+  // ── Nouvelles commandes standalone ──
+  statsCommandData,
+  configCommandData,
+  helpCommandData,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -581,6 +588,21 @@ export function buildCommandRouter(): void {
   commandRouter["follow"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleFollowCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Stats command ───
+  commandRouter["stats"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await statsExecute(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Config command ───
+  commandRouter["config"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await configExecute(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Help (new standalone) command ───
+  commandRouter["help"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await helpExecute(interaction as ChatInputCommandInteraction);
   };
   // ─── Context Menus ───
   registerGroup(

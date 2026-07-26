@@ -1,5 +1,25 @@
 import winston from "winston";
 import * as Sentry from "@sentry/node";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+// ─── Correlation ID via AsyncLocalStorage ─────────────────────────
+const correlationStorage = new AsyncLocalStorage<string>();
+
+/** Génère un correlationId court */
+function generateCorrelationId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/** Exécute fn avec un correlationId (auto-généré si non fourni) */
+export function withCorrelationId<T>(fn: () => T, id?: string): T {
+  const correlationId = id ?? generateCorrelationId();
+  return correlationStorage.run(correlationId, fn);
+}
+
+/** Récupère le correlationId courant (ou null) */
+export function getCorrelationId(): string | undefined {
+  return correlationStorage.getStore();
+}
 
 // ─── Formats ─────────────────────────────────────────────────────
 
@@ -8,10 +28,17 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({ format: "HH:mm:ss" }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ timestamp, level, message, _service, _environment, ...meta }) => {
+  winston.format((info) => {
+    const cid = correlationStorage.getStore();
+    if (cid) (info as Record<string, unknown>).correlationId = cid;
+    return info;
+  })(),
+  winston.format.printf(({ timestamp, level, message, _service, _environment, _correlationId, ...meta }) => {
+    const cid = correlationStorage.getStore();
+    const cidStr = cid ? ` [${cid}]` : "";
     const metaStr =
       Object.keys(meta).length > 0 && meta.stack == null ? " " + JSON.stringify(meta) : "";
-    return `${timestamp} ${level}: ${message}${metaStr}`;
+    return `${timestamp} ${level}:${cidStr} ${message}${metaStr}`;
   }),
 );
 
@@ -19,6 +46,11 @@ const consoleFormat = winston.format.combine(
 const jsonFormat = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.errors({ stack: true }),
+  winston.format((info) => {
+    const cid = correlationStorage.getStore();
+    if (cid) (info as Record<string, unknown>).correlationId = cid;
+    return info;
+  })(),
   winston.format.json(),
 );
 
@@ -38,6 +70,7 @@ const MAX_LOG_FILES = 14; // 14 days retention (one file per day max at 50MB)
 const MAX_FORTNITE_LOG_FILES = 7; // 7 days for fortnite-specific logs
 
 const logger = winston.createLogger({
+  levels: { error: 0, warn: 1, info: 2, http: 3, verbose: 4, debug: 5, silly: 6 },
   level: process.env.LOG_LEVEL || "info",
   format: isProduction ? jsonFormat : consoleFormat,
   transports: [

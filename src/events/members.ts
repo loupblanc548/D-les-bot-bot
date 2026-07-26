@@ -12,6 +12,8 @@ import { handleMemberSecurityIntegration } from "../services/securityIntegration
 import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/reportChannel.js";
 import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
 import { invalidateGuild } from "../services/configCache.js";
+import { checkJoinBurst as checkRaidJoinBurst } from "../services/antiRaid.js";
+import { onMemberJoin as gatekeeperOnJoin, type GatekeeperConfig } from "../services/gatekeeper.js";
 
 const BOOST_CHANNEL_ID = "1203399031351545887";
 
@@ -21,6 +23,17 @@ export function handleMemberEvents(client: Client) {
       // Détection proactive de comportement suspect
       void checkSuspiciousJoin(client, member.guild.id);
       void checkSuspiciousNewMember(client, member);
+
+      // ── Anti-raid: détection burst de joins ───────────────────────
+      const raidAlert = checkRaidJoinBurst(member);
+      if (raidAlert) {
+        logger.warn(`[AntiRaid] ${raidAlert.type}: ${raidAlert.detail} — ${member.user.tag}`);
+      }
+
+      // ── Gatekeeper: vérification des nouveaux membres ─────────────
+      // Désactivé par défaut — activer via config serveur
+      // const gatekeeperConfig: GatekeeperConfig = { enabled: false, channelId: "", unverifiedRoleId: "", verifiedRoleId: "", welcomeMessage: "" };
+      // await gatekeeperOnJoin(member, gatekeeperConfig);
 
       // Anti-raid : timeout automatique des comptes trop recents (en premier)
       const antiRaid = await isAntiRaidActive(member.guild.id);

@@ -27,6 +27,7 @@ import prisma from "./prisma.js";
 import { config } from "./config.js";
 import { getFortniteState } from "./services/fortnite-broadcast.js";
 import { handleWebhookRequest } from "./services/webhookTriggers.js";
+import { handleWebhook as handleSecureWebhook } from "./services/webhookReceiver.js";
 
 let server: http.Server | null = null;
 const logBuffer: { timestamp: number; level: string; message: string }[] = [];
@@ -140,6 +141,19 @@ export async function startControlServer(port: number, client: Client): Promise<
     if (path.startsWith("/webhook/")) {
       logger.info(`[ControlServer] Webhook route matched: ${path}`);
       await handleWebhookRequest(req, res, client);
+      return;
+    }
+
+    if (path.startsWith("/webhook-secure/")) {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", async () => {
+        const body = Buffer.concat(chunks);
+        const handled = await handleSecureWebhook(req, res, body);
+        if (!handled) {
+          sendJson(res, 404, { error: "Webhook route not found" });
+        }
+      });
       return;
     }
 

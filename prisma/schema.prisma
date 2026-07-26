@@ -1410,3 +1410,22 @@ model SecurityIncident {
   @@index([status])
   @@index([createdAt])
 }
+
+// ===== Audit Log =====
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  guildId     String
+  action      String
+  moderatorId String
+  targetId    String?
+  reason      String?
+  metadata    String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([guildId])
+  @@index([moderatorId])
+  @@index([targetId])
+  @@index([action])
+  @@index([createdAt])
+}

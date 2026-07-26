@@ -54,6 +54,8 @@ import {
   checkMessage as checkWordFilter,
   enforceFilter as enforceWordFilter,
 } from "../services/wordFilter.js";
+import { checkMessage as checkAutoMod, isMemberExempt as isAutoModExempt, executeAction as executeAutoModAction, DEFAULT_RULES as DEFAULT_AUTOMOD_RULES } from "../services/autoMod.js";
+import { checkMessageSimilarity as checkRaidSimilarity } from "../services/antiRaid.js";
 import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
 import { addXp } from "../services/xpService.js";
@@ -283,6 +285,23 @@ export function handleMessageEvents(client: Client) {
 
       // ── Enregistrement pour le spam detector ML ───────────────────
       recordSpamMessage(message.author.id, message.content, message.channel.id);
+
+      // ── Auto-modération (mots interdits, caps, liens, invites) ──
+      if (message.member) {
+        if (!isAutoModExempt(message.member, DEFAULT_AUTOMOD_RULES)) {
+          const autoModResult = checkAutoMod(message, DEFAULT_AUTOMOD_RULES);
+          if (autoModResult.violated) {
+            await executeAutoModAction(message, autoModResult.action, autoModResult.reason);
+            logger.info(`[AutoMod] ${message.author.tag}: ${autoModResult.reason}`);
+          }
+        }
+      }
+
+      // ── Anti-raid: similarité de messages ─────────────────────────
+      const raidAlert = checkRaidSimilarity(message);
+      if (raidAlert) {
+        logger.warn(`[AntiRaid] ${raidAlert.type}: ${raidAlert.detail} — ${message.author.tag}`);
+      }
 
       // ── Abuse Filter : patterns malveillants (scam, IP logger, raid...) ──
       if (!("member" in message) || !message.member) return;

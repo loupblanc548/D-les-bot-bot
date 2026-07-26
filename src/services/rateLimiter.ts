@@ -27,6 +27,10 @@ interface GuildRateLimitConfig {
 // Configurations par défaut pour différents types de requêtes
 const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   ai_chat: { maxRequests: 10, windowMs: 60 * 1000, cooldownMs: 5000 }, // 10 requêtes/min, 5s cooldown
+  ai_image: { maxRequests: 5, windowMs: 60 * 1000, cooldownMs: 10_000 }, // 5 images/min, 10s cooldown
+  ai_translate: { maxRequests: 20, windowMs: 60 * 1000, cooldownMs: 1000 }, // 20 traductions/min, 1s cooldown
+  ai_summary: { maxRequests: 3, windowMs: 60 * 1000, cooldownMs: 15_000 }, // 3 résumés/min, 15s cooldown
+  ai_agent: { maxRequests: 8, windowMs: 60 * 1000, cooldownMs: 3000 }, // 8 actions agent/min, 3s cooldown
   translate: { maxRequests: 20, windowMs: 60 * 1000, cooldownMs: 1000 }, // 20 traductions/min, 1s cooldown
   general: { maxRequests: 30, windowMs: 60 * 1000, cooldownMs: 500 }, // 30 requêtes/min, 0.5s cooldown
 };
