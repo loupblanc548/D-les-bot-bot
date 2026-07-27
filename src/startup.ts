@@ -252,6 +252,16 @@ export function attachStartupLogic(
         // Démarrer le health check périodique (auto-recovery si Ollama redémarre)
         startLocalLlmHealthCheck();
       });
+
+      // ─── Vérifier Piper TTS (synthèse vocale locale) ──────────────────
+      try {
+        const { checkPiperAvailability } = await import("./services/localTts.js");
+        void checkPiperAvailability().then((piperOk) => {
+          if (piperOk) logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
+        });
+      } catch {
+        // localTts.ts non disponible — ignorer
+      }
     } catch {
       // localLlm.ts non disponible — ignorer
     }

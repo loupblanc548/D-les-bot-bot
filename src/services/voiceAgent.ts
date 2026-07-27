@@ -438,6 +438,20 @@ async function playTTSMessage(client: Client, alert: VoiceAlert): Promise<void> 
  * 4. Google Translate TTS (fallback dernier recours)
  */
 async function generateTTS(text: string, lang: string, _speed: number): Promise<Buffer | null> {
+  // 0. Piper TTS local (gratuit, illimité, ~0.3s latence)
+  try {
+    const { generateLocalTTS, isPiperAvailable } = await import("./localTts.js");
+    if (isPiperAvailable()) {
+      const piperBuffer = await generateLocalTTS(text, lang);
+      if (piperBuffer && piperBuffer.length > 1000) {
+        logger.info(`[VoiceAgent] TTS via Piper local (voix neuronale locale, lang: ${lang})`);
+        return piperBuffer;
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
   // 1. ElevenLabs si configuré (qualité maximale, type ChatGPT)
   try {
     const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("./elevenLabsTts.js");
