@@ -405,15 +405,19 @@ interface RetryableError {
 
 function isRetryableError(err: unknown): boolean {
   const e = err as RetryableError;
-  // 429 with "free-models-per-day" = daily quota exhausted, retry won't help
-  if (e.status === 429 && e.message.includes("free-models-per-day")) {
+  // 429 = rate limit (per-minute or per-day) — never retry, switch to next model
+  if (e.status === 429) {
     return false;
   }
-  if (e.status === 429 && e.message.includes("daily")) {
+  // 402 = insufficient credits — never retry
+  if (e.status === 402) {
+    return false;
+  }
+  // 404/400 = invalid model — never retry
+  if (e.status === 404 || e.status === 400) {
     return false;
   }
   if (
-    e.status === 429 ||
     e.status === 500 ||
     e.status === 502 ||
     e.status === 503 ||
@@ -926,7 +930,7 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
     );
 
-    for (const modelName of modelsToTry.slice(0, 3)) {
+    for (const modelName of modelsToTry.slice(0, 5)) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
         // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
