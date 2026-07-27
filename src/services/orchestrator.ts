@@ -101,7 +101,10 @@ export async function delegateToExpert(
 
   const client = getClientForModel(model);
 
-  logger.info(`[Orchestrator] 🎯 qwen2.5 délègue à ${model} (tier: ${tier}) — tâche: ${task.slice(0, 80)}...`);
+  // Adaptive tokens: small tier = shorter response, large = more room
+  const adaptiveMaxTokens = tier === "small" ? 300 : tier === "medium" ? 500 : 800;
+
+  logger.info(`[Orchestrator] 🎯 qwen2.5 délègue à ${model} (tier: ${tier}, ${adaptiveMaxTokens} tokens) — tâche: ${task.slice(0, 80)}...`);
 
   try {
     const response = await client.chat.completions.create({
@@ -115,13 +118,13 @@ export async function delegateToExpert(
         },
         {
           role: "user",
-          content: `Contexte: ${context.slice(0, 500)}\n\nTâche: ${task}`,
+          content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
         },
       ],
-      max_tokens: 600,
+      max_tokens: adaptiveMaxTokens,
       temperature: 0.5,
       stream: false,
-    });
+    }, { timeout: 10_000 });
 
     const result = response.choices?.[0]?.message?.content?.trim();
 
@@ -139,7 +142,7 @@ export async function delegateToExpert(
     markModelFailure(model, isRateLimit);
     logger.warn(`[Orchestrator] ❌ ${model} échoué: ${msg.slice(0, 100)}`);
 
-    // Try one fallback model
+    // Try one fallback model (fast — 8s timeout)
     const fallbackModel = pickModelForTier(tier === "large" ? "medium" : "small");
     if (fallbackModel && fallbackModel !== model) {
       logger.info(`[Orchestrator] 🔄 Fallback vers ${fallbackModel}`);
@@ -154,7 +157,7 @@ export async function delegateToExpert(
             },
             {
               role: "user",
-              content: `Contexte: ${context.slice(0, 500)}\n\nTâche: ${task}`,
+              content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
             },
           ],
           max_tokens: 600,
@@ -173,6 +176,23 @@ export async function delegateToExpert(
 
     return `[Délégation échouée: ${msg.slice(0, 100)}]`;
   }
+}
+
+/**
+ * Delegate multiple subtasks in parallel.
+ * When qwen2.5 splits a complex task into subtasks, they all run simultaneously.
+ * @returns Array of results in the same order as the inputs.
+ */
+export async function delegateMultiple(
+  tasks: Array<{ task: string; tier: "small" | "medium" | "large"; context?: string }>,
+  defaultContext: string,
+): Promise<string[]> {
+  logger.info(`[Orchestrator] 🎼 Délégation parallèle: ${tasks.length} sous-tâches`);
+  const results = await Promise.all(
+    tasks.map((t) => delegateToExpert(t.task, t.tier, t.context || defaultContext)),
+  );
+  logger.info(`[Orchestrator] ✅ ${results.filter((r) => !r.startsWith("[Délégation échouée")).length}/${tasks.length} sous-tâches réussies`);
+  return results;
 }
 
 /**

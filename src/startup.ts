@@ -241,10 +241,14 @@ export function attachStartupLogic(
 
     // ─── Vérifier Ollama (LLM local) ──────────────────────────────────
     try {
-      const { checkLocalLlmAvailability, startLocalLlmHealthCheck } = await import("./services/localLlm.js");
+      const { checkLocalLlmAvailability, startLocalLlmHealthCheck, preWarmLocalModel } = await import("./services/localLlm.js");
       void checkLocalLlmAvailability().then((ok) => {
-        if (ok) logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
-        else logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
+        if (ok) {
+          logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
+          void preWarmLocalModel(); // Load model into RAM for fast first response
+        } else {
+          logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
+        }
         // Démarrer le health check périodique (auto-recovery si Ollama redémarre)
         startLocalLlmHealthCheck();
       });

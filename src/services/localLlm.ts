@@ -89,6 +89,27 @@ export function stopLocalLlmHealthCheck(): void {
 }
 
 /**
+ * Pre-warm Ollama: load the model into RAM so the first real request is fast.
+ * Without this, the first message after bot startup takes ~5s extra.
+ */
+export async function preWarmLocalModel(): Promise<void> {
+  if (!isLocalLlmAvailable()) return;
+  try {
+    logger.info(`[LocalLLM] 🔥 Pre-warm ${LOCAL_LLM_MODEL}...`);
+    const localClient = getLocalClient();
+    await localClient.chat.completions.create({
+      model: LOCAL_LLM_MODEL,
+      messages: [{ role: "user", content: "Hello" }],
+      max_tokens: 1,
+      stream: false,
+    }, { timeout: 30_000 });
+    logger.info(`[LocalLLM] ✅ Modèle pré-chargé en RAM — premier message sera rapide`);
+  } catch {
+    logger.warn(`[LocalLLM] Pre-warm échoué — le premier message sera plus lent`);
+  }
+}
+
+/**
  * Retourne le client OpenAI configuré pour Ollama.
  */
 function getLocalClient(): OpenAI {
@@ -97,7 +118,7 @@ function getLocalClient(): OpenAI {
       apiKey: "ollama", // Ollama n'a pas besoin de clé mais le SDK exige une valeur
       baseURL: LOCAL_LLM_URL,
       maxRetries: 0,
-      timeout: 30_000,
+      timeout: 20_000, // 20s max — qwen2.5:3b on CPU should respond within 10s
     });
   }
   return client;
@@ -113,12 +134,17 @@ export async function chatWithLocalLlm(
 ): Promise<string | null> {
   if (!isLocalLlmAvailable()) return null;
 
+  // Adaptive max_tokens: fewer tokens for simple chat = faster response
+  const lastMsg = messages[messages.length - 1]?.content || "";
+  const isShortQuestion = lastMsg.length < 100;
+  const adaptiveMaxTokens = options?.maxTokens ?? (isShortQuestion ? 300 : 800);
+
   try {
     const localClient = getLocalClient();
     const response = await localClient.chat.completions.create({
       model: LOCAL_LLM_MODEL,
       messages: messages as never,
-      max_tokens: options?.maxTokens ?? 800,
+      max_tokens: adaptiveMaxTokens,
       temperature: options?.temperature ?? 0.7,
       stream: false,
     });
@@ -127,12 +153,18 @@ export async function chatWithLocalLlm(
       logger.warn("[LocalLLM] Réponse vide du modèle local");
       return null;
     }
-    logger.info(`[LocalLLM] ✅ Réponse locale (${text.length} chars) — ${LOCAL_LLM_MODEL}`);
+    logger.info(`[LocalLLM] ✅ Réponse locale (${text.length} chars, ${adaptiveMaxTokens} max) — ${LOCAL_LLM_MODEL}`);
     return text.trim();
   } catch (error) {
-    logger.warn(
-      `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    // Don't log timeouts as warnings — they're expected on CPU for complex prompts
+    const isTimeout = error instanceof Error && error.message.includes("timeout");
+    if (isTimeout) {
+      logger.info(`[LocalLLM] Timeout (20s) — tâche trop lourde, fallback API`);
+    } else {
+      logger.warn(
+        `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     // Marquer comme potentiellement indisponible
     available = false;
     return null;
