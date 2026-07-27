@@ -483,4 +483,236 @@ async function fortniteLogout() {
   }
 }
 
+// ─── Markdown Lite (bold, italic, code, links, lists) ─────────────────────────
+
+function renderMarkdown(text) {
+  let html = escapeHtml(text);
+  // Code blocks
+  html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
+    `<pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:0.8rem;overflow-x:auto;margin:0.5rem 0;font-family:var(--font-mono);font-size:0.82rem;color:var(--accent-light);">${code.trim()}</pre>`);
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:0.1rem 0.35rem;font-family:var(--font-mono);font-size:0.82em;color:var(--accent-light);">$1</code>');
+  // Bold
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-light);text-decoration:none;border-bottom:1px solid var(--accent-glow);">$1</a>');
+  // Bullet lists
+  html = html.replace(/^• (.+)$/gm, '<li style="margin-left:1.2rem;list-style:disc;">$1</li>');
+  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul style="margin:0.4rem 0;padding-left:0.5rem;">${m}</ul>`);
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+// ─── Animated Number Counter ──────────────────────────────────────────────────
+
+function animateValue(el, start, end, duration = 800) {
+  const range = end - start;
+  const startTime = performance.now();
+  const isFloat = end % 1 !== 0;
+
+  function update(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = start + range * eased;
+    el.textContent = isFloat ? current.toFixed(1) : Math.floor(current).toLocaleString('fr-FR');
+    if (progress < 1) requestAnimationFrame(update);
+    else el.textContent = isFloat ? end.toFixed(1) : end.toLocaleString('fr-FR');
+  }
+  requestAnimationFrame(update);
+}
+
+// ─── Command Palette (Ctrl+K) ─────────────────────────────────────────────────
+
+const cmdPalette = document.getElementById("cmd-palette");
+const cmdInput = document.getElementById("cmd-input");
+const cmdResults = document.getElementById("cmd-results");
+let cmdSelectedIndex = -1;
+let cmdItems = [];
+
+const cmdCommands = [
+  { icon: "💬", title: "Aller au Chat AI", desc: "chat", action: () => switchToView("chat") },
+  { icon: "🔧", title: "Voir les Outils", desc: "tools", action: () => switchToView("tools") },
+  { icon: "🏰", title: "Serveurs Discord", desc: "servers", action: () => switchToView("servers") },
+  { icon: "📊", title: "Statistiques", desc: "stats", action: () => switchToView("stats") },
+  { icon: "🎮", title: "Fortnite Bot", desc: "fortnite", action: () => switchToView("fortnite") },
+  { icon: "⚙️", title: "Paramètres", desc: "settings", action: () => switchToView("settings") },
+  { icon: "🗑️", title: "Effacer le chat", desc: "chat clear", action: () => { switchToView("chat"); document.getElementById("chat-clear").click(); } },
+  { icon: "🔄", title: "Recharger les outils", desc: "tools reload", action: () => { switchToView("tools"); loadTools(); } },
+  { icon: "🔌", title: "Se déconnecter", desc: "logout", action: () => document.getElementById("logout-btn").click() },
+];
+
+function switchToView(view) {
+  document.querySelectorAll(".nav-item").forEach((b) => {
+    b.classList.toggle("active", b.dataset.view === view);
+  });
+  showView(view);
+}
+
+function renderCmdResults(query) {
+  const q = query.toLowerCase().trim();
+  cmdItems = q
+    ? cmdCommands.filter((c) => c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q))
+    : cmdCommands;
+  cmdSelectedIndex = -1;
+
+  if (!cmdItems.length) {
+    cmdResults.innerHTML = '<div class="cmd-palette-item" style="color:var(--text-muted);justify-content:center;">Aucun résultat</div>';
+    return;
+  }
+
+  cmdResults.innerHTML = cmdItems.map((c, i) =>
+    `<div class="cmd-palette-item${i === 0 ? ' selected' : ''}" data-index="${i}">
+      <span class="cmd-palette-item-icon">${c.icon}</span>
+      <span class="cmd-palette-item-title">${escapeHtml(c.title)}</span>
+      <span class="cmd-palette-item-desc">${escapeHtml(c.desc)}</span>
+    </div>`).join("");
+
+  cmdSelectedIndex = 0;
+  cmdResults.querySelectorAll(".cmd-palette-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      const idx = parseInt(el.dataset.index);
+      if (cmdItems[idx]) {
+        closeCmdPalette();
+        cmdItems[idx].action();
+      }
+    });
+  });
+}
+
+function openCmdPalette() {
+  cmdPalette.classList.add("open");
+  cmdInput.value = "";
+  renderCmdResults("");
+  setTimeout(() => cmdInput.focus(), 50);
+}
+
+function closeCmdPalette() {
+  cmdPalette.classList.remove("open");
+}
+
+function updateCmdSelection() {
+  cmdResults.querySelectorAll(".cmd-palette-item").forEach((el, i) => {
+    el.classList.toggle("selected", i === cmdSelectedIndex);
+  });
+  const sel = cmdResults.querySelector(".cmd-palette-item.selected");
+  if (sel) sel.scrollIntoView({ block: "nearest" });
+}
+
+cmdInput.addEventListener("input", (e) => renderCmdResults(e.target.value));
+
+cmdInput.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (cmdSelectedIndex < cmdItems.length - 1) { cmdSelectedIndex++; updateCmdSelection(); }
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (cmdSelectedIndex > 0) { cmdSelectedIndex--; updateCmdSelection(); }
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (cmdItems[cmdSelectedIndex]) {
+      closeCmdPalette();
+      cmdItems[cmdSelectedIndex].action();
+    }
+  } else if (e.key === "Escape") {
+    closeCmdPalette();
+  }
+});
+
+cmdPalette.addEventListener("click", (e) => {
+  if (e.target === cmdPalette) closeCmdPalette();
+});
+
+// ─── Global Keyboard Shortcuts ───────────────────────────────────────────────
+
+document.addEventListener("keydown", (e) => {
+  // Ctrl+K — Command palette
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+    e.preventDefault();
+    if (cmdPalette.classList.contains("open")) closeCmdPalette();
+    else openCmdPalette();
+  }
+  // Ctrl+/ — Focus chat input
+  if ((e.ctrlKey || e.metaKey) && e.key === "/" && !cmdPalette.classList.contains("open")) {
+    e.preventDefault();
+    switchToView("chat");
+    setTimeout(() => chatInput.focus(), 100);
+  }
+  // Escape — Close palette
+  if (e.key === "Escape" && cmdPalette.classList.contains("open")) {
+    closeCmdPalette();
+  }
+});
+
+// ─── Connection Status Polling ───────────────────────────────────────────────
+
+async function pollConnection() {
+  const dot = document.getElementById("conn-dot");
+  const text = document.getElementById("conn-text");
+  if (!dot || !text) return;
+  try {
+    await api("/bot/health");
+    dot.classList.remove("offline");
+    text.textContent = "API connectée";
+  } catch {
+    dot.classList.add("offline");
+    text.textContent = "API hors ligne";
+  }
+}
+
+setInterval(pollConnection, 30000);
+
+// ─── Enhanced Chat Rendering with Markdown ───────────────────────────────────
+
+const _originalAddChatMessage = addChatMessage;
+addChatMessage = function(role, content) {
+  const msg = document.createElement("div");
+  msg.className = `chat-msg ${role}`;
+  const avatar = document.createElement("div");
+  avatar.className = "chat-msg-avatar";
+  avatar.textContent = role === "user" ? "U" : "AI";
+  const bubble = document.createElement("div");
+  bubble.className = "chat-msg-bubble";
+  if (role === "assistant") {
+    bubble.innerHTML = renderMarkdown(content);
+  } else {
+    bubble.textContent = content;
+  }
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  chatMessages.appendChild(msg);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+};
+
+// ─── Enhanced Stats with Animated Counters ───────────────────────────────────
+
+const _originalLoadStats = loadStats;
+loadStats = async function() {
+  const content = document.getElementById("stats-content");
+  try {
+    const stats = await api("/bot/stats");
+    content.innerHTML = `<div class="stats-grid">
+      <div class="stat-card"><span class="stat-icon">🏰</span><div class="stat-value" data-target="${stats.totalGuilds || 0}">0</div><div class="stat-label">Serveurs</div></div>
+      <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value" data-target="${stats.totalUsers || 0}">0</div><div class="stat-label">Utilisateurs</div></div>
+      <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value" data-target="${stats.totalLogs || 0}">0</div><div class="stat-label">Logs</div></div>
+      <div class="stat-card"><span class="stat-icon">🔨</span><div class="stat-value" data-target="${stats.totalSanctions || 0}">0</div><div class="stat-label">Sanctions</div></div>
+      <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value" data-target="${Math.floor((stats.uptime || 0) / 3600)}">0</div><div class="stat-label">Uptime (h)</div></div>
+      <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value" data-target="${stats.memoryMb || 0}">0</div><div class="stat-label">Mémoire (MB)</div></div>
+    </div>`;
+    // Animate counters
+    content.querySelectorAll(".stat-value").forEach((el) => {
+      const target = parseInt(el.dataset.target) || 0;
+      animateValue(el, 0, target, 900);
+    });
+  } catch (err) {
+    content.innerHTML = `<p style="color: var(--danger)">Erreur: ${escapeHtml(err.message)}</p>`;
+  }
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
 init();
+pollConnection();
