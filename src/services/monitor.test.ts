@@ -132,6 +132,7 @@ vi.mock("../utils/logger", () => ({
     info: vi.fn().mockReturnThis(),
     error: vi.fn().mockReturnThis(),
     warn: vi.fn().mockReturnThis(),
+    debug: vi.fn().mockReturnThis(),
   },
 }));
 
@@ -140,6 +141,7 @@ vi.mock("../utils/logger", () => ({
     info: vi.fn().mockReturnThis(),
     error: vi.fn().mockReturnThis(),
     warn: vi.fn().mockReturnThis(),
+    debug: vi.fn().mockReturnThis(),
   },
 }));
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockLogger, mockConfig, mockMiddleware } = vi.hoisted(() => ({
-  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   mockConfig: { token: "mock-token", clientId: "mock-client-id", guildId: null },
   mockMiddleware: {
     createLoggingMiddleware: vi.fn(() => vi.fn()),

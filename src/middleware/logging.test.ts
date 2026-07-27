@@ -4,10 +4,11 @@ const mocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
+  debug: vi.fn(),
 }));
 
 vi.mock("../utils/logger", () => ({
-  default: { info: mocks.info, warn: mocks.warn, error: mocks.error },
+  default: { info: mocks.info, warn: mocks.warn, error: mocks.error, debug: mocks.debug },
 }));
 
 import { createLoggingMiddleware } from "./logging.js";

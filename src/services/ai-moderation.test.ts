@@ -8,7 +8,7 @@ const { mockOpenAI, mockConfig, mockLogger } = vi.hoisted(() => ({
     openRouterModel: "nvidia/nemotron-3-ultra-550b-a55b:free",
     openRouterApiKey: "test-key",
   },
-  mockLogger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+  mockLogger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
 vi.mock("./ai", () => ({ getOpenAIClient: () => mockOpenAI as unknown }));

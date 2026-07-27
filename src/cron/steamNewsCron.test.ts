@@ -8,10 +8,11 @@ const { mockProcessedPatchNotesFindUnique, mockProcessedPatchNotesCreate } = vi.
   mockProcessedPatchNotesCreate: vi.fn(),
 }));
 
-const { mockLoggerInfo, mockLoggerWarn, mockLoggerError } = vi.hoisted(() => ({
+const { mockLoggerInfo, mockLoggerWarn, mockLoggerError, mockLoggerDebug } = vi.hoisted(() => ({
   mockLoggerInfo: vi.fn(),
   mockLoggerWarn: vi.fn(),
   mockLoggerError: vi.fn(),
+  mockLoggerDebug: vi.fn(),
 }));
 
 const { mockFetch } = vi.hoisted(() => ({
@@ -52,6 +53,7 @@ vi.mock("../utils/logger", () => ({
     info: mockLoggerInfo,
     warn: mockLoggerWarn,
     error: mockLoggerError,
+    debug: mockLoggerDebug,
   },
 }));
 

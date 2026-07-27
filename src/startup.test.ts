@@ -6,6 +6,7 @@ const { mockLogger, mockConfig, mockClient, mockServices, mockCron } = vi.hoiste
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    debug: vi.fn(),
   },
   mockConfig: {
     ownerId: "owner-123",

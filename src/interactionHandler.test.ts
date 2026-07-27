@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Hoisted mocks ──────────────────────────────────────────────
 const { mockLogger, mockPrisma, mockSentry, mockCommandRouter, mockHandlers } = vi.hoisted(() => ({
-  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   mockPrisma: {
     source: {
       findMany: vi.fn().mockResolvedValue([]),

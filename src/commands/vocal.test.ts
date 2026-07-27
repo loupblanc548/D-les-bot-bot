@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Hoisted mocks ──────────────────────────────────────────────
 const { mockLogger, mockRequireAdmin, mockVoice } = vi.hoisted(() => ({
-  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   mockRequireAdmin: vi.fn(),
   mockVoice: {
     joinVoiceChannel: vi.fn(),

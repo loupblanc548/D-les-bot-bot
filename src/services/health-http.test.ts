@@ -10,6 +10,7 @@ const { mockPrisma, mockLogger } = vi.hoisted(() => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 

@@ -17,7 +17,7 @@ const { mockParseURL, mockFindUnique, mockCreate, mockLogger, mockSend, mockFetc
     mockParseURL: vi.fn(),
     mockFindUnique: vi.fn(),
     mockCreate: vi.fn(),
-    mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
     mockSend: vi.fn().mockResolvedValue(undefined),
     mockFetch: vi.fn(),
     mockIsTextBased: vi.fn().mockReturnValue(true),
