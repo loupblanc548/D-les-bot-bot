@@ -931,9 +931,18 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
     );
 
-    // ─── Étape 0: LLM local (Ollama) en priorité si disponible ───
+    // ─── Étape 0: LLM local (Ollama/qwen) — PRIORITÉ ABSOLUE ───
+    // Le bot utilise qwen2.5 en LOCAL d'abord (gratuit, illimité, 0 latence réseau).
+    // Les API payantes (OpenRouter/NVIDIA) ne sont utilisées que si:
+    // 1. Le local échoue (Ollama down, modèle crash)
+    // 2. La tâche est trop complexe (4+ tools + raisonnement profond) ET le local retourne une réponse vide/incohérente
     if (isLocalLlmAvailable()) {
-      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME}`);
+      // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",
+      // on essaie quand même le local mais on accepte de fallback plus vite
+      const isComplexTask = (taskComplexity === "moderate" || taskComplexity === "complex") && availableTools.length > 3;
+
+      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length}${isComplexTask ? " — tâche complexe, fallback rapide si échec" : ""})`);
+
       try {
         if (availableTools.length > 0) {
           // Tâche avec tools — essayer le local avec tools
@@ -955,9 +964,9 @@ async function runAgentLoopInternal(
                   finish_reason: "tool_calls",
                 }],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools)`);
+              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`);
               continue; // Passer à l'exécution des tools
-            } else if (localResult.text) {
+            } else if (localResult.text && localResult.text.length > 5) {
               // Réponse texte simple — pas besoin de tools
               response = {
                 choices: [{
@@ -965,30 +974,50 @@ async function runAgentLoopInternal(
                   finish_reason: "stop",
                 }],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte)`);
+              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`);
               break;
+            } else if (!isComplexTask) {
+              // Réponse courte mais tâche simple — acceptable
+              if (localResult.text) {
+                response = {
+                  choices: [{
+                    message: { role: "assistant", content: localResult.text },
+                    finish_reason: "stop",
+                  }],
+                } as never;
+                logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (réponse courte, tâche simple)`);
+                break;
+              }
             }
+            // Si tâche complexe et réponse vide/courte → fallback vers API
+            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante pour tâche ${isComplexTask ? "complexe" : "simple"} — fallback API`);
+          } else {
+            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} retour null — fallback API`);
           }
         } else {
-          // Pas de tools — chat simple
+          // Pas de tools — chat simple, le local est parfait pour ça
           const localText = await chatWithLocalLlm(
             conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
             { maxTokens: getPersonalityMaxTokens(), temperature: getPersonalityTemperature() },
           );
-          if (localText) {
+          if (localText && localText.length > 2) {
             response = {
               choices: [{
                 message: { role: "assistant", content: localText },
                 finish_reason: "stop",
               }],
             } as never;
-            logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple)`);
+            logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`);
             break;
           }
+          logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
         }
       } catch (localErr) {
         logger.warn(`[AgentLoop] ❌ LLM local échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
       }
+    } else {
+      // Ollama non disponible — on log et on passe directement aux API
+      logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
     for (const modelName of modelsToTry.slice(0, 5)) {
