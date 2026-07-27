@@ -130,6 +130,8 @@ export async function joinVoiceChannelById(
       channelId,
       guildId,
       adapterCreator: guild.voiceAdapterCreator,
+      selfMute: false,
+      selfDeaf: false,
     });
 
     connection.on(VoiceConnectionStatus.Disconnected, () => {

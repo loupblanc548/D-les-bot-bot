@@ -3,6 +3,7 @@ import { handleCommand as handleUtility } from "./utility.js";
 import { handleCommand as handleVocal } from "./vocal.js";
 import { handleCommand as handleMp3 } from "./mp3.js";
 import { handleCommand as handleTts } from "./tts.js";
+import { handleCommand as handleParle } from "./parle.js";
 import { handleCommand as handleRecherche } from "./recherche.js";
 import { handleCommand as handleAudioPanel } from "./audioPanel.js";
 import {
@@ -59,6 +60,29 @@ export const commands = [
         .setDescription("Lit du texte à voix haute en vocal")
         .addStringOption((o) => o.setName("texte").setDescription("Le texte").setRequired(true))
         .addStringOption((o) => o.setName("langue").setDescription("Langue").setRequired(false)),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("parle")
+        .setDescription("Fait parler le bot en vocal (TTS neuronal)")
+        .addStringOption((o) =>
+          o.setName("texte").setDescription("Texte à dire à voix haute").setRequired(true).setMaxLength(500),
+        )
+        .addStringOption((o) =>
+          o.setName("langue").setDescription("Langue (défaut: Français)").setRequired(false)
+          .addChoices(
+            { name: "Français", value: "fr" },
+            { name: "English", value: "en" },
+            { name: "Español", value: "es" },
+            { name: "Deutsch", value: "de" },
+            { name: "Italiano", value: "it" },
+            { name: "Português", value: "pt" },
+            { name: "日本語", value: "ja" },
+            { name: "한국어", value: "ko" },
+            { name: "中文", value: "zh" },
+            { name: "Русский", value: "ru" },
+          ),
+        ),
     )
     .addSubcommand((sc) =>
       sc
@@ -246,6 +270,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleMp3(interaction);
   } else if (action === "tts") {
     await handleTts(interaction);
+  } else if (action === "parle") {
+    await handleParle(interaction);
   } else if (action === "recherche") {
     await handleRecherche(interaction);
   } else if (action === "audio-effects" || action === "radio-stop") {

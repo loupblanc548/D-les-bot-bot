@@ -1,8 +1,8 @@
 /**
- * tts.ts — Commande /tts (Text-to-Speech en vocal)
+ * parle.ts — Commande /parle (fait parler le bot en vocal)
  *
- * Utilise l'API Google Translate TTS (gratuite, pas de clé requise)
- * pour générer un audio MP3 depuis du texte, puis le joue en vocal.
+ * Le bot rejoint le salon vocal de l'utilisateur et lit le texte à voix haute.
+ * Utilise le pipeline TTS neuronal (Edge TTS / Piper / ElevenLabs).
  */
 
 import {
@@ -14,53 +14,50 @@ import {
 } from "discord.js";
 import {
   joinVoiceChannel,
+  getVoiceConnection,
   createAudioPlayer,
   createAudioResource,
   AudioPlayerStatus,
   NoSubscriberBehavior,
 } from "@discordjs/voice";
-import { activePlayers, cleanupConnection, DISCONNECT_DELAY_MS } from "../services/audioPlayer.js";
+import { Readable } from "node:stream";
 import { writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import logger from "../utils/logger.js";
 
-const TTS_DIR = join(tmpdir(), "bot-tts");
-const TTS_MAX_LENGTH = 500;
-
-const LANGUAGES = [
-  { name: "Français", value: "fr" },
-  { name: "English", value: "en" },
-  { name: "Español", value: "es" },
-  { name: "Deutsch", value: "de" },
-  { name: "Italiano", value: "it" },
-  { name: "Português", value: "pt" },
-  { name: "日本語", value: "ja" },
-  { name: "한국어", value: "ko" },
-  { name: "中文", value: "zh" },
-  { name: "Русский", value: "ru" },
-  { name: "العربية", value: "ar" },
-  { name: "Nederlands", value: "nl" },
-];
+const TTS_DIR = join(tmpdir(), "bot-parle");
+const MAX_LENGTH = 500;
 
 export const commands = [
   new SlashCommandBuilder()
-    .setName("tts")
-    .setDescription("Lit du texte à voix haute dans ton salon vocal")
+    .setName("parle")
+    .setDescription("Fait parler le bot dans ton salon vocal (TTS neuronal)")
     .addStringOption((o) =>
       o
         .setName("texte")
-        .setDescription("Texte à lire à voix haute (max 500 caractères)")
+        .setDescription("Texte que le bot doit dire à voix haute")
         .setRequired(true)
-        .setMaxLength(TTS_MAX_LENGTH),
+        .setMaxLength(MAX_LENGTH),
     )
     .addStringOption((o) =>
       o
         .setName("langue")
-        .setDescription("Langue du texte")
+        .setDescription("Langue du texte (défaut: Français)")
         .setRequired(false)
-        .addChoices(...LANGUAGES.map((l) => ({ name: l.name, value: l.value }))),
+        .addChoices(
+          { name: "Français", value: "fr" },
+          { name: "English", value: "en" },
+          { name: "Español", value: "es" },
+          { name: "Deutsch", value: "de" },
+          { name: "Italiano", value: "it" },
+          { name: "Português", value: "pt" },
+          { name: "日本語", value: "ja" },
+          { name: "한국어", value: "ko" },
+          { name: "中文", value: "zh" },
+          { name: "Русский", value: "ru" },
+        ),
     )
     .toJSON(),
 ];
@@ -74,7 +71,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
   if (!voiceChannel) {
     await interaction.reply({
-      content: "❌ Tu dois être dans un salon vocal pour utiliser cette commande.",
+      content: "❌ Tu dois être dans un salon vocal pour que je puisse parler.",
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -83,8 +80,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
   try {
-    // Générer l'audio TTS via le pipeline neuronal (Edge TTS / Piper / ElevenLabs)
-    const { speakResponseInVoice } = await import("../services/voiceAgent.js");
+    // Générer l'audio TTS neuronal
     const audioBuffer = await generateNeuralTTS(text, lang);
     if (!audioBuffer) {
       await interaction.editReply({
@@ -93,14 +89,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    // Sauvegarder temporairement
-    await mkdir(TTS_DIR, { recursive: true });
-    const filename = `tts-${randomUUID()}.mp3`;
-    const filepath = join(TTS_DIR, filename);
-    await writeFile(filepath, audioBuffer, { mode: 0o600 });
-
-    // Rejoindre le vocal (non-muté, non-sourdi)
+    // Détruire l'ancienne connexion si dans un autre salon
     const guildId = interaction.guildId!;
+    const existing = getVoiceConnection(guildId);
+    if (existing && existing.joinConfig.channelId !== voiceChannel.id) {
+      existing.destroy();
+    }
+
+    // Rejoindre le vocal (non-muté!)
     const connection = joinVoiceChannel({
       channelId: voiceChannel.id,
       guildId,
@@ -111,46 +107,47 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
     // Créer le player et jouer
     const player = createAudioPlayer({
-      behaviors: { noSubscriber: NoSubscriberBehavior.Pause },
+      behaviors: { noSubscriber: NoSubscriberBehavior.Play },
     });
 
-    const resource = createAudioResource(filepath);
-    activePlayers.set(guildId, player);
+    const stream = Readable.from(audioBuffer);
+    const resource = createAudioResource(stream);
     connection.subscribe(player);
     player.play(resource);
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setTitle("🗣️ Text-to-Speech")
-      .setDescription(`Lecture en cours dans **${voiceChannel.name}**`)
+      .setColor(0x57f287)
+      .setTitle("🗣️ Le bot parle!")
+      .setDescription(`Lecture dans **${voiceChannel.name}**`)
       .addFields(
+        { name: "Texte", value: text.slice(0, 200), inline: false },
         { name: "Langue", value: lang, inline: true },
-        { name: "Longueur", value: `${text.length} caractères`, inline: true },
+        { name: "Voix", value: "Neuronale (Edge TTS)", inline: true },
       )
-      .setFooter({ text: "TTS • Neural Edge TTS" })
+      .setFooter({ text: "Commande /parle • TTS neuronal" })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    logger.info(`[TTS] ${interaction.user.tag} lit "${text.slice(0, 50)}..." en ${lang}`);
+    logger.info(`[Parle] ${interaction.user.tag} dit "${text.slice(0, 50)}..." en ${lang}`);
 
     // Nettoyer à la fin
     player.once(AudioPlayerStatus.Idle, () => {
-      logger.info("[TTS] Lecture terminée");
+      logger.info("[Parle] Lecture terminée");
+      // Déconnexion auto après 10s d'inactivité
       setTimeout(() => {
-        if (
-          activePlayers.get(guildId) === player &&
-          player.state.status === AudioPlayerStatus.Idle
-        ) {
-          cleanupConnection(guildId);
-          logger.info(`[TTS] Déconnexion après ${DISCONNECT_DELAY_MS / 1000}s d'inactivité`);
+        const conn = getVoiceConnection(guildId);
+        if (conn && conn.joinConfig.channelId === voiceChannel.id) {
+          conn.destroy();
+          logger.info("[Parle] Déconnexion auto");
         }
-      }, DISCONNECT_DELAY_MS);
+      }, 10_000);
+    });
 
-      // Supprimer le fichier temporaire
-      unlink(filepath).catch(() => {});
+    player.on("error", (err) => {
+      logger.error(`[Parle] Player error: ${err.message}`);
     });
   } catch (error) {
-    logger.error("[TTS] Erreur:", error);
+    logger.error("[Parle] Erreur:", error);
     try {
       await interaction.editReply({ content: "❌ Une erreur est survenue." });
     } catch {}
@@ -158,46 +155,44 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 }
 
 /**
- * Génère l'audio TTS via le pipeline neuronal de voiceAgent.
- * Ordre de priorité: Piper local → ElevenLabs → Edge TTS → StreamElements → Google Translate
+ * Pipeline TTS neuronal — même que voiceAgent.ts
+ * Priorité: Piper local → ElevenLabs → Edge TTS → StreamElements → Google Translate
  */
 async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | null> {
-  // 1. Piper TTS local (gratuit, illimité, ~0.3s latence)
+  // 1. Piper TTS local
   try {
     const { generateLocalTTS, isPiperAvailable } = await import("../services/localTts.js");
     if (isPiperAvailable()) {
-      const piperBuffer = await generateLocalTTS(text, lang);
-      if (piperBuffer && piperBuffer.length > 1000) {
-        logger.info(`[TTS] Via Piper local (lang: ${lang})`);
-        return piperBuffer;
+      const buf = await generateLocalTTS(text, lang);
+      if (buf && buf.length > 1000) {
+        logger.info(`[Parle] TTS via Piper local (lang: ${lang})`);
+        return buf;
       }
     }
   } catch {}
 
-  // 2. ElevenLabs si configuré
+  // 2. ElevenLabs
   try {
     const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("../services/elevenLabsTts.js");
     if (isElevenLabsConfigured()) {
       const result = await generateElevenLabsTTS(text.slice(0, 500));
       if (result?.audioUrl?.startsWith("data:audio/mpeg;base64,")) {
-        const base64Data = result.audioUrl.split(",")[1];
-        const buffer = Buffer.from(base64Data, "base64");
-        logger.info("[TTS] Via ElevenLabs (neural premium)");
-        return buffer;
+        logger.info("[Parle] TTS via ElevenLabs (neural premium)");
+        return Buffer.from(result.audioUrl.split(",")[1], "base64");
       }
     }
   } catch {}
 
-  // 3. Microsoft Edge TTS (gratuit, voix neuronales Azure)
+  // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
     const edgeBuffer = await generateEdgeTTS(text.slice(0, 500), lang);
     if (edgeBuffer && edgeBuffer.length > 1000) {
-      logger.info(`[TTS] Via Microsoft Edge TTS (neural, lang: ${lang})`);
+      logger.info(`[Parle] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
   } catch {}
 
-  // 4. StreamElements / Amazon Polly (gratuit, voix naturelle)
+  // 4. StreamElements / Amazon Polly
   try {
     const voiceMap: Record<string, string> = {
       fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
@@ -213,13 +208,13 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
     if (seRes.ok) {
       const seBuffer = Buffer.from(await seRes.arrayBuffer());
       if (seBuffer.length > 1000) {
-        logger.info(`[TTS] Via StreamElements/Polly (voix: ${voice})`);
+        logger.info(`[Parle] TTS via StreamElements/Polly (voix: ${voice})`);
         return seBuffer;
       }
     }
   } catch {}
 
-  // 5. Fallback: Google Translate TTS (robotique mais toujours disponible)
+  // 5. Fallback: Google Translate TTS
   try {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 500))}&tl=${lang}&client=tw-ob`;
     const res = await fetch(url, {
@@ -229,22 +224,15 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
       },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) {
-      logger.warn(`[TTS] Fallback HTTP ${res.status}`);
-      return null;
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    logger.info("[TTS] Via Google Translate (fallback)");
-    return Buffer.from(arrayBuffer);
-  } catch (error) {
-    logger.error("[TTS] Erreur fetch:", error);
+    if (!res.ok) return null;
+    logger.info("[Parle] TTS via Google Translate (fallback)");
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    logger.error("[Parle] Erreur TTS:", err);
     return null;
   }
 }
 
-/**
- * Microsoft Edge TTS — voix neuronales Azure gratuites.
- */
 async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | null> {
   const { WebSocket } = await import("ws");
 
@@ -287,10 +275,7 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
       },
     );
 
-    const timeout = setTimeout(() => {
-      logger.warn("[TTS] Edge TTS timeout");
-      finish(null);
-    }, 10_000);
+    const timeout = setTimeout(() => finish(null), 10_000);
 
     ws.on("open", () => {
       ws.send(
@@ -317,9 +302,8 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
       }
     });
 
-    ws.on("error", (err) => {
+    ws.on("error", () => {
       clearTimeout(timeout);
-      logger.warn(`[TTS] Edge TTS error: ${err.message}`);
       finish(null);
     });
 
