@@ -1,11 +1,14 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import logger from "./logger.js";
 
 async function testConnection(): Promise<void> {
   logger.info("=== Test de connexion PostgreSQL via Prisma ===");
   
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({
     log: ["error", "warn"],
+    adapter,
   });
 
   try {
