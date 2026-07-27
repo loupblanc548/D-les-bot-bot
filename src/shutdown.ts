@@ -36,6 +36,7 @@ import { stopBridgeServer } from "./infrastructure/bridge/bridgeServer.js";
 import { stopInfraWatchdog } from "./services/infraWatchdog.js";
 import { stopConfigCache } from "./services/configCache.js";
 import { stopDmCleanup } from "./services/dmCleanup.js";
+import { shutdownOpenTelemetry } from "./utils/otel-setup.js";
 import type {} from "discord.js";
 
 export type ClientDestroyFn = () => void;
@@ -94,6 +95,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
     },
     () => {
       void shutdownLogQueue();
+    },
+    () => {
+      void shutdownOpenTelemetry();
     },
   ];
 

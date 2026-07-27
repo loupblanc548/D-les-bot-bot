@@ -6,6 +6,12 @@
  * démarrage des services, point d'entrée main().
  */
 
+// OpenTelemetry must be imported before everything else for auto-instrumentation
+import { initOpenTelemetry } from "./utils/otel-setup.js";
+if (process.env.OTEL_ENABLED === "true") {
+  initOpenTelemetry();
+}
+
 import * as Sentry from "@sentry/node";
 import { Client, GatewayIntentBits, Options } from "discord.js";
 import prisma from "./prisma.js";

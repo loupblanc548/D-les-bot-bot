@@ -46,6 +46,7 @@ export default tseslint.config(
       "src/undici-patch.cjs",
       "src/dashboard/frontend/**",
       "scripts/migrate-cache-to-neon.ts",
+      "scripts/codebase-graph.ts",
       "vitest.config.ts",
       "batch-scripts.test.ts",
     ],
