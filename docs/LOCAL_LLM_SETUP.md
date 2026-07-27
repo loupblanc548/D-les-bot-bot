@@ -29,15 +29,41 @@
 # ÉTAPE 2: Configurer Ollama pour écouter sur le réseau
 # =============================================================================
 #
-# Si le bot reste sur le VPS et le mini PC sert de serveur LLM distant:
+# ⚠️  SÉCURITÉ CRITIQUE — NE JAMAIS EXPOSER OLLAMA SUR 0.0.0.0
 #
-# PowerShell (Admin):
-#   $env:OLLAMA_HOST = "0.0.0.0:11434"
-#   ollama serve
+# Ollama n'a AUCUNE authentification native. Exposer le port 11434
+# sur Internet = n'importe qui peut utiliser votre LLM gratuitement.
 #
-# Pour persistant, créer une variable d'environnement système:
-#   Paramètres → Système → À propos → Variables d'environnement
-#   OLLAMA_HOST = 0.0.0.0:11434
+# --- Solution recommandée: Tailscale (VPN privé gratuit) ---
+#
+# 1. Installer Tailscale sur le VPS ET le mini PC:
+#    curl -fsSL https://tailscale.com/install.sh | sh  (Linux)
+#    ou télécharger depuis https://tailscale.com/download (Windows)
+#
+# 2. Connecter les deux machines au même compte Tailscale:
+#    tailscale up
+#
+# 3. Récupérer l'IP Tailscale du mini PC (100.x.x.x):
+#    tailscale ip
+#
+# 4. Configurer Ollama pour n'écouter QUE sur l'IP du tunnel:
+#    PowerShell (Admin): $env:OLLAMA_HOST = "100.x.x.x:11434"
+#    ou variable système: OLLAMA_HOST = 100.x.x.x:11434
+#
+# 5. Vérifier que le port 11434 n'est PAS accessible depuis Internet:
+#    curl http://IP_PUBLIQUE_MINI_PC:11434  -> doit échouer
+#    curl http://100.x.x.x:11434            -> doit réussir depuis le VPS
+#
+# --- Alternative: reverse proxy nginx avec authentification ---
+#
+# Si Tailscale n'est pas envisageable, mettre nginx devant Ollama:
+#   server {
+#     listen 11434;
+#     auth_basic "Ollama";
+#     auth_basic_user_file /etc/nginx/.htpasswd;
+#     proxy_pass http://127.0.0.1:11434;
+#   }
+# Et configurer OLLAMA_HOST=127.0.0.1:11434 (localhost uniquement)
 #
 # =============================================================================
 # ÉTAPE 3: Activer dans le .env du bot
@@ -57,16 +83,23 @@
 # Il suffit de définir ces deux variables dans .env et redémarrer le bot.
 #
 # =============================================================================
-# ÉTAPE 4: Sécurité (si le mini PC est exposé à internet)
+# ÉTAPE 4: Vérification de sécurité (obligatoire)
 # =============================================================================
 #
-# Ollama n'a pas d'authentification. Si le mini PC est sur le même réseau
-# local que le VPS (VPN/tunnel), c'est OK. Sinon, utiliser un firewall:
+# Après configuration, VÉRIFIER que Ollama n'est pas exposé publiquement:
 #
-# Windows Defender Firewall:
-#   Autoriser le port 11434 uniquement pour l'IP du VPS
+# 1. Depuis une machine externe (ex: téléphone en 4G):
+#    curl http://IP_PUBLIQUE_MINI_PC:11434/api/tags
+#    -> doit retourner Connection refused ou timeout
 #
-# Ou utiliser Tailscale/WireGuard pour un tunnel chiffré.
+# 2. Si le port a déjà été exposé sans protection:
+#    - Vérifier les logs Ollama: journalctl -u ollama (Linux)
+#    - ou %LOCALAPPDATA%/Ollama/logs (Windows)
+#    - Chercher des requêtes d'IPs non reconnues
+#    - Considérer que le modèle a pu être utilisé par des tiers
+#
+# 3. Firewall Windows Defender (couche supplémentaire):
+#    Autoriser le port 11434 UNIQUEMENT pour l'IP Tailscale du VPS
 #
 # =============================================================================
 # Modèles alternatifs (si qwen2.5:7b est trop lent)

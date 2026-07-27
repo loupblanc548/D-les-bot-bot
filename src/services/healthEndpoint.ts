@@ -57,7 +57,7 @@ export function startHealthEndpoint(port: number = 7890): void {
   });
 
   server.on("error", (err) => {
-    logger.warn(`[HealthEndpoint] Erreur: ${err.message}`);
+    logger.error(`[HealthEndpoint] Erreur serveur HTTP: ${err.message}`);
   });
 }
 

@@ -98,7 +98,7 @@ function createSessionToken(userId: string, accessToken: string): string {
 
 function verifySessionToken(token: string): { userId: string; accessToken: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; accessToken: string };
+    return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; accessToken: string };
   } catch {
     return null;
   }
