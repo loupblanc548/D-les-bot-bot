@@ -17,6 +17,7 @@ import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
+import { loadCustomSkin } from "./minecraftSkin.js";
 
 export interface MCBotConfig {
   host: string;
@@ -117,6 +118,13 @@ export async function connectBot(
       offline: config.offline ?? true,
       version: "1.26.33",
     };
+
+    // Charger le skin personnalisé si disponible
+    const customSkin = loadCustomSkin();
+    if (customSkin) {
+      options.skinData = customSkin;
+      logger.info(`[MinecraftBot] Skin personnalisé appliqué pour ${config.username}`);
+    }
 
     if (config.realmId) {
       options.realms = { realmId: config.realmId, pickRealm: (realms: unknown[]) => realms[0] };
