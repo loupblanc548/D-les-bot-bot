@@ -528,16 +528,16 @@ async function handleVoiceCommand(
     || content.match(/texte\s*:\s*(.+?)(?:\s+langue\s*:|$)/i);
   if (!textMatch) {
     await message.reply({
-      content: "🗣️ **Usage:** `@John Helldiver parle texte:\"Bonjour tout le monde !\" langue:Français`\n\nLa commande `texte:` est obligatoire. La `langue:` est optionnelle (défaut: Français).",
+      content: "🗣️ **Usage:** `@John Helldiver parle texte:\"Bonjour tout le monde !\" langue:Français`\n\nLa commande `texte:` est obligatoire (max 3000 caractères). La `langue:` est optionnelle (défaut: Français).\n\n**Langues disponibles:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
       allowedMentions: { repliedUser: false },
     });
     return true;
   }
 
   const text = textMatch[1].trim();
-  if (!text || text.length > 500) {
+  if (!text || text.length > 3000) {
     await message.reply({
-      content: "❌ Le texte doit faire entre 1 et 500 caractères.",
+      content: "❌ Le texte doit faire entre 1 et 3000 caractères.",
       allowedMentions: { repliedUser: false },
     });
     return true;
@@ -546,16 +546,101 @@ async function handleVoiceCommand(
   // Parser la langue
   const langMatch = content.match(/langue\s*:\s*(\S+)/i);
   const langMap: Record<string, string> = {
+    // Français
     fr: "fr", français: "fr", francais: "fr", french: "fr",
+    // Anglais
     en: "en", english: "en", anglais: "en",
-    es: "es", español: "es", espagnol: "es", spanish: "es",
+    // Espagnol
+    es: "es", español: "es", espagnol: "es", spanish: "es", espanol: "es",
+    // Allemand
     de: "de", deutsch: "de", allemand: "de", german: "de",
+    // Italien
     it: "it", italiano: "it", italien: "it", italian: "it",
-    pt: "pt", português: "pt", portugais: "pt", portuguese: "pt",
+    // Portugais
+    pt: "pt", português: "pt", portugais: "pt", portuguese: "pt", portugues: "pt",
+    ptbr: "pt", br: "pt", bresilien: "pt", brésilien: "pt",
+    // Japonais
     ja: "ja", 日本語: "ja", japonais: "ja", japanese: "ja",
-    ko: "ko", 한국어: "ko", coréen: "ko", korean: "ko",
+    // Coréen
+    ko: "ko", 한국어: "ko", coréen: "ko", korean: "ko", coreen: "ko",
+    // Chinois
     zh: "zh", 中文: "zh", chinois: "zh", chinese: "zh",
+    // Russe
     ru: "ru", русский: "ru", russe: "ru", russian: "ru",
+    // Arabe
+    ar: "ar", العربية: "ar", arabe: "ar", arabic: "ar",
+    // Hindi
+    hi: "hi", हिन्दी: "hi", hindi: "hi", indien: "hi",
+    // Néerlandais
+    nl: "nl", nederlands: "nl", néerlandais: "nl", dutch: "nl", neerlandais: "nl",
+    // Polonais
+    pl: "pl", polski: "pl", polonais: "pl", polish: "pl",
+    // Turc
+    tr: "tr", türkçe: "tr", turc: "tr", turkish: "tr", turkce: "tr",
+    // Suédois
+    sv: "sv", svenska: "sv", suédois: "sv", swedish: "sv", suedois: "sv",
+    // Norvégien
+    nb: "nb", norsk: "nb", norvégien: "nb", norwegian: "nb", norvegien: "nb",
+    // Danois
+    da: "da", dansk: "da", danois: "da", danish: "da",
+    // Finlandais
+    fi: "fi", suomi: "fi", finnois: "fi", finnish: "fi",
+    // Tchèque
+    cs: "cs", čeština: "cs", tchèque: "cs", czech: "cs", tcheque: "cs",
+    // Grec
+    el: "el", ελληνικά: "el", grec: "el", greek: "el",
+    // Hébreu
+    he: "he", עברית: "he", hébreu: "he", hebrew: "he", hebregu: "he",
+    // Hongrois
+    hu: "hu", magyar: "hu", hongrois: "hu", hungarian: "hu",
+    // Roumain
+    ro: "ro", română: "ro", roumain: "ro", romanian: "ro", romana: "ro",
+    // Thai
+    th: "th", ไทย: "th", thaï: "th", thai: "th", thailandais: "th",
+    // Vietnamien
+    vi: "vi", vietnamien: "vi", vietnamese: "vi",
+    // Indonésien
+    id: "id", indonesien: "id", indonésien: "id", indonesian: "id",
+    // Ukrainien
+    uk: "uk", українська: "uk", ukrainien: "uk", ukrainian: "uk",
+    // Catalan
+    ca: "ca", català: "ca", catalan: "ca",
+    // Bulgare
+    bg: "bg", български: "bg", bulgare: "bg", bulgarian: "bg",
+    // Croate
+    hr: "hr", hrvatski: "hr", croate: "hr", croatian: "hr",
+    // Malayalam
+    ml: "ml", മലയാളം: "ml", malayalam: "ml",
+    // Tamoul
+    ta: "ta", தமிழ்: "ta", tamoul: "ta", tamil: "ta",
+    // Telugu
+    te: "te", తెలుగు: "te", telugu: "te",
+    // Marathi
+    mr: "mr", मराठी: "mr", marathi: "mr",
+    // Gujarati
+    gu: "gu", ગુજરાતી: "gu", gujarati: "gu",
+    // Kannada
+    kn: "kn", ಕನ್ನಡ: "kn", kannada: "kn",
+    // Bengali
+    bn: "bn", বাংলা: "bn", bengali: "bn",
+    // Slovaque
+    sk: "sk", slovenčina: "sk", slovaque: "sk", slovak: "sk",
+    // Slovène
+    sl: "sl", slovenščina: "sl", slovène: "sl", slovenian: "sl", slovene: "sl",
+    // Estonien
+    et: "et", eesti: "et", estonien: "et", estonian: "et",
+    // Letton
+    lv: "lv", latviešu: "lv", letton: "lv", latvian: "lv",
+    // Lituanien
+    lt: "lt", lietuvių: "lt", lituanien: "lt", lithuanian: "lt",
+    // Serbe
+    sr: "sr", српски: "sr", serbe: "sr", serbian: "sr",
+    // Afrikaans
+    af: "af", afrikaans: "af",
+    // Swahili
+    sw: "sw", kiswahili: "sw", swahili: "sw",
+    // Filipinois/Tagalog
+    fil: "fil", filipino: "fil", tagalog: "fil", philippin: "fil",
   };
   const langRaw = langMatch?.[1]?.toLowerCase().replace(/[éèê]/g, "e") || "fr";
   const lang = langMap[langRaw] || langMap[langRaw.slice(0, 2)] || "fr";
@@ -672,7 +757,7 @@ async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | nu
 
   // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
-    const edgeBuffer = await generateEdgeTTS(text.slice(0, 500), lang);
+    const edgeBuffer = await generateEdgeTTS(text.slice(0, 3000), lang);
     if (edgeBuffer && edgeBuffer.length > 1000) {
       logger.info(`[VoiceCmd] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
@@ -684,7 +769,15 @@ async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | nu
     const voiceMap: Record<string, string> = {
       fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
       it: "Giorgio", pt: "Ricardo", ja: "Takumi", ko: "Minho",
-      zh: "Zhiyu", ru: "Maxim", nl: "Ruben",
+      zh: "Zhiyu", ru: "Maxim", nl: "Ruben", pl: "Jacek",
+      tr: "Filiz", sv: "Astrid", da: "Naja", fi: "Salli",
+      cs: "Eliska", el: "Lucretia", he: "Hanna", hu: "Gabor",
+      ro: "Carmen", th: "Patchara", vi: "Hien", id: "Andika",
+      uk: "Ostap", bg: "Petar", hr: "Srecko", ta: "SaiSenthil",
+      te: "SaiPrasad", mr: "SaiNishant", gu: "SaiKiran",
+      kn: "SaiKavya", bn: "SaiSourav", sk: "Viktor",
+      sl: "Tina", et: "Eva", lv: "Nils", lt: "Leonas",
+      sr: "Stefan", af: "Ruben", sw: "Daudi",
     };
     const voice = voiceMap[lang] || "Brian";
     const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
@@ -735,6 +828,42 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
     zh: "zh-CN-XiaoxiaoNeural",
     ru: "ru-RU-DmitryNeural",
     nl: "nl-NL-MaartenNeural",
+    ar: "ar-SA-HamedNeural",
+    hi: "hi-IN-MadhurNeural",
+    pl: "pl-PL-MarekNeural",
+    tr: "tr-TR-EmirNeural",
+    sv: "sv-SE-MattiasNeural",
+    nb: "nb-NO-FinnNeural",
+    da: "da-DK-JeppeNeural",
+    fi: "fi-FI-HarriNeural",
+    cs: "cs-CZ-AntoninNeural",
+    el: "el-GR-NestorasNeural",
+    he: "he-IL-AvriNeural",
+    hu: "hu-HU-TamasNeural",
+    ro: "ro-RO-EmilNeural",
+    th: "th-TH-NiwatNeural",
+    vi: "vi-VN-HoaiMyNeural",
+    id: "id-ID-ArdiNeural",
+    uk: "uk-UA-OstapNeural",
+    ca: "ca-ES-EnricNeural",
+    bg: "bg-BG-BorislavNeural",
+    hr: "hr-HR-SreckoNeural",
+    ml: "ml-IN-MidhunNeural",
+    ta: "ta-IN-ValluvarNeural",
+    te: "te-IN-MohanNeural",
+    mr: "mr-IN-AarohiNeural",
+    gu: "gu-IN-NiranjanNeural",
+    kn: "kn-IN-GaganNeural",
+    bn: "bn-IN-BashkarNeural",
+    sk: "sk-SK-LukasNeural",
+    sl: "sl-SI-RokNeural",
+    et: "et-EE-KertNeural",
+    lv: "lv-LV-NilsNeural",
+    lt: "lt-LT-LeonasNeural",
+    sr: "sr-RS-NicholasNeural",
+    af: "af-ZA-WillemNeural",
+    sw: "sw-TZ-DaudiNeural",
+    fil: "fil-PH-AngeloNeural",
   };
 
   const voice = voiceMap[lang] || "en-US-AndrewMultilingualNeural";
