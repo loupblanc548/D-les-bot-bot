@@ -541,9 +541,22 @@ async function handleVoiceCommand(
 
   let rest = content.replace(/^parle\s*/i, "").trim();
 
+  // ── Étape 0: Détecter "reste" → bot reste connecté ──
+  const shouldStay = /\breste\b/i.test(rest);
+  rest = rest.replace(/\breste\b/i, "").trim();
+
+  // ── Étape 0b: Extraire voix:homme/femme ──
+  let voiceGender: "homme" | "femme" = "homme";
+  const voiceMatch = rest.match(/voix\s*:\s*(homme|femme|male|female|fille|garcon|garçon|m|f)/i);
+  if (voiceMatch) {
+    const v = voiceMatch[1].toLowerCase();
+    if (["femme", "female", "fille", "f"].includes(v)) voiceGender = "femme";
+    rest = rest.replace(/voix\s*:\s*\S+/i, "").trim();
+  }
+
   if (!rest) {
     await message.reply({
-      content: "🗣️ **Usage:** `@John Helldiver parle Bonjour tout le monde :Français`\n\nÉcris ce que tu veux que je dise après `parle`. La langue est optionnelle (`:Français` ou `langue:Français` à la fin).\n\n**Exemples:**\n`@John Helldiver parle Bonjour tout le monde`\n`@John Helldiver parle \"Hello world\" :English`\n`@John Helldiver parle 'Hola' langue:Español`\n`@John Helldiver parle :Français Bonjour à tous`\n\n**Langues:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
+      content: "🗣️ **Usage:** `@John Helldiver parle Bonjour tout le monde :Français`\n\nÉcris ce que tu veux que je dise après `parle`. La langue est optionnelle. Ajoute `reste` pour que je reste connecté. Ajoute `voix:femme` ou `voix:homme` pour changer de voix.\n\n**Exemples:**\n`@John Helldiver parle Bonjour tout le monde`\n`@John Helldiver parle \"Hello world\" :English`\n`@John Helldiver parle reste \"Bonjour\" :Français`\n`@John Helldiver parle \"Bonjour\" voix:femme :Français`\n`@John Helldiver parle :Français Bonjour à tous`\n\n**Langues:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
       allowedMentions: { repliedUser: false },
     });
     return true;
@@ -718,18 +731,64 @@ async function handleVoiceCommand(
   // Réaction pour indiquer que ça travaille
   try { await message.react("🗣️"); } catch {}
 
+  // ── Ajouter à la file d'attente TTS ──
+  const guildId = message.guildId!;
+  enqueueTTS(guildId, {
+    text,
+    lang: resolvedLang,
+    voiceGender,
+    voiceChannelId: voiceChannel.id,
+    guildId,
+    adapterCreator: message.guild!.voiceAdapterCreator,
+    shouldStay,
+    authorTag: message.author.tag,
+    channelName: voiceChannel.name,
+  });
+
+  return true;
+}
+
+// ─── File d'attente TTS par guilde ───────────────────────────────────────────
+
+interface TTSQueueItem {
+  text: string;
+  lang: string;
+  voiceGender: "homme" | "femme";
+  voiceChannelId: string;
+  guildId: string;
+  adapterCreator: unknown;
+  shouldStay: boolean;
+  authorTag: string;
+  channelName: string;
+}
+
+const ttsQueues = new Map<string, TTSQueueItem[]>();
+const ttsPlaying = new Set<string>();
+const stayConnected = new Set<string>();
+
+async function enqueueTTS(guildId: string, item: TTSQueueItem): Promise<void> {
+  const queue = ttsQueues.get(guildId) || [];
+  queue.push(item);
+  ttsQueues.set(guildId, queue);
+  logger.info(`[TTSQueue] ${guildId}: ${queue.length} message(s) en attente`);
+  void processTTSQueue(guildId);
+}
+
+async function processTTSQueue(guildId: string): Promise<void> {
+  if (ttsPlaying.has(guildId)) return;
+  const queue = ttsQueues.get(guildId);
+  if (!queue || queue.length === 0) return;
+
+  const item = queue.shift()!;
+  ttsPlaying.add(guildId);
+
   try {
-    // Générer le TTS via le pipeline neuronal
-    const audioBuffer = await generateVoiceTTS(text, resolvedLang);
+    const audioBuffer = await generateVoiceTTS(item.text, item.lang, item.voiceGender);
     if (!audioBuffer) {
-      await message.reply({
-        content: "❌ Impossible de générer l'audio. Réessaie plus tard.",
-        allowedMentions: { repliedUser: false },
-      });
-      return true;
+      logger.warn(`[TTSQueue] Échec génération TTS pour ${guildId}`);
+      return;
     }
 
-    // Rejoindre le vocal (non-muté!)
     const {
       joinVoiceChannel,
       getVoiceConnection,
@@ -740,19 +799,21 @@ async function handleVoiceCommand(
     } = await import("@discordjs/voice");
     const { Readable } = await import("node:stream");
 
-    const guildId = message.guildId!;
     const existing = getVoiceConnection(guildId);
-    if (existing && existing.joinConfig.channelId !== voiceChannel.id) {
+    if (existing && existing.joinConfig.channelId !== item.voiceChannelId) {
       existing.destroy();
     }
 
-    const connection = joinVoiceChannel({
-      channelId: voiceChannel.id,
-      guildId,
-      adapterCreator: message.guild!.voiceAdapterCreator,
-      selfMute: false,
-      selfDeaf: false,
-    });
+    let connection = getVoiceConnection(guildId);
+    if (!connection) {
+      connection = joinVoiceChannel({
+        channelId: item.voiceChannelId,
+        guildId,
+        adapterCreator: item.adapterCreator as import("@discordjs/voice").DiscordGatewayAdapterCreator,
+        selfMute: false,
+        selfDeaf: false,
+      });
+    }
 
     const player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
@@ -763,33 +824,43 @@ async function handleVoiceCommand(
     connection.subscribe(player);
     player.play(resource);
 
-    logger.info(`[VoiceCmd] ${message.author.tag} dit "${text.slice(0, 50)}..." en ${resolvedLang} dans #${voiceChannel.name}`);
+    logger.info(`[TTSQueue] ${item.authorTag} dit "${item.text.slice(0, 50)}..." en ${item.lang} (${item.voiceGender}) dans #${item.channelName}`);
 
-    // Déconnexion auto après la lecture
-    player.once(AudioPlayerStatus.Idle, () => {
-      setTimeout(() => {
-        const conn = getVoiceConnection(guildId);
-        if (conn && conn.joinConfig.channelId === voiceChannel.id) {
-          conn.destroy();
-        }
-      }, 10_000);
+    await new Promise<void>((resolve) => {
+      player.once(AudioPlayerStatus.Idle, () => resolve());
+      player.on("error", () => resolve());
+      setTimeout(() => resolve(), 60_000);
     });
-
-    return true;
   } catch (error) {
-    logger.error("[VoiceCmd] Erreur:", error);
-    await message.reply({
-      content: "❌ Une erreur est survenue lors de la synthèse vocale.",
-      allowedMentions: { repliedUser: false },
-    });
-    return true;
+    logger.error("[TTSQueue] Erreur:", error);
+  } finally {
+    ttsPlaying.delete(guildId);
+
+    if (item.shouldStay) {
+      stayConnected.add(guildId);
+    }
+
+    const nextQueue = ttsQueues.get(guildId);
+    if (nextQueue && nextQueue.length > 0) {
+      void processTTSQueue(guildId);
+    } else if (!stayConnected.has(guildId)) {
+      setTimeout(() => {
+        import("@discordjs/voice").then(({ getVoiceConnection }) => {
+          const conn = getVoiceConnection(guildId);
+          if (conn) {
+            conn.destroy();
+            logger.info(`[TTSQueue] ${guildId} déconnexion auto (file vide)`);
+          }
+        });
+      }, 5_000);
+    }
   }
 }
 
 /**
  * Pipeline TTS neuronal — même ordre que voiceAgent.ts
  */
-async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | null> {
+async function generateVoiceTTS(text: string, lang: string, voiceGender: "homme" | "femme" = "homme"): Promise<Buffer | null> {
   // 1. Piper TTS local
   try {
     const { generateLocalTTS, isPiperAvailable } = await import("../services/localTts.js");
@@ -816,7 +887,7 @@ async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | nu
 
   // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
-    const edgeBuffer = await generateEdgeTTS(text.slice(0, 3000), lang);
+    const edgeBuffer = await generateEdgeTTS(text.slice(0, 3000), lang, voiceGender);
     if (edgeBuffer && edgeBuffer.length > 1000) {
       logger.info(`[VoiceCmd] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
@@ -872,10 +943,10 @@ async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | nu
   }
 }
 
-async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | null> {
+async function generateEdgeTTS(text: string, lang: string, voiceGender: "homme" | "femme" = "homme"): Promise<Buffer | null> {
   const { WebSocket } = await import("ws");
 
-  const voiceMap: Record<string, string> = {
+  const maleVoices: Record<string, string> = {
     fr: "fr-FR-HenriNeural",
     en: "en-US-AndrewMultilingualNeural",
     es: "es-ES-AlvaroNeural",
@@ -924,6 +995,42 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
     sw: "sw-TZ-DaudiNeural",
     fil: "fil-PH-AngeloNeural",
   };
+
+  const femaleVoices: Record<string, string> = {
+    fr: "fr-FR-DeniseNeural",
+    en: "en-US-AvaMultilingualNeural",
+    es: "es-ES-ElviraNeural",
+    de: "de-DE-KatjaNeural",
+    it: "it-IT-ElsaNeural",
+    pt: "pt-BR-FranciscaNeural",
+    ja: "ja-JP-NanamiNeural",
+    ko: "ko-KR-SunHiNeural",
+    zh: "zh-CN-XiaoyiNeural",
+    ru: "ru-RU-SvetlanaNeural",
+    nl: "nl-NL-FennaNeural",
+    ar: "ar-SA-ZariyahNeural",
+    hi: "hi-IN-SwaraNeural",
+    pl: "pl-PL-ZofiaNeural",
+    tr: "tr-TR-EmelNeural",
+    sv: "sv-SE-SofieNeural",
+    nb: "nb-NO-IselinNeural",
+    da: "da-DK-TineNeural",
+    fi: "fi-FI-NooraNeural",
+    cs: "cs-CZ-VlastaNeural",
+    el: "el-GR-AthinaNeural",
+    he: "he-IL-HilaNeural",
+    hu: "hu-HU-NoemiNeural",
+    ro: "ro-RO-AlinaNeural",
+    th: "th-TH-PremwadeeNeural",
+    vi: "vi-VN-NhiWinneNeural",
+    id: "id-ID-GadisNeural",
+    uk: "uk-UA-PolinaNeural",
+    ca: "ca-ES-JoanaNeural",
+    bg: "bg-BG-KalinaNeural",
+    hr: "hr-HR-GabrijelaNeural",
+  };
+
+  const voiceMap = voiceGender === "femme" ? femaleVoices : maleVoices;
 
   const voice = voiceMap[lang] || "en-US-AndrewMultilingualNeural";
   const SSML = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</voice></speak>`;
@@ -1312,25 +1419,29 @@ async function handleAiChatMention(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale: sur demande explicite (parle-moi, en vocal, TTS, à voix haute, etc.) ──
-      const voiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|parle sa|parle ça|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|lis le|lis sa|lis ça|lie sa|lie ça|lie le|récite|récite-le|récite le|à l'oral|orally|dit le|dit sa|dit ça|read it|say it out|dans le vocal|dans la voix)/i;
+      // ── Réponse vocale automatique: si l'utilisateur est dans un vocal, parler à voix haute ──
       if (
         message.guildId &&
-        message.member?.voice?.channelId &&
-        voiceKeywords.test(effectiveContent)
+        message.member?.voice?.channelId
       ) {
+        // Détecter la langue depuis le message de l'utilisateur
         const detectedLang = effectiveContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
-        if (!isInVoiceChannel(message.guildId)) {
-          await joinVoiceChannelById(client, message.guildId, message.member.voice.channelId).catch(() => {});
+        // Utiliser la file d'attente TTS pour parler
+        const voiceChannel = message.member.voice.channel;
+        if (voiceChannel) {
+          enqueueTTS(message.guildId, {
+            text: aiResponse.slice(0, 3000), // limiter pour TTS
+            lang: detectedLang,
+            voiceGender: "homme",
+            voiceChannelId: voiceChannel.id,
+            guildId: message.guildId,
+            adapterCreator: message.guild!.voiceAdapterCreator,
+            shouldStay: false,
+            authorTag: `${message.author.tag} (IA auto)`,
+            channelName: voiceChannel.name,
+          });
+          logger.info(`[AIChat] Réponse vocale auto pour ${message.author.tag} dans #${voiceChannel.name}`);
         }
-        void speakResponseInVoice(
-          message.client,
-          message.guildId,
-          message.author.id,
-          aiResponse,
-          detectedLang,
-          true, // bypassOptIn — l'utilisateur a explicitement demandé le vocal
-        ).catch(() => {});
       }
 
       // ── Sauvegarder la réponse dans la conversation ──
