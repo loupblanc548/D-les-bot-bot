@@ -48,6 +48,9 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
         available = true;
       }
     } else {
+      if (available) {
+        logger.warn("[LocalLLM] Ollama indisponible — fallback vers OpenRouter/NVIDIA");
+      }
       available = false;
     }
   } catch {
@@ -58,6 +61,31 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
   }
   availabilityChecked = true;
   return available;
+}
+
+/**
+ * Démarre un check périodique de santé Ollama (toutes les 60s).
+ * Si Ollama redémarre, le bot le détecte et repasse en mode local.
+ */
+let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startLocalLlmHealthCheck(): void {
+  if (healthCheckInterval) return;
+  healthCheckInterval = setInterval(async () => {
+    const wasAvailable = available;
+    await checkLocalLlmAvailability();
+    if (!wasAvailable && available) {
+      logger.info("[LocalLLM] 🔄 Ollama de nouveau disponible — retour en mode local");
+    }
+  }, 60_000);
+  logger.info("[LocalLLM] Health check périodique démarré (60s)");
+}
+
+export function stopLocalLlmHealthCheck(): void {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+  }
 }
 
 /**

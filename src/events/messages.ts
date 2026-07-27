@@ -696,38 +696,58 @@ async function handleAiChatMention(
       aiResponse.includes("Circuit breaker activated");
 
     if (isErrorResponse) {
-      logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback modèle gratuit`);
-      try {
-        const fallbackModel = getNextAvailableModel() || "openrouter/auto";
-        const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://discord-bot.com",
-            "X-Title": "John Helldiver - Discord Bot",
-          },
-          body: JSON.stringify({
-            model: fallbackModel,
-            messages,
-            max_tokens: 500,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (fallbackResponse.ok) {
-          const fallbackData = (await fallbackResponse.json()) as {
-            choices: Array<{ message: { content: string } }>;
-          };
-          aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-          logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
+      logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback en cours`);
+
+      // ── Fallback 1: LLM local (Ollama) — gratuit, pas de quota ──
+      if (isLocalLlmAvailable()) {
+        try {
+          const localReply = await chatWithLocalLlm([
+            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+            { role: "user", content: enrichedContent },
+          ]);
+          if (localReply && localReply.length > 2) {
+            aiResponse = localReply;
+            logger.info(`[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`);
+          }
+        } catch (localErr) {
+          logger.error(`[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
         }
-      } catch (fallbackErr) {
-        logger.error(`[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
+
+      // ── Fallback 2: OpenRouter (API payante) ──
+      if (aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED") || aiResponse.includes("Circuit breaker activated")) {
+        try {
+          const fallbackModel = getNextAvailableModel() || "openrouter/auto";
+          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://discord-bot.com",
+              "X-Title": "John Helldiver - Discord Bot",
+            },
+            body: JSON.stringify({
+              model: fallbackModel,
+              messages,
+              max_tokens: 500,
+              temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (fallbackResponse.ok) {
+            const fallbackData = (await fallbackResponse.json()) as {
+              choices: Array<{ message: { content: string } }>;
+            };
+            aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+            logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
+          }
+        } catch (fallbackErr) {
+          logger.error(`[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+        }
       }
     }
 
-    // ── Fallback: LLM local (Ollama) si disponible ──
+    // ── Fallback: LLM local (Ollama) si encore en erreur ──
     if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isLocalLlmAvailable()) {
       logger.warn(`[AIChat] Fallback: LLM local (Ollama)`);
       try {
@@ -991,44 +1011,64 @@ async function handleDMMessage(
       aiResponse.includes("Circuit breaker activated");
 
     if (dmIsErrorResponse) {
-      logger.warn(`[DM] AgentLoop a retourné une erreur, fallback modèle gratuit`);
-      try {
-        const dmFallbackModel = getNextAvailableModel() || "openrouter/auto";
-        const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://discord-bot.com",
-            "X-Title": "John Helldiver - Discord Bot",
-          },
-          body: JSON.stringify({
-            model: dmFallbackModel,
-            messages: [
-              {
-                role: "system",
-                content:
-                  config.aiSystemPrompt +
-                  "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
-                  "Adapte-toi à n'importe quelle langue du monde. " +
-                  "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-              },
-              { role: "user", content: `${message.author.username}: ${content}` },
-            ],
-            max_tokens: 500,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (fallbackResponse.ok) {
-          const fallbackData = (await fallbackResponse.json()) as {
-            choices: Array<{ message: { content: string } }>;
-          };
-          aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-          logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
+      logger.warn(`[DM] AgentLoop a retourné une erreur, fallback en cours`);
+
+      // ── Fallback 1: LLM local (Ollama) — gratuit, pas de quota ──
+      if (isLocalLlmAvailable()) {
+        try {
+          const localReply = await chatWithLocalLlm([
+            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+            { role: "user", content: dmEnrichedContent },
+          ]);
+          if (localReply && localReply.length > 2) {
+            aiResponse = localReply;
+            logger.info(`[DM] Fallback LLM local réussi (${localReply.length} chars) — API économisée`);
+          }
+        } catch (localErr) {
+          logger.error(`[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
         }
-      } catch (fallbackErr) {
-        logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
+
+      // ── Fallback 2: OpenRouter (API payante) ──
+      if (aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED") || aiResponse.includes("Circuit breaker activated") || !aiResponse) {
+        try {
+          const dmFallbackModel = getNextAvailableModel() || "openrouter/auto";
+          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://discord-bot.com",
+              "X-Title": "John Helldiver - Discord Bot",
+            },
+            body: JSON.stringify({
+              model: dmFallbackModel,
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    config.aiSystemPrompt +
+                    "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
+                    "Adapte-toi à n'importe quelle langue du monde. " +
+                    "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+                },
+                { role: "user", content: `${message.author.username}: ${content}` },
+              ],
+              max_tokens: 500,
+              temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (fallbackResponse.ok) {
+            const fallbackData = (await fallbackResponse.json()) as {
+              choices: Array<{ message: { content: string } }>;
+            };
+            aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+            logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
+          }
+        } catch (fallbackErr) {
+          logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+        }
       }
     }
 
