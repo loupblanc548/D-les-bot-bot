@@ -46,6 +46,7 @@ import {
   checkLocalLlmAvailability,
 } from "../services/localLlm.js";
 import { isNvidiaNimAvailable, chatWithNvidiaNim } from "../services/nvidiaNim.js";
+import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
@@ -1809,6 +1810,10 @@ async function handleAiChatMention(
     }
 
     if (aiResponse) {
+      // ── Extract and send images as Discord attachments ──
+      aiResponse = await sendImagesFromResponse(message.channel as TextChannel, aiResponse);
+      if (!aiResponse || aiResponse.trim().length === 0) return;
+
       // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
       let sentMessages: Message[] | null = null;
       if (aiResponse.length <= 1900) {
@@ -2284,6 +2289,10 @@ async function handleDMMessage(
     }
 
     if (aiResponse) {
+      // ── Extract and send images as Discord attachments ──
+      aiResponse = await sendImagesFromResponse(message.channel as TextChannel, aiResponse);
+      if (!aiResponse || aiResponse.trim().length === 0) return;
+
       // ── Streaming simulé pour les réponses courtes, multi-message sinon ──
       let dmSentMessages: Message[] | null = null;
       if (aiResponse.length <= 1900) {
