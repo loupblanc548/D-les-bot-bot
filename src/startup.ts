@@ -262,6 +262,14 @@ export function attachStartupLogic(
       } catch {
         // localTts.ts non disponible — ignorer
       }
+
+      // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
+      try {
+        const { startHealthEndpoint } = await import("./services/healthEndpoint.js");
+        startHealthEndpoint(parseInt(process.env.HEALTH_PORT || "7890", 10));
+      } catch {
+        // healthEndpoint.ts non disponible — ignorer
+      }
     } catch {
       // localLlm.ts non disponible — ignorer
     }

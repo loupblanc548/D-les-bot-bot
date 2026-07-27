@@ -445,6 +445,7 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
       const piperBuffer = await generateLocalTTS(text, lang);
       if (piperBuffer && piperBuffer.length > 1000) {
         logger.info(`[VoiceAgent] TTS via Piper local (voix neuronale locale, lang: ${lang})`);
+        try { const { recordPiperTts } = await import("./llmStats.js"); recordPiperTts(); } catch {}
         return piperBuffer;
       }
     }

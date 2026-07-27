@@ -65,6 +65,7 @@ import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
 import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
 import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, LOCAL_LLM_MODEL_NAME } from "./localLlm.js";
+import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
 import { isKilled } from "./killSwitch.js";
 import {
   detectLanguage,
@@ -982,6 +983,7 @@ async function runAgentLoopInternal(
                 }],
               } as never;
               logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`);
+              recordLocalLlm();
               break;
             } else if (!isComplexTask) {
               // Réponse courte mais tâche simple — acceptable
@@ -993,6 +995,7 @@ async function runAgentLoopInternal(
                   }],
                 } as never;
                 logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (réponse courte, tâche simple)`);
+                recordLocalLlm();
                 break;
               }
             }
@@ -1015,11 +1018,40 @@ async function runAgentLoopInternal(
               }],
             } as never;
             logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`);
+            recordLocalLlm();
             break;
           }
           logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
         }
       } catch (localErr) {
+        const isTimeout = localErr instanceof Error && localErr.message.includes("timeout");
+        if (isTimeout && isLocalLlmAvailable()) {
+          // Retry once with reduced context (last 2 messages only)
+          logger.info(`[AgentLoop] 🔄 Retry ${LOCAL_LLM_MODEL_NAME} avec contexte réduit...`);
+          try {
+            const reducedMessages = conversation.slice(-2).map((m) => ({
+              role: m.role,
+              content: typeof m.content === "string" ? m.content.slice(0, 500) : JSON.stringify(m.content).slice(0, 500),
+            }));
+            const retryText = await chatWithLocalLlm(reducedMessages, {
+              maxTokens: 300,
+              temperature: 0.5,
+            });
+            if (retryText && retryText.length > 2) {
+              response = {
+                choices: [{
+                  message: { role: "assistant", content: retryText },
+                  finish_reason: "stop",
+                }],
+              } as never;
+              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi après retry (contexte réduit, ${retryText.length} chars) — API économisée`);
+              recordLocalLlm();
+              break;
+            }
+          } catch {
+            // Give up, fall through to API
+          }
+        }
         logger.warn(`[AgentLoop] ❌ LLM local échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
       }
     } else {
@@ -1053,6 +1085,7 @@ async function runAgentLoopInternal(
         markModelSuccess(modelName);
         agentModelUsed.labels(modelName, "success").inc();
         logger.info(`[AgentLoop] ✅ ${modelName} réussi`);
+        recordApiLlm();
         break; // Succès → on sort de la boucle de rotation
       } catch (modelErr) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
@@ -1213,6 +1246,7 @@ async function runAgentLoopInternal(
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
       const finalReply = assistantMessage.content || "*(silence)*";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
+      logStatsSummary();
       completeInteraction(breakerState);
       agentLoopIterations.observe(iteration + 1);
       agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
@@ -1333,6 +1367,7 @@ async function runAgentLoopInternal(
                   result = { success: true, data: expertResult };
                   agentToolCalls.labels("delegateToExpert", "success").inc();
                   agentToolCallsDaily.labels("delegateToExpert").inc();
+                  recordDelegation();
                 } catch (delErr) {
                   result = {
                     success: false,
