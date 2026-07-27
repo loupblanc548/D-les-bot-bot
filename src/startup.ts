@@ -301,8 +301,24 @@ export function attachStartupLogic(
     registerInterval(wishlistInterval);
 
     // Rattrapage startup (skippable via SKIP_RETROSPECTIVE=true)
-    if (process.env.SKIP_RETROSPECTIVE === "true") {
-      logger.info("[Startup] Rattrapage ignoré (SKIP_RETROSPECTIVE=true)");
+    // Also skip if bot was only down < 5 min (normal restart, not a real outage)
+    const SHUTDOWN_FILE = "/opt/bot/.last_shutdown";
+    let wasRealOutage = true;
+    try {
+      const { readFile: rf } = await import("node:fs/promises");
+      const lastShutdownStr = (await rf(SHUTDOWN_FILE, "utf-8")).trim();
+      const lastShutdown = parseInt(lastShutdownStr, 10);
+      const downtimeMs = Date.now() - lastShutdown;
+      if (downtimeMs < 5 * 60 * 1000) {
+        wasRealOutage = false;
+        logger.info(`[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`);
+      }
+    } catch {
+      // File doesn't exist — first boot or after deploy, run retrospective
+    }
+
+    if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
+      logger.info("[Startup] Rattrapage ignoré");
     } else {
       logger.info("[Startup] Rattrapage des actualites manquees...");
       try {

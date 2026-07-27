@@ -50,6 +50,14 @@ export function registerInterval(interval: NodeJS.Timeout | null): void {
 async function gracefulShutdown(signal: string): Promise<void> {
   logger.info(`\n[Shutdown] Signal ${signal} reçu. Arrêt du bot...`);
 
+  // Enregistrer l'heure d'arrêt pour que le startup sache si c'est un vrai arrêt ou un restart
+  try {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile("/opt/bot/.last_shutdown", String(Date.now()), { mode: 0o600 });
+  } catch {
+    // Non critique — si ça échoue, la rétrospective tournera par défaut
+  }
+
   // Arrêter tous les services monitoring
   const stopFns = [
     stopMonitoring,
