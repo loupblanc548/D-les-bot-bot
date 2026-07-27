@@ -24,13 +24,22 @@ const execFileAsync = promisify(execFile);
 const PIPER_BIN = process.env.PIPER_BIN || "/opt/piper/piper";
 const PIPER_VOICES = process.env.PIPER_VOICES || "/opt/piper/voices";
 
-// Voice mapping per language
+// Voice mapping per language — 14 voices covering all bot-supported languages
 const VOICE_MAP: Record<string, string> = {
   fr: "fr_FR-siwis-medium.onnx",
   en: "en_US-lessac-medium.onnx",
-  es: "es_ES-carlfm-medium.onnx",
+  es: "es_ES-davefx-medium.onnx",
   de: "de_DE-thorsten-medium.onnx",
   it: "it_IT-riccardo-x_low.onnx",
+  pt: "pt_BR-faber-medium.onnx",
+  nl: "nl_BE-nathalie-medium.onnx",
+  pl: "pl_PL-gosia-medium.onnx",
+  ru: "ru_RU-irina-medium.onnx",
+  sv: "sv_SE-nst-medium.onnx",
+  cs: "cs_CZ-jirka-medium.onnx",
+  ar: "ar_JO-kareem-medium.onnx",
+  zh: "zh_CN-huayan-medium.onnx",
+  ko: "ko_KR-kss-medium.onnx",
 };
 
 // Cache availability check
