@@ -12,6 +12,7 @@ import {
   alertNotificationFailure,
 } from "../services/proactiveAlerts.js";
 import { generateStableId } from "../utils/url-cleaner.js";
+import { translateAutoToFrench } from "../utils/translator.js";
 
 // Types
 
@@ -275,20 +276,39 @@ async function checkTrackedGames(client: Client): Promise<void> {
       const limitDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
       if (isNaN(articleDate.getTime()) || articleDate < limitDate) continue;
 
-      const title = item.title ?? "Sans titre";
-      const platforms = detectPlatforms(title);
+      const rawTitle = item.title ?? "Sans titre";
+      const platforms = detectPlatforms(rawTitle);
       const uniquePlatforms = [...new Set(platforms)];
 
       // Si aucune plateforme détectée, ignorer
       if (uniquePlatforms.length === 0) {
-        logger.debug(`[PatchNotesCron] Plateforme non detectee pour: ${title.slice(0, 80)}`);
+        logger.debug(`[PatchNotesCron] Plateforme non detectee pour: ${rawTitle.slice(0, 80)}`);
         continue;
       }
 
       const link = item.link ?? "";
-      const description = cleanSummary(
+      const rawDescription = cleanSummary(
         item.contentSnippet || item.content || "Nouveau patch note disponible !",
       );
+
+      // Traduire le titre et la description si nécessaire
+      let title = rawTitle;
+      let description = rawDescription;
+      try {
+        const titleResult = await translateAutoToFrench(rawTitle);
+        if (titleResult && titleResult.detectedLanguage !== "fr") {
+          title = titleResult.translatedText;
+        }
+        const descResult = await translateAutoToFrench(rawDescription);
+        if (descResult && descResult.detectedLanguage !== "fr") {
+          description = descResult.translatedText;
+        }
+      } catch (error) {
+        logger.debug(
+          `[PatchNotesCron] Erreur traduction, utilisation texte original: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
       const pubDateStr = item.pubDate
         ? "<t:" + Math.floor(new Date(item.pubDate).getTime() / 1000) + ":D>"
         : "Date inconnue";
