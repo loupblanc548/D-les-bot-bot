@@ -62,6 +62,7 @@ export const NVIDIA_FREE_MODELS = [
   "openai/gpt-oss-120b",                          // 120B OpenAI open-source
   "nvidia/llama-3.3-nemotron-super-49b-v1.5",     // 49B
   "nvidia/llama-3.3-nemotron-super-49b-v1",       // 49B v1
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", // 30B MoE reasoning
   "nvidia/nemotron-3-nano-30b-a3b",               // 30B MoE
   "openai/gpt-oss-20b",                           // 20B
   "nvidia/nvidia-nemotron-nano-9b-v2",            // 9B
