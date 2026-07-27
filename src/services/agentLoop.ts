@@ -815,7 +815,8 @@ async function runAgentLoopInternal(
     "- Ne dis JAMAIS 'aucune image' ou 'je ne vois pas d'image' si le message contient [Image jointe: ...]. L'image EST là, utilise l'outil analyzeImageGemini pour l'analyser.\n" +
     "- Croise l'analyse visuelle avec la question de l'utilisateur pour donner une réponse cohérente et pertinente.\n" +
     "- Si l'image contient du texte (screenshot, document), extrait et utilise les informations pertinentes.\n" +
-    "- Si l'utilisateur pose une question sur l'image, réponds directement en utilisant la description visuelle fournie.\n" +
+    "- Si l'utilisateur pose une question complexe sur l'image (analyse technique, comparaison, raisonnement), UTILISE delegateToExpert avec tier='medium' ou 'large' pour obtenir une réponse experte, puis synthétise la réponse finale.\n" +
+    "- Pour les questions simples sur une image ('qu'est-ce qu'il y a sur cette image?'), réponds directement avec la description visuelle.\n" +
     "- RÉPONDS DANS LA LANGUE DE L'UTILISATEUR. Si la question est en anglais, réponds en anglais. Si en espagnol, réponds en espagnol. Etc. Détecte la langue et adapte-toi.\n" +
     "- Langues supportées: français, anglais, allemand, espagnol, portugais, italien, néerlandais, suédois, norvégien, tchèque, polonais, turc, russe, japonais, chinois, arabe, coréen.\n" +
     "\n## USAGE PROACTIF — KNOWLEDGE INGESTION\n" +
@@ -832,6 +833,15 @@ async function runAgentLoopInternal(
     "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
     "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
     "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
+    "\n## DÉLÉGATION INTELLIGENTE (ORCHESTRATEUR)\n" +
+    "- Tu es le chef d'orchestre. Tu reçois TOUTES les demandes en premier.\n" +
+    "- Pour les tâches SIMPLES (salut, traduction, météo, question factuelle): réponds DIRECTEMENT, ne délègue pas.\n" +
+    "- Pour les tâches COMPLEXES (code, analyse technique, raisonnement long, comparaison, image+question): utilise delegateToExpert.\n" +
+    "- tier='small' pour les sous-tâches simples que tu ne peux pas faire (ex: traduction spécialisée).\n" +
+    "- tier='medium' pour le raisonnement modéré (ex: analyse de texte, résumé complexe).\n" +
+    "- tier='large' pour les tâches difficiles (ex: code complexe, analyse d'image technique, résolution de problème).\n" +
+    "- Après réception du résultat expert, SYNTHÉTISE-le dans la langue de l'utilisateur. Ne recopie pas brut.\n" +
+    "- Tu peux appeler delegateToExpert PLUSIEURS FOIS pour diviser une tâche complexe en sous-tâches.\n" +
     "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(ALL_AGENT_TOOLS) +
     "\n\n" +
@@ -940,14 +950,10 @@ async function runAgentLoopInternal(
     );
 
     // ─── Étape 0: LLM local (Ollama/qwen) — PRIORITÉ ABSOLUE ───
-    // Le bot utilise qwen2.5 en LOCAL d'abord (gratuit, illimité, 0 latence réseau).
-    // Les API payantes (OpenRouter/NVIDIA) ne sont utilisées que si:
-    // 1. Le local échoue (Ollama down, modèle crash)
-    // 2. La tâche est trop complexe (4+ tools + raisonnement profond) ET le local retourne une réponse vide/incohérente
-    // 3. Le message contient une image — qwen2.5:3b n'a pas la capacité de croiser
-    //    une description d'image avec une question de manière fiable → délégation API
-    const hasImage = userMessage.includes("[Image jointe:");
-    if (isLocalLlmAvailable() && !hasImage) {
+    // qwen2.5 est le chef d'orchestre pour TOUT: texte, images, code, etc.
+    // Pour les images: qwen reçoit la description Gemini Vision, puis peut
+    // déléguer la réponse complexe via delegateToExpert si nécessaire.
+    if (isLocalLlmAvailable()) {
       // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",
       // on essaie quand même le local mais on accepte de fallback plus vite
       const isComplexTask = (taskComplexity === "moderate" || taskComplexity === "complex") && availableTools.length > 3;
@@ -1059,11 +1065,7 @@ async function runAgentLoopInternal(
       }
     } else {
       // Ollama non disponible — on log et on passe directement aux API
-      if (hasImage) {
-        logger.info(`[AgentLoop] 🖼️ Image détectée — qwen2.5:3b skip (pas de vision), délégation API directement`);
-      } else {
-        logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
-      }
+      logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
     for (const modelName of modelsToTry.slice(0, 5)) {
