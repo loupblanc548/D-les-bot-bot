@@ -40,6 +40,7 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, chatWithGemini, isGeminiAvailable } from "../services/gemini.js";
+import { isLocalLlmAvailable, chatWithLocalLlm, checkLocalLlmAvailability } from "../services/localLlm.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
@@ -726,6 +727,23 @@ async function handleAiChatMention(
       }
     }
 
+    // ── Fallback: LLM local (Ollama) si disponible ──
+    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isLocalLlmAvailable()) {
+      logger.warn(`[AIChat] Fallback: LLM local (Ollama)`);
+      try {
+        const localReply = await chatWithLocalLlm([
+          { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+          { role: "user", content: enrichedContent },
+        ]);
+        if (localReply) {
+          aiResponse = localReply;
+          logger.info(`[AIChat] Fallback LLM local réussi`);
+        }
+      } catch (localErr) {
+        logger.error(`[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
+      }
+    }
+
     // ── Fallback final: Gemini (free, quota séparé) ──
     if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isGeminiAvailable()) {
       logger.warn(`[AIChat] Fallback final: Gemini`);
@@ -1011,6 +1029,23 @@ async function handleDMMessage(
         }
       } catch (fallbackErr) {
         logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+      }
+    }
+
+    // ── Fallback: LLM local (Ollama) si disponible ──
+    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isLocalLlmAvailable()) {
+      logger.warn(`[DM] Fallback: LLM local (Ollama)`);
+      try {
+        const localReply = await chatWithLocalLlm([
+          { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+          { role: "user", content: dmEnrichedContent },
+        ]);
+        if (localReply) {
+          aiResponse = localReply;
+          logger.info(`[DM] Fallback LLM local réussi`);
+        }
+      } catch (localErr) {
+        logger.error(`[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
       }
     }
 

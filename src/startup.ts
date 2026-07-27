@@ -239,6 +239,17 @@ export function attachStartupLogic(
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
 
+    // ─── Vérifier Ollama (LLM local) ──────────────────────────────────
+    try {
+      const { checkLocalLlmAvailability } = await import("./services/localLlm.js");
+      void checkLocalLlmAvailability().then((ok) => {
+        if (ok) logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
+        else logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
+      });
+    } catch {
+      // localLlm.ts non disponible — ignorer
+    }
+
     // ─── DM owner de démarrage SUPPRIMÉ ──────────────────────────────────
     // Un seul embed consolidé est envoyé depuis bot.ts via sendConsolidatedStartupReport
     // qui combine démarrage + statut en un message au lieu de 3 séparés.

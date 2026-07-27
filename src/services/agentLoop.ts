@@ -63,6 +63,7 @@ import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
 import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
+import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, LOCAL_LLM_MODEL_NAME } from "./localLlm.js";
 import { isKilled } from "./killSwitch.js";
 import {
   detectLanguage,
@@ -929,6 +930,66 @@ async function runAgentLoopInternal(
     logger.info(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
     );
+
+    // ─── Étape 0: LLM local (Ollama) en priorité si disponible ───
+    if (isLocalLlmAvailable()) {
+      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME}`);
+      try {
+        if (availableTools.length > 0) {
+          // Tâche avec tools — essayer le local avec tools
+          const localResult = await chatWithLocalLlmTools(
+            conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
+            availableTools,
+            { maxTokens: getPersonalityMaxTokens(), temperature: getPersonalityTemperature() },
+          );
+          if (localResult) {
+            if (localResult.toolCalls && localResult.toolCalls.length > 0) {
+              // Le local a retourné des tool calls — construire la réponse
+              response = {
+                choices: [{
+                  message: {
+                    role: "assistant",
+                    content: localResult.text || "",
+                    tool_calls: localResult.toolCalls as never,
+                  },
+                  finish_reason: "tool_calls",
+                }],
+              } as never;
+              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools)`);
+              continue; // Passer à l'exécution des tools
+            } else if (localResult.text) {
+              // Réponse texte simple — pas besoin de tools
+              response = {
+                choices: [{
+                  message: { role: "assistant", content: localResult.text },
+                  finish_reason: "stop",
+                }],
+              } as never;
+              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte)`);
+              break;
+            }
+          }
+        } else {
+          // Pas de tools — chat simple
+          const localText = await chatWithLocalLlm(
+            conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
+            { maxTokens: getPersonalityMaxTokens(), temperature: getPersonalityTemperature() },
+          );
+          if (localText) {
+            response = {
+              choices: [{
+                message: { role: "assistant", content: localText },
+                finish_reason: "stop",
+              }],
+            } as never;
+            logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple)`);
+            break;
+          }
+        }
+      } catch (localErr) {
+        logger.warn(`[AgentLoop] ❌ LLM local échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
+      }
+    }
 
     for (const modelName of modelsToTry.slice(0, 5)) {
       try {
