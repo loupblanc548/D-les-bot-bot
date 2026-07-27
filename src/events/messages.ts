@@ -436,6 +436,12 @@ export function handleMessageEvents(client: Client) {
       // le chat IA ET la traduction automatique simultanément.
       // ═══════════════════════════════════════════════════════════════════
 
+      // ── BRANCHEMENT 0 : @bot parle texte:"..." → TTS vocal ───────────
+      if (isMentioningBot) {
+        const handled = await handleVoiceCommand(message, client);
+        if (handled) return;
+      }
+
       // ── BRANCHEMENT 1 : MODE CHAT IA (@mention du bot) ────────────────
       if (isMentioningBot) {
         await handleAiChatMention(message, client);
@@ -496,6 +502,306 @@ export function handleMessageEvents(client: Client) {
         `[MessageEvents] Personality: ${personalityErr instanceof Error ? personalityErr.message : String(personalityErr)}`,
       );
     }
+  });
+}
+
+// =============================================================================
+// BRANCHEMENT 0 : COMMANDE VOCALE PAR @MENTION — @bot parle texte:"..." langue:fr
+// =============================================================================
+
+async function handleVoiceCommand(
+  message: OmitPartialGroupDMChannel<Message<boolean>>,
+  client: Client,
+): Promise<boolean> {
+  // Nettoyer la mention du bot du contenu
+  const content = message.content
+    .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
+    .trim();
+
+  // Le message doit commencer par "parle" (insensible à la casse)
+  if (!/^parle\b/i.test(content)) return false;
+
+  // Parser: texte:"..." ou texte:'...' ou texte:...
+  // Et: langue:xx (optionnel)
+  const textMatch = content.match(/texte\s*:\s*"([^"]+)"/i)
+    || content.match(/texte\s*:\s*'([^']+)'/i)
+    || content.match(/texte\s*:\s*(.+?)(?:\s+langue\s*:|$)/i);
+  if (!textMatch) {
+    await message.reply({
+      content: "🗣️ **Usage:** `@John Helldiver parle texte:\"Bonjour tout le monde !\" langue:Français`\n\nLa commande `texte:` est obligatoire. La `langue:` est optionnelle (défaut: Français).",
+      allowedMentions: { repliedUser: false },
+    });
+    return true;
+  }
+
+  const text = textMatch[1].trim();
+  if (!text || text.length > 500) {
+    await message.reply({
+      content: "❌ Le texte doit faire entre 1 et 500 caractères.",
+      allowedMentions: { repliedUser: false },
+    });
+    return true;
+  }
+
+  // Parser la langue
+  const langMatch = content.match(/langue\s*:\s*(\S+)/i);
+  const langMap: Record<string, string> = {
+    fr: "fr", français: "fr", francais: "fr", french: "fr",
+    en: "en", english: "en", anglais: "en",
+    es: "es", español: "es", espagnol: "es", spanish: "es",
+    de: "de", deutsch: "de", allemand: "de", german: "de",
+    it: "it", italiano: "it", italien: "it", italian: "it",
+    pt: "pt", português: "pt", portugais: "pt", portuguese: "pt",
+    ja: "ja", 日本語: "ja", japonais: "ja", japanese: "ja",
+    ko: "ko", 한국어: "ko", coréen: "ko", korean: "ko",
+    zh: "zh", 中文: "zh", chinois: "zh", chinese: "zh",
+    ru: "ru", русский: "ru", russe: "ru", russian: "ru",
+  };
+  const langRaw = langMatch?.[1]?.toLowerCase().replace(/[éèê]/g, "e") || "fr";
+  const lang = langMap[langRaw] || langMap[langRaw.slice(0, 2)] || "fr";
+
+  // Vérifier que l'utilisateur est dans un salon vocal
+  const member = message.member as GuildMember | null;
+  const voiceChannel = member?.voice?.channel;
+  if (!voiceChannel) {
+    await message.reply({
+      content: "❌ Tu dois être dans un salon vocal pour que je puisse parler.",
+      allowedMentions: { repliedUser: false },
+    });
+    return true;
+  }
+
+  // Réaction pour indiquer que ça travaille
+  try { await message.react("🗣️"); } catch {}
+
+  try {
+    // Générer le TTS via le pipeline neuronal
+    const audioBuffer = await generateVoiceTTS(text, lang);
+    if (!audioBuffer) {
+      await message.reply({
+        content: "❌ Impossible de générer l'audio. Réessaie plus tard.",
+        allowedMentions: { repliedUser: false },
+      });
+      return true;
+    }
+
+    // Rejoindre le vocal (non-muté!)
+    const {
+      joinVoiceChannel,
+      getVoiceConnection,
+      createAudioPlayer,
+      createAudioResource,
+      AudioPlayerStatus,
+      NoSubscriberBehavior,
+    } = await import("@discordjs/voice");
+    const { Readable } = await import("node:stream");
+
+    const guildId = message.guildId!;
+    const existing = getVoiceConnection(guildId);
+    if (existing && existing.joinConfig.channelId !== voiceChannel.id) {
+      existing.destroy();
+    }
+
+    const connection = joinVoiceChannel({
+      channelId: voiceChannel.id,
+      guildId,
+      adapterCreator: message.guild!.voiceAdapterCreator,
+      selfMute: false,
+      selfDeaf: false,
+    });
+
+    const player = createAudioPlayer({
+      behaviors: { noSubscriber: NoSubscriberBehavior.Play },
+    });
+
+    const stream = Readable.from(audioBuffer);
+    const resource = createAudioResource(stream);
+    connection.subscribe(player);
+    player.play(resource);
+
+    logger.info(`[VoiceCmd] ${message.author.tag} dit "${text.slice(0, 50)}..." en ${lang} dans #${voiceChannel.name}`);
+
+    // Déconnexion auto après la lecture
+    player.once(AudioPlayerStatus.Idle, () => {
+      setTimeout(() => {
+        const conn = getVoiceConnection(guildId);
+        if (conn && conn.joinConfig.channelId === voiceChannel.id) {
+          conn.destroy();
+        }
+      }, 10_000);
+    });
+
+    return true;
+  } catch (error) {
+    logger.error("[VoiceCmd] Erreur:", error);
+    await message.reply({
+      content: "❌ Une erreur est survenue lors de la synthèse vocale.",
+      allowedMentions: { repliedUser: false },
+    });
+    return true;
+  }
+}
+
+/**
+ * Pipeline TTS neuronal — même ordre que voiceAgent.ts
+ */
+async function generateVoiceTTS(text: string, lang: string): Promise<Buffer | null> {
+  // 1. Piper TTS local
+  try {
+    const { generateLocalTTS, isPiperAvailable } = await import("../services/localTts.js");
+    if (isPiperAvailable()) {
+      const buf = await generateLocalTTS(text, lang);
+      if (buf && buf.length > 1000) {
+        logger.info(`[VoiceCmd] TTS via Piper local (lang: ${lang})`);
+        return buf;
+      }
+    }
+  } catch {}
+
+  // 2. ElevenLabs
+  try {
+    const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("../services/elevenLabsTts.js");
+    if (isElevenLabsConfigured()) {
+      const result = await generateElevenLabsTTS(text.slice(0, 500));
+      if (result?.audioUrl?.startsWith("data:audio/mpeg;base64,")) {
+        logger.info("[VoiceCmd] TTS via ElevenLabs (neural premium)");
+        return Buffer.from(result.audioUrl.split(",")[1], "base64");
+      }
+    }
+  } catch {}
+
+  // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
+  try {
+    const edgeBuffer = await generateEdgeTTS(text.slice(0, 500), lang);
+    if (edgeBuffer && edgeBuffer.length > 1000) {
+      logger.info(`[VoiceCmd] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
+      return edgeBuffer;
+    }
+  } catch {}
+
+  // 4. StreamElements / Amazon Polly
+  try {
+    const voiceMap: Record<string, string> = {
+      fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
+      it: "Giorgio", pt: "Ricardo", ja: "Takumi", ko: "Minho",
+      zh: "Zhiyu", ru: "Maxim", nl: "Ruben",
+    };
+    const voice = voiceMap[lang] || "Brian";
+    const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
+    const seRes = await fetch(seUrl, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "DiscordBot/1.0" },
+    });
+    if (seRes.ok) {
+      const seBuffer = Buffer.from(await seRes.arrayBuffer());
+      if (seBuffer.length > 1000) {
+        logger.info(`[VoiceCmd] TTS via StreamElements/Polly (voix: ${voice})`);
+        return seBuffer;
+      }
+    }
+  } catch {}
+
+  // 5. Fallback: Google Translate TTS
+  try {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 500))}&tl=${lang}&client=tw-ob`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Referer: "https://translate.google.com/",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    logger.info("[VoiceCmd] TTS via Google Translate (fallback)");
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    logger.error("[VoiceCmd] Erreur TTS:", err);
+    return null;
+  }
+}
+
+async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | null> {
+  const { WebSocket } = await import("ws");
+
+  const voiceMap: Record<string, string> = {
+    fr: "fr-FR-HenriNeural",
+    en: "en-US-AndrewMultilingualNeural",
+    es: "es-ES-AlvaroNeural",
+    de: "de-DE-ConradNeural",
+    it: "it-IT-DiegoNeural",
+    pt: "pt-BR-AntonioNeural",
+    ja: "ja-JP-KeitaNeural",
+    ko: "ko-KR-InJoonNeural",
+    zh: "zh-CN-XiaoxiaoNeural",
+    ru: "ru-RU-DmitryNeural",
+    nl: "nl-NL-MaartenNeural",
+  };
+
+  const voice = voiceMap[lang] || "en-US-AndrewMultilingualNeural";
+  const SSML = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</voice></speak>`;
+
+  return new Promise<Buffer | null>((resolve) => {
+    const chunks: Buffer[] = [];
+    let resolved = false;
+
+    const finish = (result: Buffer | null) => {
+      if (resolved) return;
+      resolved = true;
+      try { ws.close(); } catch {}
+      resolve(result);
+    };
+
+    const ws = new WebSocket(
+      "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1",
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          Origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        },
+      },
+    );
+
+    const timeout = setTimeout(() => finish(null), 10_000);
+
+    ws.on("open", () => {
+      ws.send(
+        `Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n${JSON.stringify({ context: { synthesis: { audio: { outputFormat: "audio-24khz-48kbitrate-mono-mp3" } } } })}`,
+      );
+      ws.send(
+        `Content-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toISOString()}\r\nPath:ssml\r\n\r\n${SSML}`,
+      );
+    });
+
+    ws.on("message", (data: Buffer) => {
+      const str = data.toString();
+      if (str.includes("Path:audio")) {
+        const idx = str.indexOf("\r\n\r\n");
+        if (idx !== -1) {
+          const audioData = data.subarray(idx + 4);
+          if (audioData.length > 0) chunks.push(audioData);
+        }
+      }
+      if (str.includes("Path:turn.end")) {
+        clearTimeout(timeout);
+        const combined = Buffer.concat(chunks);
+        finish(combined.length > 100 ? combined : null);
+      }
+    });
+
+    ws.on("error", () => {
+      clearTimeout(timeout);
+      finish(null);
+    });
+
+    ws.on("close", () => {
+      clearTimeout(timeout);
+      if (chunks.length > 0) {
+        const combined = Buffer.concat(chunks);
+        finish(combined.length > 100 ? combined : null);
+      } else {
+        finish(null);
+      }
+    });
   });
 }
 
