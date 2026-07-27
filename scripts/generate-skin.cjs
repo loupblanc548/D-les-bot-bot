@@ -19,8 +19,8 @@ const WIDTH = 64;
 const HEIGHT = 64;
 
 // Colors (RGBA)
-const ORANGE = [255, 140, 0, 255];
-const DARK_ORANGE = [200, 100, 0, 255];
+const YELLOW_BODY = [255, 215, 0, 255];
+const DARK_YELLOW = [200, 170, 0, 255];
 const BLACK = [20, 20, 20, 255];
 const DARK_GRAY = [40, 40, 40, 255];
 const WHITE = [240, 240, 240, 255];
@@ -118,7 +118,7 @@ fillRect(0, 0, WIDTH, HEIGHT, TRANSPARENT);
 // Face
 fillRect(0, 0, 8, 8, DARK_GRAY); // helmet base
 // Visor (orange strip)
-fillRect(1, 2, 6, 2, ORANGE);
+fillRect(1, 2, 6, 2, YELLOW_BODY);
 // Eyes (yellow dots on visor)
 setPixel(2, 2, YELLOW);
 setPixel(5, 2, YELLOW);
@@ -128,24 +128,24 @@ fillRect(2, 5, 4, 1, BLACK);
 // === HEAD overlay (8x8 at 32,0) ===
 fillRect(32, 0, 8, 8, TRANSPARENT);
 // Helmet detail
-fillRect(33, 1, 6, 1, DARK_ORANGE);
+fillRect(33, 1, 6, 1, DARK_YELLOW);
 setPixel(35, 0, YELLOW); // antenna
 setPixel(36, 0, YELLOW);
 
 // === BODY (8x4 at 16,16) ===
-fillRect(16, 16, 8, 4, ORANGE);
+fillRect(16, 16, 8, 4, YELLOW_BODY);
 // Chest detail (black stripe)
 fillRect(16, 17, 8, 1, BLACK);
 // Badge (yellow square)
 fillRect(19, 18, 2, 1, YELLOW);
 
 // === RIGHT ARM (4x12 at 40,16) ===
-fillRect(40, 16, 4, 12, DARK_ORANGE);
+fillRect(40, 16, 4, 12, DARK_YELLOW);
 // Shoulder pad
 fillRect(40, 16, 4, 2, BLACK);
 
 // === LEFT ARM (4x12 at 32,48) ===
-fillRect(32, 48, 4, 12, DARK_ORANGE);
+fillRect(32, 48, 4, 12, DARK_YELLOW);
 // Shoulder pad
 fillRect(32, 48, 4, 2, BLACK);
 
@@ -161,16 +161,16 @@ fillRect(16, 56, 4, 4, DARK_GRAY);
 
 // === BACK of head (8x8 at 24,0) ===
 fillRect(24, 0, 8, 8, DARK_GRAY);
-fillRect(25, 1, 6, 6, DARK_ORANGE);
+fillRect(25, 1, 6, 6, DARK_YELLOW);
 
 // === Back of body (8x4 at 32,16) ===
-fillRect(32, 16, 8, 4, DARK_ORANGE);
+fillRect(32, 16, 8, 4, DARK_YELLOW);
 
 // === Back of right arm (4x12 at 44,16) ===
-fillRect(44, 16, 4, 12, DARK_ORANGE);
+fillRect(44, 16, 4, 12, DARK_YELLOW);
 
 // === Back of left arm (4x12 at 36,48) ===
-fillRect(36, 48, 4, 12, DARK_ORANGE);
+fillRect(36, 48, 4, 12, DARK_YELLOW);
 
 // === Back of right leg (4x12 at 0,32) ===
 fillRect(0, 32, 4, 12, BLACK);
