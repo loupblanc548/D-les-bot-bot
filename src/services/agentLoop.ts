@@ -944,7 +944,10 @@ async function runAgentLoopInternal(
     // Les API payantes (OpenRouter/NVIDIA) ne sont utilisées que si:
     // 1. Le local échoue (Ollama down, modèle crash)
     // 2. La tâche est trop complexe (4+ tools + raisonnement profond) ET le local retourne une réponse vide/incohérente
-    if (isLocalLlmAvailable()) {
+    // 3. Le message contient une image — qwen2.5:3b n'a pas la capacité de croiser
+    //    une description d'image avec une question de manière fiable → délégation API
+    const hasImage = userMessage.includes("[Image jointe:");
+    if (isLocalLlmAvailable() && !hasImage) {
       // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",
       // on essaie quand même le local mais on accepte de fallback plus vite
       const isComplexTask = (taskComplexity === "moderate" || taskComplexity === "complex") && availableTools.length > 3;
@@ -1056,7 +1059,11 @@ async function runAgentLoopInternal(
       }
     } else {
       // Ollama non disponible — on log et on passe directement aux API
-      logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
+      if (hasImage) {
+        logger.info(`[AgentLoop] 🖼️ Image détectée — qwen2.5:3b skip (pas de vision), délégation API directement`);
+      } else {
+        logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
+      }
     }
 
     for (const modelName of modelsToTry.slice(0, 5)) {
