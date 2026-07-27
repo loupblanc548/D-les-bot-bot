@@ -521,20 +521,80 @@ async function handleVoiceCommand(
   // Le message doit commencer par "parle" (insensible à la casse)
   if (!/^parle\b/i.test(content)) return false;
 
-  // Parser: texte:"..." ou texte:'...' ou texte:...
-  // Et: langue:xx (optionnel)
-  const textMatch = content.match(/texte\s*:\s*"([^"]+)"/i)
-    || content.match(/texte\s*:\s*'([^']+)'/i)
-    || content.match(/texte\s*:\s*(.+?)(?:\s+langue\s*:|$)/i);
-  if (!textMatch) {
+  // ── Parser ultra-flexible ──────────────────────────────────────
+  // Accepte tous ces formats:
+  //   @bot parle Bonjour tout le monde                    → texte libre, défaut fr
+  //   @bot parle "Bonjour tout le monde"                  → guillemets
+  //   @bot parle 'Bonjour'                                → apostrophes
+  //   @bot parle Bonjour :Français                        → :langue à la fin
+  //   @bot parle "Bonjour" :fr                            → :code à la fin
+  //   @bot parle :Français "Bonjour"                      → langue d'abord
+  //   @bot parle :fr Bonjour tout le monde                → langue d'abord, texte libre
+  //   @bot parle texte:"Bonjour" langue:Français          → format explicite (compat)
+  //   @bot parle langue:English texte:"Hello"             → format explicite inversé
+  //   @bot parle Bonjour tout le monde langue:Français    → langue: à la fin
+  //
+  // Stratégie:
+  //   1. Retirer "parle" du début
+  //   2. Extraire la langue (marqueur :xxx ou langue:xxx)
+  //   3. Le reste = texte (retirer guillemets/apostrophes si entourent tout)
+
+  let rest = content.replace(/^parle\s*/i, "").trim();
+
+  if (!rest) {
     await message.reply({
-      content: "🗣️ **Usage:** `@John Helldiver parle texte:\"Bonjour tout le monde !\" langue:Français`\n\nLa commande `texte:` est obligatoire (max 3000 caractères). La `langue:` est optionnelle (défaut: Français).\n\n**Langues disponibles:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
+      content: "🗣️ **Usage:** `@John Helldiver parle Bonjour tout le monde :Français`\n\nÉcris ce que tu veux que je dise après `parle`. La langue est optionnelle (`:Français` ou `langue:Français` à la fin).\n\n**Exemples:**\n`@John Helldiver parle Bonjour tout le monde`\n`@John Helldiver parle \"Hello world\" :English`\n`@John Helldiver parle 'Hola' langue:Español`\n`@John Helldiver parle :Français Bonjour à tous`\n\n**Langues:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
       allowedMentions: { repliedUser: false },
     });
     return true;
   }
 
-  const text = textMatch[1].trim();
+  // ── Étape 1: Extraire la langue ──
+  // Pattern A: langue:xxx ou langue :xxx (n'importe où dans le message)
+  // Pattern B: :xxx à la fin du message (marqueur court)
+  // Pattern C: :xxx au début du message (langue d'abord)
+  let lang = "fr"; // défaut
+  let textRaw = rest;
+
+  // D'abord essayer "langue:xxx" ou "langue :xxx"
+  const langExplicit = rest.match(/langue\s*:\s*(\S+)/i);
+  if (langExplicit) {
+    lang = langExplicit[1];
+    textRaw = rest.replace(/langue\s*:\s*\S+/i, "").trim();
+  } else {
+    // Essayer ":xxx" — soit au début, soit à la fin
+    // Au début: :Français texte...
+    const langStart = rest.match(/^:(\S+)\s+(.+)/i);
+    if (langStart) {
+      lang = langStart[1];
+      textRaw = langStart[2].trim();
+    } else {
+      // À la fin: texte... :Français
+      const langEnd = rest.match(/^(.+?)\s+:(\S+)$/i);
+      if (langEnd) {
+        textRaw = langEnd[1].trim();
+        lang = langEnd[2];
+      }
+      // Sinon: pas de langue spécifiée, tout est du texte
+    }
+  }
+
+  // ── Étape 2: Nettoyer le texte ──
+  // Retirer "texte:" si présent (format explicite)
+  textRaw = textRaw.replace(/^texte\s*:\s*/i, "").trim();
+
+  // Retirer les guillemets/apostrophes qui entourent tout le texte
+  if (/^".+"$/.test(textRaw)) {
+    textRaw = textRaw.slice(1, -1);
+  } else if (/^'[^']+'$/.test(textRaw)) {
+    textRaw = textRaw.slice(1, -1);
+  } else if (/^«.+»$/.test(textRaw)) {
+    textRaw = textRaw.slice(1, -1); // guillemets français « »
+  } else if (/^\(.+\)$/.test(textRaw)) {
+    textRaw = textRaw.slice(1, -1); // parenthèses
+  }
+
+  const text = textRaw.trim();
   if (!text || text.length > 3000) {
     await message.reply({
       content: "❌ Le texte doit faire entre 1 et 3000 caractères.",
@@ -543,8 +603,7 @@ async function handleVoiceCommand(
     return true;
   }
 
-  // Parser la langue
-  const langMatch = content.match(/langue\s*:\s*(\S+)/i);
+  // ── Étape 3: Résoudre la langue ──
   const langMap: Record<string, string> = {
     // Français
     fr: "fr", français: "fr", francais: "fr", french: "fr",
@@ -642,8 +701,8 @@ async function handleVoiceCommand(
     // Filipinois/Tagalog
     fil: "fil", filipino: "fil", tagalog: "fil", philippin: "fil",
   };
-  const langRaw = langMatch?.[1]?.toLowerCase().replace(/[éèê]/g, "e") || "fr";
-  const lang = langMap[langRaw] || langMap[langRaw.slice(0, 2)] || "fr";
+  const langRaw = lang.toLowerCase().replace(/[éèê]/g, "e").replace(/[:'"«»]/g, "");
+  const resolvedLang = langMap[langRaw] || langMap[langRaw.slice(0, 2)] || "fr";
 
   // Vérifier que l'utilisateur est dans un salon vocal
   const member = message.member as GuildMember | null;
@@ -661,7 +720,7 @@ async function handleVoiceCommand(
 
   try {
     // Générer le TTS via le pipeline neuronal
-    const audioBuffer = await generateVoiceTTS(text, lang);
+    const audioBuffer = await generateVoiceTTS(text, resolvedLang);
     if (!audioBuffer) {
       await message.reply({
         content: "❌ Impossible de générer l'audio. Réessaie plus tard.",
@@ -704,7 +763,7 @@ async function handleVoiceCommand(
     connection.subscribe(player);
     player.play(resource);
 
-    logger.info(`[VoiceCmd] ${message.author.tag} dit "${text.slice(0, 50)}..." en ${lang} dans #${voiceChannel.name}`);
+    logger.info(`[VoiceCmd] ${message.author.tag} dit "${text.slice(0, 50)}..." en ${resolvedLang} dans #${voiceChannel.name}`);
 
     // Déconnexion auto après la lecture
     player.once(AudioPlayerStatus.Idle, () => {
