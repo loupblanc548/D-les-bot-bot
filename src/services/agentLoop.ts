@@ -28,6 +28,7 @@ import {
   generateToolListPrompt,
   type ToolContext,
 } from "./agentTools.js";
+import { delegateToExpert, DELEGATE_TOOL } from "./orchestrator.js";
 import prisma from "../prisma.js";
 import {
   beginInteraction,
@@ -529,6 +530,12 @@ async function runAgentLoopInternal(
   const routedTools = routeTools(userMessage, ALL_AGENT_TOOLS, isPublic);
   // Filter out auto-disabled tools
   const availableTools = routedTools.filter((t) => !isToolDisabled(t.function.name));
+
+  // Add delegation tool when local LLM is active — qwen2.5 becomes orchestrator
+  if (isLocalLlmAvailable()) {
+    availableTools.push(DELEGATE_TOOL);
+    logger.info(`[AgentLoop] 🎼 Mode orchestrateur activé — qwen2.5 peut déléguer aux modèles experts`);
+  }
   const toolNames = availableTools.map((t) => t.function.name);
   const plan = await generatePlan(userMessage, toolNames);
   const planPrompt = plan ? formatPlanForPrompt(plan) : "";
@@ -1314,9 +1321,26 @@ async function runAgentLoopInternal(
             }
 
             if (result === null || result === undefined) {
-              // Directive 2: SOAR Validation Gate for restricted tools
-              // Low-risk tools execute autonomously — no approval needed
-              if (isLowRisk(toolName)) {
+              // ─── Orchestrateur: qwen2.5 délègue à un modèle expert ───
+              if (toolName === "delegateToExpert") {
+                logger.info(`[AgentLoop] 🎼 Délégation orchestrateur: tier=${args.tier}, tâche=${String(args.task).slice(0, 60)}...`);
+                try {
+                  const expertResult = await delegateToExpert(
+                    String(args.task),
+                    (args.tier as "small" | "medium" | "large") || "medium",
+                    String(args.context || userMessage),
+                  );
+                  result = { success: true, data: expertResult };
+                  agentToolCalls.labels("delegateToExpert", "success").inc();
+                  agentToolCallsDaily.labels("delegateToExpert").inc();
+                } catch (delErr) {
+                  result = {
+                    success: false,
+                    data: `Délégation échouée: ${delErr instanceof Error ? delErr.message : String(delErr)}`,
+                  };
+                  agentToolCalls.labels("delegateToExpert", "fail").inc();
+                }
+              } else if (isLowRisk(toolName)) {
                 logger.info(`[AgentLoop] ⚡ Autonomous execution (low-risk): ${toolName}`);
                 result = await executeTool(toolName, args, ctx);
                 if (result.success) {
