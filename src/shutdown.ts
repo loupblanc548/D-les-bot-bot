@@ -31,6 +31,11 @@ import { stopAgentBrain } from "./services/agentBrain.js";
 import { stopPersonalityEngine } from "./services/personalityEngine.js";
 import { stopMediaWorker } from "./infrastructure/processIsolator.js";
 import { shutdownLogQueue } from "./queues/logQueue.js";
+import { stopControlServer } from "./control-server.js";
+import { stopBridgeServer } from "./infrastructure/bridge/bridgeServer.js";
+import { stopInfraWatchdog } from "./services/infraWatchdog.js";
+import { stopConfigCache } from "./services/configCache.js";
+import { stopDmCleanup } from "./services/dmCleanup.js";
 import type {} from "discord.js";
 
 export type ClientDestroyFn = () => void;
@@ -78,6 +83,15 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopAgentBrain,
     stopPersonalityEngine,
     stopMediaWorker,
+    stopInfraWatchdog,
+    stopConfigCache,
+    stopDmCleanup,
+    () => {
+      void stopControlServer();
+    },
+    () => {
+      void stopBridgeServer();
+    },
     () => {
       void shutdownLogQueue();
     },

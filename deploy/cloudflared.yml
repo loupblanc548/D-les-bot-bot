@@ -1,0 +1,31 @@
+# Cloudflare Tunnel Configuration
+# For mini-PC deployment — exposes the control server without opening router ports
+#
+# Setup steps:
+# 1. Install cloudflared: sudo apt install cloudflared
+# 2. Login: cloudflared tunnel login
+# 3. Create tunnel: cloudflared tunnel create discord-bot
+# 4. Copy this config: sudo cp deploy/cloudflared.yml /etc/cloudflared/config.yml
+# 5. Set token in .env: CLOUDFLARE_TUNNEL_TOKEN=your_token
+# 6. Start: sudo systemctl start cloudflared
+#
+# Or use Docker: uncomment cloudflared service in docker-compose.yml
+
+tunnel: discord-bot
+credentials-file: /etc/cloudflared/discord-bot.json
+
+ingress:
+  # Control server (dashboard API)
+  - hostname: bot-dashboard.yourdomain.com
+    service: http://localhost:7070
+    originRequest:
+      noTLSVerify: true
+
+  # Prometheus metrics
+  - hostname: bot-metrics.yourdomain.com
+    service: http://localhost:7070/metrics
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all
+  - service: http_status:404

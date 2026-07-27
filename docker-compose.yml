@@ -16,11 +16,11 @@ services:
       redis:
         condition: service_started
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',r=>{process.exit(r.statusCode===200?0:1)})"]
+      test: ["CMD", "node", "-e", "const http=require('http');const start=Date.now();http.get('http://localhost:3000/health',r=>{if(r.statusCode!==200){process.exit(1);}let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);if(j.status!=='ok'){process.exit(1);}process.exit(0);}catch{process.exit(1);}});}).on('error',()=>process.exit(1));"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 30s
 
   postgres:
     image: postgres:16-alpine

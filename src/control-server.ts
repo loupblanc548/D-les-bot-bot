@@ -59,21 +59,66 @@ console.warn = (...args: unknown[]) => {
 
 function authCheck(req: http.IncomingMessage): boolean {
   const token = config.controlToken;
-  if (!token) return true;
+  if (!token) {
+    if (process.env.NODE_ENV === "production") {
+      logger.error("[ControlServer] CONTROL_TOKEN non défini — accès refusé en production");
+      return false;
+    }
+    logger.warn(
+      "[ControlServer] CONTROL_TOKEN non défini — accès ouvert (développement uniquement)",
+    );
+    return true;
+  }
   const auth = req.headers.authorization?.replace("Bearer ", "");
   if (!auth) return false;
   if (auth.length !== token.length) return false;
   return crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(token));
 }
 
+const ctrlRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const CTRL_RATE_LIMIT_WINDOW = 60_000;
+const CTRL_RATE_LIMIT_MAX = 30;
+
+function ctrlRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = ctrlRateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ctrlRateLimitMap.set(ip, { count: 1, resetAt: now + CTRL_RATE_LIMIT_WINDOW });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= CTRL_RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: http.IncomingMessage): string {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string") return fwd.split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
+function getAllowedOrigin(): string {
+  const origins = process.env.CONTROL_CORS_ORIGINS || process.env.CORS_ORIGIN || "";
+  if (origins && origins !== "*") return origins.split(",")[0].trim();
+  if (process.env.NODE_ENV === "production") return "";
+  return "*";
+}
+
 function sendJson(res: http.ServerResponse, code: number, data: unknown) {
-  const allowedOrigin = process.env.CORS_ORIGIN || "*";
-  res.writeHead(code, {
+  const allowedOrigin = getAllowedOrigin();
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  });
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  };
+  if (allowedOrigin) {
+    headers["Access-Control-Allow-Origin"] = allowedOrigin;
+  }
+  res.writeHead(code, headers);
   res.end(JSON.stringify(data));
 }
 
@@ -111,17 +156,20 @@ export async function startControlServer(port: number, client: Client): Promise<
     const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      const allowedOrigin = process.env.CORS_ORIGIN || "*";
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": allowedOrigin,
+      const allowedOrigin = getAllowedOrigin();
+      const headers: Record<string, string> = {
         "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      });
+      };
+      if (allowedOrigin) {
+        headers["Access-Control-Allow-Origin"] = allowedOrigin;
+      }
+      res.writeHead(204, headers);
       res.end();
       return;
     }
 
-    if (path === "/api/health" || path === "/health") {
+    if (path === "/api/health" || path === "/health" || path === "/healthz") {
       sendJson(res, 200, { status: "ok", uptime: process.uptime(), timestamp: Date.now() });
       return;
     }
@@ -162,6 +210,12 @@ export async function startControlServer(port: number, client: Client): Promise<
       logger.warn(
         `[ControlServer] Path contains 'webhook' but not matched: "${path}" (startsWith check: ${path.startsWith("/webhook/")})`,
       );
+    }
+
+    const clientIp = getClientIp(req);
+    if (!ctrlRateLimit(clientIp)) {
+      sendJson(res, 429, { error: "Too many requests" });
+      return;
     }
 
     if (!authCheck(req)) {
@@ -1003,8 +1057,9 @@ export async function startControlServer(port: number, client: Client): Promise<
   });
 
   return new Promise((resolve) => {
-    server!.listen(port, "0.0.0.0", () => {
-      logger.info(`[ControlServer] Écoute sur 0.0.0.0:${port}`);
+    const bindAddress = process.env.CONTROL_BIND_ADDRESS || "127.0.0.1";
+    server!.listen(port, bindAddress, () => {
+      logger.info(`[ControlServer] Écoute sur ${bindAddress}:${port}`);
       resolve();
     });
     server!.on("error", (err: NodeJS.ErrnoException) => {

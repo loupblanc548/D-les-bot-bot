@@ -148,6 +148,33 @@ export const agentToolCallsDaily = new Gauge({
   registers: [registry],
 });
 
+// ─── AI fallback chain metrics ───
+export const aiFallbackUsed = new Counter({
+  name: "ai_fallback_used_total",
+  help: "AI fallback provider used when primary fails",
+  labelNames: ["provider", "status"],
+  registers: [registry],
+});
+export const aiFallbackLatency = new Histogram({
+  name: "ai_fallback_latency_seconds",
+  help: "AI fallback response latency in seconds",
+  labelNames: ["provider"],
+  buckets: [0.5, 1, 2, 5, 10, 20, 30],
+  registers: [registry],
+});
+export const aiCacheHits = new Counter({
+  name: "ai_cache_hits_total",
+  help: "Semantic AI response cache hits (repeated questions answered from cache)",
+  labelNames: ["channel_type"],
+  registers: [registry],
+});
+export const aiCacheMisses = new Counter({
+  name: "ai_cache_misses_total",
+  help: "Semantic AI response cache misses",
+  labelNames: ["channel_type"],
+  registers: [registry],
+});
+
 export async function getMetrics(): Promise<string> {
   return registry.metrics();
 }

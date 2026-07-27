@@ -117,6 +117,7 @@ const envSchema = z.object({
   GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
+  NVIDIA_API_KEY: z.string().optional(),
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
   BRAVE_SEARCH_API_KEY: z.string().optional(),
   BRAVE_AUTOSUGGEST_API_KEY: z.string().optional(),

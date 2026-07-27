@@ -249,16 +249,39 @@ async function main(): Promise<void> {
       startHealthServer(3000);
       setupAllWebhooks();
     } catch (err) {
-      logger.warn(`Health server failed to start (port 3000): ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(
+        `Health server failed to start (port 3000): ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
     try {
       startMetricsServer(metricsPort);
     } catch (err) {
-      logger.warn(`Metrics server failed to start (port ${metricsPort}): ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(
+        `Metrics server failed to start (port ${metricsPort}): ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
     startControlServer(config.controlPort || 3002, client).catch((err) =>
-      logger.error(`[Startup] Control server failed to start on port ${config.controlPort || 3002}: ${err?.message || err}`),
+      logger.error(
+        `[Startup] Control server failed to start on port ${config.controlPort || 3002}: ${err?.message || err}`,
+      ),
     );
+  }
+
+  // GitHub webhook — notify a channel on push/PR (if configured)
+  if (process.env.GITHUB_WEBHOOK_SECRET && process.env.GITHUB_NOTIFY_CHANNEL_ID) {
+    try {
+      const { initGithubWebhook } = await import("./services/githubWebhook.js");
+      initGithubWebhook(
+        client,
+        process.env.GITHUB_NOTIFY_CHANNEL_ID,
+        process.env.GITHUB_WEBHOOK_SECRET,
+      );
+      logger.info("[Startup] GitHub webhook initialized");
+    } catch (err) {
+      logger.warn(
+        `[Startup] GitHub webhook init failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   try {

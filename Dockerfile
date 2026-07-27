@@ -38,6 +38,9 @@ COPY --from=builder /app/package*.json ./
 ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
 RUN npx prisma generate || true
 
+RUN addgroup -S botuser && adduser -S botuser -G botuser
+USER botuser
+
 EXPOSE 8080
 
 CMD ["node", "--expose-gc", "--import", "tsx", "src/index.ts"]

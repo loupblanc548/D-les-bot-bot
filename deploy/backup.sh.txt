@@ -1,0 +1,38 @@
+#!/bin/bash
+# backup.sh — Automatic SQLite/PostgreSQL backup for the Discord bot
+# Deploy on mini-PC: crontab -e → 0 3 * * * /opt/discord-bot/deploy/backup.sh
+# Runs daily at 3 AM, keeps 7 days of backups
+
+set -euo pipefail
+
+BACKUP_DIR="/opt/discord-bot/backups"
+DB_PATH="${DB_PATH:-/opt/discord-bot/data/bot.db}"
+RETENTION_DAYS=7
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+BACKUP_FILE="${BACKUP_DIR}/bot_${TIMESTAMP}.db"
+
+mkdir -p "$BACKUP_DIR"
+
+# SQLite backup (using .backup command for consistency)
+if [ -f "$DB_PATH" ]; then
+  echo "[$(date)] Backing up SQLite database..."
+  sqlite3 "$DB_PATH" ".backup '$BACKUP_FILE'" 2>/dev/null || cp "$DB_PATH" "$BACKUP_FILE"
+
+  # Compress
+  gzip -f "$BACKUP_FILE"
+  echo "[$(date)] Backup created: ${BACKUP_FILE}.gz ($(du -h "${BACKUP_FILE}.gz" | cut -f1))"
+
+  # Clean old backups
+  find "$BACKUP_DIR" -name "bot_*.db.gz" -mtime +${RETENTION_DAYS} -delete
+  echo "[$(date)] Cleaned backups older than ${RETENTION_DAYS} days"
+else
+  echo "[$(date)] ⚠️ Database not found at $DB_PATH — skipping backup"
+fi
+
+# Optional: upload to cloud storage (uncomment and configure)
+# if [ -n "${RCLONE_REMOTE:-}" ]; then
+#   rclone copy "${BACKUP_FILE}.gz" "${RCLONE_REMOTE}/discord-bot-backups/" --quiet
+#   echo "[$(date)] Uploaded to cloud storage"
+# fi
+
+echo "[$(date)] Backup complete"

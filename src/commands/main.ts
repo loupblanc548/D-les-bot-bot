@@ -15,6 +15,10 @@ import { getLogs } from "../services/logs.js";
 import { runStartupRetrospective } from "../services/feeds.js";
 import { runDbSourcesRetrospective } from "../services/monitor.js";
 import { CATEGORIES, type Category } from "./helpCategories.js";
+import { isLocalLlmAvailable } from "../services/localLlm.js";
+import { isGeminiAvailable } from "../services/gemini.js";
+import { isNvidiaNimAvailable } from "../services/nvidiaNim.js";
+import { getCacheSize } from "../utils/aiResponseCache.js";
 
 const FOOTER = { text: "Shadow Broker • Intelligence System" };
 
@@ -152,6 +156,17 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
         { name: "📋 Logs", value: logsCount.toString(), inline: true },
         { name: "⚠️ Warns", value: warningsCount.toString(), inline: true },
         { name: "📝 Dernières actions", value: lastScans, inline: false },
+        {
+          name: "🤖 Services IA",
+          value: [
+            `Ollama (local): ${isLocalLlmAvailable() ? "✅" : "❌"}`,
+            `Gemini: ${isGeminiAvailable() ? "✅" : "❌"}`,
+            `NVIDIA NIM: ${isNvidiaNimAvailable() ? "✅" : "❌"}`,
+            `OpenRouter: ${config.openRouterApiKey ? "✅" : "❌"}`,
+            `Cache IA: ${getCacheSize()} entrées`,
+          ].join("\n"),
+          inline: false,
+        },
       )
       .setFooter(FOOTER)
       .setTimestamp();

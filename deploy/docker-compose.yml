@@ -1,0 +1,85 @@
+# docker-compose.yml — Discord Bot + Ollama + Piper TTS
+# For mini-PC deployment (December 2025)
+#
+# Usage:
+#   1. Copy .env file to the deployment directory
+#   2. docker compose up -d
+#   3. Check logs: docker compose logs -f bot
+
+version: "3.9"
+
+services:
+  bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: discord-bot
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      - ollama
+    volumes:
+      - bot-data:/app/data
+      - bot-logs:/app/logs
+    networks:
+      - bot-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    # Uncomment for GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    networks:
+      - bot-net
+
+  piper-tts:
+    image: rhasspy/wyoming-piper:latest
+    container_name: piper-tts
+    restart: unless-stopped
+    ports:
+      - "10200:10200"
+    volumes:
+      - piper-voices:/voices
+      - piper-models:/models
+    command: --voice fr_FR-siwis-medium --uri tcp://0.0.0.0:10200
+    networks:
+      - bot-net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    # Uncomment and set tunnel token in .env:
+    # command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - bot
+    networks:
+      - bot-net
+
+volumes:
+  bot-data:
+  bot-logs:
+  ollama-models:
+  piper-voices:
+  piper-models:
+
+networks:
+  bot-net:
+    driver: bridge

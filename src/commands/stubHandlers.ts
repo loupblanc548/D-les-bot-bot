@@ -12,6 +12,7 @@ import {
   AttachmentBuilder,
 } from "discord.js";
 import prisma from "../prisma.js";
+import logger from "../utils/logger.js";
 import { getUserXp, getLeaderboard, levelFromXp } from "../services/xpService.js";
 import { generateRankCard } from "../services/imageService.js";
 import {
@@ -1252,14 +1253,51 @@ export async function handleAiExtra(
           `Résumé des ${nombre} derniers messages de <#${salon?.id ?? interaction.channelId}>.`,
         );
       await interaction.deferReply();
-      // TODO: implémenter avec l'IA existante
+      try {
+        const targetChannel = (salon ?? interaction.channel) as
+          import("discord.js").TextChannel | null;
+        if (targetChannel && targetChannel.type === ChannelType.GuildText) {
+          const recentMessages = await targetChannel.messages.fetch({
+            limit: Math.min(nombre, 100),
+          });
+          const messageTexts = recentMessages
+            .filter((m) => m.content.trim().length > 0 && !m.author.bot)
+            .map((m) => `${m.author.username}: ${m.content}`)
+            .reverse();
+          if (messageTexts.length > 0) {
+            const summary = await summarizeChannel(messageTexts, nombre);
+            embed.setDescription(summary.slice(0, 4000) || "Aucun résumé disponible.");
+          } else {
+            embed.setDescription("Aucun message à résumer dans ce salon.");
+          }
+        }
+      } catch (err) {
+        embed.setDescription("Erreur lors de la génération du résumé. Réessaie plus tard.");
+        logger.error(
+          `[stubHandlers] summarize error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
       await interaction.editReply({ embeds: [embed] });
       break;
     }
     case "explain": {
       const sujet = interaction.options.getString("sujet", true);
-      embed.setTitle("💡 Explication").setDescription(`Explication de: ${sujet}`);
       await interaction.deferReply();
+      try {
+        const explanation = await advancedChat(
+          `Explique de façon claire et concise: ${sujet}. Adapte le niveau de détail pour un utilisateur Discord.`,
+        );
+        embed
+          .setTitle("💡 Explication")
+          .setDescription((explanation || `Explication de: ${sujet}`).slice(0, 4000));
+      } catch (err) {
+        logger.error(
+          `[stubHandlers] explain error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        embed
+          .setTitle("💡 Explication")
+          .setDescription(`Erreur lors de l'explication de: ${sujet}. Réessaie plus tard.`);
+      }
       await interaction.editReply({ embeds: [embed] });
       break;
     }

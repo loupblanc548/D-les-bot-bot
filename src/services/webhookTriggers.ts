@@ -14,6 +14,7 @@
 
 import { Client, EmbedBuilder, WebhookClient } from "discord.js";
 import type { IncomingMessage, ServerResponse } from "http";
+import crypto from "crypto";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 
@@ -94,12 +95,56 @@ export async function handleWebhookRequest(
     return;
   }
 
-  // Read body
+  // Read body with size limit
   const chunks: Buffer[] = [];
+  let totalSize = 0;
+  const MAX_WEBHOOK_SIZE = 512_000; // 512KB
   for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    totalSize += buf.length;
+    if (totalSize > MAX_WEBHOOK_SIZE) {
+      res.writeHead(413, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Payload too large" }));
+      return;
+    }
+    chunks.push(buf);
   }
-  const rawBody = Buffer.concat(chunks).toString("utf-8");
+  const rawBodyBuffer = Buffer.concat(chunks);
+  const rawBody = rawBodyBuffer.toString("utf-8");
+
+  // Content-Type validation
+  const contentType = req.headers["content-type"] || "";
+  if (
+    !contentType.includes("application/json") &&
+    !contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    res.writeHead(415, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Unsupported content type" }));
+    return;
+  }
+
+  // HMAC signature validation (if X-Signature header present)
+  const signature = req.headers["x-signature"] as string | undefined;
+  if (signature) {
+    const expected = crypto
+      .createHmac("sha256", trigger.secret)
+      .update(rawBodyBuffer)
+      .digest("hex");
+    try {
+      if (
+        signature.length !== expected.length ||
+        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+      ) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid signature" }));
+        return;
+      }
+    } catch {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Signature validation failed" }));
+      return;
+    }
+  }
 
   let payload: Record<string, unknown>;
   try {

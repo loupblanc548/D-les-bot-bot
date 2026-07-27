@@ -1,0 +1,43 @@
+#!/bin/bash
+# watchdog.sh — Auto-restart watchdog for the Discord bot
+# Deploy on mini-PC: crontab -e → */1 * * * * /opt/discord-bot/deploy/watchdog.sh
+# Checks if the bot process is alive, restarts if not.
+
+set -euo pipefail
+
+BOT_NAME="discord-bot"
+LOG_FILE="/opt/discord-bot/logs/watchdog.log"
+MAX_LOG_SIZE=1048576  # 1MB
+
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# Rotate log if too large
+if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)" -gt "$MAX_LOG_SIZE" ]; then
+  mv "$LOG_FILE" "${LOG_FILE}.old"
+fi
+
+timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
+
+# Check if systemd service is running
+if systemctl is-active --quiet "$BOT_NAME" 2>/dev/null; then
+  exit 0
+fi
+
+# Service not running — try to restart
+echo "[$(timestamp)] Bot not running — attempting restart..." >> "$LOG_FILE"
+systemctl restart "$BOT_NAME" 2>> "$LOG_FILE" || true
+
+# Wait and verify
+sleep 5
+if systemctl is-active --quiet "$BOT_NAME" 2>/dev/null; then
+  echo "[$(timestamp)] Bot restarted successfully" >> "$LOG_FILE"
+else
+  echo "[$(timestamp)] ❌ Bot restart FAILED — manual intervention required" >> "$LOG_FILE"
+  # Optional: send alert via webhook
+  if [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
+    curl -s -X POST "$ALERT_WEBHOOK_URL" \
+      -H "Content-Type: application/json" \
+      -d "{\"content\": \"🚨 Discord bot is DOWN and auto-restart failed! Manual intervention required.\"}" \
+      >> "$LOG_FILE" 2>&1 || true
+  fi
+fi

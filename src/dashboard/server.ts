@@ -98,7 +98,10 @@ function createSessionToken(userId: string, accessToken: string): string {
 
 function verifySessionToken(token: string): { userId: string; accessToken: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; accessToken: string };
+    return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as {
+      userId: string;
+      accessToken: string;
+    };
   } catch {
     return null;
   }
@@ -292,13 +295,40 @@ export async function startDashboardServer(port: number): Promise<number> {
     }
   });
 
+  // Vérifier que l'utilisateur est admin/owner de la guild via Discord API
+  async function verifyGuildAdmin(
+    session: { userId: string; accessToken: string },
+    guildId: string,
+  ): Promise<boolean> {
+    try {
+      const guildsResponse = await axios.get<DiscordGuild[]>(`${DISCORD_API}/users/@me/guilds`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      });
+      const guild = guildsResponse.data.find((g) => g.id === guildId);
+      if (!guild) return false;
+      return guild.owner || (parseInt(guild.permissions, 10) & 0x8) === 0x8;
+    } catch {
+      return false;
+    }
+  }
+
   // Config d'un serveur
   app.get("/api/guilds/:id", authRequired, async (req, res) => {
     const guildId = String(req.params.id);
+    const session = (req as any).session;
 
     // Validate guildId format
     if (!/^\d{17,20}$/.test(guildId)) {
       res.status(400).json({ error: "Invalid guild ID" });
+      return;
+    }
+
+    // IDOR protection: verify user is admin of this guild
+    const isAdmin = await verifyGuildAdmin(session, guildId);
+    if (!isAdmin) {
+      res
+        .status(403)
+        .json({ error: "Accès refusé — vous n'êtes pas administrateur de ce serveur" });
       return;
     }
 
@@ -323,10 +353,20 @@ export async function startDashboardServer(port: number): Promise<number> {
   app.post("/api/guilds/:id/settings", authRequired, async (req, res) => {
     const guildId = String(req.params.id);
     const settings = req.body;
+    const session = (req as any).session;
 
     // Validate guildId format
     if (!/^\d{17,20}$/.test(guildId)) {
       res.status(400).json({ error: "Invalid guild ID" });
+      return;
+    }
+
+    // IDOR protection: verify user is admin of this guild
+    const isAdmin = await verifyGuildAdmin(session, guildId);
+    if (!isAdmin) {
+      res
+        .status(403)
+        .json({ error: "Accès refusé — vous n'êtes pas administrateur de ce serveur" });
       return;
     }
 

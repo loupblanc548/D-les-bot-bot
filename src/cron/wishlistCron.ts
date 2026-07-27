@@ -133,7 +133,48 @@ async function checkInstantGamingDeals(_client: Client): Promise<void> {
     if (allWishlists.length === 0) return;
 
     logger.info(`[WishlistCron] ${allWishlists.length} jeux en wishlist non-Fortnite à surveiller`);
-    // TODO: Implémenter une recherche par nom quand l'API le permettra
+
+    const seenDeals = new Set<string>();
+    for (const item of allWishlists) {
+      try {
+        const res = await fetch(
+          `https://www.instant-gaming.com/fr/recherche/?q=${encodeURIComponent(item.gameName)}`,
+          { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) },
+        );
+        if (!res.ok) continue;
+        const html = await res.text();
+        const priceMatch = html.match(/class="price"[^>]*>([\d.,]+)\s*€/);
+        const linkMatch = html.match(/href="(\/fr\/[^"]+)"/);
+        if (!priceMatch || !linkMatch) continue;
+
+        const price = parseFloat(priceMatch[1].replace(",", "."));
+        const dealKey = `${item.gameName}-${price}`;
+        if (seenDeals.has(dealKey)) continue;
+        seenDeals.add(dealKey);
+
+        const embed = new EmbedBuilder()
+          .setColor(0xef7f1a)
+          .setTitle(`🎮 ${item.gameName} — ${price}€ sur Instant Gaming`)
+          .setURL(`https://www.instant-gaming.com${linkMatch[1]}`)
+          .setFooter(FOOTER)
+          .setTimestamp();
+
+        await sendToPlatformChannel(_client, item.platform, embed);
+
+        try {
+          await prisma.wishlist.delete({ where: { id: item.id } });
+          logger.info(
+            `[WishlistCron] Deal trouvé pour "${item.gameName}" à ${price}€ — notification envoyée`,
+          );
+        } catch {
+          // already deleted or not found
+        }
+      } catch (gameErr) {
+        logger.warn(
+          `[WishlistCron] Recherche IG échouée pour "${item.gameName}": ${gameErr instanceof Error ? gameErr.message : String(gameErr)}`,
+        );
+      }
+    }
   } catch (err) {
     logger.error("[WishlistCron] Erreur InstantGaming:", String(err));
   } finally {

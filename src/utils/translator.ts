@@ -533,5 +533,7 @@ export function getCircuitBreakerState(): { banned: boolean; remainingMs: number
 export function resetCircuitBreaker(): void {
   isMyMemoryBanned = false;
   banTimestamp = 0;
+  openRouterRateLimitedUntil = 0;
+  translationCache.clear();
   logger.info("[CircuitBreaker] Réinitialisation manuelle effectuée");
 }

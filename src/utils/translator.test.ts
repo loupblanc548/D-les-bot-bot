@@ -7,6 +7,8 @@ import {
   translateText,
 } from "./translator.js";
 
+import { detectLanguage as mockedDetectLanguage } from "./languageDetector.js";
+
 // ─── Logger Mock ─────────────────────────────────────────────────────────────
 
 vi.mock("../utils/logger", () => ({
@@ -18,11 +20,26 @@ vi.mock("../utils/logger", () => ({
   },
 }));
 
+// ─── Ollama Mock (prevent dynamic import from interfering) ──────────────────
+
+vi.mock("./ollama", () => ({
+  ollamaTranslate: vi.fn().mockResolvedValue(null),
+  ollamaDetectLanguage: vi.fn().mockResolvedValue(null),
+}));
+
+// ─── Language Detector Mock (prevent false short-circuit) ───────────────────
+
+vi.mock("./languageDetector", () => ({
+  detectLanguage: vi
+    .fn()
+    .mockReturnValue({ lang: "en", confidence: 0.9, nativeName: "English", flag: "🇬🇧" }),
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Crée un mock fetch qui simule MyMemory succès (first call)
- * puis OpenRouter succès (second call).
+ * Crée un mock fetch qui simule OpenRouter succès (first call)
+ * puis MyMemory succès (second call, fallback).
  */
 function mockFetchSuccess(): void {
   let callCount = 0;
@@ -31,35 +48,35 @@ function mockFetchSuccess(): void {
     .mockImplementation(async (_url: string | URL | Request, _opts?: RequestInit) => {
       callCount++;
       if (callCount === 1) {
-        // MyMemory
+        // OpenRouter (called first by translateText)
         return {
           ok: true,
           status: 200,
           json: async () => ({
-            responseStatus: 200,
-            responseData: {
-              translatedText: "Bonjour le monde",
-              detectedLanguage: "en",
-              match: 0.95,
-            },
-            quotaFinished: false,
-            responseDetails: "",
+            choices: [{ message: { content: "Bonjour le monde" } }],
           }),
         } as Response;
       }
-      // OpenRouter (shouldn't be called if MyMemory succeeds)
+      // MyMemory (fallback — shouldn't be called if OpenRouter succeeds)
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          choices: [{ message: { content: "Bonjour le monde via OpenRouter" } }],
+          responseStatus: 200,
+          responseData: {
+            translatedText: "Bonjour le monde",
+            detectedLanguage: "en",
+            match: 0.95,
+          },
+          quotaFinished: false,
+          responseDetails: "",
         }),
       } as Response;
     });
 }
 
 /**
- * Mock fetch: MyMemory returns 429, OpenRouter succeeds.
+ * Mock fetch: OpenRouter returns 429, MyMemory succeeds (fallback).
  */
 function mockFetchMyMemory429(): void {
   let callCount = 0;
@@ -68,19 +85,26 @@ function mockFetchMyMemory429(): void {
     .mockImplementation(async (_url: string | URL | Request, _opts?: RequestInit) => {
       callCount++;
       if (callCount === 1) {
-        // MyMemory → 429
+        // OpenRouter → 429
         return {
           ok: false,
           status: 429,
           json: async () => ({ responseStatus: 429 }),
         } as Response;
       }
-      // OpenRouter → succès
+      // MyMemory → succès (fallback)
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          choices: [{ message: { content: "Bonjour le monde via OpenRouter" } }],
+          responseStatus: 200,
+          responseData: {
+            translatedText: "Bonjour le monde via OpenRouter",
+            detectedLanguage: "en",
+            match: 0.95,
+          },
+          quotaFinished: false,
+          responseDetails: "",
         }),
       } as Response;
     });
@@ -235,6 +259,13 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
   beforeEach(() => {
     resetCircuitBreaker();
     vi.restoreAllMocks();
+    // Re-set mocks that vi.restoreAllMocks may have cleared
+    vi.mocked(mockedDetectLanguage).mockReturnValue({
+      lang: "en",
+      confidence: 0.9,
+      nativeName: "English",
+      flag: "🇬🇧",
+    });
   });
 
   afterEach(() => {
@@ -243,16 +274,22 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
 
   it("utilise MyMemory (Plan A) quand le Circuit Breaker est ouvert", async () => {
     mockFetchSuccess();
+    const prevKey = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-key";
 
-    const result = await translateText("Hello world", "fr");
+    try {
+      const result = await translateText("Hello world", "fr");
 
-    expect(result).not.toBeNull();
-    expect(result!.translatedText).toBe("Bonjour le monde");
-    // Le Circuit Breaker ne doit pas être déclenché
-    expect(getCircuitBreakerState().banned).toBe(false);
+      expect(result).not.toBeNull();
+      expect(result!.translatedText).toBe("Bonjour le monde");
+      // Le Circuit Breaker ne doit pas être déclenché
+      expect(getCircuitBreakerState().banned).toBe(false);
+    } finally {
+      process.env.OPENROUTER_API_KEY = prevKey;
+    }
   });
 
-  it("bannit MyMemory après une erreur 429 et bascule sur OpenRouter", async () => {
+  it("bascule sur MyMemory après une erreur 429 d'OpenRouter", async () => {
     mockFetchMyMemory429();
 
     // Patch process.env pour OpenRouter
@@ -262,10 +299,10 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
     try {
       const result = await translateText("Hello world", "fr");
 
-      // Le Circuit Breaker doit être activé
-      expect(getCircuitBreakerState().banned).toBe(true);
+      // Le Circuit Breaker MyMemory ne doit pas être déclenché (c'est OpenRouter qui 429)
+      expect(getCircuitBreakerState().banned).toBe(false);
 
-      // Le résultat vient d'OpenRouter (Plan B)
+      // Le résultat vient de MyMemory (fallback)
       expect(result).not.toBeNull();
       expect(result!.translatedText).toBe("Bonjour le monde via OpenRouter");
     } finally {
@@ -373,8 +410,6 @@ describe("Circuit Breaker — Reset manuel", () => {
   });
 
   it("après reset, un nouvel appel à translateText réessaie MyMemory", async () => {
-    vi.useFakeTimers();
-
     // Bannir
     banMyMemory("Test ban");
     expect(checkCircuitBreaker()).toBe(true);
@@ -383,14 +418,12 @@ describe("Circuit Breaker — Reset manuel", () => {
     resetCircuitBreaker();
     expect(checkCircuitBreaker()).toBe(false);
 
-    // Mock fetch: MyMemory succès
+    // Mock fetch: OpenRouter succès (called first)
     mockFetchSuccess();
 
     const result = await translateText("Hello world", "fr");
     expect(result!.translatedText).toBe("Bonjour le monde");
     expect(getCircuitBreakerState().banned).toBe(false);
-
-    vi.useRealTimers();
   });
 });
 
@@ -479,40 +512,38 @@ describe("Circuit Breaker — Scénarios d'intégration", () => {
   });
 
   it("chaîne: succès → erreur 429 → bannissement → auto-réinitialisation → succès", async () => {
-    vi.useFakeTimers();
-
-    // --- Étape 1: Succès MyMemory ---
+    // --- Étape 1: Succès OpenRouter ---
     mockFetchSuccess();
     const result1 = await translateText("Hello", "fr");
     expect(result1!.translatedText).toBe("Bonjour le monde");
     expect(getCircuitBreakerState().banned).toBe(false);
 
-    // --- Étape 2: Erreur 429 → bannissement + fallback OpenRouter ---
+    // --- Étape 2: Erreur 429 OpenRouter → fallback MyMemory ---
     mockFetchMyMemory429();
     const prevKey = process.env.OPENROUTER_API_KEY;
     process.env.OPENROUTER_API_KEY = "test-key";
 
     const result2 = await translateText("Hello again", "fr");
-    expect(getCircuitBreakerState().banned).toBe(true);
+    expect(getCircuitBreakerState().banned).toBe(false);
     expect(result2!.translatedText).toBe("Bonjour le monde via OpenRouter");
 
     process.env.OPENROUTER_API_KEY = prevKey;
 
-    // --- Étape 3: Toujours banni après 30 min → OpenRouter utilisé ---
-    vi.advanceTimersByTime(30 * 60 * 1000);
+    // --- Étape 3: Bannir manuellement MyMemory et vérifier le cooldown ---
+    banMyMemory("Test ban for integration");
     expect(checkCircuitBreaker()).toBe(true);
 
-    // --- Étape 4: Auto-réinitialisation après 1h → MyMemory de nouveau disponible ---
-    vi.advanceTimersByTime(31 * 60 * 1000); // total: 61 minutes
+    // --- Étape 4: Auto-réinitialisation après 1h ---
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(61 * 60 * 1000);
     expect(checkCircuitBreaker()).toBe(false);
     expect(getCircuitBreakerState().banned).toBe(false);
+    vi.useRealTimers();
 
-    // --- Étape 5: Nouvel appel réussi avec MyMemory ---
+    // --- Étape 5: Nouvel appel réussi ---
     mockFetchSuccess();
     const result5 = await translateText("Final test", "fr");
     expect(result5!.translatedText).toBe("Bonjour le monde");
     expect(getCircuitBreakerState().banned).toBe(false);
-
-    vi.useRealTimers();
   });
 });

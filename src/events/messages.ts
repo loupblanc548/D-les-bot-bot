@@ -40,7 +40,13 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, chatWithGemini, isGeminiAvailable } from "../services/gemini.js";
-import { isLocalLlmAvailable, chatWithLocalLlm, checkLocalLlmAvailability } from "../services/localLlm.js";
+import {
+  isLocalLlmAvailable,
+  chatWithLocalLlm,
+  checkLocalLlmAvailability,
+} from "../services/localLlm.js";
+import { isNvidiaNimAvailable, chatWithNvidiaNim } from "../services/nvidiaNim.js";
+import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
@@ -55,7 +61,12 @@ import {
   checkMessage as checkWordFilter,
   enforceFilter as enforceWordFilter,
 } from "../services/wordFilter.js";
-import { checkMessage as checkAutoMod, isMemberExempt as isAutoModExempt, executeAction as executeAutoModAction, DEFAULT_RULES as DEFAULT_AUTOMOD_RULES } from "../services/autoMod.js";
+import {
+  checkMessage as checkAutoMod,
+  isMemberExempt as isAutoModExempt,
+  executeAction as executeAutoModAction,
+  DEFAULT_RULES as DEFAULT_AUTOMOD_RULES,
+} from "../services/autoMod.js";
 import { checkMessageSimilarity as checkRaidSimilarity } from "../services/antiRaid.js";
 import { enforceServerRules } from "../services/serverRules.js";
 import { processAutoReact } from "../services/autoReact.js";
@@ -80,26 +91,126 @@ const errorSpamGuard = new Map<string, number>();
 const ERROR_SPAM_RETENTION_MS = 5 * 60 * 1000; // 5min retention
 
 // Periodic cleanup of errorSpamGuard to prevent memory leak
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, ts] of errorSpamGuard.entries()) {
-    if (now - ts > ERROR_SPAM_RETENTION_MS) errorSpamGuard.delete(userId);
-  }
-}, 60 * 60 * 1000).unref?.(); // every hour
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [userId, ts] of errorSpamGuard.entries()) {
+      if (now - ts > ERROR_SPAM_RETENTION_MS) errorSpamGuard.delete(userId);
+    }
+  },
+  60 * 60 * 1000,
+).unref?.(); // every hour
 
 // ─── Relances humoristiques quand @mention sans message ──────────────────────
 
-const HELPDIVER_EMPTY_MENTION_REPLIES = [
-  "🫡 **John Helldiver** à l'écoute, soldat ! Ta mission ? Pose ta question, je suis prêt à déployer la puissance de la Super-Terre pour toi !",
-  "🎖️ Soldat ! Tu m'as appelé ? La démocratie a besoin de savoir ce que tu veux — balance ta question !",
-  "🦅 **Présent pour la Super-Terre !** Dis-moi tout, camarade. Traduction, info gaming, soutien tactique… je gère !",
-  "💪 **John Helldiver en renfort !** Pas de question = pas de victoire, soldat. Qu'est-ce que je peux faire pour toi ?",
-];
+const HELPDIVER_EMPTY_MENTION_REPLIES: Record<string, string[]> = {
+  fr: [
+    "🫡 **John Helldiver** à l'écoute, soldat ! Ta mission ? Pose ta question, je suis prêt à déployer la puissance de la Super-Terre pour toi !",
+    "🎖️ Soldat ! Tu m'as appelé ? La démocratie a besoin de savoir ce que tu veux — balance ta question !",
+    "🦅 **Présent pour la Super-Terre !** Dis-moi tout, camarade. Traduction, info gaming, soutien tactique… je gère !",
+    "💪 **John Helldiver en renfort !** Pas de question = pas de victoire, soldat. Qu'est-ce que je peux faire pour toi ?",
+  ],
+  en: [
+    "🫡 **John Helldiver** reporting in, soldier! What's your mission? Ask your question, I'm ready to deploy Super Earth's firepower for you!",
+    "🎖️ Soldier! You called? Democracy needs to know what you want — drop your question!",
+    "🦅 **Present for Super Earth!** Tell me everything, comrade. Translation, gaming intel, tactical support… I've got it!",
+    "💪 **John Helldiver reinforcements!** No question = no victory, soldier. What can I do for you?",
+  ],
+  de: [
+    "🫡 **John Helldiver** hört zu, Soldat! Was ist deine Mission? Stell deine Frage, ich bin bereit, die Macht von Super-Erde für dich einzusetzen!",
+    "🎖️ Soldat! Du hast gerufen? Die Demokratie muss wissen, was du willst — stell deine Frage!",
+    "🦅 **Für Super-Erde bereit!** Sag mir alles, Kamerad. Übersetzung, Gaming-Infos, taktische Unterstützung… ich mach das!",
+    "💪 **John Helldiver als Verstärkung!** Keine Frage = kein Sieg, Soldat. Was kann ich für dich tun?",
+  ],
+  es: [
+    "🫡 **John Helldiver** al habla, ¡soldado! ¿Cuál es tu misión? Haz tu pregunta, ¡estoy listo para desplegar el poder de la Super-Tierra para ti!",
+    "🎖️ ¡Soldado! ¿Me llamaste? La democracia necesita saber qué quieres — ¡suelta tu pregunta!",
+    "🦅 **¡Presente para la Super-Tierra!** Dímelo todo, camarada. Traducción, info de gaming, apoyo táctico… ¡yo lo manejo!",
+    "💪 **¡John Helldiver de refuerzo!** Sin pregunta = sin victoria, soldado. ¿Qué puedo hacer por ti?",
+  ],
+  pt: [
+    "🫡 **John Helldiver** à escuta, soldado! Qual é a sua missão? Faça sua pergunta, estou pronto para implantar o poder da Super-Terra para você!",
+    "🎖️ Soldado! Você me chamou? A democracia precisa saber o que você quer — faça sua pergunta!",
+    "🦅 **Presente para a Super-Terra!** Diga tudo, camarada. Tradução, info de gaming, suporte tático… eu cuido disso!",
+    "💪 **John Helldiver como reforço!** Sem pergunta = sem vitória, soldado. O que posso fazer por você?",
+  ],
+  it: [
+    "🫡 **John Helldiver** in ascolto, soldato! Qual è la tua missione? Fai la tua domanda, sono pronto a schierare la potenza della Super-Terra per te!",
+    "🎖️ Soldato! Mi hai chiamato? La democrazia ha bisogno di sapere cosa vuoi — fai la tua domanda!",
+    "🦅 **Presente per la Super-Terra!** Dimmi tutto, compagno. Traduzione, info gaming, supporto tattico… ci penso io!",
+    "💪 **John Helldiver come rinforzo!** Nessuna domanda = nessuna vittoria, soldato. Cosa posso fare per te?",
+  ],
+  nl: [
+    "🫡 **John Helldiver** luistert, soldaat! Wat is je missie? Stel je vraag, ik ben klaar om de kracht van Super-Earde voor je in te zetten!",
+    "🎖️ Soldaat! Je riep me? De democratie moet weten wat je wilt — stel je vraag!",
+    "🦅 **Present voor Super-Earde!** Vertel me alles, kameraad. Vertaling, gaming-info, tactische steun… ik regel het!",
+    "💪 **John Helldiver als versterking!** Geen vraag = geen overwinning, soldaat. Wat kan ik voor je doen?",
+  ],
+  sv: [
+    "🫡 **John Helldiver** lyssnar, soldat! Vad är ditt uppdrag? Ställ din fråga, jag är redo att utplacera Super-Jordens kraft för dig!",
+    "🎖️ Soldat! Kallade du på mig? Demokratin behöver veta vad du vill — ställ din fråga!",
+    "🦅 **Redo för Super-Jorden!** Berätta allt, kamrat. Översättning, gaming-info, taktiskt stöd… jag fixar det!",
+    "💪 **John Helldiver som förstärkning!** Ingen fråga = ingen seger, soldat. Vad kan jag göra för dig?",
+  ],
+  no: [
+    "🫡 **John Helldiver** lytter, soldat! Hva er ditt oppdrag? Still ditt spørsmål, jeg er klar til å distribuere Super-Jordens kraft for deg!",
+    "🎖️ Soldat! Kalte du meg? Demokratiet trenger å vite hva du vil — still ditt spørsmål!",
+    "🦅 **Til stede for Super-Jorden!** Fortell meg alt, kamerat. Oversettelse, gaming-info, taktisk støtte… jeg fikser det!",
+    "💪 **John Helldiver som forsterkning!** Ingen spørsmål = ingen seier, soldat. Hva kan jeg gjøre for deg?",
+  ],
+  cs: [
+    "🫡 **John Helldiver** naslouchá, vojáku! Jaká je tvá mise? Polož svou otázku, jsem připraven nasadit sílu Super-Země pro tebe!",
+    "🎖️ Vojáku! Volal jsi mě? Demokracie potřebuje vědět, co chceš — polož svou otázku!",
+    "🦅 **Přítomen pro Super-Zemi!** Řekni mi všechno, soudruhu. Překlad, herní info, taktická podpora… to zvládnu!",
+    "💪 **John Helldiver jako posila!** Žádná otázka = žádné vítězství, vojáku. Co mohu pro tebe udělat?",
+  ],
+  pl: [
+    "🫡 **John Helldiver** słucha, żołnierzu! Jaka jest twoja misja? Zadaj pytanie, jestem gotów do rozmieszczenia sił Super-Ziemi dla ciebie!",
+    "🎖️ Żołnierzu! Wzywałeś mnie? Demokracja musi wiedzieć, czego chcesz — zadaj pytanie!",
+    "🦅 **Gotów dla Super-Ziemi!** Powiedz mi wszystko, towarzyszu. Tłumaczenie, info gamingowe, wsparcie taktyczne… zajmę się tym!",
+    "💪 **John Helldiver jako wsparcie!** Brak pytania = brak zwycięstwa, żołnierzu. Co mogę dla ciebie zrobić?",
+  ],
+  tr: [
+    "🫡 **John Helldiver** dinliyor, asker! Görevin ne? Sorunu sor, Süper Dünya'nın gücünü senin için kullanmaya hazırım!",
+    "🎖️ Asker! Beni mi çağırdın? Demokrasi ne istediğini bilmeli — sorunu sor!",
+    "🦅 **Süper Dünya için hazırım!** Bana her şeyi anlat, yoldaş. Çeviri, oyun bilgisi, taktik destek… ben hallederim!",
+    "💪 **John Helldiver takviye olarak!** Soru yok = zafer yok, asker. Senin için ne yapabilirim?",
+  ],
+  ru: [
+    "🫡 **Джон Хеллдайвер** на связи, солдат! Какова твоя миссия? Задавай вопрос, я готов применить мощь Супер-Земли для тебя!",
+    "🎖️ Солдат! Ты звал меня? Демократии нужно знать, чего ты хочешь — задавай вопрос!",
+    "🦅 **Готов служить Супер-Земле!** Расскажи мне всё, товарищ. Перевод, игровая информация, тактическая поддержка… я всё улажу!",
+    "💪 **Джон Хеллдайвер в качестве подкрепления!** Нет вопроса = нет победы, солдат. Что я могу для тебя сделать?",
+  ],
+  ja: [
+    "🫡 **ジョン・ヘルダイバー**が聞いています、兵士！ミッションは何ですか？質問してください、スーパーアースの力をあなたのために展開する準備ができています！",
+    "🎖️ 兵士！呼びましたか？民主主義はあなたが何を望んでいるかを知る必要があります — 質問してください！",
+    "🦅 **スーパーアースのために！** 全部教えてください、同志。翻訳、ゲーム情報、戦術サポート…私がやります！",
+    "💪 **ジョン・ヘルダイバーが増援として！** 質問なし＝勝利なし、兵士。何ができますか？",
+  ],
+  zh: [
+    "🫡 **约翰·地狱潜者**在听，士兵！你的任务是什么？提问吧，我准备为你部署超级地球的力量！",
+    "🎖️ 士兵！你叫我？民主需要知道你想要什么 — 提问吧！",
+    "🦅 **为超级地球效劳！** 告诉我一切，同志。翻译、游戏信息、战术支援…我来处理！",
+    "💪 **约翰·地狱潜者作为增援！** 没问题 = 没胜利，士兵。我能为你做什么？",
+  ],
+  ar: [
+    "🫡 **جون هيلدايفر** يستمع، أيها الجندي! ما مهمتك؟ اطرح سؤالك، أنا مستعد لنشر قوة الأرض العظمى من أجلك!",
+    "🎖️ أيها الجندي! هل ناديتني؟ الديمقراطية بحاجة لمعرفة ما تريد — اطرح سؤالك!",
+    "🦅 **حاضر من أجل الأرض العظمى!** أخبرني بكل شيء، يا رفيق. ترجمة، معلومات الألعاب، دعم تكتيكي… أنا أتولى الأمر!",
+    "💪 **جون هيلدايفر كتعزيزات!** لا سؤال = لا نصر، أيها الجندي. ماذا يمكنني أن أفعل لك؟",
+  ],
+  ko: [
+    "🫡 **존 헬다이버**가 듣고 있습니다, 병사! 임무가 무엇입니까? 질문하세요, 슈퍼어스의 힘을 당신을 위해 배치할 준비가 되어 있습니다!",
+    "🎖️ 병사! 나를 불렀나요? 민주주의는 당신이 원하는 것을 알아야 합니다 — 질문하세요!",
+    "🦅 **슈퍼어스를 위해!** 모든 것을 말해주세요, 동지. 번역, 게임 정보, 전술 지원… 제가 처리합니다!",
+    "💪 **존 헬다이버가 증원으로!** 질문 없음 = 승리 없음, 병사. 무엇을 도와드릴까요?",
+  ],
+};
 
-function getRandomHelldiverReply(): string {
-  return HELPDIVER_EMPTY_MENTION_REPLIES[
-    Math.floor(Math.random() * HELPDIVER_EMPTY_MENTION_REPLIES.length)
-  ];
+function getRandomHelldiverReply(lang: SupportedLang = "fr"): string {
+  const replies = HELPDIVER_EMPTY_MENTION_REPLIES[lang] || HELPDIVER_EMPTY_MENTION_REPLIES.fr;
+  return replies[Math.floor(Math.random() * replies.length)];
 }
 
 // Detect image/video attachments reliably — Discord often leaves contentType null
@@ -117,62 +228,79 @@ function isMediaAttachment(a: { contentType?: string | null; url: string }): boo
 }
 
 // Multilingual Gemini image analysis prompts
-const GEMINI_VISION_PROMPTS: Record<SupportedLang, { withQuestion: string; withoutQuestion: string }> = {
+const GEMINI_VISION_PROMPTS: Record<
+  SupportedLang,
+  { withQuestion: string; withoutQuestion: string }
+> = {
   fr: {
     withQuestion: `L'utilisateur pose cette question: "{q}". Analyse l'image en détail pour répondre à cette question. Décris ce que tu vois (contexte, texte visible, détails pertinents) en lien avec la question. Sois concis (max 200 mots).`,
-    withoutQuestion: "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
+    withoutQuestion:
+      "Décris cette image en détail: que voit-on, quel contexte, quel texte est visible? Sois concis (max 200 mots).",
   },
   en: {
     withQuestion: `The user asks: "{q}". Analyze the image in detail to answer this question. Describe what you see (context, visible text, relevant details) in relation to the question. Be concise (max 200 words).`,
-    withoutQuestion: "Describe this image in detail: what do you see, what context, what text is visible? Be concise (max 200 words).",
+    withoutQuestion:
+      "Describe this image in detail: what do you see, what context, what text is visible? Be concise (max 200 words).",
   },
   de: {
     withQuestion: `Der Nutzer fragt: "{q}". Analysiere das Bild im Detail, um die Frage zu beantworten. Beschreibe, was du siehst (Kontext, sichtbarer Text, relevante Details) im Zusammenhang mit der Frage. Sei prägnant (max 200 Wörter).`,
-    withoutQuestion: "Beschreibe dieses Bild im Detail: Was sieht man, welcher Kontext, welcher Text ist sichtbar? Sei prägnant (max 200 Wörter).",
+    withoutQuestion:
+      "Beschreibe dieses Bild im Detail: Was sieht man, welcher Kontext, welcher Text ist sichtbar? Sei prägnant (max 200 Wörter).",
   },
   es: {
     withQuestion: `El usuario pregunta: "{q}". Analiza la imagen en detalle para responder a esta pregunta. Describe lo que ves (contexto, texto visible, detalles relevantes) en relación con la pregunta. Sé conciso (máx 200 palabras).`,
-    withoutQuestion: "Describe esta imagen en detalle: ¿qué se ve, qué contexto, qué texto es visible? Sé conciso (máx 200 palabras).",
+    withoutQuestion:
+      "Describe esta imagen en detalle: ¿qué se ve, qué contexto, qué texto es visible? Sé conciso (máx 200 palabras).",
   },
   pt: {
     withQuestion: `O usuário pergunta: "{q}". Analisa a imagem em detalhe para responder a esta pergunta. Descreve o que vês (contexto, texto visível, detalhes relevantes) em relação à pergunta. Sé conciso (máx 200 palavras).`,
-    withoutQuestion: "Descreve esta imagem em detalhe: o que se vê, que contexto, que texto é visível? Sé conciso (máx 200 palavras).",
+    withoutQuestion:
+      "Descreve esta imagem em detalhe: o que se vê, que contexto, que texto é visível? Sé conciso (máx 200 palavras).",
   },
   it: {
     withQuestion: `L'utente chiede: "{q}". Analizza l'immagine in dettaglio per rispondere a questa domanda. Descrivi ciò che vedi (contesto, testo visibile, dettagli pertinenti) in relazione alla domanda. Sii conciso (max 200 parole).`,
-    withoutQuestion: "Descrivi questa immagine in dettaglio: cosa si vede, quale contesto, quale testo è visibile? Sii conciso (max 200 parole).",
+    withoutQuestion:
+      "Descrivi questa immagine in dettaglio: cosa si vede, quale contesto, quale testo è visibile? Sii conciso (max 200 parole).",
   },
   nl: {
     withQuestion: `De gebruiker vraagt: "{q}". Analyseer de afbeelding in detail om deze vraag te beantwoorden. Beschrijf wat je ziet (context, zichtbare tekst, relevante details) in relatie tot de vraag. Wees beknopt (max 200 woorden).`,
-    withoutQuestion: "Beschrijf deze afbeelding in detail: wat zie je, welke context, welke tekst is zichtbaar? Wees beknopt (max 200 woorden).",
+    withoutQuestion:
+      "Beschrijf deze afbeelding in detail: wat zie je, welke context, welke tekst is zichtbaar? Wees beknopt (max 200 woorden).",
   },
   sv: {
     withQuestion: `Användaren frågar: "{q}". Analysera bilden i detalj för att svara på frågan. Beskriv vad du ser (kontext, synlig text, relevanta detaljer) i relation till frågan. Var koncis (max 200 ord).`,
-    withoutQuestion: "Beskriv denna bild i detalj: vad ser man, vilken kontext, vilken text är synlig? Var koncis (max 200 ord).",
+    withoutQuestion:
+      "Beskriv denna bild i detalj: vad ser man, vilken kontext, vilken text är synlig? Var koncis (max 200 ord).",
   },
   no: {
     withQuestion: `Brukeren spør: "{q}". Analyser bildet i detalj for å svare på spørsmålet. Beskriv hva du ser (kontekst, synlig tekst, relevante detaljer) i relasjon til spørsmålet. Vær kortfattet (maks 200 ord).`,
-    withoutQuestion: "Beskriv dette bildet i detalj: hva ser man, hvilken kontekst, hvilken tekst er synlig? Vær kortfattet (maks 200 ord).",
+    withoutQuestion:
+      "Beskriv dette bildet i detalj: hva ser man, hvilken kontekst, hvilken tekst er synlig? Vær kortfattet (maks 200 ord).",
   },
   cs: {
     withQuestion: `Uživatel se ptá: "{q}". Analyzujte obrázek podrobně, abyste odpověděli na tuto otázku. Popište, co vidíte (kontext, viditelný text, relevantní detaily) ve vztahu k otázce. Buďte struční (max 200 slov).`,
-    withoutQuestion: "Popište tento obrázek podrobně: co je vidět, jaký kontext, jaký text je viditelný? Buďte struční (max 200 slov).",
+    withoutQuestion:
+      "Popište tento obrázek podrobně: co je vidět, jaký kontext, jaký text je viditelný? Buďte struční (max 200 slov).",
   },
   pl: {
     withQuestion: `Użytkownik pyta: "{q}". Przeanalizuj obraz szczegółowo, aby odpowiedzieć na to pytanie. Opisz, co widzisz (kontekst, widoczny tekst, istotne szczegóły) w odniesieniu do pytania. Bądź zwięzły (max 200 słów).`,
-    withoutQuestion: "Opisz ten obraz szczegółowo: co widać, jaki kontekst, jaki tekst jest widoczny? Bądź zwięzły (max 200 słów).",
+    withoutQuestion:
+      "Opisz ten obraz szczegółowo: co widać, jaki kontekst, jaki tekst jest widoczny? Bądź zwięzły (max 200 słów).",
   },
   tr: {
     withQuestion: `Kullanıcı soruyor: "{q}". Bu soruyu yanıtlamak için resmi detaylı olarak analiz et. Soruyla ilgili olarak gördüğünü (bağlam, görünür metin, ilgili detaylar) açıkla. Kısa ol (maks 200 kelime).`,
-    withoutQuestion: "Bu resmi detaylı olarak açıkla: ne görüyorsun, hangi bağlam, hangi metin görünür? Kısa ol (maks 200 kelime).",
+    withoutQuestion:
+      "Bu resmi detaylı olarak açıkla: ne görüyorsun, hangi bağlam, hangi metin görünür? Kısa ol (maks 200 kelime).",
   },
   ru: {
     withQuestion: `Пользователь спрашивает: "{q}". Проанализируйте изображение подробно, чтобы ответить на этот вопрос. Опишите, что вы видите (контекст, видимый текст, релевантные детали) в связи с вопросом. Будьте кратки (макс 200 слов).`,
-    withoutQuestion: "Опишите это изображение подробно: что видно, какой контекст, какой текст виден? Будьте кратки (макс 200 слов).",
+    withoutQuestion:
+      "Опишите это изображение подробно: что видно, какой контекст, какой текст виден? Будьте кратки (макс 200 слов).",
   },
   ja: {
     withQuestion: `ユーザーの質問: "{q}"。この質問に答えるために画像を詳細に分析してください。質問に関連して見えるもの（コンテキスト、表示されているテキスト、関連する詳細）を説明してください。簡潔に（最大200語）。`,
-    withoutQuestion: "この画像を詳細に説明してください：何が見えますか、どのようなコンテキスト、どのようなテキストが表示されていますか？簡潔に（最大200語）。",
+    withoutQuestion:
+      "この画像を詳細に説明してください：何が見えますか、どのようなコンテキスト、どのようなテキストが表示されていますか？簡潔に（最大200語）。",
   },
   zh: {
     withQuestion: `用户问："{q}"。详细分析图像以回答这个问题。描述你看到的（上下文、可见文本、相关细节）与问题的关系。简洁（最多200字）。`,
@@ -180,11 +308,13 @@ const GEMINI_VISION_PROMPTS: Record<SupportedLang, { withQuestion: string; witho
   },
   ar: {
     withQuestion: `يسأل المستخدم: "{q}". حلل الصورة بالتفصيل للإجابة على هذا السؤال. صف ما تراه (السياق، النص المرئي، التفاصيل ذات الصلة) فيما يتعلق بالسؤال. كن موجزاً (بحد أقصى 200 كلمة).`,
-    withoutQuestion: "صف هذه الصورة بالتفصيل: ماذا يرى، ما السياق، ما النص المرئي؟ كن موجزاً (بحد أقصى 200 كلمة).",
+    withoutQuestion:
+      "صف هذه الصورة بالتفصيل: ماذا يرى، ما السياق، ما النص المرئي؟ كن موجزاً (بحد أقصى 200 كلمة).",
   },
   ko: {
     withQuestion: `사용자가 질문합니다: "{q}". 이 질문에 답하기 위해 이미지를 자세히 분석하세요. 질문과 관련하여 보이는 것(문맥, 보이는 텍스트, 관련 세부사항)을 설명하세요. 간결하게 (최대 200단어).`,
-    withoutQuestion: "이 이미지를 자세히 설명하세요: 무엇이 보이나요, 어떤 문맥, 어떤 텍스트가 보이나요? 간결하게 (최대 200단어).",
+    withoutQuestion:
+      "이 이미지를 자세히 설명하세요: 무엇이 보이나요, 어떤 문맥, 어떤 텍스트가 보이나요? 간결하게 (최대 200단어).",
   },
 };
 
@@ -514,9 +644,7 @@ async function handleVoiceCommand(
   client: Client,
 ): Promise<boolean> {
   // Nettoyer la mention du bot du contenu
-  const content = message.content
-    .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
-    .trim();
+  const content = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "").trim();
 
   // Le message doit commencer par "parle" (insensible à la casse)
   if (!/^parle\b/i.test(content)) return false;
@@ -556,7 +684,8 @@ async function handleVoiceCommand(
 
   if (!rest) {
     await message.reply({
-      content: "🗣️ **Usage:** `@John Helldiver parle Bonjour tout le monde :Français`\n\nÉcris ce que tu veux que je dise après `parle`. La langue est optionnelle. Ajoute `reste` pour que je reste connecté. Ajoute `voix:femme` ou `voix:homme` pour changer de voix.\n\n**Exemples:**\n`@John Helldiver parle Bonjour tout le monde`\n`@John Helldiver parle \"Hello world\" :English`\n`@John Helldiver parle reste \"Bonjour\" :Français`\n`@John Helldiver parle \"Bonjour\" voix:femme :Français`\n`@John Helldiver parle :Français Bonjour à tous`\n\n**Langues:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino",
+      content:
+        '🗣️ **Usage:** `@John Helldiver parle Bonjour tout le monde :Français`\n\nÉcris ce que tu veux que je dise après `parle`. La langue est optionnelle. Ajoute `reste` pour que je reste connecté. Ajoute `voix:femme` ou `voix:homme` pour changer de voix.\n\n**Exemples:**\n`@John Helldiver parle Bonjour tout le monde`\n`@John Helldiver parle "Hello world" :English`\n`@John Helldiver parle reste "Bonjour" :Français`\n`@John Helldiver parle "Bonjour" voix:femme :Français`\n`@John Helldiver parle :Français Bonjour à tous`\n\n**Langues:** Français, English, Español, Deutsch, Italiano, Português, 日本語, 한국어, 中文, Русский, العربية, हिन्दी, Nederlands, Polski, Türkçe, Svenska, Norsk, Dansk, Suomi, Čeština, Ελληνικά, עברית, Magyar, Română, ไทย, Tiếng Việt, Bahasa Indonesia, Українська, Català, Български, Hrvatski, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, বাংলা, Slovenčina, Slovenščina, Eesti, Latviešu, Lietuvių, Српски, Afrikaans, Kiswahili, Filipino',
       allowedMentions: { repliedUser: false },
     });
     return true;
@@ -619,102 +748,249 @@ async function handleVoiceCommand(
   // ── Étape 3: Résoudre la langue ──
   const langMap: Record<string, string> = {
     // Français
-    fr: "fr", français: "fr", francais: "fr", french: "fr",
+    fr: "fr",
+    français: "fr",
+    francais: "fr",
+    french: "fr",
     // Anglais
-    en: "en", english: "en", anglais: "en",
+    en: "en",
+    english: "en",
+    anglais: "en",
     // Espagnol
-    es: "es", español: "es", espagnol: "es", spanish: "es", espanol: "es",
+    es: "es",
+    español: "es",
+    espagnol: "es",
+    spanish: "es",
+    espanol: "es",
     // Allemand
-    de: "de", deutsch: "de", allemand: "de", german: "de",
+    de: "de",
+    deutsch: "de",
+    allemand: "de",
+    german: "de",
     // Italien
-    it: "it", italiano: "it", italien: "it", italian: "it",
+    it: "it",
+    italiano: "it",
+    italien: "it",
+    italian: "it",
     // Portugais
-    pt: "pt", português: "pt", portugais: "pt", portuguese: "pt", portugues: "pt",
-    ptbr: "pt", br: "pt", bresilien: "pt", brésilien: "pt",
+    pt: "pt",
+    português: "pt",
+    portugais: "pt",
+    portuguese: "pt",
+    portugues: "pt",
+    ptbr: "pt",
+    br: "pt",
+    bresilien: "pt",
+    brésilien: "pt",
     // Japonais
-    ja: "ja", 日本語: "ja", japonais: "ja", japanese: "ja",
+    ja: "ja",
+    日本語: "ja",
+    japonais: "ja",
+    japanese: "ja",
     // Coréen
-    ko: "ko", 한국어: "ko", coréen: "ko", korean: "ko", coreen: "ko",
+    ko: "ko",
+    한국어: "ko",
+    coréen: "ko",
+    korean: "ko",
+    coreen: "ko",
     // Chinois
-    zh: "zh", 中文: "zh", chinois: "zh", chinese: "zh",
+    zh: "zh",
+    中文: "zh",
+    chinois: "zh",
+    chinese: "zh",
     // Russe
-    ru: "ru", русский: "ru", russe: "ru", russian: "ru",
+    ru: "ru",
+    русский: "ru",
+    russe: "ru",
+    russian: "ru",
     // Arabe
-    ar: "ar", العربية: "ar", arabe: "ar", arabic: "ar",
+    ar: "ar",
+    العربية: "ar",
+    arabe: "ar",
+    arabic: "ar",
     // Hindi
-    hi: "hi", हिन्दी: "hi", hindi: "hi", indien: "hi",
+    hi: "hi",
+    हिन्दी: "hi",
+    hindi: "hi",
+    indien: "hi",
     // Néerlandais
-    nl: "nl", nederlands: "nl", néerlandais: "nl", dutch: "nl", neerlandais: "nl",
+    nl: "nl",
+    nederlands: "nl",
+    néerlandais: "nl",
+    dutch: "nl",
+    neerlandais: "nl",
     // Polonais
-    pl: "pl", polski: "pl", polonais: "pl", polish: "pl",
+    pl: "pl",
+    polski: "pl",
+    polonais: "pl",
+    polish: "pl",
     // Turc
-    tr: "tr", türkçe: "tr", turc: "tr", turkish: "tr", turkce: "tr",
+    tr: "tr",
+    türkçe: "tr",
+    turc: "tr",
+    turkish: "tr",
+    turkce: "tr",
     // Suédois
-    sv: "sv", svenska: "sv", suédois: "sv", swedish: "sv", suedois: "sv",
+    sv: "sv",
+    svenska: "sv",
+    suédois: "sv",
+    swedish: "sv",
+    suedois: "sv",
     // Norvégien
-    nb: "nb", norsk: "nb", norvégien: "nb", norwegian: "nb", norvegien: "nb",
+    nb: "nb",
+    norsk: "nb",
+    norvégien: "nb",
+    norwegian: "nb",
+    norvegien: "nb",
     // Danois
-    da: "da", dansk: "da", danois: "da", danish: "da",
+    da: "da",
+    dansk: "da",
+    danois: "da",
+    danish: "da",
     // Finlandais
-    fi: "fi", suomi: "fi", finnois: "fi", finnish: "fi",
+    fi: "fi",
+    suomi: "fi",
+    finnois: "fi",
+    finnish: "fi",
     // Tchèque
-    cs: "cs", čeština: "cs", tchèque: "cs", czech: "cs", tcheque: "cs",
+    cs: "cs",
+    čeština: "cs",
+    tchèque: "cs",
+    czech: "cs",
+    tcheque: "cs",
     // Grec
-    el: "el", ελληνικά: "el", grec: "el", greek: "el",
+    el: "el",
+    ελληνικά: "el",
+    grec: "el",
+    greek: "el",
     // Hébreu
-    he: "he", עברית: "he", hébreu: "he", hebrew: "he", hebregu: "he",
+    he: "he",
+    עברית: "he",
+    hébreu: "he",
+    hebrew: "he",
+    hebregu: "he",
     // Hongrois
-    hu: "hu", magyar: "hu", hongrois: "hu", hungarian: "hu",
+    hu: "hu",
+    magyar: "hu",
+    hongrois: "hu",
+    hungarian: "hu",
     // Roumain
-    ro: "ro", română: "ro", roumain: "ro", romanian: "ro", romana: "ro",
+    ro: "ro",
+    română: "ro",
+    roumain: "ro",
+    romanian: "ro",
+    romana: "ro",
     // Thai
-    th: "th", ไทย: "th", thaï: "th", thai: "th", thailandais: "th",
+    th: "th",
+    ไทย: "th",
+    thaï: "th",
+    thai: "th",
+    thailandais: "th",
     // Vietnamien
-    vi: "vi", vietnamien: "vi", vietnamese: "vi",
+    vi: "vi",
+    vietnamien: "vi",
+    vietnamese: "vi",
     // Indonésien
-    id: "id", indonesien: "id", indonésien: "id", indonesian: "id",
+    id: "id",
+    indonesien: "id",
+    indonésien: "id",
+    indonesian: "id",
     // Ukrainien
-    uk: "uk", українська: "uk", ukrainien: "uk", ukrainian: "uk",
+    uk: "uk",
+    українська: "uk",
+    ukrainien: "uk",
+    ukrainian: "uk",
     // Catalan
-    ca: "ca", català: "ca", catalan: "ca",
+    ca: "ca",
+    català: "ca",
+    catalan: "ca",
     // Bulgare
-    bg: "bg", български: "bg", bulgare: "bg", bulgarian: "bg",
+    bg: "bg",
+    български: "bg",
+    bulgare: "bg",
+    bulgarian: "bg",
     // Croate
-    hr: "hr", hrvatski: "hr", croate: "hr", croatian: "hr",
+    hr: "hr",
+    hrvatski: "hr",
+    croate: "hr",
+    croatian: "hr",
     // Malayalam
-    ml: "ml", മലയാളം: "ml", malayalam: "ml",
+    ml: "ml",
+    മലയാളം: "ml",
+    malayalam: "ml",
     // Tamoul
-    ta: "ta", தமிழ்: "ta", tamoul: "ta", tamil: "ta",
+    ta: "ta",
+    தமிழ்: "ta",
+    tamoul: "ta",
+    tamil: "ta",
     // Telugu
-    te: "te", తెలుగు: "te", telugu: "te",
+    te: "te",
+    తెలుగు: "te",
+    telugu: "te",
     // Marathi
-    mr: "mr", मराठी: "mr", marathi: "mr",
+    mr: "mr",
+    मराठी: "mr",
+    marathi: "mr",
     // Gujarati
-    gu: "gu", ગુજરાતી: "gu", gujarati: "gu",
+    gu: "gu",
+    ગુજરાતી: "gu",
+    gujarati: "gu",
     // Kannada
-    kn: "kn", ಕನ್ನಡ: "kn", kannada: "kn",
+    kn: "kn",
+    ಕನ್ನಡ: "kn",
+    kannada: "kn",
     // Bengali
-    bn: "bn", বাংলা: "bn", bengali: "bn",
+    bn: "bn",
+    বাংলা: "bn",
+    bengali: "bn",
     // Slovaque
-    sk: "sk", slovenčina: "sk", slovaque: "sk", slovak: "sk",
+    sk: "sk",
+    slovenčina: "sk",
+    slovaque: "sk",
+    slovak: "sk",
     // Slovène
-    sl: "sl", slovenščina: "sl", slovène: "sl", slovenian: "sl", slovene: "sl",
+    sl: "sl",
+    slovenščina: "sl",
+    slovène: "sl",
+    slovenian: "sl",
+    slovene: "sl",
     // Estonien
-    et: "et", eesti: "et", estonien: "et", estonian: "et",
+    et: "et",
+    eesti: "et",
+    estonien: "et",
+    estonian: "et",
     // Letton
-    lv: "lv", latviešu: "lv", letton: "lv", latvian: "lv",
+    lv: "lv",
+    latviešu: "lv",
+    letton: "lv",
+    latvian: "lv",
     // Lituanien
-    lt: "lt", lietuvių: "lt", lituanien: "lt", lithuanian: "lt",
+    lt: "lt",
+    lietuvių: "lt",
+    lituanien: "lt",
+    lithuanian: "lt",
     // Serbe
-    sr: "sr", српски: "sr", serbe: "sr", serbian: "sr",
+    sr: "sr",
+    српски: "sr",
+    serbe: "sr",
+    serbian: "sr",
     // Afrikaans
-    af: "af", afrikaans: "af",
+    af: "af",
+    afrikaans: "af",
     // Swahili
-    sw: "sw", kiswahili: "sw", swahili: "sw",
+    sw: "sw",
+    kiswahili: "sw",
+    swahili: "sw",
     // Filipinois/Tagalog
-    fil: "fil", filipino: "fil", tagalog: "fil", philippin: "fil",
+    fil: "fil",
+    filipino: "fil",
+    tagalog: "fil",
+    philippin: "fil",
   };
-  const langRaw = lang.toLowerCase().replace(/[éèê]/g, "e").replace(/[:'"«»]/g, "");
+  const langRaw = lang
+    .toLowerCase()
+    .replace(/[éèê]/g, "e")
+    .replace(/[:'"«»]/g, "");
   const resolvedLang = langMap[langRaw] || langMap[langRaw.slice(0, 2)] || "fr";
 
   // Vérifier que l'utilisateur est dans un salon vocal
@@ -729,7 +1005,9 @@ async function handleVoiceCommand(
   }
 
   // Réaction pour indiquer que ça travaille
-  try { await message.react("🗣️"); } catch {}
+  try {
+    await message.react("🗣️");
+  } catch {}
 
   // ── Ajouter à la file d'attente TTS ──
   const guildId = message.guildId!;
@@ -809,7 +1087,8 @@ async function processTTSQueue(guildId: string): Promise<void> {
       connection = joinVoiceChannel({
         channelId: item.voiceChannelId,
         guildId,
-        adapterCreator: item.adapterCreator as import("@discordjs/voice").DiscordGatewayAdapterCreator,
+        adapterCreator:
+          item.adapterCreator as import("@discordjs/voice").DiscordGatewayAdapterCreator,
         selfMute: false,
         selfDeaf: false,
       });
@@ -824,7 +1103,9 @@ async function processTTSQueue(guildId: string): Promise<void> {
     connection.subscribe(player);
     player.play(resource);
 
-    logger.info(`[TTSQueue] ${item.authorTag} dit "${item.text.slice(0, 50)}..." en ${item.lang} (${item.voiceGender}) dans #${item.channelName}`);
+    logger.info(
+      `[TTSQueue] ${item.authorTag} dit "${item.text.slice(0, 50)}..." en ${item.lang} (${item.voiceGender}) dans #${item.channelName}`,
+    );
 
     await new Promise<void>((resolve) => {
       player.once(AudioPlayerStatus.Idle, () => resolve());
@@ -860,7 +1141,11 @@ async function processTTSQueue(guildId: string): Promise<void> {
 /**
  * Pipeline TTS neuronal — même ordre que voiceAgent.ts
  */
-async function generateVoiceTTS(text: string, lang: string, voiceGender: "homme" | "femme" = "homme"): Promise<Buffer | null> {
+async function generateVoiceTTS(
+  text: string,
+  lang: string,
+  voiceGender: "homme" | "femme" = "homme",
+): Promise<Buffer | null> {
   // 1. Piper TTS local
   try {
     const { generateLocalTTS, isPiperAvailable } = await import("../services/localTts.js");
@@ -875,7 +1160,8 @@ async function generateVoiceTTS(text: string, lang: string, voiceGender: "homme"
 
   // 2. ElevenLabs
   try {
-    const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("../services/elevenLabsTts.js");
+    const { generateElevenLabsTTS, isElevenLabsConfigured } =
+      await import("../services/elevenLabsTts.js");
     if (isElevenLabsConfigured()) {
       const result = await generateElevenLabsTTS(text.slice(0, 500));
       if (result?.audioUrl?.startsWith("data:audio/mpeg;base64,")) {
@@ -897,17 +1183,47 @@ async function generateVoiceTTS(text: string, lang: string, voiceGender: "homme"
   // 4. StreamElements / Amazon Polly
   try {
     const voiceMap: Record<string, string> = {
-      fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
-      it: "Giorgio", pt: "Ricardo", ja: "Takumi", ko: "Minho",
-      zh: "Zhiyu", ru: "Maxim", nl: "Ruben", pl: "Jacek",
-      tr: "Filiz", sv: "Astrid", da: "Naja", fi: "Salli",
-      cs: "Eliska", el: "Lucretia", he: "Hanna", hu: "Gabor",
-      ro: "Carmen", th: "Patchara", vi: "Hien", id: "Andika",
-      uk: "Ostap", bg: "Petar", hr: "Srecko", ta: "SaiSenthil",
-      te: "SaiPrasad", mr: "SaiNishant", gu: "SaiKiran",
-      kn: "SaiKavya", bn: "SaiSourav", sk: "Viktor",
-      sl: "Tina", et: "Eva", lv: "Nils", lt: "Leonas",
-      sr: "Stefan", af: "Ruben", sw: "Daudi",
+      fr: "Mathieu",
+      en: "Brian",
+      es: "Enrique",
+      de: "Hans",
+      it: "Giorgio",
+      pt: "Ricardo",
+      ja: "Takumi",
+      ko: "Minho",
+      zh: "Zhiyu",
+      ru: "Maxim",
+      nl: "Ruben",
+      pl: "Jacek",
+      tr: "Filiz",
+      sv: "Astrid",
+      da: "Naja",
+      fi: "Salli",
+      cs: "Eliska",
+      el: "Lucretia",
+      he: "Hanna",
+      hu: "Gabor",
+      ro: "Carmen",
+      th: "Patchara",
+      vi: "Hien",
+      id: "Andika",
+      uk: "Ostap",
+      bg: "Petar",
+      hr: "Srecko",
+      ta: "SaiSenthil",
+      te: "SaiPrasad",
+      mr: "SaiNishant",
+      gu: "SaiKiran",
+      kn: "SaiKavya",
+      bn: "SaiSourav",
+      sk: "Viktor",
+      sl: "Tina",
+      et: "Eva",
+      lv: "Nils",
+      lt: "Leonas",
+      sr: "Stefan",
+      af: "Ruben",
+      sw: "Daudi",
     };
     const voice = voiceMap[lang] || "Brian";
     const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
@@ -943,7 +1259,11 @@ async function generateVoiceTTS(text: string, lang: string, voiceGender: "homme"
   }
 }
 
-async function generateEdgeTTS(text: string, lang: string, voiceGender: "homme" | "femme" = "homme"): Promise<Buffer | null> {
+async function generateEdgeTTS(
+  text: string,
+  lang: string,
+  voiceGender: "homme" | "femme" = "homme",
+): Promise<Buffer | null> {
   const { WebSocket } = await import("ws");
 
   const maleVoices: Record<string, string> = {
@@ -1042,7 +1362,9 @@ async function generateEdgeTTS(text: string, lang: string, voiceGender: "homme" 
     const finish = (result: Buffer | null) => {
       if (resolved) return;
       resolved = true;
-      try { ws.close(); } catch {}
+      try {
+        ws.close();
+      } catch {}
       resolve(result);
     };
 
@@ -1109,6 +1431,7 @@ async function handleAiChatMention(
   client: Client,
 ): Promise<void> {
   const statusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
+  let userLang: SupportedLang = "fr";
   try {
     // Nettoyer le message : retirer la mention du bot
     const cleanedContent = message.content
@@ -1119,11 +1442,14 @@ async function handleAiChatMention(
     const allAttachments = [...message.attachments.values()];
     const hasAttachments = allAttachments.some(isMediaAttachment);
     if (allAttachments.length > 0) {
-      logger.info(`[AIChat] Attachments: ${allAttachments.length} — types: ${allAttachments.map(a => `ct=${a.contentType || "null"} url=${a.url.slice(-30)}`).join(" | ")}`);
+      logger.info(
+        `[AIChat] Attachments: ${allAttachments.length} — types: ${allAttachments.map((a) => `ct=${a.contentType || "null"} url=${a.url.slice(-30)}`).join(" | ")}`,
+      );
     }
     if (!cleanedContent && !hasAttachments) {
+      const langDetection = detectLanguage(message.content || "");
       await message.reply({
-        content: getRandomHelldiverReply(),
+        content: getRandomHelldiverReply(langDetection.lang),
         allowedMentions: { repliedUser: false },
       });
       return;
@@ -1178,8 +1504,32 @@ async function handleAiChatMention(
       message.guildId || undefined,
     );
 
+    // ── Détection de langue pour réponse multilingue ──
+    const userLangDetection = detectLanguage(effectiveContent);
+    userLang = userLangDetection.lang;
+    const langNames: Record<SupportedLang, string> = {
+      fr: "français",
+      en: "English",
+      de: "Deutsch",
+      es: "español",
+      pt: "português",
+      it: "italiano",
+      nl: "Nederlands",
+      sv: "svenska",
+      no: "norsk",
+      cs: "čeština",
+      pl: "polski",
+      tr: "Türkçe",
+      ru: "русский",
+      ja: "日本語",
+      zh: "中文",
+      ar: "العربية",
+      ko: "한국어",
+    };
+    const langInstruction = `[LANGUAGE INSTRUCTION] The user is writing in ${langNames[userLang] || "English"}. You MUST respond in ${langNames[userLang] || "English"}. Always reply in the same language as the user's message. If the user mixes languages, respond in the dominant one.`;
+
     // ── Vision auto: analyser les images jointes avec Gemini ──
-    let enrichedContent = effectiveContent;
+    let enrichedContent = `${langInstruction}\n\n${effectiveContent}`;
     const imageAttachments = [...message.attachments.values()].filter(isImageAttachment);
 
     // Also check embeds for image URLs (when user posts a direct image link)
@@ -1190,11 +1540,13 @@ async function handleAiChatMention(
     }
 
     if (imageAttachments.length > 0 || embedImageUrls.length > 0) {
-      logger.info(`[AIChat] Images detected: ${imageAttachments.length} attachments + ${embedImageUrls.length} embeds — Gemini available: ${isGeminiAvailable()}`);
+      logger.info(
+        `[AIChat] Images detected: ${imageAttachments.length} attachments + ${embedImageUrls.length} embeds — Gemini available: ${isGeminiAvailable()}`,
+      );
 
       // Always pass image URLs to the agent so it can use analyzeImageGemini tool as fallback
       const allImageUrls = [
-        ...imageAttachments.slice(0, 3).map(a => a.url),
+        ...imageAttachments.slice(0, 3).map((a) => a.url),
         ...embedImageUrls.slice(0, 2),
       ];
 
@@ -1207,17 +1559,18 @@ async function handleAiChatMention(
         let geminiSuccess = false;
         for (const img of imageAttachments.slice(0, 3)) {
           try {
-            const description = await analyzeImageWithGemini(
-              img.url,
-              geminiPrompt,
-            );
+            const description = await analyzeImageWithGemini(img.url, geminiPrompt);
             if (description) {
               enrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
               geminiSuccess = true;
-              logger.info(`[AIChat] Vision auto: image analysée (${description.length} chars, lang=${langDetection.lang}) — question: "${userQuestion.slice(0, 50)}"`);
+              logger.info(
+                `[AIChat] Vision auto: image analysée (${description.length} chars, lang=${langDetection.lang}) — question: "${userQuestion.slice(0, 50)}"`,
+              );
             }
           } catch (err) {
-            logger.error(`[AIChat] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`);
+            logger.error(
+              `[AIChat] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -1228,10 +1581,14 @@ async function handleAiChatMention(
             if (description) {
               enrichedContent += `\n\n[Image jointe: ${imgUrl}]\nDescription visuelle: ${description}`;
               geminiSuccess = true;
-              logger.info(`[AIChat] Vision auto (embed): image analysée (${description.length} chars)`);
+              logger.info(
+                `[AIChat] Vision auto (embed): image analysée (${description.length} chars)`,
+              );
             }
           } catch (err) {
-            logger.error(`[AIChat] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`);
+            logger.error(
+              `[AIChat] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -1247,7 +1604,9 @@ async function handleAiChatMention(
         for (const imgUrl of allImageUrls) {
           enrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
         }
-        logger.info(`[AIChat] ${allImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`);
+        logger.info(
+          `[AIChat] ${allImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
+        );
       }
     }
 
@@ -1271,6 +1630,23 @@ async function handleAiChatMention(
       // Si le deep research échoue, on continue vers l'agent loop
     }
 
+    // ── Cache sémantique: vérifier si on a déjà une réponse récente ──
+    const cached = getCachedResponse(enrichedContent, message.author.id, "guild");
+    if (cached) {
+      logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
+      void statusIndicator.cleanup();
+      if (cached.length <= 1900) {
+        await message
+          .reply({ content: cached, allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+      } else {
+        await message
+          .reply({ content: cached.slice(0, 1900), allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+      }
+      return;
+    }
+
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
     // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
     // puis synthétise sa réponse finale.
@@ -1289,7 +1665,8 @@ async function handleAiChatMention(
     }
 
     // ── Si l'agent loop a retourné un message d'erreur connu, fallback avec modèle gratuit ──
-    const isErrorResponse = !aiResponse ||
+    const isErrorResponse =
+      !aiResponse ||
       aiResponse.includes("Le serveur IA a rencontré un problème") ||
       aiResponse.includes("Problème de communication avec le serveur IA") ||
       aiResponse.includes("Le serveur IA est sous forte charge") ||
@@ -1299,24 +1676,90 @@ async function handleAiChatMention(
     if (isErrorResponse) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback en cours`);
 
-      // ── Fallback 1: LLM local (Ollama) — gratuit, pas de quota ──
+      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
       if (isLocalLlmAvailable()) {
         try {
           const localReply = await chatWithLocalLlm([
-            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+            {
+              role: "system",
+              content:
+                config.aiSystemPrompt +
+                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            },
             { role: "user", content: enrichedContent },
           ]);
           if (localReply && localReply.length > 2) {
             aiResponse = localReply;
-            logger.info(`[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`);
+            logger.info(
+              `[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
+            );
           }
         } catch (localErr) {
-          logger.error(`[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
+          logger.error(
+            `[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
+          );
         }
       }
 
-      // ── Fallback 2: OpenRouter (API payante) ──
-      if (aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED") || aiResponse.includes("Circuit breaker activated")) {
+      // ── Fallback 2: Gemini (free, quota séparé) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isGeminiAvailable()
+      ) {
+        logger.warn(`[AIChat] Fallback: Gemini`);
+        try {
+          const geminiReply = await chatWithGemini(
+            config.aiSystemPrompt +
+              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            enrichedContent,
+            800,
+          );
+          if (geminiReply) {
+            aiResponse = geminiReply;
+            logger.info(`[AIChat] Fallback Gemini réussi`);
+          }
+        } catch (geminiErr) {
+          logger.error(
+            `[AIChat] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
+          );
+        }
+      }
+
+      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isNvidiaNimAvailable()
+      ) {
+        logger.warn(`[AIChat] Fallback: NVIDIA NIM`);
+        try {
+          const nvidiaReply = await chatWithNvidiaNim(
+            config.aiSystemPrompt +
+              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            enrichedContent,
+            800,
+          );
+          if (nvidiaReply) {
+            aiResponse = nvidiaReply;
+            logger.info(`[AIChat] Fallback NVIDIA NIM réussi`);
+          }
+        } catch (nvidiaErr) {
+          logger.error(
+            `[AIChat] NVIDIA NIM fallback échoué: ${nvidiaErr instanceof Error ? nvidiaErr.message : String(nvidiaErr)}`,
+          );
+        }
+      }
+
+      // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
+      if (
+        !aiResponse ||
+        aiResponse.includes("Le serveur IA a rencontré un problème") ||
+        aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+        aiResponse.includes("Circuit breaker activated")
+      ) {
         try {
           const fallbackModel = getNextAvailableModel() || "openrouter/auto";
           const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -1343,49 +1786,26 @@ async function handleAiChatMention(
             logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
           }
         } catch (fallbackErr) {
-          logger.error(`[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+          logger.error(
+            `[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
+          );
         }
-      }
-    }
-
-    // ── Fallback: LLM local (Ollama) si encore en erreur ──
-    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isLocalLlmAvailable()) {
-      logger.warn(`[AIChat] Fallback: LLM local (Ollama)`);
-      try {
-        const localReply = await chatWithLocalLlm([
-          { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
-          { role: "user", content: enrichedContent },
-        ]);
-        if (localReply) {
-          aiResponse = localReply;
-          logger.info(`[AIChat] Fallback LLM local réussi`);
-        }
-      } catch (localErr) {
-        logger.error(`[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
-      }
-    }
-
-    // ── Fallback final: Gemini (free, quota séparé) ──
-    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isGeminiAvailable()) {
-      logger.warn(`[AIChat] Fallback final: Gemini`);
-      try {
-        const geminiReply = await chatWithGemini(
-          config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-          enrichedContent,
-          800,
-        );
-        if (geminiReply) {
-          aiResponse = geminiReply;
-          logger.info(`[AIChat] Fallback Gemini réussi`);
-        }
-      } catch (geminiErr) {
-        logger.error(`[AIChat] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`);
       }
     }
 
     // ── Si toujours vide ou erreur, message par défaut ──
-    if (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) {
-      aiResponse = "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+    if (
+      !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED")
+    ) {
+      aiResponse =
+        "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+    }
+
+    // ── Stocker la réponse dans le cache sémantique ──
+    if (aiResponse && !aiResponse.includes("⚠️")) {
+      setCachedResponse(enrichedContent, aiResponse, message.author.id);
     }
 
     if (aiResponse) {
@@ -1420,12 +1840,10 @@ async function handleAiChatMention(
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
       // ── Réponse vocale automatique: si l'utilisateur est dans un vocal, parler à voix haute ──
-      if (
-        message.guildId &&
-        message.member?.voice?.channelId
-      ) {
+      if (message.guildId && message.member?.voice?.channelId) {
         // Détecter la langue depuis le message de l'utilisateur
-        const detectedLang = effectiveContent.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
+        const detectedLang =
+          userLang === "fr" ? "fr" : userLang === "en" ? "en" : (userLang as string);
         // Utiliser la file d'attente TTS pour parler
         const voiceChannel = message.member.voice.channel;
         if (voiceChannel) {
@@ -1440,7 +1858,9 @@ async function handleAiChatMention(
             authorTag: `${message.author.tag} (IA auto)`,
             channelName: voiceChannel.name,
           });
-          logger.info(`[AIChat] Réponse vocale auto pour ${message.author.tag} dans #${voiceChannel.name}`);
+          logger.info(
+            `[AIChat] Réponse vocale auto pour ${message.author.tag} dans #${voiceChannel.name}`,
+          );
         }
       }
 
@@ -1474,9 +1894,89 @@ async function handleAiChatMention(
       errorSpamGuard.set(message.author.id, now);
       const errMsg = error instanceof Error ? error.message : String(error);
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
-      const userMsg = isOverload
-        ? "🦅 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat."
-        : "🦅 *Static* — Problème de transmission. Le QG est notifié. Réessaie.";
+      const errorFallbackMsgs: Record<string, { overload: string; error: string }> = {
+        fr: {
+          overload:
+            "🦅 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat.",
+          error: "🦅 *Static* — Problème de transmission. Le QG est notifié. Réessaie.",
+        },
+        en: {
+          overload: "🦅 *Static* — Orbital relay saturated. Try again in a few seconds, soldier.",
+          error: "🦅 *Static* — Transmission problem. HQ has been notified. Try again.",
+        },
+        de: {
+          overload:
+            "🦅 *Rauschen* — Orbitalrelais überlastet. Versuche es in ein paar Sekunden erneut, Soldat.",
+          error:
+            "🦅 *Rauschen* — Übertragungsproblem. HQ wurde benachrichtigt. Versuche es erneut.",
+        },
+        es: {
+          overload: "🦅 *Estática* — Relé orbital saturado. Inténtalo en unos segundos, soldado.",
+          error:
+            "🦅 *Estática* — Problema de transmisión. El CG ha sido notificado. Inténtalo de nuevo.",
+        },
+        pt: {
+          overload:
+            "🦅 *Estática* — Relé orbital saturado. Tente novamente em alguns segundos, soldado.",
+          error: "🦅 *Estática* — Problema de transmissão. O QG foi notificado. Tente novamente.",
+        },
+        it: {
+          overload:
+            "🦅 *Statico* — Ripetitore orbitale saturo. Riprova tra qualche secondo, soldato.",
+          error: "🦅 *Statico* — Problema di trasmissione. Il QG è stato avvisato. Riprova.",
+        },
+        nl: {
+          overload:
+            "🦅 *Storing* — Orbitale relay verzadigd. Probeer over een paar seconden opnieuw, soldaat.",
+          error: "🦅 *Storing* — Transmissieprobleem. HQ is op de hoogte. Probeer opnieuw.",
+        },
+        ru: {
+          overload:
+            "🦅 *Помехи* — Орбитальный реле перегружен. Попробуйте через несколько секунд, солдат.",
+          error: "🦅 *Помехи* — Проблема передачи. Штаб уведомлён. Попробуйте снова.",
+        },
+        ja: {
+          overload: "🦅 *ザザッ* — 軌道リレーが飽和しています。数秒後に再試行してください、兵士。",
+          error: "🦅 *ザザッ* — 通信障害。司令部に通知されました。再試行してください。",
+        },
+        zh: {
+          overload: "🦅 *滋滋* — 轨道中继饱和。几秒钟后重试，士兵。",
+          error: "🦅 *滋滋* — 传输问题。总部已通知。请重试。",
+        },
+        ar: {
+          overload:
+            "🦅 *تشويش* — المرحلة المدارية مشبعة. حاول مرة أخرى بعد بضع ثوانٍ، أيها الجندي.",
+          error: "🦅 *تشويش* — مشكلة في الإرسال. تم إبلاغ القيادة. حاول مرة أخرى.",
+        },
+        ko: {
+          overload: "🦅 *지직* — 궤도 중계기 포화. 몇 초 후에 다시 시도하세요, 병사.",
+          error: "🦅 *지직* — 전송 문제. 본부에 통보되었습니다. 다시 시도하세요.",
+        },
+        tr: {
+          overload: "🦅 *Cızırtı* — Yörüngsel röle doygun. Birkaç saniye sonra tekrar dene, asker.",
+          error: "🦅 *Cızırtı* — İletişim sorunu. Karargah bilgilendirildi. Tekrar dene.",
+        },
+        sv: {
+          overload: "🦅 *Brus* — Omloppsrelä mättat. Försök om några sekunder, soldat.",
+          error: "🦅 *Brus* — Överföringsproblem. HQ har underrättats. Försök igen.",
+        },
+        pl: {
+          overload:
+            "🦅 *Szum* — Przekaźnik orbitalny nasycony. Spróbuj za kilka sekund, żołnierzu.",
+          error: "🦅 *Szum* — Problem z transmisją. Kwatera główna powiadomiona. Spróbuj ponownie.",
+        },
+        cs: {
+          overload: "🦅 *Šum* — Orbitální relé nasyceno. Zkuste to za pár sekund, vojáku.",
+          error: "🦅 *Šum* — Problém s přenosem. Velitelství bylo informováno. Zkuste to znovu.",
+        },
+        no: {
+          overload: "🦅 *Støy* — Bane-relé mettet. Prøv igjen om noen sekunder, soldat.",
+          error: "🦅 *Støy* — Overføringsproblem. HQ er varslet. Prøv igjen.",
+        },
+      };
+      const fbLang = userLang || "fr";
+      const fbMsgs = errorFallbackMsgs[fbLang] || errorFallbackMsgs.fr;
+      const userMsg = isOverload ? fbMsgs.overload : fbMsgs.error;
       await message.reply({
         content: userMsg,
         allowedMentions: { repliedUser: false },
@@ -1529,7 +2029,7 @@ async function handleDMMessage(
 
     if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
       const dmAllImageUrls = [
-        ...dmImageAttachments.slice(0, 3).map(a => a.url),
+        ...dmImageAttachments.slice(0, 3).map((a) => a.url),
         ...dmEmbedImageUrls.slice(0, 2),
       ];
 
@@ -1541,17 +2041,18 @@ async function handleDMMessage(
         let dmGeminiSuccess = false;
         for (const img of dmImageAttachments.slice(0, 3)) {
           try {
-            const description = await analyzeImageWithGemini(
-              img.url,
-              dmGeminiPrompt,
-            );
+            const description = await analyzeImageWithGemini(img.url, dmGeminiPrompt);
             if (description) {
               dmEnrichedContent += `\n\n[Image jointe: ${img.url}]\nDescription visuelle: ${description}`;
               dmGeminiSuccess = true;
-              logger.info(`[DM] Vision auto: image analysée (${description.length} chars, lang=${dmLangDetection.lang}) — question: "${dmUserQuestion.slice(0, 50)}"`);
+              logger.info(
+                `[DM] Vision auto: image analysée (${description.length} chars, lang=${dmLangDetection.lang}) — question: "${dmUserQuestion.slice(0, 50)}"`,
+              );
             }
           } catch (err) {
-            logger.error(`[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`);
+            logger.error(
+              `[DM] Vision auto échouée: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -1565,7 +2066,9 @@ async function handleDMMessage(
               logger.info(`[DM] Vision auto (embed): image analysée (${description.length} chars)`);
             }
           } catch (err) {
-            logger.error(`[DM] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`);
+            logger.error(
+              `[DM] Vision auto (embed) échouée: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -1580,7 +2083,9 @@ async function handleDMMessage(
         for (const imgUrl of dmAllImageUrls) {
           dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
         }
-        logger.info(`[DM] ${dmAllImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`);
+        logger.info(
+          `[DM] ${dmAllImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
+        );
       }
     }
 
@@ -1591,6 +2096,23 @@ async function handleDMMessage(
         void dmStatusIndicator.cleanup();
         return;
       }
+    }
+
+    // ── Cache sémantique (DM): vérifier si on a déjà une réponse récente ──
+    const dmCached = getCachedResponse(dmEnrichedContent, message.author.id, "dm");
+    if (dmCached) {
+      logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
+      void dmStatusIndicator.cleanup();
+      if (dmCached.length <= 1900) {
+        await message
+          .reply({ content: dmCached, allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+      } else {
+        await message
+          .reply({ content: dmCached.slice(0, 1900), allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+      }
+      return;
     }
 
     // Lancer l'agent loop (Think → Act → Observe → Respond)
@@ -1608,7 +2130,8 @@ async function handleDMMessage(
     }
 
     // ── Si l'agent loop a retourné une erreur, fallback avec modèle gratuit ──
-    const dmIsErrorResponse = !aiResponse ||
+    const dmIsErrorResponse =
+      !aiResponse ||
       aiResponse.includes("Le serveur IA a rencontré un problème") ||
       aiResponse.includes("Problème de communication avec le serveur IA") ||
       aiResponse.includes("Le serveur IA est sous forte charge") ||
@@ -1618,24 +2141,90 @@ async function handleDMMessage(
     if (dmIsErrorResponse) {
       logger.warn(`[DM] AgentLoop a retourné une erreur, fallback en cours`);
 
-      // ── Fallback 1: LLM local (Ollama) — gratuit, pas de quota ──
+      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
       if (isLocalLlmAvailable()) {
         try {
           const localReply = await chatWithLocalLlm([
-            { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
+            {
+              role: "system",
+              content:
+                config.aiSystemPrompt +
+                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            },
             { role: "user", content: dmEnrichedContent },
           ]);
           if (localReply && localReply.length > 2) {
             aiResponse = localReply;
-            logger.info(`[DM] Fallback LLM local réussi (${localReply.length} chars) — API économisée`);
+            logger.info(
+              `[DM] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
+            );
           }
         } catch (localErr) {
-          logger.error(`[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
+          logger.error(
+            `[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
+          );
         }
       }
 
-      // ── Fallback 2: OpenRouter (API payante) ──
-      if (aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED") || aiResponse.includes("Circuit breaker activated") || !aiResponse) {
+      // ── Fallback 2: Gemini (free, quota séparé) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isGeminiAvailable()
+      ) {
+        logger.warn(`[DM] Fallback: Gemini`);
+        try {
+          const geminiReply = await chatWithGemini(
+            config.aiSystemPrompt +
+              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            dmEnrichedContent,
+            800,
+          );
+          if (geminiReply) {
+            aiResponse = geminiReply;
+            logger.info(`[DM] Fallback Gemini réussi`);
+          }
+        } catch (geminiErr) {
+          logger.error(
+            `[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
+          );
+        }
+      }
+
+      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isNvidiaNimAvailable()
+      ) {
+        logger.warn(`[DM] Fallback: NVIDIA NIM`);
+        try {
+          const nvidiaReply = await chatWithNvidiaNim(
+            config.aiSystemPrompt +
+              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            dmEnrichedContent,
+            800,
+          );
+          if (nvidiaReply) {
+            aiResponse = nvidiaReply;
+            logger.info(`[DM] Fallback NVIDIA NIM réussi`);
+          }
+        } catch (nvidiaErr) {
+          logger.error(
+            `[DM] NVIDIA NIM fallback échoué: ${nvidiaErr instanceof Error ? nvidiaErr.message : String(nvidiaErr)}`,
+          );
+        }
+      }
+
+      // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
+      if (
+        !aiResponse ||
+        aiResponse.includes("Le serveur IA a rencontré un problème") ||
+        aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+        aiResponse.includes("Circuit breaker activated")
+      ) {
         try {
           const dmFallbackModel = getNextAvailableModel() || "openrouter/auto";
           const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -1672,49 +2261,26 @@ async function handleDMMessage(
             logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
           }
         } catch (fallbackErr) {
-          logger.error(`[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
+          logger.error(
+            `[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
+          );
         }
-      }
-    }
-
-    // ── Fallback: LLM local (Ollama) si disponible ──
-    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isLocalLlmAvailable()) {
-      logger.warn(`[DM] Fallback: LLM local (Ollama)`);
-      try {
-        const localReply = await chatWithLocalLlm([
-          { role: "system", content: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel." },
-          { role: "user", content: dmEnrichedContent },
-        ]);
-        if (localReply) {
-          aiResponse = localReply;
-          logger.info(`[DM] Fallback LLM local réussi`);
-        }
-      } catch (localErr) {
-        logger.error(`[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
-      }
-    }
-
-    // ── Fallback final: Gemini (free, quota séparé) ──
-    if ((!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) && isGeminiAvailable()) {
-      logger.warn(`[DM] Fallback final: Gemini`);
-      try {
-        const geminiReply = await chatWithGemini(
-          config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-          dmEnrichedContent,
-          800,
-        );
-        if (geminiReply) {
-          aiResponse = geminiReply;
-          logger.info(`[DM] Fallback Gemini réussi`);
-        }
-      } catch (geminiErr) {
-        logger.error(`[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`);
       }
     }
 
     // ── Si toujours vide ou erreur, message par défaut ──
-    if (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) {
-      aiResponse = "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+    if (
+      !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED")
+    ) {
+      aiResponse =
+        "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+    }
+
+    // ── Stocker la réponse dans le cache sémantique ──
+    if (aiResponse && !aiResponse.includes("⚠️")) {
+      setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
     }
 
     if (aiResponse) {
@@ -1749,15 +2315,16 @@ async function handleDMMessage(
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
       // ── Réponse vocale (DM): sur demande explicite ──
-      const dmVoiceKeywords = /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|parle sa|parle ça|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|lis le|lis sa|lis ça|lie sa|lie ça|lie le|récite|récite le|à l'oral|dit le|dit sa|dit ça|read it|say it out|dans le vocal|dans la voix)/i;
-      if (
-        message.guildId &&
-        message.member?.voice?.channelId &&
-        dmVoiceKeywords.test(content)
-      ) {
+      const dmVoiceKeywords =
+        /(?:en vocal|à voix haute|à voix|dis-le moi|parle-moi|parle le|parle sa|parle ça|speak it|say it|voice response|read it aloud|tts|tds|en voix|lis-le|lis le|lis sa|lis ça|lie sa|lie ça|lie le|récite|récite le|à l'oral|dit le|dit sa|dit ça|read it|say it out|dans le vocal|dans la voix)/i;
+      if (message.guildId && message.member?.voice?.channelId && dmVoiceKeywords.test(content)) {
         const detectedLang = content.match(/[àâçéèêëîïôûùüÿœæ]/i) ? "fr" : "en";
         if (!isInVoiceChannel(message.guildId)) {
-          await joinVoiceChannelById(message.client, message.guildId, message.member.voice.channelId).catch(() => {});
+          await joinVoiceChannelById(
+            message.client,
+            message.guildId,
+            message.member.voice.channelId,
+          ).catch(() => {});
         }
         void speakResponseInVoice(
           message.client,
