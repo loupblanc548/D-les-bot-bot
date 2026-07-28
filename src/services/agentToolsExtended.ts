@@ -17,6 +17,16 @@ import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js"
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
 import {
+  pingIP,
+  tracerouteIP,
+  portScanIP,
+  checkHttpHeaders,
+  checkSSL,
+  fullIPReport,
+  formatIPReport,
+  validateTargetIP,
+} from "../utils/ipToolkit.js";
+import {
   listModels as mcpListModels,
   getModel as mcpGetModel,
   getBenchmarks as mcpGetBenchmarks,
@@ -50,6 +60,103 @@ function setCache(key: string, data: string): void {
 // ─── Définitions des tools supplémentaires ────────────────────────────────────
 
 export const EXTENDED_TOOLS: AgentToolDef[] = [
+  // ── IP Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "ip_ping",
+      description:
+        "Ping ICMP une adresse IP pour vérifier si elle est en ligne et mesurer la latence.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP à pinger" },
+          count: { type: "number", description: "Nombre de paquets (défaut: 4)" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_traceroute",
+      description: "Traceroute vers une adresse IP pour voir le chemin réseau et les hops.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP cible" },
+          maxHops: { type: "number", description: "Nombre max de hops (défaut: 15)" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_portscan",
+      description: "Scan rapide des ports communs (TCP connect) sur une adresse IP. Sans nmap.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP à scanner" },
+          ports: {
+            type: "array",
+            items: { type: "number" },
+            description: "Ports spécifiques (défaut: ports communs)",
+          },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_http_check",
+      description: "Récupère les headers HTTP d'une IP et vérifie les security headers.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP" },
+          port: { type: "number", description: "Port (défaut: 80)" },
+          useSSL: { type: "boolean", description: "Utiliser HTTPS (défaut: false)" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_ssl_check",
+      description: "Vérifie le certificat SSL/TLS d'une IP sur le port 443.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP" },
+          port: { type: "number", description: "Port (défaut: 443)" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_full_report",
+      description:
+        "Rapport complet sur une IP: ping, port scan, HTTP, HTTPS, SSL. Combine tous les outils.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP à analyser" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
   // ── Fun & Entertainment ──
   {
     type: "function",
@@ -1307,6 +1414,19 @@ export async function executeExtendedTool(
 
   try {
     switch (toolName) {
+      // IP Toolkit
+      case "ip_ping":
+        return await tIpPing(args);
+      case "ip_traceroute":
+        return await tIpTraceroute(args);
+      case "ip_portscan":
+        return await tIpPortScan(args);
+      case "ip_http_check":
+        return await tIpHttpCheck(args);
+      case "ip_ssl_check":
+        return await tIpSslCheck(args);
+      case "ip_full_report":
+        return await tIpFullReport(args);
       // Fun
       case "getJoke":
         return await tGetJoke();
@@ -3934,4 +4054,113 @@ async function tTranslateTextDeepL(args: Record<string, unknown>): Promise<ToolC
     success: true,
     data: `🌐 Traduction DeepL (${sourceLang || "auto"} → ${targetLang}):\n\n${result}`,
   };
+}
+
+// ─── IP Toolkit Handlers ─────────────────────────────────────────────────────
+
+async function tIpPing(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const count = typeof args.count === "number" ? args.count : 4;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await pingIP(ip, count);
+  if (result.alive) {
+    return {
+      success: true,
+      data: `📡 Ping ${ip}: ✅ Actif — Latence: ${result.latencyMs ?? "N/A"}ms — Paquets: ${result.packetsReceived}/${result.packetsSent}`,
+    };
+  }
+  return { success: false, data: `📡 Ping ${ip}: ❌ Inactif ou ne répond pas` };
+}
+
+async function tIpTraceroute(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const maxHops = typeof args.maxHops === "number" ? args.maxHops : 15;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await tracerouteIP(ip, maxHops);
+  if (!result.success) {
+    return { success: false, data: `📡 Traceroute ${ip}: ❌ Échec — ${result.raw.slice(0, 200)}` };
+  }
+  const hopsStr = result.hops.map((h) => `${h.hop}. ${h.ip} (${h.latencyMs})`).join("\n");
+  return { success: true, data: `📡 Traceroute ${ip} (${result.hops.length} hops):\n${hopsStr}` };
+}
+
+async function tIpPortScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const ports = Array.isArray(args.ports) ? args.ports.map(Number) : undefined;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await portScanIP(ip, ports);
+  if (result.openPorts.length === 0) {
+    return {
+      success: true,
+      data: `🚪 Port scan ${ip}: Aucun port ouvert trouvé (${result.scannedPorts} ports scannés en ${result.durationMs}ms)`,
+    };
+  }
+  const portsStr = result.openPorts.map((p) => `${p.port} (${p.service})`).join(", ");
+  return {
+    success: true,
+    data: `🚪 Port scan ${ip}: ${result.openPorts.length} ports ouverts — ${portsStr} (${result.durationMs}ms)`,
+  };
+}
+
+async function tIpHttpCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const port = typeof args.port === "number" ? args.port : 80;
+  const useSSL = args.useSSL === true;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await checkHttpHeaders(ip, port, useSSL);
+  if (!result.success) {
+    return {
+      success: false,
+      data: `🌐 HTTP ${ip}:${port}: ❌ ${result.error || "Connexion échouée"}`,
+    };
+  }
+  const sec = result.securityHeaders;
+  const secStr = `HSTS:${sec.hasHSTS ? "✅" : "❌"} CSP:${sec.hasCSP ? "✅" : "❌"} X-Frame:${sec.hasXFrameOptions ? "✅" : "❌"} X-CTO:${sec.hasXContentTypeOptions ? "✅" : "❌"}`;
+  return {
+    success: true,
+    data: `🌐 HTTP ${result.url}: ${result.statusCode} — Server: ${result.server || "N/A"} — ${result.responseTimeMs}ms\nSecurity: ${secStr}`,
+  };
+}
+
+async function tIpSslCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const port = typeof args.port === "number" ? args.port : 443;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await checkSSL(ip, port);
+  if (!result.hasCertificate) {
+    return {
+      success: false,
+      data: `📜 SSL ${ip}:${port}: ❌ ${result.error || "Aucun certificat"}`,
+    };
+  }
+  return {
+    success: true,
+    data: `📜 SSL ${ip}:${port}: Subject: ${result.subject} — Issuer: ${result.issuer} — Expire: ${result.validTo ? new Date(result.validTo).toLocaleDateString("fr-FR") : "N/A"} (${result.daysUntilExpiry}j restants) — ${result.isExpired ? "⚠️ Expiré" : "✅ Valide"}${result.selfSigned ? " — ⚠️ Self-signed" : ""}`,
+  };
+}
+
+async function tIpFullReport(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const report = await fullIPReport(ip);
+  const formatted = formatIPReport(report);
+  return { success: true, data: formatted.slice(0, 4000) };
 }
