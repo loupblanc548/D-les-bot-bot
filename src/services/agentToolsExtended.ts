@@ -92,6 +92,44 @@ import {
   runNmapNse,
 } from "../utils/pentestToolkit.js";
 import {
+  base64Encode,
+  base64Decode,
+  urlEncode,
+  urlDecode,
+  aesEncrypt,
+  aesDecrypt,
+  hashFile,
+  getFileMetadata,
+  scanPii,
+  parseIocs,
+  analyzeEntropy,
+  hexDump,
+  extractStrings,
+  parsePeHeader,
+  parseElfHeader,
+  getApkInfo,
+  checkDependencyVulns,
+  detectSteganography,
+} from "../utils/forensicsToolkit.js";
+import {
+  convertUnit,
+  convertTemperature,
+  evalMath,
+  calculateStats,
+  analyzeSentiment,
+  detectLanguage,
+  wordFrequency,
+  convertCase,
+  generateSlug,
+  generateQrAscii,
+  parseCron,
+  generateIpRange,
+  numberToWordsFr,
+  generatePasswords,
+  formatDataSize,
+  textDiff,
+} from "../utils/dataToolkit.js";
+import {
   listModels as mcpListModels,
   getModel as mcpGetModel,
   getBenchmarks as mcpGetBenchmarks,
@@ -971,6 +1009,453 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           scripts: { type: "array", items: { type: "string" }, description: "Scripts spécifiques (ex: smb-enum-shares)" },
         },
         required: ["target"],
+      },
+    },
+  },
+  // ── Forensics Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "base64_codec",
+      description: "Encode ou décode en Base64.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à encoder/décoder" },
+          mode: { type: "string", description: "encode ou decode" },
+        },
+        required: ["input", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "url_codec",
+      description: "Encode ou décode une URL (percent-encoding).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à encoder/décoder" },
+          mode: { type: "string", description: "encode ou decode" },
+        },
+        required: ["input", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "aes_crypto",
+      description: "Chiffre ou déchiffre avec AES-256-GCM. Retourne ciphertext, IV, tag.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte clair ou ciphertext (hex)" },
+          password: { type: "string", description: "Mot de passe" },
+          mode: { type: "string", description: "encrypt ou decrypt" },
+          iv: { type: "string", description: "IV hex (pour decrypt)" },
+          tag: { type: "string", description: "Tag hex (pour decrypt)" },
+        },
+        required: ["input", "password", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "file_hash",
+      description: "Calcule MD5, SHA1, SHA256 d'un fichier.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "file_metadata",
+      description: "Extrait les métadonnées d'un fichier (taille, type MIME, dates).",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pii_scan",
+      description: "Scanne un texte pour détecter des PII (emails, téléphones, cartes de crédit, IBAN, clés API, JWT).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ioc_parse",
+      description: "Extrait les IOC (Indicators of Compromise) d'un texte: IPs, hashes, domaines, URLs, emails.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "entropy_analyze",
+      description: "Analyse l'entropie de Shannon d'une chaîne — détecte si elle est chiffrée/compressée.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Chaîne à analyser" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hex_dump",
+      description: "Génère un hex dump d'une chaîne (format xxd).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à dumper" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "string_extract",
+      description: "Extrait les chaînes imprimables d'un texte binaire (forensique).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Données binaires (texte)" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pe_header",
+      description: "Parse l'en-tête d'un exécutable Windows (PE) — machine, sections, timestamp.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier .exe/.dll" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "elf_header",
+      description: "Parse l'en-tête d'un exécutable Linux (ELF) — machine, type, sections.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier ELF" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apk_info",
+      description: "Extrait les infos d'un APK Android (package, version, permissions).",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier .apk" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dep_vuln_check",
+      description: "Vérifie les patterns de vulnérabilités dans un package.json.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du package.json" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "stego_detect",
+      description: "Détecte la stéganographie LSB dans une image BMP/PNG.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier image" },
+        },
+        required: ["path"],
+      },
+    },
+  },
+  // ── Data & Text Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "unit_convert",
+      description: "Convertit entre unités (longueur, poids, données, vitesse). Pour la température, utilisez temp_convert.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "Valeur à convertir" },
+          fromUnit: { type: "string", description: "Unité source (ex: m, kg, KB)" },
+          category: { type: "string", description: "Catégorie (length, weight, data, speed)" },
+        },
+        required: ["value", "fromUnit", "category"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "temp_convert",
+      description: "Convertit entre °C, °F, K.",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "Température" },
+          from: { type: "string", description: "Unité source (C, F, K)" },
+        },
+        required: ["value", "from"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "math_eval",
+      description: "Évalue une expression mathématique (sqrt, sin, cos, log, +, -, *, /, ^, %).",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "Expression (ex: 2+2*3, sqrt(144), sin(pi/2))" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "stats_calc",
+      description: "Calcule statistiques: mean, median, std, variance, min, max, quartiles.",
+      parameters: {
+        type: "object",
+        properties: {
+          values: { type: "array", items: { type: "number" }, description: "Liste de nombres" },
+        },
+        required: ["values"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sentiment_analyze",
+      description: "Analyse le sentiment d'un texte (positif/négatif/neutre) en FR et EN.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "language_detect",
+      description: "Détecte la langue d'un texte (FR, EN, ES, DE, IT, PT).",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "word_freq",
+      description: "Analyse la fréquence des mots dans un texte.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à analyser" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "case_convert",
+      description: "Convertit un texte entre camelCase, PascalCase, snake_case, kebab-case, CONSTANT_CASE, etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à convertir" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "slug_gen",
+      description: "Génère un slug URL-friendly à partir d'un texte.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte à slugifier" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "qr_gen",
+      description: "Génère un QR code en ASCII art.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à encoder" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cron_parse",
+      description: "Parse et explique une expression cron (min hour day month weekday).",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "Expression cron (ex: '0 2 * * *')" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ip_range_gen",
+      description: "Génère la liste d'IPs dans un range CIDR.",
+      parameters: {
+        type: "object",
+        properties: {
+          cidr: { type: "string", description: "CIDR (ex: 192.168.1.0/24)" },
+        },
+        required: ["cidr"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "num_to_words",
+      description: "Convertit un nombre en mots (français).",
+      parameters: {
+        type: "object",
+        properties: {
+          number: { type: "number", description: "Nombre à convertir" },
+        },
+        required: ["number"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "password_gen",
+      description: "Génère des mots de passe aléatoires sécurisés.",
+      parameters: {
+        type: "object",
+        properties: {
+          count: { type: "number", description: "Nombre de passwords (défaut: 1)" },
+          length: { type: "number", description: "Longueur (défaut: 16)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "data_size_format",
+      description: "Formate une taille en bytes en format lisible (KB, MB, GB, KiB, MiB...).",
+      parameters: {
+        type: "object",
+        properties: {
+          bytes: { type: "number", description: "Taille en bytes" },
+        },
+        required: ["bytes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_diff",
+      description: "Compare deux textes et affiche les différences (additions, deletions, similarity).",
+      parameters: {
+        type: "object",
+        properties: {
+          text1: { type: "string", description: "Premier texte" },
+          text2: { type: "string", description: "Second texte" },
+        },
+        required: ["text1", "text2"],
       },
     },
   },
@@ -2348,6 +2833,70 @@ export async function executeExtendedTool(
         return await tGobusterScan(args);
       case "nmap_nse_scan":
         return await tNmapNseScan(args);
+      // Forensics Toolkit
+      case "base64_codec":
+        return await tBase64Codec(args);
+      case "url_codec":
+        return await tUrlCodec(args);
+      case "aes_crypto":
+        return await tAesCrypto(args);
+      case "file_hash":
+        return await tFileHash(args);
+      case "file_metadata":
+        return await tFileMetadata(args);
+      case "pii_scan":
+        return await tPiiScan(args);
+      case "ioc_parse":
+        return await tIocParse(args);
+      case "entropy_analyze":
+        return await tEntropyAnalyze(args);
+      case "hex_dump":
+        return await tHexDump(args);
+      case "string_extract":
+        return await tStringExtract(args);
+      case "pe_header":
+        return await tPeHeader(args);
+      case "elf_header":
+        return await tElfHeader(args);
+      case "apk_info":
+        return await tApkInfo(args);
+      case "dep_vuln_check":
+        return await tDepVulnCheck(args);
+      case "stego_detect":
+        return await tStegoDetect(args);
+      // Data & Text Toolkit
+      case "unit_convert":
+        return await tUnitConvert(args);
+      case "temp_convert":
+        return await tTempConvert(args);
+      case "math_eval":
+        return await tMathEval(args);
+      case "stats_calc":
+        return await tStatsCalc(args);
+      case "sentiment_analyze":
+        return await tSentimentAnalyze(args);
+      case "language_detect":
+        return await tLanguageDetect(args);
+      case "word_freq":
+        return await tWordFreq(args);
+      case "case_convert":
+        return await tCaseConvert(args);
+      case "slug_gen":
+        return await tSlugGen(args);
+      case "qr_gen":
+        return await tQrGen(args);
+      case "cron_parse":
+        return await tCronParse(args);
+      case "ip_range_gen":
+        return await tIpRangeGen(args);
+      case "num_to_words":
+        return await tNumToWords(args);
+      case "password_gen":
+        return await tPasswordGen(args);
+      case "data_size_format":
+        return await tDataSizeFormat(args);
+      case "text_diff":
+        return await tTextDiff(args);
       // Fun
       case "getJoke":
         return await tGetJoke();
@@ -5660,4 +6209,267 @@ async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResu
   if (result.scripts.length === 0) return { success: true, data: `🔍 Nmap NSE ${target}: Aucun résultat de script` };
   const scriptsStr = result.scripts.map((s) => `${s.name}: ${s.output}`).join("\n");
   return { success: true, data: `🔍 Nmap NSE ${target} (${scriptCategory}):\n${scriptsStr}` };
+}
+
+// ─── Forensics Toolkit Handlers ──────────────────────────────────────────────
+
+async function tBase64Codec(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const mode = String(args.mode || "encode");
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const output = mode === "decode" ? base64Decode(input) : base64Encode(input);
+  return { success: true, data: `📝 Base64 ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tUrlCodec(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const mode = String(args.mode || "encode");
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const output = mode === "decode" ? urlDecode(input) : urlEncode(input);
+  return { success: true, data: `🔗 URL ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tAesCrypto(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const password = String(args.password);
+  const mode = String(args.mode || "encrypt");
+  if (!input || !password) return { success: false, data: "❌ Input et password requis" };
+  if (mode === "decrypt") {
+    const iv = String(args.iv || "");
+    const tag = String(args.tag || "");
+    const result = aesDecrypt(input, password, iv, tag);
+    if (!result.success) return { success: false, data: `🔒 AES decrypt: ❌ ${result.error}` };
+    return { success: true, data: `🔒 AES decrypt:\n\`\`\`\n${result.output.slice(0, 2000)}\n\`\`\`` };
+  }
+  const result = aesEncrypt(input, password);
+  if (!result.success) return { success: false, data: `🔒 AES encrypt: ❌ ${result.error}` };
+  return { success: true, data: `🔒 AES encrypt:\nCiphertext: \`${result.output}\`\nIV: \`${result.iv}\`\nTag: \`${result.tag}\`` };
+}
+
+async function tFileHash(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await hashFile(filePath);
+  if (!result.success) return { success: false, data: `📄 Hash: ❌ ${result.error}` };
+  return { success: true, data: `📄 ${result.file} (${result.size} bytes):\nMD5: ${result.md5}\nSHA1: ${result.sha1}\nSHA256: ${result.sha256}` };
+}
+
+async function tFileMetadata(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await getFileMetadata(filePath);
+  if (!result.success) return { success: false, data: `📄 Metadata: ❌ ${result.error}` };
+  return { success: true, data: `📄 ${result.file}:\nTaille: ${result.size} bytes\nType: ${result.mimeType}\nExtension: ${result.extension}\nCréé: ${result.created}\nModifié: ${result.modified}` };
+}
+
+async function tPiiScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Texte requis" };
+  const result = scanPii(input);
+  if (result.totalFound === 0) return { success: true, data: "✅ Aucun PII détecté" };
+  const findingsStr = result.findings.map((f) => `${f.type}: ${f.value} (x${f.count})`).join("\n");
+  return { success: true, data: `🚨 PII détecté (${result.totalFound}):\n${findingsStr}` };
+}
+
+async function tIocParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Texte requis" };
+  const result = parseIocs(input);
+  if (result.count === 0) return { success: true, data: "✅ Aucun IOC trouvé" };
+  const iocsStr = result.iocs.map((i) => `${i.type}: ${i.value}`).join("\n");
+  return { success: true, data: `🔬 IOC extraits (${result.count}):\n${iocsStr}` };
+}
+
+async function tEntropyAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = analyzeEntropy(input);
+  return { success: true, data: `📊 Entropie: ${result.entropy} bits/char\nCharset: ${result.charsetSize}\nÉvaluation: ${result.rating}` };
+}
+
+async function tHexDump(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = hexDump(input);
+  return { success: true, data: `📋 Hex dump (${result.lines} lines):\n\`\`\`\n${result.dump.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tStringExtract(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = extractStrings(input);
+  if (result.count === 0) return { success: true, data: "🔍 Aucune chaîne trouvée" };
+  return { success: true, data: `🔍 ${result.count} chaînes trouvées:\n${result.strings.join("\n").slice(0, 2000)}` };
+}
+
+async function tPeHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await parsePeHeader(filePath);
+  if (!result.success) return { success: false, data: `🪟 PE Header: ❌ ${result.error}` };
+  return { success: true, data: `🪟 PE Header:\nMachine: ${result.machine}\nSections: ${result.sections}\nTimestamp: ${result.timestamp}\nCharacteristics: ${result.characteristics.join(", ")}` };
+}
+
+async function tElfHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await parseElfHeader(filePath);
+  if (!result.success) return { success: false, data: `🐧 ELF Header: ❌ ${result.error}` };
+  return { success: true, data: `🐧 ELF Header:\nClass: ${result.class}\nEndian: ${result.endian}\nMachine: ${result.machine}\nType: ${result.type}\nEntry: ${result.entry}\nSections: ${result.sections}` };
+}
+
+async function tApkInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await getApkInfo(filePath);
+  if (!result.success) return { success: false, data: `📱 APK Info: ❌ ${result.error}` };
+  const permsStr = result.permissions.length > 0 ? result.permissions.join("\n") : "N/A";
+  return { success: true, data: `📱 APK ${result.file} (${result.size} bytes):\nPackage: ${result.packageName || "N/A"}\nVersion: ${result.version || "N/A"}\nMin SDK: ${result.minSdk || "N/A"}\nPermissions:\n${permsStr}` };
+}
+
+async function tDepVulnCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await checkDependencyVulns(filePath);
+  if (result.count === 0) return { success: true, data: `✅ ${result.file}: Aucune vulnérabilité connue détectée` };
+  const vulnsStr = result.vulnerabilities.map((v) => `[${v.severity.toUpperCase()}] ${v.pattern}`).join("\n");
+  return { success: true, data: `🚨 ${result.file}: ${result.count} vulnérabilité(s):\n${vulnsStr}` };
+}
+
+async function tStegoDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filePath = String(args.path);
+  if (!filePath) return { success: false, data: "❌ Chemin requis" };
+  const result = await detectSteganography(filePath);
+  if (!result.success) return { success: false, data: `🖼️ Stego detect: ❌ ${result.error}` };
+  return { success: true, data: `🖼️ Stego ${result.file}:\nSuspect: ${result.suspicious ? "⚠️ OUI" : "✅ Non"}\nLSB variance: ${result.lsbVariance}\nRaison: ${result.reason}` };
+}
+
+// ─── Data & Text Toolkit Handlers ────────────────────────────────────────────
+
+async function tUnitConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = typeof args.value === "number" ? args.value : parseFloat(String(args.value));
+  const fromUnit = String(args.fromUnit || "");
+  const category = String(args.category || "");
+  if (isNaN(value) || !fromUnit || !category) return { success: false, data: "❌ value, fromUnit et category requis" };
+  const result = convertUnit(value, fromUnit, category);
+  if (!result.success) return { success: false, data: `❌ ${result.error}` };
+  const convStr = result.conversions.map((c) => `${c.value} ${c.unit}`).join("\n");
+  return { success: true, data: `📏 ${result.input} → ${category}:\n${convStr}` };
+}
+
+async function tTempConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const value = typeof args.value === "number" ? args.value : parseFloat(String(args.value));
+  const from = String(args.from || "C").toUpperCase() as "C" | "F" | "K";
+  if (isNaN(value)) return { success: false, data: "❌ Valeur requise" };
+  const result = convertTemperature(value, from);
+  const convStr = result.conversions.map((c) => `${c.value}${c.unit}`).join(" | ");
+  return { success: true, data: `🌡️ ${result.input}:\n${convStr}` };
+}
+
+async function tMathEval(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const expression = String(args.expression || "");
+  if (!expression) return { success: false, data: "❌ Expression requise" };
+  const result = evalMath(expression);
+  if (!result.success) return { success: false, data: `❌ ${result.error}` };
+  return { success: true, data: `🧮 ${result.expression} = **${result.result}**` };
+}
+
+async function tStatsCalc(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const values = Array.isArray(args.values) ? args.values.map(Number).filter((n) => !isNaN(n)) : [];
+  if (values.length === 0) return { success: false, data: "❌ Liste de nombres requise" };
+  const result = calculateStats(values);
+  return { success: true, data: `📊 Stats (${result.count} valeurs):\nMean: ${result.mean}\nMedian: ${result.median}\nStd: ${result.std}\nVariance: ${result.variance}\nMin: ${result.min}\nMax: ${result.max}\nRange: ${result.range}\nQ1: ${result.q1}\nQ3: ${result.q3}\nSum: ${result.sum}` };
+}
+
+async function tSentimentAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "");
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const result = analyzeSentiment(text);
+  const posStr = result.positiveWords.join(", ") || "N/A";
+  const negStr = result.negativeWords.join(", ") || "N/A";
+  return { success: true, data: `💭 Sentiment: **${result.rating}** (score: ${result.score})\nPositif: ${posStr}\nNégatif: ${negStr}` };
+}
+
+async function tLanguageDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "");
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const result = detectLanguage(text);
+  return { success: true, data: `🌐 Langue détectée: **${result.detected}** (confiance: ${result.confidence * 100}%)` };
+}
+
+async function tWordFreq(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "");
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const result = wordFrequency(text);
+  const topStr = result.topWords.map((w) => `${w.word}: ${w.count}x`).join("\n");
+  return { success: true, data: `📝 ${result.totalWords} mots, ${result.uniqueWords} uniques:\n${topStr}` };
+}
+
+async function tCaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input || "");
+  if (!input) return { success: false, data: "❌ Texte requis" };
+  const result = convertCase(input);
+  if (!result.success) return { success: false, data: "❌ Conversion impossible" };
+  return { success: true, data: `🔤 Case:\ncamelCase: ${result.camelCase}\nPascalCase: ${result.pascalCase}\nsnake_case: ${result.snakeCase}\nkebab-case: ${result.kebabCase}\nCONSTANT_CASE: ${result.constantCase}\nlower: ${result.lower}\nUPPER: ${result.upper}\nTitle Case: ${result.titleCase}` };
+}
+
+async function tSlugGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input || "");
+  if (!input) return { success: false, data: "❌ Texte requis" };
+  const slug = generateSlug(input);
+  return { success: true, data: `🔗 Slug: \`${slug}\`` };
+}
+
+async function tQrGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "");
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const result = generateQrAscii(text);
+  return { success: true, data: `📱 QR Code:\n\`\`\`\n${result.qrCode}\n\`\`\`` };
+}
+
+async function tCronParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const expression = String(args.expression || "");
+  if (!expression) return { success: false, data: "❌ Expression cron requise" };
+  const result = parseCron(expression);
+  if (!result.success) return { success: false, data: `❌ ${result.error}` };
+  const fieldsStr = result.fields.map((f) => `${f.field}: ${f.value} → ${f.meaning}`).join("\n");
+  return { success: true, data: `⏰ Cron \`${result.expression}\`:\n${result.description}\n\n${fieldsStr}\n\nProchaine exécution: ${result.nextRun}` };
+}
+
+async function tIpRangeGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const cidr = String(args.cidr || "");
+  if (!cidr) return { success: false, data: "❌ CIDR requis" };
+  const result = generateIpRange(cidr);
+  if (!result.success) return { success: false, data: `❌ ${result.error}` };
+  return { success: true, data: `🌐 ${result.cidr}: ${result.count} IPs\n${result.ips.slice(0, 20).join("\n")}${result.count > 20 ? `\n... et ${result.count - 20} autres` : ""}` };
+}
+
+async function tNumToWords(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const number = typeof args.number === "number" ? args.number : parseInt(String(args.number), 10);
+  if (isNaN(number)) return { success: false, data: "❌ Nombre requis" };
+  const words = numberToWordsFr(number);
+  return { success: true, data: `🔢 ${number} → **${words}**` };
+}
+
+async function tPasswordGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const count = typeof args.count === "number" ? args.count : 1;
+  const length = typeof args.length === "number" ? args.length : 16;
+  const result = generatePasswords(count, length);
+  return { success: true, data: `🔐 Password (${result.length} chars, ${result.strength}):\n${result.passwords.join("\n")}` };
+}
+
+async function tDataSizeFormat(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const bytes = typeof args.bytes === "number" ? args.bytes : parseInt(String(args.bytes), 10);
+  if (isNaN(bytes)) return { success: false, data: "❌ Taille en bytes requise" };
+  const result = formatDataSize(bytes);
+  return { success: true, data: `💾 ${result.bytes} bytes:\nBinaire: ${result.binary}\nDécimal: ${result.decimal}` };
+}
+
+async function tTextDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text1 = String(args.text1 || "");
+  const text2 = String(args.text2 || "");
+  if (!text1 || !text2) return { success: false, data: "❌ text1 et text2 requis" };
+  const result = textDiff(text1, text2);
+  const diffStr = result.diff.slice(0, 30).join("\n");
+  return { success: true, data: `📋 Diff (similarity: ${result.similarity}%):\n+${result.additions} -${result.deletions} =${result.unchanged}\n\`\`\`diff\n${diffStr}\n\`\`\`` };
 }

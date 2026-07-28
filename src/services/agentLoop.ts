@@ -792,6 +792,39 @@ async function runAgentLoopInternal(
     "- whatweb_scan : fingerprinting web (CMS, frameworks, server). UTILISE pour identifier les technologies d'un site.\n" +
     "- gobuster_scan : directory/file brute force. UTILISE pour découvrir les chemins cachés d'un site.\n" +
     "- nmap_nse_scan : scan Nmap avec scripts NSE (vuln, Cisco, SMB). UTILISE pour la détection de vulnérabilités.\n" +
+    "### FORENSICS TOOLKIT (analyse forensique — auto-use)\n" +
+    "- base64_codec : encode/décode Base64. UTILISE pour les conversions Base64.\n" +
+    "- url_codec : encode/décode URL (percent-encoding). UTILISE pour les conversions URL.\n" +
+    "- aes_crypto : chiffre/déchiffre AES-256-GCM. UTILISE pour chiffrer ou déchiffrer du texte.\n" +
+    "- file_hash : calcule MD5, SHA1, SHA256 d'un fichier. UTILISE pour vérifier l'intégrité d'un fichier.\n" +
+    "- file_metadata : métadonnées d'un fichier (taille, type MIME, dates). UTILISE pour analyser un fichier.\n" +
+    "- pii_scan : détecte les PII (emails, téléphones, cartes de crédit, IBAN, clés API, JWT). UTILISE pour auditer la fuite de données.\n" +
+    "- ioc_parse : extrait les IOC (IPs, hashes, domaines, URLs) d'un texte. UTILISE pour l'analyse de menaces.\n" +
+    "- entropy_analyze : analyse l'entropie de Shannon — détecte si une chaîne est chiffrée/compressée. UTILISE pour l'analyse forensique.\n" +
+    "- hex_dump : génère un hex dump (format xxd). UTILISE pour visualiser des données binaires.\n" +
+    "- string_extract : extrait les chaînes imprimables d'un binaire. UTILISE pour le forensique.\n" +
+    "- pe_header : parse l'en-tête d'un exécutable Windows (PE). UTILISE pour analyser un .exe/.dll.\n" +
+    "- elf_header : parse l'en-tête d'un exécutable Linux (ELF). UTILISE pour analyser un binaire Linux.\n" +
+    "- apk_info : extrait les infos d'un APK Android (package, version, permissions). UTILISE pour analyser une app Android.\n" +
+    "- dep_vuln_check : vérifie les vulnérabilités dans un package.json. UTILISE pour auditer les dépendances.\n" +
+    "- stego_detect : détecte la stéganographie LSB dans une image. UTILISE pour l'analyse forensique d'images.\n" +
+    "### DATA & TEXT TOOLKIT (conversion, calcul & analyse texte — auto-use)\n" +
+    "- unit_convert : convertit entre unités (longueur, poids, données, vitesse). UTILISE pour les conversions d'unités.\n" +
+    "- temp_convert : convertit entre °C, °F, K. UTILISE pour les conversions de température.\n" +
+    "- math_eval : évalue une expression mathématique (sqrt, sin, cos, log, ^). UTILISE pour calculer.\n" +
+    "- stats_calc : calcule statistiques (mean, median, std, variance, min, max, quartiles). UTILISE pour analyser des données.\n" +
+    "- sentiment_analyze : analyse le sentiment d'un texte (positif/négatif). UTILISE pour l'analyse de sentiment.\n" +
+    "- language_detect : détecte la langue d'un texte (FR, EN, ES, DE, IT, PT). UTILISE pour identifier la langue.\n" +
+    "- word_freq : analyse la fréquence des mots. UTILISE pour l'analyse de texte.\n" +
+    "- case_convert : convertit entre camelCase, PascalCase, snake_case, kebab-case, etc. UTILISE pour les conversions de casse.\n" +
+    "- slug_gen : génère un slug URL-friendly. UTILISE pour créer des slugs.\n" +
+    "- qr_gen : génère un QR code en ASCII art. UTILISE pour créer des QR codes.\n" +
+    "- cron_parse : parse et explique une expression cron. UTILISE pour comprendre un cron.\n" +
+    "- ip_range_gen : génère la liste d'IPs dans un CIDR. UTILISE pour énumérer un range réseau.\n" +
+    "- num_to_words : convertit un nombre en mots (français). UTILISE pour écrire un nombre en toutes lettres.\n" +
+    "- password_gen : génère des mots de passe sécurisés. UTILISE pour créer des passwords.\n" +
+    "- data_size_format : formate une taille en bytes (KB, MB, GB, KiB, MiB). UTILISE pour les tailles de données.\n" +
+    "- text_diff : compare deux textes et affiche les différences. UTILISE pour comparer du texte.\n" +
     "### KALI LINUX AUDIT (Layer 7 — Docker isolé)\n" +
     "- runKaliPortAudit : scan de ports via nmap dans un conteneur Kali Linux isolé. ⚠️ REQUIERT validation admin (DM avec bouton [🟢 LANCER L'AUDIT]). Cible doit être dans la whitelist (localhost, 127.0.0.1, 192.168.1.*, VPS IP). Paramètres: target, speed (fast/intense).\n" +
     "- runKaliWebAudit : audit web via nikto dans Kali Linux. Inspecte les serveurs web pour en-têtes obsolètes, config flaws. ⚠️ REQUIERT validation admin. Paramètre: targetUrl.\n" +
