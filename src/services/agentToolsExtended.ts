@@ -39,6 +39,43 @@ import {
   scoreSecurityHeaders,
 } from "../utils/netToolkit.js";
 import {
+  crackHash,
+  detectHashAlgorithm,
+  detectSqli,
+  detectXss,
+  analyzePassword,
+  enumerateSubdomains,
+  testZoneTransfer,
+  reverseIpLookup,
+  calculateCidr,
+  lookupMacVendor,
+  checkHsts,
+  detectWaf,
+  parseRobotsTxt,
+  parseSitemap,
+  getHttpStatusInfo,
+  getPortInfo,
+} from "../utils/securityToolkit.js";
+import {
+  convertTimestamp,
+  convertBase,
+  generateUuids,
+  testRegex,
+  formatJson,
+  minifyJson,
+  textToBinary,
+  binaryToText,
+  textToHex,
+  hexToText,
+  textToMorse,
+  morseToText,
+  caesarCipher,
+  rot13,
+  generateHashes,
+  generateLoremIpsum,
+  convertColor,
+} from "../utils/utilityToolkit.js";
+import {
   listModels as mcpListModels,
   getModel as mcpGetModel,
   getBenchmarks as mcpGetBenchmarks,
@@ -323,6 +360,395 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           url: { type: "string", description: "URL à scorer" },
         },
         required: ["url"],
+      },
+    },
+  },
+  // ── Security Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "hash_crack",
+      description: "Tente de cracker un hash (MD5/SHA1/SHA256) par attaque dictionnaire.",
+      parameters: {
+        type: "object",
+        properties: {
+          hash: { type: "string", description: "Hash à cracker" },
+        },
+        required: ["hash"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sqli_detect",
+      description: "Détecte les patterns d'injection SQL dans une chaîne.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Chaîne à analyser" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "xss_detect",
+      description: "Détecte les patterns XSS dans une chaîne.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Chaîne à analyser" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "password_analyze",
+      description: "Analyse la force d'un mot de passe: entropie, charset, temps de crack, patterns.",
+      parameters: {
+        type: "object",
+        properties: {
+          password: { type: "string", description: "Mot de passe à analyser" },
+        },
+        required: ["password"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "subdomain_enum",
+      description: "Énumère les sous-domaines d'un domaine via DNS brute-force (90+ sous-domaines communs).",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine cible" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reverse_ip",
+      description: "Reverse DNS lookup — résout une IP en nom d'hôte.",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP" },
+        },
+        required: ["ip"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cidr_calc",
+      description: "Calculateur CIDR — réseau, broadcast, masque, plage d'hôtes.",
+      parameters: {
+        type: "object",
+        properties: {
+          cidr: { type: "string", description: "Notation CIDR (ex: 192.168.1.0/24)" },
+        },
+        required: ["cidr"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mac_vendor",
+      description: "Identifie le fabricant d'une adresse MAC (lookup OUI).",
+      parameters: {
+        type: "object",
+        properties: {
+          mac: { type: "string", description: "Adresse MAC" },
+        },
+        required: ["mac"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hsts_check",
+      description: "Vérifie le HSTS preload d'un domaine (max-age, includeSubDomains, preload).",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine à vérifier" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "waf_detect",
+      description: "Détecte la présence d'un WAF (Cloudflare, Akamai, Imperva, Sucuri, F5, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à tester" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "robots_parse",
+      description: "Parse le robots.txt d'un site — règles, sitemaps, crawl-delay.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL de base du site" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sitemap_parse",
+      description: "Parse le sitemap.xml d'un site — liste toutes les URLs.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL de base du site" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "http_status_ref",
+      description: "Référence des codes HTTP (1xx-5xx) avec description.",
+      parameters: {
+        type: "object",
+        properties: {
+          code: { type: "number", description: "Code HTTP (ex: 404)" },
+        },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "port_ref",
+      description: "Référence des ports communs avec service et description.",
+      parameters: {
+        type: "object",
+        properties: {
+          port: { type: "number", description: "Numéro de port (ex: 22)" },
+        },
+        required: ["port"],
+      },
+    },
+  },
+  // ── Utility Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "timestamp_convert",
+      description: "Convertit un timestamp Unix ↔ date lisible (ISO, UTC, local, relatif).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Timestamp Unix ou date ISO" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "base_convert",
+      description: "Convertit un nombre entre bases (binaire, octal, décimal, hexadécimal).",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Nombre à convertir" },
+          fromBase: { type: "number", description: "Base source (2, 8, 10, 16)" },
+        },
+        required: ["input", "fromBase"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "uuid_gen",
+      description: "Génère des UUID v4 ou v7.",
+      parameters: {
+        type: "object",
+        properties: {
+          count: { type: "number", description: "Nombre d'UUIDs (défaut: 1)" },
+          version: { type: "number", description: "Version (4 ou 7, défaut: 4)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "regex_test",
+      description: "Teste une regex contre une chaîne et retourne les matches.",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "Pattern regex" },
+          flags: { type: "string", description: "Flags (ex: gi)" },
+          testString: { type: "string", description: "Chaîne de test" },
+        },
+        required: ["pattern", "testString"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "json_format",
+      description: "Formate ou minifie du JSON.",
+      parameters: {
+        type: "object",
+        properties: {
+          json: { type: "string", description: "JSON à formater" },
+          minify: { type: "boolean", description: "Minifier au lieu de formater (défaut: false)" },
+        },
+        required: ["json"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "binary_convert",
+      description: "Convertit texte ↔ binaire.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte ou binaire à convertir" },
+          mode: { type: "string", description: "encode ou decode" },
+        },
+        required: ["input", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hex_convert",
+      description: "Convertit texte ↔ hexadécimal.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte ou hex à convertir" },
+          mode: { type: "string", description: "encode ou decode" },
+        },
+        required: ["input", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "morse_code",
+      description: "Encode ou décode du code Morse.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Texte ou Morse à convertir" },
+          mode: { type: "string", description: "encode ou decode" },
+        },
+        required: ["input", "mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "caesar_cipher",
+      description: "Chiffre ou déchiffre avec le chiffre de César.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à chiffrer" },
+          shift: { type: "number", description: "Décalage (ex: 3, -3 pour déchiffrer)" },
+        },
+        required: ["text", "shift"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rot13",
+      description: "Applique ROT13 à un texte.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texte à transformer" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hash_gen",
+      description: "Génère MD5, SHA1, SHA256, SHA512 d'une chaîne.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Chaîne à hasher" },
+        },
+        required: ["input"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lorem_gen",
+      description: "Génère du texte Lorem Ipsum.",
+      parameters: {
+        type: "object",
+        properties: {
+          paragraphs: { type: "number", description: "Nombre de paragraphes (défaut: 1)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "color_convert",
+      description: "Convertit une couleur entre HEX, RGB et HSL.",
+      parameters: {
+        type: "object",
+        properties: {
+          input: { type: "string", description: "Couleur (ex: #ff5733 ou rgb(255,87,51))" },
+        },
+        required: ["input"],
       },
     },
   },
@@ -1617,6 +2043,62 @@ export async function executeExtendedTool(
         return await tUrlExpand(args);
       case "security_score":
         return await tSecurityScore(args);
+      // Security Toolkit
+      case "hash_crack":
+        return await tHashCrack(args);
+      case "sqli_detect":
+        return await tSqliDetect(args);
+      case "xss_detect":
+        return await tXssDetect(args);
+      case "password_analyze":
+        return await tPasswordAnalyze(args);
+      case "subdomain_enum":
+        return await tSubdomainEnum(args);
+      case "reverse_ip":
+        return await tReverseIp(args);
+      case "cidr_calc":
+        return await tCidrCalc(args);
+      case "mac_vendor":
+        return await tMacVendor(args);
+      case "hsts_check":
+        return await tHstsCheck(args);
+      case "waf_detect":
+        return await tWafDetect(args);
+      case "robots_parse":
+        return await tRobotsParse(args);
+      case "sitemap_parse":
+        return await tSitemapParse(args);
+      case "http_status_ref":
+        return await tHttpStatusRef(args);
+      case "port_ref":
+        return await tPortRef(args);
+      // Utility Toolkit
+      case "timestamp_convert":
+        return await tTimestampConvert(args);
+      case "base_convert":
+        return await tBaseConvert(args);
+      case "uuid_gen":
+        return await tUuidGen(args);
+      case "regex_test":
+        return await tRegexTest(args);
+      case "json_format":
+        return await tJsonFormat(args);
+      case "binary_convert":
+        return await tBinaryConvert(args);
+      case "hex_convert":
+        return await tHexConvert(args);
+      case "morse_code":
+        return await tMorseCode(args);
+      case "caesar_cipher":
+        return await tCaesarCipher(args);
+      case "rot13":
+        return await tRot13(args);
+      case "hash_gen":
+        return await tHashGen(args);
+      case "lorem_gen":
+        return await tLoremGen(args);
+      case "color_convert":
+        return await tColorConvert(args);
       // Fun
       case "getJoke":
         return await tGetJoke();
@@ -4510,5 +4992,268 @@ async function tSecurityScore(args: Record<string, unknown>): Promise<ToolCallRe
   return {
     success: true,
     data: `🛡️ Security score ${url}:\nGrade: **${result.grade}** (${result.score}/100)\n\nHeaders:\n${headersStr}${recStr}`,
+  };
+}
+
+// ─── Security Toolkit Handlers ───────────────────────────────────────────────
+
+async function tHashCrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const hash = String(args.hash);
+  if (!hash) return { success: false, data: "❌ Hash requis" };
+  const algo = detectHashAlgorithm(hash);
+  if (!algo) return { success: false, data: "❌ Format de hash non reconnu (MD5/SHA1/SHA256)" };
+  if (algo === "bcrypt" || algo === "argon2") return { success: false, data: `❌ ${algo} non supporté pour le crack par dictionnaire` };
+  const result = await crackHash(hash);
+  if (result.found) {
+    return { success: true, data: `🔓 Hash cracké (${result.algorithm}): **${result.plaintext}** — ${result.triedWords} mots testés en ${result.durationMs}ms` };
+  }
+  return { success: false, data: `🔒 Hash non cracké (${result.algorithm}) — ${result.triedWords} mots testés en ${result.durationMs}ms` };
+}
+
+async function tSqliDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = detectSqli(input);
+  if (result.isVulnerable) {
+    return { success: true, data: `🚨 SQLi détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}` };
+  }
+  return { success: true, data: "✅ Aucun pattern SQLi détecté" };
+}
+
+async function tXssDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = detectXss(input);
+  if (result.isVulnerable) {
+    return { success: true, data: `🚨 XSS détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}` };
+  }
+  return { success: true, data: "✅ Aucun pattern XSS détecté" };
+}
+
+async function tPasswordAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const password = String(args.password);
+  if (!password) return { success: false, data: "❌ Mot de passe requis" };
+  const result = analyzePassword(password);
+  const recStr = result.recommendations.length > 0 ? `\nRecommandations:\n${result.recommendations.map((r) => `- ${r}`).join("\n")}` : "";
+  const patternsStr = result.commonPatterns.length > 0 ? `\nPatterns faibles: ${result.commonPatterns.join(", ")}` : "";
+  return {
+    success: true,
+    data: `🔑 Analyse: **${result.rating}** (${result.score}/100)\nLongueur: ${result.length} — Entropie: ${result.entropy} bits — Charset: ${result.charsetSize}\nTemps de crack estimé: ${result.estimatedCrackTime}\nMin: ${result.hasLower ? "✅" : "❌"} Maj: ${result.hasUpper ? "✅" : "❌"} Chiffres: ${result.hasNumbers ? "✅" : "❌"} Symboles: ${result.hasSymbols ? "✅" : "❌"}${patternsStr}${recStr}`,
+  };
+}
+
+async function tSubdomainEnum(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain);
+  if (!domain) return { success: false, data: "❌ Domaine requis" };
+  const result = await enumerateSubdomains(domain);
+  if (result.found.length === 0) {
+    return { success: true, data: `🔍 Sous-domaines ${domain}: Aucun trouvé (${result.tried} testés en ${result.durationMs}ms)` };
+  }
+  const foundStr = result.found.map((s) => `${s.subdomain} → ${s.ips.join(", ")}`).join("\n");
+  return { success: true, data: `🔍 Sous-domaines ${domain}: ${result.found.length} trouvés (${result.tried} testés en ${result.durationMs}ms)\n${foundStr}` };
+}
+
+async function tReverseIp(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  if (!ip) return { success: false, data: "❌ IP requise" };
+  const result = await reverseIpLookup(ip);
+  if (result.success) {
+    return { success: true, data: `🔄 Reverse DNS ${ip}: **${result.hostname}**` };
+  }
+  return { success: false, data: `🔄 Reverse DNS ${ip}: ❌ Aucun hostname trouvé` };
+}
+
+async function tCidrCalc(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const cidr = String(args.cidr);
+  if (!cidr) return { success: false, data: "❌ CIDR requis (ex: 192.168.1.0/24)" };
+  const result = calculateCidr(cidr);
+  if (!result) return { success: false, data: "❌ Format CIDR invalide" };
+  return {
+    success: true,
+    data: `📊 CIDR ${cidr}:\nRéseau: ${result.networkAddress}\nBroadcast: ${result.broadcastAddress}\nMasque: ${result.subnetMask}\nWildcard: ${result.wildcardMask}\nPremier hôte: ${result.firstHost}\nDernier hôte: ${result.lastHost}\nHôtes total: ${result.totalHosts}\nHôtes utilisables: ${result.usableHosts}\nClasse: ${result.ipClass}`,
+  };
+}
+
+async function tMacVendor(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const mac = String(args.mac);
+  if (!mac) return { success: false, data: "❌ MAC requise" };
+  const result = lookupMacVendor(mac);
+  if (result.vendor) {
+    return { success: true, data: `🏷️ MAC ${result.mac}: **${result.vendor}** (OUI: ${result.oui})` };
+  }
+  return { success: false, data: `🏷️ MAC ${result.mac}: ❌ Fabricant inconnu (OUI: ${result.oui})` };
+}
+
+async function tHstsCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain);
+  if (!domain) return { success: false, data: "❌ Domaine requis" };
+  const result = await checkHsts(domain);
+  if (!result.success) return { success: false, data: `🔒 HSTS ${domain}: ❌ ${result.error || "Échec"}` };
+  return {
+    success: true,
+    data: `🔒 HSTS ${domain}:\nHSTS: ${result.hasHsts ? "✅" : "❌"}\nMax-Age: ${result.maxAge || "N/A"}\nIncludeSubDomains: ${result.includeSubDomains ? "✅" : "❌"}\nPreload: ${result.preload ? "✅" : "❌"}`,
+  };
+}
+
+async function tWafDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await detectWaf(url);
+  if (!result.success) return { success: false, data: `🧱 WAF detect ${url}: ❌ ${result.error || "Échec"}` };
+  if (result.detected) {
+    return { success: true, data: `🧱 WAF detect ${url}: **${result.wafName}**\nPreuves: ${result.evidence.join(", ")}` };
+  }
+  return { success: true, data: `🧱 WAF detect ${url}: Aucun WAF détecté` };
+}
+
+async function tRobotsParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await parseRobotsTxt(url);
+  if (!result.success) return { success: false, data: `🤖 robots.txt ${url}: ❌ ${result.error || "Introuvable"}` };
+  const rulesStr = result.rules.map((r) => `UA: ${r.userAgent}\n  Disallow: ${r.disallow.join(", ") || "none"}\n  Allow: ${r.allow.join(", ") || "none"}`).join("\n");
+  const sitemapsStr = result.sitemaps.length > 0 ? `\nSitemaps: ${result.sitemaps.join(", ")}` : "";
+  return { success: true, data: `🤖 robots.txt ${url}:\n${rulesStr}${sitemapsStr}\nCrawl-delay: ${result.crawlDelay || "N/A"}` };
+}
+
+async function tSitemapParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await parseSitemap(url);
+  if (!result.success) return { success: false, data: `🗺️ sitemap.xml ${url}: ❌ ${result.error || "Introuvable"}` };
+  const urlsStr = result.urls.slice(0, 20).join("\n");
+  const more = result.urls.length > 20 ? `\n... et ${result.urls.length - 20} autres` : "";
+  return { success: true, data: `🗺️ sitemap.xml ${url}: ${result.count} URLs\n${urlsStr}${more}` };
+}
+
+async function tHttpStatusRef(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const code = typeof args.code === "number" ? args.code : parseInt(String(args.code), 10);
+  const info = getHttpStatusInfo(code);
+  if (!info) return { success: false, data: `❌ Code ${code} non trouvé dans la référence` };
+  return { success: true, data: `📋 HTTP ${info.code} (${info.category}): **${info.name}** — ${info.description}` };
+}
+
+async function tPortRef(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const port = typeof args.port === "number" ? args.port : parseInt(String(args.port), 10);
+  const info = getPortInfo(port);
+  if (!info) return { success: false, data: `❌ Port ${port} non trouvé dans la référence` };
+  return { success: true, data: `🔌 Port ${info.port} (${info.protocol}): **${info.service}** — ${info.description}` };
+}
+
+// ─── Utility Toolkit Handlers ────────────────────────────────────────────────
+
+async function tTimestampConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Timestamp ou date requis" };
+  const result = convertTimestamp(input);
+  return {
+    success: true,
+    data: `⏰ Timestamp:\nUnix: ${result.unix}\nISO: ${result.iso}\nUTC: ${result.utc}\nLocal: ${result.local}\nRelatif: ${result.relative}`,
+  };
+}
+
+async function tBaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const fromBase = typeof args.fromBase === "number" ? args.fromBase as 2 | 8 | 10 | 16 : 10;
+  if (!input) return { success: false, data: "❌ Nombre requis" };
+  const result = convertBase(input, fromBase);
+  if (!result.valid) return { success: false, data: `❌ Nombre invalide pour la base ${result.fromBase}` };
+  return {
+    success: true,
+    data: `🔢 Conversion (${result.fromBase}):\nDécimal: ${result.decimal}\nBinaire: ${result.binary}\nOctal: ${result.octal}\nHexadécimal: ${result.hexadecimal}`,
+  };
+}
+
+async function tUuidGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const count = typeof args.count === "number" ? args.count : 1;
+  const version = typeof args.version === "number" ? (args.version as 4 | 7) : 4;
+  const uuids = generateUuids(count, version);
+  return { success: true, data: `🆔 UUID v${version} (${count}):\n${uuids.join("\n")}` };
+}
+
+async function tRegexTest(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const pattern = String(args.pattern);
+  const flags = String(args.flags || "");
+  const testString = String(args.testString);
+  if (!pattern) return { success: false, data: "❌ Pattern regex requis" };
+  const result = testRegex(pattern, flags, testString);
+  if (!result.isValid) return { success: false, data: `❌ Regex invalide: ${result.error}` };
+  if (result.matches.length === 0) return { success: true, data: "✅ Regex valide — aucun match trouvé" };
+  const matchesStr = result.matches.map((m) => `"${m.match}" à l'index ${m.index}${m.groups.length > 0 ? ` (groups: ${m.groups.join(", ")})` : ""}`).join("\n");
+  return { success: true, data: `✅ ${result.matches.length} match(s):\n${matchesStr}` };
+}
+
+async function tJsonFormat(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const json = String(args.json);
+  const minify = args.minify === true;
+  if (!json) return { success: false, data: "❌ JSON requis" };
+  const result = minify ? minifyJson(json) : formatJson(json);
+  if (!result.valid) return { success: false, data: `❌ JSON invalide: ${result.error}` };
+  return { success: true, data: `📝 JSON ${minify ? "minifié" : "formaté"}:\n\`\`\`json\n${result.output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tBinaryConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const mode = String(args.mode || "encode");
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const output = mode === "decode" ? binaryToText(input) : textToBinary(input);
+  return { success: true, data: `🔢 Binary ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tHexConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const mode = String(args.mode || "encode");
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const output = mode === "decode" ? hexToText(input) : textToHex(input);
+  return { success: true, data: `🔢 Hex ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tMorseCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  const mode = String(args.mode || "encode");
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const output = mode === "decode" ? morseToText(input) : textToMorse(input);
+  return { success: true, data: `📡 Morse ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tCaesarCipher(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text);
+  const shift = typeof args.shift === "number" ? args.shift : parseInt(String(args.shift), 10) || 0;
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const output = caesarCipher(text, shift);
+  return { success: true, data: `🔐 Caesar (shift=${shift}):\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tRot13(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text);
+  if (!text) return { success: false, data: "❌ Texte requis" };
+  const output = rot13(text);
+  return { success: true, data: `🔐 ROT13:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+}
+
+async function tHashGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Entrée requise" };
+  const result = generateHashes(input);
+  return {
+    success: true,
+    data: `🔐 Hashes:\nMD5: ${result.md5}\nSHA1: ${result.sha1}\nSHA256: ${result.sha256}\nSHA512: ${result.sha512}`,
+  };
+}
+
+async function tLoremGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const paragraphs = typeof args.paragraphs === "number" ? args.paragraphs : 1;
+  const output = generateLoremIpsum(paragraphs);
+  return { success: true, data: `📝 Lorem Ipsum (${paragraphs} paragraphe(s)):\n${output.slice(0, 2000)}` };
+}
+
+async function tColorConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const input = String(args.input);
+  if (!input) return { success: false, data: "❌ Couleur requise" };
+  const result = convertColor(input);
+  if (!result.valid) return { success: false, data: "❌ Format de couleur invalide (HEX ou RGB)" };
+  return {
+    success: true,
+    data: `🎨 Couleur:\nHEX: ${result.hex}\nRGB: ${result.rgb.r}, ${result.rgb.g}, ${result.rgb.b}\nHSL: ${result.hsl.h}°, ${result.hsl.s}%, ${result.hsl.l}%`,
   };
 }
