@@ -22,6 +22,7 @@
 import http from "http";
 import crypto from "crypto";
 import { Client } from "discord.js";
+import { WebSocketServer, WebSocket } from "ws";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { config } from "./config.js";
@@ -30,6 +31,8 @@ import { handleWebhookRequest } from "./services/webhookTriggers.js";
 import { handleWebhook as handleSecureWebhook } from "./services/webhookReceiver.js";
 
 let server: http.Server | null = null;
+let wss: WebSocketServer | null = null;
+const wsClients = new Set<WebSocket>();
 const logBuffer: { timestamp: number; level: string; message: string }[] = [];
 const dmHistory: { timestamp: number; userId: string; message: string; success: boolean }[] = [];
 const MAX_LOGS = 500;
@@ -42,6 +45,16 @@ function pushLog(level: string, args: unknown[]) {
   const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   logBuffer.push({ timestamp: Date.now(), level, message });
   if (logBuffer.length > MAX_LOGS) logBuffer.shift();
+  broadcastWs({ type: "log", timestamp: Date.now(), level, message });
+}
+
+function broadcastWs(data: unknown) {
+  const payload = JSON.stringify(data);
+  for (const ws of wsClients) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(payload);
+    }
+  }
 }
 
 console.log = (...args: unknown[]) => {
@@ -1056,10 +1069,44 @@ export async function startControlServer(port: number, client: Client): Promise<
     }
   });
 
+  // WebSocket server for real-time updates to desktop app
+  wss = new WebSocketServer({ noServer: true });
+  server!.on("upgrade", (req, socket, head) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    if (url.pathname !== "/ws") {
+      socket.destroy();
+      return;
+    }
+    const token = url.searchParams.get("token") || "";
+    const expectedToken = config.controlToken;
+    if (expectedToken && (token.length !== expectedToken.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken)))) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    wss!.handleUpgrade(req, socket, head, (ws) => {
+      wss!.emit("connection", ws, req);
+    });
+  });
+
+  wss.on("connection", (ws) => {
+    wsClients.add(ws);
+    logger.info(`[ControlServer] WS client connected (${wsClients.size} total)`);
+    ws.on("close", () => {
+      wsClients.delete(ws);
+      logger.info(`[ControlServer] WS client disconnected (${wsClients.size} remaining)`);
+    });
+    ws.on("error", () => {
+      wsClients.delete(ws);
+    });
+    // Send initial snapshot
+    ws.send(JSON.stringify({ type: "connected", timestamp: Date.now() }));
+  });
+
   return new Promise((resolve) => {
     const bindAddress = process.env.CONTROL_BIND_ADDRESS || "127.0.0.1";
     server!.listen(port, bindAddress, () => {
-      logger.info(`[ControlServer] Écoute sur ${bindAddress}:${port}`);
+      logger.info(`[ControlServer] Écoute sur ${bindAddress}:${port} (HTTP + WS)`);
       resolve();
     });
     server!.on("error", (err: NodeJS.ErrnoException) => {
@@ -1075,6 +1122,14 @@ export async function startControlServer(port: number, client: Client): Promise<
 }
 
 export async function stopControlServer(): Promise<void> {
+  if (wss) {
+    for (const ws of wsClients) {
+      ws.close();
+    }
+    wsClients.clear();
+    wss.close();
+    wss = null;
+  }
   if (server) {
     server.close();
     server = null;

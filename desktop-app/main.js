@@ -255,9 +255,15 @@ let wsReconnectTimer = null;
 let wsReconnectAttempts = 0;
 const WS_MAX_RECONNECT_DELAY = 30000;
 const WS_BASE_RECONNECT_DELAY = 1000;
+const WS_MAX_ATTEMPTS = 10;
 
 function scheduleWsReconnect() {
   if (wsReconnectTimer) return;
+  if (wsReconnectAttempts >= WS_MAX_ATTEMPTS) {
+    console.log(`[WS] Max reconnect attempts (${WS_MAX_ATTEMPTS}) reached — falling back to HTTP polling`);
+    mainWindow?.webContents.send("ws:status", "polling");
+    return;
+  }
   wsReconnectAttempts++;
   const delay = Math.min(WS_BASE_RECONNECT_DELAY * Math.pow(2, wsReconnectAttempts - 1), WS_MAX_RECONNECT_DELAY);
   console.log(`[WS] Reconnecting in ${delay}ms (attempt ${wsReconnectAttempts})`);
