@@ -33,6 +33,11 @@ const JWT_SECRET =
         throw new Error("JWT_SECRET must be set in production. Define it in .env");
       })()
     : crypto.randomUUID().replace(/-/g, ""));
+if (process.env.JWT_SECRET && JWT_SECRET.length < 32) {
+  logger.warn(
+    "[Dashboard] JWT_SECRET is shorter than 32 characters — consider using a stronger secret for better security",
+  );
+}
 if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "production") {
   logger.warn(
     "[Dashboard] JWT_SECRET non défini — sessions invalidées à chaque redémarrage. Définissez JWT_SECRET dans .env",

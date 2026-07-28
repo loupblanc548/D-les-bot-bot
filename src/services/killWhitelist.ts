@@ -22,12 +22,8 @@
  *  5. The whitelist is frozen at module load — no runtime mutation API exists
  */
 
-import { exec } from "child_process";
-import { promisify } from "util";
 import { Client } from "discord.js";
 import logger from "../utils/logger.js";
-
-const execAsync = promisify(exec);
 
 const PURPLE = "\x1b[35m";
 const RED = "\x1b[31m";

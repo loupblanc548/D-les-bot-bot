@@ -7,18 +7,13 @@
  * DM to the admin: "🔨 Bug fixed for Issue #X. Click [🚀 MERGE PR]."
  */
 
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
-import {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-} from "discord.js";
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } from "discord.js";
 import logger from "../utils/logger.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const CYAN = "\x1b[36m";
 const PURPLE = "\x1b[35m";
@@ -65,7 +60,9 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
 
   const issue = payload.issue;
   const bugLabels = issue.labels?.map((l) => l.name.toLowerCase()) ?? [];
-  const isBug = bugLabels.some((l) => l.includes("bug") || l.includes("error") || l.includes("fix"));
+  const isBug = bugLabels.some(
+    (l) => l.includes("bug") || l.includes("error") || l.includes("fix"),
+  );
 
   if (!isBug) {
     logger.info(`${CYAN}[GIT-HEALER]${RESET} Issue #${issue.number} has no bug label — skipping`);
@@ -81,7 +78,10 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
     const branchName = `fix/issue-${issue.number}`;
     logger.info(`${CYAN}[GIT-HEALER]${RESET} Creating branch: ${branchName}`);
 
-    await execAsync(`cd "${GITHUB_REPO_DIR}" && git checkout -b ${branchName}`, { timeout: 15_000 });
+    await execFileAsync("git", ["checkout", "-b", branchName], {
+      timeout: 15_000,
+      cwd: GITHUB_REPO_DIR,
+    });
 
     // 2. Attempt reproduction in sandbox (non-blocking — may fail)
     let reproductionResult = "Could not reproduce in sandbox";
@@ -99,7 +99,10 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
     let fixApplied = false;
     try {
       // Run lint fix and format
-      await execAsync(`cd "${GITHUB_REPO_DIR}" && npx eslint --fix src/ 2>/dev/null || true`, { timeout: 30_000 });
+      await execFileAsync("npx", ["eslint", "--fix", "src/"], {
+        timeout: 30_000,
+        cwd: GITHUB_REPO_DIR,
+      });
       fixApplied = true;
     } catch {
       // Non-fatal
@@ -119,13 +122,25 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
 
     // 5. Commit and push
     try {
-      await execAsync(
-        `cd "${GITHUB_REPO_DIR}" && git add -A && git commit -m "fix: resolve issue #${issue.number} — ${issue.title.slice(0, 50)}" --no-verify`,
-        { timeout: 15_000 },
+      await execFileAsync("git", ["add", "-A"], { timeout: 15_000, cwd: GITHUB_REPO_DIR });
+      await execFileAsync(
+        "git",
+        [
+          "commit",
+          "-m",
+          `fix: resolve issue #${issue.number} — ${issue.title.slice(0, 50)}`,
+          "--no-verify",
+        ],
+        { timeout: 15_000, cwd: GITHUB_REPO_DIR },
       );
-      await execAsync(`cd "${GITHUB_REPO_DIR}" && git push origin ${branchName} 2>&1`, { timeout: 30_000 });
+      await execFileAsync("git", ["push", "origin", branchName], {
+        timeout: 30_000,
+        cwd: GITHUB_REPO_DIR,
+      });
     } catch (err) {
-      logger.error(`[GIT-HEALER] Git push failed: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[GIT-HEALER] Git push failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     // 6. Send Validation DM to admin
@@ -140,7 +155,9 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
       `${GREEN}${BOLD}[GIT-HEALER]${RESET} ${GREEN}Fix branch ${branchName} pushed — DM sent to admin${RESET}`,
     );
   } catch (err) {
-    logger.error(`[GIT-HEALER] Failed to process issue #${issue.number}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[GIT-HEALER] Failed to process issue #${issue.number}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -185,7 +202,9 @@ async function sendValidationDM(
     await adminUser.send({ embeds: [embed], components: [buttons] });
     logger.info(`${GREEN}[GIT-HEALER]${RESET} 📨 Validation DM sent for issue #${issue.number}`);
   } catch (err) {
-    logger.error(`[GIT-HEALER] Failed to send DM: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[GIT-HEALER] Failed to send DM: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -193,19 +212,29 @@ async function sendValidationDM(
 
 export async function handleGitMerge(issueNumber: string, branchName: string): Promise<string> {
   try {
-    logger.info(`${PURPLE}[GIT-HEALER]${RESET} Merging branch ${branchName} for issue #${issueNumber}`);
+    logger.info(
+      `${PURPLE}[GIT-HEALER]${RESET} Merging branch ${branchName} for issue #${issueNumber}`,
+    );
 
-    await execAsync(`cd "${GITHUB_REPO_DIR}" && git checkout main && git merge ${branchName} --no-edit`, {
+    await execFileAsync("git", ["checkout", "main"], { timeout: 30_000, cwd: GITHUB_REPO_DIR });
+    await execFileAsync("git", ["merge", branchName, "--no-edit"], {
       timeout: 30_000,
+      cwd: GITHUB_REPO_DIR,
     });
-    await execAsync(`cd "${GITHUB_REPO_DIR}" && git push origin main 2>&1`, { timeout: 30_000 });
+    await execFileAsync("git", ["push", "origin", "main"], {
+      timeout: 30_000,
+      cwd: GITHUB_REPO_DIR,
+    });
 
     // Cleanup branch
-    await execAsync(`cd "${GITHUB_REPO_DIR}" && git branch -d ${branchName} 2>/dev/null || true`, {
+    await execFileAsync("git", ["branch", "-d", branchName], {
       timeout: 10_000,
+      cwd: GITHUB_REPO_DIR,
     });
 
-    logger.info(`${GREEN}${BOLD}[GIT-HEALER]${RESET} ${GREEN}✅ Merged ${branchName} → main${RESET}`);
+    logger.info(
+      `${GREEN}${BOLD}[GIT-HEALER]${RESET} ${GREEN}✅ Merged ${branchName} → main${RESET}`,
+    );
     return `✅ Branch ${branchName} merged to main and pushed successfully.`;
   } catch (err) {
     logger.error(`[GIT-HEALER] Merge failed: ${err instanceof Error ? err.message : String(err)}`);

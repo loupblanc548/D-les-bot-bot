@@ -13,7 +13,7 @@
  *  - Prototypage rapide
  */
 
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeFile, mkdir, rm, readFile } from "fs/promises";
 import { join } from "path";
@@ -22,7 +22,7 @@ import { randomUUID } from "crypto";
 import logger from "../utils/logger.js";
 import { autoHealTypeScriptError } from "./agentToolsFree.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const E2B_API_KEY = process.env.E2B_API_KEY ?? "";
 const MAX_EXECUTION_TIME_MS = 15_000; // 15s max
@@ -71,7 +71,7 @@ async function executeWithE2B(
   startTime: number,
 ): Promise<SandboxResult> {
   // Dynamic import — E2B SDK only loaded if needed
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const { Sandbox } = await (import("e2b") as Promise<any>);
 
   const sandbox = await Sandbox.create({
@@ -139,35 +139,32 @@ async function executeLocal(
   await mkdir(sessionDir, { recursive: true });
 
   let ext: string;
-  let cmd: string;
+
+  let runner: string;
+  let runnerArgs: string[];
 
   if (language === "python") {
     ext = ".py";
-    cmd = `python3`;
+    runner = "python3";
   } else if (language === "javascript") {
     ext = ".js";
-    cmd = `node`;
+    runner = "node";
   } else {
     // shell — write to .sh
     ext = ".sh";
-    cmd = `bash`;
+    runner = "bash";
   }
 
   const codeFile = join(sessionDir, `code${ext}`);
 
   try {
-    if (language === "shell") {
-      await writeFile(codeFile, code, { encoding: "utf-8" });
-      cmd = `bash "${codeFile}"`;
-    } else {
-      await writeFile(codeFile, code, { encoding: "utf-8" });
-      cmd = `${cmd} "${codeFile}"`;
-    }
+    await writeFile(codeFile, code, { encoding: "utf-8" });
+    runnerArgs = [codeFile];
 
     // Execute with timeout and memory limits
     // --restricted-memory=512m would require prlimit, not portable
     // We rely on timeout + process isolation
-    const result = await execAsync(cmd, {
+    const result = await execFileAsync(runner, runnerArgs, {
       timeout: MAX_EXECUTION_TIME_MS,
       maxBuffer: 1024 * 1024, // 1MB max output
       cwd: sessionDir,
@@ -188,7 +185,13 @@ async function executeLocal(
       executionTimeMs: Date.now() - startTime,
     };
   } catch (err) {
-    const error = err as { stdout?: string; stderr?: string; code?: number; signal?: string; killed?: boolean };
+    const error = err as {
+      stdout?: string;
+      stderr?: string;
+      code?: number;
+      signal?: string;
+      killed?: boolean;
+    };
 
     if (error.killed || error.signal === "SIGTERM") {
       return {

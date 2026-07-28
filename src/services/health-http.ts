@@ -88,8 +88,8 @@ export function startHealthServer(port = 3000): void {
     }
 
     try {
-      // CORS headers — restrict to configured origin
-      const allowedOrigin = process.env.CORS_ORIGIN || "*";
+      // CORS headers — restrict to configured origin, deny by default
+      const allowedOrigin = process.env.CORS_ORIGIN || "";
       res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
       res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -137,10 +137,14 @@ export function startHealthServer(port = 3000): void {
         res.end(getReleasesPage());
         return;
       } else if (path === "/releases/data") {
-        res.writeHead(200, {
+        const releasesOrigin = process.env.CORS_ORIGIN || "";
+        const releasesHeaders: Record<string, string> = {
           "Content-Type": "application/json; charset=utf-8",
-          "Access-Control-Allow-Origin": "*",
-        });
+        };
+        if (releasesOrigin) {
+          releasesHeaders["Access-Control-Allow-Origin"] = releasesOrigin;
+        }
+        res.writeHead(200, releasesHeaders);
         res.end(getReleasesJson());
         return;
       } else if (path === "/releases/stats") {

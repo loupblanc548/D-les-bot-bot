@@ -12,13 +12,15 @@
  *  - checkVpsUptime(): Heartbeat ping to monitoring endpoint
  */
 
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
+import { readFile } from "fs/promises";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const ADMIN_DISCORD_ID = process.env.ADMIN_DISCORD_ID || "";
 const HEARTBEAT_ENDPOINT = process.env.HEARTBEAT_ENDPOINT || "";
@@ -47,8 +49,10 @@ export interface DiskInfo {
  */
 async function getDiskInfo(): Promise<DiskInfo | null> {
   try {
-    const { stdout } = await execAsync("df -h / 2>/dev/null | tail -1", { timeout: 5000 });
-    const parts = stdout.trim().split(/\s+/);
+    const { stdout } = await execFileAsync("df", ["-h", "/"], { timeout: 5000 });
+    const lines = stdout.trim().split("\n");
+    const line = lines[lines.length - 1] || "";
+    const parts = line.trim().split(/\s+/);
     if (parts.length < 6) return null;
 
     return {
@@ -234,7 +238,7 @@ export async function pruneDockerCache(): Promise<{
     RESET = "\x1b[0m";
   try {
     logger.info(`${CYAN}[VPS-STORAGE]${RESET} Pruning Docker cache...`);
-    const { stdout } = await execAsync("docker system prune -f 2>&1", {
+    const { stdout } = await execFileAsync("docker", ["system", "prune", "-f"], {
       timeout: 30_000,
       maxBuffer: 1024 * 1024,
     });
@@ -373,15 +377,16 @@ export async function vpsMaintenanceCheck(): Promise<{
 
   let memInfo = "N/A";
   try {
-    const { stdout: memOut } = await execAsync("free -h 2>/dev/null | head -2", { timeout: 5000 });
-    memInfo = memOut.trim();
+    const { stdout: memOut } = await execFileAsync("free", ["-h"], { timeout: 5000 });
+    const memLines = memOut.trim().split("\n").slice(0, 2).join("\n");
+    memInfo = memLines;
   } catch {
     /* non-critical */
   }
 
   let loadAvg = "N/A";
   try {
-    const { stdout: loadOut } = await execAsync("cat /proc/loadavg 2>/dev/null", { timeout: 3000 });
+    const loadOut = await readFile("/proc/loadavg", "utf-8");
     loadAvg = loadOut.trim();
   } catch {
     /* non-critical */
@@ -389,10 +394,11 @@ export async function vpsMaintenanceCheck(): Promise<{
 
   let topProcs = "N/A";
   try {
-    const { stdout: topOut } = await execAsync("ps aux --sort=-%mem 2>/dev/null | head -6", {
+    const { stdout: topOut } = await execFileAsync("ps", ["aux", "--sort=-%mem"], {
       timeout: 5000,
     });
-    topProcs = topOut.trim();
+    const topLines = topOut.trim().split("\n").slice(0, 6).join("\n");
+    topProcs = topLines;
   } catch {
     /* non-critical */
   }
