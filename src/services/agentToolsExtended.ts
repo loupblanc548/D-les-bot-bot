@@ -76,6 +76,22 @@ import {
   convertColor,
 } from "../utils/utilityToolkit.js";
 import {
+  runMetasploit,
+  captureTraffic,
+  runHydra,
+  runSqlmap,
+  searchExploit,
+  runHashcat,
+  runJohn,
+  snmpWalk,
+  runEnum4linux,
+  runHarvester,
+  runCrackMapExec,
+  runWhatWeb,
+  runGobuster,
+  runNmapNse,
+} from "../utils/pentestToolkit.js";
+import {
   listModels as mcpListModels,
   getModel as mcpGetModel,
   getBenchmarks as mcpGetBenchmarks,
@@ -749,6 +765,212 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           input: { type: "string", description: "Couleur (ex: #ff5733 ou rgb(255,87,51))" },
         },
         required: ["input"],
+      },
+    },
+  },
+  // ── Pentest Toolkit (Kali Docker) ──
+  {
+    type: "function",
+    function: {
+      name: "metasploit",
+      description: "Exécute un module Metasploit dans le conteneur Kali. ⚠️ HAUT RISQUE — requiert validation admin. Types: auxiliary, exploit, post.",
+      parameters: {
+        type: "object",
+        properties: {
+          moduleType: { type: "string", description: "Type de module (auxiliary, exploit, post)" },
+          moduleName: { type: "string", description: "Nom du module (ex: scanner/portscan/tcp)" },
+          target: { type: "string", description: "IP cible (doit être dans la whitelist)" },
+          options: { type: "object", description: "Options supplémentaires (ex: {PORTS: '22'})" },
+        },
+        required: ["moduleType", "moduleName", "target"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "tshark_capture",
+      description: "Capture le trafic réseau avec tshark (Wireshark CLI) dans Kali. Analyse les protocoles et top talkers.",
+      parameters: {
+        type: "object",
+        properties: {
+          interface: { type: "string", description: "Interface réseau (ex: eth0)" },
+          duration: { type: "number", description: "Durée de capture en secondes (défaut: 10)" },
+          filter: { type: "string", description: "Filtre BPF (ex: 'tcp port 80')" },
+        },
+        required: ["interface"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hydra_brute",
+      description: "Brute force authentification via Hydra (SSH, FTP, HTTP, SMB...). ⚠️ HAUT RISQUE — validation admin requise.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP/hostname cible (whitelist)" },
+          service: { type: "string", description: "Service (ssh, ftp, http-get, smb, etc.)" },
+          userlist: { type: "string", description: "Fichier liste utilisateurs (défaut: metasploit)" },
+          passlist: { type: "string", description: "Fichier liste mots de passe (défaut: rockyou)" },
+        },
+        required: ["target", "service"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sqlmap_scan",
+      description: "Test d'injection SQL automatisé via SQLmap. ⚠️ HAUT RISQUE — validation admin requise.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à tester (ex: http://localhost/page?id=1)" },
+          data: { type: "string", description: "Données POST (ex: 'user=test&pass=test')" },
+          cookie: { type: "string", description: "Cookie de session" },
+          level: { type: "number", description: "Niveau (1-5, défaut: 1)" },
+          risk: { type: "number", description: "Risque (1-3, défaut: 1)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "searchsploit",
+      description: "Recherche d'exploits dans la base ExploitDB. Lecture seule, sans danger.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Terme de recherche (ex: 'apache 2.4 rce')" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hashcat_crack",
+      description: "Crack de hash via Hashcat (MD5, SHA1, SHA256, etc.). ⚠️ Utilise CPU/GPU dans le conteneur Kali.",
+      parameters: {
+        type: "object",
+        properties: {
+          hash: { type: "string", description: "Hash à cracker" },
+          mode: { type: "number", description: "Mode hashcat (0=MD5, 100=SHA1, 1400=SHA256)" },
+          wordlist: { type: "string", description: "Wordlist (défaut: rockyou.txt)" },
+        },
+        required: ["hash"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "snmp_walk",
+      description: "Énumération SNMP d'un équipement (Cisco, etc.). Récupère system info, interfaces, communauté.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP de l'équipement (whitelist)" },
+          community: { type: "string", description: "Communauté SNMP (défaut: public)" },
+        },
+        required: ["target"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "enum4linux_scan",
+      description: "Énumération SMB/Windows via enum4linux. Shares, users, groups, OS info.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP cible (whitelist)" },
+        },
+        required: ["target"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "harvester_osint",
+      description: "OSINT via theHarvester — emails, subdomains, IPs pour un domaine.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine à investiguer" },
+          sources: { type: "string", description: "Sources (défaut: all)" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crackmapexec_scan",
+      description: "Pentest SMB/WinRM/MSSQL/SSH via CrackMapExec. ⚠️ HAUT RISQUE — validation admin.",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP ou plage CIDR (whitelist)" },
+          service: { type: "string", description: "Service (smb, winrm, mssql, ssh, ldap)" },
+          username: { type: "string", description: "Nom d'utilisateur" },
+          password: { type: "string", description: "Mot de passe" },
+        },
+        required: ["target", "service"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "whatweb_scan",
+      description: "Fingerprinting web via WhatWeb — technologies, CMS, frameworks, server.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à analyser" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gobuster_scan",
+      description: "Directory/file brute force via Gobuster. Découvre chemins cachés.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL de base (ex: http://localhost)" },
+          wordlist: { type: "string", description: "Wordlist (défaut: dirb/common.txt)" },
+          extensions: { type: "string", description: "Extensions (ex: php,html,txt)" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "nmap_nse_scan",
+      description: "Scan Nmap avec scripts NSE (vuln detection, Cisco, SMB, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", description: "IP cible (whitelist)" },
+          scriptCategory: { type: "string", description: "Catégorie NSE (default, vuln, brute, exploit)" },
+          scripts: { type: "array", items: { type: "string" }, description: "Scripts spécifiques (ex: smb-enum-shares)" },
+        },
+        required: ["target"],
       },
     },
   },
@@ -2099,6 +2321,33 @@ export async function executeExtendedTool(
         return await tLoremGen(args);
       case "color_convert":
         return await tColorConvert(args);
+      // Pentest Toolkit
+      case "metasploit":
+        return await tMetasploit(args);
+      case "tshark_capture":
+        return await tTsharkCapture(args);
+      case "hydra_brute":
+        return await tHydraBrute(args);
+      case "sqlmap_scan":
+        return await tSqlmapScan(args);
+      case "searchsploit":
+        return await tSearchsploit(args);
+      case "hashcat_crack":
+        return await tHashcatCrack(args);
+      case "snmp_walk":
+        return await tSnmpWalk(args);
+      case "enum4linux_scan":
+        return await tEnum4linuxScan(args);
+      case "harvester_osint":
+        return await tHarvesterOsint(args);
+      case "crackmapexec_scan":
+        return await tCrackmapexecScan(args);
+      case "whatweb_scan":
+        return await tWhatwebScan(args);
+      case "gobuster_scan":
+        return await tGobusterScan(args);
+      case "nmap_nse_scan":
+        return await tNmapNseScan(args);
       // Fun
       case "getJoke":
         return await tGetJoke();
@@ -5256,4 +5505,159 @@ async function tColorConvert(args: Record<string, unknown>): Promise<ToolCallRes
     success: true,
     data: `🎨 Couleur:\nHEX: ${result.hex}\nRGB: ${result.rgb.r}, ${result.rgb.g}, ${result.rgb.b}\nHSL: ${result.hsl.h}°, ${result.hsl.s}%, ${result.hsl.l}%`,
   };
+}
+
+// ─── Pentest Toolkit Handlers ────────────────────────────────────────────────
+
+async function tMetasploit(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const moduleType = String(args.moduleType || "auxiliary") as "auxiliary" | "exploit" | "post";
+  const moduleName = String(args.moduleName || "");
+  const target = String(args.target || "");
+  const options = args.options as Record<string, string> | undefined;
+  if (!moduleName || !target) return { success: false, data: "❌ Module et target requis" };
+  const result = await runMetasploit(moduleType, moduleName, target, options);
+  if (!result.success) return { success: false, data: `💥 Metasploit ${result.module}: ❌ ${result.error || "Échec"}` };
+  return { success: true, data: `💥 Metasploit ${result.module} → ${target}:\n\`\`\`\n${result.output.slice(0, 3000)}\n\`\`\`` };
+}
+
+async function tTsharkCapture(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const iface = String(args.interface || "eth0");
+  const duration = typeof args.duration === "number" ? args.duration : 10;
+  const filter = args.filter ? String(args.filter) : undefined;
+  const result = await captureTraffic(iface, duration, filter);
+  if (!result.success) return { success: false, data: `🦈 tshark ${iface}: ❌ ${result.error || "Échec"}` };
+  const protoStr = result.protocols.join(", ") || "N/A";
+  const talkerStr = result.topTalkers.map((t) => `${t.ip}: ${t.packets} pkts`).join("\n") || "N/A";
+  return { success: true, data: `🦈 tshark ${iface} (${duration}s):\nPackets: ${result.packetCount}\nProtocoles: ${protoStr}\nTop talkers:\n${talkerStr}` };
+}
+
+async function tHydraBrute(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "");
+  const service = String(args.service || "");
+  const userlist = args.userlist ? String(args.userlist) : undefined;
+  const passlist = args.passlist ? String(args.passlist) : undefined;
+  if (!target || !service) return { success: false, data: "❌ Target et service requis" };
+  const result = await runHydra(target, service, userlist, passlist);
+  if (!result.success) return { success: false, data: `🔐 Hydra ${service}://${target}: ❌ ${result.error || "Échec"}` };
+  if (result.found) {
+    const credsStr = result.credentials.map((c) => `${c.username}:${c.password}`).join("\n");
+    return { success: true, data: `🔐 Hydra ${service}://${target}: ✅ CRACKÉ\n${credsStr}` };
+  }
+  return { success: true, data: `🔐 Hydra ${service}://${target}: ❌ Aucun credential trouvé` };
+}
+
+async function tSqlmapScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const opts: { data?: string; cookie?: string; level?: number; risk?: number } = {};
+  if (args.data) opts.data = String(args.data);
+  if (args.cookie) opts.cookie = String(args.cookie);
+  if (typeof args.level === "number") opts.level = args.level;
+  if (typeof args.risk === "number") opts.risk = args.risk;
+  const result = await runSqlmap(url, opts);
+  if (!result.success) return { success: false, data: `💉 SQLmap ${url}: ❌ ${result.error || "Échec"}` };
+  if (result.vulnerable) {
+    return { success: true, data: `💉 SQLmap ${url}: 🚨 VULNÉRABLE\nDBMS: ${result.dbms || "N/A"}\nInjections: ${result.injectionPoints.join(", ")}` };
+  }
+  return { success: true, data: `💉 SQLmap ${url}: ✅ Non vulnérable` };
+}
+
+async function tSearchsploit(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "");
+  if (!query) return { success: false, data: "❌ Requête requise" };
+  const result = await searchExploit(query);
+  if (!result.success || result.exploits.length === 0) return { success: true, data: `🔍 searchsploit "${query}": Aucun exploit trouvé` };
+  const exploitsStr = result.exploits.map((e) => `#${e.id} [${e.type}] ${e.title}`).join("\n");
+  return { success: true, data: `🔍 searchsploit "${query}": ${result.count} résultat(s)\n${exploitsStr}` };
+}
+
+async function tHashcatCrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const hash = String(args.hash || "");
+  const mode = typeof args.mode === "number" ? args.mode : 0;
+  const wordlist = args.wordlist ? String(args.wordlist) : undefined;
+  if (!hash) return { success: false, data: "❌ Hash requis" };
+  const result = await runHashcat(hash, mode, wordlist);
+  if (result.cracked) {
+    return { success: true, data: `🔓 Hashcat (mode ${mode}): ✅ CRACKÉ → **${result.plaintext}**` };
+  }
+  return { success: false, data: `🔒 Hashcat (mode ${mode}): ❌ Non cracké` };
+}
+
+async function tSnmpWalk(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "");
+  const community = args.community ? String(args.community) : "public";
+  if (!target) return { success: false, data: "❌ Target IP requise" };
+  const result = await snmpWalk(target, community);
+  if (!result.success) return { success: false, data: `📡 SNMP ${target}: ❌ ${result.error || "Échec"}` };
+  const sysStr = result.systemInfo.map((s) => `${s.name}: ${s.value}`).join("\n") || "N/A";
+  const ifaceStr = result.interfaces.map((i) => `eth${i.index}: ${i.name}`).join("\n") || "N/A";
+  return { success: true, data: `📡 SNMP ${target} (community: ${community}):\nSystem:\n${sysStr}\nInterfaces:\n${ifaceStr}` };
+}
+
+async function tEnum4linuxScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "");
+  if (!target) return { success: false, data: "❌ Target IP requise" };
+  const result = await runEnum4linux(target);
+  if (!result.success) return { success: false, data: `🖥️ enum4linux ${target}: ❌ Échec` };
+  const sharesStr = result.shares.join(", ") || "N/A";
+  const usersStr = result.users.join(", ") || "N/A";
+  return { success: true, data: `🖥️ enum4linux ${target}:\nOS: ${result.osInfo || "N/A"}\nShares: ${sharesStr}\nUsers: ${usersStr}` };
+}
+
+async function tHarvesterOsint(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  const sources = args.sources ? String(args.sources) : "all";
+  if (!domain) return { success: false, data: "❌ Domaine requis" };
+  const result = await runHarvester(domain, sources);
+  if (!result.success) return { success: false, data: `📧 theHarvester ${domain}: ❌ ${result.error || "Échec"}` };
+  const emailsStr = result.emails.join("\n") || "N/A";
+  const hostsStr = result.hosts.join("\n") || "N/A";
+  const ipsStr = result.ips.join(", ") || "N/A";
+  return { success: true, data: `📧 theHarvester ${domain}:\nEmails (${result.emails.length}):\n${emailsStr}\n\nHosts (${result.hosts.length}):\n${hostsStr}\n\nIPs: ${ipsStr}` };
+}
+
+async function tCrackmapexecScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "");
+  const service = String(args.service || "smb") as "smb" | "winrm" | "mssql" | "ssh" | "ldap";
+  const opts: { username?: string; password?: string; hash?: string } = {};
+  if (args.username) opts.username = String(args.username);
+  if (args.password) opts.password = String(args.password);
+  if (!target) return { success: false, data: "❌ Target requise" };
+  const result = await runCrackMapExec(target, service, opts);
+  if (!result.success) return { success: false, data: `⚔️ CME ${service}://${target}: ❌ Échec` };
+  const findingsStr = result.findings.join("\n") || "N/A";
+  return { success: true, data: `⚔️ CrackMapExec ${service}://${target}:\nHosts actifs: ${result.hostsAlive}\n${findingsStr}` };
+}
+
+async function tWhatwebScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await runWhatWeb(url);
+  if (!result.success) return { success: false, data: `🌐 WhatWeb ${url}: ❌ ${result.error || "Échec"}` };
+  const techStr = result.technologies.join(", ") || "N/A";
+  return { success: true, data: `🌐 WhatWeb ${url}:\nTitle: ${result.title || "N/A"}\nServer: ${result.server || "N/A"}\nTechnologies: ${techStr}` };
+}
+
+async function tGobusterScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  const wordlist = args.wordlist ? String(args.wordlist) : undefined;
+  const extensions = args.extensions ? String(args.extensions) : undefined;
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await runGobuster(url, wordlist, extensions);
+  if (!result.success) return { success: false, data: `📂 Gobuster ${url}: ❌ ${result.error || "Échec"}` };
+  if (result.foundPaths.length === 0) return { success: true, data: `📂 Gobuster ${url}: Aucun chemin trouvé` };
+  const pathsStr = result.foundPaths.map((p) => `${p.path} → ${p.status}`).join("\n");
+  return { success: true, data: `📂 Gobuster ${url}: ${result.foundPaths.length} chemins trouvés\n${pathsStr}` };
+}
+
+async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const target = String(args.target || "");
+  const scriptCategory = args.scriptCategory ? String(args.scriptCategory) : "default";
+  const scripts = Array.isArray(args.scripts) ? args.scripts.map(String) : undefined;
+  if (!target) return { success: false, data: "❌ Target requise" };
+  const result = await runNmapNse(target, scriptCategory, scripts);
+  if (!result.success) return { success: false, data: `🔍 Nmap NSE ${target}: ❌ ${result.error || "Échec"}` };
+  if (result.scripts.length === 0) return { success: true, data: `🔍 Nmap NSE ${target}: Aucun résultat de script` };
+  const scriptsStr = result.scripts.map((s) => `${s.name}: ${s.output}`).join("\n");
+  return { success: true, data: `🔍 Nmap NSE ${target} (${scriptCategory}):\n${scriptsStr}` };
 }
