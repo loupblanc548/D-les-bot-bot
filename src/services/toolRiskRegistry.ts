@@ -179,6 +179,34 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "ip_full_report",
       { level: "medium", module: "extended", reason: "Combined scan including port scan" },
     ],
+    ["dns_lookup", { level: "low", module: "extended", reason: "Read-only DNS resolution" }],
+    [
+      "banner_grab",
+      { level: "low", module: "extended", reason: "TCP connect + read, minimal intrusion" },
+    ],
+    ["http_methods_check", { level: "low", module: "extended", reason: "Read-only HTTP OPTIONS" }],
+    [
+      "directory_check",
+      { level: "medium", module: "extended", reason: "Probes common paths, may trigger WAF" },
+    ],
+    [
+      "tech_detect",
+      { level: "low", module: "extended", reason: "Read-only HTTP headers analysis" },
+    ],
+    ["cors_test", { level: "low", module: "extended", reason: "Read-only CORS probe" }],
+    [
+      "email_validate",
+      { level: "low", module: "extended", reason: "Read-only DNS MX/SPF/DKIM/DMARC" },
+    ],
+    [
+      "jwt_decode",
+      { level: "low", module: "extended", reason: "Local decode only, no network call" },
+    ],
+    ["url_expand", { level: "low", module: "extended", reason: "Follow redirects, read-only" }],
+    [
+      "security_score",
+      { level: "low", module: "extended", reason: "Read-only HTTP headers analysis" },
+    ],
     ["getStockPrice", { level: "low", module: "extended", reason: "Read-only stock price API" }],
     ["getRedditPosts", { level: "low", module: "extended", reason: "Read-only Reddit JSON API" }],
     [

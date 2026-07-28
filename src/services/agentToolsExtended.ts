@@ -27,6 +27,18 @@ import {
   validateTargetIP,
 } from "../utils/ipToolkit.js";
 import {
+  dnsLookup,
+  grabBanner,
+  checkHttpMethods,
+  checkDirectories,
+  detectTech,
+  testCors,
+  validateEmail,
+  decodeJwt,
+  expandUrl,
+  scoreSecurityHeaders,
+} from "../utils/netToolkit.js";
+import {
   listModels as mcpListModels,
   getModel as mcpGetModel,
   getBenchmarks as mcpGetBenchmarks,
@@ -154,6 +166,163 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           ip: { type: "string", description: "Adresse IP à analyser" },
         },
         required: ["ip"],
+      },
+    },
+  },
+  // ── Net Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "dns_lookup",
+      description: "Résolution DNS complète: A, AAAA, MX, TXT, CNAME, NS records.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine à résoudre" },
+          types: {
+            type: "array",
+            items: { type: "string" },
+            description: "Types de records (défaut: tous)",
+          },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "banner_grab",
+      description: "Banner grabbing sur un port TCP — identifie le service (SSH, FTP, HTTP, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          ip: { type: "string", description: "Adresse IP" },
+          port: { type: "number", description: "Port TCP" },
+        },
+        required: ["ip", "port"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "http_methods_check",
+      description: "Énumère les méthodes HTTP autorisées (GET, POST, PUT, DELETE, TRACE, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à tester" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "directory_check",
+      description:
+        "Vérifie l'existence de chemins communs (/admin, /.env, /api, etc.) sur un site web.",
+      parameters: {
+        type: "object",
+        properties: {
+          baseUrl: { type: "string", description: "URL de base (ex: https://example.com)" },
+          paths: {
+            type: "array",
+            items: { type: "string" },
+            description: "Chemins spécifiques (défaut: liste commune)",
+          },
+        },
+        required: ["baseUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "tech_detect",
+      description:
+        "Détecte la stack technique d'un site (Nginx, Apache, Express, PHP, ASP.NET, Cloudflare, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à analyser" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cors_test",
+      description:
+        "Teste la configuration CORS d'un site — détecte les origines permissives et les credentials.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à tester" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "email_validate",
+      description: "Valide un email: MX, SPF, DKIM, DMARC. Vérifie la configuration du domaine.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Adresse email à valider" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "jwt_decode",
+      description:
+        "Décode et analyse un token JWT: header, payload, algorithme, expiration, issuer.",
+      parameters: {
+        type: "object",
+        properties: {
+          token: { type: "string", description: "Token JWT à décoder" },
+        },
+        required: ["token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "url_expand",
+      description:
+        "Suit les redirects d'une URL jusqu'à la destination finale. Détecte les shorteners.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à expansionner" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "security_score",
+      description: "Note la sécurité HTTP d'un site (A+ à F) — HSTS, CSP, X-Frame-Options, etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL à scorer" },
+        },
+        required: ["url"],
       },
     },
   },
@@ -1427,6 +1596,27 @@ export async function executeExtendedTool(
         return await tIpSslCheck(args);
       case "ip_full_report":
         return await tIpFullReport(args);
+      // Net Toolkit
+      case "dns_lookup":
+        return await tDnsLookupFull(args);
+      case "banner_grab":
+        return await tBannerGrab(args);
+      case "http_methods_check":
+        return await tHttpMethodsCheck(args);
+      case "directory_check":
+        return await tDirectoryCheck(args);
+      case "tech_detect":
+        return await tTechDetect(args);
+      case "cors_test":
+        return await tCorsTest(args);
+      case "email_validate":
+        return await tEmailValidate(args);
+      case "jwt_decode":
+        return await tJwtDecode(args);
+      case "url_expand":
+        return await tUrlExpand(args);
+      case "security_score":
+        return await tSecurityScore(args);
       // Fun
       case "getJoke":
         return await tGetJoke();
@@ -4163,4 +4353,162 @@ async function tIpFullReport(args: Record<string, unknown>): Promise<ToolCallRes
   const report = await fullIPReport(ip);
   const formatted = formatIPReport(report);
   return { success: true, data: formatted.slice(0, 4000) };
+}
+
+// ─── Net Toolkit Handlers ────────────────────────────────────────────────────
+
+async function tDnsLookupFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain);
+  const types = Array.isArray(args.types) ? args.types.map(String) : undefined;
+  if (!domain) return { success: false, data: "❌ Domaine requis" };
+  const result = await dnsLookup(domain, types);
+  if (!result.success) {
+    return {
+      success: false,
+      data: `🔍 DNS ${domain}: ❌ ${result.error || "Aucun record trouvé"}`,
+    };
+  }
+  const recordsStr = result.records.map((r) => `${r.type}: ${r.value}`).join("\n");
+  return {
+    success: true,
+    data: `🔍 DNS ${domain} (${result.records.length} records):\n${recordsStr}`,
+  };
+}
+
+async function tBannerGrab(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const ip = String(args.ip);
+  const port = typeof args.port === "number" ? args.port : 80;
+  const validation = validateTargetIP(ip);
+  if (!validation.valid) {
+    return { success: false, data: `❌ ${validation.reason}` };
+  }
+  const result = await grabBanner(ip, port);
+  if (!result.success) {
+    return {
+      success: false,
+      data: `🚩 Banner ${ip}:${port}: ❌ ${result.error || "Pas de réponse"}`,
+    };
+  }
+  return {
+    success: true,
+    data: `🚩 Banner ${ip}:${port}:\n\`\`\`\n${result.banner?.slice(0, 300) || "vide"}\n\`\`\``,
+  };
+}
+
+async function tHttpMethodsCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await checkHttpMethods(url);
+  return {
+    success: result.success,
+    data: `🔧 HTTP Methods ${url}:\nAutorisées: ${result.allowedMethods.join(", ") || "aucune"}\nTestées: ${result.testedMethods.join(", ")}`,
+  };
+}
+
+async function tDirectoryCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const baseUrl = String(args.baseUrl);
+  const paths = Array.isArray(args.paths) ? args.paths.map(String) : undefined;
+  if (!baseUrl) return { success: false, data: "❌ URL de base requise" };
+  const result = await checkDirectories(baseUrl, paths);
+  if (result.foundPaths.length === 0) {
+    return {
+      success: true,
+      data: `📂 Directory check ${baseUrl}: Aucun chemin trouvé (${result.checkedPaths} testés en ${result.durationMs}ms)`,
+    };
+  }
+  const foundStr = result.foundPaths
+    .map((p) => `${p.path} → ${p.status} (${p.contentType.slice(0, 30)})`)
+    .join("\n");
+  return {
+    success: true,
+    data: `📂 Directory check ${baseUrl}: ${result.foundPaths.length} chemins trouvés (${result.checkedPaths} testés en ${result.durationMs}ms)\n${foundStr}`,
+  };
+}
+
+async function tTechDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await detectTech(url);
+  if (!result.success) {
+    return { success: false, data: `🔬 Tech detect ${url}: ❌ ${result.error || "Échec"}` };
+  }
+  const techStr = result.technologies
+    .map((t) => `${t.name}${t.version ? ` ${t.version}` : ""} (${t.evidence})`)
+    .join("\n");
+  return {
+    success: true,
+    data: `🔬 Tech detect ${url}:\nServer: ${result.server || "N/A"}\nX-Powered-By: ${result.poweredBy || "N/A"}\nTechnologies:\n${techStr || "Aucune détectée"}`,
+  };
+}
+
+async function tCorsTest(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await testCors(url);
+  if (!result.success) {
+    return { success: false, data: `🌐 CORS test ${url}: ❌ ${result.error || "Échec"}` };
+  }
+  const notesStr = result.notes.length > 0 ? `\n${result.notes.join("\n")}` : "";
+  return {
+    success: true,
+    data: `🌐 CORS test ${url}:\nRating: ${result.rating.toUpperCase()}\nAllow-Origin: ${result.allowedOrigins || "aucun"}\nCredentials: ${result.allowsCredentials ? "✅" : "❌"}\nMethods: ${result.allowsMethods || "N/A"}${notesStr}`,
+  };
+}
+
+async function tEmailValidate(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const email = String(args.email);
+  if (!email) return { success: false, data: "❌ Email requis" };
+  const result = await validateEmail(email);
+  const notesStr = result.notes.length > 0 ? `\n${result.notes.join("\n")}` : "";
+  return {
+    success: true,
+    data: `📧 Email ${email}:\nDomaine: ${result.domain}\nMX: ${result.hasMx ? `✅ ${result.mxRecords.join(", ")}` : "❌"}\nSPF: ${result.hasSpf ? "✅" : "❌"}\nDMARC: ${result.hasDmarc ? "✅" : "❌"}\nDKIM: ${result.hasDkim ? "✅" : "❌"}${notesStr}`,
+  };
+}
+
+async function tJwtDecode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const token = String(args.token);
+  if (!token) return { success: false, data: "❌ Token JWT requis" };
+  const result = decodeJwt(token);
+  if (!result.valid) {
+    return { success: false, data: `🔑 JWT decode: ❌ ${result.error || "Token invalide"}` };
+  }
+  return {
+    success: true,
+    data: `🔑 JWT decode:\nAlgorithme: ${result.algorithm}\nIssuer: ${result.issuer || "N/A"}\nSubject: ${result.subject || "N/A"}\nAudience: ${result.audience || "N/A"}\nIssued: ${result.issuedAt || "N/A"}\nExpires: ${result.expiresAt || "N/A"}\nExpiré: ${result.isExpired ? "⚠️ OUI" : "✅ Non"}\nPayload: \`\`\`json\n${JSON.stringify(result.payload, null, 2).slice(0, 500)}\n\`\`\``,
+  };
+}
+
+async function tUrlExpand(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await expandUrl(url);
+  if (!result.success && result.totalRedirects === 0) {
+    return { success: false, data: `🔗 URL expand ${url}: ❌ ${result.error || "Échec"}` };
+  }
+  const redirectsStr = result.redirects.map((r) => `${r.status} → ${r.url}`).join("\n");
+  return {
+    success: true,
+    data: `🔗 URL expand:\nOriginal: ${result.originalUrl}\nFinal: ${result.finalUrl}\nRedirects (${result.totalRedirects}):\n${redirectsStr || "aucun"}`,
+  };
+}
+
+async function tSecurityScore(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url);
+  if (!url) return { success: false, data: "❌ URL requise" };
+  const result = await scoreSecurityHeaders(url);
+  if (!result.success) {
+    return { success: false, data: `🛡️ Security score ${url}: ❌ ${result.error || "Échec"}` };
+  }
+  const headersStr = result.headers
+    .map((h) => `${h.present ? "✅" : "❌"} ${h.name}: ${h.value || "manquant"} (${h.points}pts)`)
+    .join("\n");
+  const recStr =
+    result.recommendations.length > 0
+      ? `\n\nRecommandations:\n${result.recommendations.map((r) => `- ${r}`).join("\n")}`
+      : "";
+  return {
+    success: true,
+    data: `🛡️ Security score ${url}:\nGrade: **${result.grade}** (${result.score}/100)\n\nHeaders:\n${headersStr}${recStr}`,
+  };
 }
