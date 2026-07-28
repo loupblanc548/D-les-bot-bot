@@ -140,6 +140,277 @@ import {
 } from "./openrouterMcp.js";
 
 import { listUpcomingEvents, createCalendarEvent } from "./googleCalendar.js";
+import {
+  hashCrackDictionary,
+  hashIdentifyAdvanced,
+  generateHmac,
+  aesDecrypt as cryptoAesDecrypt,
+  rsaKeypairGenerate,
+  rsaEncrypt,
+  rsaDecrypt,
+  pgpEncrypt,
+  pgpDecrypt,
+  stegoExtractLsb,
+  stegoHideLsb,
+  steganalysisZscore,
+  xorCipher,
+  frequencyAnalysis,
+  randomTokenGenerator,
+  certificateParse,
+} from "../utils/cryptoToolkit.js";
+import {
+  smtpRelayTest,
+  smtpEnumVrfy,
+  ftpAnonymousCheck,
+  smbEnumShares,
+  smbVersionDetect,
+  ldapEnum,
+  kerberosUserEnum,
+  rdpCheck,
+  sshVersionScan,
+  telnetBannerGrab,
+  snmpWalk as netSnmpWalk,
+  ntpMonlist,
+  dnsZoneTransfer,
+  dnsSubdomainBrute,
+  dnsRebindingCheck,
+  ipv6Scan,
+  vlanHopTest,
+  wifiDeauthDetect,
+  arpPoisonDetect,
+  networkMapGenerate,
+} from "../utils/networkToolkit.js";
+import {
+  waybackMachineLookup,
+  waybackDiff,
+  crtshSearch,
+  haveibeenpwnedCheck,
+  dehashedSearch,
+  hunterIoEmail,
+  phoneNumberLookupFull,
+  socialMediaChecker,
+  gravatarLookup,
+  githubDorksSearch,
+  githubCommitHistory,
+  googleDorksGenerator,
+  googleCacheLookup,
+  reverseImageSearch,
+  exifExtractFull,
+  metadataStrip,
+  darkwebMonitor,
+  leakedSourceSearch,
+  bitcoinAddressAnalysis,
+  ethereumContractVerify,
+  domainWhoisHistory,
+  reverseWhois,
+  dnsHistoryPassive,
+  breachParse,
+  malwareSampleLookup,
+} from "../utils/osintToolkit.js";
+import {
+  owaspZapScan,
+  nucleiScan,
+  ffufFuzz,
+  wfuzzScan,
+  wpscanFull,
+  joomscan,
+  droopescan,
+  sslLabsGrade,
+  securityHeadersFull,
+  corsMisconfigCheck,
+  openRedirectCheck,
+  xssPayloadGenerator,
+  sqliPayloadGenerator,
+  commandInjectionTest,
+  xxeVulnCheck,
+  ssrfCheck,
+  lfiRfiCheck,
+  csrfTokenCheck,
+  rateLimitCheck,
+  dependencyAudit,
+} from "../utils/securityAuditToolkit.js";
+import {
+  csvAnalyzer,
+  jsonPathQuery,
+  sqlQueryExplainer,
+  dataAnonymizer,
+  outlierDetector,
+  correlationMatrix,
+  histogramGenerator,
+  scatterPlotGenerator,
+  timeSeriesDecompose,
+  movingAverageCalc,
+  linearRegression,
+  hypothesisTest,
+  confidenceInterval,
+  permutationGenerator,
+  combinatoricsCalc,
+} from "../utils/dataScienceToolkit.js";
+import {
+  matrixOperations,
+  vectorCalculus,
+  derivativeCalculator,
+  integralCalculator,
+  limitCalculator,
+  seriesSumCalculator,
+  primeFactorization,
+  gcdLcmCalculator,
+  modularArithmetic,
+  probabilityDistribution,
+  bayesTheorem,
+  trigonometrySolver,
+  complexNumberOps,
+  polynomialSolver,
+  numberBaseConvertAdvanced,
+} from "../utils/mathToolkit.js";
+import {
+  textExtractEntities,
+  textSummarizeAdvanced,
+  textKeywordExtract,
+  textReadabilityScore,
+  textLanguageDetectAdvanced,
+  textTransliterate,
+  textPhoneticMatch,
+  textStemLemmatize,
+  textNgramGenerator,
+  textRegexTester,
+  textFuzzyMatch,
+  textExtractEmails,
+  textExtractUrls,
+  textExtractIps,
+  textExtractPhoneNumbers,
+  textRedactPii,
+  textMarkdownToPlain,
+  textHtmlToMarkdown,
+  textCsvToJson,
+  textJsonToCsv,
+} from "../utils/textNlpToolkit.js";
+import {
+  processMonitor,
+  diskUsageAnalyzer,
+  networkConnectionsList,
+  firewallRulesAudit,
+  cronJobsList,
+  envVarsInspect,
+  logTail,
+  serviceStatusCheck,
+  dockerPsAudit,
+  dockerImageVulnScan,
+  k8sPodInspect,
+  nginxConfigCheck,
+  apacheConfigCheck,
+  sslCertExpiryCheck,
+  dnsPropagationCheck,
+  loadAverageMonitor,
+  memoryLeakDetect,
+  portKill,
+  filePermissionAudit,
+  sshKeyAudit,
+} from "../utils/systemDevopsToolkit.js";
+import {
+  awsS3BucketCheck,
+  awsIamAudit,
+  awsSecurityGroupsAudit,
+  azureAdEnum,
+  gcpProjectEnum,
+  cloudMetadataCheck,
+  terraformValidate,
+  terraformPlanDiff,
+  kubernetesManifestValidate,
+  dockerComposeValidate,
+  apiSchemaDiff,
+  graphqlIntrospectionCheck,
+  apiRateLimitDiscover,
+  webhookSignatureVerify,
+  oauthFlowTest,
+} from "../utils/cloudApiToolkit.js";
+import {
+  riotAccountLookup,
+  lolMatchHistory,
+  lolRankCheck,
+  csgoStatsFetch,
+  apexLegendsStats,
+  rocketLeagueStats,
+  osuUserStats,
+  minecraftServerStatus,
+  fortniteItemShop,
+  epicGamesFreeGames,
+  twitchStreamCheck,
+  twitchClipCreate,
+  spotifyTrackSearch,
+  spotifyPlaylistAnalyze,
+  boardgameGeekSearch,
+} from "../utils/gamingToolkit.js";
+import {
+  physicsCalculator,
+  ohmsLawCalc,
+  wavelengthFrequency,
+  radioactiveDecayCalc,
+  unitConvertScientific,
+  molarMassCalc,
+  chemicalEquationBalancer,
+  phCalculator,
+  idealGasLaw,
+  kinematicsCalc,
+  opticsCalc,
+  electricFieldCalc,
+  thermalExpansionCalc,
+  astronomicalDistance,
+  radioactiveDecayCalc as radioactiveDecayCalc2,
+} from "../utils/scienceToolkit.js";
+import {
+  geocodeReverse,
+  timezoneConvertAdvanced,
+  distanceMatrix,
+  elevationLookup,
+  countryBordering,
+  currencyByCountry,
+  languageByCountry,
+  capitalLookup,
+  isoCountryCode,
+  sunriseSunsetAnywhere,
+} from "../utils/geoToolkit.js";
+import {
+  waterIntakeCalc,
+  heartRateZone,
+  bodyFatPercentageCalc,
+  idealWeightCalc,
+  pregnancyDueDate,
+  ovulationCalc,
+  macroNutrientCalc,
+  sleepQualityScore,
+  stepToCalorie,
+  hydrationTracker,
+} from "../utils/healthToolkit.js";
+import {
+  codeComplexityAnalyzer,
+  codeFormatBeautifier,
+  codeMinifier,
+  codeDiffUnified,
+  codeLinterCheck,
+  regexDebugger,
+  apiEndpointTester,
+  jsonSchemaValidate,
+  yamlValidate,
+  xmlToJson,
+  sqlFormatBeautify,
+  dockerfileLint,
+  changelogGenerator,
+  sqlFormatBeautify as sqlFormatBeautify2,
+  dockerfileLint as dockerfileLint2,
+} from "../utils/codeDevToolkit.js";
+import {
+  imageResizeCrop,
+  imageFormatConvert,
+  imageMetadataStrip,
+  imageCollageCreate,
+  audioConvert,
+  audioExtractFromVideo,
+  videoCompress,
+  videoGifConvert,
+  textToSpeechMulti,
+  imageWatermarkAdd,
+} from "../utils/mediaToolkit.js";
 
 // ─── Cache partagé ────────────────────────────────────────────────────────────
 
@@ -464,7 +735,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "password_analyze",
-      description: "Analyse la force d'un mot de passe: entropie, charset, temps de crack, patterns.",
+      description:
+        "Analyse la force d'un mot de passe: entropie, charset, temps de crack, patterns.",
       parameters: {
         type: "object",
         properties: {
@@ -478,7 +750,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "subdomain_enum",
-      description: "Énumère les sous-domaines d'un domaine via DNS brute-force (90+ sous-domaines communs).",
+      description:
+        "Énumère les sous-domaines d'un domaine via DNS brute-force (90+ sous-domaines communs).",
       parameters: {
         type: "object",
         properties: {
@@ -811,7 +1084,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "metasploit",
-      description: "Exécute un module Metasploit dans le conteneur Kali. ⚠️ HAUT RISQUE — requiert validation admin. Types: auxiliary, exploit, post.",
+      description:
+        "Exécute un module Metasploit dans le conteneur Kali. ⚠️ HAUT RISQUE — requiert validation admin. Types: auxiliary, exploit, post.",
       parameters: {
         type: "object",
         properties: {
@@ -828,7 +1102,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "tshark_capture",
-      description: "Capture le trafic réseau avec tshark (Wireshark CLI) dans Kali. Analyse les protocoles et top talkers.",
+      description:
+        "Capture le trafic réseau avec tshark (Wireshark CLI) dans Kali. Analyse les protocoles et top talkers.",
       parameters: {
         type: "object",
         properties: {
@@ -844,14 +1119,21 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "hydra_brute",
-      description: "Brute force authentification via Hydra (SSH, FTP, HTTP, SMB...). ⚠️ HAUT RISQUE — validation admin requise.",
+      description:
+        "Brute force authentification via Hydra (SSH, FTP, HTTP, SMB...). ⚠️ HAUT RISQUE — validation admin requise.",
       parameters: {
         type: "object",
         properties: {
           target: { type: "string", description: "IP/hostname cible (whitelist)" },
           service: { type: "string", description: "Service (ssh, ftp, http-get, smb, etc.)" },
-          userlist: { type: "string", description: "Fichier liste utilisateurs (défaut: metasploit)" },
-          passlist: { type: "string", description: "Fichier liste mots de passe (défaut: rockyou)" },
+          userlist: {
+            type: "string",
+            description: "Fichier liste utilisateurs (défaut: metasploit)",
+          },
+          passlist: {
+            type: "string",
+            description: "Fichier liste mots de passe (défaut: rockyou)",
+          },
         },
         required: ["target", "service"],
       },
@@ -861,7 +1143,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "sqlmap_scan",
-      description: "Test d'injection SQL automatisé via SQLmap. ⚠️ HAUT RISQUE — validation admin requise.",
+      description:
+        "Test d'injection SQL automatisé via SQLmap. ⚠️ HAUT RISQUE — validation admin requise.",
       parameters: {
         type: "object",
         properties: {
@@ -893,7 +1176,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "hashcat_crack",
-      description: "Crack de hash via Hashcat (MD5, SHA1, SHA256, etc.). ⚠️ Utilise CPU/GPU dans le conteneur Kali.",
+      description:
+        "Crack de hash via Hashcat (MD5, SHA1, SHA256, etc.). ⚠️ Utilise CPU/GPU dans le conteneur Kali.",
       parameters: {
         type: "object",
         properties: {
@@ -909,7 +1193,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "snmp_walk",
-      description: "Énumération SNMP d'un équipement (Cisco, etc.). Récupère system info, interfaces, communauté.",
+      description:
+        "Énumération SNMP d'un équipement (Cisco, etc.). Récupère system info, interfaces, communauté.",
       parameters: {
         type: "object",
         properties: {
@@ -953,7 +1238,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "crackmapexec_scan",
-      description: "Pentest SMB/WinRM/MSSQL/SSH via CrackMapExec. ⚠️ HAUT RISQUE — validation admin.",
+      description:
+        "Pentest SMB/WinRM/MSSQL/SSH via CrackMapExec. ⚠️ HAUT RISQUE — validation admin.",
       parameters: {
         type: "object",
         properties: {
@@ -1005,8 +1291,15 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
         type: "object",
         properties: {
           target: { type: "string", description: "IP cible (whitelist)" },
-          scriptCategory: { type: "string", description: "Catégorie NSE (default, vuln, brute, exploit)" },
-          scripts: { type: "array", items: { type: "string" }, description: "Scripts spécifiques (ex: smb-enum-shares)" },
+          scriptCategory: {
+            type: "string",
+            description: "Catégorie NSE (default, vuln, brute, exploit)",
+          },
+          scripts: {
+            type: "array",
+            items: { type: "string" },
+            description: "Scripts spécifiques (ex: smb-enum-shares)",
+          },
         },
         required: ["target"],
       },
@@ -1093,7 +1386,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "pii_scan",
-      description: "Scanne un texte pour détecter des PII (emails, téléphones, cartes de crédit, IBAN, clés API, JWT).",
+      description:
+        "Scanne un texte pour détecter des PII (emails, téléphones, cartes de crédit, IBAN, clés API, JWT).",
       parameters: {
         type: "object",
         properties: {
@@ -1107,7 +1401,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "ioc_parse",
-      description: "Extrait les IOC (Indicators of Compromise) d'un texte: IPs, hashes, domaines, URLs, emails.",
+      description:
+        "Extrait les IOC (Indicators of Compromise) d'un texte: IPs, hashes, domaines, URLs, emails.",
       parameters: {
         type: "object",
         properties: {
@@ -1121,7 +1416,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "entropy_analyze",
-      description: "Analyse l'entropie de Shannon d'une chaîne — détecte si elle est chiffrée/compressée.",
+      description:
+        "Analyse l'entropie de Shannon d'une chaîne — détecte si elle est chiffrée/compressée.",
       parameters: {
         type: "object",
         properties: {
@@ -1234,7 +1530,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "unit_convert",
-      description: "Convertit entre unités (longueur, poids, données, vitesse). Pour la température, utilisez temp_convert.",
+      description:
+        "Convertit entre unités (longueur, poids, données, vitesse). Pour la température, utilisez temp_convert.",
       parameters: {
         type: "object",
         properties: {
@@ -1269,7 +1566,10 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {
-          expression: { type: "string", description: "Expression (ex: 2+2*3, sqrt(144), sin(pi/2))" },
+          expression: {
+            type: "string",
+            description: "Expression (ex: 2+2*3, sqrt(144), sin(pi/2))",
+          },
         },
         required: ["expression"],
       },
@@ -1335,7 +1635,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "case_convert",
-      description: "Convertit un texte entre camelCase, PascalCase, snake_case, kebab-case, CONSTANT_CASE, etc.",
+      description:
+        "Convertit un texte entre camelCase, PascalCase, snake_case, kebab-case, CONSTANT_CASE, etc.",
       parameters: {
         type: "object",
         properties: {
@@ -1448,7 +1749,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "text_diff",
-      description: "Compare deux textes et affiche les différences (additions, deletions, similarity).",
+      description:
+        "Compare deux textes et affiche les différences (additions, deletions, similarity).",
       parameters: {
         type: "object",
         properties: {
@@ -2700,6 +3002,3541 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
           location: { type: "string", description: "Lieu (optionnel)" },
         },
         required: ["summary", "start", "end"],
+      },
+    },
+  },
+  // ── NEW TOOLKITS (241 tools) ──
+  // ── CRYPTO Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "hash_crack_dictionary",
+      description: "Tente de casser un hash via dictionnaire (hashcat/john) dans le container Kali",
+      parameters: {
+        type: "object",
+        properties: {
+          hash: { type: "string", description: "hash" },
+          hashType: { type: "string", description: "hashType" },
+          wordlist: { type: "string", description: "wordlist" },
+        },
+        required: ["hash", "hashType"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hash_identify_advanced",
+      description: "Identifie un hash avec précision (bcrypt, argon2, NTLM, etc.)",
+      parameters: {
+        type: "object",
+        properties: {
+          hash: { type: "string", description: "hash" },
+        },
+        required: ["hash"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_hmac",
+      description: "Génère un HMAC-SHA256/SHA512 pour vérifier l'intégrité d'un message",
+      parameters: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: "message" },
+          key: { type: "string", description: "key" },
+          algorithm: { type: "string", description: "algorithm" },
+        },
+        required: ["message", "key"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crypto_aes_decrypt",
+      description: "Déchiffre AES-256-GCM/CBC avec clé + IV fournis",
+      parameters: {
+        type: "object",
+        properties: {
+          encryptedData: { type: "string", description: "encryptedData" },
+          key: { type: "string", description: "key" },
+          iv: { type: "string", description: "iv" },
+          mode: { type: "string", description: "mode" },
+        },
+        required: ["encryptedData", "key", "iv"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rsa_keypair_generate",
+      description: "Génère une paire de clés RSA (2048/4096 bits)",
+      parameters: {
+        type: "object",
+        properties: {
+          bits: { type: "number", description: "bits" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rsa_encrypt",
+      description: "Chiffre un message avec RSA (clé publique PEM)",
+      parameters: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: "message" },
+          publicKeyPem: { type: "string", description: "publicKeyPem" },
+        },
+        required: ["message", "publicKeyPem"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rsa_decrypt",
+      description: "Déchiffre un message RSA (clé privée PEM)",
+      parameters: {
+        type: "object",
+        properties: {
+          encryptedBase64: { type: "string", description: "encryptedBase64" },
+          privateKeyPem: { type: "string", description: "privateKeyPem" },
+        },
+        required: ["encryptedBase64", "privateKeyPem"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pgp_encrypt",
+      description: "Chiffre un message avec PGP (gpg dans Kali)",
+      parameters: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: "message" },
+          recipientKey: { type: "string", description: "recipientKey" },
+        },
+        required: ["message", "recipientKey"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pgp_decrypt",
+      description: "Déchiffre un message PGP avec clé privée",
+      parameters: {
+        type: "object",
+        properties: {
+          encryptedMessage: { type: "string", description: "encryptedMessage" },
+        },
+        required: ["encryptedMessage"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "stego_extract_lsb",
+      description: "Extrait un message caché dans une image (LSB steganography)",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+        },
+        required: ["imagePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "stego_hide_lsb",
+      description: "Cache un message dans une image via LSB",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+          message: { type: "string", description: "message" },
+          outputFile: { type: "string", description: "outputFile" },
+        },
+        required: ["imagePath", "message", "outputFile"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "steganalysis_zscore",
+      description: "Analyse stéganographique avancée (chi-square, z-score)",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+        },
+        required: ["imagePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "xor_cipher",
+      description: "Chiffre/déchiffre XOR avec clé custom",
+      parameters: {
+        type: "object",
+        properties: {
+          data: { type: "string", description: "data" },
+          key: { type: "string", description: "key" },
+        },
+        required: ["data", "key"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "frequency_analysis",
+      description: "Analyse de fréquence pour casser les chiffres classiques",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "random_token_generator",
+      description: "Génère un token sécurisé (hex, base64, base32, URL-safe)",
+      parameters: {
+        type: "object",
+        properties: {
+          length: { type: "number", description: "length" },
+          encoding: { type: "string", description: "encoding" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "certificate_parse",
+      description: "Parse un certificat X.509 (PEM/DER) et affiche tous les champs",
+      parameters: {
+        type: "object",
+        properties: {
+          certPem: { type: "string", description: "certPem" },
+        },
+        required: ["certPem"],
+      },
+    },
+  },
+  // ── NET Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "smtp_relay_test",
+      description: "Teste si un serveur SMTP accepte le relais ouvert",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "smtp_enum_vrfy",
+      description: "Énumère les utilisateurs via SMTP VRFY/EXPN",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+          usernames: { type: "string", description: "usernames" },
+        },
+        required: ["host", "usernames"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ftp_anonymous_check",
+      description: "Vérifie si un serveur FTP accepte les connexions anonymes",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "smb_enum_shares",
+      description: "Énumère les shares SMB via enum4linux",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "smb_version_detect",
+      description: "Détecte la version SMB et l'OS distant",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ldap_enum",
+      description: "Énumère un annuaire LDAP (users, groups, computers)",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "kerberos_user_enum",
+      description: "Énumère les utilisateurs via Kerberos pre-auth",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          realm: { type: "string", description: "realm" },
+          usernames: { type: "string", description: "usernames" },
+        },
+        required: ["host", "realm", "usernames"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rdp_check",
+      description: "Vérifie si RDP est accessible et récupère les infos",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssh_version_scan",
+      description: "Scanne la version SSH et les algorithmes supportés",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "telnet_banner_grab",
+      description: "Banner grab sur Telnet (port 23)",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "snmp_walk",
+      description: "SNMP walk complet sur une communauté donnée",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          community: { type: "string", description: "community" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ntp_monlist",
+      description: "Vérifie si NTP est vulnérable à amplification (monlist)",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_zone_transfer",
+      description: "Tente un transfert de zone DNS (AXFR)",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_subdomain_brute",
+      description: "Brute-force les sous-domaines avec wordlist",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+          wordlist: { type: "string", description: "wordlist" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_rebinding_check",
+      description: "Vérifie si un domaine est vulnérable au DNS rebinding",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ipv6_scan",
+      description: "Scan IPv6 via multicast (ff02::1)",
+      parameters: {
+        type: "object",
+        properties: {
+          interfaceName: { type: "string", description: "interfaceName" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "vlan_hop_test",
+      description: "Teste le VLAN hopping",
+      parameters: {
+        type: "object",
+        properties: {
+          interfaceName: { type: "string", description: "interfaceName" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "wifi_deauth_detect",
+      description: "Détecte les attaques deauthentication WiFi",
+      parameters: {
+        type: "object",
+        properties: {
+          interfaceName: { type: "string", description: "interfaceName" },
+          duration: { type: "number", description: "duration" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "arp_poison_detect",
+      description: "Détecte l'ARP poisoning sur le réseau local",
+      parameters: {
+        type: "object",
+        properties: {
+          interfaceName: { type: "string", description: "interfaceName" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "network_map_generate",
+      description: "Génère une carte réseau (topologie) via nmap",
+      parameters: {
+        type: "object",
+        properties: {
+          subnet: { type: "string", description: "subnet" },
+        },
+        required: ["subnet"],
+      },
+    },
+  },
+  // ── OSINT Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "wayback_machine_lookup",
+      description: "Recherche les snapshots archivés d'une URL sur Wayback Machine",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "wayback_diff",
+      description: "Compare deux versions archivées d'une page web",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          timestamp1: { type: "string", description: "timestamp1" },
+          timestamp2: { type: "string", description: "timestamp2" },
+        },
+        required: ["url", "timestamp1", "timestamp2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crtsh_search",
+      description: "Recherche les certificats SSL émis pour un domaine (crt.sh)",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "haveibeenpwned_check",
+      description: "Vérifie si un email apparaît dans une breach",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "email" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dehashed_search",
+      description: "Recherche dans les bases de données leakées (DeHashed)",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hunter_io_email",
+      description: "Trouve les emails d'un domaine via Hunter.io",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "phone_number_lookup_full",
+      description: "Lookup complet d'un numéro (carrier, line type)",
+      parameters: {
+        type: "object",
+        properties: {
+          phone: { type: "string", description: "phone" },
+        },
+        required: ["phone"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "social_media_checker",
+      description: "Vérifie la disponibilité d'un username sur 50+ réseaux",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "username" },
+        },
+        required: ["username"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gravatar_lookup",
+      description: "Récupère l'avatar Gravatar et le profil d'un email",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "email" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "github_dorks_search",
+      description: "Recherche de secrets leakés sur GitHub via code search",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "github_commit_history",
+      description: "Analyse l'historique des commits d'un repo pour des secrets",
+      parameters: {
+        type: "object",
+        properties: {
+          owner: { type: "string", description: "owner" },
+          repo: { type: "string", description: "repo" },
+        },
+        required: ["owner", "repo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "google_dorks_generator",
+      description: "Génère des Google dorks pour la reconnaissance",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "google_cache_lookup",
+      description: "Récupère la version cache Google d'une page",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reverse_image_search",
+      description: "Recherche inversée d'image (TinEye / Google Images)",
+      parameters: {
+        type: "object",
+        properties: {
+          imageUrl: { type: "string", description: "imageUrl" },
+        },
+        required: ["imageUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "exif_extract_full",
+      description: "Extrait TOUTES les métadonnées EXIF d'une image",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+        },
+        required: ["imagePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "metadata_strip",
+      description: "Supprime toutes les métadonnées d'un fichier",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "filePath" },
+        },
+        required: ["filePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "darkweb_monitor",
+      description: "Surveille si un email/domaine apparaît sur le darkweb",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "email" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "leaked_source_search",
+      description: "Recherche dans les bases leakées (IntelligenceX, etc.)",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bitcoin_address_analysis",
+      description: "Analyse une adresse Bitcoin (balance, transactions)",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "address" },
+        },
+        required: ["address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ethereum_contract_verify",
+      description: "Vérifie et décompile un smart contract Ethereum",
+      parameters: {
+        type: "object",
+        properties: {
+          address: { type: "string", description: "address" },
+        },
+        required: ["address"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "domain_whois_history",
+      description: "Historique WHOIS complet d'un domaine",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reverse_whois",
+      description: "Trouve tous les domaines enregistrés par un email/nom",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "email" },
+        },
+        required: ["email"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_history_passive",
+      description: "Historique DNS passif (SecurityTrails / PassiveDNS)",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "breach_parse",
+      description: "Parse et structure une base de données leakée",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "filePath" },
+          format: { type: "string", description: "format" },
+        },
+        required: ["filePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "malware_sample_lookup",
+      description: "Lookup d'un hash de malware (VirusTotal, MalwareBazaar)",
+      parameters: {
+        type: "object",
+        properties: {
+          hash: { type: "string", description: "hash" },
+        },
+        required: ["hash"],
+      },
+    },
+  },
+  // ── SEC Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "owasp_zap_scan",
+      description: "Scan OWASP ZAP d'une URL (active scan) dans Kali",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "nuclei_scan",
+      description: "Scan Nuclei avec templates pour vulnérabilités connues",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          templates: { type: "string", description: "templates" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ffuf_fuzz",
+      description: "Fuzzing de directories/paramètres avec ffuf",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          wordlist: { type: "string", description: "wordlist" },
+          mode: { type: "string", description: "mode" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "wfuzz_scan",
+      description: "Fuzzing web avec Wfuzz",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          wordlist: { type: "string", description: "wordlist" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "wpscan_full",
+      description: "Scan WordPress complet avec WPScan",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "joomscan",
+      description: "Scan Joomla avec JoomScan",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "droopescan",
+      description: "Scan Drupal avec Droopescan",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssl_labs_grade",
+      description: "Grade SSL Labs d'un domaine (API)",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "security_headers_full",
+      description: "Audit complet des security headers (A+ à F)",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cors_misconfig_check",
+      description: "Détecte les mauvaises configurations CORS",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "open_redirect_check",
+      description: "Détecte les vulnérabilités d'open redirect",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "xss_payload_generator",
+      description: "Génère des payloads XSS (reflected, stored, DOM)",
+      parameters: {
+        type: "object",
+        properties: {
+          context: { type: "string", description: "context" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sqli_payload_generator",
+      description: "Génère des payloads SQL Injection",
+      parameters: {
+        type: "object",
+        properties: {
+          dbType: { type: "string", description: "dbType" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "command_injection_test",
+      description: "Teste les injections de commandes (OS command injection)",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          param: { type: "string", description: "param" },
+        },
+        required: ["url", "param"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "xxe_vuln_check",
+      description: "Vérifie les vulnérabilités XXE (XML External Entity)",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssrf_check",
+      description: "Détecte les vulnérabilités SSRF",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          param: { type: "string", description: "param" },
+        },
+        required: ["url", "param"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lfi_rfi_check",
+      description: "Vérifie les LFI/RFI (Local/Remote File Inclusion)",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          param: { type: "string", description: "param" },
+        },
+        required: ["url", "param"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "csrf_token_check",
+      description: "Vérifie la présence et validité des tokens CSRF",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rate_limit_check",
+      description: "Vérifie si une API a un rate limiting",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dependency_audit",
+      description: "Audit de vulnérabilités des dépendances (npm/pip/cargo)",
+      parameters: {
+        type: "object",
+        properties: {
+          projectPath: { type: "string", description: "projectPath" },
+          ecosystem: { type: "string", description: "ecosystem" },
+        },
+        required: ["projectPath"],
+      },
+    },
+  },
+  // ── DS Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "csv_analyzer",
+      description: "Analyse statistique complète d'un CSV (colonnes, types, corrélations)",
+      parameters: {
+        type: "object",
+        properties: {
+          csvData: { type: "string", description: "csvData" },
+        },
+        required: ["csvData"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "json_path_query",
+      description: "Exécute une requête JSONPath sur un JSON complexe",
+      parameters: {
+        type: "object",
+        properties: {
+          jsonStr: { type: "string", description: "jsonStr" },
+          path: { type: "string", description: "path" },
+        },
+        required: ["jsonStr", "path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sql_query_explainer",
+      description: "Explique le plan d'exécution d'une requête SQL",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "data_anonymizer",
+      description: "Anonymise un dataset (k-anonymity, suppression PII)",
+      parameters: {
+        type: "object",
+        properties: {
+          data: { type: "string", description: "data" },
+          columnsToAnonymize: { type: "string", description: "columnsToAnonymize" },
+        },
+        required: ["data", "columnsToAnonymize"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "outlier_detector",
+      description: "Détecte les outliers (IQR, Z-score)",
+      parameters: {
+        type: "object",
+        properties: {
+          numbers: { type: "string", description: "numbers" },
+          method: { type: "string", description: "method" },
+        },
+        required: ["numbers"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "correlation_matrix",
+      description: "Calcule la matrice de corrélation d'un dataset",
+      parameters: {
+        type: "object",
+        properties: {
+          data: { type: "string", description: "data" },
+        },
+        required: ["data"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "histogram_generator",
+      description: "Génère un histogramme à partir de données numériques",
+      parameters: {
+        type: "object",
+        properties: {
+          numbers: { type: "string", description: "numbers" },
+          bins: { type: "number", description: "bins" },
+        },
+        required: ["numbers"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "scatter_plot_generator",
+      description: "Génère un scatter plot à partir de deux séries",
+      parameters: {
+        type: "object",
+        properties: {
+          xValues: { type: "string", description: "xValues" },
+          yValues: { type: "string", description: "yValues" },
+        },
+        required: ["xValues", "yValues"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "time_series_decompose",
+      description: "Décompose une série temporelle (tendance, saisonnalité)",
+      parameters: {
+        type: "object",
+        properties: {
+          values: { type: "string", description: "values" },
+          period: { type: "number", description: "period" },
+        },
+        required: ["values"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "moving_average_calc",
+      description: "Calcule les moyennes mobiles (SMA, EMA, WMA)",
+      parameters: {
+        type: "object",
+        properties: {
+          values: { type: "string", description: "values" },
+          window: { type: "number", description: "window" },
+          type: { type: "string", description: "type" },
+        },
+        required: ["values"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "linear_regression",
+      description: "Régression linéaire simple sur deux séries",
+      parameters: {
+        type: "object",
+        properties: {
+          xValues: { type: "string", description: "xValues" },
+          yValues: { type: "string", description: "yValues" },
+        },
+        required: ["xValues", "yValues"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hypothesis_test",
+      description: "Test d'hypothèse (t-test, chi-square)",
+      parameters: {
+        type: "object",
+        properties: {
+          sample1: { type: "string", description: "sample1" },
+          sample2: { type: "string", description: "sample2" },
+          testType: { type: "string", description: "testType" },
+        },
+        required: ["sample1", "sample2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confidence_interval",
+      description: "Calcule l'intervalle de confiance d'un échantillon",
+      parameters: {
+        type: "object",
+        properties: {
+          values: { type: "string", description: "values" },
+          confidence: { type: "number", description: "confidence" },
+        },
+        required: ["values"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "permutation_generator",
+      description: "Génère toutes les permutations d'un ensemble",
+      parameters: {
+        type: "object",
+        properties: {
+          items: { type: "string", description: "items" },
+          maxResults: { type: "number", description: "maxResults" },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "combinatorics_calc",
+      description: "Calculs combinatoires (arrangements, combinaisons)",
+      parameters: {
+        type: "object",
+        properties: {
+          n: { type: "number", description: "n" },
+          k: { type: "number", description: "k" },
+          type: { type: "string", description: "type" },
+        },
+        required: ["n", "k"],
+      },
+    },
+  },
+  // ── MATH Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "matrix_operations",
+      description: "Opérations matricielles (add, multiply, determinant, transpose)",
+      parameters: {
+        type: "object",
+        properties: {
+          matrixA: { type: "string", description: "matrixA" },
+          matrixB: { type: "string", description: "matrixB" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["matrixA", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "vector_calculus",
+      description: "Calcul vectoriel (dot, cross, magnitude, angle)",
+      parameters: {
+        type: "object",
+        properties: {
+          vectorA: { type: "string", description: "vectorA" },
+          vectorB: { type: "string", description: "vectorB" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["vectorA", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "derivative_calculator",
+      description: "Calcule la dérivée d'une expression symbolique",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "expression" },
+          variable: { type: "string", description: "variable" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "integral_calculator",
+      description: "Calcule l'intégrale d'une expression (Simpson's rule)",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "expression" },
+          variable: { type: "string", description: "variable" },
+          lower: { type: "number", description: "lower" },
+          upper: { type: "number", description: "upper" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "limit_calculator",
+      description: "Calcule la limite d'une fonction en un point",
+      parameters: {
+        type: "object",
+        properties: {
+          expression: { type: "string", description: "expression" },
+          variable: { type: "string", description: "variable" },
+          point: { type: "number", description: "point" },
+        },
+        required: ["expression"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "series_sum_calculator",
+      description: "Calcule la somme d'une série (arithmétique, géométrique)",
+      parameters: {
+        type: "object",
+        properties: {
+          seriesType: { type: "string", description: "seriesType" },
+          params: { type: "string", description: "params" },
+        },
+        required: ["seriesType", "params"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "prime_factorization",
+      description: "Décompose un nombre en facteurs premiers",
+      parameters: {
+        type: "object",
+        properties: {
+          n: { type: "number", description: "n" },
+        },
+        required: ["n"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gcd_lcm_calculator",
+      description: "Calcule PGCD et PPCM de plusieurs nombres",
+      parameters: {
+        type: "object",
+        properties: {
+          numbers: { type: "string", description: "numbers" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["numbers", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "modular_arithmetic",
+      description: "Arithmétique modulaire (power mod, inverse mod, CRT)",
+      parameters: {
+        type: "object",
+        properties: {
+          base: { type: "number", description: "base" },
+          exponent: { type: "number", description: "exponent" },
+          modulus: { type: "number", description: "modulus" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["base", "modulus", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "probability_distribution",
+      description: "Calcule les probabilités (binomiale, normale, Poisson)",
+      parameters: {
+        type: "object",
+        properties: {
+          distribution: { type: "string", description: "distribution" },
+          params: { type: "string", description: "params" },
+          x: { type: "number", description: "x" },
+        },
+        required: ["distribution", "params"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bayes_theorem",
+      description: "Calcule la probabilité via le théorème de Bayes",
+      parameters: {
+        type: "object",
+        properties: {
+          prior: { type: "number", description: "prior" },
+          likelihood: { type: "number", description: "likelihood" },
+          evidence: { type: "number", description: "evidence" },
+        },
+        required: ["prior", "likelihood", "evidence"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "trigonometry_solver",
+      description: "Résout des équations trigonométriques",
+      parameters: {
+        type: "object",
+        properties: {
+          operation: { type: "string", description: "operation" },
+          angle: { type: "number", description: "angle" },
+          unit: { type: "string", description: "unit" },
+        },
+        required: ["operation", "angle"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complex_number_ops",
+      description: "Opérations sur nombres complexes",
+      parameters: {
+        type: "object",
+        properties: {
+          aReal: { type: "number", description: "aReal" },
+          aImag: { type: "number", description: "aImag" },
+          bReal: { type: "number", description: "bReal" },
+          bImag: { type: "number", description: "bImag" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["aReal", "aImag", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "polynomial_solver",
+      description: "Trouve les racines d'un polynôme (réelles et complexes)",
+      parameters: {
+        type: "object",
+        properties: {
+          coefficients: { type: "string", description: "coefficients" },
+        },
+        required: ["coefficients"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "number_base_convert_advanced",
+      description: "Conversion entre bases (2, 8, 10, 16, 36, 64)",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "string", description: "value" },
+          fromBase: { type: "number", description: "fromBase" },
+          toBase: { type: "number", description: "toBase" },
+        },
+        required: ["value", "fromBase", "toBase"],
+      },
+    },
+  },
+  // ── NLP Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "text_extract_entities",
+      description: "Extraction d'entités nommées (NER) — emails, URLs, IPs, phones, dates",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_summarize_advanced",
+      description: "Résumé extractif d'un long texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          sentences: { type: "number", description: "sentences" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_keyword_extract",
+      description: "Extraction de mots-clés (TF-IDF, YAKE)",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          numKeywords: { type: "number", description: "numKeywords" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_readability_score",
+      description: "Score de lisibilité (Flesch-Kincaid, Gunning Fog, SMOG)",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_language_detect_advanced",
+      description: "Détection de langue avec confiance",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_transliterate",
+      description: "Translittération (Cyrillique→Latin, Arabe→Latin)",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          fromScript: { type: "string", description: "fromScript" },
+          toScript: { type: "string", description: "toScript" },
+        },
+        required: ["text", "fromScript", "toScript"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_phonetic_match",
+      description: "Correspondance phonétique (Soundex, Metaphone)",
+      parameters: {
+        type: "object",
+        properties: {
+          word1: { type: "string", description: "word1" },
+          word2: { type: "string", description: "word2" },
+        },
+        required: ["word1", "word2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_stem_lemmatize",
+      description: "Stemming et lemmatisation d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["text", "operation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_ngram_generator",
+      description: "Génère les n-grams d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          n: { type: "number", description: "n" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_regex_tester",
+      description: "Teste une regex avec groupes capturés",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "pattern" },
+          flags: { type: "string", description: "flags" },
+          testString: { type: "string", description: "testString" },
+        },
+        required: ["pattern", "testString"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_fuzzy_match",
+      description: "Correspondance floue (Levenshtein, Jaro-Winkler)",
+      parameters: {
+        type: "object",
+        properties: {
+          s1: { type: "string", description: "s1" },
+          s2: { type: "string", description: "s2" },
+        },
+        required: ["s1", "s2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_extract_emails",
+      description: "Extrait tous les emails d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_extract_urls",
+      description: "Extrait toutes les URLs d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_extract_ips",
+      description: "Extrait toutes les adresses IP d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_extract_phone_numbers",
+      description: "Extrait les numéros de téléphone d'un texte",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_redact_pii",
+      description: "Masque les PII dans un texte (emails, téléphones, SSN, CB)",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_markdown_to_plain",
+      description: "Convertit Markdown en texte brut",
+      parameters: {
+        type: "object",
+        properties: {
+          markdown: { type: "string", description: "markdown" },
+        },
+        required: ["markdown"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_html_to_markdown",
+      description: "Convertit HTML en Markdown",
+      parameters: {
+        type: "object",
+        properties: {
+          html: { type: "string", description: "html" },
+        },
+        required: ["html"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_csv_to_json",
+      description: "Convertit CSV en JSON",
+      parameters: {
+        type: "object",
+        properties: {
+          csv: { type: "string", description: "csv" },
+        },
+        required: ["csv"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_json_to_csv",
+      description: "Convertit JSON en CSV",
+      parameters: {
+        type: "object",
+        properties: {
+          jsonStr: { type: "string", description: "jsonStr" },
+        },
+        required: ["jsonStr"],
+      },
+    },
+  },
+  // ── SYS Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "process_monitor",
+      description: "Liste et surveille les processus (CPU, mémoire)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "disk_usage_analyzer",
+      description: "Analyse l'utilisation disque par répertoire",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "path" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "network_connections_list",
+      description: "Liste toutes les connexions réseau actives",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "firewall_rules_audit",
+      description: "Audite les règles firewall (iptables / ufw)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cron_jobs_list",
+      description: "Liste tous les cron jobs du système",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "env_vars_inspect",
+      description: "Inspecte les variables d'environnement (sans secrets)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_tail",
+      description: "Tail les logs système avec filtre",
+      parameters: {
+        type: "object",
+        properties: {
+          logPath: { type: "string", description: "logPath" },
+          lines: { type: "number", description: "lines" },
+        },
+        required: ["logPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "service_status_check",
+      description: "Vérifie le statut des services systemd",
+      parameters: {
+        type: "object",
+        properties: {
+          serviceName: { type: "string", description: "serviceName" },
+        },
+        required: ["serviceName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "docker_ps_audit",
+      description: "Audite les containers Docker (ports, volumes, env)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "docker_image_vuln_scan",
+      description: "Scan de vulnérabilités d'une image Docker (Trivy)",
+      parameters: {
+        type: "object",
+        properties: {
+          image: { type: "string", description: "image" },
+        },
+        required: ["image"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "k8s_pod_inspect",
+      description: "Inspecte les pods Kubernetes",
+      parameters: {
+        type: "object",
+        properties: {
+          namespace: { type: "string", description: "namespace" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "nginx_config_check",
+      description: "Valide la configuration Nginx",
+      parameters: {
+        type: "object",
+        properties: {
+          configPath: { type: "string", description: "configPath" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apache_config_check",
+      description: "Valide la configuration Apache",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssl_cert_expiry_check",
+      description: "Vérifie l'expiration des certificats SSL",
+      parameters: {
+        type: "object",
+        properties: {
+          domains: { type: "string", description: "domains" },
+        },
+        required: ["domains"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dns_propagation_check",
+      description: "Vérifie la propagation DNS mondiale",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "domain" },
+          recordType: { type: "string", description: "recordType" },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "load_average_monitor",
+      description: "Surveille la charge système (load average, CPU)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "memory_leak_detect",
+      description: "Détecte les fuites mémoire (heap snapshot)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "port_kill",
+      description: "Tue le processus qui occupe un port spécifique",
+      parameters: {
+        type: "object",
+        properties: {
+          port: { type: "number", description: "port" },
+        },
+        required: ["port"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "file_permission_audit",
+      description: "Audite les permissions de fichiers (SUID, world-writable)",
+      parameters: {
+        type: "object",
+        properties: {
+          dirPath: { type: "string", description: "dirPath" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ssh_key_audit",
+      description: "Audite les clés SSH (type, bits, known_hosts)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  // ── CLOUD Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "aws_s3_bucket_check",
+      description: "Vérifie si un bucket S3 est public/accessible",
+      parameters: {
+        type: "object",
+        properties: {
+          bucketName: { type: "string", description: "bucketName" },
+        },
+        required: ["bucketName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "aws_iam_audit",
+      description: "Audite les politiques IAM (permissions excessives)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "aws_security_groups_audit",
+      description: "Audite les security groups AWS",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "azure_ad_enum",
+      description: "Énumère les utilisateurs/groups Azure AD",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gcp_project_enum",
+      description: "Énumère les projets GCP et leurs APIs",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cloud_metadata_check",
+      description: "Vérifie si le cloud metadata endpoint est accessible (SSRF)",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "terraform_validate",
+      description: "Valide une configuration Terraform",
+      parameters: {
+        type: "object",
+        properties: {
+          dirPath: { type: "string", description: "dirPath" },
+        },
+        required: ["dirPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "terraform_plan_diff",
+      description: "Affiche le diff d'un terraform plan",
+      parameters: {
+        type: "object",
+        properties: {
+          dirPath: { type: "string", description: "dirPath" },
+        },
+        required: ["dirPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "kubernetes_manifest_validate",
+      description: "Valide un manifest Kubernetes",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "filePath" },
+        },
+        required: ["filePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "docker_compose_validate",
+      description: "Valide un docker-compose.yml",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "filePath" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "api_schema_diff",
+      description: "Compare deux schémas d'API (OpenAPI)",
+      parameters: {
+        type: "object",
+        properties: {
+          schema1: { type: "string", description: "schema1" },
+          schema2: { type: "string", description: "schema2" },
+        },
+        required: ["schema1", "schema2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "graphql_introspection_check",
+      description: "Vérifie si l'introspection GraphQL est activée",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "api_rate_limit_discover",
+      description: "Découvre les limites de rate limiting d'une API",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "webhook_signature_verify",
+      description: "Vérifie la signature d'un webhook (HMAC)",
+      parameters: {
+        type: "object",
+        properties: {
+          payload: { type: "string", description: "payload" },
+          signature: { type: "string", description: "signature" },
+          secret: { type: "string", description: "secret" },
+          algorithm: { type: "string", description: "algorithm" },
+        },
+        required: ["payload", "signature", "secret"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "oauth_flow_test",
+      description: "Teste un flow OAuth2 (authorization code, client credentials)",
+      parameters: {
+        type: "object",
+        properties: {
+          authorizationUrl: { type: "string", description: "authorizationUrl" },
+          tokenUrl: { type: "string", description: "tokenUrl" },
+          clientId: { type: "string", description: "clientId" },
+          scope: { type: "string", description: "scope" },
+        },
+        required: ["authorizationUrl", "tokenUrl", "clientId"],
+      },
+    },
+  },
+  // ── GAME Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "riot_account_lookup",
+      description: "Lookup d'un compte Riot (LoL, Valorant, TFT)",
+      parameters: {
+        type: "object",
+        properties: {
+          gameName: { type: "string", description: "gameName" },
+          tagLine: { type: "string", description: "tagLine" },
+        },
+        required: ["gameName", "tagLine"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lol_match_history",
+      description: "Historique de matchs League of Legends",
+      parameters: {
+        type: "object",
+        properties: {
+          summonerName: { type: "string", description: "summonerName" },
+        },
+        required: ["summonerName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lol_rank_check",
+      description: "Vérifie le rang LoL d'un joueur",
+      parameters: {
+        type: "object",
+        properties: {
+          summonerName: { type: "string", description: "summonerName" },
+          region: { type: "string", description: "region" },
+        },
+        required: ["summonerName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "csgo_stats_fetch",
+      description: "Récupère les stats CSGO/CS2 d'un joueur",
+      parameters: {
+        type: "object",
+        properties: {
+          steamId: { type: "string", description: "steamId" },
+        },
+        required: ["steamId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apex_legends_stats",
+      description: "Stats Apex Legends d'un joueur",
+      parameters: {
+        type: "object",
+        properties: {
+          playerName: { type: "string", description: "playerName" },
+          platform: { type: "string", description: "platform" },
+        },
+        required: ["playerName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "rocket_league_stats",
+      description: "Stats Rocket League d'un joueur",
+      parameters: {
+        type: "object",
+        properties: {
+          playerName: { type: "string", description: "playerName" },
+          platform: { type: "string", description: "platform" },
+        },
+        required: ["playerName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "osu_user_stats",
+      description: "Stats Osu! d'un joueur",
+      parameters: {
+        type: "object",
+        properties: {
+          username: { type: "string", description: "username" },
+        },
+        required: ["username"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "minecraft_server_status",
+      description: "Statut détaillé d'un serveur Minecraft",
+      parameters: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "host" },
+          port: { type: "number", description: "port" },
+        },
+        required: ["host"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "fortnite_item_shop",
+      description: "Récupère l'item shop Fortnite actuel",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "epic_games_free_games",
+      description: "Liste les jeux gratuits actuels sur Epic Games",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "twitch_stream_check",
+      description: "Vérifie si un streamer est en live + infos",
+      parameters: {
+        type: "object",
+        properties: {
+          streamerName: { type: "string", description: "streamerName" },
+        },
+        required: ["streamerName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "twitch_clip_create",
+      description: "Crée un clip d'un stream Twitch",
+      parameters: {
+        type: "object",
+        properties: {
+          broadcasterId: { type: "string", description: "broadcasterId" },
+        },
+        required: ["broadcasterId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spotify_track_search",
+      description: "Recherche un morceau sur Spotify",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spotify_playlist_analyze",
+      description: "Analyse une playlist Spotify (genres, BPM)",
+      parameters: {
+        type: "object",
+        properties: {
+          playlistId: { type: "string", description: "playlistId" },
+        },
+        required: ["playlistId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "boardgame_geek_search",
+      description: "Recherche sur BoardGameGeek",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "query" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  // ── SCI Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "physics_calculator",
+      description: "Calculs physiques (force, énergie, puissance, pression)",
+      parameters: {
+        type: "object",
+        properties: {
+          formula: { type: "string", description: "formula" },
+          values: { type: "string", description: "values" },
+        },
+        required: ["formula", "values"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ohms_law_calc",
+      description: "Calculs loi d'Ohm (V=IR, P=VI)",
+      parameters: {
+        type: "object",
+        properties: {
+          voltage: { type: "number", description: "voltage" },
+          current: { type: "number", description: "current" },
+          resistance: { type: "number", description: "resistance" },
+          power: { type: "number", description: "power" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "wavelength_frequency",
+      description: "Convertit longueur d'onde ↔ fréquence ↔ énergie",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "value" },
+          type: { type: "string", description: "type" },
+        },
+        required: ["value", "type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "radioactive_decay_calc",
+      description: "Calcule la décroissance radioactive (demi-vie)",
+      parameters: {
+        type: "object",
+        properties: {
+          initialAmount: { type: "number", description: "initialAmount" },
+          halfLife: { type: "number", description: "halfLife" },
+          time: { type: "number", description: "time" },
+        },
+        required: ["initialAmount", "halfLife", "time"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "unit_convert_scientific",
+      description: "Conversions scientifiques (SI, impérial, astronomique)",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "value" },
+          fromUnit: { type: "string", description: "fromUnit" },
+          toUnit: { type: "string", description: "toUnit" },
+        },
+        required: ["value", "fromUnit", "toUnit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "molar_mass_calc",
+      description: "Calcule la masse molaire d'une formule chimique",
+      parameters: {
+        type: "object",
+        properties: {
+          formula: { type: "string", description: "formula" },
+        },
+        required: ["formula"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "chemical_equation_balancer",
+      description: "Équilibre une équation chimique",
+      parameters: {
+        type: "object",
+        properties: {
+          equation: { type: "string", description: "equation" },
+        },
+        required: ["equation"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ph_calculator",
+      description: "Calcule le pH à partir de la concentration [H+]",
+      parameters: {
+        type: "object",
+        properties: {
+          concentration: { type: "number", description: "concentration" },
+          type: { type: "string", description: "type" },
+        },
+        required: ["concentration", "type"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ideal_gas_law",
+      description: "Calculs loi des gaz parfaits (PV=nRT)",
+      parameters: {
+        type: "object",
+        properties: {
+          pressure: { type: "number", description: "pressure" },
+          volume: { type: "number", description: "volume" },
+          moles: { type: "number", description: "moles" },
+          temperature: { type: "number", description: "temperature" },
+          solveFor: { type: "string", description: "solveFor" },
+        },
+        required: ["solveFor"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "kinematics_calc",
+      description: "Calculs cinématiques (vitesse, accélération, distance)",
+      parameters: {
+        type: "object",
+        properties: {
+          v0: { type: "number", description: "v0" },
+          a: { type: "number", description: "a" },
+          t: { type: "number", description: "t" },
+        },
+        required: ["v0", "a", "t"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "optics_calc",
+      description: "Calculs d'optique (lentilles, miroirs, réfraction)",
+      parameters: {
+        type: "object",
+        properties: {
+          focalLength: { type: "number", description: "focalLength" },
+          objectDistance: { type: "number", description: "objectDistance" },
+        },
+        required: ["focalLength", "objectDistance"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "electric_field_calc",
+      description: "Calcule le champ électrique d'une charge",
+      parameters: {
+        type: "object",
+        properties: {
+          charge: { type: "number", description: "charge" },
+          distance: { type: "number", description: "distance" },
+        },
+        required: ["charge", "distance"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "thermal_expansion_calc",
+      description: "Calcule la dilatation thermique d'un matériau",
+      parameters: {
+        type: "object",
+        properties: {
+          initialLength: { type: "number", description: "initialLength" },
+          coefficient: { type: "number", description: "coefficient" },
+          tempChange: { type: "number", description: "tempChange" },
+        },
+        required: ["initialLength", "coefficient", "tempChange"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "astronomical_distance",
+      description: "Convertit les distances astronomiques (UA, AL, parsecs)",
+      parameters: {
+        type: "object",
+        properties: {
+          value: { type: "number", description: "value" },
+          fromUnit: { type: "string", description: "fromUnit" },
+          toUnit: { type: "string", description: "toUnit" },
+        },
+        required: ["value", "fromUnit", "toUnit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "radioactive_decay_calc_2",
+      description: "Calcule la demi-vie restante d'un isotope",
+      parameters: {
+        type: "object",
+        properties: {
+          initialAmount: { type: "number", description: "initialAmount" },
+          halfLife: { type: "number", description: "halfLife" },
+          time: { type: "number", description: "time" },
+        },
+        required: ["initialAmount", "halfLife", "time"],
+      },
+    },
+  },
+  // ── GEO Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "geocode_reverse",
+      description: "Géocodage inverse (coordonnées → adresse)",
+      parameters: {
+        type: "object",
+        properties: {
+          lat: { type: "number", description: "lat" },
+          lon: { type: "number", description: "lon" },
+        },
+        required: ["lat", "lon"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "timezone_convert_advanced",
+      description: "Conversion de fuseau horaire avec liste de villes",
+      parameters: {
+        type: "object",
+        properties: {
+          datetime: { type: "string", description: "datetime" },
+          fromTz: { type: "string", description: "fromTz" },
+          toTz: { type: "string", description: "toTz" },
+        },
+        required: ["datetime", "fromTz", "toTz"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "distance_matrix",
+      description: "Matrice de distances entre multiples points",
+      parameters: {
+        type: "object",
+        properties: {
+          origins: { type: "string", description: "origins" },
+          destinations: { type: "string", description: "destinations" },
+        },
+        required: ["origins", "destinations"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "elevation_lookup",
+      description: "Récupère l'altitude d'un point (Open-Elevation API)",
+      parameters: {
+        type: "object",
+        properties: {
+          lat: { type: "number", description: "lat" },
+          lon: { type: "number", description: "lon" },
+        },
+        required: ["lat", "lon"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "country_bordering",
+      description: "Liste les pays frontaliers d'un pays donné",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "country" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "currency_by_country",
+      description: "Récupère la devise et le taux de change d'un pays",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "country" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "language_by_country",
+      description: "Liste les langues officielles d'un pays",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "country" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "capital_lookup",
+      description: "Récupère la capitale, population, superficie d'un pays",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "country" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "iso_country_code",
+      description: "Récupère les codes ISO 3166 d'un pays",
+      parameters: {
+        type: "object",
+        properties: {
+          country: { type: "string", description: "country" },
+        },
+        required: ["country"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sunrise_sunset_anywhere",
+      description: "Heure de lever/coucher du soleil pour toute position/date",
+      parameters: {
+        type: "object",
+        properties: {
+          lat: { type: "number", description: "lat" },
+          lon: { type: "number", description: "lon" },
+          date: { type: "string", description: "date" },
+        },
+        required: ["lat", "lon"],
+      },
+    },
+  },
+  // ── HEALTH Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "water_intake_calc",
+      description: "Calcule l'apport hydrique recommandé selon poids et activité",
+      parameters: {
+        type: "object",
+        properties: {
+          weightKg: { type: "number", description: "weightKg" },
+          activityMinutes: { type: "number", description: "activityMinutes" },
+        },
+        required: ["weightKg"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "heart_rate_zone",
+      description: "Calcule les zones de fréquence cardiaque pour l'entraînement",
+      parameters: {
+        type: "object",
+        properties: {
+          age: { type: "number", description: "age" },
+          restingHr: { type: "number", description: "restingHr" },
+        },
+        required: ["age"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "body_fat_percentage_calc",
+      description: "Estime le pourcentage de masse grasse (US Navy method)",
+      parameters: {
+        type: "object",
+        properties: {
+          gender: { type: "string", description: "gender" },
+          heightCm: { type: "number", description: "heightCm" },
+          neckCm: { type: "number", description: "neckCm" },
+          waistCm: { type: "number", description: "waistCm" },
+          hipCm: { type: "number", description: "hipCm" },
+        },
+        required: ["gender", "heightCm", "neckCm", "waistCm"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ideal_weight_calc",
+      description: "Calcule le poids idéal (Devine, Robinson, Miller, Hamwi)",
+      parameters: {
+        type: "object",
+        properties: {
+          gender: { type: "string", description: "gender" },
+          heightCm: { type: "number", description: "heightCm" },
+        },
+        required: ["gender", "heightCm"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pregnancy_due_date",
+      description: "Calcule la date prévue d'accouchement",
+      parameters: {
+        type: "object",
+        properties: {
+          lastPeriod: { type: "string", description: "lastPeriod" },
+        },
+        required: ["lastPeriod"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ovulation_calc",
+      description: "Calcule la période d'ovulation",
+      parameters: {
+        type: "object",
+        properties: {
+          lastPeriod: { type: "string", description: "lastPeriod" },
+          cycleLength: { type: "number", description: "cycleLength" },
+        },
+        required: ["lastPeriod"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "macro_nutrient_calc",
+      description: "Calcule les macros (protéines, glucides, lipides) selon objectifs",
+      parameters: {
+        type: "object",
+        properties: {
+          weightKg: { type: "number", description: "weightKg" },
+          goal: { type: "string", description: "goal" },
+          activityLevel: { type: "string", description: "activityLevel" },
+        },
+        required: ["weightKg"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sleep_quality_score",
+      description: "Score de qualité du sommeil selon durée et cycles",
+      parameters: {
+        type: "object",
+        properties: {
+          bedtime: { type: "string", description: "bedtime" },
+          wakeTime: { type: "string", description: "wakeTime" },
+          awakenings: { type: "number", description: "awakenings" },
+          deepSleepPct: { type: "number", description: "deepSleepPct" },
+        },
+        required: ["bedtime", "wakeTime"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "step_to_calorie",
+      description: "Convertit pas en calories brûlées",
+      parameters: {
+        type: "object",
+        properties: {
+          steps: { type: "number", description: "steps" },
+          weightKg: { type: "number", description: "weightKg" },
+        },
+        required: ["steps"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "hydration_tracker",
+      description: "Suit l'hydratation quotidienne",
+      parameters: {
+        type: "object",
+        properties: {
+          glassesToday: { type: "number", description: "glassesToday" },
+          weightKg: { type: "number", description: "weightKg" },
+        },
+        required: ["glassesToday"],
+      },
+    },
+  },
+  // ── CODE Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "code_complexity_analyzer",
+      description: "Analyse la complexité cyclomatique d'un fichier de code",
+      parameters: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "code" },
+          language: { type: "string", description: "language" },
+        },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "code_format_beautifier",
+      description: "Formate/beautifie du code (JS, TS, Python, Go, Rust, Java)",
+      parameters: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "code" },
+          language: { type: "string", description: "language" },
+        },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "code_minifier",
+      description: "Minifie du code (JS, CSS, HTML)",
+      parameters: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "code" },
+          language: { type: "string", description: "language" },
+        },
+        required: ["code"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "code_diff_unified",
+      description: "Génère un diff unifié entre deux snippets",
+      parameters: {
+        type: "object",
+        properties: {
+          code1: { type: "string", description: "code1" },
+          code2: { type: "string", description: "code2" },
+        },
+        required: ["code1", "code2"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "code_linter_check",
+      description: "Lint un snippet de code (ESLint, Pylint, tsc)",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "filePath" },
+          linter: { type: "string", description: "linter" },
+        },
+        required: ["filePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "regex_debugger",
+      description: "Debug une regex avec explication étape par étape",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "pattern" },
+          testString: { type: "string", description: "testString" },
+        },
+        required: ["pattern", "testString"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "api_endpoint_tester",
+      description: "Teste un endpoint API avec params custom",
+      parameters: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "url" },
+          method: { type: "string", description: "method" },
+          headers: { type: "string", description: "headers" },
+          body: { type: "string", description: "body" },
+        },
+        required: ["url"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "json_schema_validate",
+      description: "Valide un JSON contre un schéma JSON",
+      parameters: {
+        type: "object",
+        properties: {
+          jsonStr: { type: "string", description: "jsonStr" },
+          schemaStr: { type: "string", description: "schemaStr" },
+        },
+        required: ["jsonStr", "schemaStr"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "yaml_validate",
+      description: "Valide un YAML et le convertit en JSON",
+      parameters: {
+        type: "object",
+        properties: {
+          yamlStr: { type: "string", description: "yamlStr" },
+        },
+        required: ["yamlStr"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "xml_to_json",
+      description: "Convertit XML en JSON",
+      parameters: {
+        type: "object",
+        properties: {
+          xmlStr: { type: "string", description: "xmlStr" },
+        },
+        required: ["xmlStr"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sql_format_beautify",
+      description: "Formate/beautifie une requête SQL",
+      parameters: {
+        type: "object",
+        properties: {
+          sql: { type: "string", description: "sql" },
+        },
+        required: ["sql"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dockerfile_lint",
+      description: "Lint un Dockerfile (best practices)",
+      parameters: {
+        type: "object",
+        properties: {
+          dockerfile: { type: "string", description: "dockerfile" },
+        },
+        required: ["dockerfile"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "changelog_generator",
+      description: "Génère un changelog à partir de commits Git",
+      parameters: {
+        type: "object",
+        properties: {
+          commits: { type: "string", description: "commits" },
+          version: { type: "string", description: "version" },
+        },
+        required: ["commits"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sql_format_beautify_2",
+      description: "Formate une requête SQL (alias)",
+      parameters: {
+        type: "object",
+        properties: {
+          sql: { type: "string", description: "sql" },
+        },
+        required: ["sql"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dockerfile_lint_2",
+      description: "Lint un Dockerfile (alias)",
+      parameters: {
+        type: "object",
+        properties: {
+          dockerfile: { type: "string", description: "dockerfile" },
+        },
+        required: ["dockerfile"],
+      },
+    },
+  },
+  // ── MEDIA Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "image_resize_crop",
+      description: "Redimensionne/rogne une image (sharp)",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+          width: { type: "number", description: "width" },
+          height: { type: "number", description: "height" },
+          operation: { type: "string", description: "operation" },
+        },
+        required: ["imagePath", "width", "height"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "image_format_convert",
+      description: "Convertit une image (PNG, JPG, WebP, AVIF, GIF)",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+          targetFormat: { type: "string", description: "targetFormat" },
+        },
+        required: ["imagePath", "targetFormat"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "image_metadata_strip",
+      description: "Supprime les métadonnées d'une image",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+        },
+        required: ["imagePath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "image_collage_create",
+      description: "Crée un collage à partir de plusieurs images",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePaths: { type: "string", description: "imagePaths" },
+          cols: { type: "number", description: "cols" },
+          rows: { type: "number", description: "rows" },
+        },
+        required: ["imagePaths", "cols", "rows"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "audio_convert",
+      description: "Convertit un fichier audio (MP3, WAV, OGG, FLAC) via ffmpeg",
+      parameters: {
+        type: "object",
+        properties: {
+          inputPath: { type: "string", description: "inputPath" },
+          targetFormat: { type: "string", description: "targetFormat" },
+          bitrate: { type: "string", description: "bitrate" },
+        },
+        required: ["inputPath", "targetFormat"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "audio_extract_from_video",
+      description: "Extrait l'audio d'une vidéo via ffmpeg",
+      parameters: {
+        type: "object",
+        properties: {
+          videoPath: { type: "string", description: "videoPath" },
+          targetFormat: { type: "string", description: "targetFormat" },
+        },
+        required: ["videoPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "video_compress",
+      description: "Compresse une vidéo via ffmpeg",
+      parameters: {
+        type: "object",
+        properties: {
+          videoPath: { type: "string", description: "videoPath" },
+          crf: { type: "number", description: "crf" },
+        },
+        required: ["videoPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "video_gif_convert",
+      description: "Convertit une vidéo en GIF ou inversement",
+      parameters: {
+        type: "object",
+        properties: {
+          inputPath: { type: "string", description: "inputPath" },
+          outputFormat: { type: "string", description: "outputFormat" },
+          fps: { type: "number", description: "fps" },
+          width: { type: "number", description: "width" },
+        },
+        required: ["inputPath"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "text_to_speech_multi",
+      description: "TTS avec choix de voix et langue multiple",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "text" },
+          voice: { type: "string", description: "voice" },
+          language: { type: "string", description: "language" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "image_watermark_add",
+      description: "Ajoute un watermark à une image",
+      parameters: {
+        type: "object",
+        properties: {
+          imagePath: { type: "string", description: "imagePath" },
+          watermarkText: { type: "string", description: "watermarkText" },
+          opacity: { type: "number", description: "opacity" },
+        },
+        required: ["imagePath", "watermarkText"],
       },
     },
   },
@@ -5800,12 +9637,19 @@ async function tHashCrack(args: Record<string, unknown>): Promise<ToolCallResult
   if (!hash) return { success: false, data: "❌ Hash requis" };
   const algo = detectHashAlgorithm(hash);
   if (!algo) return { success: false, data: "❌ Format de hash non reconnu (MD5/SHA1/SHA256)" };
-  if (algo === "bcrypt" || algo === "argon2") return { success: false, data: `❌ ${algo} non supporté pour le crack par dictionnaire` };
+  if (algo === "bcrypt" || algo === "argon2")
+    return { success: false, data: `❌ ${algo} non supporté pour le crack par dictionnaire` };
   const result = await crackHash(hash);
   if (result.found) {
-    return { success: true, data: `🔓 Hash cracké (${result.algorithm}): **${result.plaintext}** — ${result.triedWords} mots testés en ${result.durationMs}ms` };
+    return {
+      success: true,
+      data: `🔓 Hash cracké (${result.algorithm}): **${result.plaintext}** — ${result.triedWords} mots testés en ${result.durationMs}ms`,
+    };
   }
-  return { success: false, data: `🔒 Hash non cracké (${result.algorithm}) — ${result.triedWords} mots testés en ${result.durationMs}ms` };
+  return {
+    success: false,
+    data: `🔒 Hash non cracké (${result.algorithm}) — ${result.triedWords} mots testés en ${result.durationMs}ms`,
+  };
 }
 
 async function tSqliDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -5813,7 +9657,10 @@ async function tSqliDetect(args: Record<string, unknown>): Promise<ToolCallResul
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = detectSqli(input);
   if (result.isVulnerable) {
-    return { success: true, data: `🚨 SQLi détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}` };
+    return {
+      success: true,
+      data: `🚨 SQLi détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}`,
+    };
   }
   return { success: true, data: "✅ Aucun pattern SQLi détecté" };
 }
@@ -5823,7 +9670,10 @@ async function tXssDetect(args: Record<string, unknown>): Promise<ToolCallResult
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = detectXss(input);
   if (result.isVulnerable) {
-    return { success: true, data: `🚨 XSS détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}` };
+    return {
+      success: true,
+      data: `🚨 XSS détecté — Sévérité: ${result.severity.toUpperCase()}\nPatterns: ${result.patterns.join(", ")}`,
+    };
   }
   return { success: true, data: "✅ Aucun pattern XSS détecté" };
 }
@@ -5832,8 +9682,14 @@ async function tPasswordAnalyze(args: Record<string, unknown>): Promise<ToolCall
   const password = String(args.password);
   if (!password) return { success: false, data: "❌ Mot de passe requis" };
   const result = analyzePassword(password);
-  const recStr = result.recommendations.length > 0 ? `\nRecommandations:\n${result.recommendations.map((r) => `- ${r}`).join("\n")}` : "";
-  const patternsStr = result.commonPatterns.length > 0 ? `\nPatterns faibles: ${result.commonPatterns.join(", ")}` : "";
+  const recStr =
+    result.recommendations.length > 0
+      ? `\nRecommandations:\n${result.recommendations.map((r) => `- ${r}`).join("\n")}`
+      : "";
+  const patternsStr =
+    result.commonPatterns.length > 0
+      ? `\nPatterns faibles: ${result.commonPatterns.join(", ")}`
+      : "";
   return {
     success: true,
     data: `🔑 Analyse: **${result.rating}** (${result.score}/100)\nLongueur: ${result.length} — Entropie: ${result.entropy} bits — Charset: ${result.charsetSize}\nTemps de crack estimé: ${result.estimatedCrackTime}\nMin: ${result.hasLower ? "✅" : "❌"} Maj: ${result.hasUpper ? "✅" : "❌"} Chiffres: ${result.hasNumbers ? "✅" : "❌"} Symboles: ${result.hasSymbols ? "✅" : "❌"}${patternsStr}${recStr}`,
@@ -5845,10 +9701,16 @@ async function tSubdomainEnum(args: Record<string, unknown>): Promise<ToolCallRe
   if (!domain) return { success: false, data: "❌ Domaine requis" };
   const result = await enumerateSubdomains(domain);
   if (result.found.length === 0) {
-    return { success: true, data: `🔍 Sous-domaines ${domain}: Aucun trouvé (${result.tried} testés en ${result.durationMs}ms)` };
+    return {
+      success: true,
+      data: `🔍 Sous-domaines ${domain}: Aucun trouvé (${result.tried} testés en ${result.durationMs}ms)`,
+    };
   }
   const foundStr = result.found.map((s) => `${s.subdomain} → ${s.ips.join(", ")}`).join("\n");
-  return { success: true, data: `🔍 Sous-domaines ${domain}: ${result.found.length} trouvés (${result.tried} testés en ${result.durationMs}ms)\n${foundStr}` };
+  return {
+    success: true,
+    data: `🔍 Sous-domaines ${domain}: ${result.found.length} trouvés (${result.tried} testés en ${result.durationMs}ms)\n${foundStr}`,
+  };
 }
 
 async function tReverseIp(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -5877,16 +9739,23 @@ async function tMacVendor(args: Record<string, unknown>): Promise<ToolCallResult
   if (!mac) return { success: false, data: "❌ MAC requise" };
   const result = lookupMacVendor(mac);
   if (result.vendor) {
-    return { success: true, data: `🏷️ MAC ${result.mac}: **${result.vendor}** (OUI: ${result.oui})` };
+    return {
+      success: true,
+      data: `🏷️ MAC ${result.mac}: **${result.vendor}** (OUI: ${result.oui})`,
+    };
   }
-  return { success: false, data: `🏷️ MAC ${result.mac}: ❌ Fabricant inconnu (OUI: ${result.oui})` };
+  return {
+    success: false,
+    data: `🏷️ MAC ${result.mac}: ❌ Fabricant inconnu (OUI: ${result.oui})`,
+  };
 }
 
 async function tHstsCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
   const domain = String(args.domain);
   if (!domain) return { success: false, data: "❌ Domaine requis" };
   const result = await checkHsts(domain);
-  if (!result.success) return { success: false, data: `🔒 HSTS ${domain}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `🔒 HSTS ${domain}: ❌ ${result.error || "Échec"}` };
   return {
     success: true,
     data: `🔒 HSTS ${domain}:\nHSTS: ${result.hasHsts ? "✅" : "❌"}\nMax-Age: ${result.maxAge || "N/A"}\nIncludeSubDomains: ${result.includeSubDomains ? "✅" : "❌"}\nPreload: ${result.preload ? "✅" : "❌"}`,
@@ -5897,9 +9766,13 @@ async function tWafDetect(args: Record<string, unknown>): Promise<ToolCallResult
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await detectWaf(url);
-  if (!result.success) return { success: false, data: `🧱 WAF detect ${url}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `🧱 WAF detect ${url}: ❌ ${result.error || "Échec"}` };
   if (result.detected) {
-    return { success: true, data: `🧱 WAF detect ${url}: **${result.wafName}**\nPreuves: ${result.evidence.join(", ")}` };
+    return {
+      success: true,
+      data: `🧱 WAF detect ${url}: **${result.wafName}**\nPreuves: ${result.evidence.join(", ")}`,
+    };
   }
   return { success: true, data: `🧱 WAF detect ${url}: Aucun WAF détecté` };
 }
@@ -5908,17 +9781,27 @@ async function tRobotsParse(args: Record<string, unknown>): Promise<ToolCallResu
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await parseRobotsTxt(url);
-  if (!result.success) return { success: false, data: `🤖 robots.txt ${url}: ❌ ${result.error || "Introuvable"}` };
-  const rulesStr = result.rules.map((r) => `UA: ${r.userAgent}\n  Disallow: ${r.disallow.join(", ") || "none"}\n  Allow: ${r.allow.join(", ") || "none"}`).join("\n");
+  if (!result.success)
+    return { success: false, data: `🤖 robots.txt ${url}: ❌ ${result.error || "Introuvable"}` };
+  const rulesStr = result.rules
+    .map(
+      (r) =>
+        `UA: ${r.userAgent}\n  Disallow: ${r.disallow.join(", ") || "none"}\n  Allow: ${r.allow.join(", ") || "none"}`,
+    )
+    .join("\n");
   const sitemapsStr = result.sitemaps.length > 0 ? `\nSitemaps: ${result.sitemaps.join(", ")}` : "";
-  return { success: true, data: `🤖 robots.txt ${url}:\n${rulesStr}${sitemapsStr}\nCrawl-delay: ${result.crawlDelay || "N/A"}` };
+  return {
+    success: true,
+    data: `🤖 robots.txt ${url}:\n${rulesStr}${sitemapsStr}\nCrawl-delay: ${result.crawlDelay || "N/A"}`,
+  };
 }
 
 async function tSitemapParse(args: Record<string, unknown>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await parseSitemap(url);
-  if (!result.success) return { success: false, data: `🗺️ sitemap.xml ${url}: ❌ ${result.error || "Introuvable"}` };
+  if (!result.success)
+    return { success: false, data: `🗺️ sitemap.xml ${url}: ❌ ${result.error || "Introuvable"}` };
   const urlsStr = result.urls.slice(0, 20).join("\n");
   const more = result.urls.length > 20 ? `\n... et ${result.urls.length - 20} autres` : "";
   return { success: true, data: `🗺️ sitemap.xml ${url}: ${result.count} URLs\n${urlsStr}${more}` };
@@ -5928,14 +9811,20 @@ async function tHttpStatusRef(args: Record<string, unknown>): Promise<ToolCallRe
   const code = typeof args.code === "number" ? args.code : parseInt(String(args.code), 10);
   const info = getHttpStatusInfo(code);
   if (!info) return { success: false, data: `❌ Code ${code} non trouvé dans la référence` };
-  return { success: true, data: `📋 HTTP ${info.code} (${info.category}): **${info.name}** — ${info.description}` };
+  return {
+    success: true,
+    data: `📋 HTTP ${info.code} (${info.category}): **${info.name}** — ${info.description}`,
+  };
 }
 
 async function tPortRef(args: Record<string, unknown>): Promise<ToolCallResult> {
   const port = typeof args.port === "number" ? args.port : parseInt(String(args.port), 10);
   const info = getPortInfo(port);
   if (!info) return { success: false, data: `❌ Port ${port} non trouvé dans la référence` };
-  return { success: true, data: `🔌 Port ${info.port} (${info.protocol}): **${info.service}** — ${info.description}` };
+  return {
+    success: true,
+    data: `🔌 Port ${info.port} (${info.protocol}): **${info.service}** — ${info.description}`,
+  };
 }
 
 // ─── Utility Toolkit Handlers ────────────────────────────────────────────────
@@ -5952,10 +9841,11 @@ async function tTimestampConvert(args: Record<string, unknown>): Promise<ToolCal
 
 async function tBaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
   const input = String(args.input);
-  const fromBase = typeof args.fromBase === "number" ? args.fromBase as 2 | 8 | 10 | 16 : 10;
+  const fromBase = typeof args.fromBase === "number" ? (args.fromBase as 2 | 8 | 10 | 16) : 10;
   if (!input) return { success: false, data: "❌ Nombre requis" };
   const result = convertBase(input, fromBase);
-  if (!result.valid) return { success: false, data: `❌ Nombre invalide pour la base ${result.fromBase}` };
+  if (!result.valid)
+    return { success: false, data: `❌ Nombre invalide pour la base ${result.fromBase}` };
   return {
     success: true,
     data: `🔢 Conversion (${result.fromBase}):\nDécimal: ${result.decimal}\nBinaire: ${result.binary}\nOctal: ${result.octal}\nHexadécimal: ${result.hexadecimal}`,
@@ -5976,8 +9866,14 @@ async function tRegexTest(args: Record<string, unknown>): Promise<ToolCallResult
   if (!pattern) return { success: false, data: "❌ Pattern regex requis" };
   const result = testRegex(pattern, flags, testString);
   if (!result.isValid) return { success: false, data: `❌ Regex invalide: ${result.error}` };
-  if (result.matches.length === 0) return { success: true, data: "✅ Regex valide — aucun match trouvé" };
-  const matchesStr = result.matches.map((m) => `"${m.match}" à l'index ${m.index}${m.groups.length > 0 ? ` (groups: ${m.groups.join(", ")})` : ""}`).join("\n");
+  if (result.matches.length === 0)
+    return { success: true, data: "✅ Regex valide — aucun match trouvé" };
+  const matchesStr = result.matches
+    .map(
+      (m) =>
+        `"${m.match}" à l'index ${m.index}${m.groups.length > 0 ? ` (groups: ${m.groups.join(", ")})` : ""}`,
+    )
+    .join("\n");
   return { success: true, data: `✅ ${result.matches.length} match(s):\n${matchesStr}` };
 }
 
@@ -5987,7 +9883,10 @@ async function tJsonFormat(args: Record<string, unknown>): Promise<ToolCallResul
   if (!json) return { success: false, data: "❌ JSON requis" };
   const result = minify ? minifyJson(json) : formatJson(json);
   if (!result.valid) return { success: false, data: `❌ JSON invalide: ${result.error}` };
-  return { success: true, data: `📝 JSON ${minify ? "minifié" : "formaté"}:\n\`\`\`json\n${result.output.slice(0, 2000)}\n\`\`\`` };
+  return {
+    success: true,
+    data: `📝 JSON ${minify ? "minifié" : "formaté"}:\n\`\`\`json\n${result.output.slice(0, 2000)}\n\`\`\``,
+  };
 }
 
 async function tBinaryConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6019,7 +9918,10 @@ async function tCaesarCipher(args: Record<string, unknown>): Promise<ToolCallRes
   const shift = typeof args.shift === "number" ? args.shift : parseInt(String(args.shift), 10) || 0;
   if (!text) return { success: false, data: "❌ Texte requis" };
   const output = caesarCipher(text, shift);
-  return { success: true, data: `🔐 Caesar (shift=${shift}):\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
+  return {
+    success: true,
+    data: `🔐 Caesar (shift=${shift}):\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\``,
+  };
 }
 
 async function tRot13(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6042,7 +9944,10 @@ async function tHashGen(args: Record<string, unknown>): Promise<ToolCallResult> 
 async function tLoremGen(args: Record<string, unknown>): Promise<ToolCallResult> {
   const paragraphs = typeof args.paragraphs === "number" ? args.paragraphs : 1;
   const output = generateLoremIpsum(paragraphs);
-  return { success: true, data: `📝 Lorem Ipsum (${paragraphs} paragraphe(s)):\n${output.slice(0, 2000)}` };
+  return {
+    success: true,
+    data: `📝 Lorem Ipsum (${paragraphs} paragraphe(s)):\n${output.slice(0, 2000)}`,
+  };
 }
 
 async function tColorConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6065,8 +9970,15 @@ async function tMetasploit(args: Record<string, unknown>): Promise<ToolCallResul
   const options = args.options as Record<string, string> | undefined;
   if (!moduleName || !target) return { success: false, data: "❌ Module et target requis" };
   const result = await runMetasploit(moduleType, moduleName, target, options);
-  if (!result.success) return { success: false, data: `💥 Metasploit ${result.module}: ❌ ${result.error || "Échec"}` };
-  return { success: true, data: `💥 Metasploit ${result.module} → ${target}:\n\`\`\`\n${result.output.slice(0, 3000)}\n\`\`\`` };
+  if (!result.success)
+    return {
+      success: false,
+      data: `💥 Metasploit ${result.module}: ❌ ${result.error || "Échec"}`,
+    };
+  return {
+    success: true,
+    data: `💥 Metasploit ${result.module} → ${target}:\n\`\`\`\n${result.output.slice(0, 3000)}\n\`\`\``,
+  };
 }
 
 async function tTsharkCapture(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6074,10 +9986,14 @@ async function tTsharkCapture(args: Record<string, unknown>): Promise<ToolCallRe
   const duration = typeof args.duration === "number" ? args.duration : 10;
   const filter = args.filter ? String(args.filter) : undefined;
   const result = await captureTraffic(iface, duration, filter);
-  if (!result.success) return { success: false, data: `🦈 tshark ${iface}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `🦈 tshark ${iface}: ❌ ${result.error || "Échec"}` };
   const protoStr = result.protocols.join(", ") || "N/A";
   const talkerStr = result.topTalkers.map((t) => `${t.ip}: ${t.packets} pkts`).join("\n") || "N/A";
-  return { success: true, data: `🦈 tshark ${iface} (${duration}s):\nPackets: ${result.packetCount}\nProtocoles: ${protoStr}\nTop talkers:\n${talkerStr}` };
+  return {
+    success: true,
+    data: `🦈 tshark ${iface} (${duration}s):\nPackets: ${result.packetCount}\nProtocoles: ${protoStr}\nTop talkers:\n${talkerStr}`,
+  };
 }
 
 async function tHydraBrute(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6087,7 +10003,11 @@ async function tHydraBrute(args: Record<string, unknown>): Promise<ToolCallResul
   const passlist = args.passlist ? String(args.passlist) : undefined;
   if (!target || !service) return { success: false, data: "❌ Target et service requis" };
   const result = await runHydra(target, service, userlist, passlist);
-  if (!result.success) return { success: false, data: `🔐 Hydra ${service}://${target}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return {
+      success: false,
+      data: `🔐 Hydra ${service}://${target}: ❌ ${result.error || "Échec"}`,
+    };
   if (result.found) {
     const credsStr = result.credentials.map((c) => `${c.username}:${c.password}`).join("\n");
     return { success: true, data: `🔐 Hydra ${service}://${target}: ✅ CRACKÉ\n${credsStr}` };
@@ -6104,9 +10024,13 @@ async function tSqlmapScan(args: Record<string, unknown>): Promise<ToolCallResul
   if (typeof args.level === "number") opts.level = args.level;
   if (typeof args.risk === "number") opts.risk = args.risk;
   const result = await runSqlmap(url, opts);
-  if (!result.success) return { success: false, data: `💉 SQLmap ${url}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `💉 SQLmap ${url}: ❌ ${result.error || "Échec"}` };
   if (result.vulnerable) {
-    return { success: true, data: `💉 SQLmap ${url}: 🚨 VULNÉRABLE\nDBMS: ${result.dbms || "N/A"}\nInjections: ${result.injectionPoints.join(", ")}` };
+    return {
+      success: true,
+      data: `💉 SQLmap ${url}: 🚨 VULNÉRABLE\nDBMS: ${result.dbms || "N/A"}\nInjections: ${result.injectionPoints.join(", ")}`,
+    };
   }
   return { success: true, data: `💉 SQLmap ${url}: ✅ Non vulnérable` };
 }
@@ -6115,9 +10039,13 @@ async function tSearchsploit(args: Record<string, unknown>): Promise<ToolCallRes
   const query = String(args.query || "");
   if (!query) return { success: false, data: "❌ Requête requise" };
   const result = await searchExploit(query);
-  if (!result.success || result.exploits.length === 0) return { success: true, data: `🔍 searchsploit "${query}": Aucun exploit trouvé` };
+  if (!result.success || result.exploits.length === 0)
+    return { success: true, data: `🔍 searchsploit "${query}": Aucun exploit trouvé` };
   const exploitsStr = result.exploits.map((e) => `#${e.id} [${e.type}] ${e.title}`).join("\n");
-  return { success: true, data: `🔍 searchsploit "${query}": ${result.count} résultat(s)\n${exploitsStr}` };
+  return {
+    success: true,
+    data: `🔍 searchsploit "${query}": ${result.count} résultat(s)\n${exploitsStr}`,
+  };
 }
 
 async function tHashcatCrack(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6127,7 +10055,10 @@ async function tHashcatCrack(args: Record<string, unknown>): Promise<ToolCallRes
   if (!hash) return { success: false, data: "❌ Hash requis" };
   const result = await runHashcat(hash, mode, wordlist);
   if (result.cracked) {
-    return { success: true, data: `🔓 Hashcat (mode ${mode}): ✅ CRACKÉ → **${result.plaintext}**` };
+    return {
+      success: true,
+      data: `🔓 Hashcat (mode ${mode}): ✅ CRACKÉ → **${result.plaintext}**`,
+    };
   }
   return { success: false, data: `🔒 Hashcat (mode ${mode}): ❌ Non cracké` };
 }
@@ -6137,10 +10068,14 @@ async function tSnmpWalk(args: Record<string, unknown>): Promise<ToolCallResult>
   const community = args.community ? String(args.community) : "public";
   if (!target) return { success: false, data: "❌ Target IP requise" };
   const result = await snmpWalk(target, community);
-  if (!result.success) return { success: false, data: `📡 SNMP ${target}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `📡 SNMP ${target}: ❌ ${result.error || "Échec"}` };
   const sysStr = result.systemInfo.map((s) => `${s.name}: ${s.value}`).join("\n") || "N/A";
   const ifaceStr = result.interfaces.map((i) => `eth${i.index}: ${i.name}`).join("\n") || "N/A";
-  return { success: true, data: `📡 SNMP ${target} (community: ${community}):\nSystem:\n${sysStr}\nInterfaces:\n${ifaceStr}` };
+  return {
+    success: true,
+    data: `📡 SNMP ${target} (community: ${community}):\nSystem:\n${sysStr}\nInterfaces:\n${ifaceStr}`,
+  };
 }
 
 async function tEnum4linuxScan(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6150,7 +10085,10 @@ async function tEnum4linuxScan(args: Record<string, unknown>): Promise<ToolCallR
   if (!result.success) return { success: false, data: `🖥️ enum4linux ${target}: ❌ Échec` };
   const sharesStr = result.shares.join(", ") || "N/A";
   const usersStr = result.users.join(", ") || "N/A";
-  return { success: true, data: `🖥️ enum4linux ${target}:\nOS: ${result.osInfo || "N/A"}\nShares: ${sharesStr}\nUsers: ${usersStr}` };
+  return {
+    success: true,
+    data: `🖥️ enum4linux ${target}:\nOS: ${result.osInfo || "N/A"}\nShares: ${sharesStr}\nUsers: ${usersStr}`,
+  };
 }
 
 async function tHarvesterOsint(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6158,11 +10096,15 @@ async function tHarvesterOsint(args: Record<string, unknown>): Promise<ToolCallR
   const sources = args.sources ? String(args.sources) : "all";
   if (!domain) return { success: false, data: "❌ Domaine requis" };
   const result = await runHarvester(domain, sources);
-  if (!result.success) return { success: false, data: `📧 theHarvester ${domain}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `📧 theHarvester ${domain}: ❌ ${result.error || "Échec"}` };
   const emailsStr = result.emails.join("\n") || "N/A";
   const hostsStr = result.hosts.join("\n") || "N/A";
   const ipsStr = result.ips.join(", ") || "N/A";
-  return { success: true, data: `📧 theHarvester ${domain}:\nEmails (${result.emails.length}):\n${emailsStr}\n\nHosts (${result.hosts.length}):\n${hostsStr}\n\nIPs: ${ipsStr}` };
+  return {
+    success: true,
+    data: `📧 theHarvester ${domain}:\nEmails (${result.emails.length}):\n${emailsStr}\n\nHosts (${result.hosts.length}):\n${hostsStr}\n\nIPs: ${ipsStr}`,
+  };
 }
 
 async function tCrackmapexecScan(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6175,16 +10117,23 @@ async function tCrackmapexecScan(args: Record<string, unknown>): Promise<ToolCal
   const result = await runCrackMapExec(target, service, opts);
   if (!result.success) return { success: false, data: `⚔️ CME ${service}://${target}: ❌ Échec` };
   const findingsStr = result.findings.join("\n") || "N/A";
-  return { success: true, data: `⚔️ CrackMapExec ${service}://${target}:\nHosts actifs: ${result.hostsAlive}\n${findingsStr}` };
+  return {
+    success: true,
+    data: `⚔️ CrackMapExec ${service}://${target}:\nHosts actifs: ${result.hostsAlive}\n${findingsStr}`,
+  };
 }
 
 async function tWhatwebScan(args: Record<string, unknown>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await runWhatWeb(url);
-  if (!result.success) return { success: false, data: `🌐 WhatWeb ${url}: ❌ ${result.error || "Échec"}` };
+  if (!result.success)
+    return { success: false, data: `🌐 WhatWeb ${url}: ❌ ${result.error || "Échec"}` };
   const techStr = result.technologies.join(", ") || "N/A";
-  return { success: true, data: `🌐 WhatWeb ${url}:\nTitle: ${result.title || "N/A"}\nServer: ${result.server || "N/A"}\nTechnologies: ${techStr}` };
+  return {
+    success: true,
+    data: `🌐 WhatWeb ${url}:\nTitle: ${result.title || "N/A"}\nServer: ${result.server || "N/A"}\nTechnologies: ${techStr}`,
+  };
 }
 
 async function tGobusterScan(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6193,10 +10142,15 @@ async function tGobusterScan(args: Record<string, unknown>): Promise<ToolCallRes
   const extensions = args.extensions ? String(args.extensions) : undefined;
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await runGobuster(url, wordlist, extensions);
-  if (!result.success) return { success: false, data: `📂 Gobuster ${url}: ❌ ${result.error || "Échec"}` };
-  if (result.foundPaths.length === 0) return { success: true, data: `📂 Gobuster ${url}: Aucun chemin trouvé` };
+  if (!result.success)
+    return { success: false, data: `📂 Gobuster ${url}: ❌ ${result.error || "Échec"}` };
+  if (result.foundPaths.length === 0)
+    return { success: true, data: `📂 Gobuster ${url}: Aucun chemin trouvé` };
   const pathsStr = result.foundPaths.map((p) => `${p.path} → ${p.status}`).join("\n");
-  return { success: true, data: `📂 Gobuster ${url}: ${result.foundPaths.length} chemins trouvés\n${pathsStr}` };
+  return {
+    success: true,
+    data: `📂 Gobuster ${url}: ${result.foundPaths.length} chemins trouvés\n${pathsStr}`,
+  };
 }
 
 async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6205,8 +10159,10 @@ async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResu
   const scripts = Array.isArray(args.scripts) ? args.scripts.map(String) : undefined;
   if (!target) return { success: false, data: "❌ Target requise" };
   const result = await runNmapNse(target, scriptCategory, scripts);
-  if (!result.success) return { success: false, data: `🔍 Nmap NSE ${target}: ❌ ${result.error || "Échec"}` };
-  if (result.scripts.length === 0) return { success: true, data: `🔍 Nmap NSE ${target}: Aucun résultat de script` };
+  if (!result.success)
+    return { success: false, data: `🔍 Nmap NSE ${target}: ❌ ${result.error || "Échec"}` };
+  if (result.scripts.length === 0)
+    return { success: true, data: `🔍 Nmap NSE ${target}: Aucun résultat de script` };
   const scriptsStr = result.scripts.map((s) => `${s.name}: ${s.output}`).join("\n");
   return { success: true, data: `🔍 Nmap NSE ${target} (${scriptCategory}):\n${scriptsStr}` };
 }
@@ -6239,11 +10195,17 @@ async function tAesCrypto(args: Record<string, unknown>): Promise<ToolCallResult
     const tag = String(args.tag || "");
     const result = aesDecrypt(input, password, iv, tag);
     if (!result.success) return { success: false, data: `🔒 AES decrypt: ❌ ${result.error}` };
-    return { success: true, data: `🔒 AES decrypt:\n\`\`\`\n${result.output.slice(0, 2000)}\n\`\`\`` };
+    return {
+      success: true,
+      data: `🔒 AES decrypt:\n\`\`\`\n${result.output.slice(0, 2000)}\n\`\`\``,
+    };
   }
   const result = aesEncrypt(input, password);
   if (!result.success) return { success: false, data: `🔒 AES encrypt: ❌ ${result.error}` };
-  return { success: true, data: `🔒 AES encrypt:\nCiphertext: \`${result.output}\`\nIV: \`${result.iv}\`\nTag: \`${result.tag}\`` };
+  return {
+    success: true,
+    data: `🔒 AES encrypt:\nCiphertext: \`${result.output}\`\nIV: \`${result.iv}\`\nTag: \`${result.tag}\``,
+  };
 }
 
 async function tFileHash(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6251,7 +10213,10 @@ async function tFileHash(args: Record<string, unknown>): Promise<ToolCallResult>
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await hashFile(filePath);
   if (!result.success) return { success: false, data: `📄 Hash: ❌ ${result.error}` };
-  return { success: true, data: `📄 ${result.file} (${result.size} bytes):\nMD5: ${result.md5}\nSHA1: ${result.sha1}\nSHA256: ${result.sha256}` };
+  return {
+    success: true,
+    data: `📄 ${result.file} (${result.size} bytes):\nMD5: ${result.md5}\nSHA1: ${result.sha1}\nSHA256: ${result.sha256}`,
+  };
 }
 
 async function tFileMetadata(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6259,7 +10224,10 @@ async function tFileMetadata(args: Record<string, unknown>): Promise<ToolCallRes
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await getFileMetadata(filePath);
   if (!result.success) return { success: false, data: `📄 Metadata: ❌ ${result.error}` };
-  return { success: true, data: `📄 ${result.file}:\nTaille: ${result.size} bytes\nType: ${result.mimeType}\nExtension: ${result.extension}\nCréé: ${result.created}\nModifié: ${result.modified}` };
+  return {
+    success: true,
+    data: `📄 ${result.file}:\nTaille: ${result.size} bytes\nType: ${result.mimeType}\nExtension: ${result.extension}\nCréé: ${result.created}\nModifié: ${result.modified}`,
+  };
 }
 
 async function tPiiScan(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6284,14 +10252,20 @@ async function tEntropyAnalyze(args: Record<string, unknown>): Promise<ToolCallR
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = analyzeEntropy(input);
-  return { success: true, data: `📊 Entropie: ${result.entropy} bits/char\nCharset: ${result.charsetSize}\nÉvaluation: ${result.rating}` };
+  return {
+    success: true,
+    data: `📊 Entropie: ${result.entropy} bits/char\nCharset: ${result.charsetSize}\nÉvaluation: ${result.rating}`,
+  };
 }
 
 async function tHexDump(args: Record<string, unknown>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = hexDump(input);
-  return { success: true, data: `📋 Hex dump (${result.lines} lines):\n\`\`\`\n${result.dump.slice(0, 2000)}\n\`\`\`` };
+  return {
+    success: true,
+    data: `📋 Hex dump (${result.lines} lines):\n\`\`\`\n${result.dump.slice(0, 2000)}\n\`\`\``,
+  };
 }
 
 async function tStringExtract(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6299,7 +10273,10 @@ async function tStringExtract(args: Record<string, unknown>): Promise<ToolCallRe
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = extractStrings(input);
   if (result.count === 0) return { success: true, data: "🔍 Aucune chaîne trouvée" };
-  return { success: true, data: `🔍 ${result.count} chaînes trouvées:\n${result.strings.join("\n").slice(0, 2000)}` };
+  return {
+    success: true,
+    data: `🔍 ${result.count} chaînes trouvées:\n${result.strings.join("\n").slice(0, 2000)}`,
+  };
 }
 
 async function tPeHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6307,7 +10284,10 @@ async function tPeHeader(args: Record<string, unknown>): Promise<ToolCallResult>
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await parsePeHeader(filePath);
   if (!result.success) return { success: false, data: `🪟 PE Header: ❌ ${result.error}` };
-  return { success: true, data: `🪟 PE Header:\nMachine: ${result.machine}\nSections: ${result.sections}\nTimestamp: ${result.timestamp}\nCharacteristics: ${result.characteristics.join(", ")}` };
+  return {
+    success: true,
+    data: `🪟 PE Header:\nMachine: ${result.machine}\nSections: ${result.sections}\nTimestamp: ${result.timestamp}\nCharacteristics: ${result.characteristics.join(", ")}`,
+  };
 }
 
 async function tElfHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6315,7 +10295,10 @@ async function tElfHeader(args: Record<string, unknown>): Promise<ToolCallResult
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await parseElfHeader(filePath);
   if (!result.success) return { success: false, data: `🐧 ELF Header: ❌ ${result.error}` };
-  return { success: true, data: `🐧 ELF Header:\nClass: ${result.class}\nEndian: ${result.endian}\nMachine: ${result.machine}\nType: ${result.type}\nEntry: ${result.entry}\nSections: ${result.sections}` };
+  return {
+    success: true,
+    data: `🐧 ELF Header:\nClass: ${result.class}\nEndian: ${result.endian}\nMachine: ${result.machine}\nType: ${result.type}\nEntry: ${result.entry}\nSections: ${result.sections}`,
+  };
 }
 
 async function tApkInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6324,16 +10307,25 @@ async function tApkInfo(args: Record<string, unknown>): Promise<ToolCallResult> 
   const result = await getApkInfo(filePath);
   if (!result.success) return { success: false, data: `📱 APK Info: ❌ ${result.error}` };
   const permsStr = result.permissions.length > 0 ? result.permissions.join("\n") : "N/A";
-  return { success: true, data: `📱 APK ${result.file} (${result.size} bytes):\nPackage: ${result.packageName || "N/A"}\nVersion: ${result.version || "N/A"}\nMin SDK: ${result.minSdk || "N/A"}\nPermissions:\n${permsStr}` };
+  return {
+    success: true,
+    data: `📱 APK ${result.file} (${result.size} bytes):\nPackage: ${result.packageName || "N/A"}\nVersion: ${result.version || "N/A"}\nMin SDK: ${result.minSdk || "N/A"}\nPermissions:\n${permsStr}`,
+  };
 }
 
 async function tDepVulnCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await checkDependencyVulns(filePath);
-  if (result.count === 0) return { success: true, data: `✅ ${result.file}: Aucune vulnérabilité connue détectée` };
-  const vulnsStr = result.vulnerabilities.map((v) => `[${v.severity.toUpperCase()}] ${v.pattern}`).join("\n");
-  return { success: true, data: `🚨 ${result.file}: ${result.count} vulnérabilité(s):\n${vulnsStr}` };
+  if (result.count === 0)
+    return { success: true, data: `✅ ${result.file}: Aucune vulnérabilité connue détectée` };
+  const vulnsStr = result.vulnerabilities
+    .map((v) => `[${v.severity.toUpperCase()}] ${v.pattern}`)
+    .join("\n");
+  return {
+    success: true,
+    data: `🚨 ${result.file}: ${result.count} vulnérabilité(s):\n${vulnsStr}`,
+  };
 }
 
 async function tStegoDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6341,7 +10333,10 @@ async function tStegoDetect(args: Record<string, unknown>): Promise<ToolCallResu
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await detectSteganography(filePath);
   if (!result.success) return { success: false, data: `🖼️ Stego detect: ❌ ${result.error}` };
-  return { success: true, data: `🖼️ Stego ${result.file}:\nSuspect: ${result.suspicious ? "⚠️ OUI" : "✅ Non"}\nLSB variance: ${result.lsbVariance}\nRaison: ${result.reason}` };
+  return {
+    success: true,
+    data: `🖼️ Stego ${result.file}:\nSuspect: ${result.suspicious ? "⚠️ OUI" : "✅ Non"}\nLSB variance: ${result.lsbVariance}\nRaison: ${result.reason}`,
+  };
 }
 
 // ─── Data & Text Toolkit Handlers ────────────────────────────────────────────
@@ -6350,7 +10345,8 @@ async function tUnitConvert(args: Record<string, unknown>): Promise<ToolCallResu
   const value = typeof args.value === "number" ? args.value : parseFloat(String(args.value));
   const fromUnit = String(args.fromUnit || "");
   const category = String(args.category || "");
-  if (isNaN(value) || !fromUnit || !category) return { success: false, data: "❌ value, fromUnit et category requis" };
+  if (isNaN(value) || !fromUnit || !category)
+    return { success: false, data: "❌ value, fromUnit et category requis" };
   const result = convertUnit(value, fromUnit, category);
   if (!result.success) return { success: false, data: `❌ ${result.error}` };
   const convStr = result.conversions.map((c) => `${c.value} ${c.unit}`).join("\n");
@@ -6378,7 +10374,10 @@ async function tStatsCalc(args: Record<string, unknown>): Promise<ToolCallResult
   const values = Array.isArray(args.values) ? args.values.map(Number).filter((n) => !isNaN(n)) : [];
   if (values.length === 0) return { success: false, data: "❌ Liste de nombres requise" };
   const result = calculateStats(values);
-  return { success: true, data: `📊 Stats (${result.count} valeurs):\nMean: ${result.mean}\nMedian: ${result.median}\nStd: ${result.std}\nVariance: ${result.variance}\nMin: ${result.min}\nMax: ${result.max}\nRange: ${result.range}\nQ1: ${result.q1}\nQ3: ${result.q3}\nSum: ${result.sum}` };
+  return {
+    success: true,
+    data: `📊 Stats (${result.count} valeurs):\nMean: ${result.mean}\nMedian: ${result.median}\nStd: ${result.std}\nVariance: ${result.variance}\nMin: ${result.min}\nMax: ${result.max}\nRange: ${result.range}\nQ1: ${result.q1}\nQ3: ${result.q3}\nSum: ${result.sum}`,
+  };
 }
 
 async function tSentimentAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6387,14 +10386,20 @@ async function tSentimentAnalyze(args: Record<string, unknown>): Promise<ToolCal
   const result = analyzeSentiment(text);
   const posStr = result.positiveWords.join(", ") || "N/A";
   const negStr = result.negativeWords.join(", ") || "N/A";
-  return { success: true, data: `💭 Sentiment: **${result.rating}** (score: ${result.score})\nPositif: ${posStr}\nNégatif: ${negStr}` };
+  return {
+    success: true,
+    data: `💭 Sentiment: **${result.rating}** (score: ${result.score})\nPositif: ${posStr}\nNégatif: ${negStr}`,
+  };
 }
 
 async function tLanguageDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = detectLanguage(text);
-  return { success: true, data: `🌐 Langue détectée: **${result.detected}** (confiance: ${result.confidence * 100}%)` };
+  return {
+    success: true,
+    data: `🌐 Langue détectée: **${result.detected}** (confiance: ${result.confidence * 100}%)`,
+  };
 }
 
 async function tWordFreq(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6402,7 +10407,10 @@ async function tWordFreq(args: Record<string, unknown>): Promise<ToolCallResult>
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = wordFrequency(text);
   const topStr = result.topWords.map((w) => `${w.word}: ${w.count}x`).join("\n");
-  return { success: true, data: `📝 ${result.totalWords} mots, ${result.uniqueWords} uniques:\n${topStr}` };
+  return {
+    success: true,
+    data: `📝 ${result.totalWords} mots, ${result.uniqueWords} uniques:\n${topStr}`,
+  };
 }
 
 async function tCaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6410,7 +10418,10 @@ async function tCaseConvert(args: Record<string, unknown>): Promise<ToolCallResu
   if (!input) return { success: false, data: "❌ Texte requis" };
   const result = convertCase(input);
   if (!result.success) return { success: false, data: "❌ Conversion impossible" };
-  return { success: true, data: `🔤 Case:\ncamelCase: ${result.camelCase}\nPascalCase: ${result.pascalCase}\nsnake_case: ${result.snakeCase}\nkebab-case: ${result.kebabCase}\nCONSTANT_CASE: ${result.constantCase}\nlower: ${result.lower}\nUPPER: ${result.upper}\nTitle Case: ${result.titleCase}` };
+  return {
+    success: true,
+    data: `🔤 Case:\ncamelCase: ${result.camelCase}\nPascalCase: ${result.pascalCase}\nsnake_case: ${result.snakeCase}\nkebab-case: ${result.kebabCase}\nCONSTANT_CASE: ${result.constantCase}\nlower: ${result.lower}\nUPPER: ${result.upper}\nTitle Case: ${result.titleCase}`,
+  };
 }
 
 async function tSlugGen(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6433,7 +10444,10 @@ async function tCronParse(args: Record<string, unknown>): Promise<ToolCallResult
   const result = parseCron(expression);
   if (!result.success) return { success: false, data: `❌ ${result.error}` };
   const fieldsStr = result.fields.map((f) => `${f.field}: ${f.value} → ${f.meaning}`).join("\n");
-  return { success: true, data: `⏰ Cron \`${result.expression}\`:\n${result.description}\n\n${fieldsStr}\n\nProchaine exécution: ${result.nextRun}` };
+  return {
+    success: true,
+    data: `⏰ Cron \`${result.expression}\`:\n${result.description}\n\n${fieldsStr}\n\nProchaine exécution: ${result.nextRun}`,
+  };
 }
 
 async function tIpRangeGen(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6441,7 +10455,10 @@ async function tIpRangeGen(args: Record<string, unknown>): Promise<ToolCallResul
   if (!cidr) return { success: false, data: "❌ CIDR requis" };
   const result = generateIpRange(cidr);
   if (!result.success) return { success: false, data: `❌ ${result.error}` };
-  return { success: true, data: `🌐 ${result.cidr}: ${result.count} IPs\n${result.ips.slice(0, 20).join("\n")}${result.count > 20 ? `\n... et ${result.count - 20} autres` : ""}` };
+  return {
+    success: true,
+    data: `🌐 ${result.cidr}: ${result.count} IPs\n${result.ips.slice(0, 20).join("\n")}${result.count > 20 ? `\n... et ${result.count - 20} autres` : ""}`,
+  };
 }
 
 async function tNumToWords(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6455,14 +10472,20 @@ async function tPasswordGen(args: Record<string, unknown>): Promise<ToolCallResu
   const count = typeof args.count === "number" ? args.count : 1;
   const length = typeof args.length === "number" ? args.length : 16;
   const result = generatePasswords(count, length);
-  return { success: true, data: `🔐 Password (${result.length} chars, ${result.strength}):\n${result.passwords.join("\n")}` };
+  return {
+    success: true,
+    data: `🔐 Password (${result.length} chars, ${result.strength}):\n${result.passwords.join("\n")}`,
+  };
 }
 
 async function tDataSizeFormat(args: Record<string, unknown>): Promise<ToolCallResult> {
   const bytes = typeof args.bytes === "number" ? args.bytes : parseInt(String(args.bytes), 10);
   if (isNaN(bytes)) return { success: false, data: "❌ Taille en bytes requise" };
   const result = formatDataSize(bytes);
-  return { success: true, data: `💾 ${result.bytes} bytes:\nBinaire: ${result.binary}\nDécimal: ${result.decimal}` };
+  return {
+    success: true,
+    data: `💾 ${result.bytes} bytes:\nBinaire: ${result.binary}\nDécimal: ${result.decimal}`,
+  };
 }
 
 async function tTextDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
@@ -6471,5 +10494,2599 @@ async function tTextDiff(args: Record<string, unknown>): Promise<ToolCallResult>
   if (!text1 || !text2) return { success: false, data: "❌ text1 et text2 requis" };
   const result = textDiff(text1, text2);
   const diffStr = result.diff.slice(0, 30).join("\n");
-  return { success: true, data: `📋 Diff (similarity: ${result.similarity}%):\n+${result.additions} -${result.deletions} =${result.unchanged}\n\`\`\`diff\n${diffStr}\n\`\`\`` };
+  return {
+    success: true,
+    data: `📋 Diff (similarity: ${result.similarity}%):\n+${result.additions} -${result.deletions} =${result.unchanged}\n\`\`\`diff\n${diffStr}\n\`\`\``,
+  };
+}
+
+// ─── NEW TOOLKIT HANDLERS (241 tools) ──────────────────────────────────────
+
+function tHashCrackDictionary(args: Record<string, unknown>): ToolCallResult {
+  const hash = String(args.hash || "");
+  const hashType = String(args.hashType || "");
+  const wordlist = String(args.wordlist || "");
+  try {
+    const result = hashCrackDictionary(hash, hashType, wordlist);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tHashIdentifyAdvanced(args: Record<string, unknown>): ToolCallResult {
+  const hash = String(args.hash || "");
+  try {
+    const result = hashIdentifyAdvanced(hash);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tGenerateHmac(args: Record<string, unknown>): ToolCallResult {
+  const message = String(args.message || "");
+  const key = String(args.key || "");
+  const algorithm = String(args.algorithm || "");
+  try {
+    const result = generateHmac(message, key, algorithm);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCryptoAesDecrypt(args: Record<string, unknown>): ToolCallResult {
+  const encryptedData = String(args.encryptedData || "");
+  const key = String(args.key || "");
+  const iv = String(args.iv || "");
+  const mode = String(args.mode || "");
+  try {
+    const result = cryptoAesDecrypt(encryptedData, key, iv, mode);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRsaKeypairGenerate(args: Record<string, unknown>): ToolCallResult {
+  const bits = Number(args.bits || 0);
+  try {
+    const result = rsaKeypairGenerate(bits);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRsaEncrypt(args: Record<string, unknown>): ToolCallResult {
+  const message = String(args.message || "");
+  const publicKeyPem = String(args.publicKeyPem || "");
+  try {
+    const result = rsaEncrypt(message, publicKeyPem);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRsaDecrypt(args: Record<string, unknown>): ToolCallResult {
+  const encryptedBase64 = String(args.encryptedBase64 || "");
+  const privateKeyPem = String(args.privateKeyPem || "");
+  try {
+    const result = rsaDecrypt(encryptedBase64, privateKeyPem);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPgpEncrypt(args: Record<string, unknown>): ToolCallResult {
+  const message = String(args.message || "");
+  const recipientKey = String(args.recipientKey || "");
+  try {
+    const result = pgpEncrypt(message, recipientKey);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPgpDecrypt(args: Record<string, unknown>): ToolCallResult {
+  const encryptedMessage = String(args.encryptedMessage || "");
+  try {
+    const result = pgpDecrypt(encryptedMessage);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tStegoExtractLsb(args: Record<string, unknown>): ToolCallResult {
+  const imagePath = String(args.imagePath || "");
+  try {
+    const result = stegoExtractLsb(imagePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tStegoHideLsb(args: Record<string, unknown>): ToolCallResult {
+  const imagePath = String(args.imagePath || "");
+  const message = String(args.message || "");
+  const outputFile = String(args.outputFile || "");
+  try {
+    const result = stegoHideLsb(imagePath, message, outputFile);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSteganalysisZscore(args: Record<string, unknown>): ToolCallResult {
+  const imagePath = String(args.imagePath || "");
+  try {
+    const result = steganalysisZscore(imagePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tXorCipher(args: Record<string, unknown>): ToolCallResult {
+  const data = String(args.data || "");
+  const key = String(args.key || "");
+  try {
+    const result = xorCipher(data, key);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tFrequencyAnalysis(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = frequencyAnalysis(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRandomTokenGenerator(args: Record<string, unknown>): ToolCallResult {
+  const length = Number(args.length || 0);
+  const encoding = String(args.encoding || "");
+  try {
+    const result = randomTokenGenerator(length, encoding);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCertificateParse(args: Record<string, unknown>): ToolCallResult {
+  const certPem = String(args.certPem || "");
+  try {
+    const result = certificateParse(certPem);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSmtpRelayTest(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = smtpRelayTest(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSmtpEnumVrfy(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  const usernames = String(args.usernames || "");
+  try {
+    const result = smtpEnumVrfy(host, port, usernames);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tFtpAnonymousCheck(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = ftpAnonymousCheck(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSmbEnumShares(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  try {
+    const result = smbEnumShares(host);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSmbVersionDetect(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  try {
+    const result = smbVersionDetect(host);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLdapEnum(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = ldapEnum(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tKerberosUserEnum(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const realm = String(args.realm || "");
+  const usernames = String(args.usernames || "");
+  try {
+    const result = kerberosUserEnum(host, realm, usernames);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRdpCheck(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = rdpCheck(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSshVersionScan(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = sshVersionScan(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTelnetBannerGrab(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = telnetBannerGrab(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNetSnmpWalk(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  const community = String(args.community || "");
+  try {
+    const result = netSnmpWalk(host, community);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNtpMonlist(args: Record<string, unknown>): ToolCallResult {
+  const host = String(args.host || "");
+  try {
+    const result = ntpMonlist(host);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDnsZoneTransfer(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await dnsZoneTransfer(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDnsSubdomainBrute(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  const wordlist = String(args.wordlist || "");
+  try {
+    const result = await dnsSubdomainBrute(domain, wordlist);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDnsRebindingCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await dnsRebindingCheck(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tIpv6Scan(args: Record<string, unknown>): ToolCallResult {
+  const interfaceName = String(args.interfaceName || "");
+  try {
+    const result = ipv6Scan(interfaceName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tVlanHopTest(args: Record<string, unknown>): ToolCallResult {
+  const interfaceName = String(args.interfaceName || "");
+  try {
+    const result = vlanHopTest(interfaceName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tWifiDeauthDetect(args: Record<string, unknown>): ToolCallResult {
+  const interfaceName = String(args.interfaceName || "");
+  const duration = Number(args.duration || 0);
+  try {
+    const result = wifiDeauthDetect(interfaceName, duration);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tArpPoisonDetect(args: Record<string, unknown>): ToolCallResult {
+  const interfaceName = String(args.interfaceName || "");
+  try {
+    const result = arpPoisonDetect(interfaceName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNetworkMapGenerate(args: Record<string, unknown>): ToolCallResult {
+  const subnet = String(args.subnet || "");
+  try {
+    const result = networkMapGenerate(subnet);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tWaybackMachineLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await waybackMachineLookup(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tWaybackDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  const timestamp1 = String(args.timestamp1 || "");
+  const timestamp2 = String(args.timestamp2 || "");
+  try {
+    const result = await waybackDiff(url, timestamp1, timestamp2);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCrtshSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await crtshSearch(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tHaveibeenpwnedCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const email = String(args.email || "");
+  try {
+    const result = await haveibeenpwnedCheck(email);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDehashedSearch(args: Record<string, unknown>): ToolCallResult {
+  const query = String(args.query || "");
+  try {
+    const result = dehashedSearch(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tHunterIoEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await hunterIoEmail(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tPhoneNumberLookupFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const phone = String(args.phone || "");
+  try {
+    const result = await phoneNumberLookupFull(phone);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSocialMediaChecker(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const username = String(args.username || "");
+  try {
+    const result = await socialMediaChecker(username);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tGravatarLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const email = String(args.email || "");
+  try {
+    const result = await gravatarLookup(email);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tGithubDorksSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "");
+  try {
+    const result = await githubDorksSearch(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tGithubCommitHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const owner = String(args.owner || "");
+  const repo = String(args.repo || "");
+  try {
+    const result = await githubCommitHistory(owner, repo);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tGoogleDorksGenerator(args: Record<string, unknown>): ToolCallResult {
+  const domain = String(args.domain || "");
+  try {
+    const result = googleDorksGenerator(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tGoogleCacheLookup(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = googleCacheLookup(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tReverseImageSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imageUrl = String(args.imageUrl || "");
+  try {
+    const result = await reverseImageSearch(imageUrl);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tExifExtractFull(args: Record<string, unknown>): ToolCallResult {
+  const imagePath = String(args.imagePath || "");
+  try {
+    const result = exifExtractFull(imagePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMetadataStrip(args: Record<string, unknown>): ToolCallResult {
+  const filePath = String(args.filePath || "");
+  try {
+    const result = metadataStrip(filePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDarkwebMonitor(args: Record<string, unknown>): ToolCallResult {
+  const email = String(args.email || "");
+  try {
+    const result = darkwebMonitor(email);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tLeakedSourceSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "");
+  try {
+    const result = await leakedSourceSearch(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tBitcoinAddressAnalysis(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const address = String(args.address || "");
+  try {
+    const result = await bitcoinAddressAnalysis(address);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tEthereumContractVerify(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const address = String(args.address || "");
+  try {
+    const result = await ethereumContractVerify(address);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDomainWhoisHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await domainWhoisHistory(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tReverseWhois(args: Record<string, unknown>): ToolCallResult {
+  const email = String(args.email || "");
+  try {
+    const result = reverseWhois(email);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDnsHistoryPassive(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await dnsHistoryPassive(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tBreachParse(args: Record<string, unknown>): ToolCallResult {
+  const filePath = String(args.filePath || "");
+  const format = String(args.format || "");
+  try {
+    const result = breachParse(filePath, format);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tMalwareSampleLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const hash = String(args.hash || "");
+  try {
+    const result = await malwareSampleLookup(hash);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOwaspZapScan(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = owaspZapScan(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNucleiScan(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const templates = String(args.templates || "");
+  try {
+    const result = nucleiScan(url, templates);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tFfufFuzz(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const wordlist = String(args.wordlist || "");
+  const mode = String(args.mode || "");
+  try {
+    const result = ffufFuzz(url, wordlist, mode);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tWfuzzScan(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const wordlist = String(args.wordlist || "");
+  try {
+    const result = wfuzzScan(url, wordlist);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tWpscanFull(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = wpscanFull(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tJoomscan(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = joomscan(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDroopescan(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = droopescan(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSslLabsGrade(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  try {
+    const result = await sslLabsGrade(domain);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSecurityHeadersFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await securityHeadersFull(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCorsMisconfigCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await corsMisconfigCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tOpenRedirectCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await openRedirectCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tXssPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
+  const context = String(args.context || "");
+  try {
+    const result = xssPayloadGenerator(context);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSqliPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
+  const dbType = String(args.dbType || "");
+  try {
+    const result = sqliPayloadGenerator(dbType);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCommandInjectionTest(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const param = String(args.param || "");
+  try {
+    const result = commandInjectionTest(url, param);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tXxeVulnCheck(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  try {
+    const result = xxeVulnCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSsrfCheck(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const param = String(args.param || "");
+  try {
+    const result = ssrfCheck(url, param);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLfiRfiCheck(args: Record<string, unknown>): ToolCallResult {
+  const url = String(args.url || "");
+  const param = String(args.param || "");
+  try {
+    const result = lfiRfiCheck(url, param);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCsrfTokenCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await csrfTokenCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tRateLimitCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await rateLimitCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDependencyAudit(args: Record<string, unknown>): ToolCallResult {
+  const projectPath = String(args.projectPath || "");
+  const ecosystem = String(args.ecosystem || "");
+  try {
+    const result = dependencyAudit(projectPath, ecosystem);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCsvAnalyzer(args: Record<string, unknown>): ToolCallResult {
+  const csvData = String(args.csvData || "");
+  try {
+    const result = csvAnalyzer(csvData);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tJsonPathQuery(args: Record<string, unknown>): ToolCallResult {
+  const jsonStr = String(args.jsonStr || "");
+  const path = String(args.path || "");
+  try {
+    const result = jsonPathQuery(jsonStr, path);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSqlQueryExplainer(args: Record<string, unknown>): ToolCallResult {
+  const query = String(args.query || "");
+  try {
+    const result = sqlQueryExplainer(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDataAnonymizer(args: Record<string, unknown>): ToolCallResult {
+  const data = String(args.data || "");
+  const columnsToAnonymize = String(args.columnsToAnonymize || "");
+  try {
+    const result = dataAnonymizer(data, columnsToAnonymize);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOutlierDetector(args: Record<string, unknown>): ToolCallResult {
+  const numbers = String(args.numbers || "");
+  const method = String(args.method || "");
+  try {
+    const result = outlierDetector(numbers, method);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCorrelationMatrix(args: Record<string, unknown>): ToolCallResult {
+  const data = String(args.data || "");
+  try {
+    const result = correlationMatrix(data);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tHistogramGenerator(args: Record<string, unknown>): ToolCallResult {
+  const numbers = String(args.numbers || "");
+  const bins = Number(args.bins || 0);
+  try {
+    const result = histogramGenerator(numbers, bins);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tScatterPlotGenerator(args: Record<string, unknown>): ToolCallResult {
+  const xValues = String(args.xValues || "");
+  const yValues = String(args.yValues || "");
+  try {
+    const result = scatterPlotGenerator(xValues, yValues);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTimeSeriesDecompose(args: Record<string, unknown>): ToolCallResult {
+  const values = String(args.values || "");
+  const period = Number(args.period || 0);
+  try {
+    const result = timeSeriesDecompose(values, period);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMovingAverageCalc(args: Record<string, unknown>): ToolCallResult {
+  const values = String(args.values || "");
+  const window = Number(args.window || 0);
+  const type = String(args.type || "");
+  try {
+    const result = movingAverageCalc(values, window, type);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLinearRegression(args: Record<string, unknown>): ToolCallResult {
+  const xValues = String(args.xValues || "");
+  const yValues = String(args.yValues || "");
+  try {
+    const result = linearRegression(xValues, yValues);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tHypothesisTest(args: Record<string, unknown>): ToolCallResult {
+  const sample1 = String(args.sample1 || "");
+  const sample2 = String(args.sample2 || "");
+  const testType = String(args.testType || "");
+  try {
+    const result = hypothesisTest(sample1, sample2, testType);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tConfidenceInterval(args: Record<string, unknown>): ToolCallResult {
+  const values = String(args.values || "");
+  const confidence = Number(args.confidence || 0);
+  try {
+    const result = confidenceInterval(values, confidence);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPermutationGenerator(args: Record<string, unknown>): ToolCallResult {
+  const items = String(args.items || "");
+  const maxResults = Number(args.maxResults || 0);
+  try {
+    const result = permutationGenerator(items, maxResults);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCombinatoricsCalc(args: Record<string, unknown>): ToolCallResult {
+  const n = Number(args.n || 0);
+  const k = Number(args.k || 0);
+  const type = String(args.type || "");
+  try {
+    const result = combinatoricsCalc(n, k, type);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMatrixOperations(args: Record<string, unknown>): ToolCallResult {
+  const matrixA = String(args.matrixA || "");
+  const matrixB = String(args.matrixB || "");
+  const operation = String(args.operation || "");
+  try {
+    const result = matrixOperations(matrixA, matrixB, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tVectorCalculus(args: Record<string, unknown>): ToolCallResult {
+  const vectorA = String(args.vectorA || "");
+  const vectorB = String(args.vectorB || "");
+  const operation = String(args.operation || "");
+  try {
+    const result = vectorCalculus(vectorA, vectorB, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDerivativeCalculator(args: Record<string, unknown>): ToolCallResult {
+  const expression = String(args.expression || "");
+  const variable = String(args.variable || "");
+  try {
+    const result = derivativeCalculator(expression, variable);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tIntegralCalculator(args: Record<string, unknown>): ToolCallResult {
+  const expression = String(args.expression || "");
+  const variable = String(args.variable || "");
+  const lower = Number(args.lower || 0);
+  const upper = Number(args.upper || 0);
+  try {
+    const result = integralCalculator(expression, variable, lower, upper);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLimitCalculator(args: Record<string, unknown>): ToolCallResult {
+  const expression = String(args.expression || "");
+  const variable = String(args.variable || "");
+  const point = Number(args.point || 0);
+  try {
+    const result = limitCalculator(expression, variable, point);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSeriesSumCalculator(args: Record<string, unknown>): ToolCallResult {
+  const seriesType = String(args.seriesType || "");
+  const params = String(args.params || "");
+  try {
+    const result = seriesSumCalculator(seriesType, params);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPrimeFactorization(args: Record<string, unknown>): ToolCallResult {
+  const n = Number(args.n || 0);
+  try {
+    const result = primeFactorization(n);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tGcdLcmCalculator(args: Record<string, unknown>): ToolCallResult {
+  const numbers = String(args.numbers || "");
+  const operation = String(args.operation || "");
+  try {
+    const result = gcdLcmCalculator(numbers, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tModularArithmetic(args: Record<string, unknown>): ToolCallResult {
+  const base = Number(args.base || 0);
+  const exponent = Number(args.exponent || 0);
+  const modulus = Number(args.modulus || 0);
+  const operation = String(args.operation || "");
+  try {
+    const result = modularArithmetic(base, exponent, modulus, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tProbabilityDistribution(args: Record<string, unknown>): ToolCallResult {
+  const distribution = String(args.distribution || "");
+  const params = String(args.params || "");
+  const x = Number(args.x || 0);
+  try {
+    const result = probabilityDistribution(distribution, params, x);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tBayesTheorem(args: Record<string, unknown>): ToolCallResult {
+  const prior = Number(args.prior || 0);
+  const likelihood = Number(args.likelihood || 0);
+  const evidence = Number(args.evidence || 0);
+  try {
+    const result = bayesTheorem(prior, likelihood, evidence);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTrigonometrySolver(args: Record<string, unknown>): ToolCallResult {
+  const operation = String(args.operation || "");
+  const angle = Number(args.angle || 0);
+  const unit = String(args.unit || "");
+  try {
+    const result = trigonometrySolver(operation, angle, unit);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tComplexNumberOps(args: Record<string, unknown>): ToolCallResult {
+  const aReal = Number(args.aReal || 0);
+  const aImag = Number(args.aImag || 0);
+  const bReal = Number(args.bReal || 0);
+  const bImag = Number(args.bImag || 0);
+  const operation = String(args.operation || "");
+  try {
+    const result = complexNumberOps(aReal, aImag, bReal, bImag, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPolynomialSolver(args: Record<string, unknown>): ToolCallResult {
+  const coefficients = String(args.coefficients || "");
+  try {
+    const result = polynomialSolver(coefficients);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNumberBaseConvertAdvanced(args: Record<string, unknown>): ToolCallResult {
+  const value = String(args.value || "");
+  const fromBase = Number(args.fromBase || 0);
+  const toBase = Number(args.toBase || 0);
+  try {
+    const result = numberBaseConvertAdvanced(value, fromBase, toBase);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextExtractEntities(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textExtractEntities(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextSummarizeAdvanced(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const sentences = Number(args.sentences || 0);
+  try {
+    const result = textSummarizeAdvanced(text, sentences);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextKeywordExtract(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const numKeywords = Number(args.numKeywords || 0);
+  try {
+    const result = textKeywordExtract(text, numKeywords);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextReadabilityScore(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textReadabilityScore(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextLanguageDetectAdvanced(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textLanguageDetectAdvanced(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextTransliterate(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const fromScript = String(args.fromScript || "");
+  const toScript = String(args.toScript || "");
+  try {
+    const result = textTransliterate(text, fromScript, toScript);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextPhoneticMatch(args: Record<string, unknown>): ToolCallResult {
+  const word1 = String(args.word1 || "");
+  const word2 = String(args.word2 || "");
+  try {
+    const result = textPhoneticMatch(word1, word2);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextStemLemmatize(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const operation = String(args.operation || "");
+  try {
+    const result = textStemLemmatize(text, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextNgramGenerator(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const n = Number(args.n || 0);
+  try {
+    const result = textNgramGenerator(text, n);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextRegexTester(args: Record<string, unknown>): ToolCallResult {
+  const pattern = String(args.pattern || "");
+  const flags = String(args.flags || "");
+  const testString = String(args.testString || "");
+  try {
+    const result = textRegexTester(pattern, flags, testString);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextFuzzyMatch(args: Record<string, unknown>): ToolCallResult {
+  const s1 = String(args.s1 || "");
+  const s2 = String(args.s2 || "");
+  try {
+    const result = textFuzzyMatch(s1, s2);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextExtractEmails(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textExtractEmails(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextExtractUrls(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textExtractUrls(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextExtractIps(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textExtractIps(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tTextExtractPhoneNumbers(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const text = String(args.text || "");
+  try {
+    const result = await textExtractPhoneNumbers(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextRedactPii(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  try {
+    const result = textRedactPii(text);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextMarkdownToPlain(args: Record<string, unknown>): ToolCallResult {
+  const markdown = String(args.markdown || "");
+  try {
+    const result = textMarkdownToPlain(markdown);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextHtmlToMarkdown(args: Record<string, unknown>): ToolCallResult {
+  const html = String(args.html || "");
+  try {
+    const result = textHtmlToMarkdown(html);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextCsvToJson(args: Record<string, unknown>): ToolCallResult {
+  const csv = String(args.csv || "");
+  try {
+    const result = textCsvToJson(csv);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextJsonToCsv(args: Record<string, unknown>): ToolCallResult {
+  const jsonStr = String(args.jsonStr || "");
+  try {
+    const result = textJsonToCsv(jsonStr);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tProcessMonitor(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = processMonitor();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDiskUsageAnalyzer(args: Record<string, unknown>): ToolCallResult {
+  const path = String(args.path || "");
+  try {
+    const result = diskUsageAnalyzer(path);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNetworkConnectionsList(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = networkConnectionsList();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tFirewallRulesAudit(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = firewallRulesAudit();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCronJobsList(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = cronJobsList();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tEnvVarsInspect(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = envVarsInspect();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLogTail(args: Record<string, unknown>): ToolCallResult {
+  const logPath = String(args.logPath || "");
+  const lines = Number(args.lines || 0);
+  try {
+    const result = logTail(logPath, lines);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tServiceStatusCheck(args: Record<string, unknown>): ToolCallResult {
+  const serviceName = String(args.serviceName || "");
+  try {
+    const result = serviceStatusCheck(serviceName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDockerPsAudit(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = dockerPsAudit();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDockerImageVulnScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const image = String(args.image || "");
+  try {
+    const result = await dockerImageVulnScan(image);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tK8sPodInspect(args: Record<string, unknown>): ToolCallResult {
+  const namespace = String(args.namespace || "");
+  try {
+    const result = k8sPodInspect(namespace);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tNginxConfigCheck(args: Record<string, unknown>): ToolCallResult {
+  const configPath = String(args.configPath || "");
+  try {
+    const result = nginxConfigCheck(configPath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tApacheConfigCheck(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = apacheConfigCheck();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSslCertExpiryCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domains = String(args.domains || "");
+  try {
+    const result = await sslCertExpiryCheck(domains);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tDnsPropagationCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "");
+  const recordType = String(args.recordType || "");
+  try {
+    const result = await dnsPropagationCheck(domain, recordType);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tLoadAverageMonitor(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = loadAverageMonitor();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMemoryLeakDetect(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = memoryLeakDetect();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPortKill(args: Record<string, unknown>): ToolCallResult {
+  const port = Number(args.port || 0);
+  try {
+    const result = portKill(port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tFilePermissionAudit(args: Record<string, unknown>): ToolCallResult {
+  const dirPath = String(args.dirPath || "");
+  try {
+    const result = filePermissionAudit(dirPath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSshKeyAudit(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = sshKeyAudit();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAwsS3BucketCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const bucketName = String(args.bucketName || "");
+  try {
+    const result = await awsS3BucketCheck(bucketName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAwsIamAudit(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = awsIamAudit();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAwsSecurityGroupsAudit(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = awsSecurityGroupsAudit();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAzureAdEnum(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = azureAdEnum();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tGcpProjectEnum(args: Record<string, unknown>): ToolCallResult {
+  // No parameters
+  try {
+    const result = gcpProjectEnum();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCloudMetadataCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  // No parameters
+  try {
+    const result = await cloudMetadataCheck();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTerraformValidate(args: Record<string, unknown>): ToolCallResult {
+  const dirPath = String(args.dirPath || "");
+  try {
+    const result = terraformValidate(dirPath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTerraformPlanDiff(args: Record<string, unknown>): ToolCallResult {
+  const dirPath = String(args.dirPath || "");
+  try {
+    const result = terraformPlanDiff(dirPath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tKubernetesManifestValidate(args: Record<string, unknown>): ToolCallResult {
+  const filePath = String(args.filePath || "");
+  try {
+    const result = kubernetesManifestValidate(filePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDockerComposeValidate(args: Record<string, unknown>): ToolCallResult {
+  const filePath = String(args.filePath || "");
+  try {
+    const result = dockerComposeValidate(filePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tApiSchemaDiff(args: Record<string, unknown>): ToolCallResult {
+  const schema1 = String(args.schema1 || "");
+  const schema2 = String(args.schema2 || "");
+  try {
+    const result = apiSchemaDiff(schema1, schema2);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tGraphqlIntrospectionCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await graphqlIntrospectionCheck(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tApiRateLimitDiscover(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  try {
+    const result = await apiRateLimitDiscover(url);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tWebhookSignatureVerify(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const payload = String(args.payload || "");
+  const signature = String(args.signature || "");
+  const secret = String(args.secret || "");
+  const algorithm = String(args.algorithm || "");
+  try {
+    const result = await webhookSignatureVerify(payload, signature, secret, algorithm);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOauthFlowTest(args: Record<string, unknown>): ToolCallResult {
+  const authorizationUrl = String(args.authorizationUrl || "");
+  const tokenUrl = String(args.tokenUrl || "");
+  const clientId = String(args.clientId || "");
+  const scope = String(args.scope || "");
+  try {
+    const result = oauthFlowTest(authorizationUrl, tokenUrl, clientId, scope);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tRiotAccountLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const gameName = String(args.gameName || "");
+  const tagLine = String(args.tagLine || "");
+  try {
+    const result = await riotAccountLookup(gameName, tagLine);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tLolMatchHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const summonerName = String(args.summonerName || "");
+  try {
+    const result = await lolMatchHistory(summonerName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tLolRankCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const summonerName = String(args.summonerName || "");
+  const region = String(args.region || "");
+  try {
+    const result = await lolRankCheck(summonerName, region);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCsgoStatsFetch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const steamId = String(args.steamId || "");
+  try {
+    const result = await csgoStatsFetch(steamId);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tApexLegendsStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const playerName = String(args.playerName || "");
+  const platform = String(args.platform || "");
+  try {
+    const result = await apexLegendsStats(playerName, platform);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tRocketLeagueStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const playerName = String(args.playerName || "");
+  const platform = String(args.platform || "");
+  try {
+    const result = await rocketLeagueStats(playerName, platform);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tOsuUserStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const username = String(args.username || "");
+  try {
+    const result = await osuUserStats(username);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tMinecraftServerStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const host = String(args.host || "");
+  const port = Number(args.port || 0);
+  try {
+    const result = await minecraftServerStatus(host, port);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tFortniteItemShop(args: Record<string, unknown>): Promise<ToolCallResult> {
+  // No parameters
+  try {
+    const result = await fortniteItemShop();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tEpicGamesFreeGames(args: Record<string, unknown>): Promise<ToolCallResult> {
+  // No parameters
+  try {
+    const result = await epicGamesFreeGames();
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tTwitchStreamCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const streamerName = String(args.streamerName || "");
+  try {
+    const result = await twitchStreamCheck(streamerName);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tTwitchClipCreate(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const broadcasterId = String(args.broadcasterId || "");
+  try {
+    const result = await twitchClipCreate(broadcasterId);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSpotifyTrackSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "");
+  try {
+    const result = await spotifyTrackSearch(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSpotifyPlaylistAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const playlistId = String(args.playlistId || "");
+  try {
+    const result = await spotifyPlaylistAnalyze(playlistId);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tBoardgameGeekSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const query = String(args.query || "");
+  try {
+    const result = await boardgameGeekSearch(query);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPhysicsCalculator(args: Record<string, unknown>): ToolCallResult {
+  const formula = String(args.formula || "");
+  const values = String(args.values || "");
+  try {
+    const result = physicsCalculator(formula, values);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOhmsLawCalc(args: Record<string, unknown>): ToolCallResult {
+  const voltage = Number(args.voltage || 0);
+  const current = Number(args.current || 0);
+  const resistance = Number(args.resistance || 0);
+  const power = Number(args.power || 0);
+  try {
+    const result = ohmsLawCalc(voltage, current, resistance, power);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tWavelengthFrequency(args: Record<string, unknown>): ToolCallResult {
+  const value = Number(args.value || 0);
+  const type = String(args.type || "");
+  try {
+    const result = wavelengthFrequency(value, type);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRadioactiveDecayCalc(args: Record<string, unknown>): ToolCallResult {
+  const initialAmount = Number(args.initialAmount || 0);
+  const halfLife = Number(args.halfLife || 0);
+  const time = Number(args.time || 0);
+  try {
+    const result = radioactiveDecayCalc(initialAmount, halfLife, time);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tUnitConvertScientific(args: Record<string, unknown>): ToolCallResult {
+  const value = Number(args.value || 0);
+  const fromUnit = String(args.fromUnit || "");
+  const toUnit = String(args.toUnit || "");
+  try {
+    const result = unitConvertScientific(value, fromUnit, toUnit);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMolarMassCalc(args: Record<string, unknown>): ToolCallResult {
+  const formula = String(args.formula || "");
+  try {
+    const result = molarMassCalc(formula);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tChemicalEquationBalancer(args: Record<string, unknown>): ToolCallResult {
+  const equation = String(args.equation || "");
+  try {
+    const result = chemicalEquationBalancer(equation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPhCalculator(args: Record<string, unknown>): ToolCallResult {
+  const concentration = Number(args.concentration || 0);
+  const type = String(args.type || "");
+  try {
+    const result = phCalculator(concentration, type);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tIdealGasLaw(args: Record<string, unknown>): ToolCallResult {
+  const pressure = Number(args.pressure || 0);
+  const volume = Number(args.volume || 0);
+  const moles = Number(args.moles || 0);
+  const temperature = Number(args.temperature || 0);
+  const solveFor = String(args.solveFor || "");
+  try {
+    const result = idealGasLaw(pressure, volume, moles, temperature, solveFor);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tKinematicsCalc(args: Record<string, unknown>): ToolCallResult {
+  const v0 = Number(args.v0 || 0);
+  const a = Number(args.a || 0);
+  const t = Number(args.t || 0);
+  try {
+    const result = kinematicsCalc(v0, a, t);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOpticsCalc(args: Record<string, unknown>): ToolCallResult {
+  const focalLength = Number(args.focalLength || 0);
+  const objectDistance = Number(args.objectDistance || 0);
+  try {
+    const result = opticsCalc(focalLength, objectDistance);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tElectricFieldCalc(args: Record<string, unknown>): ToolCallResult {
+  const charge = Number(args.charge || 0);
+  const distance = Number(args.distance || 0);
+  try {
+    const result = electricFieldCalc(charge, distance);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tThermalExpansionCalc(args: Record<string, unknown>): ToolCallResult {
+  const initialLength = Number(args.initialLength || 0);
+  const coefficient = Number(args.coefficient || 0);
+  const tempChange = Number(args.tempChange || 0);
+  try {
+    const result = thermalExpansionCalc(initialLength, coefficient, tempChange);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAstronomicalDistance(args: Record<string, unknown>): ToolCallResult {
+  const value = Number(args.value || 0);
+  const fromUnit = String(args.fromUnit || "");
+  const toUnit = String(args.toUnit || "");
+  try {
+    const result = astronomicalDistance(value, fromUnit, toUnit);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRadioactiveDecayCalc2(args: Record<string, unknown>): ToolCallResult {
+  const initialAmount = Number(args.initialAmount || 0);
+  const halfLife = Number(args.halfLife || 0);
+  const time = Number(args.time || 0);
+  try {
+    const result = radioactiveDecayCalc2(initialAmount, halfLife, time);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tGeocodeReverse(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const lat = Number(args.lat || 0);
+  const lon = Number(args.lon || 0);
+  try {
+    const result = await geocodeReverse(lat, lon);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTimezoneConvertAdvanced(args: Record<string, unknown>): ToolCallResult {
+  const datetime = String(args.datetime || "");
+  const fromTz = String(args.fromTz || "");
+  const toTz = String(args.toTz || "");
+  try {
+    const result = timezoneConvertAdvanced(datetime, fromTz, toTz);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDistanceMatrix(args: Record<string, unknown>): ToolCallResult {
+  const origins = String(args.origins || "");
+  const destinations = String(args.destinations || "");
+  try {
+    const result = distanceMatrix(origins, destinations);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tElevationLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const lat = Number(args.lat || 0);
+  const lon = Number(args.lon || 0);
+  try {
+    const result = await elevationLookup(lat, lon);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCountryBordering(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const country = String(args.country || "");
+  try {
+    const result = await countryBordering(country);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCurrencyByCountry(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const country = String(args.country || "");
+  try {
+    const result = await currencyByCountry(country);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tLanguageByCountry(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const country = String(args.country || "");
+  try {
+    const result = await languageByCountry(country);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tCapitalLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const country = String(args.country || "");
+  try {
+    const result = await capitalLookup(country);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tIsoCountryCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const country = String(args.country || "");
+  try {
+    const result = await isoCountryCode(country);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tSunriseSunsetAnywhere(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const lat = Number(args.lat || 0);
+  const lon = Number(args.lon || 0);
+  const date = String(args.date || "");
+  try {
+    const result = await sunriseSunsetAnywhere(lat, lon, date);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tWaterIntakeCalc(args: Record<string, unknown>): ToolCallResult {
+  const weightKg = Number(args.weightKg || 0);
+  const activityMinutes = Number(args.activityMinutes || 0);
+  try {
+    const result = waterIntakeCalc(weightKg, activityMinutes);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tHeartRateZone(args: Record<string, unknown>): ToolCallResult {
+  const age = Number(args.age || 0);
+  const restingHr = Number(args.restingHr || 0);
+  try {
+    const result = heartRateZone(age, restingHr);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tBodyFatPercentageCalc(args: Record<string, unknown>): ToolCallResult {
+  const gender = String(args.gender || "");
+  const heightCm = Number(args.heightCm || 0);
+  const neckCm = Number(args.neckCm || 0);
+  const waistCm = Number(args.waistCm || 0);
+  const hipCm = Number(args.hipCm || 0);
+  try {
+    const result = bodyFatPercentageCalc(gender, heightCm, neckCm, waistCm, hipCm);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tIdealWeightCalc(args: Record<string, unknown>): ToolCallResult {
+  const gender = String(args.gender || "");
+  const heightCm = Number(args.heightCm || 0);
+  try {
+    const result = idealWeightCalc(gender, heightCm);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tPregnancyDueDate(args: Record<string, unknown>): ToolCallResult {
+  const lastPeriod = String(args.lastPeriod || "");
+  try {
+    const result = pregnancyDueDate(lastPeriod);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tOvulationCalc(args: Record<string, unknown>): ToolCallResult {
+  const lastPeriod = String(args.lastPeriod || "");
+  const cycleLength = Number(args.cycleLength || 0);
+  try {
+    const result = ovulationCalc(lastPeriod, cycleLength);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tMacroNutrientCalc(args: Record<string, unknown>): ToolCallResult {
+  const weightKg = Number(args.weightKg || 0);
+  const goal = String(args.goal || "");
+  const activityLevel = String(args.activityLevel || "");
+  try {
+    const result = macroNutrientCalc(weightKg, goal, activityLevel);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSleepQualityScore(args: Record<string, unknown>): ToolCallResult {
+  const bedtime = String(args.bedtime || "");
+  const wakeTime = String(args.wakeTime || "");
+  const awakenings = Number(args.awakenings || 0);
+  const deepSleepPct = Number(args.deepSleepPct || 0);
+  try {
+    const result = sleepQualityScore(bedtime, wakeTime, awakenings, deepSleepPct);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tStepToCalorie(args: Record<string, unknown>): ToolCallResult {
+  const steps = Number(args.steps || 0);
+  const weightKg = Number(args.weightKg || 0);
+  try {
+    const result = stepToCalorie(steps, weightKg);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tHydrationTracker(args: Record<string, unknown>): ToolCallResult {
+  const glassesToday = Number(args.glassesToday || 0);
+  const weightKg = Number(args.weightKg || 0);
+  try {
+    const result = hydrationTracker(glassesToday, weightKg);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCodeComplexityAnalyzer(args: Record<string, unknown>): ToolCallResult {
+  const code = String(args.code || "");
+  const language = String(args.language || "");
+  try {
+    const result = codeComplexityAnalyzer(code, language);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCodeFormatBeautifier(args: Record<string, unknown>): ToolCallResult {
+  const code = String(args.code || "");
+  const language = String(args.language || "");
+  try {
+    const result = codeFormatBeautifier(code, language);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCodeMinifier(args: Record<string, unknown>): ToolCallResult {
+  const code = String(args.code || "");
+  const language = String(args.language || "");
+  try {
+    const result = codeMinifier(code, language);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCodeDiffUnified(args: Record<string, unknown>): ToolCallResult {
+  const code1 = String(args.code1 || "");
+  const code2 = String(args.code2 || "");
+  try {
+    const result = codeDiffUnified(code1, code2);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tCodeLinterCheck(args: Record<string, unknown>): ToolCallResult {
+  const filePath = String(args.filePath || "");
+  const linter = String(args.linter || "");
+  try {
+    const result = codeLinterCheck(filePath, linter);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tRegexDebugger(args: Record<string, unknown>): ToolCallResult {
+  const pattern = String(args.pattern || "");
+  const testString = String(args.testString || "");
+  try {
+    const result = regexDebugger(pattern, testString);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tApiEndpointTester(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const url = String(args.url || "");
+  const method = String(args.method || "");
+  const headers = String(args.headers || "");
+  const body = String(args.body || "");
+  try {
+    const result = await apiEndpointTester(url, method, headers, body);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tJsonSchemaValidate(args: Record<string, unknown>): ToolCallResult {
+  const jsonStr = String(args.jsonStr || "");
+  const schemaStr = String(args.schemaStr || "");
+  try {
+    const result = jsonSchemaValidate(jsonStr, schemaStr);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tYamlValidate(args: Record<string, unknown>): ToolCallResult {
+  const yamlStr = String(args.yamlStr || "");
+  try {
+    const result = yamlValidate(yamlStr);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tXmlToJson(args: Record<string, unknown>): ToolCallResult {
+  const xmlStr = String(args.xmlStr || "");
+  try {
+    const result = xmlToJson(xmlStr);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSqlFormatBeautify(args: Record<string, unknown>): ToolCallResult {
+  const sql = String(args.sql || "");
+  try {
+    const result = sqlFormatBeautify(sql);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDockerfileLint(args: Record<string, unknown>): ToolCallResult {
+  const dockerfile = String(args.dockerfile || "");
+  try {
+    const result = dockerfileLint(dockerfile);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tChangelogGenerator(args: Record<string, unknown>): ToolCallResult {
+  const commits = String(args.commits || "");
+  const version = String(args.version || "");
+  try {
+    const result = changelogGenerator(commits, version);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tSqlFormatBeautify2(args: Record<string, unknown>): ToolCallResult {
+  const sql = String(args.sql || "");
+  try {
+    const result = sqlFormatBeautify2(sql);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tDockerfileLint2(args: Record<string, unknown>): ToolCallResult {
+  const dockerfile = String(args.dockerfile || "");
+  try {
+    const result = dockerfileLint2(dockerfile);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tImageResizeCrop(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imagePath = String(args.imagePath || "");
+  const width = Number(args.width || 0);
+  const height = Number(args.height || 0);
+  const operation = String(args.operation || "");
+  try {
+    const result = await imageResizeCrop(imagePath, width, height, operation);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tImageFormatConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imagePath = String(args.imagePath || "");
+  const targetFormat = String(args.targetFormat || "");
+  try {
+    const result = await imageFormatConvert(imagePath, targetFormat);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tImageMetadataStrip(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imagePath = String(args.imagePath || "");
+  try {
+    const result = await imageMetadataStrip(imagePath);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tImageCollageCreate(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imagePaths = String(args.imagePaths || "");
+  const cols = Number(args.cols || 0);
+  const rows = Number(args.rows || 0);
+  try {
+    const result = await imageCollageCreate(imagePaths, cols, rows);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAudioConvert(args: Record<string, unknown>): ToolCallResult {
+  const inputPath = String(args.inputPath || "");
+  const targetFormat = String(args.targetFormat || "");
+  const bitrate = String(args.bitrate || "");
+  try {
+    const result = audioConvert(inputPath, targetFormat, bitrate);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAudioExtractFromVideo(args: Record<string, unknown>): ToolCallResult {
+  const videoPath = String(args.videoPath || "");
+  const targetFormat = String(args.targetFormat || "");
+  try {
+    const result = audioExtractFromVideo(videoPath, targetFormat);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tVideoCompress(args: Record<string, unknown>): ToolCallResult {
+  const videoPath = String(args.videoPath || "");
+  const crf = Number(args.crf || 0);
+  try {
+    const result = videoCompress(videoPath, crf);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tVideoGifConvert(args: Record<string, unknown>): ToolCallResult {
+  const inputPath = String(args.inputPath || "");
+  const outputFormat = String(args.outputFormat || "");
+  const fps = Number(args.fps || 0);
+  const width = Number(args.width || 0);
+  try {
+    const result = videoGifConvert(inputPath, outputFormat, fps, width);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tTextToSpeechMulti(args: Record<string, unknown>): ToolCallResult {
+  const text = String(args.text || "");
+  const voice = String(args.voice || "");
+  const language = String(args.language || "");
+  try {
+    const result = textToSpeechMulti(text, voice, language);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tImageWatermarkAdd(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const imagePath = String(args.imagePath || "");
+  const watermarkText = String(args.watermarkText || "");
+  const opacity = Number(args.opacity || 0);
+  try {
+    const result = await imageWatermarkAdd(imagePath, watermarkText, opacity);
+    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
 }
