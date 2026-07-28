@@ -731,6 +731,67 @@ async function runAgentLoopInternal(
     "- network_investigate : investigation OSINT réseau complète (géolocalisation IP, reverse DNS, scan de ports, WHOIS, DNS records). ⚠️ UTILISE CECI en priorité quand il y a un problème réseau, une IP suspecte, une alerte de sécurité, ou pour investiguer une attaque. Modules: geo, reverse_dns, port_scan, whois, dns_records.\n" +
     "- network_status : affiche l'état du réseau EN TEMPS RÉEL — connexions actives, ports en écoute, interfaces, routes, bande passante. UTILISE CECI quand l'utilisateur demande de voir ce qu'il se passe sur le réseau, d'ouvrir Internet, de monitorer le trafic, ou de voir les connexions actives. Scopes: all, listening, established, interfaces, routes, bandwidth, top_connections.\n" +
     "- open_web_page : ouvre n'importe quelle page web sur Internet et affiche son contenu (titre, texte, liens). Permet de consulter des dashboards de monitoring (Wazuh, Grafana), des outils réseau en ligne, des pages de statut de services. UTILISE CECI quand l'utilisateur te demande d'ouvrir un site web, de consulter une page, ou d'afficher le contenu d'une URL.\n" +
+    "### IP TOOLKIT (analyse réseau — auto-use)\n" +
+    "- ip_ping : ping ICMP une adresse IP. UTILISE quand l'utilisateur demande si une IP est en ligne.\n" +
+    "- ip_traceroute : traceroute vers une IP. UTILISE pour voir le chemin réseau.\n" +
+    "- ip_portscan : scan rapide des ports communs (TCP connect). UTILISE pour voir quels ports sont ouverts.\n" +
+    "- ip_http_check : récupère les headers HTTP d'un serveur web. UTILISE pour analyser un serveur web.\n" +
+    "- ip_ssl_check : vérifie le certificat SSL/TLS d'un serveur HTTPS. UTILISE pour auditer la config SSL.\n" +
+    "- ip_full_report : rapport complet sur une IP (ping + ports + HTTP + SSL combiné). UTILISE pour une analyse complète d'une IP.\n" +
+    "### NET TOOLKIT (reconnaissance avancée — auto-use)\n" +
+    "- dns_lookup : résolution DNS complète (A, AAAA, MX, TXT, CNAME, NS). UTILISE pour analyser un domaine.\n" +
+    "- banner_grab : banner grabbing TCP — identifie le service (SSH, FTP, HTTP). UTILISE pour identifier un service sur un port.\n" +
+    "- http_methods_check : énumère les méthodes HTTP autorisées. UTILISE pour auditer la config d'un serveur web.\n" +
+    "- directory_check : vérifie l'existence de chemins communs (/admin, /.env, /api). UTILISE pour découvrir des pages cachées.\n" +
+    "- tech_detect : détecte la stack technique (Nginx, Apache, Express, PHP, Cloudflare). UTILISE pour identifier les technologies d'un site.\n" +
+    "- cors_test : teste la config CORS — détecte les origines permissives. UTILISE pour auditer la sécurité CORS.\n" +
+    "- email_validate : valide un email (MX, SPF, DKIM, DMARC). UTILISE pour vérifier un email.\n" +
+    "- jwt_decode : décode un token JWT (header, payload, expiration). UTILISE pour analyser un JWT.\n" +
+    "- url_expand : suit les redirects d'une URL jusqu'à la destination finale. UTILISE pour révéler les shorteners.\n" +
+    "- security_score : note la sécurité HTTP d'un site (A+ à F). UTILISE pour auditer les security headers.\n" +
+    "### SECURITY TOOLKIT (analyse offensive & défensive — auto-use)\n" +
+    "- hash_crack : crack un hash MD5/SHA1/SHA256 par dictionnaire. UTILISE quand on te donne un hash à cracker.\n" +
+    "- sqli_detect : détecte les patterns d'injection SQL dans une chaîne. UTILISE pour analyser un input suspect.\n" +
+    "- xss_detect : détecte les patterns XSS dans une chaîne. UTILISE pour analyser un input suspect.\n" +
+    "- password_analyze : analyse la force d'un mot de passe (entropie, temps de crack). UTILISE pour évaluer un password.\n" +
+    "- subdomain_enum : énumère les sous-domaines d'un domaine (DNS brute-force 90+ noms). UTILISE pour découvrir la surface d'attaque.\n" +
+    "- reverse_ip : reverse DNS lookup — résout une IP en hostname. UTILISE pour identifier le propriétaire d'une IP.\n" +
+    "- cidr_calc : calculateur CIDR (réseau, broadcast, masque, plage). UTILISE pour des calculs réseau.\n" +
+    "- mac_vendor : identifie le fabricant d'une adresse MAC. UTILISE pour identifier un appareil.\n" +
+    "- hsts_check : vérifie le HSTS preload d'un domaine. UTILISE pour auditer la config HTTPS.\n" +
+    "- waf_detect : détecte la présence d'un WAF (Cloudflare, Akamai, Imperva). UTILISE avant un pentest pour savoir si un WAF protège la cible.\n" +
+    "- robots_parse : parse le robots.txt d'un site. UTILISE pour découvrir les chemins interdits/cachés.\n" +
+    "- sitemap_parse : parse le sitemap.xml d'un site. UTILISE pour cartographier un site web.\n" +
+    "- http_status_ref : référence des codes HTTP. UTILISE quand l'utilisateur demande ce que veut dire un code HTTP.\n" +
+    "- port_ref : référence des ports communs. UTILISE quand l'utilisateur demande ce que veut dire un port.\n" +
+    "### UTILITY TOOLKIT (conversion & calcul — auto-use)\n" +
+    "- timestamp_convert : convertit un timestamp Unix ↔ date lisible. UTILISE pour les conversions de temps.\n" +
+    "- base_convert : convertit entre binaire/octal/décimal/hexadécimal. UTILISE pour les conversions de base.\n" +
+    "- uuid_gen : génère des UUID v4/v7. UTILISE pour générer des identifiants uniques.\n" +
+    "- regex_test : teste une regex contre une chaîne. UTILISE pour valider ou debug une regex.\n" +
+    "- json_format : formate ou minifie du JSON. UTILISE pour nettoyer du JSON.\n" +
+    "- binary_convert : convertit texte ↔ binaire. UTILISE pour l'encodage binaire.\n" +
+    "- hex_convert : convertit texte ↔ hexadécimal. UTILISE pour l'encodage hex.\n" +
+    "- morse_code : encode ou décode du Morse. UTILISE pour le code Morse.\n" +
+    "- caesar_cipher : chiffre/déchiffre avec le chiffre de César. UTILISE pour la crypto classique.\n" +
+    "- rot13 : applique ROT13. UTILISE pour décoder du ROT13.\n" +
+    "- hash_gen : génère MD5, SHA1, SHA256, SHA512 d'une chaîne. UTILISE pour hasher des données.\n" +
+    "- lorem_gen : génère du Lorem Ipsum. UTILISE pour du texte de remplissage.\n" +
+    "- color_convert : convertit HEX ↔ RGB ↔ HSL. UTILISE pour les conversions de couleurs.\n" +
+    "### PENTEST TOOLKIT (Kali Linux Docker isolé — ⚠️ validation admin requise)\n" +
+    "- metasploit : exécute un module Metasploit (auxiliary/exploit/post). ⚠️ HAUT RISQUE. UTILISE pour l'exploitation de vulnérabilités.\n" +
+    "- tshark_capture : capture le trafic réseau avec Wireshark CLI. UTILISE pour analyser le trafic en temps réel.\n" +
+    "- hydra_brute : brute force authentification (SSH, FTP, HTTP, SMB). ⚠️ HAUT RISQUE. UTILISE pour tester la robustesse des passwords.\n" +
+    "- sqlmap_scan : test d'injection SQL automatisé. ⚠️ HAUT RISQUE. UTILISE pour trouver des vulnérabilités SQLi.\n" +
+    "- searchsploit : recherche d'exploits dans ExploitDB. UTILISE pour trouver des exploits pour un logiciel/service.\n" +
+    "- hashcat_crack : crack de hash avec Hashcat (GPU/CPU). UTILISE pour cracker des hashes complexes.\n" +
+    "- snmp_walk : énumération SNMP d'un équipement (Cisco). UTILISE pour auditer un routeur/switch Cisco.\n" +
+    "- enum4linux_scan : énumération SMB/Windows (shares, users, groups). UTILISE pour auditer un serveur Windows.\n" +
+    "- harvester_osint : OSINT emails, subdomains, IPs pour un domaine. UTILISE pour la reconnaissance initiale.\n" +
+    "- crackmapexec_scan : pentest SMB/WinRM/MSSQL/SSH. ⚠️ HAUT RISQUE. UTILISE pour les tests d'authentification Windows.\n" +
+    "- whatweb_scan : fingerprinting web (CMS, frameworks, server). UTILISE pour identifier les technologies d'un site.\n" +
+    "- gobuster_scan : directory/file brute force. UTILISE pour découvrir les chemins cachés d'un site.\n" +
+    "- nmap_nse_scan : scan Nmap avec scripts NSE (vuln, Cisco, SMB). UTILISE pour la détection de vulnérabilités.\n" +
     "### KALI LINUX AUDIT (Layer 7 — Docker isolé)\n" +
     "- runKaliPortAudit : scan de ports via nmap dans un conteneur Kali Linux isolé. ⚠️ REQUIERT validation admin (DM avec bouton [🟢 LANCER L'AUDIT]). Cible doit être dans la whitelist (localhost, 127.0.0.1, 192.168.1.*, VPS IP). Paramètres: target, speed (fast/intense).\n" +
     "- runKaliWebAudit : audit web via nikto dans Kali Linux. Inspecte les serveurs web pour en-têtes obsolètes, config flaws. ⚠️ REQUIERT validation admin. Paramètre: targetUrl.\n" +
