@@ -871,8 +871,29 @@ async function runAgentLoopInternal(
       if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
+    // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
+    // Les petits modèles (7B, 8B, 3B) ne gèrent pas bien le function calling complexe
+    const SMALL_MODEL_PATTERNS = [
+      /-7b/i, /-8b/i, /-3b/i, /-3\.5b/i, /-9b/i, /-11b/i, /-12b/i,
+      /phi-3/i, /zephyr/i, /openchat/i, /openhermes/i, /lfm-7b/i,
+      /gemma-2-9b/i, /gemini-flash-1.5-8b/i, /gemini-2.0-flash-lite/i,
+      /mistral-7b/i, /magmell-8b/i, /rocinante/i,
+    ];
+    let effectiveModels = modelsToTry;
+    let maxModelAttempts = 5;
+    if (skipLocalForRetailer) {
+      const bigModels = modelsToTry.filter((m) => !SMALL_MODEL_PATTERNS.some((p) => p.test(m)));
+      if (bigModels.length > 0) {
+        effectiveModels = bigModels;
+        maxModelAttempts = Math.min(bigModels.length, 8);
+        logger.info(`[AgentLoop] 🏪 Retailer filter: ${bigModels.length} big models kept, ${modelsToTry.length - bigModels.length} small models skipped`);
+      } else {
+        logger.warn(`[AgentLoop] 🏪 Retailer filter: no big models available, using all ${modelsToTry.length} models`);
+      }
+    }
+
     logger.info(
-      `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${modelsToTry.slice(0, 5).join(", ")}${modelsToTry.length > 5 ? ` (+${modelsToTry.length - 5} more)` : ""}`,
+      `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${effectiveModels.slice(0, maxModelAttempts).join(", ")}${effectiveModels.length > maxModelAttempts ? ` (+${effectiveModels.length - maxModelAttempts} more)` : ""}`,
     );
 
     // ─── Étape 0: LLM local (Ollama/qwen) — PRIORITÉ ABSOLUE ───
@@ -1022,7 +1043,7 @@ async function runAgentLoopInternal(
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
-    for (const modelName of modelsToTry.slice(0, 5)) {
+    for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
         // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
