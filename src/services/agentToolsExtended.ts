@@ -411,6 +411,23 @@ import {
   textToSpeechMulti,
   imageWatermarkAdd,
 } from "../utils/mediaToolkit.js";
+import {
+  amazonWishlistScrape,
+  amazonPriceTrack,
+  amazonPriceHistory,
+  amazonProductLookup,
+  amazonCartMonitor,
+  amazonPriceAlertCreate,
+  amazonPriceAlertCheck,
+  amazonPriceAlertDelete,
+  amazonWishlistDiff,
+  amazonDealSearch,
+  amazonBestSellers,
+  amazonCouponSearch,
+  amazonSubscribeSaveCheck,
+  amazonOrderHistory,
+  amazonReviewSummary,
+} from "../utils/amazonToolkit.js";
 
 // ─── Cache partagé ────────────────────────────────────────────────────────────
 
@@ -6540,6 +6557,223 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ── Amazon Toolkit ──
+  {
+    type: "function",
+    function: {
+      name: "amazon_wishlist_scrape",
+      description: "Scrape une wishlist Amazon publique (prix, stock, images)",
+      parameters: {
+        type: "object",
+        properties: {
+          wishlistUrl: { type: "string", description: "URL de la wishlist Amazon" },
+          domain: { type: "string", description: "Domaine Amazon (com, fr, co.uk, de)" },
+        },
+        required: ["wishlistUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_price_track",
+      description: "Suit le prix d'un produit Amazon via Keepa API ou scraping",
+      parameters: {
+        type: "object",
+        properties: {
+          asin: { type: "string", description: "ASIN du produit (10 caractères)" },
+          domain: { type: "string", description: "Domaine Amazon (com, fr, co.uk, de)" },
+        },
+        required: ["asin"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_price_history",
+      description: "Historique des prix d'un produit via Keepa API",
+      parameters: {
+        type: "object",
+        properties: {
+          asin: { type: "string", description: "ASIN du produit" },
+          domain: { type: "string", description: "Domaine Amazon" },
+          days: { type: "number", description: "Nombre de jours d'historique (défaut 30)" },
+        },
+        required: ["asin"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_product_lookup",
+      description: "Récupère les détails d'un produit Amazon par ASIN",
+      parameters: {
+        type: "object",
+        properties: {
+          asin: { type: "string", description: "ASIN du produit" },
+          domain: { type: "string", description: "Domaine Amazon" },
+        },
+        required: ["asin"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_cart_monitor",
+      description: "Surveille le panier Amazon via session Puppeteer (cookies sauvegardés)",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionDir: { type: "string", description: "Dossier de session (défaut /tmp/amazon-session)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_price_alert_create",
+      description: "Crée une alerte de baisse de prix pour un ASIN",
+      parameters: {
+        type: "object",
+        properties: {
+          asin: { type: "string", description: "ASIN du produit" },
+          targetPrice: { type: "number", description: "Prix cible (notification quand le prix descend en dessous)" },
+          channelId: { type: "string", description: "ID du canal Discord pour la notification (optionnel)" },
+        },
+        required: ["asin", "targetPrice"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_price_alert_check",
+      description: "Vérifie toutes les alertes de prix actives",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_price_alert_delete",
+      description: "Supprime une alerte de prix",
+      parameters: {
+        type: "object",
+        properties: {
+          alertId: { type: "string", description: "ID de l'alerte à supprimer" },
+        },
+        required: ["alertId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_wishlist_diff",
+      description: "Compare les snapshots d'une wishlist (ajouts/suppressions/changements de prix)",
+      parameters: {
+        type: "object",
+        properties: {
+          wishlistUrl: { type: "string", description: "URL de la wishlist" },
+        },
+        required: ["wishlistUrl"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_deal_search",
+      description: "Recherche les offres en cours sur Amazon",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine Amazon" },
+          category: { type: "string", description: "Catégorie (optionnel)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_best_sellers",
+      description: "Récupère les best-sellers d'une catégorie Amazon",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine Amazon" },
+          category: { type: "string", description: "Catégorie (electronics, books, etc.)" },
+        },
+        required: ["category"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_coupon_search",
+      description: "Recherche des coupons Amazon pour un mot-clé",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domaine Amazon" },
+          keyword: { type: "string", description: "Mot-clé de recherche" },
+        },
+        required: ["keyword"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_subscribe_save_check",
+      description: "Vérifie les abonnements Subscribe & Save Amazon",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionDir: { type: "string", description: "Dossier de session" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_order_history",
+      description: "Récupère l'historique des commandes Amazon via session Puppeteer",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionDir: { type: "string", description: "Dossier de session" },
+          year: { type: "string", description: "Année (ex: 2026)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "amazon_review_summary",
+      description: "Résumé des avis et notes d'un produit Amazon",
+      parameters: {
+        type: "object",
+        properties: {
+          asin: { type: "string", description: "ASIN du produit" },
+          domain: { type: "string", description: "Domaine Amazon" },
+        },
+        required: ["asin"],
+      },
+    },
+  },
 ];
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -6948,6 +7182,37 @@ export async function executeExtendedTool(
           data: `✅ Événement créé: ${event.summary} (${event.start} → ${event.end})`,
         };
       }
+      // Amazon Toolkit
+      case "amazon_wishlist_scrape":
+        return await tAmazonWishlistScrape(args);
+      case "amazon_price_track":
+        return await tAmazonPriceTrack(args);
+      case "amazon_price_history":
+        return await tAmazonPriceHistory(args);
+      case "amazon_product_lookup":
+        return await tAmazonProductLookup(args);
+      case "amazon_cart_monitor":
+        return await tAmazonCartMonitor(args);
+      case "amazon_price_alert_create":
+        return tAmazonPriceAlertCreate(args);
+      case "amazon_price_alert_check":
+        return await tAmazonPriceAlertCheck(args);
+      case "amazon_price_alert_delete":
+        return tAmazonPriceAlertDelete(args);
+      case "amazon_wishlist_diff":
+        return tAmazonWishlistDiff(args);
+      case "amazon_deal_search":
+        return await tAmazonDealSearch(args);
+      case "amazon_best_sellers":
+        return await tAmazonBestSellers(args);
+      case "amazon_coupon_search":
+        return await tAmazonCouponSearch(args);
+      case "amazon_subscribe_save_check":
+        return await tAmazonSubscribeSaveCheck(args);
+      case "amazon_order_history":
+        return await tAmazonOrderHistory(args);
+      case "amazon_review_summary":
+        return await tAmazonReviewSummary(args);
       default:
         return null;
     }
@@ -13086,6 +13351,178 @@ async function tImageWatermarkAdd(args: Record<string, unknown>): Promise<ToolCa
   try {
     const result = await imageWatermarkAdd(imagePath, watermarkText, opacity);
     return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+// ─── Amazon Toolkit Handlers ──────────────────────────────────────────────────
+
+async function tAmazonWishlistScrape(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const wishlistUrl = String(args.wishlistUrl || "");
+  const domain = String(args.domain || "com");
+  if (!wishlistUrl) return { success: false, data: "❌ wishlistUrl requis" };
+  try {
+    const result = await amazonWishlistScrape(wishlistUrl, domain);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonPriceTrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const asin = String(args.asin || "");
+  const domain = String(args.domain || "com");
+  if (!asin) return { success: false, data: "❌ asin requis" };
+  try {
+    const result = await amazonPriceTrack(asin, domain);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonPriceHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const asin = String(args.asin || "");
+  const domain = String(args.domain || "com");
+  const days = Number(args.days || 30);
+  if (!asin) return { success: false, data: "❌ asin requis" };
+  try {
+    const result = await amazonPriceHistory(asin, domain, days);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonProductLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const asin = String(args.asin || "");
+  const domain = String(args.domain || "com");
+  if (!asin) return { success: false, data: "❌ asin requis" };
+  try {
+    const result = await amazonProductLookup(asin, domain);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonCartMonitor(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
+  try {
+    const result = await amazonCartMonitor(sessionDir);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAmazonPriceAlertCreate(args: Record<string, unknown>): ToolCallResult {
+  const asin = String(args.asin || "");
+  const targetPrice = Number(args.targetPrice || 0);
+  const channelId = args.channelId ? String(args.channelId) : undefined;
+  if (!asin || !targetPrice) return { success: false, data: "❌ asin et targetPrice requis" };
+  try {
+    const result = amazonPriceAlertCreate(asin, targetPrice, channelId);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonPriceAlertCheck(): Promise<ToolCallResult> {
+  try {
+    const result = await amazonPriceAlertCheck();
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAmazonPriceAlertDelete(args: Record<string, unknown>): ToolCallResult {
+  const alertId = String(args.alertId || "");
+  if (!alertId) return { success: false, data: "❌ alertId requis" };
+  try {
+    const result = amazonPriceAlertDelete(alertId);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+function tAmazonWishlistDiff(args: Record<string, unknown>): ToolCallResult {
+  const wishlistUrl = String(args.wishlistUrl || "");
+  if (!wishlistUrl) return { success: false, data: "❌ wishlistUrl requis" };
+  try {
+    const result = amazonWishlistDiff(wishlistUrl);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonDealSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "com");
+  const category = args.category ? String(args.category) : "";
+  try {
+    const result = await amazonDealSearch(domain, category);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonBestSellers(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "com");
+  const category = String(args.category || "electronics");
+  try {
+    const result = await amazonBestSellers(domain, category);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonCouponSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const domain = String(args.domain || "com");
+  const keyword = String(args.keyword || "");
+  if (!keyword) return { success: false, data: "❌ keyword requis" };
+  try {
+    const result = await amazonCouponSearch(domain, keyword);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonSubscribeSaveCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
+  try {
+    const result = await amazonSubscribeSaveCheck(sessionDir);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonOrderHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
+  const year = String(args.year || "2026");
+  try {
+    const result = await amazonOrderHistory(sessionDir, year);
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function tAmazonReviewSummary(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const asin = String(args.asin || "");
+  const domain = String(args.domain || "com");
+  if (!asin) return { success: false, data: "❌ asin requis" };
+  try {
+    const result = await amazonReviewSummary(asin, domain);
+    return { success: true, data: result };
   } catch (err) {
     return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
   }

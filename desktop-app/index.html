@@ -78,6 +78,7 @@
         <button class="nav-btn" data-tab="moderation"><span class="nav-icon">🔨</span> Modération</button>
         <button class="nav-btn" data-tab="security"><span class="nav-icon">🛡</span> Sécurité</button>
         <button class="nav-btn" data-tab="music"><span class="nav-icon">🎵</span> Musique</button>
+        <button class="nav-btn" data-tab="amazon"><span class="nav-icon">📦</span> Amazon</button>
         <div class="sidebar-section">Configuration</div>
         <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙</span> Paramètres</button>
         <button class="nav-btn" data-tab="alerts"><span class="nav-icon">⚠</span> Alertes</button>
@@ -796,6 +797,82 @@
         </div>
       </div>
 
+      <!-- TAB: Amazon -->
+      <div id="tab-amazon" class="tab">
+        <div class="row-header">
+          <h2>📦 Amazon Monitor</h2>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm btn-magnetic" onclick="Amazon.refresh()">↻ Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Keepa API</div>
+            <div class="bento-value" id="amazon-keepa-status">--</div>
+            <div class="bento-label" id="amazon-keepa-label">Statut</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Alertes actives</div>
+            <div class="bento-value" id="amazon-alerts-count">--</div>
+            <div class="bento-label">En suivi</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Alertes déclenchées</div>
+            <div class="bento-value" id="amazon-alerts-triggered">--</div>
+            <div class="bento-label">Prix atteints</div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Suivi de prix — ASIN</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <input type="text" id="amazon-asin-input" placeholder="ASIN (ex: B0CHX1W1XY)" style="flex:1;min-width:180px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <select id="amazon-domain-select" style="padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+                <option value="com">.com</option>
+                <option value="fr">.fr</option>
+                <option value="co.uk">.co.uk</option>
+                <option value="de">.de</option>
+              </select>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Amazon.trackPrice()">📊 Tracker</button>
+            </div>
+            <div id="amazon-track-result" style="margin-top:12px">
+              <div class="empty-state"><div class="empty-icon">📊</div>Entrez un ASIN pour suivre le prix</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Créer une alerte de prix</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <input type="text" id="amazon-alert-asin" placeholder="ASIN" style="flex:1;min-width:120px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <input type="number" id="amazon-alert-price" placeholder="Prix cible" style="width:120px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Amazon.createAlert()">🔔 Créer</button>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Alertes actives</div>
+            <div id="amazon-alerts-list" style="margin-top:8px;max-height:200px;overflow-y:auto">
+              <div class="empty-state"><div class="empty-icon">🔔</div>Aucune alerte active</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Wishlist Scanner</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <input type="text" id="amazon-wishlist-url" placeholder="URL wishlist Amazon" style="flex:1;min-width:200px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Amazon.scanWishlist()">📋 Scanner</button>
+            </div>
+            <div id="amazon-wishlist-result" style="margin-top:12px"></div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Offres du jour</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <select id="amazon-deals-domain" style="padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+                <option value="com">.com</option>
+                <option value="fr">.fr</option>
+              </select>
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Amazon.loadDeals()">🔥 Charger</button>
+            </div>
+            <div id="amazon-deals-list" style="margin-top:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -814,6 +891,7 @@
   <script src="js/moderation.js"></script>
   <script src="js/security.js"></script>
   <script src="js/music.js"></script>
+  <script src="js/amazon.js"></script>
   <script src="js/enhancements.js"></script>
   <script src="js/dashboard.js"></script>
 

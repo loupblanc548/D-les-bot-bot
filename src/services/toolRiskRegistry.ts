@@ -1537,6 +1537,70 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "would_you_rather",
       { level: "low", module: "extra", reason: "Local selection, no persistence" },
     ],
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MODULE: Amazon Toolkit (agentToolsExtended.ts — amazonToolkit)
+    // ════════════════════════════════════════════════════════════════════════
+    [
+      "amazon_wishlist_scrape",
+      { level: "low", module: "amazon", reason: "Read-only public wishlist scraping, no persistence" },
+    ],
+    [
+      "amazon_price_track",
+      { level: "low", module: "amazon", reason: "Read-only price lookup via Keepa API or scraping" },
+    ],
+    [
+      "amazon_price_history",
+      { level: "low", module: "amazon", reason: "Read-only price history via Keepa API" },
+    ],
+    [
+      "amazon_product_lookup",
+      { level: "low", module: "amazon", reason: "Read-only product detail scraping by ASIN" },
+    ],
+    [
+      "amazon_cart_monitor",
+      { level: "medium", module: "amazon", reason: "Uses Puppeteer with saved session cookies — accesses private cart" },
+    ],
+    [
+      "amazon_price_alert_create",
+      { level: "medium", module: "amazon", reason: "Creates persistent alert state in memory" },
+    ],
+    [
+      "amazon_price_alert_check",
+      { level: "low", module: "amazon", reason: "Read-only alert verification, no side effects" },
+    ],
+    [
+      "amazon_price_alert_delete",
+      { level: "medium", module: "amazon", reason: "Deletes alert state — modifies in-memory store" },
+    ],
+    [
+      "amazon_wishlist_diff",
+      { level: "low", module: "amazon", reason: "Read-only comparison of cached snapshots" },
+    ],
+    [
+      "amazon_deal_search",
+      { level: "low", module: "amazon", reason: "Read-only deal page scraping" },
+    ],
+    [
+      "amazon_best_sellers",
+      { level: "low", module: "amazon", reason: "Read-only best seller page scraping" },
+    ],
+    [
+      "amazon_coupon_search",
+      { level: "low", module: "amazon", reason: "Read-only coupon search scraping" },
+    ],
+    [
+      "amazon_subscribe_save_check",
+      { level: "medium", module: "amazon", reason: "Uses Puppeteer with session — accesses private subscriptions" },
+    ],
+    [
+      "amazon_order_history",
+      { level: "medium", module: "amazon", reason: "Uses Puppeteer with session — accesses private order history" },
+    ],
+    [
+      "amazon_review_summary",
+      { level: "low", module: "amazon", reason: "Read-only review page scraping" },
+    ],
   ]);
 
   // Remove mutating methods to enforce immutability at runtime

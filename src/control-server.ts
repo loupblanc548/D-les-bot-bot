@@ -1062,6 +1062,98 @@ export async function startControlServer(port: number, client: Client): Promise<
         return;
       }
 
+      // ─── Amazon Monitoring ──────────────────────────────────────────
+      if (path === "/api/amazon" && req.method === "GET") {
+        try {
+          const { amazonPriceAlertCheck } = await import("./utils/amazonToolkit.js");
+          const alertResult = await amazonPriceAlertCheck();
+          const alerts = JSON.parse(alertResult);
+          sendJson(res, 200, {
+            keepaEnabled: !!process.env.KEEPA_API_KEY,
+            activeAlerts: alerts.totalAlerts || 0,
+            triggeredAlerts: alerts.results?.filter((r: any) => r.triggered).length || 0,
+            lastCheck: alerts.checkedAt || null,
+            alertResults: alerts.results || [],
+          });
+        } catch {
+          sendJson(res, 200, {
+            keepaEnabled: !!process.env.KEEPA_API_KEY,
+            activeAlerts: 0,
+            triggeredAlerts: 0,
+            alertResults: [],
+          });
+        }
+        return;
+      }
+
+      if (path === "/api/amazon/track" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const asin = (body.asin as string)?.trim();
+          const domain = (body.domain as string) || "com";
+          if (!asin) {
+            sendJson(res, 400, { error: "ASIN requis" });
+            return;
+          }
+          const { amazonPriceTrack } = await import("./utils/amazonToolkit.js");
+          const result = await amazonPriceTrack(asin, domain);
+          sendJson(res, 200, JSON.parse(result));
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (path === "/api/amazon/wishlist" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const wishlistUrl = (body.wishlistUrl as string)?.trim();
+          const domain = (body.domain as string) || "com";
+          if (!wishlistUrl) {
+            sendJson(res, 400, { error: "wishlistUrl requis" });
+            return;
+          }
+          const { amazonWishlistScrape } = await import("./utils/amazonToolkit.js");
+          const result = await amazonWishlistScrape(wishlistUrl, domain);
+          sendJson(res, 200, JSON.parse(result));
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (path === "/api/amazon/alert" && req.method === "POST") {
+        try {
+          const body = await readBody(req);
+          const asin = (body.asin as string)?.trim();
+          const targetPrice = Number(body.targetPrice);
+          if (!asin || !targetPrice) {
+            sendJson(res, 400, { error: "asin et targetPrice requis" });
+            return;
+          }
+          const { amazonPriceAlertCreate } = await import("./utils/amazonToolkit.js");
+          const result = amazonPriceAlertCreate(asin, targetPrice, body.channelId as string | undefined);
+          sendJson(res, 200, JSON.parse(result));
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (path === "/api/amazon/deals" && req.method === "GET") {
+        try {
+          const url = new URL(req.url || "/", `http://${req.headers.host}`);
+          const domain = url.searchParams.get("domain") || "com";
+          const category = url.searchParams.get("category") || "";
+          const { amazonDealSearch } = await import("./utils/amazonToolkit.js");
+          const result = await amazonDealSearch(domain, category);
+          sendJson(res, 200, JSON.parse(result));
+        } catch (err) {
+          sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
       sendJson(res, 404, { error: "Route non trouvée: " + path });
     } catch (err) {
       logger.error("[ControlServer] Error:", err);
