@@ -896,14 +896,13 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${effectiveModels.slice(0, maxModelAttempts).join(", ")}${effectiveModels.length > maxModelAttempts ? ` (+${effectiveModels.length - maxModelAttempts} more)` : ""}`,
     );
 
-    // ─── Étape 0: LLM local (Ollama/qwen) — PRIORITÉ ABSOLUE ───
-    // qwen2.5 est le chef d'orchestre pour TOUT: texte, images, code, etc.
-    // Pour les images: qwen reçoit la description Gemini Vision, puis peut
-    // déléguer la réponse complexe via delegateToExpert si nécessaire.
+    // ─── Étape 0: LLM local (Ollama/qwen2.5:14b) — PRIORITÉ ABSOLUE ───
+    // qwen2.5:14b est le chef d'orchestre pour TOUT: texte, images, code, tools retailer, etc.
+    // 14B gère bien le function calling complexe.
     //
-    // EXCEPTION: si la demande nécessite des tools retailer (tracking de produits),
-    // on skip le local (qwen2.5:3b trop petit pour function calling complexe)
-    // et on va directement sur les modèles API plus capables.
+    // NOTE: Si le modèle local est qwen2.5:3b (config ancienne), les tâches retailer
+    // seront gérées par les modèles API car le 3B est trop petit.
+    // La détection se fait via LOCAL_LLM_MODEL dans .env (qwen2.5:14b par défaut).
     const lowerUserMsg = userMessage.toLowerCase();
     const needsRetailerTools =
       lowerUserMsg.includes("track") || lowerUserMsg.includes("tracker") ||
@@ -923,7 +922,10 @@ async function runAgentLoopInternal(
              t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
              t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
     );
-    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable;
+    // Skip local only if using the old 3B model (too small for retailer tools)
+    // With 14B, the local LLM handles everything including retailer tools
+    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
+    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
 
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
       // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",

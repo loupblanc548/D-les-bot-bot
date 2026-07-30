@@ -2,7 +2,7 @@
  * localLlm.ts — LLM local via Ollama (OpenAI-compatible API)
  *
  * Ollama expose une API OpenAI-compatible sur http://localhost:11434/v1
- * Modèle recommandé: qwen2.5:3b (2.5GB RAM, rapide sur CPU)
+ * Modèle recommandé: qwen2.5:14b (9GB RAM avec swap, function calling robuste)
  *
  * Utilisé en priorité pour les tâches simples (chat, traduction, réponses courtes).
  * Si le modèle local échoue ou est indisponible, fallback vers OpenRouter/NVIDIA.
@@ -12,7 +12,7 @@ import OpenAI from "openai";
 import logger from "../utils/logger.js";
 
 const LOCAL_LLM_URL = process.env.LOCAL_LLM_URL || "http://127.0.0.1:11434/v1";
-const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:3b";
+const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:14b";
 
 let client: OpenAI | null = null;
 let availabilityChecked = false;
