@@ -239,6 +239,18 @@ export const config = {
 
   // Fortnite Party Bot (fnbr.js)
   fortniteAuthCode: env.FORTNITE_AUTH_CODE || "",
+
+  // ─── Retailer Alerts (Amazon, eBay, etc.) ──────────────────────────────────
+  amazonPaApiKey: env.AMAZON_PA_API_KEY || "",
+  amazonPaApiSecret: env.AMAZON_PA_API_SECRET || "",
+  amazonAssociateTag: env.AMAZON_ASSOCIATE_TAG || "",
+  ebayClientId: env.EBAY_CLIENT_ID || "",
+  ebayClientSecret: env.EBAY_CLIENT_SECRET || "",
+  keepaApiKey: env.KEEPA_API_KEY || "",
+  retailerAlertsEnabled: env.RETAILER_ALERTS_ENABLED !== "false",
+  retailerTrackingIntervalMs: parseInt(env.RETAILER_TRACKING_INTERVAL_MS || "600000", 10),
+  retailerDealsIntervalMs: parseInt(env.RETAILER_DEALS_INTERVAL_MS || "900000", 10),
+  retailerChannel: env.RETAILER_CHANNEL_ID || "1532189747500421152",
 };
 
 export function validateConfig(): { errors: string[]; warnings: string[] } {

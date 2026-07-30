@@ -38,6 +38,7 @@ import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEma
 import { generateImage } from "./freeApis.js";
 import { removeBackground } from "./removeBg.js";
 import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
+import { RETAILER_TOOL_DEFS, handleRetailerTool } from "./agentToolsRetailers.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -739,6 +740,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...EXTERNAL_TOOLS,
   ...EXTRA_TOOLS,
   ...MEMORY_TOOLS,
+  ...RETAILER_TOOL_DEFS,
   ...ORPHAN_TOOLS,
   ...KALI_TOOLS,
 ];
@@ -851,6 +853,9 @@ export async function executeTool(
         // Essayer les tools Kali Linux (Layer 7 — Docker isolé)
         const kaliResult = await executeKaliTool(toolName, args, { userId: ctx.userId });
         if (kaliResult) return kaliResult;
+        // Essayer les tools revendeurs (Amazon, eBay, Cdiscount, etc.)
+        const retailerResult = await handleRetailerTool(toolName, args, ctx);
+        if (retailerResult.success || retailerResult.data) return retailerResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }
