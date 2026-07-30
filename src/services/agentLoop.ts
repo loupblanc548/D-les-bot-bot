@@ -879,7 +879,32 @@ async function runAgentLoopInternal(
     // qwen2.5 est le chef d'orchestre pour TOUT: texte, images, code, etc.
     // Pour les images: qwen reçoit la description Gemini Vision, puis peut
     // déléguer la réponse complexe via delegateToExpert si nécessaire.
-    if (isLocalLlmAvailable()) {
+    //
+    // EXCEPTION: si la demande nécessite des tools retailer (tracking de produits),
+    // on skip le local (qwen2.5:3b trop petit pour function calling complexe)
+    // et on va directement sur les modèles API plus capables.
+    const lowerUserMsg = userMessage.toLowerCase();
+    const needsRetailerTools =
+      lowerUserMsg.includes("track") || lowerUserMsg.includes("tracker") ||
+      lowerUserMsg.includes("suivre") || lowerUserMsg.includes("pister") ||
+      lowerUserMsg.includes("surveille") || lowerUserMsg.includes("alerte") ||
+      lowerUserMsg.includes("prix") || lowerUserMsg.includes("price") ||
+      lowerUserMsg.includes("produit") || lowerUserMsg.includes("product") ||
+      lowerUserMsg.includes("amazon") || lowerUserMsg.includes("ebay") ||
+      lowerUserMsg.includes("fnac") || lowerUserMsg.includes("cdiscount") ||
+      lowerUserMsg.includes("deal") || lowerUserMsg.includes("promo") ||
+      lowerUserMsg.includes("compar") || lowerUserMsg.includes("boutique") ||
+      lowerUserMsg.includes("revendeur") || lowerUserMsg.includes("retailer") ||
+      lowerUserMsg.includes("stock") || lowerUserMsg.includes("dispo") ||
+      lowerUserMsg.includes("panier") || lowerUserMsg.includes("cart");
+    const hasRetailerToolAvailable = availableTools.some(
+      (t) => t.function.name === "searchRetailers" || t.function.name === "searchSingleRetailer" ||
+             t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
+             t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
+    );
+    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable;
+
+    if (isLocalLlmAvailable() && !skipLocalForRetailer) {
       // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",
       // on essaie quand même le local mais on accepte de fallback plus vite
       const isComplexTask = (taskComplexity === "moderate" || taskComplexity === "complex") && availableTools.length > 3;
@@ -989,6 +1014,9 @@ async function runAgentLoopInternal(
         }
         logger.warn(`[AgentLoop] ❌ LLM local échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
       }
+    } else if (skipLocalForRetailer) {
+      // Local LLM skippé pour tâche retailer — on va directement aux API models
+      logger.info(`[AgentLoop] 🏠⏭️ LLM local skippé (retailer tools nécessaires) — utilisation API directement`);
     } else {
       // Ollama non disponible — on log et on passe directement aux API
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
