@@ -39,6 +39,8 @@ enum Platform {
   reaction_roles
   polls
   faq
+  retailer_alerts
+  retailer_deals
 }
 
 enum SanctionType {
