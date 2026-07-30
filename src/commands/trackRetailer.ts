@@ -1,11 +1,15 @@
 /**
  * trackRetailer.ts — Commandes slash pour tracker des produits revendeurs
  *
+ * Toutes les réponses et alertes vont dans le salon 1532189747500421152.
+ * La commande add délègue à Quent (agent IA) via une auto-mention dans le salon.
+ * Quent utilise les tools retailer pour rechercher, tracker et répondre intelligemment.
+ *
  * Commandes :
- *  /track-retailer add <produit> <revendeur> [pays] [prix-cible]
- *  /track-retailer remove <id>
- *  /track-retailer list [utilisateur]
- *  /track-retailer search <produit> [revendeur] [pays]
+ *  /track-retailer add <produit> <revendeur> [pays] [prix-cible] → délègue à Quent
+ *  /track-retailer remove <id> → arrête le suivi
+ *  /track-retailer list [utilisateur] → liste les produits suivis
+ *  /track-retailer search <produit> [revendeur] [pays] → recherche (délègue à Quent)
  */
 
 import {
@@ -14,15 +18,12 @@ import {
   EmbedBuilder,
   MessageFlags,
   AutocompleteInteraction,
+  TextChannel,
 } from "discord.js";
 import logger from "../utils/logger.js";
 import {
-  searchAllRetailers,
-  searchRetailer,
-  trackProduct,
   untrackProduct,
   getTrackedProducts,
-  getAvailableRetailers,
   getRetailerModule,
 } from "../services/retailerAlerts.js";
 import {
@@ -30,6 +31,8 @@ import {
   RETAILER_EMOJIS,
 } from "../services/retailers/types.js";
 import type { RetailerId, CountryCode } from "../services/retailers/types.js";
+
+const RETAILER_ALERT_CHANNEL = "1532189747500421152";
 
 const FOOTER = { text: "Retailer Alerts • Suivi de produits" };
 
@@ -232,65 +235,38 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // Rechercher le produit sur la boutique
-  const products = await searchRetailer(retailerId, productName, country, 5);
-
-  if (products.length === 0) {
+  // ── Déléguer à Quent : envoyer un message dans le salon d'alertes
+  //    qui mentionne le bot. Le bot traitera sa propre mention (exception
+  //    dans messages.ts) et Quent utilisera les tools retailer. ──
+  const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+  if (!channel?.isTextBased()) {
     await interaction.editReply({
-      content: `❌ Aucun produit trouvé pour **"${productName}"** sur ${RETAILER_NAMES[retailerId]} (${country}).\nEssaie avec un autre nom ou une autre boutique.`,
+      content: `❌ Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable. Le bot ne peut pas déléguer à Quent.`,
     });
     return;
   }
 
-  // Prendre le meilleur résultat (premier)
-  const best = products[0];
-  const trackId = trackProduct(retailerId, country, best.productId, best.title, interaction.user.id, interaction.guildId || "", {
-    targetPrice,
-    alertOnRestock: true,
-    alertOnPriceDrop: true,
-    alertOnPromotion: true,
-  });
+  const botId = interaction.client.user!.id;
+  const targetInfo = targetPrice ? ` avec un prix cible de ${targetPrice}€` : "";
+  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de suivre le produit "${productName}" sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId}) en ${country}${targetInfo}. ` +
+    `Utilise les tools retailer disponibles (searchSingleRetailer puis trackRetailerProduct) pour: ` +
+    `1) Rechercher ce produit sur ${retailerId} en ${country} ` +
+    `2) Ajouter le meilleur résultat au tracking avec alertes prix/restock/promo ` +
+    `3) Répondre avec un résumé clair du produit trouvé et suivi. ` +
+    `Réponds en français avec un formatage Discord riche (embed si possible).`;
 
-  const emoji = RETAILER_EMOJIS[retailerId] || "🔔";
-  const embed = new EmbedBuilder()
-    .setTitle(`${emoji} Produit suivi sur ${RETAILER_NAMES[retailerId]}`)
-    .setColor(0x2ecc71)
-    .setDescription(`**${best.title}**`)
-    .addFields(
-      { name: "Boutique", value: `${emoji} ${RETAILER_NAMES[retailerId]}`, inline: true },
-      { name: "Pays", value: `🇫🇷 ${country}`, inline: true },
-      { name: "Prix actuel", value: `${best.price} ${best.currency}`, inline: true },
-      { name: "ID de tracking", value: `\`${trackId}\``, inline: false },
-      { name: "Stock", value: best.inStock ? "✅ En stock" : "❌ Rupture", inline: true },
-      { name: "Prix cible", value: targetPrice ? `${targetPrice}€` : "Non défini", inline: true },
-      { name: "Alertes", value: "📉 Prix ↓ • ✅ Restock • 🔥 Promo", inline: false },
-    )
-    .setURL(best.url)
-    .setFooter(FOOTER)
-    .setTimestamp();
-
-  if (best.image) {
-    try { embed.setThumbnail(best.image); } catch { /* */ }
-  }
-
-  await interaction.editReply({
-    content: `✅ Produit trouvé et suivi ! Tu recevras des alertes dans <#1532189747500421152>.`,
-    embeds: [embed],
-  });
-
-  // Réponse intelligente : si d'autres résultats existent, les proposer
-  if (products.length > 1) {
-    const others = products.slice(1, 4).map((p, i) =>
-      `**${i + 2}.** ${p.title} — ${p.price} ${p.currency} ${p.inStock ? "✅" : "❌"}`,
-    ).join("\n");
-
-    await interaction.followUp({
-      content: `📋 **Autres résultats sur ${RETAILER_NAMES[retailerId]}:**\n${others}\n\n*Utilise \`/track-retailer search\` pour voir tous les détails.*`,
-      flags: [MessageFlags.Ephemeral],
+  try {
+    await channel.send(promptForQuent);
+    await interaction.editReply({
+      content: `✅ Demande envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront dans ce salon.`,
+    });
+    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})`);
+  } catch (err) {
+    logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err}`);
+    await interaction.editReply({
+      content: `❌ Erreur lors de l'envoi de la demande à Quent dans <#${RETAILER_ALERT_CHANNEL}>.`,
     });
   }
-
-  logger.info(`[TrackRetailer] ${interaction.user.tag} track ${best.title} sur ${retailerId} (${country})`);
 }
 
 // ─── /track-retailer remove ──────────────────────────────────────────────────
@@ -323,11 +299,23 @@ async function handleTrackRemove(interaction: ChatInputCommandInteraction): Prom
     .addFields(
       { name: "Boutique", value: RETAILER_NAMES[found.retailer], inline: true },
       { name: "Dernier prix", value: `${found.lastPrice}€`, inline: true },
+      { name: "Demandé par", value: `<@${interaction.user.id}>`, inline: true },
     )
     .setFooter(FOOTER)
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  // Envoyer dans le salon d'alertes
+  const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+  if (channel?.isTextBased()) {
+    try {
+      await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+    } catch { /* */ }
+  }
+
+  await interaction.editReply({
+    content: `✅ Suivi arrêté. Confirmation envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
+    embeds: [embed],
+  });
   logger.info(`[TrackRetailer] ${interaction.user.tag} a retiré le tracking ${trackId}`);
 }
 
@@ -360,13 +348,24 @@ async function handleTrackList(interaction: ChatInputCommandInteraction): Promis
     .setDescription(description.length > 4096 ? description.slice(0, 4093) + "..." : description)
     .addFields({
       name: "Salon d'alertes",
-      value: `<#1532189747500421152>`,
+      value: `<#${RETAILER_ALERT_CHANNEL}>`,
       inline: false,
     })
     .setFooter(FOOTER)
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  // Envoyer dans le salon d'alertes
+  const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+  if (channel?.isTextBased()) {
+    try {
+      await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+    } catch { /* */ }
+  }
+
+  await interaction.editReply({
+    content: `📋 Liste envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
+    embeds: [embed],
+  });
 }
 
 // ─── /track-retailer search ──────────────────────────────────────────────────
@@ -378,50 +377,34 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
 
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-  let products;
-  let searchScope: string;
-
-  if (retailerId) {
-    products = await searchRetailer(retailerId, productName, country, 10);
-    searchScope = `${RETAILER_NAMES[retailerId]} (${country})`;
-  } else {
-    products = await searchAllRetailers(productName, { countries: [country], limit: 3, inStockOnly: false });
-    searchScope = `toutes les boutiques (${country})`;
-  }
-
-  if (products.length === 0) {
+  // ── Déléguer à Quent : envoyer un message dans le salon d'alertes ──
+  const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+  if (!channel?.isTextBased()) {
     await interaction.editReply({
-      content: `❌ Aucun produit trouvé pour **"${productName}"** sur ${searchScope}.\nEssaie un autre nom ou une autre boutique.`,
+      content: `❌ Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`,
     });
     return;
   }
 
-  // Trier par prix
-  products.sort((a, b) => a.price - b.price);
+  const botId = interaction.client.user!.id;
+  const retailerInfo = retailerId
+    ? `sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId})`
+    : `sur toutes les boutiques disponibles`;
+  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de rechercher le produit "${productName}" ${retailerInfo} en ${country}. ` +
+    `Utilise les tools retailer disponibles (searchRetailers ou searchSingleRetailer) pour faire cette recherche. ` +
+    `Réponds avec un résumé clair des produits trouvés, triés par prix, avec le meilleur prix mis en avant. ` +
+    `Réponds en français avec un formatage Discord riche.`;
 
-  const lines = products.slice(0, 10).map((p, i) => {
-    const emoji = RETAILER_EMOJIS[p.retailer] || "🏷️";
-    const stock = p.inStock ? "✅" : "❌";
-    const discount = p.discountPercent ? ` (-${p.discountPercent}%)` : "";
-    const original = p.originalPrice ? ` ~~${p.originalPrice}€~~` : "";
-    return `${i + 1}. ${emoji} **${p.title}**\n   ${RETAILER_NAMES[p.retailer]} (${p.country}) — ${p.price} ${p.currency}${original}${discount} ${stock}`;
-  }).join("\n\n");
-
-  const cheapest = products[0];
-  const cheapestEmoji = RETAILER_EMOJIS[cheapest.retailer] || "🏷️";
-
-  const embed = new EmbedBuilder()
-    .setTitle(`🔍 Résultats pour "${productName}"`)
-    .setColor(0xf39c12)
-    .setDescription(lines)
-    .addFields(
-      { name: "Recherche", value: searchScope, inline: true },
-      { name: "Résultats", value: `${products.length} produit(s)`, inline: true },
-      { name: "Meilleur prix", value: `${cheapestEmoji} ${RETAILER_NAMES[cheapest.retailer]} — ${cheapest.price} ${cheapest.currency}`, inline: true },
-    )
-    .setFooter({ text: `Retailer Alerts • Utilise /track-retailer add pour suivre un produit` })
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
-  logger.info(`[TrackRetailer] ${interaction.user.tag} a recherché "${productName}" sur ${searchScope}`);
+  try {
+    await channel.send(promptForQuent);
+    await interaction.editReply({
+      content: `✅ Recherche envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre dans le salon.`,
+    });
+    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: search ${productName} ${retailerInfo} (${country})`);
+  } catch (err) {
+    logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err}`);
+    await interaction.editReply({
+      content: `❌ Erreur lors de l'envoi de la demande à Quent.`,
+    });
+  }
 }
