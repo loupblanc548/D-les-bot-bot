@@ -341,6 +341,31 @@ async function checkTrackedProducts(client: Client): Promise<void> {
 
 const RETAILER_ALERT_CHANNEL = "1532189747500421152";
 
+// ─── Pays : drapeaux et noms multilingues ───────────────────────────────────
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  FR: "🇫🇷", DE: "🇩🇪", BE: "🇧🇪", NL: "🇳🇱", ES: "🇪🇸",
+  IT: "🇮🇹", CH: "🇨🇭", UK: "🇬🇧", US: "🇺🇸",
+};
+
+const COUNTRY_NAMES: Record<string, Record<string, string>> = {
+  FR: { fr: "France", en: "France", de: "Frankreich", es: "Francia", it: "Francia" },
+  DE: { fr: "Allemagne", en: "Germany", de: "Deutschland", es: "Alemania", it: "Germania" },
+  BE: { fr: "Belgique", en: "Belgium", de: "Belgien", es: "Bélgica", it: "Belgio" },
+  NL: { fr: "Pays-Bas", en: "Netherlands", de: "Niederlande", es: "Países Bajos", it: "Paesi Bassi" },
+  ES: { fr: "Espagne", en: "Spain", de: "Spanien", es: "España", it: "Spagna" },
+  IT: { fr: "Italie", en: "Italy", de: "Italien", es: "Italia", it: "Italia" },
+  CH: { fr: "Suisse", en: "Switzerland", de: "Schweiz", es: "Suiza", it: "Svizzera" },
+  UK: { fr: "Royaume-Uni", en: "United Kingdom", de: "Vereinigtes Königreich", es: "Reino Unido", it: "Regno Unito" },
+  US: { fr: "États-Unis", en: "United States", de: "USA", es: "Estados Unidos", it: "Stati Uniti" },
+};
+
+function getCountryDisplay(country: string): string {
+  const flag = COUNTRY_FLAGS[country] || "🌍";
+  const name = COUNTRY_NAMES[country]?.fr || country;
+  return `${flag} ${name}`;
+}
+
 // ─── Couleurs par catégorie de produit ──────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, number> = {
@@ -462,6 +487,7 @@ async function sendRetailerAlert(
   const category = detectCategory(product.title, tracked.retailer);
   const categoryColor = getCategoryColor(category);
   const categoryLabel = getCategoryLabel(category);
+  const countryDisplay = getCountryDisplay(tracked.country);
 
   const alertTypeLabels: Record<AlertType, string> = {
     price_drop: "📉 Baisse de prix",
@@ -472,28 +498,43 @@ async function sendRetailerAlert(
   };
 
   const embed = new EmbedBuilder()
-    .setTitle(`${emoji} ${alertTypeLabels[alertType]} — ${RETAILER_NAMES[tracked.retailer]}`)
+    .setTitle(`${emoji} ${alertTypeLabels[alertType]} — ${product.title}`)
     .setDescription(message)
     .setColor(categoryColor)
     .addFields(
-      { name: "Boutique", value: RETAILER_NAMES[tracked.retailer], inline: true },
-      { name: "Pays", value: tracked.country, inline: true },
+      { name: "Produit", value: product.title, inline: false },
+      { name: "Marketplace", value: `${emoji} ${RETAILER_NAMES[tracked.retailer]}`, inline: true },
+      { name: "Pays", value: countryDisplay, inline: true },
       { name: "Prix", value: `${product.price} ${product.currency}`, inline: true },
       { name: "Catégorie", value: categoryLabel, inline: true },
+      { name: "Stock", value: product.inStock ? "✅ En stock" : "❌ Rupture", inline: true },
+      { name: "Lien", value: `[Voir le produit](${product.url})`, inline: true },
     )
     .setURL(product.url)
-    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • Demandé par <@${tracked.userId}>` })
+    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[tracked.retailer]} • <@${tracked.userId}>` })
     .setTimestamp();
 
   if (product.image) {
     try { embed.setThumbnail(product.image); } catch { /* URL invalide */ }
   }
 
+  // ── 1. Envoyer dans le salon dédié ──
   try {
     await channel.send({ content: `<@${tracked.userId}>`, embeds: [embed] });
     logger.info(`[RetailerAlerts] Alerte ${alertType} envoyée pour ${product.title} (${tracked.retailer})`);
   } catch (err) {
-    logger.error(`[RetailerAlerts] Erreur envoi alerte: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(`[RetailerAlerts] Erreur envoi alerte salon: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── 2. Envoyer en DM à l'utilisateur ──
+  try {
+    const user = await client.users.fetch(tracked.userId);
+    if (user) {
+      await user.send({ content: `${alertTypeLabels[alertType]} sur ${RETAILER_NAMES[tracked.retailer]} (${countryDisplay})`, embeds: [embed] });
+      logger.info(`[RetailerAlerts] DM envoyé à ${user.tag} pour ${product.title}`);
+    }
+  } catch (dmErr) {
+    logger.warn(`[RetailerAlerts] DM impossible pour ${tracked.userId}: ${dmErr instanceof Error ? dmErr.message : String(dmErr)}`);
   }
 }
 
@@ -530,19 +571,24 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
   const category = detectCategory(product.title, product.retailer);
   const categoryColor = getCategoryColor(category);
   const categoryLabel = getCategoryLabel(category);
+  const countryDisplay = getCountryDisplay(product.country);
 
   const embed = new EmbedBuilder()
-    .setTitle(`${emoji} Deal ${RETAILER_NAMES[product.retailer]} (${product.country})`)
+    .setTitle(`${emoji} Deal — ${product.title}`)
     .setDescription(`**${product.title}**`)
     .setColor(categoryColor)
     .addFields(
+      { name: "Produit", value: product.title, inline: false },
+      { name: "Marketplace", value: `${emoji} ${RETAILER_NAMES[product.retailer]}`, inline: true },
+      { name: "Pays", value: countryDisplay, inline: true },
       { name: "Prix", value: `${product.price} ${product.currency}`, inline: true },
       { name: "Réduction", value: product.discountPercent ? `-${product.discountPercent}%` : "N/A", inline: true },
-      { name: "Boutique", value: RETAILER_NAMES[product.retailer], inline: true },
       { name: "Catégorie", value: categoryLabel, inline: true },
+      { name: "Stock", value: product.inStock ? "✅ En stock" : "❌ Rupture", inline: true },
+      { name: "Lien", value: `[Voir le deal](${product.url})`, inline: true },
     )
     .setURL(product.url)
-    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • Deals Monitor` })
+    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[product.retailer]} • Deals Monitor` })
     .setTimestamp();
 
   if (product.image) {
