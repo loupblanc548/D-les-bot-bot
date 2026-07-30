@@ -9,6 +9,7 @@
 
 import { MessageFlags, GuildMember } from "discord.js";
 import { getPermissionLevel, PermissionLevel } from "../services/permissions.js";
+import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import type { Middleware } from "./compose.js";
 
@@ -75,8 +76,15 @@ export function createPermissionGuardMiddleware(): Middleware {
 
     const member = interaction.member as GuildMember | undefined;
     if (!member) {
-      // DM context: no guild permissions to check — allow through
-      return next();
+      // DM context: dangerous commands are owner-only in DM
+      if (interaction.user.id === config.ownerId) {
+        return next();
+      }
+      await interaction.reply({
+        content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+        flags: [MessageFlags.Ephemeral],
+      });
+      return;
     }
 
     const userLevel = await getPermissionLevel(member);
