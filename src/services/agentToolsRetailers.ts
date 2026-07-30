@@ -200,6 +200,7 @@ export const RETAILER_TOOL_DEFS: AgentToolDef[] = [
             description: "Filtrer par utilisateur (ID Discord, optionnel)",
           },
         },
+        required: [],
       },
     },
   },
@@ -267,6 +268,7 @@ export const RETAILER_TOOL_DEFS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {},
+        required: [],
       },
     },
   },

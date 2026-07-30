@@ -243,6 +243,17 @@ const envSchema = z.object({
   ELEVENLABS_MONTHLY_CHAR_LIMIT: z.string().default("50000"),
   // Remove.bg
   REMOVEBG_API_KEY: z.string().optional(),
+
+  // ─── Retailer Alerts (Amazon, eBay, etc.) ──────────────────────────────────
+  AMAZON_PA_API_KEY: z.string().optional(),
+  AMAZON_PA_API_SECRET: z.string().optional(),
+  AMAZON_ASSOCIATE_TAG: z.string().optional(),
+  EBAY_CLIENT_ID: z.string().optional(),
+  EBAY_CLIENT_SECRET: z.string().optional(),
+  KEEPA_API_KEY: z.string().optional(),
+  RETAILER_ALERTS_ENABLED: z.string().default("true"),
+  RETAILER_TRACKING_INTERVAL_MS: z.string().default("600000"),
+  RETAILER_DEALS_INTERVAL_MS: z.string().default("900000"),
 });
 
 export type Env = z.infer<typeof envSchema>;

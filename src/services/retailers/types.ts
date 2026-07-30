@@ -58,7 +58,7 @@ export type RetailerId =
   | "instantgaming"
   | "gog";
 
-export type CountryCode = "FR" | "DE" | "BE" | "NL" | "ES" | "IT" | "CH" | "UK" | "US";
+export type CountryCode = "FR" | "DE" | "BE" | "NL" | "ES" | "IT" | "CH" | "UK" | "US" | "AT";
 
 export type AlertType = "price_drop" | "promotion" | "restock" | "new_product" | "deal";
 
