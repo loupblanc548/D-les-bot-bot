@@ -354,7 +354,7 @@ async function main(): Promise<void> {
       try {
         await dedupCache.warmUpFromDatabase(async (platform) => {
           const entries = await prisma.processedCache.findMany({
-            where: { platform },
+            where: { platform: platform as any },
             select: { uniqueId: true },
             orderBy: { createdAt: "desc" },
             take: 100,

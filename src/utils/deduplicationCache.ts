@@ -173,8 +173,8 @@ class DeduplicationCache {
     // Persistance Neon (upsert pour éviter P2002)
     try {
       await prisma.processedCache.upsert({
-        where: { platform_uniqueId: { platform, uniqueId } },
-        create: { platform, uniqueId },
+        where: { platform_uniqueId: { platform: platform as any, uniqueId } },
+        create: { platform: platform as any, uniqueId },
         update: {},
       });
     } catch (error: unknown) {
@@ -200,7 +200,7 @@ class DeduplicationCache {
     // Persistance Neon (ignore doublons)
     try {
       await prisma.processedCache.createMany({
-        data: newIds.map((uniqueId) => ({ platform, uniqueId })),
+        data: newIds.map((uniqueId) => ({ platform: platform as any, uniqueId })),
         skipDuplicates: true,
       });
     } catch (error: unknown) {
@@ -254,12 +254,12 @@ class DeduplicationCache {
     await Promise.all(
       ALL_PLATFORMS.map(async (platform) => {
         const count = await prisma.processedCache.count({
-          where: { platform },
+          where: { platform: platform as any },
         });
         if (count > MAX_IDS_PER_PLATFORM) {
           const excess = count - MAX_IDS_PER_PLATFORM;
           const oldestToDelete = await prisma.processedCache.findMany({
-            where: { platform },
+            where: { platform: platform as any },
             orderBy: { createdAt: "asc" },
             take: excess,
             select: { id: true },

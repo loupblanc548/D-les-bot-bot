@@ -7196,7 +7196,7 @@ export async function executeExtendedTool(
       case "amazon_price_alert_create":
         return tAmazonPriceAlertCreate(args);
       case "amazon_price_alert_check":
-        return await tAmazonPriceAlertCheck(args);
+        return await tAmazonPriceAlertCheck();
       case "amazon_price_alert_delete":
         return tAmazonPriceAlertDelete(args);
       case "amazon_wishlist_diff":
