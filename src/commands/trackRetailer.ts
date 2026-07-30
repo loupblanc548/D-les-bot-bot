@@ -6,7 +6,8 @@
  * Quent utilise les tools retailer pour rechercher, tracker et répondre intelligemment.
  *
  * Commandes :
- *  /track-retailer add <produit> <revendeur> [pays] [prix-cible] → délègue à Quent
+ *  /track-retailer add <produit> <revendeur> [pays] [prix-cible] [capture] → délègue à Quent
+ *  /track-retailer scan <image> [revendeur] [pays] → scanne une capture de panier, Quent tracke tout
  *  /track-retailer remove <id> → arrête le suivi
  *  /track-retailer list [utilisateur] → liste les produits suivis
  *  /track-retailer search <produit> [revendeur] [pays] → recherche (délègue à Quent)
@@ -19,6 +20,7 @@ import {
   MessageFlags,
   AutocompleteInteraction,
   TextChannel,
+  AttachmentBuilder,
 } from "discord.js";
 import logger from "../utils/logger.js";
 import {
@@ -87,6 +89,47 @@ export const commands = [
             .setDescription("Prix cible pour déclencher une alerte (optionnel)")
             .setRequired(false)
             .setMinValue(0),
+        )
+        .addAttachmentOption((o) =>
+          o
+            .setName("capture")
+            .setDescription("Capture d'écran du panier ou de la page produit (optionnel)")
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((sc) =>
+      sc
+        .setName("scan")
+        .setDescription("Scanner une capture de panier pour tracker tous les produits")
+        .addAttachmentOption((o) =>
+          o
+            .setName("image")
+            .setDescription("Capture d'écran du panier (Amazon, etc.)")
+            .setRequired(true),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("revendeur")
+            .setDescription("Boutique concernée (optionnel — auto-détecté si non précisé)")
+            .setRequired(false)
+            .setAutocomplete(true),
+        )
+        .addStringOption((o) =>
+          o
+            .setName("pays")
+            .setDescription("Code pays")
+            .setRequired(false)
+            .addChoices(
+              { name: "🇫🇷 France", value: "FR" },
+              { name: "🇩🇪 Allemagne", value: "DE" },
+              { name: "🇧🇪 Belgique", value: "BE" },
+              { name: "🇳🇱 Pays-Bas", value: "NL" },
+              { name: "🇪🇸 Espagne", value: "ES" },
+              { name: "🇮🇹 Italie", value: "IT" },
+              { name: "🇨🇭 Suisse", value: "CH" },
+              { name: "🇬🇧 UK", value: "UK" },
+              { name: "🇺🇸 USA", value: "US" },
+            ),
         ),
     )
     .addSubcommand((sc) =>
@@ -192,6 +235,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     case "add":
       await handleTrackAdd(interaction);
       break;
+    case "scan":
+      await handleTrackScan(interaction);
+      break;
     case "remove":
       await handleTrackRemove(interaction);
       break;
@@ -211,6 +257,7 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
   const retailerId = interaction.options.getString("revendeur", true) as RetailerId;
   const country = (interaction.options.getString("pays") as CountryCode) || "FR";
   const targetPrice = interaction.options.getNumber("prix-cible") || undefined;
+  const attachment = interaction.options.getAttachment("capture");
 
   await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
@@ -248,23 +295,97 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
 
   const botId = interaction.client.user!.id;
   const targetInfo = targetPrice ? ` avec un prix cible de ${targetPrice}€` : "";
-  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de suivre le produit "${productName}" sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId}) en ${country}${targetInfo}. ` +
+  let promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de suivre le produit "${productName}" sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId}) en ${country}${targetInfo}. ` +
     `Utilise les tools retailer disponibles (searchSingleRetailer puis trackRetailerProduct) pour: ` +
     `1) Rechercher ce produit sur ${retailerId} en ${country} ` +
     `2) Ajouter le meilleur résultat au tracking avec alertes prix/restock/promo ` +
     `3) Répondre avec un résumé clair du produit trouvé et suivi. ` +
     `Réponds en français avec un formatage Discord riche (embed si possible).`;
 
+  // Si une capture est jointe, l'envoyer comme attachment avec le prompt
+  const sendOptions: { content: string; files?: AttachmentBuilder[] } = { content: promptForQuent };
+  if (attachment) {
+    promptForQuent += `\n\nUne capture d'écran est jointe. Analyse-la pour identifier le produit exact et utilise les informations visuelles (nom, prix, image) pour affiner la recherche.`;
+    sendOptions.content = promptForQuent;
+    try {
+      const res = await fetch(attachment.url);
+      const buf = Buffer.from(await res.arrayBuffer());
+      sendOptions.files = [new AttachmentBuilder(buf, { name: attachment.name || "capture.png" })];
+    } catch {
+      // Si téléchargement échoue, envoyer l'URL dans le prompt
+      sendOptions.content += `\n[Image jointe: ${attachment.url}]`;
+    }
+  }
+
   try {
-    await channel.send(promptForQuent);
+    await channel.send(sendOptions);
     await interaction.editReply({
       content: `✅ Demande envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront dans ce salon.`,
     });
-    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})`);
+    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})${attachment ? " + capture" : ""}`);
   } catch (err) {
     logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err}`);
     await interaction.editReply({
       content: `❌ Erreur lors de l'envoi de la demande à Quent dans <#${RETAILER_ALERT_CHANNEL}>.`,
+    });
+  }
+}
+
+// ─── /track-retailer scan ────────────────────────────────────────────────────
+
+async function handleTrackScan(interaction: ChatInputCommandInteraction): Promise<void> {
+  const attachment = interaction.options.getAttachment("image", true);
+  const retailerId = interaction.options.getString("revendeur") as RetailerId | null;
+  const country = (interaction.options.getString("pays") as CountryCode) || "FR";
+
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  // Vérifier que c'est une image
+  const isImage = attachment.contentType?.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(attachment.name || "");
+  if (!isImage) {
+    await interaction.editReply({
+      content: `❌ Le fichier joint doit être une image (PNG, JPG, WEBP, GIF, etc.).`,
+    });
+    return;
+  }
+
+  const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+  if (!channel?.isTextBased()) {
+    await interaction.editReply({
+      content: `❌ Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`,
+    });
+    return;
+  }
+
+  const botId = interaction.client.user!.id;
+  const retailerInfo = retailerId
+    ? `sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId})`
+    : `sur la boutique indiquée dans la capture (auto-détection)`;
+
+  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> envoie une capture d'écran de son panier ou d'une page produit. ` +
+    `Analyse cette image avec les tools de vision disponibles (analyzeImageGemini) pour identifier TOUS les produits visibles dans la capture. ` +
+    `Pour chaque produit identifié: ` +
+    `1) Recherche-le ${retailerInfo} en ${country} avec searchSingleRetailer ` +
+    `2) Ajoute-le au tracking avec trackRetailerProduct (alertes prix/restock/promo activées) ` +
+    `3) Envoie une confirmation pour chaque produit suivi avec son nom, prix, disponibilité et ID de tracking. ` +
+    `À la fin, envoie un résumé global avec le nombre de produits suivis. ` +
+    `Réponds en français avec un formatage Discord riche (embed si possible).`;
+
+  try {
+    // Télécharger l'image et l'envoyer comme attachment
+    const res = await fetch(attachment.url);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const file = new AttachmentBuilder(buf, { name: attachment.name || "cart-screenshot.png" });
+
+    await channel.send({ content: promptForQuent, files: [file] });
+    await interaction.editReply({
+      content: `✅ Capture envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation dans le salon.`,
+    });
+    logger.info(`[TrackRetailer] ${interaction.user.tag} a envoyé une capture pour scan (${attachment.name}, ${attachment.size}o)`);
+  } catch (err) {
+    logger.error(`[TrackRetailer] Erreur envoi capture à Quent: ${err}`);
+    await interaction.editReply({
+      content: `❌ Erreur lors de l'envoi de la capture à Quent.`,
     });
   }
 }
