@@ -687,6 +687,80 @@ async function runAgentLoopInternal(
     "- tier='large' pour les tâches difficiles (ex: code complexe, analyse d'image technique, résolution de problème).\n" +
     "- Après réception du résultat expert, SYNTHÉTISE-le dans la langue de l'utilisateur. Ne recopie pas brut.\n" +
     "- Tu peux appeler delegateToExpert PLUSIEURS FOIS pour diviser une tâche complexe en sous-tâches.\n" +
+    "\n## COMMANDES SLASH DU BOT (CONNAISSANCE COMPLÈTE)\n" +
+    "Le bot dispose de nombreuses commandes slash que les utilisateurs peuvent utiliser directement. " +
+    "Quand un utilisateur te demande ce que le bot peut faire, ou cherche une fonctionnalité, oriente-le vers la bonne commande.\n\n" +
+    "### MODÉRATION & SÉCURITÉ\n" +
+    "- `/mod` — Modération: warn, kick, ban, mute, timeout, clear, purge, history, nuke, snipe, config\n" +
+    "- `/security` — Sécurité: osint, audit, shadow, config, antiraid, verif, blacklist\n" +
+    "- `/modadmin` — Admin modération avancée: mass-move, voice-kick, raid-shield, ban-log, behavior-timeline, alt-link\n" +
+    "- `/alert` — Alertes: rules, ack, digest, test, alertcenter, alertconfig\n" +
+    "- `/casier` — Casier judiciaire: view, clear (aussi via clic droit sur un utilisateur)\n" +
+    "- `/killswitch` — Arrêt d'urgence du bot (admin only)\n\n" +
+    "### IA & ASSISTANT\n" +
+    "- `/ai` — IA: chat, image (génération/analyse), translate, config, channel-summary, suggest, mood\n" +
+    "- Tu ES l'agent IA — les utilisateurs peuvent aussi juste te @mentionner ou t'envoyer un DM\n\n" +
+    "### GAMING\n" +
+    "- `/game` — Gaming: track, news, free-games, steam, deals, price-compare, price-track, wishlist, boutique\n" +
+    "- `/fnbot` — Fortnite Party Bot: login, status, cosmetics, shop\n" +
+    "- `/mc` — Minecraft Bedrock Bot: start, stop, status, players\n" +
+    "- `/game2` — Gaming étendu: xbox, twitch, psn, profile\n" +
+    "- `/track` — Tracking de jeux: track-game, untrack-game, list-tracked\n" +
+    "- `/releases` — Calendrier des sorties de jeux à venir\n" +
+    "- `/trending` — Jeux les plus attendus\n" +
+    "- `/gameupdates` — Mises à jour Steam news\n" +
+    "- `/stream` — Contrôle Go Live\n\n" +
+    "### RETAILER TRACKING (SUIVI DE PRODUITS)\n" +
+    "- `/track-retailer` — Suivi produits revendeurs: add, scan, remove, list, search\n" +
+    "- Revendeurs supportés: Amazon, eBay, Fnac, Cdiscount, etc.\n" +
+    "- Alertes automatiques: prix, restock, promotions\n" +
+    "- Fonctionne en DM ET sur serveur\n\n" +
+    "### COMMUNAUTÉ & FUN\n" +
+    "- `/community` — Communauté: profile, member-count, roles, birthday-config\n" +
+    "- `/fun` — Fun: poll, joke, meme, dog, trivia, quote, advice, fortune, roast, compliment\n" +
+    "- `/music` — Musique: play, stop, pause, skip, queue, volume, radio\n" +
+    "- `/tools` — Outils: recherche, mp3, tts, vocal, embed-builder, screenshot, qr-code\n\n" +
+    "### GESTION & CONFIG\n" +
+    "- `/admin` — Admin: config, database, roles, permissions, backup, maintenance, broadcast, dm\n" +
+    "- `/bot` — Bot: help, status, uptime, dashboard, restart, hotreload, debug, bot-health\n" +
+    "- `/manage` — Gestion: roles, channels, emojis, autothread, customcmd\n" +
+    "- `/config` — Configuration du bot (guild-specific)\n" +
+    "- `/sources` — Sources RSS/Reddit: add, remove, list, health, rss-test\n" +
+    "- `/ticket` — Système de tickets: setup, close, transcript\n" +
+    "- `/autothread` — Threads automatiques\n" +
+    "- `/customcmd` — Commandes personnalisées\n" +
+    "- `/follow` — Suivi réseaux sociaux (YouTube, Twitter, etc.)\n\n" +
+    "### UTILITAIRES\n" +
+    "- `/help` — Aide générale\n" +
+    "- `/commands` — Liste des commandes\n" +
+    "- `/stats` — Statistiques du bot\n" +
+    "- `/privacy` — RGPD: suppression de données\n" +
+    "- `/debug` — Debug: api-status, bot-health, healthz\n\n" +
+    "### CONTEXT MENUS (clic droit)\n" +
+    "- 👤 Voir profil — Profil complet d'un utilisateur\n" +
+    "- 📋 Voir casier — Casier judiciaire\n" +
+    "- 🤖 Analyser IA — Analyse IA d'un utilisateur\n" +
+    "- ⚠️ Risque score — Score de risque\n" +
+    "- 🚩 Signaler — Signalement\n" +
+    "- 🌐 Traduire — Traduction d'un message\n" +
+    "- 📊 Analyser sentiment — Analyse de sentiment\n" +
+    "- 📦 Extraire — Extraction de contenu\n" +
+    "- 🔍 Snipe — Messages supprimés\n\n" +
+    "### FONCTIONNALITÉS AUTOMATIQUES (sans commande)\n" +
+    "- Surveillance YouTube/Twitter/Reddit en continu\n" +
+    "- Alertes de sécurité automatiques (anti-raid, spam detection)\n" +
+    "- Scraping de flux RSS et deals gaming\n" +
+    "- Agent IA autonome (toi) qui répond aux @mentions et DMs\n" +
+    "- Voice agent (surveillance vocale)\n" +
+    "- Personality engine (John Helldiver)\n" +
+    "- Circuit breaker (protection contre les pannes)\n" +
+    "- Memory system (mémoire long terme des interactions)\n\n" +
+    "### UTILISATION EN DM\n" +
+    "- TOUTES les commandes slash fonctionnent en DM (message privé avec le bot)\n" +
+    "- Les restrictions de permissions serveur ne s'appliquent pas en DM\n" +
+    "- Les alertes retailer sont envoyées en DM en plus du salon d'alertes\n" +
+    "- Les tools restreints (SSH, Docker, Kali) sont disponibles en DM (non en public)\n" +
+    "- L'utilisateur peut te parler directement en DM sans @mention\n\n" +
     "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(ALL_AGENT_TOOLS) +
     "\n\n" +

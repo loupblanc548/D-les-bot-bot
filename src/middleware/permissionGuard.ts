@@ -75,11 +75,8 @@ export function createPermissionGuardMiddleware(): Middleware {
 
     const member = interaction.member as GuildMember | undefined;
     if (!member) {
-      await interaction.reply({
-        content: "❌ Cette commande doit être utilisée sur un serveur.",
-        flags: [MessageFlags.Ephemeral],
-      });
-      return;
+      // DM context: no guild permissions to check — allow through
+      return next();
     }
 
     const userLevel = await getPermissionLevel(member);
