@@ -1,5 +1,6 @@
 ---
-description: "Workflow de vérification avant mise en production"
+name: production-readiness
+description: Workflow de vérification avant mise en production
 ---
 
 # /production-readiness

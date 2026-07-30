@@ -1,5 +1,6 @@
 ---
-description: "Workflow pour reproduire localement la CI GitHub Actions"
+name: ci-check
+description: Workflow pour reproduire localement la CI GitHub Actions
 ---
 
 # /ci-check

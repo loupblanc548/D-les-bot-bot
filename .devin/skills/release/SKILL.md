@@ -1,5 +1,6 @@
 ---
-description: "Workflow de release — versioning, changelog, préparation production"
+name: release
+description: Workflow de release — versioning, changelog, préparation production
 ---
 
 # /release

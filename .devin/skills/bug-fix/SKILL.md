@@ -1,5 +1,6 @@
 ---
-description: "Workflow de correction de bug — analyse, reproduction, correction, test"
+name: bug-fix
+description: Workflow de correction de bug — analyse, reproduction, correction, test
 ---
 
 # /bug-fix

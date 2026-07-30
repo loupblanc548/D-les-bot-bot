@@ -1,5 +1,6 @@
 ---
-description: "Workflow de configuration d'environnement — installation, Docker, .env"
+name: environment-setup
+description: Workflow de configuration d'environnement — installation, Docker, .env
 ---
 
 # /environment-setup
