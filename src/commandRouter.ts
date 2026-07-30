@@ -100,6 +100,10 @@ import {
   commands as trackGroupCommands,
   handleCommand as handleTrackGroup,
 } from "./commands/trackGroup.js";
+import {
+  commands as trackRetailerCommands,
+  handleCommand as handleTrackRetailer,
+} from "./commands/trackRetailer.js";
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
 import { data as statsCommandData, execute as statsExecute } from "./commands/stats.js";
 import { data as configCommandData, execute as configExecute } from "./commands/config.js";
@@ -479,6 +483,7 @@ export const allCommands = [
   ...game2GroupCommands, // /game2
   ...musicGroupCommands, // /music
   ...trackGroupCommands, // /track
+  ...trackRetailerCommands, // /track-retailer
   // ── Context Menus (clic droit) ──
   ...contextMenuCommands,
   // ── Releases (game release countdown) ──
@@ -554,6 +559,11 @@ export function buildCommandRouter(): void {
   registerGroup(["game2"], handleGame2Group);
   registerGroup(["music"], handleMusicGroup);
   registerGroup(["track"], handleTrackGroup);
+  // ─── Retailer tracking command ───
+  commandRouter["track-retailer"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleTrackRetailer(interaction as ChatInputCommandInteraction);
+  };
   // ─── Releases command ───
   commandRouter["releases"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
