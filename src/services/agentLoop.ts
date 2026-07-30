@@ -928,15 +928,11 @@ async function runAgentLoopInternal(
     const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
 
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
-      // Seuil de complexité: si >2 tools et complexité "moderate"/"complex",
-      // on essaie quand même le local mais on accepte de fallback plus vite
-      const isComplexTask = (taskComplexity === "moderate" || taskComplexity === "complex") && availableTools.length > 3;
-
-      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length}${isComplexTask ? " — tâche complexe, fallback rapide si échec" : ""})`);
+      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`);
 
       try {
         if (availableTools.length > 0) {
-          // Tâche avec tools — essayer le local avec tools
+          // Tâche avec tools — le 14B gère le function calling
           const localResult = await chatWithLocalLlmTools(
             conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
             availableTools,
@@ -944,7 +940,6 @@ async function runAgentLoopInternal(
           );
           if (localResult) {
             if (localResult.toolCalls && localResult.toolCalls.length > 0) {
-              // Le local a retourné des tool calls — construire la réponse
               response = {
                 choices: [{
                   message: {
@@ -958,7 +953,6 @@ async function runAgentLoopInternal(
               logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`);
               continue; // Passer à l'exécution des tools
             } else if (localResult.text && localResult.text.length > 5) {
-              // Réponse texte simple — pas besoin de tools
               response = {
                 choices: [{
                   message: { role: "assistant", content: localResult.text },
@@ -968,22 +962,9 @@ async function runAgentLoopInternal(
               logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`);
               recordLocalLlm();
               break;
-            } else if (!isComplexTask) {
-              // Réponse courte mais tâche simple — acceptable
-              if (localResult.text) {
-                response = {
-                  choices: [{
-                    message: { role: "assistant", content: localResult.text },
-                    finish_reason: "stop",
-                  }],
-                } as never;
-                logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (réponse courte, tâche simple)`);
-                recordLocalLlm();
-                break;
-              }
             }
-            // Si tâche complexe et réponse vide/courte → fallback vers API
-            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante pour tâche ${isComplexTask ? "complexe" : "simple"} — fallback API`);
+            // Réponse vide/courte — fallback vers API
+            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante — fallback API`);
           } else {
             logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} retour null — fallback API`);
           }
