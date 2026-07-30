@@ -600,6 +600,17 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
   } catch {
     // Erreur envoi
   }
+
+  // ── DM notification à l'owner pour les deals ──
+  try {
+    const ownerId = config.ownerId;
+    const user = await client.users.fetch(ownerId);
+    if (user) {
+      await user.send({ content: `🏷️ Deal — ${product.title}`, embeds: [embed] });
+    }
+  } catch {
+    // DM impossible (DMs fermés)
+  }
 }
 
 // ─── Démarrage / arrêt ──────────────────────────────────────────────────────

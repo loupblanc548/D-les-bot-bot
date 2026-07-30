@@ -155,6 +155,16 @@ async function computePermissionLevel(member: GuildMember): Promise<PermissionLe
 }
 
 export async function requireAdmin(interaction: CommandInteraction): Promise<boolean> {
+  // ── DM bypass: owner can use admin commands in DM ──
+  if (!interaction.guild) {
+    if (interaction.user.id === config.ownerId) return true;
+    await interaction.reply({
+      content: "❌ Cette commande doit etre utilisee sur un serveur (ou en DM par le propriétaire du bot).",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return false;
+  }
+
   const member = interaction.member as GuildMember;
   if (!member) {
     await interaction.reply({
@@ -177,6 +187,16 @@ export async function requireAdmin(interaction: CommandInteraction): Promise<boo
 }
 
 export async function requireMod(interaction: CommandInteraction): Promise<boolean> {
+  // ── DM bypass: owner can use mod commands in DM ──
+  if (!interaction.guild) {
+    if (interaction.user.id === config.ownerId) return true;
+    await interaction.reply({
+      content: "❌ Cette commande doit etre utilisee sur un serveur (ou en DM par le propriétaire du bot).",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return false;
+  }
+
   const member = interaction.member as GuildMember;
   if (!member) {
     await interaction.reply({
