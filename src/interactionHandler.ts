@@ -38,7 +38,6 @@ import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitc
 import { handleAutocomplete as handleFollowAutocomplete } from "./commands/follow.js";
 import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
 import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
-import { handleAutocomplete as handleTrackRetailerAutocomplete } from "./commands/trackRetailer.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 0. Context Menus (clic droit) ──────────────────────────────────
@@ -319,10 +318,6 @@ export function attachInteractionHandlers(client: Client): void {
       }
       case "profile": {
         await handleProfileAutocomplete(interaction);
-        break;
-      }
-      case "track-retailer": {
-        await handleTrackRetailerAutocomplete(interaction);
         break;
       }
     }
