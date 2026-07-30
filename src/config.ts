@@ -250,7 +250,7 @@ export const config = {
   retailerAlertsEnabled: env.RETAILER_ALERTS_ENABLED !== "false",
   retailerTrackingIntervalMs: parseInt(env.RETAILER_TRACKING_INTERVAL_MS || "600000", 10),
   retailerDealsIntervalMs: parseInt(env.RETAILER_DEALS_INTERVAL_MS || "900000", 10),
-  retailerChannel: env.RETAILER_CHANNEL_ID || "1532189747500421152",
+  retailerChannel: "1532189747500421152",
 };
 
 export function validateConfig(): { errors: string[]; warnings: string[] } {
