@@ -97,7 +97,7 @@
     "sharp": "^0.35.2",
     "whois-json": "^2.0.4",
     "winston": "^3.19.0",
-    "ws": "^8.21.0",
+    "ws": "^8.21.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
