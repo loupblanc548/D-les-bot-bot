@@ -118,7 +118,7 @@ function getLocalClient(): OpenAI {
       apiKey: "ollama", // Ollama n'a pas besoin de clé mais le SDK exige une valeur
       baseURL: LOCAL_LLM_URL,
       maxRetries: 0,
-      timeout: 20_000, // 20s max — qwen2.5:3b on CPU should respond within 10s
+      timeout: 120_000, // 120s max — qwen2.5:14b on CPU needs more time than 3b
     });
   }
   return client;
@@ -159,14 +159,17 @@ export async function chatWithLocalLlm(
     // Don't log timeouts as warnings — they're expected on CPU for complex prompts
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout (20s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout (120s) — tâche trop lourde, fallback API`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    // Marquer comme potentiellement indisponible
-    available = false;
+    // Ne pas marquer indisponible sur timeout — le 14B sur CPU peut être lent
+    // mais reste disponible pour des tâches plus simples
+    if (!isTimeout) {
+      available = false;
+    }
     return null;
   }
 }
@@ -203,10 +206,17 @@ export async function chatWithLocalLlmTools(
     );
     return { text, toolCalls };
   } catch (error) {
-    logger.warn(
-      `[LocalLLM] Échec modèle local (tools): ${error instanceof Error ? error.message : String(error)}`,
-    );
-    available = false;
+    const isTimeout = error instanceof Error && error.message.includes("timeout");
+    if (isTimeout) {
+      logger.info(`[LocalLLM] Timeout tools (120s) — tâche trop lourde, fallback API`);
+    } else {
+      logger.warn(
+        `[LocalLLM] Échec modèle local (tools): ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    if (!isTimeout) {
+      available = false;
+    }
     return null;
   }
 }
