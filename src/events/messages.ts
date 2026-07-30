@@ -398,7 +398,18 @@ export function handleMessageEvents(client: Client) {
 
   client.on("messageCreate", async (message) => {
     try {
-      if (message.author.bot) return;
+      if (message.author.bot) {
+        // ── Exception: le bot peut se mentionner lui-même dans le salon
+        //    d'alertes revendeurs pour déclencher Quent (via /track-retailer) ──
+        const isRetailerChannel = message.channelId === "1532189747500421152";
+        const isSelfMention = message.mentions.has(client.user!);
+        if (isRetailerChannel && isSelfMention) {
+          // Traiter comme une mention normale → handleAiChatMention
+          await handleAiChatMention(message, client);
+          return;
+        }
+        return;
+      }
 
       // ── DM (Message Privé) → l'agent IA répond directement ──
       if (!message.guild) {

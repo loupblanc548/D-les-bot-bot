@@ -47,6 +47,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Security
   getSecurity: () => ipcRenderer.invoke("api:security"),
 
+  // Amazon
+  getAmazon: () => ipcRenderer.invoke("api:amazon"),
+  amazonTrack: (asin, domain) => ipcRenderer.invoke("api:amazon-track", { asin, domain }),
+  amazonWishlist: (wishlistUrl, domain) => ipcRenderer.invoke("api:amazon-wishlist", { wishlistUrl, domain }),
+  amazonAlert: (asin, targetPrice, channelId) => ipcRenderer.invoke("api:amazon-alert", { asin, targetPrice, channelId }),
+  amazonDeals: (params) => ipcRenderer.invoke("api:amazon-deals", params),
+
   // Music
   getMusic: () => ipcRenderer.invoke("api:music"),
   musicControl: (action, guildId) => ipcRenderer.invoke("api:music-control", { action, guildId }),

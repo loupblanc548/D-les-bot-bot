@@ -35,7 +35,9 @@ export type PlatformKey =
   | "onboarding"
   | "reaction_roles"
   | "polls"
-  | "faq";
+  | "faq"
+  | "retailer_alerts"
+  | "retailer_deals";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
@@ -64,6 +66,8 @@ const ALL_PLATFORMS: PlatformKey[] = [
   "reaction_roles",
   "polls",
   "faq",
+  "retailer_alerts",
+  "retailer_deals",
 ];
 
 // ─── Cache Singleton ────────────────────────────────────────────────────────

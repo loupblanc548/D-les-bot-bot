@@ -348,6 +348,35 @@ export function attachStartupLogic(
       logger.warn(`[Startup] ${channelsReport.errors} salon(s) inaccessible(s)`);
     }
 
+    // ─── Topic du salon d'alertes revendeurs ─────────────────────────────
+    try {
+      const retailerChannel = await client.channels
+        .fetch("1532189747500421152")
+        .catch(() => null);
+      if (retailerChannel?.isTextBased()) {
+        const topic =
+          "**Suivi de Produits Revendeurs**\n" +
+          "Bienvenue ! Demande à Quent de tracker des produits sur les boutiques en ligne. Tout en langage naturel.\n\n" +
+          "**Utilisation** — @mentionne le bot :\n" +
+          "• @Quent Track-moi \"RTX 4070\" sur Amazon\n" +
+          "• @Quent Suis ce produit sur Fnac\n" +
+          "• @Quent Y'a une promo ?\n" +
+          "• @Quent Compare le prix partout\n" +
+          "• @Quent Trouve ça sur eBay en Allemagne\n\n" +
+          "**Avec une image** — capture + @mention :\n" +
+          "• @Quent Scan mon panier → tracke tout\n" +
+          "• @Quent Track ça avec l'image\n\n" +
+          "**Boutiques** : Amazon · eBay · Fnac · Cdiscount · Darty · LDLC · Rakuten · Decathlon · IKEA · Zalando · Back Market · Vinted · Leboncoin · Alternate · Newegg · Best Buy · Walmart · Etsy · Dealabs · et plus\n\n" +
+          "**Pays** : 🇫🇷 FR · 🇩🇪 DE · 🇧🇪 BE · 🇳🇱 NL · 🇪🇸 ES · 🇮🇹 IT · 🇨🇭 CH · 🇬🇧 UK · 🇺🇸 US\n\n" +
+          "**Alertes** : 📉 Baisse de prix · ✅ Restock · 🔥 Promo — ici ET en DM\n\n" +
+          "🎫 Problème ? Ouvre un ticket dans le salon dédié.";
+        await (retailerChannel as import("discord.js").TextChannel).setTopic(topic);
+        logger.info("[Startup] ✅ Topic du salon revendeurs défini");
+      }
+    } catch (e) {
+      logger.warn(`[Startup] Impossible de définir le topic du salon revendeurs: ${e}`);
+    }
+
     // Validation des rôles modérateurs
     logger.info("[Startup] Validation des rôles modérateurs...");
     for (const guild of client.guilds.cache.values()) {

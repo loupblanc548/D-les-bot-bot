@@ -215,6 +215,22 @@ ipcMain.handle("api:servers", () => apiFetch("/api/servers"));
 // Moderation
 ipcMain.handle("api:moderation", () => apiFetch("/api/moderation"));
 
+// Amazon
+ipcMain.handle("api:amazon", () => apiFetch("/api/amazon"));
+ipcMain.handle("api:amazon-track", (_e, { asin, domain }) =>
+  apiFetch("/api/amazon/track", { method: "POST", body: JSON.stringify({ asin, domain }) })
+);
+ipcMain.handle("api:amazon-wishlist", (_e, { wishlistUrl, domain }) =>
+  apiFetch("/api/amazon/wishlist", { method: "POST", body: JSON.stringify({ wishlistUrl, domain }) })
+);
+ipcMain.handle("api:amazon-alert", (_e, { asin, targetPrice, channelId }) =>
+  apiFetch("/api/amazon/alert", { method: "POST", body: JSON.stringify({ asin, targetPrice, channelId }) })
+);
+ipcMain.handle("api:amazon-deals", (_e, params) => {
+  const qs = new URLSearchParams(params || {}).toString();
+  return apiFetch("/api/amazon/deals" + (qs ? "?" + qs : ""));
+});
+
 // Security
 ipcMain.handle("api:security", () => apiFetch("/api/security"));
 

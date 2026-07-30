@@ -436,6 +436,26 @@ const CAPABILITIES: CapabilityCategory[] = [
       "Suivi de présence (presence tracker)",
     ],
   },
+  {
+    icon: "🛒",
+    name: "Suivi de Produits Revendeurs",
+    items: [
+      "Track un produit: @mention + \"Track-moi ça sur Amazon\"",
+      "Track depuis une image: envoie une capture de panier + @mention",
+      "Track tout un panier: @mention + \"Scan mon panier\" + image",
+      "Vérifier les promos: @mention + \"Y'a une promo sur ça ?\"",
+      "Comparer les prix: @mention + \"Compare le prix de ça\"",
+      "Recherche multi-boutiques: @mention + \"Trouve-moi ça partout\"",
+      "Boutiques: Amazon, eBay, Fnac, Cdiscount, Darty, Boulanger, LDLC, etc.",
+      "Pays: 🇫🇷 🇩🇪 🇧🇪 🇳🇱 🇪🇸 🇮🇹 🇨🇭 🇬🇧 🇺🇸",
+      "Alertes automatiques: baisse de prix, restock, promotion",
+      "Notifications: salon dédié + message privé (DM)",
+      "Embeds riches: nom, image, pays, marketplace, prix, stock, lien",
+      "Multilingue: FR, EN, DE, ES, IT, NL — réponds dans ta langue",
+      "Phrases naturelles: \"Suis-moi ça\", \"Piste-moi ça\", \"Surveille ça\"",
+      "Aucune commande slash — tout se fait en langage naturel",
+    ],
+  },
 ];
 
 export function generateCapabilitiesEmbed(): EmbedBuilder {

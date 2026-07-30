@@ -1428,3 +1428,55 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
+// ===== Retailer Alerts (Amazon, eBay, Cdiscount, etc.) =====
+
+model TrackedRetailerProduct {
+  id              String   @id @default(cuid())
+  userId          String
+  guildId         String
+  retailer        String   // amazon, ebay, cdiscount, fnac, etc.
+  country         String   @default("FR")
+  productId       String   // ASIN, item ID, etc.
+  title           String
+  url             String?
+  imageUrl        String?
+  lastPrice       Float    @default(0)
+  targetPrice     Float?
+  currency        String   @default("EUR")
+  wasInStock      Boolean  @default(false)
+  alertOnRestock  Boolean  @default(true)
+  alertOnPriceDrop Boolean @default(true)
+  alertOnPromotion Boolean @default(true)
+  lastCheckedAt   DateTime?
+  lastAlertAt     DateTime?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([retailer, country, productId, userId])
+  @@index([userId])
+  @@index([guildId])
+  @@index([retailer])
+  @@index([active])
+  @@map("tracked_retailer_product")
+}
+
+model RetailerDealCache {
+  id          String   @id @default(cuid())
+  retailer    String
+  country     String   @default("FR")
+  productId   String
+  price       Float
+  currency    String   @default("EUR")
+  title       String
+  url         String?
+  imageUrl    String?
+  discountPercent Int?
+  processedAt DateTime @default(now())
+
+  @@unique([retailer, country, productId, price])
+  @@index([retailer])
+  @@index([processedAt])
+  @@map("retailer_deal_cache")
+}

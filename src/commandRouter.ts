@@ -554,7 +554,7 @@ export function buildCommandRouter(): void {
   registerGroup(["game2"], handleGame2Group);
   registerGroup(["music"], handleMusicGroup);
   registerGroup(["track"], handleTrackGroup);
-  // ─── Releases command ───
+// ─── Releases command ───
   commandRouter["releases"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleReleasesCommand(interaction as ChatInputCommandInteraction);

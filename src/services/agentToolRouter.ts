@@ -124,6 +124,10 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "ELEVENLABS_API_KEY", tools: ["elevenLabsTTS"], optional: true },
   // Remove.bg
   { envVar: "REMOVEBG_API_KEY", tools: ["removeBackground"], optional: true },
+  // Retailer APIs
+  { envVar: "AMAZON_PA_API_KEY", tools: ["searchRetailers", "searchSingleRetailer", "trackRetailerProduct", "compareProductPrices"], optional: true },
+  { envVar: "EBAY_CLIENT_ID", tools: ["searchSingleRetailer"], optional: true },
+  { envVar: "KEEPA_API_KEY", tools: ["getAmazonPriceHistory"], optional: true },
 ];
 
 /**
