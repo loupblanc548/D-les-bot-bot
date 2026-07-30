@@ -1,5 +1,6 @@
 ---
-description: "Workflow de déploiement — vérifications, Docker, post-déploiement"
+name: deploy
+description: Workflow de déploiement — vérifications, Docker, post-déploiement
 ---
 
 # /deploy

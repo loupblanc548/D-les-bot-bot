@@ -1,5 +1,6 @@
 ---
-description: "Workflow de gestion de base de données — migrations, index, optimisation"
+name: database-management
+description: Workflow de gestion de base de données — migrations, index, optimisation
 ---
 
 # /database-management

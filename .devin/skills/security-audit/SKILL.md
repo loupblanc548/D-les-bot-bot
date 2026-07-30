@@ -1,5 +1,6 @@
 ---
-description: "Workflow d'audit de sécurité — vulnérabilités, secrets, configuration"
+name: security-audit
+description: Workflow d'audit de sécurité — vulnérabilités, secrets, configuration
 ---
 
 # /security-audit

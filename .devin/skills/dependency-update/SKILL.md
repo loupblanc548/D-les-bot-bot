@@ -1,5 +1,6 @@
 ---
-description: "Workflow de mise à jour des dépendances npm avec vérification"
+name: dependency-update
+description: Workflow de mise à jour des dépendances npm avec vérification
 ---
 
 # /dependency-update

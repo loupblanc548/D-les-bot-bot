@@ -1,5 +1,6 @@
 ---
-description: "Workflow d'implémentation d'une fonctionnalité — analyse, plan, dev, test, intégration"
+name: feature-implementation
+description: Workflow d'implémentation d'une fonctionnalité — analyse, plan, dev, test, intégration
 ---
 
 # /feature-implementation

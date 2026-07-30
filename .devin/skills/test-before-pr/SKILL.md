@@ -1,5 +1,6 @@
 ---
-description: "Workflow de validation avant PR — tests, build, lint, formatage"
+name: test-before-pr
+description: Workflow de validation avant PR — tests, build, lint, formatage
 ---
 
 # /test-before-pr

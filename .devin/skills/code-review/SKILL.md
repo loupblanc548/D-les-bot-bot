@@ -1,5 +1,6 @@
 ---
-description: "Workflow de revue de code — qualité, sécurité, perfs, architecture"
+name: code-review
+description: Workflow de revue de code — qualité, sécurité, perfs, architecture
 ---
 
 # /code-review

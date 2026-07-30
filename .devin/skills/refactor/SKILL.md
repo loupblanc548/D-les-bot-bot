@@ -1,5 +1,6 @@
 ---
-description: "Workflow de refactoring — améliorer le code sans changer le comportement"
+name: refactor
+description: Workflow de refactoring — améliorer le code sans changer le comportement
 ---
 
 # /refactor
