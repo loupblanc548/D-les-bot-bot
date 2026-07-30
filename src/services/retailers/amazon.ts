@@ -24,6 +24,7 @@ const AMAZON_DOMAINS: Record<CountryCode, string> = {
   CH: "www.amazon.fr",
   UK: "www.amazon.co.uk",
   US: "www.amazon.com",
+  AT: "www.amazon.de",
 };
 
 const AMAZON_CURRENCIES: Record<CountryCode, string> = {
@@ -36,6 +37,7 @@ const AMAZON_CURRENCIES: Record<CountryCode, string> = {
   CH: "CHF",
   UK: "GBP",
   US: "USD",
+  AT: "EUR",
 };
 
 const PA_API_KEY = process.env.AMAZON_PA_API_KEY || "";
@@ -252,7 +254,7 @@ export async function getKeepaPriceHistory(asin: string, country: CountryCode = 
   if (!hasKeepaApi()) return null;
 
   const domainMap: Record<CountryCode, number> = {
-    FR: 3, DE: 4, BE: 3, NL: 3, ES: 5, IT: 6, CH: 3, UK: 2, US: 1,
+    FR: 3, DE: 4, BE: 3, NL: 3, ES: 5, IT: 6, CH: 3, UK: 2, US: 1, AT: 4,
   };
   const domainId = domainMap[country] || 3;
 

@@ -19,10 +19,11 @@ const EBAY_DOMAINS: Record<CountryCode, string> = {
   CH: "www.ebay.ch",
   UK: "www.ebay.co.uk",
   US: "www.ebay.com",
+  AT: "www.ebay.at",
 };
 
 const EBAY_CURRENCIES: Record<CountryCode, string> = {
-  FR: "EUR", DE: "EUR", BE: "EUR", NL: "EUR", ES: "EUR", IT: "EUR", CH: "CHF", UK: "GBP", US: "USD",
+  FR: "EUR", DE: "EUR", BE: "EUR", NL: "EUR", ES: "EUR", IT: "EUR", CH: "CHF", UK: "GBP", US: "USD", AT: "EUR",
 };
 
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
@@ -59,7 +60,7 @@ async function searchApi(query: string, country: CountryCode, limit: number): Pr
 
   const marketplaceMap: Record<CountryCode, string> = {
     FR: "EBAY_FR", DE: "EBAY_DE", BE: "EBAY_BE", NL: "EBAY_NL",
-    ES: "EBAY_ES", IT: "EBAY_IT", CH: "EBAY_CH", UK: "EBAY_GB", US: "EBAY_US",
+    ES: "EBAY_ES", IT: "EBAY_IT", CH: "EBAY_CH", UK: "EBAY_GB", US: "EBAY_US", AT: "EBAY_AT",
   };
   const marketplaceId = marketplaceMap[country] || "EBAY_FR";
   const currency = EBAY_CURRENCIES[country] || "EUR";
