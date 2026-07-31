@@ -13,6 +13,8 @@ import logger from "../utils/logger.js";
 
 const LOCAL_LLM_URL = process.env.LOCAL_LLM_URL || "http://127.0.0.1:11434/v1";
 const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:14b";
+// Standby: set LOCAL_LLM_ENABLED=false in .env to disable local LLM and use APIs only
+const LOCAL_LLM_ENABLED = process.env.LOCAL_LLM_ENABLED !== "false";
 
 let client: OpenAI | null = null;
 let availabilityChecked = false;
@@ -22,6 +24,7 @@ let available = false;
  * Vérifie si Ollama est accessible (cache le résultat pour éviter les ping à chaque appel).
  */
 export function isLocalLlmAvailable(): boolean {
+  if (!LOCAL_LLM_ENABLED) return false;
   if (!availabilityChecked) return false;
   return available;
 }
@@ -31,6 +34,10 @@ export function isLocalLlmAvailable(): boolean {
  * À appeler au démarrage du bot et périodiquement.
  */
 export async function checkLocalLlmAvailability(): Promise<boolean> {
+  if (!LOCAL_LLM_ENABLED) {
+    logger.info("[LocalLLM] 🔇 LLM local désactivé (LOCAL_LLM_ENABLED=false) — APIs uniquement");
+    return false;
+  }
   try {
     const res = await fetch(`${LOCAL_LLM_URL.replace("/v1", "")}/api/tags`, {
       signal: AbortSignal.timeout(3_000),
