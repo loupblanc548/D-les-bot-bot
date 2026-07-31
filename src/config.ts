@@ -56,6 +56,8 @@ export const config = {
   geminiApiKey: env.GEMINI_API_KEY || "",
   geminiModel: env.GEMINI_MODEL,
   nvidiaApiKey: env.NVIDIA_API_KEY || "",
+  omnirouteApiKey: env.OMNIROUTE_API_KEY || "",
+  omnirouteUrl: env.OMNIROUTE_URL || "http://localhost:20128/v1",
   braveSearchApiKey: env.BRAVE_SEARCH_API_KEY || "",
   braveAutosuggestApiKey: env.BRAVE_AUTOSUGGEST_API_KEY || "",
   braveSpellcheckApiKey: env.BRAVE_SPELLCHECK_API_KEY || "",

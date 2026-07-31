@@ -17,6 +17,7 @@ import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } fro
 import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
+import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
 import {
   classifyTaskComplexity,
   getModelChainForTask,
@@ -1029,12 +1030,15 @@ async function runAgentLoopInternal(
     for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
-        // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models, OpenRouter for the rest
+        // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models,
+        // OmniRoute client for OmniRoute models, OpenRouter for the rest
         const isGptModel = modelName.startsWith("gpt-");
         const isNvidia = isNvidiaModel(modelName);
+        const isOmniroute = isOmnirouteModel(modelName);
         const activeClient =
           isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! :
           isNvidia && isNvidiaNimAvailable() ? getNvidiaNimClient()! :
+          isOmniroute && isOmnirouteAvailable() ? getOmnirouteClient()! :
           client;
         response = await callLlmWithRetry(
           activeClient,
