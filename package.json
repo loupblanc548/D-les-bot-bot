@@ -37,7 +37,7 @@
     "@ai-sdk/anthropic": "^4.0.22",
     "@ai-sdk/openai": "^4.0.21",
     "@bull-board/api": "^8.0.1",
-    "@bull-board/express": "^8.0.1",
+    "@bull-board/express": "^8.4.0",
     "@dank074/discord-video-stream": "^5.0.2",
     "@discordjs/voice": "^0.19.2",
     "@mozilla/readability": "^0.6.0",
@@ -103,7 +103,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
     "@bull-board/api": "^8.1.2",
-    "@bull-board/express": "^8.1.2",
+    "@bull-board/express": "^8.4.0",
     "@changesets/cli": "^2.31.1",
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.1.0",
