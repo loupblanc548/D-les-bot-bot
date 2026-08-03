@@ -54,7 +54,7 @@
     "assemblyai": "^4.35.3",
     "axios": "^1.17.0",
     "bedrock-protocol": "^3.57.0",
-    "bullmq": "^5.79.0",
+    "bullmq": "^6.0.2",
     "cheerio": "^1.2.0",
     "compromise": "^14.16.0",
     "cors": "^2.8.6",
