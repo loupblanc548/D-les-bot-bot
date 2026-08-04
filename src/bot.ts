@@ -37,6 +37,7 @@ import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
 import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
+import { installGlobalFetchGuard } from "./utils/globalFetchGuard.js";
 import { handleEmojiEvents } from "./events/emojis.js";
 import { handleModerationEvents } from "./events/moderation.js";
 import { handleVoiceStateUpdate as handleTempVoice } from "./services/tempVoiceService.js";
@@ -530,6 +531,10 @@ async function main(): Promise<void> {
   } else {
     await registerCommands();
   }
+  // Install global SSRF protection on all fetch() calls (TAINT-006 fix)
+  installGlobalFetchGuard();
+  logger.info("[Security] Global SSRF fetch guard installed");
+
   try {
     await client.login(config.token);
   } catch (error) {

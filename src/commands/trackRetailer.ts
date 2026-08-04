@@ -332,7 +332,7 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
     });
     logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})${attachment ? " + capture" : ""}${dm ? " [DM]" : ""}`);
   } catch (err) {
-    logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err}`);
+    logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err instanceof Error ? err.message : "[REDACTED]"}`);
     await interaction.editReply({
       content: `❌ Erreur lors de l'envoi de la demande à Quent${dm ? " en DM" : ` dans <#${RETAILER_ALERT_CHANNEL}>`}.`,
     });

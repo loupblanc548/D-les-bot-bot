@@ -9216,8 +9216,9 @@ async function tSummarizeConversation(
     }
 
     const sorted = [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    const { sanitizePromptInput } = await import("../utils/promptSanitizer.js");
     const conversationText = sorted
-      .map((m) => `[${m.author.username}]: ${m.content.slice(0, 200)}`)
+      .map((m) => `[${m.author.username}]: ${sanitizePromptInput(m.content.slice(0, 200))}`)
       .join("\n")
       .slice(0, 3000);
 

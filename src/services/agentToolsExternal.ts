@@ -573,7 +573,7 @@ export async function executeExternalTool(
         }, "website_diff");
         if (!res.ok) return { success: false, data: `Fetch ${res.status}` };
         const html = await res.text();
-        const contentHash = createHash("md5").update(html).digest("hex").slice(0, 16);
+        const contentHash = createHash("sha256").update(html).digest("hex").slice(0, 16);
 
         // Check previous hash
         const hashFile = `/tmp/website_diff_${Buffer.from(url).toString("base64").slice(0, 20)}.txt`;

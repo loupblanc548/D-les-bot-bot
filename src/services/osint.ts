@@ -228,6 +228,7 @@ const EMAIL_CHECK_PLATFORMS: { name: string; check: (email: string) => Promise<b
     check: async (email) => {
       try {
         const crypto = await import("crypto");
+        // Gravatar API requires MD5 hash of email — this is their protocol, not a security choice
         const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
         const r = await fetch(`https://www.gravatar.com/${hash}.json`, {
           signal: AbortSignal.timeout(8000),
@@ -278,6 +279,7 @@ const EMAIL_CHECK_PLATFORMS: { name: string; check: (email: string) => Promise<b
       // Twitter doesn't expose email lookup via API, but we can check if gravatar links to twitter
       try {
         const crypto = await import("crypto");
+        // Gravatar API requires MD5 hash of email — this is their protocol, not a security choice
         const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
         const r = await fetch(`https://www.gravatar.com/${hash}.json`, {
           signal: AbortSignal.timeout(8000),

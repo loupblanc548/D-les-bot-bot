@@ -18,6 +18,7 @@ import { getGroqClient, isGroqAvailable } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
+import { sanitizeForLlm } from "../utils/promptSanitizer.js";
 import {
   classifyTaskComplexity,
   getModelChainForTask,
@@ -477,6 +478,8 @@ async function runAgentLoopInternal(
   statusCallback?: (toolName: string, iteration: number) => void,
   maxIterations: number = MAX_ITERATIONS,
 ): Promise<string> {
+  // Sanitize user input to prevent prompt injection (AGENTFLOW-001 / ASI01)
+  userMessage = sanitizeForLlm(userMessage);
   if (isKilled()) {
     logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
     return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";

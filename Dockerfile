@@ -1,4 +1,6 @@
 # ---- Build Stage ----
+# TODO(CONT-001): Pin to specific digest once CI supports it
+# FROM node:22-alpine@sha256:<digest> AS builder
 FROM node:22-alpine AS builder
 
 RUN apk add --no-cache openssl libc6-compat

@@ -163,7 +163,7 @@ export async function testPrompts(
         responseA = completionA.choices[0]?.message?.content || "";
         parsedA = parseJsonResponse(responseA);
       } catch (err) {
-        logger.error(`[PromptTest] A case ${i}:`, String(err));
+        logger.error(`[PromptTest] A case ${i}: ${err instanceof Error ? err.message : "[REDACTED]"}`);
       }
       const timeA = Date.now() - startA;
       const scoreA = evaluateResponse(responseA, parsedA, testCase);
