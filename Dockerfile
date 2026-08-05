@@ -26,7 +26,7 @@ RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=256
+ENV NODE_OPTIONS=--max-old-space-size=512
 
 # Copy source FIRST to bust cache on code changes
 COPY src ./src
