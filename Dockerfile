@@ -3,7 +3,7 @@
 # FROM node:22-alpine@sha256:<digest> AS builder
 FROM node:22-alpine AS builder
 
-RUN apk add --no-cache openssl libc6-compat python3 make g++
+RUN apk add --no-cache openssl libc6-compat python3 make g++ cmake
 
 WORKDIR /app
 
@@ -12,7 +12,8 @@ COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY scripts ./scripts
 
-RUN npm install --ignore-scripts=false || npm install --ignore-scripts=true
+RUN npm install --ignore-scripts=true && \
+    node -e "const fs=require('fs');const p='node_modules/raknet-native/binding.js';if(fs.existsSync(p)){let c=fs.readFileSync(p,'utf8');c=c.replace(\"require('bindings')\",\"null\");fs.writeFileSync(p,c);console.log('Patched raknet-native')}"
 
 ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
 ENV PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
