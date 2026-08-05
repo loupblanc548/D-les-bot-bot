@@ -13,7 +13,7 @@ COPY tsconfig.json ./
 COPY scripts ./scripts
 
 RUN npm install --ignore-scripts=true && \
-    node -e "const fs=require('fs');const p='node_modules/raknet-native/binding.js';if(fs.existsSync(p)){let c=fs.readFileSync(p,'utf8');c=c.replace(\"require('bindings')\",\"null\");fs.writeFileSync(p,c);console.log('Patched raknet-native')}"
+    node -e "const fs=require('fs');const p='node_modules/raknet-native/binding.js';if(fs.existsSync(p)){let c=fs.readFileSync(p,'utf8');c=c.replace(\"require('bindings')\",\"function(){return new Proxy({},{get:function(){return function(){}}})}\");fs.writeFileSync(p,c);console.log('Patched raknet-native')}"
 
 ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
 ENV PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
