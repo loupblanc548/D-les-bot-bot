@@ -875,6 +875,31 @@ async function runAgentLoopInternal(
       if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
+    // ─── Détection retailer (déplacé avant utilisation) ───
+    const lowerUserMsg = userMessage.toLowerCase();
+    const needsRetailerTools =
+      lowerUserMsg.includes("track") || lowerUserMsg.includes("tracker") ||
+      lowerUserMsg.includes("suivre") || lowerUserMsg.includes("pister") ||
+      lowerUserMsg.includes("surveille") || lowerUserMsg.includes("alerte") ||
+      lowerUserMsg.includes("prix") || lowerUserMsg.includes("price") ||
+      lowerUserMsg.includes("produit") || lowerUserMsg.includes("product") ||
+      lowerUserMsg.includes("amazon") || lowerUserMsg.includes("ebay") ||
+      lowerUserMsg.includes("fnac") || lowerUserMsg.includes("cdiscount") ||
+      lowerUserMsg.includes("deal") || lowerUserMsg.includes("promo") ||
+      lowerUserMsg.includes("compar") || lowerUserMsg.includes("boutique") ||
+      lowerUserMsg.includes("revendeur") || lowerUserMsg.includes("retailer") ||
+      lowerUserMsg.includes("stock") || lowerUserMsg.includes("dispo") ||
+      lowerUserMsg.includes("panier") || lowerUserMsg.includes("cart");
+    const hasRetailerToolAvailable = availableTools.some(
+      (t) => t.function.name === "searchRetailers" || t.function.name === "searchSingleRetailer" ||
+             t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
+             t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
+    );
+    // Skip local only if using the 3B model (too small for retailer tools)
+    // 7B and 14B can handle function calling including retailer tools
+    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b");
+    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
+
     // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
     // Les petits modèles (7B, 8B, 3B) ne gèrent pas bien le function calling complexe
     const SMALL_MODEL_PATTERNS = [
@@ -900,37 +925,9 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${effectiveModels.slice(0, maxModelAttempts).join(", ")}${effectiveModels.length > maxModelAttempts ? ` (+${effectiveModels.length - maxModelAttempts} more)` : ""}`,
     );
 
-    // ─── Étape 0: LLM local (Ollama/qwen2.5:14b) — PRIORITÉ ABSOLUE ───
-    // qwen2.5:14b est le chef d'orchestre pour TOUT: texte, images, code, tools retailer, etc.
-    // 14B gère bien le function calling complexe.
-    //
-    // NOTE: Si le modèle local est qwen2.5:3b (config ancienne), les tâches retailer
-    // seront gérées par les modèles API car le 3B est trop petit.
-    // La détection se fait via LOCAL_LLM_MODEL dans .env (qwen2.5:14b par défaut).
-    const lowerUserMsg = userMessage.toLowerCase();
-    const needsRetailerTools =
-      lowerUserMsg.includes("track") || lowerUserMsg.includes("tracker") ||
-      lowerUserMsg.includes("suivre") || lowerUserMsg.includes("pister") ||
-      lowerUserMsg.includes("surveille") || lowerUserMsg.includes("alerte") ||
-      lowerUserMsg.includes("prix") || lowerUserMsg.includes("price") ||
-      lowerUserMsg.includes("produit") || lowerUserMsg.includes("product") ||
-      lowerUserMsg.includes("amazon") || lowerUserMsg.includes("ebay") ||
-      lowerUserMsg.includes("fnac") || lowerUserMsg.includes("cdiscount") ||
-      lowerUserMsg.includes("deal") || lowerUserMsg.includes("promo") ||
-      lowerUserMsg.includes("compar") || lowerUserMsg.includes("boutique") ||
-      lowerUserMsg.includes("revendeur") || lowerUserMsg.includes("retailer") ||
-      lowerUserMsg.includes("stock") || lowerUserMsg.includes("dispo") ||
-      lowerUserMsg.includes("panier") || lowerUserMsg.includes("cart");
-    const hasRetailerToolAvailable = availableTools.some(
-      (t) => t.function.name === "searchRetailers" || t.function.name === "searchSingleRetailer" ||
-             t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
-             t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
-    );
-    // Skip local only if using the 3B model (too small for retailer tools)
-    // 7B and 14B can handle function calling including retailer tools
-    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b");
-    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
-
+    // ─── Étape 0: LLM local (Ollama/qwen2.5) — PRIORITÉ ABSOLUE ───
+    // Le modèle local gère le chat simple ET le function calling (tools).
+    // Si timeout ou échec, fallback vers les API externes.
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
       logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`);
 

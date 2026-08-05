@@ -125,7 +125,7 @@ function getLocalClient(): OpenAI {
       apiKey: "ollama", // Ollama n'a pas besoin de clé mais le SDK exige une valeur
       baseURL: LOCAL_LLM_URL,
       maxRetries: 0,
-      timeout: 60_000, // 60s max — 7B on CPU with swap, fallback API if longer
+      timeout: 90_000, // 90s — 7B on CPU with swap needs more time, fallback API if longer
     });
   }
   return client;
