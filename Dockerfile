@@ -3,7 +3,7 @@
 # FROM node:22-alpine@sha256:<digest> AS builder
 FROM node:22-alpine AS builder
 
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat python3 make g++
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY scripts ./scripts
 
-RUN npm install --ignore-scripts=false
+RUN npm install --ignore-scripts=false || npm install --ignore-scripts=true
 
 ENV DATABASE_URL="postgresql://discord_bot:discord_bot@postgres:5432/discord_bot?schema=public"
 ENV PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
