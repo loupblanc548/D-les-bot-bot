@@ -159,7 +159,7 @@ async function checkTwitter(follows: typeof followsType): Promise<void> {
   if (twFollows.length === 0) return;
 
   // Use Nitter RSS as fallback (no API key needed)
-  const nitterInstances = ["https://nitter.privacydev.net", "https://nitter.poast.org"];
+  const nitterInstances = ["https://nitter.poast.org", "https://xcancel.com"];
 
   for (const follow of twFollows) {
     let success = false;

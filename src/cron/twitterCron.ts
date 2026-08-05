@@ -29,7 +29,6 @@ const MAX_TWEETS_PER_ACCOUNT = 3;
 const NITTER_INSTANCES = [
   "https://xcancel.com",
   "https://nitter.poast.org",
-  "https://nitter.privacydev.net",
   "https://nitter.woodland.cafe",
   "https://bird.trom.tf",
   "https://nitter.cz",

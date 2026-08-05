@@ -141,7 +141,6 @@ async function checkYouTubeChannel(handle: string): Promise<{
 const NITTER_INSTANCES = [
   "https://xcancel.com",
   "https://nitter.poast.org",
-  "https://nitter.privacydev.net",
   "https://nitter.woodland.cafe",
   "https://bird.trom.tf",
   "https://nitter.cz",

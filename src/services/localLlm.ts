@@ -166,7 +166,7 @@ export async function chatWithLocalLlm(
     // Don't log timeouts as warnings — they're expected on CPU for complex prompts
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout (60s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout (90s) — tâche trop lourde, fallback API`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
@@ -215,7 +215,7 @@ export async function chatWithLocalLlmTools(
   } catch (error) {
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout tools (60s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout tools (90s) — tâche trop lourde, fallback API`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local (tools): ${error instanceof Error ? error.message : String(error)}`,

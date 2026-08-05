@@ -218,10 +218,11 @@ async function initSchedulers(client: Client): Promise<void> {
   startWishlistCron(client);
   startHourlyMaintenance(client);
   startBoutiqueCron(client);
-  startShadowBrokerCron(client);
-  startLogChannelCleanup(client);
-  startBrokenImageCleanup(client);
-  startShowcaseLinkCron(client);
+  // Crons désactivés pour économiser de la RAM
+  // startShadowBrokerCron(client);
+  // startLogChannelCleanup(client);
+  // startBrokenImageCleanup(client);
+  // startShowcaseLinkCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
@@ -264,12 +265,13 @@ export function attachStartupLogic(
       }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
-      try {
-        const { startHealthEndpoint } = await import("./services/healthEndpoint.js");
-        startHealthEndpoint(parseInt(process.env.HEALTH_PORT || "7890", 10));
-      } catch {
-        // healthEndpoint.ts non disponible — ignorer
-      }
+      // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
+      // try {
+      //   const { startHealthEndpoint } = await import("./services/healthEndpoint.js");
+      //   startHealthEndpoint(parseInt(process.env.HEALTH_PORT || "7890", 10));
+      // } catch {
+      //   // healthEndpoint.ts non disponible — ignorer
+      // }
     } catch {
       // localLlm.ts non disponible — ignorer
     }
