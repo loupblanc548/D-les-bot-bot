@@ -926,9 +926,9 @@ async function runAgentLoopInternal(
              t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
              t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
     );
-    // Skip local only if using the old 3B model (too small for retailer tools)
-    // With 14B, the local LLM handles everything including retailer tools
-    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
+    // Skip local only if using the 3B model (too small for retailer tools)
+    // 7B and 14B can handle function calling including retailer tools
+    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b");
     const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
 
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
