@@ -125,7 +125,7 @@ function getLocalClient(): OpenAI {
       apiKey: "ollama", // Ollama n'a pas besoin de clé mais le SDK exige une valeur
       baseURL: LOCAL_LLM_URL,
       maxRetries: 0,
-      timeout: 120_000, // 120s max — qwen2.5:14b on CPU needs more time than 3b
+      timeout: 60_000, // 60s max — 7B on CPU with swap, fallback API if longer
     });
   }
   return client;
@@ -144,7 +144,7 @@ export async function chatWithLocalLlm(
   // Adaptive max_tokens: fewer tokens for simple chat = faster response
   const lastMsg = messages[messages.length - 1]?.content || "";
   const isShortQuestion = lastMsg.length < 100;
-  const adaptiveMaxTokens = options?.maxTokens ?? (isShortQuestion ? 300 : 800);
+  const adaptiveMaxTokens = options?.maxTokens ?? (isShortQuestion ? 200 : 500);
 
   try {
     const localClient = getLocalClient();
@@ -166,7 +166,7 @@ export async function chatWithLocalLlm(
     // Don't log timeouts as warnings — they're expected on CPU for complex prompts
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout (120s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout (60s) — tâche trop lourde, fallback API`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
@@ -198,7 +198,7 @@ export async function chatWithLocalLlmTools(
       model: LOCAL_LLM_MODEL,
       messages: messages as never,
       tools: tools as never,
-      max_tokens: options?.maxTokens ?? 800,
+      max_tokens: options?.maxTokens ?? 500,
       temperature: options?.temperature ?? 0.7,
       stream: false,
     });
@@ -215,7 +215,7 @@ export async function chatWithLocalLlmTools(
   } catch (error) {
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout tools (120s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout tools (60s) — tâche trop lourde, fallback API`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local (tools): ${error instanceof Error ? error.message : String(error)}`,
