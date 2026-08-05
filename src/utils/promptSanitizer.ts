@@ -19,7 +19,7 @@ const INJECTION_PATTERNS = [
   /show (me )?(your|the) (system|initial|original) (prompt|instructions)/gi,
   /\[SYSTEM\]/gi,
   /\[ADMIN\]/gi,
-  /\[/INST\]/gi,
+  /\[\/INST\]/gi,
   /<\|system\|>/gi,
   /<\|im_start\|>/gi,
   /new instructions:/gi,
