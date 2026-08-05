@@ -109,7 +109,7 @@ export async function preWarmLocalModel(): Promise<void> {
       messages: [{ role: "user", content: "Hello" }],
       max_tokens: 1,
       stream: false,
-    }, { timeout: 30_000 });
+    }, { timeout: 120_000 });
     logger.info(`[LocalLLM] ✅ Modèle pré-chargé en RAM — premier message sera rapide`);
   } catch {
     logger.warn(`[LocalLLM] Pre-warm échoué — le premier message sera plus lent`);
