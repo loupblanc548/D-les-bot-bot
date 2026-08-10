@@ -120,8 +120,33 @@ VPS_AUDIT_REPORT.md
 ssh_test.ps1
 ssh_*.py
 
-# Security: never commit VPS audit reports with IPs/credentials
-VPS_AUDIT_REPORT.md
-*_AUDIT_REPORT.md
-ssh_test.ps1
-ssh_*.py
+# Prevent commit of prisma query engines / binaries
+/query_engine*.node
+/prisma/query_engine*
+
+# Binary artifacts
+*.bundle
+bot-update.bundle
+*.dll.node.bak
+
+# Large JSON / reports / dumps
+knip*.json
+*_report.json
+*.report.json
+
+# Common sensitive files
+motdepasse.txt
+password.txt
+
+# Deepsec outputs / scan reports
+.deepsec/data/
+
+# Local envs & backups (ensure precedence)
+.env.local
+.env.*.local
+
+# Docker & artifacts
+.scraper-build/
+
+# Avoid committing large lockfiles from other package managers
+pnpm-lock.yaml
