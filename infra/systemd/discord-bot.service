@@ -1,0 +1,37 @@
+[Unit]
+Description=Discord Bot (Node.js)
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+User=bot
+Group=bot
+WorkingDirectory=/opt/bot
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+
+# Environment
+EnvironmentFile=/opt/bot/.env
+Environment="NODE_ENV=production"
+
+# Resource limits
+MemoryMax=2G
+CPUQuota=150%
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/bot/logs /opt/bot/data
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=discord-bot
+
+[Install]
+WantedBy=multi-user.target
