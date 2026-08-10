@@ -714,6 +714,158 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── Minecraft LLM Agent tools ───
+  {
+    type: "function",
+    function: {
+      name: "mcAgentConnect",
+      description:
+        "Connecte le bot Minecraft LLM (Mineflayer sur Colab) à un serveur ou monde Minecraft. " +
+        "L'utilisateur peut dire 'rejoins moi', 'rejoins mon monde', 'connecte-toi', 'viens sur mon serveur'. " +
+        "Pour un monde solo ouvert en LAN, l'utilisateur doit fournir son IP publique et le port LAN affiché par Minecraft. " +
+        "Si l'utilisateur ne donne pas l'IP, demande-la. Le port par défaut est 25565 pour les serveurs, mais variable pour le LAN.",
+      parameters: {
+        type: "object",
+        properties: {
+          server: {
+            type: "string",
+            description: "Adresse IP:port du serveur Minecraft (ex: '123.45.67.89:25565' ou 'play.mcraft.fr'). Pour un monde LAN, c'est l'IP publique de l'utilisateur + le port LAN affiché dans Minecraft.",
+          },
+          username: {
+            type: "string",
+            description: "Pseudo du bot Minecraft (défaut: LLM_Bot)",
+          },
+        },
+        required: ["server"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentGoal",
+      description:
+        "Envoie un objectif en langage naturel au bot Minecraft LLM. " +
+        "Le bot va observer le monde, décider des actions et les exécuter automatiquement. " +
+        "Exemples: 'construis une maison', 'mine 10 fer', 'chasse des zombies', 'explore et trouve des diamants', 'fais une ferme'. " +
+        "L'utilisateur peut dire 'va miner', 'construis ça', 'cherche des diamants', 'défends-moi'.",
+      parameters: {
+        type: "object",
+        properties: {
+          goal: {
+            type: "string",
+            description: "Objectif en langage naturel pour le bot Minecraft",
+          },
+          maxActions: {
+            type: "number",
+            description: "Nombre maximum d'actions (défaut: 50, max: 200)",
+          },
+        },
+        required: ["goal"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentStatus",
+      description:
+        "Récupère le statut du bot Minecraft LLM: connecté, position, santé, faim, modèle LLM, actions en cours. " +
+        "Utilise cet outil quand l'utilisateur demande 'comment va le bot', 'où il est', 'il fait quoi'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentWorld",
+      description:
+        "Récupère l'état complet du monde Minecraft vu par le bot: position, santé, inventaire, blocs proches, entités proches, biome, météo. " +
+        "Utilise cet outil quand l'utilisateur demande 'que voit le bot', 'qu'est-ce qu'il y a autour', 'il a quoi dans son inventaire'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentAction",
+      description:
+        "Envoie une action directe au bot Minecraft sans passer par le LLM. " +
+        "Actions disponibles: collectWood, collectStone, collectIron, collectDiamonds, buildHouse, eat, sleep, defend, hunt, stop, explore, sortInventory. " +
+        "L'utilisateur peut dire 'mange', 'dors', 'défens-toi', 'chasse', 'arrête', 'range ton inventaire', 'explore'.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            description: "Nom de l'action: collectWood, collectStone, collectIron, collectDiamonds, buildHouse, eat, sleep, defend, hunt, stop, explore, sortInventory",
+            enum: ["collectWood", "collectStone", "collectIron", "collectDiamonds", "buildHouse", "eat", "sleep", "defend", "hunt", "stop", "explore", "sortInventory"],
+          },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentChat",
+      description:
+        "Envoie un message dans le chat Minecraft via le bot. " +
+        "L'utilisateur peut dire 'dis bonjour dans le chat', 'dis-leur que j'arrive'.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
+            description: "Message à envoyer dans le chat Minecraft",
+          },
+        },
+        required: ["message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentStop",
+      description:
+        "Arrête l'agent LLM Minecraft (stoppe la boucle d'actions en cours). " +
+        "L'utilisateur peut dire 'arrête', 'stop', 'ça suffit', 'laisse tomber'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentLog",
+      description:
+        "Récupère l'historique des actions récentes du bot Minecraft LLM. " +
+        "L'utilisateur peut dire 'qu'est-ce qu'il a fait', 'montre-moi les logs', 'où il en est'.",
+      parameters: {
+        type: "object",
+        properties: {
+          lines: {
+            type: "number",
+            description: "Nombre de lignes à récupérer (défaut: 20, max: 100)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -836,6 +988,23 @@ export async function executeTool(
         return await toolExtractTextFromImage(args);
       case "compose_image":
         return await toolComposeImage(args);
+      // ─── Minecraft LLM Agent tools ───
+      case "mcAgentConnect":
+        return await toolMcAgentConnect(args, ctx);
+      case "mcAgentGoal":
+        return await toolMcAgentGoal(args, ctx);
+      case "mcAgentStatus":
+        return await toolMcAgentStatus();
+      case "mcAgentWorld":
+        return await toolMcAgentWorld();
+      case "mcAgentAction":
+        return await toolMcAgentAction(args);
+      case "mcAgentChat":
+        return await toolMcAgentChat(args);
+      case "mcAgentStop":
+        return await toolMcAgentStop();
+      case "mcAgentLog":
+        return await toolMcAgentLog(args);
       default: {
         // Essayer les tools mémoire/persona/conversation
         const memoryResult = await executeMemoryTool(toolName, args, { userId: ctx.userId });
@@ -2103,4 +2272,151 @@ async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCall
       data: `Erreur compose_image: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+// ─── Minecraft LLM Agent tool implementations ────────────────────────────────
+
+async function toolMcAgentConnect(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const { isAgentAvailable, pingAgent } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return {
+      success: false,
+      data: "❌ L'agent Mineflayer n'est pas disponible. Le notebook Colab `mineflayer_agent.ipynb` doit être lancé d'abord. Demande à l'utilisateur de démarrer le notebook Colab.",
+    };
+  }
+  const server = String(args.server || "").trim();
+  if (!server) {
+    return {
+      success: false,
+      data: "❌ Aucune adresse serveur fournie. Demande à l'utilisateur l'IP:port de son serveur ou monde LAN.",
+    };
+  }
+  const username = String(args.username || "LLM_Bot");
+  const alive = await pingAgent();
+  if (!alive) {
+    return {
+      success: false,
+      data: `❌ L'agent Mineflayer ne répond pas. Vérifie que le notebook Colab est bien lancé.`,
+    };
+  }
+  // Use the /connect endpoint to hot-swap the Mineflayer bot to the new server
+  try {
+    const { fetchWithRetry } = await import("../utils/httpClient.js");
+    const fs = await import("fs");
+    // Read the agent URL
+    const URL_FILE = process.env.MINEFLAYER_AGENT_URL_FILE || "/opt/bot/data/mineflayer_url.txt";
+    let agentUrl = process.env.MINEFLAYER_AGENT_URL;
+    if (!agentUrl) {
+      try { agentUrl = fs.readFileSync(URL_FILE, "utf-8").trim(); } catch {}
+    }
+    if (!agentUrl) {
+      return { success: false, data: "❌ URL de l'agent introuvable" };
+    }
+    const result = await fetchWithRetry(`${agentUrl}/connect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { server, username },
+      timeoutMs: 30_000,
+      retries: 1,
+      parseJson: true,
+    });
+    if (result?.success) {
+      return {
+        success: true,
+        data: `✅ Bot connecté à \`${server}\` en tant que **${username}**! ${result.message || ""}`,
+      };
+    }
+    return {
+      success: false,
+      data: `❌ Échec de connexion à ${server}: ${result?.message || result?.error || "erreur inconnue"}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur connexion MC: ${err}` };
+  }
+}
+
+async function toolMcAgentGoal(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const { isAgentAvailable, setAgentGoal } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return {
+      success: false,
+      data: "❌ Agent Mineflayer non disponible. Démarre le notebook Colab d'abord.",
+    };
+  }
+  const goal = String(args.goal || "").trim();
+  if (!goal) return { success: false, data: "❌ Aucun objectif fourni" };
+  const maxActions = Math.min(200, Math.max(1, Number(args.maxActions) || 50));
+  const result = await setAgentGoal(goal, maxActions);
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentStatus(): Promise<ToolCallResult> {
+  const { isAgentAvailable, getAgentStatus, formatAgentStatus } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible (Colab éteint ?)" };
+  }
+  const status = await getAgentStatus();
+  if (!status) return { success: false, data: "❌ Impossible de contacter l'agent" };
+  return { success: true, data: formatAgentStatus(status) };
+}
+
+async function toolMcAgentWorld(): Promise<ToolCallResult> {
+  const { isAgentAvailable, getWorldState, formatWorldState } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const world = await getWorldState();
+  if (!world) return { success: false, data: "❌ Impossible de récupérer l'état du monde" };
+  return { success: true, data: formatWorldState(world) };
+}
+
+async function toolMcAgentAction(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, QUICK_ACTIONS } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const actionName = String(args.action || "") as keyof typeof QUICK_ACTIONS;
+  const actionFn = QUICK_ACTIONS[actionName];
+  if (!actionFn) return { success: false, data: `❌ Action inconnue: ${actionName}` };
+  const result = await actionFn();
+  return result
+    ? { success: result.success, data: `⚡ ${actionName}: ${result.message}` }
+    : { success: false, data: `❌ ${actionName} a échoué` };
+}
+
+async function toolMcAgentChat(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, sendAgentChat } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const message = String(args.message || "").trim();
+  if (!message) return { success: false, data: "❌ Aucun message fourni" };
+  const result = await sendAgentChat(message);
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentStop(): Promise<ToolCallResult> {
+  const { isAgentAvailable, stopAgent } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const result = await stopAgent();
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentLog(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, getAgentLog } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const lines = Math.min(100, Math.max(1, Number(args.lines) || 20));
+  const log = await getAgentLog(lines);
+  if (!log) return { success: false, data: "❌ Aucun log disponible" };
+  return { success: true, data: log.slice(-1900) };
 }
