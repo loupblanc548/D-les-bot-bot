@@ -2075,6 +2075,14 @@ export async function executeAutonomousTool(
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsAuto] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
 
+  // ── Guardrails: check user permissions for dangerous actions ──
+  const { checkToolPermission } = await import("./toolGuardrails.js");
+  const permCheck = await checkToolPermission(ctx.client, ctx.guildId, ctx.userId, toolName);
+  if (!permCheck.allowed) {
+    logger.warn(`[Guardrails] ❌ ${toolName} blocked for ${ctx.userId} (level: ${permCheck.level})`);
+    return { success: false, data: permCheck.reason };
+  }
+
   try {
     switch (toolName) {
       // 1. Moderation & Sentiment

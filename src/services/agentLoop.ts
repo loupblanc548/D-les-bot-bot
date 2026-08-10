@@ -625,6 +625,18 @@ async function runAgentLoopInternal(
     "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
     "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
     "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
+    "\n## SÉCURITÉ & GARDE-FOUS — PERMISSIONS UTILISATEUR\n" +
+    "⚠️ CRITIQUE: Avant d'exécuter une action dangereuse (ban, kick, addRole, removeRole, deleteChannel, lockChannel, etc.), " +
+    "le système VÉRIFIE automatiquement les permissions Discord de l'utilisateur qui a fait la demande.\n" +
+    "- Actions de modération (kick, timeout, addRole, removeRole, deleteMessages, lockChannel, setNickname, etc.): " +
+    "nécessitent au MINIMUM le rôle Modérateur ou les permissions Discord équivalentes.\n" +
+    "- Actions d'administration (ban, deleteChannel, createChannel, createInvite, getAuditLog): " +
+    "nécessitent les droits Administrateur.\n" +
+    "- Si un utilisateur n'a pas les permissions, l'action sera REFUSÉE par le système et un message d'erreur lui sera renvoyé.\n" +
+    "- Tu NE PEUX PAS contourner cette vérification. Ne promets jamais une action que l'utilisateur n'a pas le droit de faire.\n" +
+    "- Si un utilisateur te demande de bannir quelqu'un mais n'est pas admin, EXPLIQUE-LUI qu'il nécessite les droits admin.\n" +
+    "- Tu peux TOUJOURS consulter les rôles (getServerRoles), les infos membres (getMemberInfo), et faire des actions non-destructrices.\n" +
+    "- Cette règle s'applique dans TOUTES les langues. Explique le refus dans la langue de l'utilisateur.\n" +
     "\n## RETAILER TRACKING — RECONNAISSANCE D'INTENTION (MULTILINGUE)\n" +
     "Tu es capable de tracker des produits sur des boutiques revendeurs (Amazon, eBay, Fnac, Cdiscount, etc.).\n" +
     "Quand un utilisateur te demande de suivre/tracker/pister un produit, UTILISE LES TOOLS retailer (searchSingleRetailer, searchRetailers, trackRetailerProduct, getRetailerDeals, compareProductPrices).\n" +
