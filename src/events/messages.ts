@@ -1540,12 +1540,92 @@ async function handleAiChatMention(
     };
     const langInstruction = `[LANGUAGE INSTRUCTION] The user is writing in ${langNames[userLang] || "English"}. You MUST respond in ${langNames[userLang] || "English"}. Always reply in the same language as the user's message. If the user mixes languages, respond in the dominant one.`;
 
-    // ── Vision auto: analyser les images jointes avec Gemini ──
-    let enrichedContent = `${langInstruction}\n\n${effectiveContent}`;
+    // ── Récupérer le message auquel on répond (reply/rebase context) ──
+    // Note: embedImageUrls declared here so reply context can add referenced images
+    const embedImageUrls: string[] = [];
+    let replyContext = "";
+    if (message.reference?.messageId) {
+      try {
+        const referencedMsg = await message.channel.messages
+          .fetch(message.reference.messageId)
+          .catch(() => null);
+        if (referencedMsg) {
+          const refAuthor = referencedMsg.author?.username || "Unknown";
+          const refContent = referencedMsg.content?.trim() || "";
+          const refAttachments = [...referencedMsg.attachments.values()];
+          const refEmbeds = referencedMsg.embeds;
+
+          if (refContent) {
+            replyContext = `[REPLY CONTEXT] The user is replying to a message from ${refAuthor}:\n"${refContent.slice(0, 1000)}"\nUse this context to understand what they're referring to.`;
+            logger.info(`[AIChat] Reply context: replying to ${refAuthor} (${refContent.length} chars)`);
+          }
+
+          // Also include referenced message images for vision analysis
+          if (refAttachments.length > 0) {
+            const refImageUrls = refAttachments.filter(isImageAttachment).map((a) => a.url);
+            if (refImageUrls.length > 0) {
+              replyContext += `\n[Referenced message has ${refImageUrls.length} image(s): ${refImageUrls.join(", ")}]`;
+              // Add to image processing pipeline
+              for (const url of refImageUrls.slice(0, 2)) {
+                if (!embedImageUrls.includes(url)) embedImageUrls.push(url);
+              }
+            }
+          }
+
+          // Include embed info from referenced message
+          for (const embed of refEmbeds) {
+            if (embed.image?.url && !embedImageUrls.includes(embed.image.url)) {
+              embedImageUrls.push(embed.image.url);
+            }
+            if (embed.thumbnail?.url && !embedImageUrls.includes(embed.thumbnail.url)) {
+              embedImageUrls.push(embed.thumbnail.url);
+            }
+          }
+        }
+      } catch (err) {
+        logger.debug(`[AIChat] Could not fetch referenced message: ${err}`);
+      }
+    }
+
+    // ── Récupérer les rôles/rangs du serveur pour le contexte ──
+    let rolesContext = "";
+    if (message.guild) {
+      try {
+        // User's own roles
+        const member = await message.guild.members.fetch(message.author.id).catch(() => null);
+        const userRoles = member?.roles.cache
+          .filter((r) => r.name !== "@everyone")
+          .map((r) => r.name)
+          .join(", ") || "";
+
+        // All server roles (top 20)
+        const roles = message.guild.roles.cache
+          .sorted((a, b) => b.position - a.position)
+          .filter((r) => r.name !== "@everyone")
+          .slice(0, 20)
+          .map((r) => `${r.name} (id:${r.id}, members:${r.members.size})`)
+          .join("\n");
+        if (roles) {
+          rolesContext = `[SERVER ROLES] Available roles on this server:\n${roles}`;
+          if (userRoles) {
+            rolesContext += `\n\n[USER ROLES] ${message.author.username} has these roles: ${userRoles}`;
+          }
+          rolesContext += `\nThe user may ask about these roles. You can interact with them using the available tools (getServerRoles, addRole, removeRole).`;
+        }
+      } catch {
+        // Roles not available — skip
+      }
+    }
+
+    // ── Construire le contenu enrichi avec tous les contextes ──
+    let enrichedContent = `${langInstruction}`;
+    if (replyContext) enrichedContent += `\n\n${replyContext}`;
+    if (rolesContext) enrichedContent += `\n\n${rolesContext}`;
+    enrichedContent += `\n\n${effectiveContent}`;
     const imageAttachments = [...message.attachments.values()].filter(isImageAttachment);
 
     // Also check embeds for image URLs (when user posts a direct image link)
-    const embedImageUrls: string[] = [];
+    // embedImageUrls was declared earlier (before reply context block)
     for (const embed of message.embeds) {
       if (embed.image?.url) embedImageUrls.push(embed.image.url);
       if (embed.thumbnail?.url) embedImageUrls.push(embed.thumbnail.url);
@@ -2032,8 +2112,28 @@ async function handleDMMessage(
     const dmChannel = message.channel as TextChannel;
     await dmChannel.sendTyping().catch(() => {});
 
+    // ── Récupérer le message auquel on répond en DM aussi ──
+    let dmReplyContext = "";
+    if (message.reference?.messageId) {
+      try {
+        const refMsg = await message.channel.messages
+          .fetch(message.reference.messageId)
+          .catch(() => null);
+        if (refMsg) {
+          const refAuthor = refMsg.author?.username || "Unknown";
+          const refContent = refMsg.content?.trim() || "";
+          if (refContent) {
+            dmReplyContext = `[REPLY CONTEXT] The user is replying to a message from ${refAuthor}:\n"${refContent.slice(0, 1000)}"\nUse this context to understand what they're referring to.\n\n`;
+            logger.info(`[DM] Reply context: replying to ${refAuthor} (${refContent.length} chars)`);
+          }
+        }
+      } catch {
+        // Can't fetch — skip
+      }
+    }
+
     // ── Vision auto: analyser les images jointes en DM aussi ──
-    let dmEnrichedContent = effectiveDmContent;
+    let dmEnrichedContent = dmReplyContext + effectiveDmContent;
     const dmImageAttachments = [...message.attachments.values()].filter(isImageAttachment);
 
     // Also check embeds for image URLs in DM
