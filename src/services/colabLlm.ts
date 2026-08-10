@@ -13,14 +13,16 @@ import fs from "fs";
 
 const COLAB_ENABLED = process.env.LLM_DYNAMIC_URL === "true";
 const URL_FILE = process.env.LLM_DYNAMIC_URL_FILE || "/opt/bot/data/colab_url.txt";
+const MODEL_FILE = process.env.LLM_DYNAMIC_MODEL_FILE || "/opt/bot/data/colab_model.txt";
 const URL_POLL_MS = parseInt(process.env.LLM_DYNAMIC_URL_POLL_MS || "30000", 10);
-const COLAB_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:7b";
+const DEFAULT_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:7b";
 const COLAB_TIMEOUT = parseInt(process.env.LLM_TIMEOUT_LOCAL_MS || "60000", 10);
 const MAX_CONCURRENCY = parseInt(process.env.LLM_MAX_CONCURRENCY_LOCAL || "4", 10);
 
 const colabPool = new ConcurrencyPool(MAX_CONCURRENCY);
 
 let currentUrl: string | null = null;
+let currentModel: string = DEFAULT_MODEL;
 let colabClient: OpenAI | null = null;
 let available = false;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -36,8 +38,19 @@ function readColabUrl(): string | null {
   return null;
 }
 
+/** Read the model name from file (written by webhook). Falls back to default. */
+function readColabModel(): string {
+  try {
+    const content = fs.readFileSync(MODEL_FILE, "utf-8").trim();
+    if (content) return content;
+  } catch {
+    // File doesn't exist — use default
+  }
+  return DEFAULT_MODEL;
+}
+
 /** Ping the Colab Ollama instance to verify it's alive. */
-async function pingColab(url: string): Promise<boolean> {
+async function pingColab(url: string, model: string): Promise<boolean> {
   try {
     const data = await fetchWithRetry(`${url}/api/tags`, {
       timeoutMs: 5_000,
@@ -45,7 +58,11 @@ async function pingColab(url: string): Promise<boolean> {
       parseJson: true,
       retryOn: (s) => s >= 500,
     });
-    return !!data?.models?.some((m: { name: string }) => m.name === COLAB_MODEL);
+    // Accept if the specific model OR any model is available
+    // (Colab may still be pulling the model)
+    return !!data?.models?.some((m: { name: string }) => 
+      m.name === model || m.name.startsWith(model.split(":")[0])
+    );
   } catch {
     return false;
   }
@@ -56,6 +73,7 @@ export async function updateColabUrl(): Promise<boolean> {
   if (!COLAB_ENABLED) return false;
 
   const newUrl = readColabUrl();
+  const newModel = readColabModel();
   if (!newUrl) {
     if (available) {
       logger.info("[ColabLLM] URL file empty — Colab session ended, marking unavailable");
@@ -64,15 +82,16 @@ export async function updateColabUrl(): Promise<boolean> {
     return false;
   }
 
-  if (newUrl === currentUrl && available) return true; // No change
+  if (newUrl === currentUrl && newModel === currentModel && available) return true; // No change
 
-  // URL changed or first connect — verify it's alive
-  const isAlive = await pingColab(newUrl);
+  // URL or model changed — verify it's alive
+  const isAlive = await pingColab(newUrl, newModel);
   if (isAlive) {
-    if (currentUrl !== newUrl) {
-      logger.info(`[ColabLLM] ✅ Colab URL updated: ${newUrl}`);
+    if (currentUrl !== newUrl || currentModel !== newModel) {
+      logger.info(`[ColabLLM] ✅ Colab updated: URL=${newUrl} model=${newModel}`);
     }
     currentUrl = newUrl;
+    currentModel = newModel;
     colabClient = new OpenAI({
       apiKey: "ollama",
       baseURL: `${newUrl}/v1`,
@@ -90,12 +109,17 @@ export async function updateColabUrl(): Promise<boolean> {
   }
 }
 
-/** Webhook handler — called when Colab sends a new URL. */
-export async function setColabUrl(url: string): Promise<void> {
+/** Webhook handler — called when Colab sends a new URL + model. */
+export async function setColabUrl(url: string, model?: string): Promise<void> {
   if (!COLAB_ENABLED) return;
   try {
     fs.writeFileSync(URL_FILE, url, "utf-8");
-    logger.info(`[ColabLLM] URL written to file: ${url}`);
+    if (model) {
+      fs.writeFileSync(MODEL_FILE, model, "utf-8");
+      logger.info(`[ColabLLM] URL + model written: ${url} / ${model}`);
+    } else {
+      logger.info(`[ColabLLM] URL written to file: ${url}`);
+    }
     await updateColabUrl();
   } catch (err) {
     logger.error("[ColabLLM] Failed to write URL file:", err);
@@ -143,7 +167,7 @@ export async function chatWithColabLlm(
   try {
     const response = await colabPool.run(() =>
       colabClient!.chat.completions.create({
-        model: COLAB_MODEL,
+        model: currentModel,
         messages: messages as never,
         max_tokens: maxTokens,
         temperature: options?.temperature ?? 0.7,
@@ -156,7 +180,7 @@ export async function chatWithColabLlm(
       logger.warn("[ColabLLM] Empty response");
       return null;
     }
-    logger.info(`[ColabLLM] ✅ Response (${text.length} chars) — ${COLAB_MODEL}`);
+    logger.info(`[ColabLLM] ✅ Response (${text.length} chars) — ${currentModel}`);
     return text.trim();
   } catch (err) {
     const isTimeout = err instanceof Error && err.message.includes("timeout");
@@ -181,7 +205,7 @@ export async function chatWithColabLlmTools(
   try {
     const response = await colabPool.run(() =>
       colabClient!.chat.completions.create({
-        model: COLAB_MODEL,
+        model: currentModel,
         messages: messages as never,
         tools: tools as never,
         max_tokens: options?.maxTokens ?? 500,
@@ -207,4 +231,4 @@ export async function chatWithColabLlmTools(
   }
 }
 
-export const COLAB_MODEL_NAME = COLAB_MODEL;
+export const COLAB_MODEL_NAME = () => currentModel;

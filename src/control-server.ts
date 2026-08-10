@@ -357,8 +357,8 @@ export async function startControlServer(port: number, client: Client): Promise<
           return;
         }
         const { setColabUrl } = await import("./services/colabLlm.js");
-        await setColabUrl(url);
-        logger.info(`[ControlServer] Colab URL updated via webhook: ${url}`);
+        await setColabUrl(url, body.model as string | undefined);
+        logger.info(`[ControlServer] Colab URL updated via webhook: ${url} (model: ${body.model || "default"})`);
         sendJson(res, 200, { success: true, url });
       } catch (err) {
         sendJson(res, 500, { error: "Failed to update Colab URL" });
