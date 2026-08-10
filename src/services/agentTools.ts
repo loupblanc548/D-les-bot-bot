@@ -2375,7 +2375,19 @@ async function toolMcAgentConnect(
       data: "❌ Aucune adresse serveur fournie. Demande à l'utilisateur l'IP:port de son serveur ou monde LAN.",
     };
   }
-  const username = String(args.username || "LLM_Bot");
+  // Validate server format: only allow hostname/IP + optional port (no shell injection)
+  const serverRegex = /^[a-zA-Z0-9._-]+(:\d{1,5})?$/;
+  if (!serverRegex.test(server)) {
+    return {
+      success: false,
+      data: `❌ Format de serveur invalide: \`${server}\`. Attendu: IP:port (ex: 123.45.67.89:25565 ou play.mcraft.fr:25565).`,
+    };
+  }
+  const username = String(args.username || "LLM_Bot").trim().slice(0, 16);
+  // Validate username: only alphanumeric + underscore (Minecraft username rules)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return { success: false, data: `❌ Pseudo invalide: \`${username}\`. Seuls les caractères alphanumériques et _ sont autorisés.` };
+  }
   const alive = await pingAgent();
   if (!alive) {
     return {
@@ -2424,7 +2436,7 @@ async function toolMcAgentGoal(
       data: "❌ Agent Mineflayer non disponible. Démarre le notebook Colab d'abord.",
     };
   }
-  const goal = String(args.goal || "").trim();
+  const goal = String(args.goal || "").trim().slice(0, 500);
   if (!goal) return { success: false, data: "❌ Aucun objectif fourni" };
   const maxActions = Math.min(200, Math.max(1, Number(args.maxActions) || 50));
   const result = await setAgentGoal(goal, maxActions);
@@ -2470,7 +2482,7 @@ async function toolMcAgentChat(args: Record<string, unknown>): Promise<ToolCallR
   if (!isAgentAvailable()) {
     return { success: false, data: "❌ Agent Mineflayer non disponible" };
   }
-  const message = String(args.message || "").trim();
+  const message = String(args.message || "").trim().slice(0, 256);
   if (!message) return { success: false, data: "❌ Aucun message fourni" };
   const result = await sendAgentChat(message);
   return { success: result.success, data: result.message };
