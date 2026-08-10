@@ -30,7 +30,6 @@ const AGENT_ENABLED =
   process.env.MINEFLAYER_AGENT_URL !== undefined ||
   process.env.MINEFLAYER_AGENT_DYNAMIC_URL === "true";
 const URL_FILE = process.env.MINEFLAYER_AGENT_URL_FILE || "/opt/bot/data/mineflayer_url.txt";
-const TIMEOUT_MS = parseInt(process.env.MINEFLAYER_AGENT_TIMEOUT_MS || "120000", 10);
 
 let currentUrl: string | null = null;
 
@@ -46,6 +45,7 @@ const STATUS_CACHE_MS = 3000;
 // ─── Live log polling ─────────────────────────────────────────────
 let logPoller: NodeJS.Timeout | null = null;
 let logCallbacks: Array<(line: string) => void> = [];
+let lastSeenLogContent = "";
 
 /** Start polling agent log for live updates. Returns a stop function. */
 export function subscribeAgentLog(callback: (line: string) => void): () => void {
@@ -55,15 +55,22 @@ export function subscribeAgentLog(callback: (line: string) => void): () => void 
       const url = getUrl();
       if (!url) return;
       try {
-        const result = await fetchWithRetry(`${url}/log?lines=5`, {
+        const result = await fetchWithRetry(`${url}/log?lines=10`, {
           timeoutMs: 5_000,
           retries: 0,
           parseJson: true,
         });
         if (result?.log) {
-          const lines = result.log.split("\n").filter(Boolean);
-          for (const line of lines) {
-            for (const cb of logCallbacks) cb(line);
+          const allLines = result.log.split("\n").filter(Boolean);
+          const currentContent = allLines.join("\n");
+          // Only emit lines that are new since last poll
+          if (currentContent !== lastSeenLogContent) {
+            const prevLines = lastSeenLogContent ? lastSeenLogContent.split("\n") : [];
+            const newLines = allLines.slice(prevLines.length);
+            for (const line of newLines) {
+              for (const cb of logCallbacks) cb(line);
+            }
+            lastSeenLogContent = currentContent;
           }
         }
       } catch {
@@ -77,6 +84,7 @@ export function subscribeAgentLog(callback: (line: string) => void): () => void 
     if (logCallbacks.length === 0 && logPoller) {
       clearInterval(logPoller);
       logPoller = null;
+      lastSeenLogContent = "";
     }
   };
 }
@@ -191,10 +199,10 @@ export async function getWorldState(): Promise<WorldState | null> {
   }
 }
 
-/** Get agent + bot status (cached for 3s). */
-export async function getAgentStatus(): Promise<AgentStatus | null> {
+/** Get agent + bot status (cached for 3s, unless forceRefresh). */
+export async function getAgentStatus(forceRefresh = false): Promise<AgentStatus | null> {
   const now = Date.now();
-  if (lastStatus && now - lastStatusTime < STATUS_CACHE_MS) {
+  if (!forceRefresh && lastStatus && now - lastStatusTime < STATUS_CACHE_MS) {
     return lastStatus;
   }
   const url = getUrl();
@@ -317,12 +325,15 @@ export async function sendDirectAction(
 ): Promise<{ success: boolean; message: string } | null> {
   const url = getUrl();
   if (!url) return null;
+  // Quick actions (eat, jump, sleep, stop, etc.) get 30s, complex ones get 60s
+  const quickActions = ["eat", "jump", "sleep", "stop", "sprint", "sneak", "sortInventory", "chat", "getInventory", "getHealth"];
+  const timeout = quickActions.includes(action.type) ? 30_000 : 60_000;
   try {
     const result = await fetchWithRetry(`${url}/action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: action,
-      timeoutMs: TIMEOUT_MS,
+      timeoutMs: timeout,
       retries: 1,
       parseJson: true,
     });
@@ -411,7 +422,7 @@ export async function setAgentGoalLive(
   let lastLogSince = 0;
   let lastDisplayedLog = "";
   let pollCount = 0;
-  const maxPolls = Math.ceil((maxActions * 10) / 2); // Safety: stop after ~10s per action
+  const maxPolls = Math.ceil((maxActions * 120) / 2); // Safety: 120s per action max (LLM timeout 90s + execution), poll every 2s
 
   const pollInterval = setInterval(async () => {
     pollCount++;
@@ -425,8 +436,8 @@ export async function setAgentGoalLive(
       return;
     }
 
-    // Check if agent is still running
-    const status = await getAgentStatus();
+    // Check if agent is still running (force refresh to avoid stale cache)
+    const status = await getAgentStatus(true);
     if (!status?.agent_running && pollCount > 2) {
       clearInterval(pollInterval);
       const finalLog = await getAgentLog(15);
