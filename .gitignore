@@ -116,6 +116,7 @@ bedrock-server/
 !scripts/check_local_llm.sh
 !scripts/chaos-test.sh
 !scripts/db-backup.sh
+!scripts/server_audit.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md
