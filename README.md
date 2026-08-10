@@ -1,8 +1,8 @@
 <!-- Badges -->
 <div align="center">
 
-  <!-- CI Badge - Remplacer USER/REPO par votre dépôt GitHub -->
-  <img src="https://img.shields.io/github/actions/workflow/status/USER/REPO/.github/workflows/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI%2FCD" alt="CI/CD" />
+  <!-- CI Badge -->
+  <img src="https://img.shields.io/github/actions/workflow/status/loupblanc548/D-les-bot-bot/.github/workflows/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI%2FCD" alt="CI/CD" />
 
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js" />
