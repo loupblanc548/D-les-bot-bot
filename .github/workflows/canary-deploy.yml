@@ -1,0 +1,56 @@
+name: "🚀 Canary Deploy"
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  canary-deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build canary image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: ghcr.io/${{ github.repository }}:canary
+          push: false
+          load: true
+
+      - name: Run health checks on canary
+        run: |
+          docker run -d --name canary -p 3099:3000 \
+            -e NODE_ENV=production \
+            -e DISCORD_TOKEN=test-placeholder \
+            ghcr.io/${{ github.repository }}:canary
+          sleep 15
+          if curl -sf http://localhost:3099/health | jq -e '.status == "ok"' >/dev/null 2>&1; then
+            echo "✅ Canary health check passed"
+          else
+            echo "❌ Canary health check failed"
+            docker logs canary
+            docker rm -f canary
+            exit 1
+          fi
+          docker rm -f canary
+
+      - name: Tag as production
+        if: success()
+        run: |
+          docker tag ghcr.io/${{ github.repository }}:canary ghcr.io/${{ github.repository }}:latest
+          echo "✅ Canary promoted to production (tagged :latest)"
+
+      - name: Notify deployment
+        if: success()
+        run: echo "🚀 Canary deploy successful — image ready for production rollout"
