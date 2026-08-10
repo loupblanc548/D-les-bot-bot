@@ -113,6 +113,7 @@ ef.json
 bedrock-server/
 
 *.sh
+!scripts/check_local_llm.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md
