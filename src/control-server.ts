@@ -27,12 +27,16 @@ import http from "http";
 import crypto from "crypto";
 import { Client } from "discord.js";
 import { WebSocketServer, WebSocket } from "ws";
+import zlib from "zlib";
+import { promisify } from "util";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { config } from "./config.js";
 import { getFortniteState } from "./services/fortnite-broadcast.js";
 import { handleWebhookRequest } from "./services/webhookTriggers.js";
 import { handleWebhook as handleSecureWebhook } from "./services/webhookReceiver.js";
+
+const gzip = promisify(zlib.gzip);
 
 let server: http.Server | null = null;
 let wss: WebSocketServer | null = null;
@@ -41,38 +45,112 @@ const logBuffer: { timestamp: number; level: string; message: string }[] = [];
 const dmHistory: { timestamp: number; userId: string; message: string; success: boolean }[] = [];
 const MAX_LOGS = 500;
 
-const originalLog = console.log;
-const originalError = console.error;
-const originalWarn = console.warn;
-
-function pushLog(level: string, args: unknown[]) {
-  const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-  logBuffer.push({ timestamp: Date.now(), level, message });
-  if (logBuffer.length > MAX_LOGS) logBuffer.shift();
-  broadcastWs({ type: "log", timestamp: Date.now(), level, message });
+// Simple TTL cache
+type CacheEntry = { value: any; expiresAt: number };
+const cache = new Map<string, CacheEntry>();
+function setCache(key: string, value: any, ttlMs = 3000) {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+function getCache<T = any>(key: string): T | null {
+  const e = cache.get(key);
+  if (!e) return null;
+  if (Date.now() > e.expiresAt) { cache.delete(key); return null; }
+  return e.value as T;
 }
 
-function broadcastWs(data: unknown) {
-  const payload = JSON.stringify(data);
-  for (const ws of wsClients) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(payload);
-    }
+// Dynamic stats updated periodically to avoid heavy work per request
+let dynamicStats = {
+  totalGuilds: 0,
+  totalMembers: 0,
+  commandsCount: 0,
+  ping: 0,
+  memoryMb: 0,
+  updatedAt: Date.now(),
+};
+
+function refreshDynamicStats(client: Client) {
+  try {
+    dynamicStats.totalGuilds = client.guilds.cache.size;
+    dynamicStats.totalMembers = client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0);
+    dynamicStats.commandsCount = client.application?.commands?.cache?.size || 0;
+    dynamicStats.ping = client.ws?.ping || 0;
+    dynamicStats.memoryMb = +(process.memoryUsage().rss / 1048576).toFixed(1);
+    dynamicStats.updatedAt = Date.now();
+  } catch (err) {
+    logger.warn("[ControlServer] refreshDynamicStats error:", err);
   }
 }
 
-console.log = (...args: unknown[]) => {
-  pushLog("info", args);
-  originalLog(...args);
-};
-console.error = (...args: unknown[]) => {
-  pushLog("error", args);
-  originalError(...args);
-};
-console.warn = (...args: unknown[]) => {
-  pushLog("warn", args);
-  originalWarn(...args);
-};
+// Background DB metrics updated periodically (caches counts)
+let cachedDbMetrics: {
+  totalGuilds?: number;
+  totalLogs?: number;
+  totalSanctions?: number;
+  totalTweets?: number;
+  totalWishlistItems?: number;
+  updatedAt?: number;
+} = { updatedAt: 0 };
+
+async function refreshDbMetrics() {
+  try {
+    const [totalGuilds, totalLogs, totalSanctions, totalTweets, totalWishlistItems] = await Promise.all([
+      prisma.guildConfig.count().catch(() => 0),
+      prisma.log.count().catch(() => 0),
+      prisma.sanction.count().catch(() => 0),
+      prisma.processedTweets.count().catch(() => 0),
+      prisma.wishlist.count().catch(() => 0),
+    ]);
+    cachedDbMetrics = { totalGuilds, totalLogs, totalSanctions, totalTweets, totalWishlistItems, updatedAt: Date.now() };
+  } catch (err) {
+    logger.warn("[ControlServer] refreshDbMetrics failed:", err);
+  }
+}
+
+// Throttled WS broadcast: aggregate small bursts and send once per interval
+let wsBroadcastScheduled = false;
+let wsPendingPayloads: string[] = [];
+function scheduleBroadcast(payload: string) {
+  wsPendingPayloads.push(payload);
+  if (wsBroadcastScheduled) return;
+  wsBroadcastScheduled = true;
+  setTimeout(() => {
+    const batch = wsPendingPayloads.join("\n");
+    wsPendingPayloads = [];
+    wsBroadcastScheduled = false;
+    for (const ws of wsClients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try { ws.send(batch, (err) => { if (err) { try { ws.close(); } catch {} } }); } catch { try { ws.close(); } catch {} }
+      }
+    }
+  }, 150);
+}
+
+function withTimeout<T>(p: Promise<T>, ms = 3000, fallback?: T): Promise<T> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const t = setTimeout(() => { if (!settled) { settled = true; resolve(fallback as T); } }, ms);
+    p.then((v) => { if (!settled) { settled = true; clearTimeout(t); resolve(v); } }).catch(() => { if (!settled) { settled = true; clearTimeout(t); resolve(fallback as T); } });
+  });
+}
+
+const originalLog = console.log.bind(console);
+const originalError = console.error.bind(console);
+const originalWarn = console.warn.bind(console);
+
+function pushLog(level: string, args: unknown[]) {
+  const message = args.map((a) => {
+    if (typeof a === "string") return a;
+    try { return JSON.stringify(a); } catch { return String(a); }
+  }).join(" ");
+  const entry = { timestamp: Date.now(), level, message };
+  logBuffer.push(entry);
+  if (logBuffer.length > MAX_LOGS) logBuffer.shift();
+  try { scheduleBroadcast(JSON.stringify({ type: "log", ...entry })); } catch {}
+}
+
+console.log = (...args: unknown[]) => { pushLog("info", args); originalLog(...args); };
+console.error = (...args: unknown[]) => { pushLog("error", args); originalError(...args); };
+console.warn = (...args: unknown[]) => { pushLog("warn", args); originalWarn(...args); };
 
 function authCheck(req: http.IncomingMessage): boolean {
   const token = config.controlToken;
@@ -120,46 +198,51 @@ function getAllowedOrigin(): string {
   return "*";
 }
 
-function sendJson(res: http.ServerResponse, code: number, data: unknown) {
-  const allowedOrigin = getAllowedOrigin();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-    "X-XSS-Protection": "1; mode=block",
-    "Referrer-Policy": "no-referrer",
-    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-  };
-  if (allowedOrigin) {
-    headers["Access-Control-Allow-Origin"] = allowedOrigin;
+async function sendJson(res: http.ServerResponse, code: number, data: unknown) {
+  try {
+    const json = JSON.stringify(data);
+    const accept = (res.req?.headers?.["accept-encoding"] as string) || "";
+    const useGzip = accept.includes("gzip") && json.length > 1024;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "X-XSS-Protection": "1; mode=block",
+      "Referrer-Policy": "no-referrer",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    };
+    const allowedOrigin = getAllowedOrigin();
+    if (allowedOrigin) headers["Access-Control-Allow-Origin"] = allowedOrigin;
+    if (useGzip) {
+      headers["Content-Encoding"] = "gzip";
+      res.writeHead(code, headers);
+      const gz = await gzip(Buffer.from(json));
+      res.end(gz);
+    } else {
+      res.writeHead(code, headers);
+      res.end(json);
+    }
+  } catch {
+    try { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(data)); } catch {}
   }
-  res.writeHead(code, headers);
-  res.end(JSON.stringify(data));
 }
 
 async function readBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
-    let body = "";
-    let tooLarge = false;
+    const contentLength = Number(req.headers["content-length"] || "0");
+    if (contentLength > 2_000_000) { resolve({}); return; }
+    const chunks: Buffer[] = [];
+    let received = 0;
     req.on("data", (chunk: Buffer) => {
-      if (body.length > 1_000_000) {
-        tooLarge = true;
-        return;
-      }
-      body += chunk.toString();
+      received += chunk.length;
+      if (received > 1_000_000) { chunks.length = 0; return; }
+      chunks.push(chunk);
     });
     req.on("end", () => {
-      if (tooLarge) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(body) as Record<string, unknown>);
-      } catch {
-        resolve({});
-      }
+      if (chunks.length === 0) { resolve({}); return; }
+      try { const buf = Buffer.concat(chunks); resolve(JSON.parse(buf.toString()) as Record<string, unknown>); } catch { resolve({}); }
     });
     req.on("error", () => resolve({}));
   });
@@ -167,6 +250,12 @@ async function readBody(req: http.IncomingMessage): Promise<Record<string, unkno
 
 export async function startControlServer(port: number, client: Client): Promise<void> {
   if (server) return;
+
+  // Start background stat refreshers
+  refreshDynamicStats(client);
+  setInterval(() => refreshDynamicStats(client), 3000);
+  await refreshDbMetrics();
+  setInterval(() => refreshDbMetrics(), 30_000);
 
   server = http.createServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
@@ -291,16 +380,15 @@ export async function startControlServer(port: number, client: Client): Promise<
 
     try {
       if (path === "/api/status" && req.method === "GET") {
-        const guilds = client.guilds.cache;
         sendJson(res, 200, {
           online: client.isReady(),
           uptime: process.uptime(),
-          ping: client.ws.ping,
-          guilds: guilds.size,
-          members: guilds.reduce((acc, g) => acc + g.memberCount, 0),
-          memoryMb: (process.memoryUsage().rss / 1048576).toFixed(1),
+          ping: dynamicStats.ping,
+          guilds: dynamicStats.totalGuilds,
+          members: dynamicStats.totalMembers,
+          memoryMb: dynamicStats.memoryMb,
           cpuPercent: process.cpuUsage().user / 1000000,
-          commands: client.application?.commands.cache.size || 0,
+          commands: dynamicStats.commandsCount,
         });
         return;
       }
@@ -320,7 +408,10 @@ export async function startControlServer(port: number, client: Client): Promise<
 
       if (path === "/api/platforms" && req.method === "GET") {
         try {
-          const sources = await prisma.source.findMany();
+          const cacheKey = "platformListCache";
+          const cached = getCache(cacheKey);
+          if (cached) { sendJson(res, 200, cached); return; }
+          const sources = await withTimeout(prisma.source.findMany(), 3000, []);
           // Enrichir avec les infos de config .env
           const platformList = [
             {
@@ -434,6 +525,7 @@ export async function startControlServer(port: number, client: Client): Promise<
               });
             }
           }
+          setCache(cacheKey, platformList, 15_000);
           sendJson(res, 200, platformList);
         } catch {
           sendJson(res, 200, [
@@ -507,8 +599,9 @@ export async function startControlServer(port: number, client: Client): Promise<
           return;
         }
         try {
-          const user = await client.users.fetch(userId);
-          await user.send(message);
+          const user = await withTimeout(client.users.fetch(userId), 5000, null as any);
+          if (!user) throw new Error("User fetch timeout");
+          await withTimeout(user.send(message), 8000, undefined);
           dmHistory.push({
             timestamp: Date.now(),
             userId,
@@ -541,7 +634,7 @@ export async function startControlServer(port: number, client: Client): Promise<
           const fnState = getFortniteState();
 
           // Compter les tweets traités en base
-          const tweetCount = await prisma.processedTweets.count().catch(() => 0);
+          const tweetCount = cachedDbMetrics.totalTweets ?? (await withTimeout(prisma.processedTweets.count(), 3000, 0));
 
           // Compter les comptes suivis
           const accountsRaw = process.env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS || "";
@@ -551,15 +644,14 @@ export async function startControlServer(port: number, client: Client): Promise<
             .filter(Boolean);
 
           // Compter les cosmétiques trackés dans la wishlist
-          const cosmeticsTracked = await prisma.wishlist.count().catch(() => 0);
+          const cosmeticsTracked = cachedDbMetrics.totalWishlistItems ?? (await withTimeout(prisma.wishlist.count(), 3000, 0));
 
           // Récupérer les détections récentes
-          const recentPosts = await prisma.processedTweets
+          const recentPosts = await withTimeout(prisma.processedTweets
             .findMany({
               orderBy: { id: "desc" },
               take: 15,
-            })
-            .catch(() => []);
+            }).catch(() => []), 4000, []);
 
           // Mapper les détections
           const detections = [
@@ -696,23 +788,17 @@ export async function startControlServer(port: number, client: Client): Promise<
       }
 
       if (path === "/api/metrics" && req.method === "GET") {
-        const [totalGuilds, totalLogs, totalSanctions, totalTweets, totalWishlistItems] =
-          await Promise.all([
-            prisma.guildConfig.count().catch(() => 0),
-            prisma.log.count().catch(() => 0),
-            prisma.sanction.count().catch(() => 0),
-            prisma.processedTweets.count().catch(() => 0),
-            prisma.wishlist.count().catch(() => 0),
-          ]);
+        const dbm = cachedDbMetrics;
         sendJson(res, 200, {
-          totalGuilds,
-          totalLogs,
-          totalSanctions,
-          totalTweets,
-          totalWishlistItems,
+          totalGuilds: dbm.totalGuilds ?? 0,
+          totalLogs: dbm.totalLogs ?? 0,
+          totalSanctions: dbm.totalSanctions ?? 0,
+          totalTweets: dbm.totalTweets ?? 0,
+          totalWishlistItems: dbm.totalWishlistItems ?? 0,
           uptime: process.uptime(),
-          memoryMb: (process.memoryUsage().rss / 1048576).toFixed(1),
+          memoryMb: dynamicStats.memoryMb,
           logCount: logBuffer.length,
+          dbMetricsUpdatedAt: dbm.updatedAt || null,
         });
         return;
       }
@@ -1245,7 +1331,7 @@ export async function startControlServer(port: number, client: Client): Promise<
       wsClients.delete(ws);
     });
     // Send initial snapshot
-    ws.send(JSON.stringify({ type: "connected", timestamp: Date.now() }));
+    try { ws.send(JSON.stringify({ type: "connected", timestamp: Date.now() }), () => {}); } catch {}
   });
 
   return new Promise((resolve) => {
