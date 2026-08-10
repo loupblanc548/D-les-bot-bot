@@ -17,6 +17,10 @@
  *  GET  /api/metrics         — Métriques
  *  POST /api/restart         — Redémarrer le bot
  *  GET  /api/health          — Health check
+ *  GET  /live                 — Liveness probe (process alive)
+ *  GET  /ready                — Readiness probe (Discord + DB connected)
+ *  GET  /internal/health      — Detailed health (memory, discord, warnings)
+ *  GET  /metrics              — Prometheus metrics
  */
 
 import http from "http";
@@ -184,6 +188,55 @@ export async function startControlServer(port: number, client: Client): Promise<
 
     if (path === "/api/health" || path === "/health" || path === "/healthz") {
       sendJson(res, 200, { status: "ok", uptime: process.uptime(), timestamp: Date.now() });
+      return;
+    }
+
+    // Liveness probe — process is alive
+    if (path === "/live" || path === "/liveness") {
+      sendJson(res, 200, { status: "alive", pid: process.pid, uptime: process.uptime() });
+      return;
+    }
+
+    // Readiness probe — process is ready to serve traffic
+    if (path === "/ready" || path === "/readiness") {
+      const ready = client.ws?.status === 1; // 1 = READY in discord.js
+      const dbOk = !!prisma;
+      const readyStatus = ready && dbOk;
+      sendJson(res, readyStatus ? 200 : 503, {
+        status: readyStatus ? "ready" : "not_ready",
+        discord: ready ? "connected" : "disconnected",
+        database: dbOk ? "connected" : "disconnected",
+        uptime: process.uptime(),
+      });
+      return;
+    }
+
+    // Internal health — detailed checks
+    if (path === "/internal/health") {
+      const memUsage = process.memoryUsage();
+      const health = {
+        status: "ok",
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+        discord: { connected: client.ws?.status === 1, ping: client.ws?.ping ?? -1 },
+        memory: {
+          rss: Math.round(memUsage.rss / 1024 / 1024),
+          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+          external: Math.round(memUsage.external / 1024 / 1024),
+        },
+        guilds: client.guilds.cache.size,
+        warnings: [] as string[],
+      };
+      if (memUsage.rss > 1024 * 1024 * 1024) {
+        health.status = "warning";
+        health.warnings.push("RSS > 1GB");
+      }
+      if (client.ws?.status !== 1) {
+        health.status = "degraded";
+        health.warnings.push("Discord not connected");
+      }
+      sendJson(res, health.status === "ok" ? 200 : 503, health);
       return;
     }
 
