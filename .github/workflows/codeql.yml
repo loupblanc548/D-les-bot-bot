@@ -2,7 +2,7 @@ name: "🔒 CodeQL Security Scan"
 
 on:
   push:
-    branches: [main]
+    branches: [main, chore/cleanup-security-ci]
   pull_request:
     branches: [main]
   schedule:
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript]
+        language: [javascript-typescript]
 
     steps:
       - uses: actions/checkout@v7
@@ -35,7 +35,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          queries: security-extended
+          queries: security-extended,security-and-quality
           config-file: .github/codeql/codeql-config.yml
 
       - name: 🔍 Autobuild
