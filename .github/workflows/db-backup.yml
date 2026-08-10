@@ -1,0 +1,33 @@
+name: "📦 Nightly DB Backup"
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Run backup
+        run: |
+          chmod +x scripts/db-backup.sh
+          ./scripts/db-backup.sh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: /tmp/backups/
+          retention-days: 7

@@ -1,0 +1,17 @@
+# Default owner for everything
+* @loupblanc548
+
+# Security-critical files
+.github/ @loupblanc548
+Dockerfile @loupblanc548
+Dockerfile.scraper @loupblanc548
+package.json @loupblanc548
+package-lock.json @loupblanc548
+.env.example @loupblanc548
+prisma/ @loupblanc548
+
+# Infrastructure
+infra/ @loupblanc548
+
+# CI/CD workflows
+.github/workflows/ @loupblanc548
