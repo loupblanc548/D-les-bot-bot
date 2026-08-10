@@ -208,3 +208,101 @@ POST /webhook/baritone-url
 | Build | Non | Oui (schémas) |
 | Explore | Non | Oui |
 | Coût VPS | CPU/RAM | 0 (Colab) |
+
+---
+
+## 🧠 Mineflayer + LLM Agent — Le LLM joue à Minecraft
+
+Le quatrième notebook (`colab/mineflayer_agent.ipynb`) fait tourner **Mineflayer** + **Ollama LLM** sur le même GPU Colab. Le LLM (jusqu'à 70B sur A100) **voit le monde**, **décide**, et **agit** via Mineflayer.
+
+### Architecture
+
+```
+Discord: /mc agent "Build a house"
+    ↓
+Colab FastAPI ← POST /goal
+    ↓
+┌─────────────────────────────────────┐
+│ Agent Loop (Colab)                  │
+│                                     │
+│  1. Observe: GET /world (Mineflayer)│
+│     → position, vie, inventaire,    │
+│       blocs proches, entités        │
+│                                     │
+│  2. Think: POST Ollama (70B)        │
+│     → "Given world state + goal,    │
+│        what actions to take?"       │
+│     → JSON array of actions         │
+│                                     │
+│  3. Act: POST /action (Mineflayer)  │
+│     → moveTo, mineBlock, placeBlock,│
+│       craftItem, attack, chat...    │
+│                                     │
+│  4. Repeat until goal done          │
+│     or max_actions reached          │
+└─────────────────────────────────────┘
+```
+
+### Outils du LLM (via Mineflayer)
+
+| Action | Description |
+|--------|-------------|
+| `moveTo(x, z)` | Aller à des coordonnées (pathfinding) |
+| `mineBlock(type)` | Miner un bloc spécifique |
+| `placeBlock(x, y, z, type)` | Placer un bloc |
+| `craftItem(recipe)` | Crafter un item |
+| `attack(target)` | Attaquer un mob/joueur |
+| `chat(message)` | Parler dans le chat |
+| `dropItem(item)` | Jeter un item |
+| `equipItem(item)` | Équiper un outil/armure |
+| `jump()` | Sauter |
+| `lookAt(x, y, z)` | Regarder une position |
+| `stop()` | Arrêter le mouvement |
+
+### Commandes Discord
+
+| Slash command | Description |
+|---------------|-------------|
+| `/mc agent <goal>` | Donner un objectif au LLM (ex: "Mine 10 iron ore") |
+| `/mc agentstop` | Arrêter l'agent |
+| `/mc agentstatus` | Statut du bot + agent |
+| `/mc agentworld` | État du monde vu par le LLM |
+| `/mc agentlog` | Journal des actions de l'agent |
+| `/mc agentchat <msg>` | Parler dans le chat MC via le bot |
+
+### Exemples de goals
+
+- `"Collect 20 oak logs"` → Le LLM trouve des chênes, mine, revient
+- `"Build a 5x5 house with door"` → Collecte bois → craft planches → construit
+- `"Mine 10 iron ore"` → Descend dans des grottes, trouve fer, mine
+- `"Find diamonds"` → Explore grottes profondes, mine diamants
+- `"Kill the zombie near me"` → Détecte zombie, attaque
+- `"Follow Player1 and protect them"` → Suit un joueur, attaque les menaces
+
+### Variables d'environnement
+
+```env
+MINEFLAYER_AGENT_URL=https://abc123.ngrok.io
+# OU mode dynamique
+MINEFLAYER_AGENT_DYNAMIC_URL=true
+MINEFLAYER_AGENT_URL_FILE=/opt/bot/data/mineflayer_url.txt
+MINEFLAYER_AGENT_TIMEOUT_MS=120000
+```
+
+### Webhook
+
+```
+POST /webhook/mineflayer-url
+{ "url": "https://new-url.ngrok.io", "type": "mineflayer" }
+```
+
+### Différence avec Baritone
+
+| Feature | Baritone | Mineflayer + LLM |
+|---------|----------|-----------------|
+| Intelligence | Pathfinding A* | **LLM 70B décide** |
+| Goals | Commandes simples (`#goto`, `#mine`) | **Langage naturel** ("Build a house") |
+| Adaptation | Non (suit un script) | **Oui** (observe, réfléchit, adapte) |
+| Chat | Non | **Oui** (peut converser en jeu) |
+| Build | Schémas prédéfinis | **Créatif** (LLM décide la structure) |
+| Complexité | Faible | Élevée (mais plus flexible) |
