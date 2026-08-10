@@ -28,6 +28,20 @@ function getClient(): AssemblyAI {
  * @returns Transcribed text or null
  */
 export async function transcribeAudio(audioUrl: string): Promise<string | null> {
+  // Try Colab GPU Whisper first (free, no API quota)
+  try {
+    const { transcribeViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+    if (isColabToolsAvailable()) {
+      const colabResult = await transcribeViaColab(audioUrl);
+      if (colabResult?.text) {
+        logger.info(`[AssemblyAI] Transcribed via Colab Whisper (${colabResult.text.length} chars)`);
+        return colabResult.text;
+      }
+    }
+  } catch {
+    // Colab unavailable — continue to AssemblyAI
+  }
+
   if (!config.assemblyAiApiKey) return null;
 
   try {

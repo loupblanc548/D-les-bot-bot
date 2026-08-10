@@ -366,6 +366,25 @@ export async function startControlServer(port: number, client: Client): Promise<
       return;
     }
 
+    // Colab Tools URL webhook — receives ngrok URL for GPU tools backend
+    if (path === "/webhook/colab-tools-url" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const url = body.url as string;
+        if (!url || !url.startsWith("http")) {
+          sendJson(res, 400, { error: "Missing or invalid 'url' field" });
+          return;
+        }
+        const { setColabToolsUrl } = await import("./services/colabTools.js");
+        await setColabToolsUrl(url);
+        logger.info(`[ControlServer] Colab Tools URL updated via webhook: ${url}`);
+        sendJson(res, 200, { success: true, url });
+      } catch (err) {
+        sendJson(res, 500, { error: "Failed to update Colab Tools URL" });
+      }
+      return;
+    }
+
     if (path.startsWith("/webhook-secure/")) {
       const chunks: Buffer[] = [];
       req.on("data", (chunk: Buffer) => chunks.push(chunk));

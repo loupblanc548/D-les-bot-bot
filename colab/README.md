@@ -68,3 +68,61 @@ Changer `MODEL_NAME` dans la cellule 2 du notebook → relancer → le bot déte
 - ngrok URL change à chaque redémarrage
 - Latence réseau: ~200-500ms vs local
 - Colab peut déconnecter en cas d'inactivité (le keep-alive prévient ça)
+
+---
+
+## 🛠️ Colab Tools Backend — Tâches GPU
+
+Le second notebook (`colab/tools_backend.ipynb`) expose une API FastAPI sur GPU Colab pour les tâches lourdes que le VPS ne peut pas faire efficacement :
+
+### Endpoints
+
+| Endpoint | Description | Service VPS fallback |
+|----------|-------------|---------------------|
+| `POST /nsfw` | Classification NSFW d'image | `nsfwClassifier.ts` → Sightengine/Gemini |
+| `POST /ai-detect` | Détection image générée par IA | `aiAvatarDetector.ts` → Sightengine/HF |
+| `POST /remove-bg` | Suppression de fond (rembg) | `removeBg.ts` → remove.bg API (payant) |
+| `POST /screenshot` | Capture d'écran (Playwright) | `screenshotTool.ts` → Playwright VPS |
+| `POST /transcribe` | Transcription audio (Whisper) | `assemblyAi.ts` → AssemblyAI API (payant) |
+| `POST /embeddings` | Embeddings texte (RAG) | `vectorMemory.ts` → OpenAI embeddings |
+| `GET /health` | Health check | — |
+
+### Architecture de fallback
+
+```
+Requête bot → Colab Tools GPU (gratuit)
+                  ↓ si indisponible
+              Service VPS existant
+                  ↓ si pas configuré
+              API cloud payante (Sightengine, AssemblyAI, remove.bg)
+                  ↓ si rien
+              Désactivé / skip
+```
+
+### Intégration automatique
+
+Les services suivants utilisent **automatiquement** Colab Tools quand disponible, avec fallback transparent :
+
+- `src/services/nsfwClassifier.ts` — `classifyNsfw()` → Colab GPU → Sightengine → Gemini
+- `src/services/aiAvatarDetector.ts` — `detectAIMedia()` → Colab GPU → Sightengine → HuggingFace
+- `src/services/removeBg.ts` — `removeBackground()` → Colab GPU (rembg) → remove.bg API
+- `src/services/screenshotTool.ts` — `takeScreenshot()` → Colab GPU (Playwright) → VPS Playwright
+- `src/services/assemblyAi.ts` — `transcribeAudio()` → Colab GPU (Whisper) → AssemblyAI API
+
+### Variables d'environnement
+
+```env
+# Colab Tools (optionnel — si non défini, le bot utilise les services VPS)
+COLAB_TOOLS_URL=https://abc123.ngrok.io
+# OU mode dynamique (URL file polling)
+COLAB_TOOLS_URL_FILE=/opt/bot/data/colab_tools_url.txt
+COLAB_TOOLS_TIMEOUT_MS=30000
+```
+
+### Webhook
+
+Le notebook notifie le bot quand l'URL change :
+```
+POST /webhook/colab-tools-url
+{ "url": "https://new-url.ngrok.io", "type": "tools" }
+```

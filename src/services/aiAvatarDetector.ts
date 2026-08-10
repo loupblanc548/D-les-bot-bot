@@ -45,6 +45,25 @@ async function detectAIMedia(
   mediaUrl: string,
   mediaType: "image" | "video" | "audio",
 ): Promise<AIDetectionResult | null> {
+  // Try Colab GPU backend first (free, no API quota)
+  if (mediaType === "image") {
+    try {
+      const { detectAiImageViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+      if (isColabToolsAvailable()) {
+        const colabResult = await detectAiImageViaColab(mediaUrl);
+        if (colabResult) {
+          return {
+            isAIGenerated: colabResult.is_ai,
+            confidence: colabResult.ai_score,
+            source: "colab-gpu",
+          };
+        }
+      }
+    } catch {
+      // Colab unavailable — continue to Sightengine/HuggingFace
+    }
+  }
+
   const apiKey = process.env.SIGHTENGINE_API_KEY;
   const apiUser = process.env.SIGHTENGINE_API_USER;
 
