@@ -1,0 +1,56 @@
+groups:
+  - name: bot-alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 / 1024 > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Bot memory usage > 80% of limit"
+          description: "Memory usage is {{ $value }}GB — check for leaks"
+
+      - alert: HighErrorRate
+        expr: rate(bot_errors_total[1m]) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bot error rate > 0.5/min"
+          description: "Error rate is {{ $value }}/min — investigate logs"
+
+      - alert: LLMUnavailable
+        expr: bot_llm_available == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Local LLM (Ollama) unavailable"
+          description: "Falling back to external APIs"
+
+      - alert: HighLLMLatency
+        expr: histogram_quantile(0.95, rate(bot_llm_response_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM p95 latency > 30s"
+          description: "Consider reducing context or model size"
+
+      - alert: DiscordDisconnected
+        expr: bot_discord_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Discord client disconnected"
+          description: "Bot is not connected to Discord gateway"
+
+      - alert: DatabaseConnectionFailed
+        expr: bot_db_connected == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection lost"
+          description: "Prisma cannot reach database"

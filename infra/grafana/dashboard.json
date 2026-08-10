@@ -1,0 +1,75 @@
+{
+  "dashboard": {
+    "title": "Discord Bot — Monitoring",
+    "tags": ["discord", "bot"],
+    "timezone": "Europe/Paris",
+    "panels": [
+      {
+        "title": "Memory Usage (MB)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "process_resident_memory_bytes / 1024 / 1024", "legendFormat": "RSS" },
+          { "expr": "process_heap_used_bytes / 1024 / 1024", "legendFormat": "Heap" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+      },
+      {
+        "title": "Error Rate (per min)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "rate(bot_errors_total[1m])", "legendFormat": "errors/min" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+      },
+      {
+        "title": "LLM Response Latency (s)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "histogram_quantile(0.50, rate(bot_llm_response_seconds_bucket[5m]))", "legendFormat": "p50" },
+          { "expr": "histogram_quantile(0.95, rate(bot_llm_response_seconds_bucket[5m]))", "legendFormat": "p95" },
+          { "expr": "histogram_quantile(0.99, rate(bot_llm_response_seconds_bucket[5m]))", "legendFormat": "p99" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+      },
+      {
+        "title": "LLM Availability",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "bot_llm_available", "legendFormat": "Ollama" }
+        ],
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 }
+      },
+      {
+        "title": "Discord Gateway Status",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "bot_discord_connected", "legendFormat": "Connected" }
+        ],
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 }
+      },
+      {
+        "title": "CPU Usage (%)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "rate(process_cpu_seconds_total[1m]) * 100", "legendFormat": "CPU%" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+      },
+      {
+        "title": "Messages Processed",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          { "expr": "rate(bot_messages_processed_total[5m])", "legendFormat": "msg/min" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+      }
+    ]
+  }
+}
