@@ -721,9 +721,19 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentConnect",
       description:
         "Connecte le bot Minecraft LLM (Mineflayer sur Colab) à un serveur ou monde Minecraft. " +
-        "L'utilisateur peut dire 'rejoins moi', 'rejoins mon monde', 'connecte-toi', 'viens sur mon serveur'. " +
+        "L'utilisateur peut dire (variantes FR): 'rejoins moi', 'rejoins mon monde', 'rejoins ce serveur', 'rejoins ça', " +
+        "'connecte-toi', 'connecte toi', 'connexion', 'viens sur mon serveur', 'viens jouer', 'viens avec moi', " +
+        "'viens me voir', 'viens sur mc', 'rejoins l'ip', 'rejoins le serveur', 'go sur le serveur', " +
+        "'go sur mon monde', 'go mc', 'rejoins minecraft', 'connecte le bot', 'met le bot sur', " +
+        "'met le bot dans mon monde', 'envoie le bot', 'le bot peut rejoindre', 'le bot peut venir', " +
+        "'tu peux rejoindre', 'tu peux venir', 'viens', 'rejoins', 'connecte', 'go serveur', 'go mc', " +
+        "'rejoins mon serveur minecraft', 'rejoins mon monde solo', 'viens dans mon monde solo', " +
+        "'ouvre minecraft et rejoins', 'le bot rejoint', 'fait rejoindre le bot'. " +
+        "Variantes EN: 'join me', 'join my world', 'join my server', 'connect to', 'come to my server', " +
+        "'come play', 'get on minecraft', 'join this ip', 'connect the bot', 'hop on'. " +
         "Pour un monde solo ouvert en LAN, l'utilisateur doit fournir son IP publique et le port LAN affiché par Minecraft. " +
-        "Si l'utilisateur ne donne pas l'IP, demande-la. Le port par défaut est 25565 pour les serveurs, mais variable pour le LAN.",
+        "Si l'utilisateur ne donne pas l'IP, demande-la. Le port par défaut est 25565 pour les serveurs, mais variable pour le LAN. " +
+        "Si l'utilisateur dit 'rejoins moi' sans IP, demande: 'Quelle est ton IP:port ? Ouvre ton monde en LAN (Échap → Ouvrir en LAN) et donne-moi l'IP:port affiché'.",
       parameters: {
         type: "object",
         properties: {
@@ -747,14 +757,36 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       description:
         "Envoie un objectif en langage naturel au bot Minecraft LLM. " +
         "Le bot va observer le monde, décider des actions et les exécuter automatiquement. " +
-        "Exemples: 'construis une maison', 'mine 10 fer', 'chasse des zombies', 'explore et trouve des diamants', 'fais une ferme'. " +
-        "L'utilisateur peut dire 'va miner', 'construis ça', 'cherche des diamants', 'défends-moi'.",
+        "Variantes FR: 'construis une maison', 'construis un abri', 'construis une tour', 'construis un château', " +
+        "'construis ça', 'construis-moi', 'bâtis', 'fais une maison', 'fais une ferme', 'fais un pont', " +
+        "'mine 10 fer', 'mine du charbon', 'mine des diamants', 'va miner', 'mine ça', 'creuse', " +
+        "'cherche des diamants', 'cherche du fer', 'cherche de l'or', 'trouve des diamants', " +
+        "'va chercher du bois', 'collecte du bois', 'collecte de la pierre', 'collecte des ressources', " +
+        "'chasse des zombies', 'chasse des animaux', 'chasse', 'tue les monstres', 'tue les zombies', " +
+        "'défends-moi', 'défens-toi', 'protège-moi', 'protege la zone', " +
+        "'explore', 'explore et trouve des diamants', 'explore la zone', 'va voir autour', " +
+        "'fais une ferme', 'fais de l'agriculture', 'plante des cultures', 'fais pousser du blé', " +
+        "'va pêcher', 'pêche', 'fais de la pêche', " +
+        "'craft une épée', 'craft des planches', 'craft un four', 'fais un craft', " +
+        "'fais cuire', 'cuis', 'fais fondre le minerai', 'smelt le fer', " +
+        "'fais un pont', 'fais un tunnel', 'creuse un tunnel', " +
+        "'soigne-toi', 'mange', 'dors', 'va dormir', " +
+        "'apprivoise un cheval', 'apprivoise un loup', 'domestique', " +
+        "'fais reproduire les vaches', 'fais des bébés animaux', 'breed', " +
+        "'va au village', 'va à la forteresse', 'va au nether', " +
+        "'range ton inventaire', 'équipe-toi', 'mets ton armure', " +
+        "'fais ce que tu veux', 'amuse-toi', 'fais ce que tu peux', " +
+        "'aide-moi à survivre', 'survis', 'fais en sorte de rester en vie', " +
+        "'va là-bas', 'va vers', 'va au coordonnées', 'va à la position'. " +
+        "Variantes EN: 'build a house', 'mine some iron', 'go mining', 'find diamonds', 'hunt zombies', " +
+        "'defend me', 'explore', 'make a farm', 'craft a sword', 'survive', 'go there'. " +
+        "Toute phrase exprimant une intention d'action dans Minecraft doit utiliser cet outil.",
       parameters: {
         type: "object",
         properties: {
           goal: {
             type: "string",
-            description: "Objectif en langage naturel pour le bot Minecraft",
+            description: "Objectif en langage naturel pour le bot Minecraft (ex: 'Build a 5x5 house with oak planks', 'Mine 10 iron ore and smelt into ingots', 'Find and mine diamonds', 'Hunt animals for food', 'Defend against zombies', 'Explore and find a village')",
           },
           maxActions: {
             type: "number",
@@ -771,7 +803,16 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentStatus",
       description:
         "Récupère le statut du bot Minecraft LLM: connecté, position, santé, faim, modèle LLM, actions en cours. " +
-        "Utilise cet outil quand l'utilisateur demande 'comment va le bot', 'où il est', 'il fait quoi'.",
+        "Variantes FR: 'comment va le bot', 'où il est', 'il fait quoi', 'il est où', 'où est le bot', " +
+        "'quel est le statut', 'statut du bot', 'le bot est connecté', 'le bot est en ligne', " +
+        "'il a combien de vie', 'combien de vie il a', 'il a combien de coeurs', " +
+        "'il a faim', 'combien de faim', 'est-ce qu'il est en train de faire quelque chose', " +
+        "'il travaille', 'il est occupé', 'il est libre', 'il fait quoi maintenant', " +
+        "'le bot est là', 'le bot est vivant', 'le bot est mort', " +
+        "'donne moi le statut', 'info du bot', 'infos bot', 'état du bot', " +
+        "'le bot ça va', 'bot status', 'tu fais quoi', 'tu es où'. " +
+        "Variantes EN: 'bot status', 'how is the bot', 'where is the bot', 'what is he doing', " +
+        "'is he online', 'is he alive', 'his health', 'his hunger', 'is he busy'.",
       parameters: {
         type: "object",
         properties: {},
@@ -785,7 +826,19 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentWorld",
       description:
         "Récupère l'état complet du monde Minecraft vu par le bot: position, santé, inventaire, blocs proches, entités proches, biome, météo. " +
-        "Utilise cet outil quand l'utilisateur demande 'que voit le bot', 'qu'est-ce qu'il y a autour', 'il a quoi dans son inventaire'.",
+        "Variantes FR: 'que voit le bot', 'qu'est-ce qu'il y a autour', 'il a quoi dans son inventaire', " +
+        "'montre-moi son inventaire', 'son inventaire', 'inventaire du bot', 'il a quoi sur lui', " +
+        "'qu'est-ce qu'il y a autour de lui', 'y a quoi autour', 'il y a quoi près du bot', " +
+        "'quels blocs il y a', 'quelles ressources il y a', 'y a-t-il du fer', 'y a-t-il des diamants', " +
+        "'y a quoi comme animaux', 'y a quoi comme monstres', 'qui est autour du bot', " +
+        "'dans quel biome il est', 'quel biome', 'il pleut', 'fait-il jour ou nuit', " +
+        "'quelle heure il est dans le jeu', 'l'heure du jeu', " +
+        "'montre le monde', 'montre la vue', 'que voit-il', 'qui voit-il', " +
+        "'il est dans quel biome', 'y a des arbres', 'y a une grotte', 'y a un village', " +
+        "'qu'est-ce qu'il y a près de lui', 'scan les environs', 'analyse la zone', " +
+        "'quelles entités', 'quels animaux', 'quels monstres', 'quels joueurs'. " +
+        "Variantes EN: 'what does he see', 'what's around him', 'his inventory', 'what blocks are near', " +
+        "'any diamonds nearby', 'what biome', 'is it raining', 'day or night', 'scan the area'.",
       parameters: {
         type: "object",
         properties: {},
@@ -798,9 +851,21 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "mcAgentAction",
       description:
-        "Envoie une action directe au bot Minecraft sans passer par le LLM. " +
-        "Actions disponibles: collectWood, collectStone, collectIron, collectDiamonds, buildHouse, eat, sleep, defend, hunt, stop, explore, sortInventory. " +
-        "L'utilisateur peut dire 'mange', 'dors', 'défens-toi', 'chasse', 'arrête', 'range ton inventaire', 'explore'.",
+        "Envoie une action directe au bot Minecraft sans passer par le LLM (action immédiate). " +
+        "Actions disponibles et leurs variantes FR/EN: " +
+        "collectWood: 'va chercher du bois', 'collecte du bois', 'coupe des arbres', 'go wood', 'get wood', 'chop trees'. " +
+        "collectStone: 'va chercher de la pierre', 'collecte de la pierre', 'mine de la pierre', 'go stone', 'get stone'. " +
+        "collectIron: 'va chercher du fer', 'mine du fer', 'collecte du fer', 'go iron', 'get iron'. " +
+        "collectDiamonds: 'cherche des diamants', 'va chercher des diamants', 'mine des diamants', 'go diamonds', 'get diamonds'. " +
+        "buildHouse: 'construis une maison', 'fais une maison', 'bâtis une maison', 'build a house'. " +
+        "eat: 'mange', 'mange quelque chose', 'mange de la nourriture', 'il a faim', 'nourris-toi', 'eat', 'eat food'. " +
+        "sleep: 'dors', 'va dormir', 'va au lit', 'couche-toi', 'sleep', 'go to bed'. " +
+        "defend: 'défens-toi', 'défend', 'protège-toi', 'combat', 'tape les monstres', 'defend', 'fight'. " +
+        "hunt: 'chasse', 'chasse des animaux', 'va chasser', 'tue des animaux', 'hunt', 'go hunting'. " +
+        "stop: 'arrête', 'stop', 'ça suffit', 'arrête tout', 'stoppe', 'halte', 'arrête de bouger', 'stop moving', 'stand still'. " +
+        "explore: 'explore', 'va explorer', 'promène-toi', 'va voir autour', 'balade-toi', 'explore', 'go explore', 'wander'. " +
+        "sortInventory: 'range ton inventaire', 'mets ton armure', 'équipe-toi', 'organise ton inventaire', 'sort inventory', 'equip armor'. " +
+        "Utilise cet outil pour les actions simples et immédiates. Pour les objectifs complexes (plusieurs étapes), utilise mcAgentGoal.",
       parameters: {
         type: "object",
         properties: {
@@ -820,7 +885,12 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentChat",
       description:
         "Envoie un message dans le chat Minecraft via le bot. " +
-        "L'utilisateur peut dire 'dis bonjour dans le chat', 'dis-leur que j'arrive'.",
+        "Variantes FR: 'dis bonjour dans le chat', 'dis-leur que j'arrive', 'parle dans le chat', " +
+        "'envoie un message', 'dis coucou', 'dis quelque chose', 'parle aux autres', " +
+        "'écris dans le chat', 'fais parler le bot', 'le bot peut dire', 'dis à tout le monde', " +
+        "'annonce', 'crie', 'hurle', 'dis dans minecraft', 'parle sur mc', " +
+        "'dis moi bonjour en jeu', 'fais parler le bot dans le jeu'. " +
+        "Variantes EN: 'say hello in chat', 'send a message', 'talk in chat', 'say something', 'announce'.",
       parameters: {
         type: "object",
         properties: {
@@ -839,7 +909,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentStop",
       description:
         "Arrête l'agent LLM Minecraft (stoppe la boucle d'actions en cours). " +
-        "L'utilisateur peut dire 'arrête', 'stop', 'ça suffit', 'laisse tomber'.",
+        "Variantes FR: 'arrête', 'stop', 'ça suffit', 'laisse tomber', 'arrête tout', " +
+        "'stoppe le bot', 'arrête le bot', 'plus rien', 'finis', 'c'est bon', " +
+        "'arrête de faire ça', 'arrête de miner', 'arrête de construire', 'arrête de bouger', " +
+        "'plus besoin', 'c'est fini', 'termine', 'tu peux arrêter', " +
+        "'laisse faire', 'arrête l'objectif', 'annule', 'annule ça', " +
+        "'stoppe tout', 'halte', 'pause', 'met en pause', 'plus d'action'. " +
+        "Variantes EN: 'stop', 'stop it', 'enough', 'cancel', 'abort', 'quit', 'halt', 'pause', 'that's enough'.",
       parameters: {
         type: "object",
         properties: {},
@@ -853,7 +929,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       name: "mcAgentLog",
       description:
         "Récupère l'historique des actions récentes du bot Minecraft LLM. " +
-        "L'utilisateur peut dire 'qu'est-ce qu'il a fait', 'montre-moi les logs', 'où il en est'.",
+        "Variantes FR: 'qu'est-ce qu'il a fait', 'montre-moi les logs', 'où il en est', " +
+        "'qu'est-ce qu'il fait', 'historique', 'historique des actions', 'il a fait quoi', " +
+        "'montre ce qu'il a fait', 'montre l'historique', 'les logs', 'log', " +
+        "'où il en est dans sa tâche', 'avancement', 'progression', 'ça en est où', " +
+        "'qu'est-ce qui s'est passé', 'résumé de ses actions', 'compte-rendu', " +
+        "'il a réussi', 'il a échoué', 'où en est le bot', 'le bot a fait quoi'. " +
+        "Variantes EN: 'what did he do', 'show logs', 'history', 'what happened', 'progress', 'status log'.",
       parameters: {
         type: "object",
         properties: {
