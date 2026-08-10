@@ -1,6 +1,6 @@
 import { withCircuitBreaker } from "./circuitBreaker.js";
 
-export type Provider = 'local' | 'openai' | 'anthropic' | 'openrouter';
+export type Provider = 'colab' | 'local' | 'openai' | 'anthropic' | 'openrouter';
 
 // Prometheus token counters (lazy-loaded)
 let tokenCounter: any = null;
@@ -49,9 +49,24 @@ export async function callAi(prompt: string, opts?: {
     const provider = p.trim() as Provider;
     try {
       const result = await withCircuitBreaker(provider, async () => {
-        if (provider === 'local') {
-          // call local LLM endpoint
-          return { content: "", provider: 'local' };
+        if (provider === 'colab') {
+          const { chatWithColabLlm, isColabLlmAvailable } = await import("../services/colabLlm.js");
+          if (!isColabLlmAvailable()) throw new Error("Colab LLM not available");
+          const content = await chatWithColabLlm(
+            [{ role: "user", content: prompt }],
+            { maxTokens: opts?.maxTokens },
+          );
+          if (!content) throw new Error("Colab LLM returned empty");
+          return { content, provider: 'colab' };
+        } else if (provider === 'local') {
+          const { chatWithLocalLlm, isLocalLlmAvailable } = await import("../services/localLlm.js");
+          if (!isLocalLlmAvailable()) throw new Error("Local LLM not available");
+          const content = await chatWithLocalLlm(
+            [{ role: "user", content: prompt }],
+            { maxTokens: opts?.maxTokens },
+          );
+          if (!content) throw new Error("Local LLM returned empty");
+          return { content, provider: 'local' };
         } else if (provider === 'openai') {
           // call OpenAI via key
           return { content: "", provider: 'openai' };

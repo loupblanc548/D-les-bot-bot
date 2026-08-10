@@ -347,6 +347,25 @@ export async function startControlServer(port: number, client: Client): Promise<
       return;
     }
 
+    // Colab URL webhook — receives ngrok URL updates from Colab notebook
+    if (path === "/webhook/colab-url" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const url = body.url as string;
+        if (!url || !url.startsWith("http")) {
+          sendJson(res, 400, { error: "Missing or invalid 'url' field" });
+          return;
+        }
+        const { setColabUrl } = await import("./services/colabLlm.js");
+        await setColabUrl(url);
+        logger.info(`[ControlServer] Colab URL updated via webhook: ${url}`);
+        sendJson(res, 200, { success: true, url });
+      } catch (err) {
+        sendJson(res, 500, { error: "Failed to update Colab URL" });
+      }
+      return;
+    }
+
     if (path.startsWith("/webhook-secure/")) {
       const chunks: Buffer[] = [];
       req.on("data", (chunk: Buffer) => chunks.push(chunk));
