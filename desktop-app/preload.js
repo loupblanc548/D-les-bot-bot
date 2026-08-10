@@ -47,6 +47,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Security
   getSecurity: () => ipcRenderer.invoke("api:security"),
 
+  // Minecraft LLM Agent
+  mcStatus: () => ipcRenderer.invoke("mc:status"),
+  mcWorld: () => ipcRenderer.invoke("mc:world"),
+  mcGoal: (goal, maxActions) => ipcRenderer.invoke("mc:goal", { goal, maxActions }),
+  mcStop: () => ipcRenderer.invoke("mc:stop"),
+  mcLog: (lines) => ipcRenderer.invoke("mc:log", lines),
+  mcChat: (message) => ipcRenderer.invoke("mc:chat", { message }),
+  mcAction: (type, params) => ipcRenderer.invoke("mc:action", { type, params }),
+  mcConnect: (server, username) => ipcRenderer.invoke("mc:connect", { server, username }),
+
   // Amazon
   getAmazon: () => ipcRenderer.invoke("api:amazon"),
   amazonTrack: (asin, domain) => ipcRenderer.invoke("api:amazon-track", { asin, domain }),

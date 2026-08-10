@@ -33,6 +33,7 @@ const Dashboard = {
       if (tab && !tab.querySelector("#setting-api-url")) {
         const defaultUrl = s.apiUrl || "https://d-les-bot-bot-production.up.railway.app";
         const defaultToken = s.token || "";
+        const safeToken = defaultToken.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const safeUrl = defaultUrl.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const section = document.createElement("div");
         section.className = "settings-section";
@@ -46,7 +47,7 @@ const Dashboard = {
           <div class="setting-row" style="flex-direction:column;align-items:stretch">
             <div class="setting-label">Token de contrôle</div>
             <div class="setting-desc">Le token d'authentification (CONTROL_TOKEN)</div>
-            <input type="password" id="setting-api-token" value="${defaultToken}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
+            <input type="password" id="setting-api-token" value="${safeToken}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
           </div>
           <div class="setting-row">
             <button class="btn btn-primary btn-sm" onclick="saveApiSettings()" style="margin-top:8px">💾 Sauvegarder</button>
@@ -207,13 +208,13 @@ const Dashboard = {
     API.fetchHealth().catch(() => {});
     this._fetchLogs();
     this._refreshInterval = setInterval(() => API.fetchStatus().catch(() => {}), 10000);
-    setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
-    setInterval(() => API.fetchFortnite().catch(() => {}), 60000);
-    setInterval(() => this._fetchLogs(), 5000);
+    this._platformsInterval = setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
+    this._fortniteInterval = setInterval(() => API.fetchFortnite().catch(() => {}), 60000);
+    this._logsInterval = setInterval(() => this._fetchLogs(), 5000);
   },
 
   _apiRetryCount: 0,
-  _maxRetries: 999,
+  _maxRetries: 5,
 
   async _fetchLogs() {
     try {

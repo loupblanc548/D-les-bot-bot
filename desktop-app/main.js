@@ -234,6 +234,24 @@ ipcMain.handle("api:amazon-deals", (_e, params) => {
 // Security
 ipcMain.handle("api:security", () => apiFetch("/api/security"));
 
+// Minecraft LLM Agent
+ipcMain.handle("mc:status", () => apiFetch("/api/mc/agent/status"));
+ipcMain.handle("mc:world", () => apiFetch("/api/mc/agent/world"));
+ipcMain.handle("mc:goal", (_e, { goal, maxActions }) =>
+  apiFetch("/api/mc/agent/goal", { method: "POST", body: JSON.stringify({ goal, max_actions: maxActions || 80 }) })
+);
+ipcMain.handle("mc:stop", () => apiFetch("/api/mc/agent/stop", { method: "POST" }));
+ipcMain.handle("mc:log", (_e, lines) => apiFetch("/api/mc/agent/log?lines=" + (lines || 50)));
+ipcMain.handle("mc:chat", (_e, { message }) =>
+  apiFetch("/api/mc/agent/chat", { method: "POST", body: JSON.stringify({ message }) })
+);
+ipcMain.handle("mc:action", (_e, { type, params }) =>
+  apiFetch("/api/mc/agent/action", { method: "POST", body: JSON.stringify({ type, params: params || {} }) })
+);
+ipcMain.handle("mc:connect", (_e, { server, username }) =>
+  apiFetch("/api/mc/agent/connect", { method: "POST", body: JSON.stringify({ server, username: username || "LLM_Bot" }) })
+);
+
 // Music
 ipcMain.handle("api:music", () => apiFetch("/api/music"));
 ipcMain.handle("api:music-control", (_e, { action, guildId }) =>
