@@ -1072,9 +1072,9 @@ export async function executeTool(
         return await toolComposeImage(args);
       // ─── Minecraft LLM Agent tools ───
       case "mcAgentConnect":
-        return await toolMcAgentConnect(args, ctx);
+        return await toolMcAgentConnect(args);
       case "mcAgentGoal":
-        return await toolMcAgentGoal(args, ctx);
+        return await toolMcAgentGoal(args);
       case "mcAgentStatus":
         return await toolMcAgentStatus();
       case "mcAgentWorld":
@@ -2360,7 +2360,6 @@ async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCall
 
 async function toolMcAgentConnect(
   args: Record<string, unknown>,
-  ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const { isAgentAvailable, pingAgent } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
@@ -2386,17 +2385,12 @@ async function toolMcAgentConnect(
   }
   // Use the /connect endpoint to hot-swap the Mineflayer bot to the new server
   try {
-    const { fetchWithRetry } = await import("../utils/httpClient.js");
-    const fs = await import("fs");
-    // Read the agent URL
-    const URL_FILE = process.env.MINEFLAYER_AGENT_URL_FILE || "/opt/bot/data/mineflayer_url.txt";
-    let agentUrl = process.env.MINEFLAYER_AGENT_URL;
-    if (!agentUrl) {
-      try { agentUrl = fs.readFileSync(URL_FILE, "utf-8").trim(); } catch {}
-    }
+    const { getUrl } = await import("./mineflayerAgent.js");
+    const agentUrl = getUrl();
     if (!agentUrl) {
       return { success: false, data: "❌ URL de l'agent introuvable" };
     }
+    const { fetchWithRetry } = await import("../utils/httpClient.js");
     const result = await fetchWithRetry(`${agentUrl}/connect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2422,7 +2416,6 @@ async function toolMcAgentConnect(
 
 async function toolMcAgentGoal(
   args: Record<string, unknown>,
-  ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const { isAgentAvailable, setAgentGoal } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {

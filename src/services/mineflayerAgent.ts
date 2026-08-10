@@ -24,6 +24,7 @@
 import logger from "../utils/logger.js";
 import { fetchWithRetry } from "../utils/httpClient.js";
 import fs from "fs";
+import type { TextChannel, Message } from "discord.js";
 
 const AGENT_ENABLED =
   process.env.MINEFLAYER_AGENT_URL !== undefined ||
@@ -43,7 +44,6 @@ let lastStatusTime = 0;
 const STATUS_CACHE_MS = 3000;
 
 // ─── Live log polling ─────────────────────────────────────────────
-let lastLogLine = 0;
 let logPoller: NodeJS.Timeout | null = null;
 let logCallbacks: Array<(line: string) => void> = [];
 
@@ -92,7 +92,8 @@ function readUrl(): string | null {
   return null;
 }
 
-function getUrl(): string | null {
+/** Get the current agent API URL (cached). */
+export function getUrl(): string | null {
   const url = readUrl();
   if (url !== currentUrl) {
     if (url) {
@@ -382,11 +383,9 @@ export function formatAgentStatus(status: AgentStatus): string {
 
 // ─── Live goal tracking with Discord message updates ───────────────
 
-import type { TextChannel, Message } from "discord.js";
-
 /**
  * Set a goal AND live-update a Discord message with progress.
- * The message updates every 3s with the latest agent log lines.
+ * The message updates every 2s with the latest agent log lines.
  */
 export async function setAgentGoalLive(
   goal: string,
