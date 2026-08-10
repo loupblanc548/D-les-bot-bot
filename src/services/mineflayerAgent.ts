@@ -33,6 +33,54 @@ const TIMEOUT_MS = parseInt(process.env.MINEFLAYER_AGENT_TIMEOUT_MS || "120000",
 
 let currentUrl: string | null = null;
 
+// ─── Connection pool & caching for fluidity ───────────────────────
+let lastWorldState: WorldState | null = null;
+let lastWorldStateTime = 0;
+const WORLD_STATE_CACHE_MS = 2000; // Cache world state for 2s to avoid spam
+
+let lastStatus: AgentStatus | null = null;
+let lastStatusTime = 0;
+const STATUS_CACHE_MS = 3000;
+
+// ─── Live log polling ─────────────────────────────────────────────
+let lastLogLine = 0;
+let logPoller: NodeJS.Timeout | null = null;
+let logCallbacks: Array<(line: string) => void> = [];
+
+/** Start polling agent log for live updates. Returns a stop function. */
+export function subscribeAgentLog(callback: (line: string) => void): () => void {
+  logCallbacks.push(callback);
+  if (!logPoller && isAgentAvailable()) {
+    logPoller = setInterval(async () => {
+      const url = getUrl();
+      if (!url) return;
+      try {
+        const result = await fetchWithRetry(`${url}/log?lines=5`, {
+          timeoutMs: 5_000,
+          retries: 0,
+          parseJson: true,
+        });
+        if (result?.log) {
+          const lines = result.log.split("\n").filter(Boolean);
+          for (const line of lines) {
+            for (const cb of logCallbacks) cb(line);
+          }
+        }
+      } catch {
+        // Silent fail — don't spam logs
+      }
+    }, 2000);
+    if (logPoller.unref) logPoller.unref();
+  }
+  return () => {
+    logCallbacks = logCallbacks.filter(cb => cb !== callback);
+    if (logCallbacks.length === 0 && logPoller) {
+      clearInterval(logPoller);
+      logPoller = null;
+    }
+  };
+}
+
 function readUrl(): string | null {
   if (process.env.MINEFLAYER_AGENT_URL) return process.env.MINEFLAYER_AGENT_URL;
   try {
@@ -119,46 +167,53 @@ export async function pingAgent(): Promise<boolean> {
   }
 }
 
-/** Get the current world state from Mineflayer. */
+/** Get the current world state from Mineflayer (cached for 2s). */
 export async function getWorldState(): Promise<WorldState | null> {
+  const now = Date.now();
+  if (lastWorldState && now - lastWorldStateTime < WORLD_STATE_CACHE_MS) {
+    return lastWorldState;
+  }
   const url = getUrl();
   if (!url) return null;
   try {
     const result = await fetchWithRetry(`${url}/world`, {
-      timeoutMs: 15_000,
-      retries: 1,
-      parseJson: true,
-    });
-    return result as WorldState;
-  } catch (err) {
-    logger.warn(`[MineflayerAgent] World state failed: ${err}`);
-    return null;
-  }
-}
-
-/** Get agent + bot status. */
-export async function getAgentStatus(): Promise<AgentStatus | null> {
-  const url = getUrl();
-  if (!url) return null;
-  try {
-    const result = await fetchWithRetry(`${url}/status`, {
       timeoutMs: 10_000,
       retries: 1,
       parseJson: true,
     });
-    return result as AgentStatus;
+    lastWorldState = result as WorldState;
+    lastWorldStateTime = now;
+    return lastWorldState;
   } catch (err) {
-    logger.warn(`[MineflayerAgent] Status failed: ${err}`);
-    return null;
+    logger.warn(`[MineflayerAgent] World state failed: ${err}`);
+    return lastWorldState; // Return stale cache instead of null
   }
 }
 
-/**
- * Set a high-level goal for the LLM agent.
- * The LLM will observe the world, decide actions, and execute them.
- * Examples: "Build a small house", "Mine 10 iron ore", "Find diamonds",
- *           "Kill the nearby zombie", "Collect 20 wood"
- */
+/** Get agent + bot status (cached for 3s). */
+export async function getAgentStatus(): Promise<AgentStatus | null> {
+  const now = Date.now();
+  if (lastStatus && now - lastStatusTime < STATUS_CACHE_MS) {
+    return lastStatus;
+  }
+  const url = getUrl();
+  if (!url) return null;
+  try {
+    const result = await fetchWithRetry(`${url}/status`, {
+      timeoutMs: 8_000,
+      retries: 1,
+      parseJson: true,
+    });
+    lastStatus = result as AgentStatus;
+    lastStatusTime = now;
+    return lastStatus;
+  } catch (err) {
+    logger.warn(`[MineflayerAgent] Status failed: ${err}`);
+    return lastStatus; // Return stale cache
+  }
+}
+
+/** Set a high-level goal for the LLM agent. */
 export async function setAgentGoal(
   goal: string,
   maxActions: number = 50,
@@ -175,15 +230,15 @@ export async function setAgentGoal(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: { goal, max_actions: maxActions },
-      timeoutMs: 30_000,
-      retries: 1,
+      timeoutMs: 15_000,
+      retries: 2,
       parseJson: true,
     });
     if (result?.success) {
       logger.info(`[MineflayerAgent] Goal set: "${goal}" (max ${maxActions} actions)`);
       return {
         success: true,
-        message: `🎯 Objectif envoyé au LLM: **${goal}**\n📊 Max ${maxActions} actions — utilise \`/mc agentstatus\` pour suivre`,
+        message: `🎯 Objectif envoyé au LLM: **${goal}**\n📊 Max ${maxActions} actions — le bot travaille en temps réel`,
       };
     }
     return {
@@ -324,3 +379,134 @@ export function formatAgentStatus(status: AgentStatus): string {
   lines.push(`⚡ Agent: **${status.agent_running ? "En cours" : "Inactif"}**`);
   return lines.join("\n");
 }
+
+// ─── Live goal tracking with Discord message updates ───────────────
+
+import type { TextChannel, Message } from "discord.js";
+
+/**
+ * Set a goal AND live-update a Discord message with progress.
+ * The message updates every 3s with the latest agent log lines.
+ */
+export async function setAgentGoalLive(
+  goal: string,
+  maxActions: number,
+  channel: TextChannel,
+): Promise<{ success: boolean; message: string; statusMsg?: Message }> {
+  // Send goal to agent
+  const goalResult = await setAgentGoal(goal, maxActions);
+  if (!goalResult.success) return goalResult;
+
+  // Create a live status message
+  let statusMsg: Message | undefined;
+  try {
+    statusMsg = await channel.send({
+      content: `🎯 **${goal}** — démarrage de l'agent...\n⏳ En attente des premières actions...`,
+    });
+  } catch {
+    // Can't send message — goal still set, just no live tracking
+    return { ...goalResult, statusMsg: undefined };
+  }
+
+  // Poll log every 2s and update the message (incremental for fluidity)
+  let lastLogSince = 0;
+  let lastDisplayedLog = "";
+  let pollCount = 0;
+  const maxPolls = Math.ceil((maxActions * 10) / 2); // Safety: stop after ~10s per action
+
+  const pollInterval = setInterval(async () => {
+    pollCount++;
+    if (pollCount > maxPolls) {
+      clearInterval(pollInterval);
+      try {
+        await statusMsg?.edit({
+          content: `🎯 **${goal}** — ✅ Terminé (timeout de suivi atteint)\nUtilise \`/mc agentlog\` pour voir l'historique complet.`,
+        });
+      } catch {}
+      return;
+    }
+
+    // Check if agent is still running
+    const status = await getAgentStatus();
+    if (!status?.agent_running && pollCount > 2) {
+      clearInterval(pollInterval);
+      const finalLog = await getAgentLog(15);
+      try {
+        await statusMsg?.edit({
+          content: `🎯 **${goal}** — ✅ Terminé\n\`\`\`${(finalLog || "").slice(-1500)}\`\`\``,
+        });
+      } catch {}
+      return;
+    }
+
+    // Get incremental log lines (only new ones since last poll)
+    const url = getUrl();
+    if (!url) return;
+    try {
+      const logResult = await fetchWithRetry(`${url}/log/since?since=${lastLogSince}`, {
+        timeoutMs: 5_000,
+        retries: 0,
+        parseJson: true,
+      });
+      if (logResult?.lines && Array.isArray(logResult.lines) && logResult.lines.length > 0) {
+        lastLogSince = logResult.next_since ?? lastLogSince;
+        const allLines = [...(lastDisplayedLog ? lastDisplayedLog.split("\n") : []), ...logResult.lines];
+        lastDisplayedLog = allLines.slice(-12).join("\n");
+        const hp = status?.health !== undefined ? `❤️${status.health}` : "";
+        const pos = status?.position ? `📍${status.position.x},${status.position.y},${status.position.z}` : "";
+        try {
+          await statusMsg?.edit({
+            content: `🎯 **${goal}** — ${hp} ${pos}\n\`\`\`\n${lastDisplayedLog.slice(-1200)}\n\`\`\``,
+          });
+        } catch {}
+      }
+    } catch {
+      // Silent fail
+    }
+  }, 2000);
+
+  if (pollInterval.unref) pollInterval.unref();
+
+  return { ...goalResult, statusMsg };
+}
+
+/** Send multiple actions in rapid succession (batch mode). */
+export async function sendActionBatch(
+  actions: Array<{ type: string; params: Record<string, unknown> }>,
+): Promise<Array<{ success: boolean; message: string }>> {
+  const url = getUrl();
+  if (!url) return actions.map(() => ({ success: false, message: "Agent non disponible" }));
+  const results: Array<{ success: boolean; message: string }> = [];
+  for (const action of actions) {
+    try {
+      const result = await fetchWithRetry(`${url}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: action,
+        timeoutMs: 60_000,
+        retries: 1,
+        parseJson: true,
+      });
+      results.push(result as { success: boolean; message: string });
+    } catch (err) {
+      results.push({ success: false, message: String(err) });
+    }
+  }
+  return results;
+}
+
+/** Quick action presets — one-liners for common tasks. */
+export const QUICK_ACTIONS = {
+  collectWood: () => sendDirectAction({ type: "collectBlocks", params: { blockType: "oak_log", count: 10 } }),
+  collectStone: () => sendDirectAction({ type: "collectBlocks", params: { blockType: "stone", count: 20 } }),
+  collectIron: () => sendDirectAction({ type: "mineResource", params: { resource: "iron_ore", count: 10 } }),
+  collectDiamonds: () => sendDirectAction({ type: "mineResource", params: { resource: "diamond_ore", count: 5 } }),
+  buildHouse: () => sendDirectAction({ type: "buildHouse", params: { size: 5, material: "oak_planks" } }),
+  eat: () => sendDirectAction({ type: "eat", params: {} }),
+  sleep: () => sendDirectAction({ type: "sleep", params: {} }),
+  defend: () => sendDirectAction({ type: "defend", params: {} }),
+  hunt: () => sendDirectAction({ type: "hunt", params: {} }),
+  stop: () => sendDirectAction({ type: "stop", params: {} }),
+  sortInventory: () => sendDirectAction({ type: "sortInventory", params: {} }),
+  explore: () => sendDirectAction({ type: "explore", params: { radius: 50 } }),
+} as const;
