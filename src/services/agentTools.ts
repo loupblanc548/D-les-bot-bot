@@ -2361,7 +2361,7 @@ async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCall
 async function toolMcAgentConnect(
   args: Record<string, unknown>,
 ): Promise<ToolCallResult> {
-  const { isAgentAvailable, pingAgent } = await import("./mineflayerAgent.js");
+  const { isAgentAvailable, pingAgent, getUrl } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return {
       success: false,
@@ -2397,7 +2397,6 @@ async function toolMcAgentConnect(
   }
   // Use the /connect endpoint to hot-swap the Mineflayer bot to the new server
   try {
-    const { getUrl } = await import("./mineflayerAgent.js");
     const agentUrl = getUrl();
     if (!agentUrl) {
       return { success: false, data: "❌ URL de l'agent introuvable" };

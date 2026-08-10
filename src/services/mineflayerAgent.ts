@@ -394,6 +394,8 @@ export function formatAgentStatus(status: AgentStatus): string {
 
 // ─── Live goal tracking with Discord message updates ───────────────
 
+let activeGoalPoller: NodeJS.Timeout | null = null;
+
 /**
  * Set a goal AND live-update a Discord message with progress.
  * The message updates every 2s with the latest agent log lines.
@@ -406,6 +408,12 @@ export async function setAgentGoalLive(
   // Send goal to agent
   const goalResult = await setAgentGoal(goal, maxActions);
   if (!goalResult.success) return goalResult;
+
+  // Clear any existing live poller before starting a new one
+  if (activeGoalPoller) {
+    clearInterval(activeGoalPoller);
+    activeGoalPoller = null;
+  }
 
   // Create a live status message
   let statusMsg: Message | undefined;
@@ -428,6 +436,7 @@ export async function setAgentGoalLive(
     pollCount++;
     if (pollCount > maxPolls) {
       clearInterval(pollInterval);
+      activeGoalPoller = null;
       try {
         await statusMsg?.edit({
           content: `🎯 **${goal}** — ✅ Terminé (timeout de suivi atteint)\nUtilise \`/mc agentlog\` pour voir l'historique complet.`,
@@ -440,6 +449,7 @@ export async function setAgentGoalLive(
     const status = await getAgentStatus(true);
     if (!status?.agent_running && pollCount > 2) {
       clearInterval(pollInterval);
+      activeGoalPoller = null;
       const finalLog = await getAgentLog(15);
       try {
         await statusMsg?.edit({
@@ -476,6 +486,7 @@ export async function setAgentGoalLive(
   }, 2000);
 
   if (pollInterval.unref) pollInterval.unref();
+  activeGoalPoller = pollInterval;
 
   return { ...goalResult, statusMsg };
 }
