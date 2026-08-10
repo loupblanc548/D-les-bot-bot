@@ -385,6 +385,25 @@ export async function startControlServer(port: number, client: Client): Promise<
       return;
     }
 
+    // Baritone URL webhook — receives ngrok URL for Minecraft Baritone backend
+    if (path === "/webhook/baritone-url" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const url = body.url as string;
+        if (!url || !url.startsWith("http")) {
+          sendJson(res, 400, { error: "Missing or invalid 'url' field" });
+          return;
+        }
+        const { setBaritoneUrl } = await import("./services/baritoneClient.js");
+        await setBaritoneUrl(url);
+        logger.info(`[ControlServer] Baritone URL updated via webhook: ${url}`);
+        sendJson(res, 200, { success: true, url });
+      } catch (err) {
+        sendJson(res, 500, { error: "Failed to update Baritone URL" });
+      }
+      return;
+    }
+
     if (path.startsWith("/webhook-secure/")) {
       const chunks: Buffer[] = [];
       req.on("data", (chunk: Buffer) => chunks.push(chunk));

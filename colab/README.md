@@ -126,3 +126,85 @@ Le notebook notifie le bot quand l'URL change :
 POST /webhook/colab-tools-url
 { "url": "https://new-url.ngrok.io", "type": "tools" }
 ```
+
+---
+
+## ⛏️ Baritone Backend — Minecraft Java AI Pathfinding
+
+Le troisième notebook (`colab/baritone_backend.ipynb`) fait tourner un client Minecraft Java headless avec le mod [Baritone](https://github.com/brg123/Baritone) sur Colab.
+
+### Ce que Baritone fait
+
+| Commande | Description |
+|----------|-------------|
+| `#goto x z` | Pathfinding IA vers des coordonnées (A*, évite lave/chutes) |
+| `#mine diamond_ore` | Auto-mining intelligent (scan + pathfind vers les minerais) |
+| `#follow Player1` | Suivre un joueur automatiquement |
+| `#explore` | Explorer le monde automatiquement |
+| `#build house` | Construire des structures depuis des schémas |
+| `#stop` | Arrêter le pathfinding |
+
+### Architecture
+
+```
+Discord Bot → POST /command → Colab FastAPI → xdotool tape dans le chat MC
+                                     ↓
+                              Minecraft Java 1.21 + Fabric + Baritone
+                                     ↓
+                              Log file → GET /status → Bot lit le statut
+```
+
+### Endpoints API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `GET /status` | Statut MC (position, vie, faim, tâche Baritone) |
+| `POST /command` | Envoyer commande Baritone (`#goto`, `#mine`, etc.) |
+| `POST /chat` | Envoyer message chat normal |
+| `POST /settings` | Modifier paramètre Baritone en runtime |
+| `POST /stop` | Arrêter Baritone |
+| `POST /force-disconnect` | Kill le client MC |
+| `GET /log?lines=N` | Lire les dernières lignes du log MC |
+
+### Intégration Discord
+
+Le bot expose les commandes slash suivantes quand Baritone est disponible :
+
+- `/mc goto <x> <z>` — Aller à des coordonnées
+- `/mc mine <ore>` — Miner un minerai spécifique
+- `/mc follow <player>` — Suivre un joueur
+- `/mc explore` — Explorer le monde
+- `/mc stop` — Arrêter Baritone
+- `/mc status` — Statut du bot MC
+- `/mc log` — Voir les derniers logs
+
+### Variables d'environnement
+
+```env
+# Baritone (optionnel — si non défini, utilise le bot Bedrock existant)
+BARITONE_URL=https://abc123.ngrok.io
+# OU mode dynamique
+BARITONE_DYNAMIC_URL=true
+BARITONE_URL_FILE=/opt/bot/data/baritone_url.txt
+BARITONE_TIMEOUT_MS=15000
+```
+
+### Webhook
+
+```
+POST /webhook/baritone-url
+{ "url": "https://new-url.ngrok.io", "type": "baritone" }
+```
+
+### Différence avec le bot Bedrock existant
+
+| Feature | Bot Bedrock (VPS) | Baritone (Colab) |
+|---------|-------------------|------------------|
+| Edition | Bedrock | Java |
+| Pathfinding | Manuel (strip/branch) | IA A* (évite dangers) |
+| Auto-mine | Basique (ligne droite) | Intelligent (scan + target) |
+| Follow | Simple tracking | Pathfinding complet |
+| Build | Non | Oui (schémas) |
+| Explore | Non | Oui |
+| Coût VPS | CPU/RAM | 0 (Colab) |
