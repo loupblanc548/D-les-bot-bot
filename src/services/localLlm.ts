@@ -27,7 +27,7 @@ let activeModel: string = LOCAL_LLM_MODELS[0] || "qwen2.5:14b";
 const llmPool = new ConcurrencyPool(LLM_MAX_CONCURRENCY);
 
 const LOCAL_BASE = LOCAL_LLM_URL.replace("/v1", "");
-const isRemoteUrl = LOCAL_BASE.startsWith("http://") && !LOCAL_BASE.includes("127.0.0.1") && !LOCAL_BASE.includes("localhost") || LOCAL_BASE.startsWith("https://");
+const isRemoteUrl = (LOCAL_BASE.startsWith("http://") && !LOCAL_BASE.includes("127.0.0.1") && !LOCAL_BASE.includes("localhost")) || LOCAL_BASE.startsWith("https://");
 const pingTimeout = isRemoteUrl ? 8_000 : 3_000;
 const pingFn = async () =>
   fetchWithRetry(`${LOCAL_BASE}/api/tags`, {
@@ -120,11 +120,11 @@ export function stopLocalLlmHealthCheck(): void {
 export async function preWarmLocalModel(): Promise<void> {
   if (!isLocalLlmAvailable()) return;
   try {
-    logger.info(`[LocalLLM] 🔥 Pre-warm ${LOCAL_LLM_MODEL}...`);
+    logger.info(`[LocalLLM] 🔥 Pre-warm ${activeModel}...`);
     await llmPool.run(async () => {
       const localClient = getLocalClient();
       await localClient.chat.completions.create({
-        model: LOCAL_LLM_MODEL,
+        model: activeModel,
         messages: [{ role: "user", content: "Hello" }],
         max_tokens: 1,
         stream: false,
@@ -248,6 +248,5 @@ export async function chatWithLocalLlmTools(
   }
 }
 
-export const LOCAL_LLM_MODEL_NAME = activeModel;
 export const LOCAL_LLM_MODELS_LIST = LOCAL_LLM_MODELS;
 export function getActiveModel(): string { return activeModel; }
