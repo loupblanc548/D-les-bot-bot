@@ -945,10 +945,29 @@ async function runAgentLoopInternal(
     // Si échec, fallback vers LLM local (Ollama/Colab) puis API externes.
     if (isGroqAvailable()) {
       try {
-        // Groq free tier: 12000 TPM limit. 128 tools = ~40k tokens = instant 413.
-        // Only send tools if very few (under 30), otherwise go straight to text-only.
+        // Groq free tier: 12000 TPM limit. 717 tools = ~40k tokens = instant 413.
+        // Strategy: when too many tools, filter to ESSENTIAL tools only (search, fetch, translate, etc.)
+        // so Groq can still search the web and use key services like BraveSearch.
         const GROQ_TOOL_LIMIT = 30;
-        const groqTools = availableTools.length > GROQ_TOOL_LIMIT ? [] : availableTools;
+        const ESSENTIAL_TOOL_NAMES = new Set([
+          "searchWeb", "readUrl", "fetchAndSummarize", "searchYouTube",
+          "getWikipediaSummary", "translateText", "searchKnowledge",
+          "searchUserMemory", "getTechNews", "getCryptoPrice", "getWeather",
+          "getGitHubRepo", "search_music", "search_wikipedia",
+          "search_stackoverflow", "search_igdb_games", "searchRawgGames",
+          "search_movies", "search_anime", "search_books",
+          "define_word", "getTime", "ingestDocumentation",
+        ]);
+        let groqTools: typeof availableTools;
+        if (availableTools.length <= GROQ_TOOL_LIMIT) {
+          groqTools = availableTools;
+        } else {
+          // Filter to essential tools only — keeps Groq under TPM limit while still useful
+          groqTools = availableTools.filter((t) => {
+            const name = (t as never as { function?: { name?: string } })?.function?.name;
+            return name ? ESSENTIAL_TOOL_NAMES.has(name) : false;
+          });
+        }
         logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length})`);
         const groqClient = getGroqClient()!;
         if (groqTools.length > 0) {
@@ -1175,7 +1194,21 @@ async function runAgentLoopInternal(
           `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
         );
         const groqClient = getGroqClient()!;
-        const groqFallbackTools = availableTools.length > 30 ? [] : availableTools;
+        const ESSENTIAL_TOOL_NAMES_FALLBACK = new Set([
+          "searchWeb", "readUrl", "fetchAndSummarize", "searchYouTube",
+          "getWikipediaSummary", "translateText", "searchKnowledge",
+          "searchUserMemory", "getTechNews", "getCryptoPrice", "getWeather",
+          "getGitHubRepo", "search_music", "search_wikipedia",
+          "search_stackoverflow", "search_igdb_games", "searchRawgGames",
+          "search_movies", "search_anime", "search_books",
+          "define_word", "getTime", "ingestDocumentation",
+        ]);
+        const groqFallbackTools = availableTools.length > 30
+          ? availableTools.filter((t) => {
+              const name = (t as never as { function?: { name?: string } })?.function?.name;
+              return name ? ESSENTIAL_TOOL_NAMES_FALLBACK.has(name) : false;
+            })
+          : availableTools;
         if (groqFallbackTools.length > 0) {
           response = await groqClient.chat.completions.create(
             {
