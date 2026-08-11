@@ -942,14 +942,16 @@ async function runAgentLoopInternal(
     // Si échec, fallback vers LLM local (Ollama/Colab) puis API externes.
     if (isGroqAvailable()) {
       try {
-        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${availableTools.length})`);
+        // Groq limits tools to 128 max — slice if over
+        const groqTools = availableTools.length > 128 ? availableTools.slice(0, 128) : availableTools;
+        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length})`);
         const groqClient = getGroqClient()!;
-        if (availableTools.length > 0) {
+        if (groqTools.length > 0) {
           response = await groqClient.chat.completions.create(
             {
               model: config.groqModel,
               messages: conversation as never,
-              tools: availableTools as never,
+              tools: groqTools as never,
               max_tokens: getPersonalityMaxTokens(),
               temperature: getPersonalityTemperature(),
               parallel_tool_calls: true,
@@ -1137,11 +1139,12 @@ async function runAgentLoopInternal(
           `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
         );
         const groqClient = getGroqClient()!;
+        const groqFallbackTools = availableTools.length > 128 ? availableTools.slice(0, 128) : availableTools;
         response = await groqClient.chat.completions.create(
           {
             model: config.groqModel,
             messages: conversation as never,
-            tools: availableTools as never,
+            tools: groqFallbackTools as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
             parallel_tool_calls: true,
