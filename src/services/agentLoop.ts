@@ -991,12 +991,11 @@ async function runAgentLoopInternal(
               temperature: getPersonalityTemperature(),
             });
             if (groqReply && groqReply.length > 2) {
-              response = {
-                choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
-              } as never;
-              logger.info(`[AgentLoop] ✅ Groq réussi (70B text-only) — API économisée`);
+              logger.info(`[AgentLoop] ✅ Groq réussi (70B text-only) — retour direct`);
               recordApiLlm();
-              break;
+              completeInteraction(breakerState);
+              purgeCognitiveSession(cognitiveSessionId);
+              return groqReply;
             }
           } catch (retryErr) {
             logger.warn(`[AgentLoop] ⚡ Groq text-only aussi échoué: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
@@ -1190,10 +1189,10 @@ async function runAgentLoopInternal(
               temperature: getPersonalityTemperature(),
             });
             if (groqReply && groqReply.length > 2) {
-              response = {
-                choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
-              } as never;
-              logger.info(`[AgentLoop] ✅ Groq fallback text-only réussi`);
+              logger.info(`[AgentLoop] ✅ Groq fallback text-only réussi — retour direct`);
+              completeInteraction(breakerState);
+              purgeCognitiveSession(cognitiveSessionId);
+              return groqReply;
             }
           } catch (retryErr) {
             logger.error(`[AgentLoop] Groq fallback text-only also failed: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
