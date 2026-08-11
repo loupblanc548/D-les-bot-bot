@@ -21,9 +21,11 @@ const LLM_MAX_CONCURRENCY = parseInt(process.env.LLM_MAX_CONCURRENCY_LOCAL || "4
 const llmPool = new ConcurrencyPool(LLM_MAX_CONCURRENCY);
 
 const LOCAL_BASE = LOCAL_LLM_URL.replace("/v1", "");
+const isRemoteUrl = LOCAL_BASE.startsWith("http://") && !LOCAL_BASE.includes("127.0.0.1") && !LOCAL_BASE.includes("localhost") || LOCAL_BASE.startsWith("https://");
+const pingTimeout = isRemoteUrl ? 8_000 : 3_000;
 const pingFn = async () =>
   fetchWithRetry(`${LOCAL_BASE}/api/tags`, {
-    timeoutMs: 3_000,
+    timeoutMs: pingTimeout,
     retries: 2,
     parseJson: true,
     retryOn: (s) => s >= 500 || s === 429,
@@ -83,14 +85,15 @@ let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startLocalLlmHealthCheck(): void {
   if (healthCheckInterval) return;
+  const intervalMs = isRemoteUrl ? 30_000 : 60_000;
   healthCheckInterval = setInterval(async () => {
     const wasAvailable = available;
     await checkLocalLlmAvailability();
     if (!wasAvailable && available) {
       logger.info("[LocalLLM] 🔄 Ollama de nouveau disponible — retour en mode local");
     }
-  }, 60_000);
-  logger.info("[LocalLLM] Health check périodique démarré (60s)");
+  }, intervalMs);
+  logger.info(`[LocalLLM] Health check périodique démarré (${intervalMs / 1000}s)`);
 }
 
 export function stopLocalLlmHealthCheck(): void {
@@ -132,7 +135,7 @@ function getLocalClient(): OpenAI {
       apiKey: "ollama", // Ollama n'a pas besoin de clé mais le SDK exige une valeur
       baseURL: LOCAL_LLM_URL,
       maxRetries: 0,
-      timeout: 90_000, // 90s — 7B on CPU with swap needs more time, fallback API if longer
+      timeout: isRemoteUrl ? 120_000 : 90_000, // 120s for remote (ngrok/Colab latency), 90s local
     });
   }
   return client;
