@@ -978,6 +978,17 @@ async function runAgentLoopInternal(
           }
         }
         if (response) {
+          // Check if this was a text-only response (no tools sent)
+          const content = (response as never as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;
+          const finishReason = (response as never as { choices?: Array<{ finish_reason?: string }> })?.choices?.[0]?.finish_reason;
+          if (groqTools.length === 0 && content && finishReason === "stop") {
+            // Text-only Groq response — return immediately, don't continue the while loop
+            logger.info(`[AgentLoop] ✅ Groq réussi (70B text-only) — retour direct`);
+            recordApiLlm();
+            completeInteraction(breakerState);
+            purgeCognitiveSession(cognitiveSessionId);
+            return content;
+          }
           logger.info(`[AgentLoop] ✅ Groq réussi (70B) — API économisée`);
           recordApiLlm();
           break;
