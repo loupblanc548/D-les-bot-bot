@@ -14,7 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } from "./ai.js";
-import { getGroqClient, isGroqAvailable } from "./groq.js";
+import { getGroqClient, isGroqAvailable, chatWithGroq } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
@@ -1037,6 +1037,48 @@ async function runAgentLoopInternal(
     } else {
       // Ollama non disponible — on log et on passe directement aux API
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
+    }
+
+    // ─── Étape 0b: Groq (free, ultra-fast, 30 req/min) — PRIORITÉ AVANT OPENROUTER ───
+    // Groq est plus fiable que les modèles gratuits OpenRouter (souvent 404/520)
+    if (isGroqAvailable()) {
+      try {
+        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel}`);
+        const groqClient = getGroqClient()!;
+        if (availableTools.length > 0) {
+          response = await groqClient.chat.completions.create(
+            {
+              model: config.groqModel,
+              messages: conversation as never,
+              tools: availableTools as never,
+              max_tokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              parallel_tool_calls: true,
+              stream: false,
+            } as never,
+            { timeout: 15_000 } as never,
+          );
+        } else {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt,
+            userMessage: userMessage,
+            maxTokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+          });
+          if (groqReply && groqReply.length > 2) {
+            response = {
+              choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
+            } as never;
+          }
+        }
+        if (response) {
+          logger.info(`[AgentLoop] ✅ Groq réussi — API économisée`);
+          recordApiLlm();
+          break;
+        }
+      } catch (groqErr) {
+        logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
+      }
     }
 
     for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {

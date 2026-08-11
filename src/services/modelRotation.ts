@@ -20,8 +20,7 @@ import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
 // Liste étendue — maximise l'utilisation de la clé OpenRouter
 // Ordre: du plus puissant au plus léger
 const FREE_MODELS_OPENROUTER = [
-  // ─── Modèles gratuits avec tools/function calling (July 2026 verified) ───
-  // Ordre: du plus puissant au plus léger
+  // ─── Modèles gratuits fiables avec tools/function calling (2025 verified) ───
   "nvidia/nemotron-3-ultra-550b-a55b:free", // 550B MoE, tools ✅, 1M context
   "openai/gpt-oss-120b:free", // 120B, tools ✅, 131K context
   "z-ai/glm-4.5-air:free", // GLM 4.5 Air, tools ✅, 131K context
@@ -30,41 +29,13 @@ const FREE_MODELS_OPENROUTER = [
   "openai/gpt-oss-20b:free", // 20B, tools ✅, 131K context
   "moonshotai/kimi-k2.6:free", // K2.6 reasoning, tools ✅, 262K context
   "nvidia/nemotron-3-nano-30b-a3b:free", // 30B MoE, tools ✅, 256K context
-  "google/gemma-4-31b-it:free", // 31B Gemma 4, tools ✅, 262K context (if available)
-  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅ (sometimes available)
-  "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅ (sometimes available)
+  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
+  "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅
   "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
   "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (min size for reliable tool calls)
-  // ─── Vision-capable free models ───
-  "meta-llama/llama-3.2-11b-vision-instruct:free", // 11B vision, tools ✅ (sometimes available)
-  "microsoft/phi-3-medium-4k-instruct:free", // 14B, tools ✅
-  "microsoft/phi-3.5-mini-128k-instruct:free", // 3.8B, tools ✅
-  "thudm/glm-4-9b-chat:free", // 9B, tools ✅
-  "01-ai/yi-1.5-9b-chat:free", // 9B, tools ✅
-  "01-ai/yi-1.5-34b-chat:free", // 34B, tools ✅
-  "huggingfaceh4/zephyr-7b-beta:free", // 7B, tools ✅
-  "openchat/openchat-3.5-1210:free", // 7B, tools ✅
-  "teknium/openhermes-2.5-mistral-7b:free", // 7B, tools ✅
-  "sao10k/l3-euryale-70b:free", // 70B roleplay, tools ✅
-  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
-  "cognitivecomputations/dolphin-mixtral-8x7b:free", // 8x7B, tools ✅
-  "gryphe/corvus-72b:free", // 72B, tools ✅
-  "anthracite-org/magmell-72b:free", // 72B, tools ✅
-  "neversleep/llama-3-lumimaid-70b:free", // 70B, tools ✅
-  "thedrummer/rocinante-12b:free", // 12B, tools ✅
-  "anthracite-org/magmell-8b:free", // 8B, tools ✅
-  "raifle/sorcererlm-8x22b:free", // 8x22B, tools ✅
-  "sophosympatheia/rogue-rose-103b-v0.2:free", // 103B, tools ✅
-  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
-  "perplexity/llama-3.1-sonar-large-128k-online:free", // 128K online, tools ✅
-  "perplexity/llama-3.1-sonar-small-128k-online:free", // 128K online, tools ✅
-  "liquid/lfm-40b:free", // 40B MoE, tools ✅
-  "liquid/lfm-7b:free", // 7B MoE, tools ✅
-  // ─── Modèles NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
-  // Requiert NVIDIA_API_KEY dans .env — ajoutés à la fin car nécessitent une clé séparée
+  // ─── NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
   ...NVIDIA_FREE_MODELS,
-  // ─── Modèles OmniRoute gratuits (90+ free providers, OpenAI-compatible) ───
-  // Requiert OMNIROUTE_API_KEY dans .env — failover automatique entre providers
+  // ─── OmniRoute gratuits ───
   ...(isOmnirouteAvailable() ? OMNIROUTE_FREE_MODELS : []),
 ];
 
