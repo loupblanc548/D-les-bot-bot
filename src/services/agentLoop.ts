@@ -937,7 +937,52 @@ async function runAgentLoopInternal(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${effectiveModels.slice(0, maxModelAttempts).join(", ")}${effectiveModels.length > maxModelAttempts ? ` (+${effectiveModels.length - maxModelAttempts} more)` : ""}`,
     );
 
-    // ─── Étape 0: LLM local (Ollama/qwen2.5) — PRIORITÉ ABSOLUE ───
+    // ─── Étape 0: Groq (llama-3.3-70b, free, ultra-fast 500 tok/s) — PRIORITÉ ABSOLUE ───
+    // Groq offre un modèle 70B gratuit, 24/7, sans dépendance externe.
+    // Si échec, fallback vers LLM local (Ollama/Colab) puis API externes.
+    if (isGroqAvailable()) {
+      try {
+        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${availableTools.length})`);
+        const groqClient = getGroqClient()!;
+        if (availableTools.length > 0) {
+          response = await groqClient.chat.completions.create(
+            {
+              model: config.groqModel,
+              messages: conversation as never,
+              tools: availableTools as never,
+              max_tokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              parallel_tool_calls: true,
+              stream: false,
+            } as never,
+            { timeout: 15_000 } as never,
+          );
+        } else {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt,
+            userMessage: userMessage,
+            maxTokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+          });
+          if (groqReply && groqReply.length > 2) {
+            response = {
+              choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
+            } as never;
+          }
+        }
+        if (response) {
+          logger.info(`[AgentLoop] ✅ Groq réussi (70B) — API économisée`);
+          recordApiLlm();
+          break;
+        }
+      } catch (groqErr) {
+        logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
+      }
+    } else {
+      logger.info(`[AgentLoop] ⚡ Groq non disponible — fallback LLM local`);
+    }
+
+    // ─── Étape 0b: LLM local (Ollama/Colab) — FALLBACK si Groq échoue ───
     // Le modèle local gère le chat simple ET le function calling (tools).
     // Si timeout ou échec, fallback vers les API externes.
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
@@ -1037,48 +1082,6 @@ async function runAgentLoopInternal(
     } else {
       // Ollama non disponible — on log et on passe directement aux API
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
-    }
-
-    // ─── Étape 0b: Groq (free, ultra-fast, 30 req/min) — PRIORITÉ AVANT OPENROUTER ───
-    // Groq est plus fiable que les modèles gratuits OpenRouter (souvent 404/520)
-    if (isGroqAvailable()) {
-      try {
-        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel}`);
-        const groqClient = getGroqClient()!;
-        if (availableTools.length > 0) {
-          response = await groqClient.chat.completions.create(
-            {
-              model: config.groqModel,
-              messages: conversation as never,
-              tools: availableTools as never,
-              max_tokens: getPersonalityMaxTokens(),
-              temperature: getPersonalityTemperature(),
-              parallel_tool_calls: true,
-              stream: false,
-            } as never,
-            { timeout: 15_000 } as never,
-          );
-        } else {
-          const groqReply = await chatWithGroq({
-            systemPrompt: config.aiSystemPrompt,
-            userMessage: userMessage,
-            maxTokens: getPersonalityMaxTokens(),
-            temperature: getPersonalityTemperature(),
-          });
-          if (groqReply && groqReply.length > 2) {
-            response = {
-              choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
-            } as never;
-          }
-        }
-        if (response) {
-          logger.info(`[AgentLoop] ✅ Groq réussi — API économisée`);
-          recordApiLlm();
-          break;
-        }
-      } catch (groqErr) {
-        logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
-      }
     }
 
     for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {
