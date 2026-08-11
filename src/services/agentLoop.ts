@@ -978,7 +978,30 @@ async function runAgentLoopInternal(
           break;
         }
       } catch (groqErr) {
-        logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
+        const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+        logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErrMsg}`);
+        // If 413 (too large) or 400 (tools error), retry without tools — text-only mode
+        if (groqErrMsg.includes("413") || groqErrMsg.includes("too large") || groqErrMsg.includes("400")) {
+          try {
+            logger.info(`[AgentLoop] ⚡ Retry Groq sans tools (text-only 70B)...`);
+            const groqReply = await chatWithGroq({
+              systemPrompt: config.aiSystemPrompt,
+              userMessage: userMessage,
+              maxTokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+            });
+            if (groqReply && groqReply.length > 2) {
+              response = {
+                choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
+              } as never;
+              logger.info(`[AgentLoop] ✅ Groq réussi (70B text-only) — API économisée`);
+              recordApiLlm();
+              break;
+            }
+          } catch (retryErr) {
+            logger.warn(`[AgentLoop] ⚡ Groq text-only aussi échoué: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          }
+        }
       }
     } else {
       logger.info(`[AgentLoop] ⚡ Groq non disponible — fallback LLM local`);
@@ -1156,7 +1179,29 @@ async function runAgentLoopInternal(
       } catch (groqErr) {
         const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
         logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
-        lastErrMsg = groqErrMsg;
+        // Retry without tools if too large
+        if (groqErrMsg.includes("413") || groqErrMsg.includes("too large") || groqErrMsg.includes("400")) {
+          try {
+            logger.info(`[AgentLoop] ⚡ Retry Groq fallback sans tools (text-only)...`);
+            const groqReply = await chatWithGroq({
+              systemPrompt: config.aiSystemPrompt,
+              userMessage: userMessage,
+              maxTokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+            });
+            if (groqReply && groqReply.length > 2) {
+              response = {
+                choices: [{ message: { role: "assistant", content: groqReply }, finish_reason: "stop" }],
+              } as never;
+              logger.info(`[AgentLoop] ✅ Groq fallback text-only réussi`);
+            }
+          } catch (retryErr) {
+            logger.error(`[AgentLoop] Groq fallback text-only also failed: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+            lastErrMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          }
+        } else {
+          lastErrMsg = groqErrMsg;
+        }
       }
     }
 
