@@ -1,5 +1,6 @@
 import logger from "./logger.js";
 import { detectLanguage, type SupportedLang } from "./languageDetector.js";
+import { chatWithGroq } from "../services/groq.js";
 
 /**
  * Service de traduction intelligent avec Circuit Breaker (Disjoncteur réseau)
@@ -239,30 +240,28 @@ export async function translateText(
     // Ollama indisponible — fallback sur la chaîne existante
   }
 
-  // ── PLAN A: OpenRouter API (primaire — plus fiable) ─────────────────
-  if (Date.now() < openRouterRateLimitedUntil) {
-    const remaining = Math.ceil((openRouterRateLimitedUntil - Date.now()) / 1000);
-    logger.warn(`[Translator] OpenRouter rate-limited (${remaining}s restants) — bascule MyMemory`);
-  } else {
-    try {
-      const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
-      if (openRouterResult) {
-        // Cache the result
-        if (translationCache.size >= CACHE_MAX_SIZE) {
-          const firstKey = translationCache.keys().next().value;
-          if (firstKey) translationCache.delete(firstKey);
-        }
-        translationCache.set(cacheKey, openRouterResult);
-        return openRouterResult;
+  // ── PLAN A: Groq (free, ultra-fast, 70B) ─────────────────
+  try {
+    const targetLanguageName = SUPPORTED_LANGUAGES[targetLang] || targetLang;
+    const sourceLanguageName =
+      sourceLang === "auto" ? "la langue détectée" : SUPPORTED_LANGUAGES[sourceLang] || sourceLang;
+    const groqReply = await chatWithGroq({
+      systemPrompt: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`,
+      userMessage: text,
+      maxTokens: 500,
+      temperature: 0.3,
+    });
+    if (groqReply && groqReply.length > 0) {
+      const result = { translatedText: groqReply, detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang };
+      if (translationCache.size >= CACHE_MAX_SIZE) {
+        const firstKey = translationCache.keys().next().value;
+        if (firstKey) translationCache.delete(firstKey);
       }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      logger.warn(`[Translator] OpenRouter API échouée: ${errMsg}`);
-      if (errMsg.includes("429")) {
-        openRouterRateLimitedUntil = Date.now() + 60_000; // 1 min cooldown
-        logger.warn("[Translator] OpenRouter rate-limited — cooldown 60s");
-      }
+      translationCache.set(cacheKey, result);
+      return result;
     }
+  } catch (error) {
+    logger.warn(`[Translator] Groq échoué: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   // ── PLAN B: MyMemory API (fallback — avec Circuit Breaker) ──────────

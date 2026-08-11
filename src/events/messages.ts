@@ -1769,8 +1769,28 @@ async function handleAiChatMention(
     if (isErrorResponse) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback en cours`);
 
-      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
-      if (isLocalLlmAvailable()) {
+      // ── Fallback 1 (priorité absolue): Groq (70B, free, 24/7, ultra-fast) ──
+      if (isGroqAvailable()) {
+        try {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            userMessage: enrichedContent,
+            maxTokens: 800,
+          });
+          if (groqReply && groqReply.length > 2) {
+            aiResponse = groqReply;
+            logger.info(`[AIChat] Fallback Groq réussi (${groqReply.length} chars) — 70B gratuit`);
+          }
+        } catch (groqErr) {
+          logger.error(`[AIChat] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
+        }
+      }
+
+      // ── Fallback 2: LLM local (Ollama sur VPS/Colab) — gratuit, pas de quota ──
+      if (
+        (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isLocalLlmAvailable()
+      ) {
         try {
           const localReply = await chatWithLocalLlm([
             {
@@ -1794,7 +1814,7 @@ async function handleAiChatMention(
         }
       }
 
-      // ── Fallback 2: Gemini (free, quota séparé) ──
+      // ── Fallback 3: Gemini (free, quota séparé) ──
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
@@ -1820,32 +1840,7 @@ async function handleAiChatMention(
         }
       }
 
-      // ── Fallback 2.5: Groq (free, ultra-fast, 30 req/min) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
-        isGroqAvailable()
-      ) {
-        logger.warn(`[AIChat] Fallback: Groq`);
-        try {
-          const groqReply = await chatWithGroq({
-            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            userMessage: enrichedContent,
-            maxTokens: 800,
-          });
-          if (groqReply) {
-            aiResponse = groqReply;
-            logger.info(`[AIChat] Fallback Groq réussi`);
-          }
-        } catch (groqErr) {
-          logger.error(
-            `[AIChat] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
+      // ── Fallback 4: NVIDIA NIM (free, modèles puissants) ──
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
@@ -2283,8 +2278,28 @@ async function handleDMMessage(
     if (dmIsErrorResponse) {
       logger.warn(`[DM] AgentLoop a retourné une erreur, fallback en cours`);
 
-      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
-      if (isLocalLlmAvailable()) {
+      // ── Fallback 1 (priorité absolue): Groq (70B, free, 24/7, ultra-fast) ──
+      if (isGroqAvailable()) {
+        try {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            userMessage: dmEnrichedContent,
+            maxTokens: 800,
+          });
+          if (groqReply && groqReply.length > 2) {
+            aiResponse = groqReply;
+            logger.info(`[DM] Fallback Groq réussi (${groqReply.length} chars) — 70B gratuit`);
+          }
+        } catch (groqErr) {
+          logger.error(`[DM] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`);
+        }
+      }
+
+      // ── Fallback 2: LLM local (Ollama sur VPS/Colab) — gratuit, pas de quota ──
+      if (
+        (!aiResponse || aiResponse.includes("Le serveur IA a rencontré un problème") || aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isLocalLlmAvailable()
+      ) {
         try {
           const localReply = await chatWithLocalLlm([
             {
@@ -2308,7 +2323,7 @@ async function handleDMMessage(
         }
       }
 
-      // ── Fallback 2: Gemini (free, quota séparé) ──
+      // ── Fallback 3: Gemini (free, quota séparé) ──
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
@@ -2334,32 +2349,7 @@ async function handleDMMessage(
         }
       }
 
-      // ── Fallback 2.5: Groq (free, ultra-fast, 30 req/min) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
-        isGroqAvailable()
-      ) {
-        logger.warn(`[DM] Fallback: Groq`);
-        try {
-          const groqReply = await chatWithGroq({
-            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            userMessage: dmEnrichedContent,
-            maxTokens: 800,
-          });
-          if (groqReply) {
-            aiResponse = groqReply;
-            logger.info(`[DM] Fallback Groq réussi`);
-          }
-        } catch (groqErr) {
-          logger.error(
-            `[DM] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
+      // ── Fallback 4: NVIDIA NIM (free, modèles puissants) ──
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||

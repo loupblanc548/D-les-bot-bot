@@ -20,19 +20,13 @@ import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
 // Liste étendue — maximise l'utilisation de la clé OpenRouter
 // Ordre: du plus puissant au plus léger
 const FREE_MODELS_OPENROUTER = [
-  // ─── Modèles gratuits fiables avec tools/function calling (2025 verified) ───
-  "nvidia/nemotron-3-ultra-550b-a55b:free", // 550B MoE, tools ✅, 1M context
-  "openai/gpt-oss-120b:free", // 120B, tools ✅, 131K context
-  "z-ai/glm-4.5-air:free", // GLM 4.5 Air, tools ✅, 131K context
-  "google/gemma-3-27b-it:free", // 27B Gemma 3, tools ✅, 131K context
-  "nvidia/nemotron-3-super-120b-a12b:free", // 120B MoE, tools ✅
-  "openai/gpt-oss-20b:free", // 20B, tools ✅, 131K context
-  "moonshotai/kimi-k2.6:free", // K2.6 reasoning, tools ✅, 262K context
-  "nvidia/nemotron-3-nano-30b-a3b:free", // 30B MoE, tools ✅, 256K context
+  // ─── Modèles gratuits vérifiés août 2025 ───
   "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
   "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅
+  "qwen/qwen-2.5-7b-instruct:free", // 7B, tools ✅, fast
+  "google/gemma-3-27b-it:free", // 27B Gemma 3, tools ✅
   "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
-  "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (min size for reliable tool calls)
+  "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (lightweight)
   // ─── NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
   ...NVIDIA_FREE_MODELS,
   // ─── OmniRoute gratuits ───
