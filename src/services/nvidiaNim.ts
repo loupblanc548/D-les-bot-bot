@@ -54,19 +54,8 @@ export function getNvidiaNimClient(): OpenAI | null {
 // ─── Modèles NVIDIA NIM gratuits (OpenAI-compatible, function calling) ───────
 // Ordre: du plus puissant au plus léger
 export const NVIDIA_FREE_MODELS = [
-  "nvidia/llama-3.1-nemotron-ultra-253b-v1", // 253B MoE — le plus puissant
-  "nvidia/nemotron-3-ultra-550b-a55b", // 550B MoE
-  "deepseek-ai/deepseek-v4-pro", // 1M context, coding
-  "deepseek-ai/deepseek-v4-flash", // 284B MoE, fast
-  "nvidia/nemotron-3-super-120b-a12b", // 120B MoE
-  "openai/gpt-oss-120b", // 120B OpenAI open-source
-  "nvidia/llama-3.3-nemotron-super-49b-v1.5", // 49B
-  "nvidia/llama-3.3-nemotron-super-49b-v1", // 49B v1
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", // 30B MoE reasoning
-  "nvidia/nemotron-3-nano-30b-a3b", // 30B MoE
-  "openai/gpt-oss-20b", // 20B
-  "nvidia/nvidia-nemotron-nano-9b-v2", // 9B
-  "nvidia/llama-3.1-nemotron-nano-8b-v1", // 8B
+  "nvidia/llama-3.3-nemotron-super-49b-v1.5", // 49B — verified working
+  "nvidia/llama-3.1-nemotron-nano-8b-v1", // 8B — verified working
   "nvidia/nemotron-mini-4b-instruct", // 4B — ultra léger
 ];
 

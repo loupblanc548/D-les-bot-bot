@@ -16,16 +16,13 @@ import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
 import { NVIDIA_FREE_MODELS } from "./nvidiaNim.js";
 
 // ─── Modèles OpenRouter gratuits supportant le function calling ─────────────
-// Liste étendue — maximise l'utilisation de la clé OpenRouter
-// Ordre: du plus puissant au plus léger
+// Modèles vérifiés le 11 août 2025 — les anciens :free sont devenus payants
+// On garde seulement les gratuits confirmés + modèles peu coûteux
 const FREE_MODELS_OPENROUTER = [
-  // ─── Modèles gratuits vérifiés août 2025 ───
-  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅
-  "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅
-  "qwen/qwen-2.5-7b-instruct:free", // 7B, tools ✅, fast
+  // ─── Modèles gratuits confirmés ───
   "google/gemma-3-27b-it:free", // 27B Gemma 3, tools ✅
-  "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
   "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (lightweight)
+  "meta-llama/llama-3.2-1b-instruct:free", // 1B, ultra-light
   // ─── NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
   ...NVIDIA_FREE_MODELS,
 ];

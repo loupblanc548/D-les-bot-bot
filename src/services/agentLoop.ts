@@ -14,7 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } from "./ai.js";
-import { getGroqClient, isGroqAvailable, chatWithGroq } from "./groq.js";
+import { getGroqClient, isGroqAvailable, chatWithGroq, getActiveGroqModel, setGroqModelFallback, isGroqModelFallbackActive, GROQ_LIGHT_MODELS } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { sanitizeForLlm } from "../utils/promptSanitizer.js";
@@ -968,12 +968,12 @@ async function runAgentLoopInternal(
             return name ? ESSENTIAL_TOOL_NAMES.has(name) : false;
           });
         }
-        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length})`);
+        logger.info(`[AgentLoop] ⚡ Tentative Groq: ${getActiveGroqModel()} (complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length}${isGroqModelFallbackActive() ? " [LIGHT MODE]" : ""})`);
         const groqClient = getGroqClient()!;
         if (groqTools.length > 0) {
           response = await groqClient.chat.completions.create(
             {
-              model: config.groqModel,
+              model: getActiveGroqModel(),
               messages: conversation as never,
               tools: groqTools as never,
               max_tokens: getPersonalityMaxTokens(),
@@ -1015,6 +1015,45 @@ async function runAgentLoopInternal(
       } catch (groqErr) {
         const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
         logger.warn(`[AgentLoop] ⚡ Groq échoué: ${groqErrMsg}`);
+
+        // If 429 TPD (tokens per day) limit — switch to light model permanently
+        if (groqErrMsg.includes("429") && groqErrMsg.includes("tokens per day") && !isGroqModelFallbackActive()) {
+          logger.warn(`[AgentLoop] ⚡ Groq 70B TPD limit atteint — bascule sur ${GROQ_LIGHT_MODELS[0]} (modèle léger)`);
+          setGroqModelFallback(GROQ_LIGHT_MODELS[0]);
+          // Retry immediately with light model + essential tools
+          try {
+            const lightResponse = await groqClient.chat.completions.create(
+              {
+                model: GROQ_LIGHT_MODELS[0],
+                messages: conversation as never,
+                tools: groqTools as never,
+                max_tokens: getPersonalityMaxTokens(),
+                temperature: getPersonalityTemperature(),
+                parallel_tool_calls: true,
+                stream: false,
+              } as never,
+              { timeout: 15_000 } as never,
+            );
+            if (lightResponse) {
+              const lightContent = (lightResponse as never as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;
+              const lightFinish = (lightResponse as never as { choices?: Array<{ finish_reason?: string }> })?.choices?.[0]?.finish_reason;
+              if (groqTools.length === 0 && lightContent && lightFinish === "stop") {
+                logger.info(`[AgentLoop] ✅ Groq ${GROQ_LIGHT_MODELS[0]} réussi (text-only) — retour direct`);
+                recordApiLlm();
+                completeInteraction(breakerState);
+                purgeCognitiveSession(cognitiveSessionId);
+                return lightContent;
+              }
+              response = lightResponse;
+              logger.info(`[AgentLoop] ✅ Groq ${GROQ_LIGHT_MODELS[0]} réussi — API économisée`);
+              recordApiLlm();
+              break;
+            }
+          } catch (lightErr) {
+            logger.warn(`[AgentLoop] ⚡ Groq ${GROQ_LIGHT_MODELS[0]} aussi échoué: ${lightErr instanceof Error ? lightErr.message : String(lightErr)}`);
+          }
+        }
+
         // If 413 (too large) or 400 (tools error), retry without tools — text-only mode
         if (groqErrMsg.includes("413") || groqErrMsg.includes("too large") || groqErrMsg.includes("400")) {
           try {
