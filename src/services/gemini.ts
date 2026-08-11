@@ -17,15 +17,25 @@ import { config } from "../config.js";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 let geminiBlocked = false;
+let geminiBlockedAt = 0;
+const GEMINI_BLOCK_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 export function isGeminiAvailable(): boolean {
-  if (geminiBlocked) return false;
+  if (geminiBlocked) {
+    if (Date.now() - geminiBlockedAt > GEMINI_BLOCK_COOLDOWN_MS) {
+      geminiBlocked = false;
+      logger.info("[Gemini] Block expiré — Gemini de nouveau disponible");
+    } else {
+      return false;
+    }
+  }
   return !!config.geminiApiKey;
 }
 
 export function markGeminiBlocked(): void {
   geminiBlocked = true;
-  logger.warn("[Gemini] API bloquée (403) — Gemini désactivé jusqu'au redémarrage");
+  geminiBlockedAt = Date.now();
+  logger.warn("[Gemini] API bloquée (403) — Gemini désactivé pendant 5 minutes");
 }
 
 interface GeminiPart {

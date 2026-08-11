@@ -46,6 +46,7 @@ import {
   checkLocalLlmAvailability,
 } from "../services/localLlm.js";
 import { isNvidiaNimAvailable, chatWithNvidiaNim } from "../services/nvidiaNim.js";
+import { isGroqAvailable, chatWithGroq } from "../services/groq.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
@@ -1819,6 +1820,31 @@ async function handleAiChatMention(
         }
       }
 
+      // ── Fallback 2.5: Groq (free, ultra-fast, 30 req/min) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isGroqAvailable()
+      ) {
+        logger.warn(`[AIChat] Fallback: Groq`);
+        try {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            userMessage: enrichedContent,
+            maxTokens: 800,
+          });
+          if (groqReply) {
+            aiResponse = groqReply;
+            logger.info(`[AIChat] Fallback Groq réussi`);
+          }
+        } catch (groqErr) {
+          logger.error(
+            `[AIChat] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`,
+          );
+        }
+      }
+
       // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
       if (
         (!aiResponse ||
@@ -2304,6 +2330,31 @@ async function handleDMMessage(
         } catch (geminiErr) {
           logger.error(
             `[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
+          );
+        }
+      }
+
+      // ── Fallback 2.5: Groq (free, ultra-fast, 30 req/min) ──
+      if (
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+        isGroqAvailable()
+      ) {
+        logger.warn(`[DM] Fallback: Groq`);
+        try {
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt + "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+            userMessage: dmEnrichedContent,
+            maxTokens: 800,
+          });
+          if (groqReply) {
+            aiResponse = groqReply;
+            logger.info(`[DM] Fallback Groq réussi`);
+          }
+        } catch (groqErr) {
+          logger.error(
+            `[DM] Groq fallback échoué: ${groqErr instanceof Error ? groqErr.message : String(groqErr)}`,
           );
         }
       }

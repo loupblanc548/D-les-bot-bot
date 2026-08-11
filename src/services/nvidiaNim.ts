@@ -126,7 +126,7 @@ export async function chatWithNvidiaNim(
   const c = getNvidiaNimClient();
   if (!c) return null;
 
-  const models = NVIDIA_FREE_MODELS;
+  const models = NVIDIA_FREE_MODELS.slice(0, 3); // Limit to top 3 to avoid long waits
   for (const model of models) {
     try {
       const completion = await c.chat.completions.create({
@@ -137,7 +137,7 @@ export async function chatWithNvidiaNim(
         ],
         max_tokens: maxTokens,
         temperature: 0.7,
-      });
+      }, { timeout: 10_000 });
       const reply = completion.choices?.[0]?.message?.content;
       if (reply && reply.length > 2) {
         logger.info(`[NvidiaNIM] Réponse réussie avec ${model} (${reply.length} chars)`);
