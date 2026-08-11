@@ -16,7 +16,6 @@ import { runStartupRetrospective } from "../services/feeds.js";
 import { runDbSourcesRetrospective } from "../services/monitor.js";
 import { CATEGORIES, type Category } from "./helpCategories.js";
 import { isLocalLlmAvailable } from "../services/localLlm.js";
-import { isGeminiAvailable } from "../services/gemini.js";
 import { isNvidiaNimAvailable } from "../services/nvidiaNim.js";
 import { getCacheSize } from "../utils/aiResponseCache.js";
 
@@ -160,7 +159,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
           name: "🤖 Services IA",
           value: [
             `Ollama (local): ${isLocalLlmAvailable() ? "✅" : "❌"}`,
-            `Gemini: ${isGeminiAvailable() ? "✅" : "❌"}`,
+            `Groq 70B: ✅`,
             `NVIDIA NIM: ${isNvidiaNimAvailable() ? "✅" : "❌"}`,
             `OpenRouter: ${config.openRouterApiKey ? "✅" : "❌"}`,
             `Cache IA: ${getCacheSize()} entrées`,

@@ -14,7 +14,6 @@
 import logger from "../utils/logger.js";
 import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
 import { NVIDIA_FREE_MODELS } from "./nvidiaNim.js";
-import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
 
 // ─── Modèles OpenRouter gratuits supportant le function calling ─────────────
 // Liste étendue — maximise l'utilisation de la clé OpenRouter
@@ -29,8 +28,6 @@ const FREE_MODELS_OPENROUTER = [
   "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (lightweight)
   // ─── NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
   ...NVIDIA_FREE_MODELS,
-  // ─── OmniRoute gratuits ───
-  ...(isOmnirouteAvailable() ? OMNIROUTE_FREE_MODELS : []),
 ];
 
 // ─── Modèles ultra-bon-marché (backup si tous les gratuits sont épuisés) ─────

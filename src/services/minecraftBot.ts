@@ -223,7 +223,7 @@ export async function connectBot(
           );
           if (mentionPattern.test(msg) && sender.toLowerCase() !== botName.toLowerCase()) {
             logger.info(`[MinecraftBot] Mention détectée de ${sender}: ${msg}`);
-            // Réponse IA asynchrone (OpenRouter → Groq → Gemini → patterns)
+            // Réponse IA asynchrone (Groq → OpenRouter → patterns)
             generateAIResponse(msg, sender, botName)
               .then((response) => {
                 sendChat(`§b[${botName}] §f${response}`);
@@ -495,7 +495,7 @@ const playerConversations = new Map<
 const MAX_CONV_HISTORY = 6;
 
 /**
- * Génère une réponse intelligente via OpenRouter/Groq/Gemini avec contexte Minecraft.
+ * Génère une réponse intelligente via Groq/OpenRouter avec contexte Minecraft.
  * Tombe sur les patterns si l'IA échoue ou timeout.
  */
 async function generateAIResponse(
@@ -581,23 +581,6 @@ async function generateAIResponse(
           while (history.length > MAX_CONV_HISTORY * 2) history.shift();
           playerConversations.set(sender, history);
           return groqReply;
-        }
-      }
-    } catch {
-      // Continue to pattern fallback
-    }
-
-    // Fallback 2: Gemini
-    try {
-      const { chatWithGemini, isGeminiAvailable } = await import("./gemini.js");
-      if (isGeminiAvailable()) {
-        const geminiReply = await chatWithGemini(systemPrompt, message, 150);
-        if (geminiReply) {
-          history.push({ role: "user", content: message });
-          history.push({ role: "assistant", content: geminiReply });
-          while (history.length > MAX_CONV_HISTORY * 2) history.shift();
-          playerConversations.set(sender, history);
-          return geminiReply;
         }
       }
     } catch {

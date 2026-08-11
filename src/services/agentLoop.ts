@@ -17,7 +17,6 @@ import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } fro
 import { getGroqClient, isGroqAvailable, chatWithGroq } from "./groq.js";
 import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
-import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
 import { sanitizeForLlm } from "../utils/promptSanitizer.js";
 import {
   classifyTaskComplexity,
@@ -65,7 +64,6 @@ import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
-import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
 import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, getActiveModel } from "./localLlm.js";
 import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
 import { isKilled } from "./killSwitch.js";
@@ -819,11 +817,16 @@ async function runAgentLoopInternal(
         const oldToolResults = toolResults.slice(0, -2);
         const fullText = oldToolResults.map((m) => m.content).join("\n---\n");
 
-        // Try intelligent summarization with Gemini, fall back to naive truncation
+        // Try intelligent summarization with Groq, fall back to naive truncation
         let summary: string;
-        if (isGeminiAvailable() && fullText.length > 200) {
-          const geminiSummary = await summarizeWithGemini(fullText.slice(0, 8000), 300);
-          summary = geminiSummary || oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
+        if (isGroqAvailable() && fullText.length > 200) {
+          const groqSummary = await chatWithGroq({
+            systemPrompt: "Résume le texte suivant de façon concise (max 300 mots). Garde les informations essentielles.",
+            userMessage: fullText.slice(0, 8000),
+            maxTokens: 300,
+            temperature: 0.3,
+          });
+          summary = groqSummary || oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
         } else {
           summary = oldToolResults.map((m) => m.content.slice(0, 100)).join(" | ");
         }
@@ -838,7 +841,7 @@ async function runAgentLoopInternal(
           content: `[Résumé des tools précédents: ${summary.slice(0, 500)}]`,
         });
         logger.info(
-          `[AgentLoop] 🗜️ Context compressed: ${oldToolResults.length} tool results → ${summary.length} chars (Gemini: ${isGeminiAvailable() && fullText.length > 200 ? "yes" : "no"})`,
+          `[AgentLoop] 🗜️ Context compressed: ${oldToolResults.length} tool results → ${summary.length} chars (Groq: ${isGroqAvailable() && fullText.length > 200 ? "yes" : "no"})`,
         );
       }
     }
@@ -1114,14 +1117,12 @@ async function runAgentLoopInternal(
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
         // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models,
-        // OmniRoute client for OmniRoute models, OpenRouter for the rest
+        // OpenRouter for the rest
         const isGptModel = modelName.startsWith("gpt-");
         const isNvidia = isNvidiaModel(modelName);
-        const isOmniroute = isOmnirouteModel(modelName);
         const activeClient =
           isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! :
           isNvidia && isNvidiaNimAvailable() ? getNvidiaNimClient()! :
-          isOmniroute && isOmnirouteAvailable() ? getOmnirouteClient()! :
           client;
         response = await callLlmWithRetry(
           activeClient,
@@ -1219,28 +1220,6 @@ async function runAgentLoopInternal(
         } else {
           lastErrMsg = groqErrMsg;
         }
-      }
-    }
-
-    // ─── Étape 2b: Fallback Gemini si OpenRouter + Groq ont échoué ───
-    if (!response && isGeminiAvailable()) {
-      try {
-        logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
-        const geminiReply = await chatWithGemini(
-          config.aiSystemPrompt + "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
-          userMessage,
-          800,
-        );
-        if (geminiReply) {
-          // Gemini ne supporte pas les tools ici — on retourne directement la réponse
-          logger.info(`[AgentLoop] ✅ Gemini fallback réussi`);
-          completeInteraction(breakerState);
-          return geminiReply;
-        }
-      } catch (geminiErr) {
-        const geminiErrMsg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
-        logger.error(`[AgentLoop] Gemini fallback also failed: ${geminiErrMsg}`);
-        lastErrMsg = geminiErrMsg;
       }
     }
 

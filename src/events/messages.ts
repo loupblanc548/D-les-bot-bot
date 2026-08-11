@@ -1814,32 +1814,6 @@ async function handleAiChatMention(
         }
       }
 
-      // ── Fallback 3: Gemini (free, quota séparé) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
-        isGeminiAvailable()
-      ) {
-        logger.warn(`[AIChat] Fallback: Gemini`);
-        try {
-          const geminiReply = await chatWithGemini(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            enrichedContent,
-            800,
-          );
-          if (geminiReply) {
-            aiResponse = geminiReply;
-            logger.info(`[AIChat] Fallback Gemini réussi`);
-          }
-        } catch (geminiErr) {
-          logger.error(
-            `[AIChat] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
-          );
-        }
-      }
-
       // ── Fallback 4: NVIDIA NIM (free, modèles puissants) ──
       if (
         (!aiResponse ||
@@ -2319,32 +2293,6 @@ async function handleDMMessage(
         } catch (localErr) {
           logger.error(
             `[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 3: Gemini (free, quota séparé) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
-        isGeminiAvailable()
-      ) {
-        logger.warn(`[DM] Fallback: Gemini`);
-        try {
-          const geminiReply = await chatWithGemini(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            dmEnrichedContent,
-            800,
-          );
-          if (geminiReply) {
-            aiResponse = geminiReply;
-            logger.info(`[DM] Fallback Gemini réussi`);
-          }
-        } catch (geminiErr) {
-          logger.error(
-            `[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
           );
         }
       }

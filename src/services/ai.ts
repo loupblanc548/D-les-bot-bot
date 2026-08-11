@@ -3,7 +3,6 @@ import { config } from "../config.js";
 import OpenAI from "openai";
 import { chatWithHF } from "../utils/huggingFace.js";
 import { chatWithGroq, isGroqAvailable } from "./groq.js";
-import { chatWithGemini, isGeminiAvailable } from "./gemini.js";
 
 let openai: OpenAI | null = null;
 let openaiPremium: OpenAI | null = null;
@@ -103,17 +102,6 @@ export async function chatWithAI(message: string, username?: string): Promise<st
         if (groqResponse) return groqResponse;
       } catch (groqErr) {
         logger.error("[AI] Groq fallback échoué:", String(groqErr));
-      }
-    }
-
-    // Fallback 2: Gemini (free, multimodal)
-    if (isGeminiAvailable()) {
-      try {
-        logger.warn("[AI] Tentative de fallback Gemini...");
-        const geminiResponse = await chatWithGemini(config.aiSystemPrompt, contextMessage, 800);
-        if (geminiResponse) return geminiResponse;
-      } catch (geminiErr) {
-        logger.error("[AI] Gemini fallback échoué:", String(geminiErr));
       }
     }
 

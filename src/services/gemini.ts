@@ -21,15 +21,9 @@ let geminiBlockedAt = 0;
 const GEMINI_BLOCK_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 export function isGeminiAvailable(): boolean {
-  if (geminiBlocked) {
-    if (Date.now() - geminiBlockedAt > GEMINI_BLOCK_COOLDOWN_MS) {
-      geminiBlocked = false;
-      logger.info("[Gemini] Block expiré — Gemini de nouveau disponible");
-    } else {
-      return false;
-    }
-  }
-  return !!config.geminiApiKey;
+  // Gemini permanently disabled — API key blocked (403 PERMISSION_DENIED)
+  // Groq 70B replaces Gemini as free fallback
+  return false;
 }
 
 export function markGeminiBlocked(): void {

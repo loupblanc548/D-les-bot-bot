@@ -7,7 +7,7 @@ import { chatWithGroq } from "../services/groq.js";
  *
  * Plan A: MyMemory API (gratuit pour volumes standards)
  *   └─ Circuit Breaker: si 429 ou timeout → bannissement 1h, skip immédiat
- * Plan B: OpenRouter API (failover si MyMemory échoue ou banni)
+ * Plan B: Groq 70B (failover si MyMemory échoue ou banni)
  *   └─ Prompt système intraitable: Markdown Discord, jargon gaming, texte brut
  *
  * Support multi-langues et traduction inversée
@@ -16,9 +16,6 @@ import { chatWithGroq } from "../services/groq.js";
 // ─── Translation Cache (avoid re-translating same text) ──────────────────────
 const translationCache = new Map<string, TranslationResult>();
 const CACHE_MAX_SIZE = 500;
-
-// ─── OpenRouter Rate Limit State ─────────────────────────────────────────────
-let openRouterRateLimitedUntil = 0;
 
 // ─── Circuit Breaker State ───────────────────────────────────────────────────
 
@@ -80,7 +77,8 @@ interface MyMemoryResponse {
   responseDetails: string;
 }
 
-interface OpenRouterResponse {
+// (OpenRouter response type removed — Groq replaces it)
+interface _UnusedResponse {
   choices: Array<{
     message: {
       content: string;
@@ -390,99 +388,6 @@ async function translateWithMyMemory(
   }
 }
 
-// ─── Plan B: OpenRouter (Failover) ───────────────────────────────────────────
-
-async function translateWithOpenRouter(
-  text: string,
-  sourceLang: LanguageCode | "auto" = "auto",
-  targetLang: LanguageCode = "fr",
-): Promise<TranslationResult | null> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY non configurée");
-  }
-
-  const targetLanguageName = SUPPORTED_LANGUAGES[targetLang] || targetLang;
-  const sourceLanguageName =
-    sourceLang === "auto" ? "la langue détectée" : SUPPORTED_LANGUAGES[sourceLang] || sourceLang;
-
-  try {
-    // Retry sur 429 (rate limit) — 1 retry only to avoid spam
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) {
-        const delay = 3000;
-        logger.warn(`[Translator] OpenRouter 429 — retry ${attempt + 1}/2 dans ${delay}ms`);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://discord-bot.com",
-          "X-Title": "Discord Translation Bot",
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
-          messages: [
-            {
-              role: "system",
-              content: `Tu es un traducteur expert. Traduis le texte de ${sourceLanguageName} vers ${targetLanguageName}. RÈGLES INTRAITABLES:\n1. Conserve TOUTE la mise en forme Markdown Discord (gras **, italique *, listes -, code \`\`\`, liens [texte](url)).\n2. Préserve le jargon technique/gaming (ex: "FPS drops", "nerf", "buff", "patch", "hotfix", "DPS").\n3. Ne renvoie UNIQUEMENT que le texte brut traduit — pas d'introduction, de commentaire, de guillemets, ni d'explication.\n4. Si le texte est déjà en ${targetLanguageName}, renvoie-le TEL QUEL sans modification.`,
-            },
-            {
-              role: "user",
-              content: text,
-            },
-          ],
-          max_tokens: 500,
-          temperature: 0.3,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
-
-      if (response.status === 429) {
-        lastError = new Error(`OpenRouter HTTP error: 429 (rate limit)`);
-        continue; // retry
-      }
-
-      if (!response.ok) {
-        throw new Error(`OpenRouter HTTP error: ${response.status}`);
-      }
-
-      const data: OpenRouterResponse = (await response.json()) as OpenRouterResponse;
-
-      if (data.choices && data.choices[0]?.message?.content) {
-        const translatedText = data.choices[0].message.content.trim();
-
-        logger.debug(
-          `[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
-        );
-
-        return {
-          translatedText,
-          detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang,
-        };
-      } else {
-        throw new Error("OpenRouter response invalid");
-      }
-    }
-
-    // Tous les retries épuisés
-    throw lastError ?? new Error("OpenRouter: max retries exceeded");
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === "AbortError") {
-        throw new Error("OpenRouter timeout", { cause: error });
-      }
-      throw new Error(error.message, { cause: error });
-    }
-    throw new Error("OpenRouter unknown error", { cause: error });
-  }
-}
-
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
 
 /**
@@ -532,7 +437,6 @@ export function getCircuitBreakerState(): { banned: boolean; remainingMs: number
 export function resetCircuitBreaker(): void {
   isMyMemoryBanned = false;
   banTimestamp = 0;
-  openRouterRateLimitedUntil = 0;
   translationCache.clear();
   logger.info("[CircuitBreaker] Réinitialisation manuelle effectuée");
 }
