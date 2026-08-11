@@ -66,7 +66,7 @@ import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
 import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
-import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, LOCAL_LLM_MODEL_NAME } from "./localLlm.js";
+import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, getActiveModel } from "./localLlm.js";
 import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
 import { isKilled } from "./killSwitch.js";
 import {
@@ -909,7 +909,7 @@ async function runAgentLoopInternal(
     );
     // Skip local only if using the 3B model (too small for retailer tools)
     // 7B and 14B can handle function calling including retailer tools
-    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b");
+    const localModelIsSmall = getActiveModel().includes(":3b");
     const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
 
     // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
@@ -941,7 +941,7 @@ async function runAgentLoopInternal(
     // Le modèle local gère le chat simple ET le function calling (tools).
     // Si timeout ou échec, fallback vers les API externes.
     if (isLocalLlmAvailable() && !skipLocalForRetailer) {
-      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`);
+      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${getActiveModel()} (complexité: ${taskComplexity}, tools: ${availableTools.length})`);
 
       try {
         if (availableTools.length > 0) {
@@ -963,7 +963,7 @@ async function runAgentLoopInternal(
                   finish_reason: "tool_calls",
                 }],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`);
+              logger.info(`[AgentLoop] ✅ ${getActiveModel()} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`);
               continue; // Passer à l'exécution des tools
             } else if (localResult.text && localResult.text.length > 5) {
               response = {
@@ -972,14 +972,14 @@ async function runAgentLoopInternal(
                   finish_reason: "stop",
                 }],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`);
+              logger.info(`[AgentLoop] ✅ ${getActiveModel()} réussi (texte, ${localResult.text.length} chars) — API économisée`);
               recordLocalLlm();
               break;
             }
             // Réponse vide/courte — fallback vers API
-            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante — fallback API`);
+            logger.warn(`[AgentLoop] ⚠️ ${getActiveModel()} réponse insuffisante — fallback API`);
           } else {
-            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} retour null — fallback API`);
+            logger.warn(`[AgentLoop] ⚠️ ${getActiveModel()} retour null — fallback API`);
           }
         } else {
           // Pas de tools — chat simple, le local est parfait pour ça
@@ -994,17 +994,17 @@ async function runAgentLoopInternal(
                 finish_reason: "stop",
               }],
             } as never;
-            logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`);
+            logger.info(`[AgentLoop] ✅ ${getActiveModel()} réussi (chat simple, ${localText.length} chars) — API économisée`);
             recordLocalLlm();
             break;
           }
-          logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
+          logger.warn(`[AgentLoop] ⚠️ ${getActiveModel()} échec chat simple — fallback API`);
         }
       } catch (localErr) {
         const isTimeout = localErr instanceof Error && localErr.message.includes("timeout");
         if (isTimeout && isLocalLlmAvailable()) {
           // Retry once with reduced context (last 2 messages only)
-          logger.info(`[AgentLoop] 🔄 Retry ${LOCAL_LLM_MODEL_NAME} avec contexte réduit...`);
+          logger.info(`[AgentLoop] 🔄 Retry ${getActiveModel()} avec contexte réduit...`);
           try {
             const reducedMessages = conversation.slice(-2).map((m) => ({
               role: m.role,
@@ -1021,7 +1021,7 @@ async function runAgentLoopInternal(
                   finish_reason: "stop",
                 }],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi après retry (contexte réduit, ${retryText.length} chars) — API économisée`);
+              logger.info(`[AgentLoop] ✅ ${getActiveModel()} réussi après retry (contexte réduit, ${retryText.length} chars) — API économisée`);
               recordLocalLlm();
               break;
             }

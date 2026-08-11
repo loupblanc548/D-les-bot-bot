@@ -14,9 +14,15 @@ import { fetchWithRetry, createCircuitBreaker } from "../utils/httpClient.js";
 import { ConcurrencyPool } from "../utils/concurrencyPool.js";
 
 const LOCAL_LLM_URL = process.env.LOCAL_LLM_URL || "http://127.0.0.1:11434/v1";
-const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:14b";
+const LOCAL_LLM_MODELS = (process.env.LOCAL_LLM_MODEL || "qwen2.5:14b")
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
 const LOCAL_LLM_ENABLED = process.env.LOCAL_LLM_ENABLED !== "false";
 const LLM_MAX_CONCURRENCY = parseInt(process.env.LLM_MAX_CONCURRENCY_LOCAL || "4", 10);
+
+// Le modèle actif est détecté dynamiquement au ping — premier modèle de la liste présent sur le serveur
+let activeModel: string = LOCAL_LLM_MODELS[0] || "qwen2.5:14b";
 
 const llmPool = new ConcurrencyPool(LLM_MAX_CONCURRENCY);
 
@@ -57,14 +63,18 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
   }
   try {
     const data = await pingBreaker.fire() as { models?: Array<{ name: string }> };
-    const hasModel = data?.models?.some((m) => m.name === LOCAL_LLM_MODEL);
-    if (!hasModel) {
-      logger.warn(`[LocalLLM] Ollama en ligne mais modèle ${LOCAL_LLM_MODEL} non trouvé`);
+    const serverModels = data?.models?.map((m) => m.name) || [];
+    // Trouver le premier modèle de notre liste qui est présent sur le serveur
+    const found = LOCAL_LLM_MODELS.find((m) => serverModels.includes(m));
+    if (!found) {
+      const serverList = serverModels.length > 0 ? ` (disponibles: ${serverModels.slice(0, 5).join(", ")})` : "";
+      logger.warn(`[LocalLLM] Ollama en ligne mais aucun modèle configuré trouvé${serverList}`);
       available = false;
     } else {
-      if (!available) {
-        logger.info(`[LocalLLM] ✅ Ollama disponible — modèle: ${LOCAL_LLM_MODEL}`);
+      if (!available || found !== activeModel) {
+        logger.info(`[LocalLLM] ✅ Ollama disponible — modèle actif: ${found}`);
       }
+      activeModel = found;
       available = true;
     }
   } catch (err) {
@@ -159,7 +169,7 @@ export async function chatWithLocalLlm(
   try {
     const localClient = getLocalClient();
     const response = await llmPool.run(() => localClient.chat.completions.create({
-      model: LOCAL_LLM_MODEL,
+      model: activeModel,
       messages: messages as never,
       max_tokens: adaptiveMaxTokens,
       temperature: options?.temperature ?? 0.7,
@@ -170,7 +180,7 @@ export async function chatWithLocalLlm(
       logger.warn("[LocalLLM] Réponse vide du modèle local");
       return null;
     }
-    logger.info(`[LocalLLM] ✅ Réponse locale (${text.length} chars, ${adaptiveMaxTokens} max) — ${LOCAL_LLM_MODEL}`);
+    logger.info(`[LocalLLM] ✅ Réponse locale (${text.length} chars, ${adaptiveMaxTokens} max) — ${activeModel}`);
     return text.trim();
   } catch (error) {
     // Don't log timeouts as warnings — they're expected on CPU for complex prompts
@@ -205,7 +215,7 @@ export async function chatWithLocalLlmTools(
   try {
     const localClient = getLocalClient();
     const response = await llmPool.run(() => localClient.chat.completions.create({
-      model: LOCAL_LLM_MODEL,
+      model: activeModel,
       messages: messages as never,
       tools: tools as never,
       max_tokens: options?.maxTokens ?? 500,
@@ -219,7 +229,7 @@ export async function chatWithLocalLlmTools(
     const toolCalls = choice.message?.tool_calls || null;
 
     logger.info(
-      `[LocalLLM] ✅ Réponse locale avec tools — ${toolCalls ? `${toolCalls.length} tool calls` : "texte seul"}`,
+      `[LocalLLM] ✅ Réponse locale avec tools (${activeModel}) — ${toolCalls ? `${toolCalls.length} tool calls` : "texte seul"}`,
     );
     return { text, toolCalls };
   } catch (error) {
@@ -238,4 +248,6 @@ export async function chatWithLocalLlmTools(
   }
 }
 
-export const LOCAL_LLM_MODEL_NAME = LOCAL_LLM_MODEL;
+export const LOCAL_LLM_MODEL_NAME = activeModel;
+export const LOCAL_LLM_MODELS_LIST = LOCAL_LLM_MODELS;
+export function getActiveModel(): string { return activeModel; }
