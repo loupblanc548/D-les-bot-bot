@@ -944,32 +944,29 @@ async function runAgentLoopInternal(
     // Groq offre un modèle 70B gratuit, 24/7, sans dépendance externe.
     // Si échec, fallback vers LLM local (Ollama/Colab) puis API externes.
     if (isGroqAvailable()) {
+      // Declare outside try so catch block can access them for 429 TPD fallback
+      const GROQ_TOOL_LIMIT = 30;
+      const ESSENTIAL_TOOL_NAMES = new Set([
+        "searchWeb", "readUrl", "fetchAndSummarize", "searchYouTube",
+        "getWikipediaSummary", "translateText", "searchKnowledge",
+        "searchUserMemory", "getTechNews", "getCryptoPrice", "getWeather",
+        "getGitHubRepo", "search_music", "search_wikipedia",
+        "search_stackoverflow", "search_igdb_games", "searchRawgGames",
+        "search_movies", "search_anime", "search_books",
+        "define_word", "getTime", "ingestDocumentation",
+      ]);
+      let groqTools: typeof availableTools;
+      if (availableTools.length <= GROQ_TOOL_LIMIT) {
+        groqTools = availableTools;
+      } else {
+        groqTools = availableTools.filter((t) => {
+          const name = (t as never as { function?: { name?: string } })?.function?.name;
+          return name ? ESSENTIAL_TOOL_NAMES.has(name) : false;
+        });
+      }
+      const groqClient = getGroqClient()!;
       try {
-        // Groq free tier: 12000 TPM limit. 717 tools = ~40k tokens = instant 413.
-        // Strategy: when too many tools, filter to ESSENTIAL tools only (search, fetch, translate, etc.)
-        // so Groq can still search the web and use key services like BraveSearch.
-        const GROQ_TOOL_LIMIT = 30;
-        const ESSENTIAL_TOOL_NAMES = new Set([
-          "searchWeb", "readUrl", "fetchAndSummarize", "searchYouTube",
-          "getWikipediaSummary", "translateText", "searchKnowledge",
-          "searchUserMemory", "getTechNews", "getCryptoPrice", "getWeather",
-          "getGitHubRepo", "search_music", "search_wikipedia",
-          "search_stackoverflow", "search_igdb_games", "searchRawgGames",
-          "search_movies", "search_anime", "search_books",
-          "define_word", "getTime", "ingestDocumentation",
-        ]);
-        let groqTools: typeof availableTools;
-        if (availableTools.length <= GROQ_TOOL_LIMIT) {
-          groqTools = availableTools;
-        } else {
-          // Filter to essential tools only — keeps Groq under TPM limit while still useful
-          groqTools = availableTools.filter((t) => {
-            const name = (t as never as { function?: { name?: string } })?.function?.name;
-            return name ? ESSENTIAL_TOOL_NAMES.has(name) : false;
-          });
-        }
         logger.info(`[AgentLoop] ⚡ Tentative Groq: ${getActiveGroqModel()} (complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length}${isGroqModelFallbackActive() ? " [LIGHT MODE]" : ""})`);
-        const groqClient = getGroqClient()!;
         if (groqTools.length > 0) {
           response = await groqClient.chat.completions.create(
             {
