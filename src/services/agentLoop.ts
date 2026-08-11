@@ -942,8 +942,10 @@ async function runAgentLoopInternal(
     // Si échec, fallback vers LLM local (Ollama/Colab) puis API externes.
     if (isGroqAvailable()) {
       try {
-        // Groq limits tools to 128 max — slice if over
-        const groqTools = availableTools.length > 128 ? availableTools.slice(0, 128) : availableTools;
+        // Groq free tier: 12000 TPM limit. 128 tools = ~40k tokens = instant 413.
+        // Only send tools if very few (under 30), otherwise go straight to text-only.
+        const GROQ_TOOL_LIMIT = 30;
+        const groqTools = availableTools.length > GROQ_TOOL_LIMIT ? [] : availableTools;
         logger.info(`[AgentLoop] ⚡ Tentative Groq: ${config.groqModel} (70B, complexité: ${taskComplexity}, tools: ${groqTools.length}/${availableTools.length})`);
         const groqClient = getGroqClient()!;
         if (groqTools.length > 0) {
@@ -1161,19 +1163,35 @@ async function runAgentLoopInternal(
           `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
         );
         const groqClient = getGroqClient()!;
-        const groqFallbackTools = availableTools.length > 128 ? availableTools.slice(0, 128) : availableTools;
-        response = await groqClient.chat.completions.create(
-          {
-            model: config.groqModel,
-            messages: conversation as never,
-            tools: groqFallbackTools as never,
-            max_tokens: getPersonalityMaxTokens(),
+        const groqFallbackTools = availableTools.length > 30 ? [] : availableTools;
+        if (groqFallbackTools.length > 0) {
+          response = await groqClient.chat.completions.create(
+            {
+              model: config.groqModel,
+              messages: conversation as never,
+              tools: groqFallbackTools as never,
+              max_tokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              parallel_tool_calls: true,
+              stream: false,
+            } as never,
+            { timeout: 15_000 } as never,
+          );
+        } else {
+          // Too many tools for Groq — go text-only directly
+          const groqReply = await chatWithGroq({
+            systemPrompt: config.aiSystemPrompt,
+            userMessage: userMessage,
+            maxTokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
-            parallel_tool_calls: true,
-            stream: false,
-          } as never,
-          { timeout: 15_000 } as never,
-        );
+          });
+          if (groqReply && groqReply.length > 2) {
+            logger.info(`[AgentLoop] ✅ Groq fallback text-only réussi — retour direct`);
+            completeInteraction(breakerState);
+            purgeCognitiveSession(cognitiveSessionId);
+            return groqReply;
+          }
+        }
         logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
       } catch (groqErr) {
         const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
