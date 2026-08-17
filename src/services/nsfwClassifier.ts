@@ -64,6 +64,31 @@ export async function classifyNsfw(
   const cached = getCached(imageUrl);
   if (cached) return cached;
 
+  // Try Colab GPU backend first (free, no API quota)
+  try {
+    const { classifyNsfwViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+    if (isColabToolsAvailable()) {
+      const colabResult = await classifyNsfwViaColab(imageUrl);
+      if (colabResult) {
+        const result: NsfwResult = {
+          isNsfw: colabResult.is_nsfw,
+          confidence: colabResult.nsfw_score,
+          categories: {
+            raw: colabResult.scores?.nsfw ?? colabResult.nsfw_score,
+            partial: 0,
+            suggestive: colabResult.scores?.suggestive ?? 0,
+          },
+          source: "sightengine", // reuse same source label for compatibility
+          action: colabResult.is_nsfw ? (strict ? "block" : "warn") : "allow",
+        };
+        setCache(imageUrl, result);
+        return result;
+      }
+    }
+  } catch {
+    // Colab unavailable — continue to Sightengine/Gemini
+  }
+
   const apiKey = process.env.SIGHTENGINE_API_KEY;
   const apiUser = process.env.SIGHTENGINE_API_USER;
 

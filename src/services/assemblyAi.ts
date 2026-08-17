@@ -28,6 +28,22 @@ function getClient(): AssemblyAI {
  * @returns Transcribed text or null
  */
 export async function transcribeAudio(audioUrl: string): Promise<string | null> {
+  // Try Colab GPU Whisper first (free, no API quota)
+  try {
+    const { transcribeViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+    if (isColabToolsAvailable()) {
+      const colabResult = await transcribeViaColab(audioUrl);
+      if (colabResult?.text) {
+        logger.info(
+          `[AssemblyAI] Transcribed via Colab Whisper (${colabResult.text.length} chars)`,
+        );
+        return colabResult.text;
+      }
+    }
+  } catch {
+    // Colab unavailable — continue to AssemblyAI
+  }
+
   if (!config.assemblyAiApiKey) return null;
 
   try {
@@ -46,7 +62,9 @@ export async function transcribeAudio(audioUrl: string): Promise<string | null> 
 
     return transcript.text || null;
   } catch (error) {
-    logger.warn(`[AssemblyAI] transcribeAudio error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `[AssemblyAI] transcribeAudio error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }
@@ -56,9 +74,7 @@ export async function transcribeAudio(audioUrl: string): Promise<string | null> 
  * @param audioUrl URL of the audio file
  * @returns Formatted transcript with speaker labels or null
  */
-export async function transcribeAudioWithSpeakers(
-  audioUrl: string,
-): Promise<string | null> {
+export async function transcribeAudioWithSpeakers(audioUrl: string): Promise<string | null> {
   if (!config.assemblyAiApiKey) return null;
 
   try {
@@ -77,14 +93,14 @@ export async function transcribeAudioWithSpeakers(
     }
 
     if (transcript.utterances && transcript.utterances.length > 0) {
-      return transcript.utterances
-        .map((u) => `[${u.speaker}]: ${u.text}`)
-        .join("\n");
+      return transcript.utterances.map((u) => `[${u.speaker}]: ${u.text}`).join("\n");
     }
 
     return transcript.text || null;
   } catch (error) {
-    logger.warn(`[AssemblyAI] transcribeAudioWithSpeakers error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `[AssemblyAI] transcribeAudioWithSpeakers error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }
@@ -94,9 +110,7 @@ export async function transcribeAudioWithSpeakers(
  * @param audio Buffer or file path
  * @returns Transcribed text or null
  */
-export async function transcribeLocalAudio(
-  audio: Buffer | string,
-): Promise<string | null> {
+export async function transcribeLocalAudio(audio: Buffer | string): Promise<string | null> {
   if (!config.assemblyAiApiKey) return null;
 
   try {
@@ -115,8 +129,9 @@ export async function transcribeLocalAudio(
 
     return transcript.text || null;
   } catch (error) {
-    logger.warn(`[AssemblyAI] transcribeLocalAudio error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `[AssemblyAI] transcribeLocalAudio error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }
-

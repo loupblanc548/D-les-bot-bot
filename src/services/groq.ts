@@ -14,6 +14,7 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
 let groqClient: OpenAI | null = null;
+let groqModelFallback: string | null = null; // set when 70B hits TPD limit
 
 export function getGroqClient(): OpenAI | null {
   if (!config.groqApiKey) return null;
@@ -33,6 +34,24 @@ export function isGroqAvailable(): boolean {
   return !!config.groqApiKey;
 }
 
+export function getActiveGroqModel(): string {
+  return groqModelFallback || config.groqModel;
+}
+
+export function setGroqModelFallback(model: string | null): void {
+  groqModelFallback = model;
+}
+
+export function isGroqModelFallbackActive(): boolean {
+  return groqModelFallback !== null;
+}
+
+// Groq models ordered by token efficiency (for TPD fallback)
+export const GROQ_LIGHT_MODELS = [
+  "llama-3.1-8b-instant", // 8B — ultra fast, minimal tokens
+  "llama-3.2-1b-preview", // 1B — absolute minimum
+];
+
 interface ChatOptions {
   systemPrompt: string;
   userMessage: string;
@@ -48,7 +67,7 @@ export async function chatWithGroq(opts: ChatOptions): Promise<string | null> {
   try {
     const completion = await client.chat.completions.create(
       {
-        model: opts.model || config.groqModel,
+        model: opts.model || getActiveGroqModel(),
         messages: [
           { role: "system", content: opts.systemPrompt },
           { role: "user", content: opts.userMessage },
@@ -75,7 +94,7 @@ export async function chatWithGroqJSON(opts: ChatOptions): Promise<Record<string
   try {
     const completion = await client.chat.completions.create(
       {
-        model: opts.model || config.groqModel,
+        model: opts.model || getActiveGroqModel(),
         messages: [
           { role: "system", content: opts.systemPrompt },
           { role: "user", content: opts.userMessage },

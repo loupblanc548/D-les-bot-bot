@@ -38,12 +38,17 @@ export function installGlobalFetchGuard(): void {
     }
 
     // Skip SSRF check for localhost (internal API calls)
-    const parsed = new URL(url);
-    if (
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
-      parsed.hostname === "::1"
-    ) {
+    try {
+      const parsed = new URL(url);
+      if (
+        parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname === "::1"
+      ) {
+        return originalFetch!(input, init);
+      }
+    } catch {
+      // Malformed URL — let the original fetch handle the error
       return originalFetch!(input, init);
     }
 

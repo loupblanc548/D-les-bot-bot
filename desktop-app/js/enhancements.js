@@ -436,15 +436,16 @@ const Enhancements = {
     if ("serviceWorker" in navigator) {
       // Register inline service worker via blob
       var swCode = `
-        var CACHE_NAME = "bot-panel-v1";
+        var CACHE_NAME = "bot-panel-v2";
         var urlsToCache = ["./", "./index.html", "./manifest.json", "./favicon.svg",
           "./css/dashboard.css", "./css/visual-fx.css", "./css/components.css",
-          "./css/animations.css", "./css/responsive.css", "./css/themes.css", "./css/design-enhance.css",
+          "./css/animations.css", "./css/responsive.css", "./css/themes.css", "./css/design-enhance.css", "./css/premium-overlay.css",
           "./js/auth-guard.js", "./js/mock-fallback.js", "./js/dev-mode.js",
           "./js/utils.js", "./js/store.js", "./js/notifications.js",
           "./js/api.js", "./js/websocket.js", "./js/charts.js",
           "./js/logs.js", "./js/studio.js", "./js/dashboard.js",
           "./js/moderation.js", "./js/security.js", "./js/music.js",
+          "./js/amazon.js", "./js/minecraft.js",
           "./js/enhancements.js"];
         self.addEventListener("install", function(e) {
           e.waitUntil(caches.open(CACHE_NAME).then(function(cache) {

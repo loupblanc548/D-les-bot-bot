@@ -87,7 +87,6 @@ errors-list.txt
 unused-*.txt
 tsc_head.txt
 tsc_now.txt
-vitest_*.txt
 parse.js
 eslint.json
 eslint.before.json
@@ -109,6 +108,7 @@ eslint_full*.json
 eslint_w*.txt
 ef.json
 
+
 # Minecraft server binary
 bedrock-server/
 
@@ -116,8 +116,8 @@ bedrock-server/
 !scripts/check_local_llm.sh
 !scripts/chaos-test.sh
 !scripts/db-backup.sh
-!scripts/ip_investigate.sh
 !scripts/server_audit.sh
+!scripts/ip_investigate.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md

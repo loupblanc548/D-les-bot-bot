@@ -19,6 +19,22 @@ const REMOVEBG_API_KEY = process.env.REMOVEBG_API_KEY ?? "";
 export async function removeBackground(
   imageUrl: string,
 ): Promise<{ resultUrl: string; creditsUsed: number } | null> {
+  // Try Colab GPU rembg first (free, no API credits)
+  try {
+    const { removeBgViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+    if (isColabToolsAvailable()) {
+      const colabResult = await removeBgViaColab(imageUrl);
+      if (colabResult?.image_base64) {
+        // Return as data URL
+        const dataUrl = `data:image/${colabResult.format};base64,${colabResult.image_base64}`;
+        logger.info("[RemoveBg] Background removed via Colab GPU (rembg)");
+        return { resultUrl: dataUrl, creditsUsed: 0 };
+      }
+    }
+  } catch {
+    // Colab unavailable — continue to remove.bg API
+  }
+
   if (!REMOVEBG_API_KEY) {
     logger.debug("[RemoveBg] API key not configured");
     return null;

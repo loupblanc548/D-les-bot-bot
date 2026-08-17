@@ -7,7 +7,7 @@
 
 import OpenAI from "openai";
 import logger from "../utils/logger.js";
-import { fetchWithRetry } from "../utils/httpClient.js";
+import { fetchWithRetry, createCircuitBreaker } from "../utils/httpClient.js";
 import { ConcurrencyPool } from "../utils/concurrencyPool.js";
 import fs from "fs";
 

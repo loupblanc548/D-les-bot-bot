@@ -21,7 +21,7 @@ export async function scanForPii(): Promise<{ emails: number; phones: number; de
   let phones = 0;
 
   // Scan recent messages for PII (not deleted, within retention window)
-  const recentMessages = await prisma.chatHistory.findMany({
+  const recentMessages = await prisma.message.findMany({
     where: {
       createdAt: { gte: cutoff },
       content: { not: null },
@@ -39,7 +39,7 @@ export async function scanForPii(): Promise<{ emails: number; phones: number; de
   }
 
   // Delete messages older than retention period
-  const deleted = await prisma.chatHistory.deleteMany({
+  const deleted = await prisma.message.deleteMany({
     where: { createdAt: { lt: cutoff } },
   });
 

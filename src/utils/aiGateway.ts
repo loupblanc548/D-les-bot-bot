@@ -1,4 +1,4 @@
-import { getCircuitBreaker } from "./circuitBreaker.js";
+import { withCircuitBreaker } from "./circuitBreaker.js";
 
 export type Provider = "colab" | "local" | "openai" | "anthropic" | "openrouter";
 
@@ -9,22 +9,21 @@ let latencyHistogram: any = null;
 
 async function getMetrics() {
   try {
-    const prom = await import("prom-client");
-    const { register } = await import("../services/metrics.js");
+    const { register, Counter, Histogram } = await import("../services/metrics.js");
     if (!tokenCounter) {
-      tokenCounter = new prom.Counter({
+      tokenCounter = new Counter({
         name: "bot_ai_tokens_total",
         help: "Total AI tokens used",
         labelNames: ["provider", "type"],
         registers: [register],
       });
-      callCounter = new prom.Counter({
+      callCounter = new Counter({
         name: "bot_ai_calls_total",
         help: "Total AI calls",
         labelNames: ["provider", "status"],
         registers: [register],
       });
-      latencyHistogram = new prom.Histogram({
+      latencyHistogram = new Histogram({
         name: "bot_ai_response_seconds",
         help: "AI response latency in seconds",
         labelNames: ["provider"],
@@ -52,34 +51,29 @@ export async function callAi(
   for (const p of order) {
     const provider = p.trim() as Provider;
     try {
-      const cb = getCircuitBreaker(provider);
-      const result = await cb.execute<{ content: string; provider: string; tokensUsed?: number }>(
-        async () => {
-          if (provider === "colab") {
-            const { chatWithColabLlm, isColabLlmAvailable } =
-              await import("../services/colabLlm.js");
-            if (!isColabLlmAvailable()) throw new Error("Colab LLM not available");
-            const content = await chatWithColabLlm([{ role: "user", content: prompt }], {
-              maxTokens: opts?.maxTokens,
-            });
-            if (!content) throw new Error("Colab LLM returned empty");
-            return { content, provider: "colab" };
-          } else if (provider === "local") {
-            const { chatWithLocalLlm, isLocalLlmAvailable } =
-              await import("../services/localLlm.js");
-            if (!isLocalLlmAvailable()) throw new Error("Local LLM not available");
-            const content = await chatWithLocalLlm([{ role: "user", content: prompt }], {
-              maxTokens: opts?.maxTokens,
-            });
-            if (!content) throw new Error("Local LLM returned empty");
-            return { content, provider: "local" };
-          } else if (provider === "openai") {
-            // call OpenAI via key
-            return { content: "", provider: "openai" };
-          }
-          return { content: "", provider };
-        },
-      );
+      const result = await withCircuitBreaker(provider, async () => {
+        if (provider === "colab") {
+          const { chatWithColabLlm, isColabLlmAvailable } = await import("../services/colabLlm.js");
+          if (!isColabLlmAvailable()) throw new Error("Colab LLM not available");
+          const content = await chatWithColabLlm([{ role: "user", content: prompt }], {
+            maxTokens: opts?.maxTokens,
+          });
+          if (!content) throw new Error("Colab LLM returned empty");
+          return { content, provider: "colab" };
+        } else if (provider === "local") {
+          const { chatWithLocalLlm, isLocalLlmAvailable } = await import("../services/localLlm.js");
+          if (!isLocalLlmAvailable()) throw new Error("Local LLM not available");
+          const content = await chatWithLocalLlm([{ role: "user", content: prompt }], {
+            maxTokens: opts?.maxTokens,
+          });
+          if (!content) throw new Error("Local LLM returned empty");
+          return { content, provider: "local" };
+        } else if (provider === "openai") {
+          // call OpenAI via key
+          return { content: "", provider: "openai" };
+        }
+        return { content: "", provider };
+      });
 
       const elapsed = (Date.now() - startTime) / 1000;
       metrics?.callCounter?.inc({ provider, status: "success" });

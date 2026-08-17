@@ -832,6 +832,256 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  // ─── Minecraft LLM Agent tools ───
+  {
+    type: "function",
+    function: {
+      name: "mcAgentConnect",
+      description:
+        "Connecte le bot Minecraft LLM (Mineflayer sur Colab) à un serveur ou monde Minecraft. " +
+        "L'utilisateur peut dire (variantes FR): 'rejoins moi', 'rejoins mon monde', 'rejoins ce serveur', 'rejoins ça', " +
+        "'connecte-toi', 'connecte toi', 'connexion', 'viens sur mon serveur', 'viens jouer', 'viens avec moi', " +
+        "'viens me voir', 'viens sur mc', 'rejoins l'ip', 'rejoins le serveur', 'go sur le serveur', " +
+        "'go sur mon monde', 'go mc', 'rejoins minecraft', 'connecte le bot', 'met le bot sur', " +
+        "'met le bot dans mon monde', 'envoie le bot', 'le bot peut rejoindre', 'le bot peut venir', " +
+        "'tu peux rejoindre', 'tu peux venir', 'viens', 'rejoins', 'connecte', 'go serveur', 'go mc', " +
+        "'rejoins mon serveur minecraft', 'rejoins mon monde solo', 'viens dans mon monde solo', " +
+        "'ouvre minecraft et rejoins', 'le bot rejoint', 'fait rejoindre le bot'. " +
+        "Variantes EN: 'join me', 'join my world', 'join my server', 'connect to', 'come to my server', " +
+        "'come play', 'get on minecraft', 'join this ip', 'connect the bot', 'hop on'. " +
+        "Pour un monde solo ouvert en LAN, l'utilisateur doit fournir son IP publique et le port LAN affiché par Minecraft. " +
+        "Si l'utilisateur ne donne pas l'IP, demande-la. Le port par défaut est 25565 pour les serveurs, mais variable pour le LAN. " +
+        "Si l'utilisateur dit 'rejoins moi' sans IP, demande: 'Quelle est ton IP:port ? Ouvre ton monde en LAN (Échap → Ouvrir en LAN) et donne-moi l'IP:port affiché'.",
+      parameters: {
+        type: "object",
+        properties: {
+          server: {
+            type: "string",
+            description:
+              "Adresse IP:port du serveur Minecraft (ex: '123.45.67.89:25565' ou 'play.mcraft.fr'). Pour un monde LAN, c'est l'IP publique de l'utilisateur + le port LAN affiché dans Minecraft.",
+          },
+          username: {
+            type: "string",
+            description: "Pseudo du bot Minecraft (défaut: LLM_Bot)",
+          },
+        },
+        required: ["server"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentGoal",
+      description:
+        "Envoie un objectif en langage naturel au bot Minecraft LLM. " +
+        "Le bot va observer le monde, décider des actions et les exécuter automatiquement. " +
+        "Variantes FR: 'construis une maison', 'construis un abri', 'construis une tour', 'construis un château', " +
+        "'construis ça', 'construis-moi', 'bâtis', 'fais une maison', 'fais une ferme', 'fais un pont', " +
+        "'mine 10 fer', 'mine du charbon', 'mine des diamants', 'va miner', 'mine ça', 'creuse', " +
+        "'cherche des diamants', 'cherche du fer', 'cherche de l'or', 'trouve des diamants', " +
+        "'va chercher du bois', 'collecte du bois', 'collecte de la pierre', 'collecte des ressources', " +
+        "'chasse des zombies', 'chasse des animaux', 'chasse', 'tue les monstres', 'tue les zombies', " +
+        "'défends-moi', 'défens-toi', 'protège-moi', 'protege la zone', " +
+        "'explore', 'explore et trouve des diamants', 'explore la zone', 'va voir autour', " +
+        "'fais une ferme', 'fais de l'agriculture', 'plante des cultures', 'fais pousser du blé', " +
+        "'va pêcher', 'pêche', 'fais de la pêche', " +
+        "'craft une épée', 'craft des planches', 'craft un four', 'fais un craft', " +
+        "'fais cuire', 'cuis', 'fais fondre le minerai', 'smelt le fer', " +
+        "'fais un pont', 'fais un tunnel', 'creuse un tunnel', " +
+        "'soigne-toi', 'mange', 'dors', 'va dormir', " +
+        "'apprivoise un cheval', 'apprivoise un loup', 'domestique', " +
+        "'fais reproduire les vaches', 'fais des bébés animaux', 'breed', " +
+        "'va au village', 'va à la forteresse', 'va au nether', " +
+        "'range ton inventaire', 'équipe-toi', 'mets ton armure', " +
+        "'fais ce que tu veux', 'amuse-toi', 'fais ce que tu peux', " +
+        "'aide-moi à survivre', 'survis', 'fais en sorte de rester en vie', " +
+        "'va là-bas', 'va vers', 'va au coordonnées', 'va à la position'. " +
+        "Variantes EN: 'build a house', 'mine some iron', 'go mining', 'find diamonds', 'hunt zombies', " +
+        "'defend me', 'explore', 'make a farm', 'craft a sword', 'survive', 'go there'. " +
+        "Toute phrase exprimant une intention d'action dans Minecraft doit utiliser cet outil.",
+      parameters: {
+        type: "object",
+        properties: {
+          goal: {
+            type: "string",
+            description:
+              "Objectif en langage naturel pour le bot Minecraft (ex: 'Build a 5x5 house with oak planks', 'Mine 10 iron ore and smelt into ingots', 'Find and mine diamonds', 'Hunt animals for food', 'Defend against zombies', 'Explore and find a village')",
+          },
+          maxActions: {
+            type: "number",
+            description: "Nombre maximum d'actions (défaut: 50, max: 200)",
+          },
+        },
+        required: ["goal"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentStatus",
+      description:
+        "Récupère le statut du bot Minecraft LLM: connecté, position, santé, faim, modèle LLM, actions en cours. " +
+        "Variantes FR: 'comment va le bot', 'où il est', 'il fait quoi', 'il est où', 'où est le bot', " +
+        "'quel est le statut', 'statut du bot', 'le bot est connecté', 'le bot est en ligne', " +
+        "'il a combien de vie', 'combien de vie il a', 'il a combien de coeurs', " +
+        "'il a faim', 'combien de faim', 'est-ce qu'il est en train de faire quelque chose', " +
+        "'il travaille', 'il est occupé', 'il est libre', 'il fait quoi maintenant', " +
+        "'le bot est là', 'le bot est vivant', 'le bot est mort', " +
+        "'donne moi le statut', 'info du bot', 'infos bot', 'état du bot', " +
+        "'le bot ça va', 'bot status', 'tu fais quoi', 'tu es où'. " +
+        "Variantes EN: 'bot status', 'how is the bot', 'where is the bot', 'what is he doing', " +
+        "'is he online', 'is he alive', 'his health', 'his hunger', 'is he busy'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentWorld",
+      description:
+        "Récupère l'état complet du monde Minecraft vu par le bot: position, santé, inventaire, blocs proches, entités proches, biome, météo. " +
+        "Variantes FR: 'que voit le bot', 'qu'est-ce qu'il y a autour', 'il a quoi dans son inventaire', " +
+        "'montre-moi son inventaire', 'son inventaire', 'inventaire du bot', 'il a quoi sur lui', " +
+        "'qu'est-ce qu'il y a autour de lui', 'y a quoi autour', 'il y a quoi près du bot', " +
+        "'quels blocs il y a', 'quelles ressources il y a', 'y a-t-il du fer', 'y a-t-il des diamants', " +
+        "'y a quoi comme animaux', 'y a quoi comme monstres', 'qui est autour du bot', " +
+        "'dans quel biome il est', 'quel biome', 'il pleut', 'fait-il jour ou nuit', " +
+        "'quelle heure il est dans le jeu', 'l'heure du jeu', " +
+        "'montre le monde', 'montre la vue', 'que voit-il', 'qui voit-il', " +
+        "'il est dans quel biome', 'y a des arbres', 'y a une grotte', 'y a un village', " +
+        "'qu'est-ce qu'il y a près de lui', 'scan les environs', 'analyse la zone', " +
+        "'quelles entités', 'quels animaux', 'quels monstres', 'quels joueurs'. " +
+        "Variantes EN: 'what does he see', 'what's around him', 'his inventory', 'what blocks are near', " +
+        "'any diamonds nearby', 'what biome', 'is it raining', 'day or night', 'scan the area'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentAction",
+      description:
+        "Envoie une action directe au bot Minecraft sans passer par le LLM (action immédiate). " +
+        "Actions disponibles et leurs variantes FR/EN: " +
+        "collectWood: 'va chercher du bois', 'collecte du bois', 'coupe des arbres', 'go wood', 'get wood', 'chop trees'. " +
+        "collectStone: 'va chercher de la pierre', 'collecte de la pierre', 'mine de la pierre', 'go stone', 'get stone'. " +
+        "collectIron: 'va chercher du fer', 'mine du fer', 'collecte du fer', 'go iron', 'get iron'. " +
+        "collectDiamonds: 'cherche des diamants', 'va chercher des diamants', 'mine des diamants', 'go diamonds', 'get diamonds'. " +
+        "buildHouse: 'construis une maison', 'fais une maison', 'bâtis une maison', 'build a house'. " +
+        "eat: 'mange', 'mange quelque chose', 'mange de la nourriture', 'il a faim', 'nourris-toi', 'eat', 'eat food'. " +
+        "sleep: 'dors', 'va dormir', 'va au lit', 'couche-toi', 'sleep', 'go to bed'. " +
+        "defend: 'défens-toi', 'défend', 'protège-toi', 'combat', 'tape les monstres', 'defend', 'fight'. " +
+        "hunt: 'chasse', 'chasse des animaux', 'va chasser', 'tue des animaux', 'hunt', 'go hunting'. " +
+        "stop: 'arrête', 'stop', 'ça suffit', 'arrête tout', 'stoppe', 'halte', 'arrête de bouger', 'stop moving', 'stand still'. " +
+        "explore: 'explore', 'va explorer', 'promène-toi', 'va voir autour', 'balade-toi', 'explore', 'go explore', 'wander'. " +
+        "sortInventory: 'range ton inventaire', 'mets ton armure', 'équipe-toi', 'organise ton inventaire', 'sort inventory', 'equip armor'. " +
+        "Utilise cet outil pour les actions simples et immédiates. Pour les objectifs complexes (plusieurs étapes), utilise mcAgentGoal.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            description:
+              "Nom de l'action: collectWood, collectStone, collectIron, collectDiamonds, buildHouse, eat, sleep, defend, hunt, stop, explore, sortInventory",
+            enum: [
+              "collectWood",
+              "collectStone",
+              "collectIron",
+              "collectDiamonds",
+              "buildHouse",
+              "eat",
+              "sleep",
+              "defend",
+              "hunt",
+              "stop",
+              "explore",
+              "sortInventory",
+            ],
+          },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentChat",
+      description:
+        "Envoie un message dans le chat Minecraft via le bot. " +
+        "Variantes FR: 'dis bonjour dans le chat', 'dis-leur que j'arrive', 'parle dans le chat', " +
+        "'envoie un message', 'dis coucou', 'dis quelque chose', 'parle aux autres', " +
+        "'écris dans le chat', 'fais parler le bot', 'le bot peut dire', 'dis à tout le monde', " +
+        "'annonce', 'crie', 'hurle', 'dis dans minecraft', 'parle sur mc', " +
+        "'dis moi bonjour en jeu', 'fais parler le bot dans le jeu'. " +
+        "Variantes EN: 'say hello in chat', 'send a message', 'talk in chat', 'say something', 'announce'.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
+            description: "Message à envoyer dans le chat Minecraft",
+          },
+        },
+        required: ["message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentStop",
+      description:
+        "Arrête l'agent LLM Minecraft (stoppe la boucle d'actions en cours). " +
+        "Variantes FR: 'arrête', 'stop', 'ça suffit', 'laisse tomber', 'arrête tout', " +
+        "'stoppe le bot', 'arrête le bot', 'plus rien', 'finis', 'c'est bon', " +
+        "'arrête de faire ça', 'arrête de miner', 'arrête de construire', 'arrête de bouger', " +
+        "'plus besoin', 'c'est fini', 'termine', 'tu peux arrêter', " +
+        "'laisse faire', 'arrête l'objectif', 'annule', 'annule ça', " +
+        "'stoppe tout', 'halte', 'pause', 'met en pause', 'plus d'action'. " +
+        "Variantes EN: 'stop', 'stop it', 'enough', 'cancel', 'abort', 'quit', 'halt', 'pause', 'that's enough'.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mcAgentLog",
+      description:
+        "Récupère l'historique des actions récentes du bot Minecraft LLM. " +
+        "Variantes FR: 'qu'est-ce qu'il a fait', 'montre-moi les logs', 'où il en est', " +
+        "'qu'est-ce qu'il fait', 'historique', 'historique des actions', 'il a fait quoi', " +
+        "'montre ce qu'il a fait', 'montre l'historique', 'les logs', 'log', " +
+        "'où il en est dans sa tâche', 'avancement', 'progression', 'ça en est où', " +
+        "'qu'est-ce qui s'est passé', 'résumé de ses actions', 'compte-rendu', " +
+        "'il a réussi', 'il a échoué', 'où en est le bot', 'le bot a fait quoi'. " +
+        "Variantes EN: 'what did he do', 'show logs', 'history', 'what happened', 'progress', 'status log'.",
+      parameters: {
+        type: "object",
+        properties: {
+          lines: {
+            type: "number",
+            description: "Nombre de lignes à récupérer (défaut: 20, max: 100)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -873,6 +1123,16 @@ export async function executeTool(
   logger.info(
     `[AgentTools] 🔧 Exécution tool: ${toolName} args=${JSON.stringify(args).slice(0, 200)}`,
   );
+
+  // ── Guardrails: check user permissions for dangerous actions ──
+  const { checkToolPermission } = await import("./toolGuardrails.js");
+  const permCheck = await checkToolPermission(ctx.client, ctx.guildId, ctx.userId, toolName);
+  if (!permCheck.allowed) {
+    logger.warn(
+      `[Guardrails] ❌ ${toolName} blocked for ${ctx.userId} (level: ${permCheck.level})`,
+    );
+    return { success: false, data: permCheck.reason };
+  }
 
   try {
     switch (toolName) {
@@ -958,6 +1218,23 @@ export async function executeTool(
         return await toolExtractTextFromImage(args);
       case "compose_image":
         return await toolComposeImage(args);
+      // ─── Minecraft LLM Agent tools ───
+      case "mcAgentConnect":
+        return await toolMcAgentConnect(args);
+      case "mcAgentGoal":
+        return await toolMcAgentGoal(args);
+      case "mcAgentStatus":
+        return await toolMcAgentStatus();
+      case "mcAgentWorld":
+        return await toolMcAgentWorld();
+      case "mcAgentAction":
+        return await toolMcAgentAction(args);
+      case "mcAgentChat":
+        return await toolMcAgentChat(args);
+      case "mcAgentStop":
+        return await toolMcAgentStop();
+      case "mcAgentLog":
+        return await toolMcAgentLog(args);
       default: {
         // Essayer les tools mémoire/persona/conversation
         const memoryResult = await executeMemoryTool(toolName, args, { userId: ctx.userId });
@@ -2299,4 +2576,162 @@ async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCall
       data: `Erreur compose_image: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+// ─── Minecraft LLM Agent tool implementations ────────────────────────────────
+
+async function toolMcAgentConnect(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, pingAgent, getUrl } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return {
+      success: false,
+      data: "❌ L'agent Mineflayer n'est pas disponible. Le notebook Colab `mineflayer_agent.ipynb` doit être lancé d'abord. Demande à l'utilisateur de démarrer le notebook Colab.",
+    };
+  }
+  const server = String(args.server || "").trim();
+  if (!server) {
+    return {
+      success: false,
+      data: "❌ Aucune adresse serveur fournie. Demande à l'utilisateur l'IP:port de son serveur ou monde LAN.",
+    };
+  }
+  // Validate server format: only allow hostname/IP + optional port (no shell injection)
+  const serverRegex = /^[a-zA-Z0-9._-]+(:\d{1,5})?$/;
+  if (!serverRegex.test(server)) {
+    return {
+      success: false,
+      data: `❌ Format de serveur invalide: \`${server}\`. Attendu: IP:port (ex: 123.45.67.89:25565 ou play.mcraft.fr:25565).`,
+    };
+  }
+  const username = String(args.username || "LLM_Bot")
+    .trim()
+    .slice(0, 16);
+  // Validate username: only alphanumeric + underscore (Minecraft username rules)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return {
+      success: false,
+      data: `❌ Pseudo invalide: \`${username}\`. Seuls les caractères alphanumériques et _ sont autorisés.`,
+    };
+  }
+  const alive = await pingAgent();
+  if (!alive) {
+    return {
+      success: false,
+      data: `❌ L'agent Mineflayer ne répond pas. Vérifie que le notebook Colab est bien lancé.`,
+    };
+  }
+  // Use the /connect endpoint to hot-swap the Mineflayer bot to the new server
+  try {
+    const agentUrl = getUrl();
+    if (!agentUrl) {
+      return { success: false, data: "❌ URL de l'agent introuvable" };
+    }
+    const { fetchWithRetry } = await import("../utils/httpClient.js");
+    const result = await fetchWithRetry(`${agentUrl}/connect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { server, username },
+      timeoutMs: 30_000,
+      retries: 1,
+      parseJson: true,
+    });
+    if (result?.success) {
+      return {
+        success: true,
+        data: `✅ Bot connecté à \`${server}\` en tant que **${username}**! ${result.message || ""}`,
+      };
+    }
+    return {
+      success: false,
+      data: `❌ Échec de connexion à ${server}: ${result?.message || result?.error || "erreur inconnue"}`,
+    };
+  } catch (err) {
+    return { success: false, data: `Erreur connexion MC: ${err}` };
+  }
+}
+
+async function toolMcAgentGoal(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, setAgentGoal } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return {
+      success: false,
+      data: "❌ Agent Mineflayer non disponible. Démarre le notebook Colab d'abord.",
+    };
+  }
+  const goal = String(args.goal || "")
+    .trim()
+    .slice(0, 500);
+  if (!goal) return { success: false, data: "❌ Aucun objectif fourni" };
+  const maxActions = Math.min(200, Math.max(1, Number(args.maxActions) || 50));
+  const result = await setAgentGoal(goal, maxActions);
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentStatus(): Promise<ToolCallResult> {
+  const { isAgentAvailable, getAgentStatus, formatAgentStatus } =
+    await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible (Colab éteint ?)" };
+  }
+  const status = await getAgentStatus();
+  if (!status) return { success: false, data: "❌ Impossible de contacter l'agent" };
+  return { success: true, data: formatAgentStatus(status) };
+}
+
+async function toolMcAgentWorld(): Promise<ToolCallResult> {
+  const { isAgentAvailable, getWorldState, formatWorldState } =
+    await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const world = await getWorldState();
+  if (!world) return { success: false, data: "❌ Impossible de récupérer l'état du monde" };
+  return { success: true, data: formatWorldState(world) };
+}
+
+async function toolMcAgentAction(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, QUICK_ACTIONS } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const actionName = String(args.action || "") as keyof typeof QUICK_ACTIONS;
+  const actionFn = QUICK_ACTIONS[actionName];
+  if (!actionFn) return { success: false, data: `❌ Action inconnue: ${actionName}` };
+  const result = await actionFn();
+  return result
+    ? { success: result.success, data: `⚡ ${actionName}: ${result.message}` }
+    : { success: false, data: `❌ ${actionName} a échoué` };
+}
+
+async function toolMcAgentChat(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, sendAgentChat } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const message = String(args.message || "")
+    .trim()
+    .slice(0, 256);
+  if (!message) return { success: false, data: "❌ Aucun message fourni" };
+  const result = await sendAgentChat(message);
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentStop(): Promise<ToolCallResult> {
+  const { isAgentAvailable, stopAgent } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const result = await stopAgent();
+  return { success: result.success, data: result.message };
+}
+
+async function toolMcAgentLog(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const { isAgentAvailable, getAgentLog } = await import("./mineflayerAgent.js");
+  if (!isAgentAvailable()) {
+    return { success: false, data: "❌ Agent Mineflayer non disponible" };
+  }
+  const lines = Math.min(100, Math.max(1, Number(args.lines) || 20));
+  const log = await getAgentLog(lines);
+  if (!log) return { success: false, data: "❌ Aucun log disponible" };
+  return { success: true, data: log.slice(-1900) };
 }

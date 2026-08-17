@@ -9,7 +9,7 @@
  * before executing the action, not just that the bot has permissions.
  */
 
-import type { Client } from "discord.js";
+import type { Client, GuildMember } from "discord.js";
 import logger from "../utils/logger.js";
 
 /** Permission levels (ascending) */
