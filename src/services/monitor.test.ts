@@ -85,6 +85,9 @@ vi.mock("../prisma", () => ({
       upsert: vi.fn(),
       create: vi.fn(),
     },
+    setting: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

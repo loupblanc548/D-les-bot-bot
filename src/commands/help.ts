@@ -12,6 +12,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  type ApplicationCommand,
 } from "discord.js";
 
 export const data = new SlashCommandBuilder()
@@ -27,56 +28,48 @@ interface CommandInfo {
   category: string;
 }
 
-const COMMAND_CATEGORIES: Record<string, CommandInfo[]> = {
-  "🤖 IA": [
-    { name: "/ai chat", description: "Discuter avec l'IA", category: "IA" },
-    { name: "/ai image", description: "Générer une image", category: "IA" },
-  ],
-  "🛡️ Modération": [
-    { name: "/mod warn", description: "Avertir un membre", category: "Modération" },
-    { name: "/mod mute", description: "Mute un membre", category: "Modération" },
-    { name: "/mod kick", description: "Expulser un membre", category: "Modération" },
-    { name: "/mod ban", description: "Bannir un membre", category: "Modération" },
-  ],
-  "🎮 Gaming": [
-    { name: "/game deals", description: "Voir les jeux gratuits", category: "Gaming" },
-    { name: "/game news", description: "Actus gaming", category: "Gaming" },
-  ],
-  "🔧 Utilitaires": [
-    { name: "/help", description: "Cette commande", category: "Utilitaires" },
-    { name: "/stats", description: "Statistiques du bot", category: "Utilitaires" },
-    { name: "/health", description: "Health check", category: "Utilitaires" },
-    { name: "/remind", description: "Créer un rappel", category: "Utilitaires" },
-  ],
+const FALLBACK_COMMANDS: CommandInfo[] = [
+  {
+    name: "/help",
+    description: "Affiche les commandes réellement enregistrées",
+    category: "Utilitaires",
+  },
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ai: "🤖 IA",
+  mod: "🛡️ Modération",
+  security: "🔒 Sécurité",
+  game: "🎮 Gaming",
+  mc: "⛏️ Minecraft",
+  admin: "👑 Administration",
+  bot: "⚙️ Bot",
+  sources: "📡 Surveillance",
+  alert: "🚨 Alertes",
+  casier: "📋 Casier",
+  ticket: "🎫 Tickets",
+  tools: "🔧 Outils",
+  fun: "🎉 Fun",
+  music: "🎵 Musique",
+  community: "👥 Communauté",
 };
 
 const COMMANDS_PER_PAGE = 8;
 const TIMEOUT = 120_000;
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const categoryFilter = interaction.options.getString("categorie");
+  const categoryFilter = interaction.options.getString("categorie")?.trim().toLowerCase();
+  const commands = await loadRegisteredCommands(interaction);
+  const filtered = categoryFilter
+    ? commands.filter((command) => command.category.toLowerCase().includes(categoryFilter))
+    : commands;
 
-  let commands: CommandInfo[] = [];
-  let categories: string[];
-
-  if (categoryFilter) {
-    const cat = Object.keys(COMMAND_CATEGORIES).find((k) =>
-      k.toLowerCase().includes(categoryFilter.toLowerCase()),
-    );
-    if (cat) {
-      commands = COMMAND_CATEGORIES[cat];
-    } else {
-      await interaction.reply({ content: "❌ Catégorie introuvable", ephemeral: true });
-      return;
-    }
-  } else {
-    categories = Object.keys(COMMAND_CATEGORIES);
-    for (const cat of categories) {
-      commands.push(...COMMAND_CATEGORIES[cat]);
-    }
+  if (categoryFilter && filtered.length === 0) {
+    await interaction.reply({ content: "❌ Catégorie introuvable", ephemeral: true });
+    return;
   }
 
-  const pages = buildPages(commands);
+  const pages = buildPages(filtered);
   if (pages.length === 0) {
     await interaction.reply({ content: "Aucune commande disponible.", ephemeral: true });
     return;
@@ -88,6 +81,52 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   await sendPaginated(interaction, pages);
+}
+
+async function loadRegisteredCommands(
+  interaction: ChatInputCommandInteraction,
+): Promise<CommandInfo[]> {
+  try {
+    const registered = await interaction.client.application?.commands.fetch();
+    if (!registered?.size) return FALLBACK_COMMANDS;
+
+    const commands: CommandInfo[] = [];
+    for (const command of registered.values()) {
+      commands.push(...flattenCommand(command));
+    }
+    return commands.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return FALLBACK_COMMANDS;
+  }
+}
+
+function flattenCommand(command: ApplicationCommand): CommandInfo[] {
+  const category = CATEGORY_LABELS[command.name] ?? "🔧 Autres";
+  const options = "options" in command ? command.options : [];
+  const subcommands = options.filter((option) => option.type === 1 || option.type === 2);
+
+  if (subcommands.length === 0) {
+    return [{ name: `/${command.name}`, description: command.description, category }];
+  }
+
+  return subcommands.flatMap((subcommand) => {
+    const nested = "options" in subcommand ? (subcommand.options ?? []) : [];
+    const nestedCommands = nested.filter((option) => option.type === 1);
+    if (nestedCommands.length === 0) {
+      return [
+        {
+          name: `/${command.name} ${subcommand.name}`,
+          description: subcommand.description,
+          category,
+        },
+      ];
+    }
+    return nestedCommands.map((nestedCommand) => ({
+      name: `/${command.name} ${subcommand.name} ${nestedCommand.name}`,
+      description: nestedCommand.description,
+      category,
+    }));
+  });
 }
 
 function buildPages(commands: CommandInfo[]): EmbedBuilder[] {

@@ -127,7 +127,7 @@ Termine par un sign-off style militaire humoristique.
 N'utilise PAS d'emojis. N'utilise PAS de markdown. Texte brut uniquement.`;
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

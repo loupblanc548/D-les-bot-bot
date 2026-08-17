@@ -23,6 +23,7 @@ import {
   claimModel,
   releaseModel,
   getAllAvailableModels,
+  ensureAtLeastOneModelAvailable,
 } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
@@ -978,8 +979,8 @@ async function runAgentLoopInternal(
       /rocinante/i,
     ];
     let effectiveModels = modelsToTry;
-    // Keep failover bounded: one slow provider must not serialize a long chain of waits.
-    let maxModelAttempts = 3;
+    // Keep failover bounded but try enough models — we have 8+ NVIDIA models available
+    let maxModelAttempts = 6;
     // Compute skipLocalForRetailer early (needed before local LLM attempt)
     const lowerUserMsgEarly = userMessage.toLowerCase();
     const needsRetailerToolsEarly =
@@ -1038,6 +1039,9 @@ async function runAgentLoopInternal(
     logger.info(
       `[AgentLoop] 🧠 Task complexity: ${taskComplexity} | Models to try: ${effectiveModels.slice(0, maxModelAttempts).join(", ")}${effectiveModels.length > maxModelAttempts ? ` (+${effectiveModels.length - maxModelAttempts} more)` : ""}`,
     );
+
+    // ─── Circuit breaker safety net: if all models are in cooldown, reset them ───
+    ensureAtLeastOneModelAvailable();
 
     // ─── Étape 0: LLM local (Ollama/qwen2.5:14b) — PRIORITÉ ABSOLUE ───
     // qwen2.5:14b est le chef d'orchestre pour TOUT: texte, images, code, tools retailer, etc.
@@ -1539,21 +1543,16 @@ async function runAgentLoopInternal(
                   }
                 }
               } else {
-                // Unclassified tools — default to direct execution (backward compat)
-                result = await executeTool(toolName, args, ctx);
-                if (result.success) {
-                  recordToolSuccess(toolName);
-                  agentToolCalls.labels(toolName, "success").inc();
-                  agentToolCallsDaily.labels(toolName).inc();
-                  // Cache successful results for cacheable tools
-                  if (isToolCacheable(toolName)) {
-                    setCachedToolResult(toolName, args, result.data);
-                  }
-                } else {
-                  recordToolFailure(toolName);
-                  agentToolCalls.labels(toolName, "fail").inc();
-                  agentToolCallsDaily.labels(toolName).inc();
-                }
+                // Deny-by-default: a tool without an immutable risk classification
+                // must never be executable through prompt-generated tool calls.
+                logger.warn(`[AgentLoop] 🛑 Unclassified tool blocked: ${toolName}`);
+                result = {
+                  success: false,
+                  data: `Outil ${toolName} bloqué : aucune classification de risque fiable n'est enregistrée.`,
+                };
+                recordToolFailure(toolName);
+                agentToolCalls.labels(toolName, "fail").inc();
+                agentToolCallsDaily.labels(toolName).inc();
               }
             }
           }
@@ -1589,9 +1588,30 @@ async function runAgentLoopInternal(
           logger.info(
             `[AgentLoop] 🔄 Retrying ${toolName} (${reflection.action}): ${reflection.reasoning?.slice(0, 80)}`,
           );
-          const retryResult = await executeTool(toolName, retryArgs, ctx);
+          let retryResult: ToolExecutionResult & { data: string };
+          const retryRisk = getRiskLevel(toolName);
+          if (retryRisk === "low") {
+            retryResult = (await executeTool(toolName, retryArgs, ctx)) as ToolExecutionResult & {
+              data: string;
+            };
+          } else if (isRestrictedTool(toolName)) {
+            const approved = await requestToolApproval(toolName, retryArgs, message.author.id);
+            retryResult = approved
+              ? ((await executeTool(toolName, retryArgs, ctx)) as ToolExecutionResult & {
+                  data: string;
+                })
+              : ({
+                  success: false,
+                  data: `Retry de ${toolName} bloqué par la validation SOAR.`,
+                } as ToolExecutionResult & { data: string });
+          } else {
+            retryResult = {
+              success: false,
+              data: `Retry de ${toolName} bloqué : tool non classifié.`,
+            } as ToolExecutionResult & { data: string };
+          }
           logger.info(
-            `[AgentLoop] 🔧 ${toolName} retry → ${retryResult.success ? "OK" : "FAIL"}: ${retryResult.data.slice(0, 100)}`,
+            `[AgentLoop] 🔧 ${toolName} retry → ${retryResult.success ? "OK" : "FAIL"}: ${String(retryResult.data).slice(0, 100)}`,
           );
           return {
             tool_call_id: tc.id,

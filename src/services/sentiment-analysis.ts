@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import { OpenAI } from "openai";
 
@@ -33,7 +34,7 @@ class SentimentAnalysisService {
     if (apiKey) {
       this.openai = new OpenAI({
         apiKey,
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: config.openRouterBaseUrl,
       });
       logger.info("[SentimentAnalysis] Service initialisé avec OpenRouter");
     } else {

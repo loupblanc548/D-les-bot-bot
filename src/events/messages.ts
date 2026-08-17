@@ -12,7 +12,6 @@ import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
 import { recordSecurityEvent } from "../services/risk-engine.js";
 import { isAntiPhishingActive, checkSuspiciousLinksDetailed } from "../commands/security.js";
-import { chatWithHistory } from "../services/aichat.js";
 import { analyzeToxicity } from "../services/ai-moderation.js";
 import { sendSecurityAlert, checkMessageSpam } from "../services/reportChannel.js";
 import prisma from "../prisma.js";
@@ -75,7 +74,10 @@ import {
   analyzeToxicity as analyzePerspectiveToxicity,
   isPerspectiveConfigured,
 } from "../services/perspectiveApi.js";
-import { getNextAvailableModel } from "../services/modelRotation.js";
+import {
+  getNextAvailableModel,
+  ensureAtLeastOneModelAvailable,
+} from "../services/modelRotation.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -594,10 +596,7 @@ export function handleMessageEvents(client: Client) {
       // ── BRANCHEMENT 2 : MODE TRADUCTION AUTOMATIQUE (pas de @mention) ─
       await handleAutoTranslation(message);
 
-      // ── Les modules suivants (AIChat contextuel, AI Mod, Anti-Phishing,
-      //     Anti-Spam) continuent normalement APRÈS les deux branches ────
-
-      await handleContextualAiChat(message, client);
+      // ── Les modules de sécurité continuent après la traduction ────────
       await handleSecurityModules(message, spamTracker, client);
 
       // ── Security Integration: threatIntel, Google Vision, YouTube check, sentiment ──
@@ -1819,6 +1818,60 @@ async function handleAiChatMention(
       }
     }
 
+    // ── Dernier recours: reset circuit breakers + appel simple sans tools ──
+    if (
+      !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated")
+    ) {
+      logger.warn(
+        `[AIChat] Tous les fallbacks échoués — last resort: reset + appel simple sans tools`,
+      );
+      ensureAtLeastOneModelAvailable();
+      try {
+        const lastResortModel = getNextAvailableModel() || config.openRouterModel;
+        const lastResortResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: lastResortModel,
+            messages: [
+              {
+                role: "system",
+                content:
+                  config.aiSystemPrompt +
+                  "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
+              },
+              { role: "user", content: enrichedContent.slice(0, 1000) },
+            ],
+            max_tokens: 300,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (lastResortResponse.ok) {
+          const data = (await lastResortResponse.json()) as {
+            choices?: Array<{ message?: { content?: string } }>;
+          };
+          const text = data.choices?.[0]?.message?.content?.trim();
+          if (text && text.length > 2) {
+            aiResponse = text;
+            logger.info(`[AIChat] ✅ Last resort réussi avec ${lastResortModel}`);
+          }
+        }
+      } catch (lastResortErr) {
+        logger.error(
+          `[AIChat] Last resort échoué: ${lastResortErr instanceof Error ? lastResortErr.message : String(lastResortErr)}`,
+        );
+      }
+    }
+
     // ── Si toujours vide ou erreur, message par défaut ──
     if (
       !aiResponse ||
@@ -2314,6 +2367,58 @@ async function handleDMMessage(
       }
     }
 
+    // ── Dernier recours: reset circuit breakers + appel simple sans tools ──
+    if (
+      !aiResponse ||
+      aiResponse.includes("Le serveur IA a rencontré un problème") ||
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated")
+    ) {
+      logger.warn(`[DM] Tous les fallbacks échoués — last resort: reset + appel simple sans tools`);
+      ensureAtLeastOneModelAvailable();
+      try {
+        const lastResortModel = getNextAvailableModel() || config.openRouterModel;
+        const lastResortResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: lastResortModel,
+            messages: [
+              {
+                role: "system",
+                content:
+                  config.aiSystemPrompt +
+                  "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
+              },
+              { role: "user", content: dmEnrichedContent.slice(0, 1000) },
+            ],
+            max_tokens: 300,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (lastResortResponse.ok) {
+          const data = (await lastResortResponse.json()) as {
+            choices?: Array<{ message?: { content?: string } }>;
+          };
+          const text = data.choices?.[0]?.message?.content?.trim();
+          if (text && text.length > 2) {
+            aiResponse = text;
+            logger.info(`[DM] ✅ Last resort réussi avec ${lastResortModel}`);
+          }
+        }
+      } catch (lastResortErr) {
+        logger.error(
+          `[DM] Last resort échoué: ${lastResortErr instanceof Error ? lastResortErr.message : String(lastResortErr)}`,
+        );
+      }
+    }
+
     // ── Si toujours vide ou erreur, message par défaut ──
     if (
       !aiResponse ||
@@ -2324,7 +2429,7 @@ async function handleDMMessage(
       aiResponse.includes("Circuit breaker activated")
     ) {
       aiResponse =
-        "⚠️ Je n’ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
+        "⚠️ Je n'ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
@@ -2454,54 +2559,6 @@ async function handleAutoTranslation(
     logger.debug(
       `[AutoTranslate] Erreur: ${error instanceof Error ? error.message : String(error)}`,
     );
-  }
-}
-
-async function handleContextualAiChat(
-  message: OmitPartialGroupDMChannel<Message<boolean>>,
-  client: Client,
-): Promise<void> {
-  try {
-    // ── AI Chat activé PARTOUT — plus besoin d'activer le salon ──
-    if (!message.mentions.has(client.user!)) return;
-
-    let cleanedContent = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "");
-    message.mentions.users.forEach((user) => {
-      if (user.id !== client.user!.id) {
-        cleanedContent = cleanedContent.replace(
-          new RegExp(`<@!?${user.id}>`, "g"),
-          `@${user.username}`,
-        );
-      }
-    });
-
-    cleanedContent = cleanedContent.trim();
-    if (!cleanedContent) return;
-
-    // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
-    if (isCapabilityQuery(cleanedContent)) {
-      const embed = generateCapabilitiesEmbed();
-      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
-      return;
-    }
-
-    // ── Cooldown géré par runAgentLoop (3s par user) ──
-
-    // ── TOUS les messages vont à l'IA, peu importe le contenu ou la langue ──
-    await simulateHumanTyping(message.channel as TextChannel, cleanedContent.length);
-    const reply = await chatWithHistory(
-      message.channelId,
-      cleanedContent,
-      message.author.username,
-      message.guildId || undefined,
-    );
-    await sendMultiMessage(
-      message.channel as TextChannel,
-      reply.slice(0, 2000),
-      message as Message,
-    );
-  } catch (err) {
-    logger.error("[AIChat] Erreur contextuelle:", err);
   }
 }
 

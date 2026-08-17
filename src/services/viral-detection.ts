@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import Parser from "rss-parser";
@@ -25,7 +26,7 @@ class ViralDetectionService {
     if (apiKey) {
       this.openai = new OpenAI({
         apiKey,
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: config.openRouterBaseUrl,
       });
       logger.info("[ViralDetection] Service initialisé avec OpenRouter");
     } else {

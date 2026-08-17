@@ -224,7 +224,7 @@ Règles :
 - Relations possibles : joue_sur, aime, deteste, connait, prefere, possede, joue_a, parle_de, interesse_a
 - Ignore les salutations. Si rien d'important, retourne {"facts": [], "links": []}.`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

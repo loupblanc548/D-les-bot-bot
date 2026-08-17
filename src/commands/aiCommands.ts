@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 /**
  * aiCommands.ts — Configuration IA
  *
@@ -66,7 +67,7 @@ async function _generateAIResponse(prompt: string, maxTokens: number = 500): Pro
   if (!apiKey) return "API IA non configurée. Configurez OPENROUTER_API_KEY.";
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

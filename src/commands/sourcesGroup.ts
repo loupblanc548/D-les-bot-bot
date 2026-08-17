@@ -98,24 +98,44 @@ export const commands = [
       sc
         .setName("source-edit")
         .setDescription("Modifier une source existante")
-        .addStringOption((o) => o.setName("handle").setDescription("Handle de la source").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("handle").setDescription("Handle de la source").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("nouveau_handle").setDescription("Nouvel handle ou URL").setRequired(false),
+        )
+        .addChannelOption((o) =>
+          o.setName("salon").setDescription("Nouveau salon").setRequired(false),
+        ),
     )
     .addSubcommand((sc) =>
       sc
         .setName("source-test")
         .setDescription("Tester une source")
-        .addStringOption((o) => o.setName("handle").setDescription("Handle de la source").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("handle").setDescription("Handle de la source").setRequired(true),
+        ),
     )
     .addSubcommand((sc) => sc.setName("source-logs").setDescription("Logs des sources"))
-    .addSubcommand((sc) => sc.setName("source-pause-all").setDescription("Mettre toutes les sources en pause"))
-    .addSubcommand((sc) => sc.setName("source-resume-all").setDescription("Reprendre toutes les sources"))
-    .addSubcommand((sc) => sc.setName("source-health").setDescription("Sant\u00e9 des sources (uptime, erreurs)"))
-    .addSubcommand((sc) => sc.setName("source-export").setDescription("Exporter la configuration des sources"))
+    .addSubcommand((sc) =>
+      sc.setName("source-pause-all").setDescription("Mettre toutes les sources en pause"),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("source-resume-all").setDescription("Reprendre toutes les sources"),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("source-health").setDescription("Sant\u00e9 des sources (uptime, erreurs)"),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("source-export").setDescription("Exporter la configuration des sources"),
+    )
     .addSubcommand((sc) =>
       sc
         .setName("source-import")
         .setDescription("Importer une configuration de sources")
-        .addStringOption((o) => o.setName("json").setDescription("Configuration JSON").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("json").setDescription("Configuration JSON").setRequired(true),
+        ),
     )
     .toJSON(),
 ];
@@ -156,7 +176,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleMaintenance(interaction, dc);
   } else {
     // Try existing handlers, then stub
-    const existingSubs = ["add","remove","list","pause"];
+    const existingSubs = ["add", "remove", "list", "pause"];
     if (existingSubs.includes(action)) {
       await handleAdmin(interaction);
     } else {

@@ -29,6 +29,8 @@ import { config } from "./config.js";
 import { getFortniteState } from "./services/fortnite-broadcast.js";
 import { handleWebhookRequest } from "./services/webhookTriggers.js";
 import { handleWebhook as handleSecureWebhook } from "./services/webhookReceiver.js";
+import { analyzeImage } from "./services/googleCloudServices.js";
+import { isLowRisk, getRiskLevel } from "./services/toolRiskRegistry.js";
 
 let server: http.Server | null = null;
 let wss: WebSocketServer | null = null;
@@ -72,20 +74,19 @@ console.warn = (...args: unknown[]) => {
 
 function authCheck(req: http.IncomingMessage): boolean {
   const token = config.controlToken;
+  // Fail closed in every environment. A control API without a token is an
+  // unauthenticated administrative API, even when bound to localhost.
   if (!token) {
-    if (process.env.NODE_ENV === "production") {
-      logger.error("[ControlServer] CONTROL_TOKEN non défini — accès refusé en production");
-      return false;
-    }
-    logger.warn(
-      "[ControlServer] CONTROL_TOKEN non défini — accès ouvert (développement uniquement)",
-    );
-    return true;
+    logger.error("[ControlServer] CONTROL_TOKEN non défini — accès refusé");
+    return false;
   }
-  const auth = req.headers.authorization?.replace("Bearer ", "");
-  if (!auth) return false;
-  if (auth.length !== token.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(token));
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return false;
+  const presented = auth.slice("Bearer ".length);
+  const presentedBuf = Buffer.from(presented);
+  const expectedBuf = Buffer.from(token);
+  if (presentedBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(presentedBuf, expectedBuf);
 }
 
 const ctrlRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -593,17 +594,29 @@ export async function startControlServer(port: number, client: Client): Promise<
 
       if (path === "/api/studio/analyze" && req.method === "POST") {
         try {
-          await readBody(req);
-          // Placeholder — would integrate Google Vision API
+          const body = await readBody(req);
+          const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() : undefined;
+          const imageBase64 =
+            typeof body.imageBase64 === "string" ? body.imageBase64.trim() : undefined;
+          if (!imageUrl && !imageBase64) {
+            sendJson(res, 400, { error: "imageUrl ou imageBase64 requis" });
+            return;
+          }
+          const result = await analyzeImage(imageUrl, imageBase64);
           sendJson(res, 200, {
-            text: "",
-            labels: [],
-            faces: 0,
+            text: result.text,
+            labels: result.labels,
+            faces: result.faces.length,
+            logos: result.logos,
+            safeSearch: result.safeSearch,
+            isUnsafe: result.isUnsafe,
             colors: [],
-            note: "Studio analyze endpoint — connect Google Vision API for full features",
           });
-        } catch {
-          sendJson(res, 200, { text: "", labels: [], faces: 0, colors: [] });
+        } catch (error) {
+          sendJson(res, 502, {
+            error: "Analyse Vision indisponible",
+            details: error instanceof Error ? error.message : String(error),
+          });
         }
         return;
       }
@@ -1004,7 +1017,18 @@ export async function startControlServer(port: number, client: Client): Promise<
             return;
           }
 
-          const { executeTool } = await import("./services/agentTools.js");
+          const { ALL_AGENT_TOOLS, executeTool } = await import("./services/agentTools.js");
+          const knownTool = ALL_AGENT_TOOLS.some((tool: any) => tool.function?.name === toolName);
+          const risk = getRiskLevel(toolName);
+          if (!knownTool || !risk || !isLowRisk(toolName)) {
+            sendJson(res, 403, {
+              error: "Tool refusé",
+              details: !knownTool
+                ? "Tool inconnu"
+                : `Tool ${toolName} nécessite une validation et ne peut pas être exécuté directement par cette API`,
+            });
+            return;
+          }
           const sessionId = (body.sessionId as string) || "api-default";
           const ctx = {
             client: client,
@@ -1175,9 +1199,9 @@ export async function startControlServer(port: number, client: Client): Promise<
     const token = url.searchParams.get("token") || "";
     const expectedToken = config.controlToken;
     if (
-      expectedToken &&
-      (token.length !== expectedToken.length ||
-        !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken)))
+      !expectedToken ||
+      token.length !== expectedToken.length ||
+      !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))
     ) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();

@@ -5,12 +5,11 @@ let isSending = false;
 let allTools = [];
 
 async function api(path, options = {}) {
-  const token = sessionToken || localStorage.getItem("sb_session");
   const res = await fetch(`/api${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -70,36 +69,14 @@ function toast(msg, isError = false) {
 // ─── Init ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  const params = new URLSearchParams(window.location.search);
-  const tokenParam = params.get("token");
-  if (tokenParam) {
-    sessionToken = tokenParam;
-    window.history.replaceState({}, document.title, "/");
-    try {
-      await loadUser();
-      showScreen("main-screen");
-      showView("chat");
-      return;
-    } catch {
-      localStorage.removeItem("sb_session");
-      sessionToken = null;
-    }
+  try {
+    await loadUser();
+    showScreen("main-screen");
+    showView("chat");
+    return;
+  } catch {
+    sessionToken = null;
   }
-
-  const stored = localStorage.getItem("sb_session");
-  if (stored) {
-    sessionToken = stored;
-    try {
-      await loadUser();
-      showScreen("main-screen");
-      showView("chat");
-      return;
-    } catch {
-      localStorage.removeItem("sb_session");
-      sessionToken = null;
-    }
-  }
-
   showScreen("login-screen");
 }
 
@@ -109,11 +86,11 @@ document.getElementById("login-btn").addEventListener("click", () => {
 
 async function loadUser() {
   const user = await api("/user");
-  localStorage.setItem("sb_session", sessionToken);
   const avatarEl = document.getElementById("user-avatar");
   const nameEl = document.getElementById("user-name");
   if (user.avatarUrl) avatarEl.src = user.avatarUrl;
-  else if (user.avatar) avatarEl.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`;
+  else if (user.avatar)
+    avatarEl.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`;
   else avatarEl.style.display = "none";
   nameEl.textContent = user.globalName || user.username || "User";
 }
@@ -263,23 +240,30 @@ async function loadTools() {
 function renderTools(tools) {
   const grid = document.getElementById("tools-grid");
   if (!tools.length) {
-    grid.innerHTML = "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun outil trouvé</p>";
+    grid.innerHTML =
+      "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun outil trouvé</p>";
     return;
   }
-  grid.innerHTML = tools.map((t) => `
+  grid.innerHTML = tools
+    .map(
+      (t) => `
     <div class="tool-card">
       <div class="tool-card-name">${escapeHtml(t.name || "unknown")}</div>
       <div class="tool-card-desc">${escapeHtml((t.description || "").slice(0, 120))}</div>
       <span class="tool-card-type ${t.type}">${t.type}</span>
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
 }
 
 document.getElementById("tools-search").addEventListener("input", (e) => {
   const q = e.target.value.toLowerCase();
-  renderTools(allTools.filter((t) =>
-    (t.name || "").toLowerCase().includes(q) ||
-    (t.description || "").toLowerCase().includes(q)
-  ));
+  renderTools(
+    allTools.filter(
+      (t) =>
+        (t.name || "").toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q),
+    ),
+  );
 });
 
 // ─── Servers ────────────────────────────────────────────────────────────────
@@ -290,15 +274,18 @@ async function loadServers() {
     const guilds = data.guilds || data;
     const grid = document.getElementById("servers-grid");
     if (!guilds.length) {
-      grid.innerHTML = "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun serveur trouvé</p>";
+      grid.innerHTML =
+        "<p style='color: var(--text-muted); grid-column: 1/-1; text-align: center;'>Aucun serveur trouvé</p>";
       return;
     }
-    grid.innerHTML = guilds.map((g) => {
-      const icon = g.icon
-        ? `<img class="server-card-icon" src="${escapeHtml(g.icon)}" alt="">`
-        : `<div class="server-card-placeholder">🏰</div>`;
-      return `<div class="server-card">${icon}<div class="server-card-info"><div class="server-card-name">${escapeHtml(g.name)}</div><div class="server-card-status"><span class="status-dot ${g.botPresent ? "online" : "offline"}"></span><span>${g.botPresent ? "Bot en ligne" : "Bot absent"}</span></div></div></div>`;
-    }).join("");
+    grid.innerHTML = guilds
+      .map((g) => {
+        const icon = g.icon
+          ? `<img class="server-card-icon" src="${escapeHtml(g.icon)}" alt="">`
+          : `<div class="server-card-placeholder">🏰</div>`;
+        return `<div class="server-card">${icon}<div class="server-card-info"><div class="server-card-name">${escapeHtml(g.name)}</div><div class="server-card-status"><span class="status-dot ${g.botPresent ? "online" : "offline"}"></span><span>${g.botPresent ? "Bot en ligne" : "Bot absent"}</span></div></div></div>`;
+      })
+      .join("");
   } catch (err) {
     document.getElementById("servers-grid").innerHTML =
       `<p style="color: var(--danger); grid-column: 1/-1; text-align: center;">Erreur: ${escapeHtml(err.message)}</p>`;
@@ -330,7 +317,7 @@ function loadSettings() {
   document.getElementById("settings-content").innerHTML = `
     <div class="settings-card">
       <div class="settings-card-title">Compte</div>
-      <div class="form-group"><label class="form-label">Session</label><input class="form-input" value="${escapeHtml(sessionToken || "N/A")}" readonly></div>
+      <div class="form-group"><label class="form-label">Session</label><input class="form-input" value="Cookie HttpOnly sécurisée" readonly></div>
       <div class="form-group"><label class="form-label">Control Server</label><input class="form-input" value="http://${window.location.hostname}:3002" readonly></div>
     </div>
     <div class="settings-card">
@@ -344,8 +331,9 @@ function loadSettings() {
 // ─── Logout ─────────────────────────────────────────────────────────────────
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
-  try { await api("/auth/logout", { method: "GET" }); } catch {}
-  localStorage.removeItem("sb_session");
+  try {
+    await api("/auth/logout", { method: "GET" });
+  } catch {}
   sessionToken = null;
   showScreen("login-screen");
 });
@@ -354,8 +342,12 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 
 function escapeHtml(str) {
   if (!str) return "";
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // ─── Fortnite ───────────────────────────────────────────────────────────────
@@ -488,21 +480,33 @@ async function fortniteLogout() {
 function renderMarkdown(text) {
   let html = escapeHtml(text);
   // Code blocks
-  html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
-    `<pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:0.8rem;overflow-x:auto;margin:0.5rem 0;font-family:var(--font-mono);font-size:0.82rem;color:var(--accent-light);">${code.trim()}</pre>`);
+  html = html.replace(
+    /```([\s\S]*?)```/g,
+    (_, code) =>
+      `<pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:0.8rem;overflow-x:auto;margin:0.5rem 0;font-family:var(--font-mono);font-size:0.82rem;color:var(--accent-light);">${code.trim()}</pre>`,
+  );
   // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:0.1rem 0.35rem;font-family:var(--font-mono);font-size:0.82em;color:var(--accent-light);">$1</code>');
+  html = html.replace(
+    /`([^`]+)`/g,
+    '<code style="background:var(--bg-input);border:1px solid var(--border);border-radius:4px;padding:0.1rem 0.35rem;font-family:var(--font-mono);font-size:0.82em;color:var(--accent-light);">$1</code>',
+  );
   // Bold
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   // Italic
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-light);text-decoration:none;border-bottom:1px solid var(--accent-glow);">$1</a>');
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" style="color:var(--accent-light);text-decoration:none;border-bottom:1px solid var(--accent-glow);">$1</a>',
+  );
   // Bullet lists
   html = html.replace(/^• (.+)$/gm, '<li style="margin-left:1.2rem;list-style:disc;">$1</li>');
-  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul style="margin:0.4rem 0;padding-left:0.5rem;">${m}</ul>`);
+  html = html.replace(
+    /(<li[^>]*>.*<\/li>\n?)+/g,
+    (m) => `<ul style="margin:0.4rem 0;padding-left:0.5rem;">${m}</ul>`,
+  );
   // Line breaks
-  html = html.replace(/\n/g, '<br>');
+  html = html.replace(/\n/g, "<br>");
   return html;
 }
 
@@ -518,9 +522,9 @@ function animateValue(el, start, end, duration = 800) {
     const progress = Math.min(elapsed / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = start + range * eased;
-    el.textContent = isFloat ? current.toFixed(1) : Math.floor(current).toLocaleString('fr-FR');
+    el.textContent = isFloat ? current.toFixed(1) : Math.floor(current).toLocaleString("fr-FR");
     if (progress < 1) requestAnimationFrame(update);
-    else el.textContent = isFloat ? end.toFixed(1) : end.toLocaleString('fr-FR');
+    else el.textContent = isFloat ? end.toFixed(1) : end.toLocaleString("fr-FR");
   }
   requestAnimationFrame(update);
 }
@@ -540,9 +544,30 @@ const cmdCommands = [
   { icon: "📊", title: "Statistiques", desc: "stats", action: () => switchToView("stats") },
   { icon: "🎮", title: "Fortnite Bot", desc: "fortnite", action: () => switchToView("fortnite") },
   { icon: "⚙️", title: "Paramètres", desc: "settings", action: () => switchToView("settings") },
-  { icon: "🗑️", title: "Effacer le chat", desc: "chat clear", action: () => { switchToView("chat"); document.getElementById("chat-clear").click(); } },
-  { icon: "🔄", title: "Recharger les outils", desc: "tools reload", action: () => { switchToView("tools"); loadTools(); } },
-  { icon: "🔌", title: "Se déconnecter", desc: "logout", action: () => document.getElementById("logout-btn").click() },
+  {
+    icon: "🗑️",
+    title: "Effacer le chat",
+    desc: "chat clear",
+    action: () => {
+      switchToView("chat");
+      document.getElementById("chat-clear").click();
+    },
+  },
+  {
+    icon: "🔄",
+    title: "Recharger les outils",
+    desc: "tools reload",
+    action: () => {
+      switchToView("tools");
+      loadTools();
+    },
+  },
+  {
+    icon: "🔌",
+    title: "Se déconnecter",
+    desc: "logout",
+    action: () => document.getElementById("logout-btn").click(),
+  },
 ];
 
 function switchToView(view) {
@@ -555,21 +580,28 @@ function switchToView(view) {
 function renderCmdResults(query) {
   const q = query.toLowerCase().trim();
   cmdItems = q
-    ? cmdCommands.filter((c) => c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q))
+    ? cmdCommands.filter(
+        (c) => c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q),
+      )
     : cmdCommands;
   cmdSelectedIndex = -1;
 
   if (!cmdItems.length) {
-    cmdResults.innerHTML = '<div class="cmd-palette-item" style="color:var(--text-muted);justify-content:center;">Aucun résultat</div>';
+    cmdResults.innerHTML =
+      '<div class="cmd-palette-item" style="color:var(--text-muted);justify-content:center;">Aucun résultat</div>';
     return;
   }
 
-  cmdResults.innerHTML = cmdItems.map((c, i) =>
-    `<div class="cmd-palette-item${i === 0 ? ' selected' : ''}" data-index="${i}">
+  cmdResults.innerHTML = cmdItems
+    .map(
+      (c, i) =>
+        `<div class="cmd-palette-item${i === 0 ? " selected" : ""}" data-index="${i}">
       <span class="cmd-palette-item-icon">${c.icon}</span>
       <span class="cmd-palette-item-title">${escapeHtml(c.title)}</span>
       <span class="cmd-palette-item-desc">${escapeHtml(c.desc)}</span>
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
 
   cmdSelectedIndex = 0;
   cmdResults.querySelectorAll(".cmd-palette-item").forEach((el) => {
@@ -607,10 +639,16 @@ cmdInput.addEventListener("input", (e) => renderCmdResults(e.target.value));
 cmdInput.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    if (cmdSelectedIndex < cmdItems.length - 1) { cmdSelectedIndex++; updateCmdSelection(); }
+    if (cmdSelectedIndex < cmdItems.length - 1) {
+      cmdSelectedIndex++;
+      updateCmdSelection();
+    }
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
-    if (cmdSelectedIndex > 0) { cmdSelectedIndex--; updateCmdSelection(); }
+    if (cmdSelectedIndex > 0) {
+      cmdSelectedIndex--;
+      updateCmdSelection();
+    }
   } else if (e.key === "Enter") {
     e.preventDefault();
     if (cmdItems[cmdSelectedIndex]) {
@@ -668,7 +706,7 @@ setInterval(pollConnection, 30000);
 // ─── Enhanced Chat Rendering with Markdown ───────────────────────────────────
 
 const _originalAddChatMessage = addChatMessage;
-addChatMessage = function(role, content) {
+addChatMessage = function (role, content) {
   const msg = document.createElement("div");
   msg.className = `chat-msg ${role}`;
   const avatar = document.createElement("div");
@@ -690,7 +728,7 @@ addChatMessage = function(role, content) {
 // ─── Enhanced Stats with Animated Counters ───────────────────────────────────
 
 const _originalLoadStats = loadStats;
-loadStats = async function() {
+loadStats = async function () {
   const content = document.getElementById("stats-content");
   try {
     const stats = await api("/bot/stats");

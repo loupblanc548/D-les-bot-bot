@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 /**
  * aiSpamDetector.ts — Détecte le spam avec embeddings (pas juste regex)
  *
@@ -55,7 +56,7 @@ async function detectSpamWithAI(
   if (!apiKey) return { isSpam: false, confidence: 0, reason: "no API key" };
 
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

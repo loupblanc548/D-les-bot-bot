@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 /**
  * ai-sdk-wrapper.ts — Unified LLM interface using Vercel AI SDK
  *
@@ -19,7 +20,7 @@ let anthropicProvider: ReturnType<typeof createAnthropic> | null = null;
 function getOpenAIProvider() {
   if (!openaiProvider) {
     openaiProvider = createOpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
+      baseURL: config.openRouterBaseUrl,
       apiKey: process.env.OPENROUTER_API_KEY || "",
       name: "openrouter",
     });

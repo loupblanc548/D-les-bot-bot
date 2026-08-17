@@ -318,7 +318,11 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
           myMemoryCalled = true;
           throw new Error("MyMemory should NOT be called");
         }
-        if (urlStr.includes("openrouter")) {
+        if (
+          urlStr.includes("openrouter") ||
+          urlStr.includes("nvidia") ||
+          urlStr.includes("integrate.api")
+        ) {
           openRouterCalled = true;
           return {
             ok: true,

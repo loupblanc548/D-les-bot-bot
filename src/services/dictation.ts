@@ -33,7 +33,7 @@ const activeSessions = new Map<string, DictationSession>();
 
 function getOpenAIClient(): OpenAI {
   return new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
+    baseURL: config.openRouterBaseUrl,
     apiKey: config.openRouterApiKey,
     defaultHeaders: {
       "HTTP-Referer": "https://discord.com",

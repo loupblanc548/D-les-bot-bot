@@ -44,6 +44,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "production") {
   );
 }
 const SESSION_COOKIE_NAME = "sb_session";
+const OAUTH_STATE_COOKIE_NAME = "sb_oauth_state";
 
 // ─── Rate limiting (simple in-memory) ─────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -120,7 +121,10 @@ function authRequired(
   next: express.NextFunction,
 ): void {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.replace("Bearer ", "") || req.cookies?.[SESSION_COOKIE_NAME];
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : undefined;
+  const token = bearerToken || req.cookies?.[SESSION_COOKIE_NAME];
 
   if (!token) {
     res.status(401).json({ error: "Non authentifié" });
@@ -149,6 +153,30 @@ export async function startDashboardServer(port: number): Promise<number> {
     }),
   );
   app.use(express.json({ limit: "1mb" }));
+
+  // Reject cross-site state-changing requests when authentication is cookie-based.
+  app.use("/api", (req, res, next) => {
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+      next();
+      return;
+    }
+    const origin = req.headers.origin || req.headers.referer;
+    const allowed = process.env.DASHBOARD_CORS_ORIGIN || "http://localhost:3721";
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const allowedUrl = new URL(allowed);
+        if (originUrl.origin !== allowedUrl.origin) {
+          res.status(403).json({ error: "Origine refusée" });
+          return;
+        }
+      } catch {
+        res.status(403).json({ error: "Origine refusée" });
+        return;
+      }
+    }
+    next();
+  });
 
   // Security headers (helmet + custom)
   app.use(
@@ -190,13 +218,29 @@ export async function startDashboardServer(port: number): Promise<number> {
   // ─── Routes OAuth2 ─────────────────────────────────────────────────────────
 
   app.get("/api/auth/discord", (_req, res) => {
-    res.redirect(OAUTH_URL);
+    const state = crypto.randomBytes(32).toString("hex");
+    res.cookie(OAUTH_STATE_COOKIE_NAME, state, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 10 * 60 * 1000,
+      path: "/api/auth",
+    });
+    const oauthUrl = `${OAUTH_URL}&state=${encodeURIComponent(state)}`;
+    res.redirect(oauthUrl);
   });
 
   app.get("/api/auth/callback", async (req, res) => {
     const code = req.query.code as string;
-    if (!code) {
-      res.status(400).send("Code manquant");
+    const returnedState = typeof req.query.state === "string" ? req.query.state : "";
+    const expectedState = (req as any).cookies?.[OAUTH_STATE_COOKIE_NAME] || "";
+    if (
+      !code ||
+      !expectedState ||
+      returnedState.length !== expectedState.length ||
+      !crypto.timingSafeEqual(Buffer.from(returnedState), Buffer.from(expectedState))
+    ) {
+      res.status(400).send("Requête OAuth invalide");
       return;
     }
 
@@ -216,7 +260,10 @@ export async function startDashboardServer(port: number): Promise<number> {
         },
       );
 
-      const { access_token, _refresh_token } = tokenResponse.data;
+      const { access_token } = tokenResponse.data as { access_token?: string };
+      if (!access_token) {
+        throw new Error("Access token Discord absent");
+      }
 
       // Récupérer le profil utilisateur
       const userResponse = await axios.get<DiscordUser>(`${DISCORD_API}/users/@me`, {
@@ -226,8 +273,17 @@ export async function startDashboardServer(port: number): Promise<number> {
       const user = userResponse.data;
       const sessionToken = createSessionToken(user.id, access_token);
 
-      // Rediriger vers le frontend avec le token
-      res.redirect(`/?token=${sessionToken}`);
+      // Keep the session out of the URL and JavaScript storage. The cookie is
+      // HttpOnly so a frontend XSS cannot directly exfiltrate the Discord token.
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+      res.clearCookie(OAUTH_STATE_COOKIE_NAME, { path: "/api/auth" });
+      res.redirect("/");
     } catch (error) {
       logger.error("[Dashboard] Erreur OAuth2 callback:", error);
       res.status(500).send("Erreur d'authentification Discord");
@@ -466,7 +522,7 @@ export async function startDashboardServer(port: number): Promise<number> {
     server.on("error", (err: any) => {
       if (err.code === "EADDRINUSE") {
         logger.warn(`[Dashboard] Port ${port} occupé, essai ${port + 1}`);
-        const _server2 = app.listen(port + 1, () => resolve(port + 1));
+        app.listen(port + 1, () => resolve(port + 1));
       } else {
         logger.error("[Dashboard] Erreur serveur:", err);
       }

@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import logger from "../utils/logger.js";
 import Parser from "rss-parser";
 import { OpenAI } from "openai";
@@ -27,7 +28,7 @@ class AIPredictionService {
     if (apiKey) {
       this.openai = new OpenAI({
         apiKey,
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: config.openRouterBaseUrl,
       });
       logger.info("[AIPrediction] Service initialisé avec OpenRouter");
     } else {
@@ -40,7 +41,7 @@ class AIPredictionService {
    */
   addHistoricalData(pattern: DealPattern): void {
     this.historicalData.push(pattern);
-    
+
     // Garder seulement les MAX_HISTORY dernières entrées
     if (this.historicalData.length > this.MAX_HISTORY) {
       this.historicalData = this.historicalData.slice(-this.MAX_HISTORY);
@@ -51,15 +52,19 @@ class AIPredictionService {
    * Analyse les tendances historiques
    */
   private analyzeHistoricalTrends(): string {
-    const platformCounts = this.historicalData.reduce((acc, deal) => {
-      acc[deal.platform] = (acc[deal.platform] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const platformCounts = this.historicalData.reduce(
+      (acc, deal) => {
+        acc[deal.platform] = (acc[deal.platform] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    const avgPrice = this.historicalData.reduce((sum, deal) => sum + deal.price, 0) / this.historicalData.length;
-    
+    const avgPrice =
+      this.historicalData.reduce((sum, deal) => sum + deal.price, 0) / this.historicalData.length;
+
     const recentDeals = this.historicalData.slice(-10);
-    const recentPlatforms = recentDeals.map(d => d.platform).join(", ");
+    const recentPlatforms = recentDeals.map((d) => d.platform).join(", ");
 
     return `
 Historique des ${this.historicalData.length} dernières offres :
@@ -93,7 +98,7 @@ Historique des ${this.historicalData.length} dernières offres :
 
     try {
       const trends = this.analyzeHistoricalTrends();
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDate = new Date().toISOString().split("T")[0];
 
       const prompt = `
 En tant qu'expert en gaming et offres digitales, analyse ces données historiques et prédis les 3-5 prochaines offres gratuites ou réductions importantes qui pourraient apparaître dans les 7 prochains jours.
@@ -122,7 +127,8 @@ Fournis ta réponse au format JSON :
         messages: [
           {
             role: "system",
-            content: "Tu es un expert en gaming et analyse de tendances de offres digitales. Réponds uniquement en JSON valide.",
+            content:
+              "Tu es un expert en gaming et analyse de tendances de offres digitales. Réponds uniquement en JSON valide.",
           },
           {
             role: "user",
@@ -142,7 +148,6 @@ Fournis ta réponse au format JSON :
         reasoning: parsed.overallReasoning || "Pas de raisonnement disponible",
         nextCheckDate: new Date(Date.now() + 86400000), // 24h
       };
-
     } catch (error) {
       logger.error("[AIPrediction] Erreur lors de la prédiction:", error);
       return {
@@ -179,7 +184,6 @@ Fournis ta réponse au format JSON :
       }
 
       logger.info(`[AIPrediction] ${feed.items.length} items analysés depuis ${feedUrl}`);
-
     } catch (error) {
       logger.error(`[AIPrediction] Erreur lors de l'analyse de ${feedUrl}:`, error);
     }
@@ -192,7 +196,8 @@ Fournis ta réponse au format JSON :
     const lower = title.toLowerCase();
     if (lower.includes("epic") || lower.includes("epic games")) return "Epic Games";
     if (lower.includes("steam")) return "Steam";
-    if (lower.includes("playstation") || lower.includes("ps4") || lower.includes("ps5")) return "PlayStation";
+    if (lower.includes("playstation") || lower.includes("ps4") || lower.includes("ps5"))
+      return "PlayStation";
     if (lower.includes("xbox")) return "Xbox";
     if (lower.includes("nintendo") || lower.includes("switch")) return "Nintendo";
     return "Unknown";
@@ -218,14 +223,19 @@ Fournis ta réponse au format JSON :
     averagePrice: number;
     recentActivity: DealPattern[];
   } {
-    const platformDistribution = this.historicalData.reduce((acc, deal) => {
-      acc[deal.platform] = (acc[deal.platform] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const platformDistribution = this.historicalData.reduce(
+      (acc, deal) => {
+        acc[deal.platform] = (acc[deal.platform] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    const averagePrice = this.historicalData.length > 0
-      ? this.historicalData.reduce((sum, deal) => sum + deal.price, 0) / this.historicalData.length
-      : 0;
+    const averagePrice =
+      this.historicalData.length > 0
+        ? this.historicalData.reduce((sum, deal) => sum + deal.price, 0) /
+          this.historicalData.length
+        : 0;
 
     return {
       totalDeals: this.historicalData.length,

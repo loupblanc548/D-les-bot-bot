@@ -1,5 +1,6 @@
 import logger from "./logger.js";
 import { detectLanguage, type SupportedLang } from "./languageDetector.js";
+import { config } from "../config.js";
 
 /**
  * Service de traduction intelligent avec Circuit Breaker (Disjoncteur réseau)
@@ -418,7 +419,8 @@ async function translateWithOpenRouter(
         await new Promise((r) => setTimeout(r, delay));
       }
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const baseUrl = config.openRouterBaseUrl || "https://openrouter.ai/api/v1";
+      const response = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -427,7 +429,7 @@ async function translateWithOpenRouter(
           "X-Title": "Discord Translation Bot",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
+          model: config.openRouterModel || "meta/llama-3.3-70b-instruct",
           messages: [
             {
               role: "system",

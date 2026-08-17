@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 /**
  * autoTranslate.ts — Détecte et traduit automatiquement les messages
  * non-français dans les salons configurés.
@@ -43,7 +44,7 @@ async function translateText(text: string, fromLang: string): Promise<string | n
   if (!apiKey) return null;
 
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

@@ -1,3 +1,4 @@
+import { config } from "../../config.js";
 import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
 import logger from "../../utils/logger.js";
 import { ensureConnected } from "../../utils/redisClient.js";
@@ -104,7 +105,7 @@ async function fetchOpenRouter(
   try {
     const messages = [{ role: "system", content: systemPrompt }, ...context];
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,

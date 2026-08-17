@@ -360,6 +360,47 @@ export function getAvailableFreeModels(): string[] {
 }
 
 /**
+ * Reset ALL circuit breakers and cooldowns. Use when every model is blocked
+ * to give them a fresh chance instead of returning "all models unavailable".
+ */
+export function resetAllCircuitBreakers(): void {
+  let resetCount = 0;
+  for (const [name, health] of modelHealth) {
+    if (health.circuitState !== "closed" || health.rateLimitedUntil > Date.now()) {
+      health.circuitState = "closed";
+      health.failures = 0;
+      health.rateLimitedUntil = 0;
+      health.circuitOpenedAt = 0;
+      health.halfOpenAttempts = 0;
+      resetCount++;
+    }
+  }
+  if (resetCount > 0) {
+    logger.info(
+      `[ModelRotation] 🔄 Reset ${resetCount} circuit breaker(s) — all models were in cooldown`,
+    );
+  }
+}
+
+/**
+ * Check if all known models are unavailable (circuit open or rate-limited).
+ * If so, reset all circuit breakers and return true.
+ * Returns false if at least one model is available.
+ */
+export function ensureAtLeastOneModelAvailable(): boolean {
+  const allModels = [...getCandidateModels(), ...CHEAP_FALLBACK_MODELS];
+  const anyAvailable = allModels.some((m) => canUseModel(m));
+  if (!anyAvailable) {
+    logger.warn(
+      `[ModelRotation] ⚠️ All ${allModels.length} models in cooldown — resetting circuit breakers`,
+    );
+    resetAllCircuitBreakers();
+    return true; // we reset, now models should be available
+  }
+  return false;
+}
+
+/**
  * Retourne la liste des modèles bon marché disponibles (backup)
  */
 export function getAvailableCheapModels(): string[] {

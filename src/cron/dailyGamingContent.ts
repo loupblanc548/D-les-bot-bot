@@ -22,7 +22,7 @@ async function generateAIContent(prompt: string, maxTokens: number = 300): Promi
   if (!apiKey) return "API IA non configurée.";
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -57,7 +57,8 @@ async function generateAIContent(prompt: string, maxTokens: number = 300): Promi
 
 async function postDailyContent(client: Client): Promise<void> {
   // Poster dans le salon gaming dédié, PAS dans le salon log
-  const channelId = process.env.GAMING_CHANNEL_ID || config.gamingBlogChannel || config.steamEpicChannel;
+  const channelId =
+    process.env.GAMING_CHANNEL_ID || config.gamingBlogChannel || config.steamEpicChannel;
   if (!channelId) {
     logger.warn("[DailyGaming] Aucun salon gaming configuré — contenu ignoré");
     return;

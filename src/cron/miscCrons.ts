@@ -85,7 +85,7 @@ export async function runAiServerHealth(client: Client): Promise<void> {
 
     const statsText = `Serveurs: ${guildCount}, Membres: ${totalMembers}, Logs 24h: ${totalLogs}, Events sécurité: ${securityLogs}, Sanctions: ${modLogs}, Notifications: ${totalNotifications}`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

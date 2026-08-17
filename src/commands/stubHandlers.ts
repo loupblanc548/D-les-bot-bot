@@ -65,6 +65,45 @@ import { listModels } from "../services/modelSelector.js";
 import { getUsageStats, getGlobalStats } from "../services/tokenTracker.js";
 import { generateUserSummary, generateUserEmbed } from "../services/userSummary.js";
 import { sendPaginatedEmbed } from "../services/paginationUtil.js";
+import { safeFetch } from "../utils/ssrfGuard.js";
+
+async function readSetting(guildId: string, key: string): Promise<string | null> {
+  try {
+    const setting = await prisma.setting.findUnique({ where: { guildId_key: { guildId, key } } });
+    return setting?.value ?? null;
+  } catch (error) {
+    logger.warn(
+      `[stubHandlers] read setting ${key}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
+}
+
+async function writeSetting(guildId: string, key: string, value: string): Promise<void> {
+  await prisma.setting.upsert({
+    where: { guildId_key: { guildId, key } },
+    create: { guildId, key, value },
+    update: { value },
+  });
+}
+
+async function readJsonSetting<T>(guildId: string, key: string, fallback: T): Promise<T> {
+  const raw = await readSetting(guildId, key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function ensureEconomyUser(discordId: string, guildId: string) {
+  return prisma.user.upsert({
+    where: { discordId },
+    create: { discordId, guildId },
+    update: { guildId },
+  });
+}
 
 // ─── Modération étendue ───────────────────────────────────────────────────────
 
@@ -370,21 +409,49 @@ export async function handleSecurityExtra(
   _client: Client,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
+  const guildId = interaction.guildId ?? "global";
   const embed = new EmbedBuilder().setColor(0xe74c3c);
 
   switch (action) {
     case "raid-mode": {
       const duree = interaction.options.getInteger("duree") ?? 30;
+      await prisma.guildConfig.upsert({
+        where: { guildId },
+        create: { guildId, antiRaidEnabled: true },
+        update: { antiRaidEnabled: true },
+      });
+      await writeSetting(
+        guildId,
+        "raid_mode_expires",
+        new Date(Date.now() + duree * 60_000).toISOString(),
+      );
       embed
         .setTitle("🚨 Mode Raid Activé")
-        .setDescription(`Verrouillage total pendant ${duree} minutes.`);
+        .setDescription(`Protection anti-raid activée pour ${duree} minutes.`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
 
     case "lockdown-server": {
       const raison = interaction.options.getString("raison") ?? "Lockdown serveur";
-      embed.setTitle("🔒 Lockdown Serveur").setDescription(`Raison: ${raison}`);
+      let count = 0;
+      for (const channel of interaction.guild?.channels.cache.values() ?? []) {
+        if (channel.type !== ChannelType.GuildText) continue;
+        try {
+          await channel.permissionOverwrites.edit(
+            interaction.guild!.roles.everyone,
+            { SendMessages: false },
+            { reason: raison },
+          );
+          count++;
+        } catch {
+          /* permissions */
+        }
+      }
+      await writeSetting(guildId, "server_lockdown", "true");
+      embed
+        .setTitle("🔒 Lockdown Serveur")
+        .setDescription(`${count} salon(s) verrouillé(s). Raison: ${raison}`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -392,36 +459,59 @@ export async function handleSecurityExtra(
     case "automod-config": {
       const action2 = interaction.options.getString("action", true);
       const filtre = interaction.options.getString("filtre");
+      await prisma.autoModConfig.upsert({
+        where: { guildId },
+        create: { guildId, enabled: action2 !== "off", badwords: filtre ?? "" },
+        update: { enabled: action2 !== "off", badwords: filtre ?? undefined },
+      });
       embed
         .setTitle("⚙️ Automod Config")
-        .setDescription(`Action: ${action2}${filtre ? ` • Filtre: ${filtre}` : ""}`);
+        .setDescription(
+          `Configuration enregistrée: ${action2}${filtre ? ` • Filtre: ${filtre}` : ""}`,
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "automod-status": {
-      embed.setTitle("📊 Statut Automod").setDescription("Système automod actif.");
+      const config = await prisma.autoModConfig.findUnique({ where: { guildId } });
+      embed
+        .setTitle("📊 Statut Automod")
+        .setDescription(
+          config
+            ? `${config.enabled ? "Actif" : "Inactif"}${config.badwords ? ` • filtre: ${config.badwords}` : ""}`
+            : "Non configuré.",
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "invite-block": {
       const action2 = interaction.options.getString("action", true);
-      embed.setTitle("🚫 Blocage d'invitations").setDescription(`Statut: ${action2}`);
+      await writeSetting(guildId, "invite_block", action2);
+      embed
+        .setTitle("🚫 Blocage d'invitations")
+        .setDescription(`Configuration enregistrée: ${action2}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "captcha-config": {
       const action2 = interaction.options.getString("action", true);
-      embed.setTitle("🤖 Captcha Config").setDescription(`Action: ${action2}`);
+      await writeSetting(
+        guildId,
+        "captcha_config",
+        JSON.stringify({ action: action2, updatedBy: interaction.user.id }),
+      );
+      embed.setTitle("🤖 Captcha Config").setDescription(`Configuration enregistrée: ${action2}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "anti-bot": {
       const action2 = interaction.options.getString("action", true);
-      embed.setTitle("🤖 Anti-Bot").setDescription(`Statut: ${action2}`);
+      await writeSetting(guildId, "anti_bot", action2);
+      embed.setTitle("🤖 Anti-Bot").setDescription(`Configuration enregistrée: ${action2}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -429,6 +519,12 @@ export async function handleSecurityExtra(
     case "logging-config": {
       const event = interaction.options.getString("event", true);
       const salon = interaction.options.getChannel("salon");
+      if (salon)
+        await prisma.notificationSetting.upsert({
+          where: { guildId_type: { guildId, type: event } },
+          create: { guildId, type: event, channelId: salon.id },
+          update: { channelId: salon.id, enabled: true },
+        });
       embed
         .setTitle("📋 Logging Config")
         .setDescription(`Event: ${event}${salon ? ` → <#${salon.id}>` : ""}`);
@@ -437,13 +533,28 @@ export async function handleSecurityExtra(
     }
 
     case "audit-export": {
-      embed.setTitle("📊 Audit Export").setDescription("Export JSON généré (check logs).");
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      const logs = await prisma.log.findMany({
+        where: { guildId },
+        orderBy: { createdAt: "desc" },
+        take: 500,
+      });
+      await interaction.reply({
+        content: `📊 ${logs.length} événement(s) exporté(s).`,
+        files: [
+          new AttachmentBuilder(Buffer.from(JSON.stringify(logs, null, 2), "utf8"), {
+            name: `audit-${guildId}.json`,
+          }),
+        ],
+        ephemeral: true,
+      });
       break;
     }
 
     case "whitelist-domain": {
-      const domaine = interaction.options.getString("domaine", true);
+      const domaine = interaction.options.getString("domaine", true).toLowerCase();
+      const domains = await readJsonSetting<string[]>(guildId, "whitelist_domains", []);
+      if (!domains.includes(domaine)) domains.push(domaine);
+      await writeSetting(guildId, "whitelist_domains", JSON.stringify(domains));
       embed
         .setTitle("✅ Domaine Whitelisté")
         .setDescription(`\`${domaine}\` ajouté à la whitelist.`);
@@ -711,9 +822,23 @@ export async function handleAdminExtra(
 
     case "role-edit": {
       const role = interaction.options.getRole("rôle", true) as Role;
-      const param = interaction.options.getString("parametre", true);
+      const param = interaction.options.getString("parametre", true).toLowerCase();
       const valeur = interaction.options.getString("valeur", true);
-      embed.setTitle("✅ Rôle modifié").setDescription(`${role.name}: ${param} → ${valeur}`);
+      try {
+        if (param === "name" || param === "nom") await role.setName(valeur);
+        else if (param === "color" || param === "couleur")
+          await role.setColor(valeur as `#${string}`);
+        else if (param === "mentionable")
+          await role.setMentionable(["true", "oui", "on"].includes(valeur.toLowerCase()));
+        else if (param === "hoist")
+          await role.setHoist(["true", "oui", "on"].includes(valeur.toLowerCase()));
+        else throw new Error("Paramètre autorisé: name, color, mentionable, hoist");
+        embed.setTitle("✅ Rôle modifié").setDescription(`${role.name}: ${param} → ${valeur}`);
+      } catch (error) {
+        embed
+          .setTitle("❌ Modification refusée")
+          .setDescription(error instanceof Error ? error.message : String(error));
+      }
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -801,31 +926,62 @@ export async function handleAdminExtra(
 
 export async function handleAlertExtra(
   interaction: ChatInputCommandInteraction,
-  _client: Client,
+  client: Client,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
+  const guildId = interaction.guildId ?? "global";
   const embed = new EmbedBuilder().setColor(0xff9800);
 
   switch (action) {
-    case "alert-test":
-      embed.setTitle("🧪 Test d'alerte").setDescription("Système d'alerte fonctionnel ✅");
+    case "alert-test": {
+      const alert = await prisma.alert.create({
+        data: {
+          guildId,
+          userId: interaction.user.id,
+          type: "manual_test",
+          riskScore: 0,
+          riskLevel: "info",
+          details: "Alerte de test créée par une commande administrateur",
+        },
+      });
+      embed.setTitle("🧪 Test d'alerte").setDescription(`Alerte de test créée: \`${alert.id}\``);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "alert-export":
-      embed.setTitle("📊 Export d'alertes").setDescription("Export en cours...");
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+    case "alert-export": {
+      const alerts = await prisma.alert.findMany({
+        where: { guildId },
+        orderBy: { createdAt: "desc" },
+      });
+      const payload = JSON.stringify(alerts, null, 2);
+      await interaction.reply({
+        content: `📊 ${alerts.length} alerte(s) exportée(s).`,
+        files: [
+          new AttachmentBuilder(Buffer.from(payload, "utf8"), { name: `alerts-${guildId}.json` }),
+        ],
+        ephemeral: true,
+      });
       break;
+    }
     case "alert-whitelist": {
       const cible = interaction.options.getUser("cible", true);
+      const whitelist = await readJsonSetting<string[]>(guildId, "alert_whitelist", []);
+      if (!whitelist.includes(cible.id)) whitelist.push(cible.id);
+      await writeSetting(guildId, "alert_whitelist", JSON.stringify(whitelist));
       embed
         .setTitle("✅ Whitelist")
-        .setDescription(`<@${cible.id}> ajouté à la whitelist des alertes.`);
+        .setDescription(`<@${cible.id}> est maintenant exclu des alertes.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "alert-digest": {
       const frequence = interaction.options.getString("frequence", true);
       const salon = interaction.options.getChannel("salon");
+      await writeSetting(
+        guildId,
+        "alert_digest",
+        JSON.stringify({ frequence, channelId: salon?.id ?? null, enabled: true }),
+      );
       embed
         .setTitle("📬 Digest configuré")
         .setDescription(`Fréquence: ${frequence}${salon ? ` → <#${salon.id}>` : ""}`);
@@ -834,15 +990,49 @@ export async function handleAlertExtra(
     }
     case "alert-ack": {
       const id = interaction.options.getString("id", true);
-      embed.setTitle("✅ Alerte acquittée").setDescription(`Alerte #${id} marquée comme traitée.`);
+      const alert = await prisma.alert.findUnique({ where: { id } });
+      if (!alert || alert.guildId !== guildId) {
+        await interaction.reply({
+          content: "❌ Alerte introuvable pour ce serveur.",
+          ephemeral: true,
+        });
+        break;
+      }
+      await prisma.alert.update({
+        where: { id },
+        data: { status: "RESOLVED", resolvedBy: interaction.user.id, resolvedAt: new Date() },
+      });
+      embed
+        .setTitle("✅ Alerte acquittée")
+        .setDescription(`Alerte \`${id}\` marquée comme traitée.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "alert-escalate": {
       const id = interaction.options.getString("id", true);
+      const alert = await prisma.alert.findUnique({ where: { id } });
+      if (!alert || alert.guildId !== guildId) {
+        await interaction.reply({
+          content: "❌ Alerte introuvable pour ce serveur.",
+          ephemeral: true,
+        });
+        break;
+      }
+      await prisma.alert.update({
+        where: { id },
+        data: { action: `escalated:${interaction.user.id}` },
+      });
+      try {
+        const user = await client.users.fetch(alert.userId);
+        await user.send(`⬆️ L'alerte ${id} a été escaladée par les administrateurs.`);
+      } catch (error) {
+        logger.warn(
+          `[alerts] escalation DM failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
       embed
         .setTitle("⬆️ Alerte escaladée")
-        .setDescription(`Alerte #${id} escaladée aux admins (DM).`);
+        .setDescription(`Alerte \`${id}\` escaladée aux administrateurs.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
@@ -858,41 +1048,164 @@ export async function handleSourcesExtra(
   _client: Client,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
+  const guildId = interaction.guildId ?? "global";
   const embed = new EmbedBuilder().setColor(0x2ecc71);
 
   switch (action) {
-    case "source-edit":
-      embed.setTitle("✏️ Source modifiée").setDescription("Source mise à jour.");
+    case "source-edit": {
+      const handle = interaction.options.getString("handle", true);
+      const nouveauHandle = interaction.options.getString("nouveau_handle");
+      const salon = interaction.options.getChannel("salon");
+      const source = await prisma.source.findFirst({ where: { guildId, urlOrHandle: handle } });
+      if (!source) {
+        await interaction.reply({ content: "❌ Source introuvable.", ephemeral: true });
+        break;
+      }
+      const updated = await prisma.source.update({
+        where: { id: source.id },
+        data: {
+          urlOrHandle: nouveauHandle ?? source.urlOrHandle,
+          channelId: salon?.id ?? source.channelId,
+        },
+      });
+      embed
+        .setTitle("✏️ Source modifiée")
+        .setDescription(`\`${updated.urlOrHandle}\` → <#${updated.channelId}>`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "source-test":
-      embed.setTitle("🧪 Test de source").setDescription("Test en cours...");
+    }
+    case "source-test": {
+      const handle = interaction.options.getString("handle", true);
+      const source = await prisma.source.findFirst({ where: { guildId, urlOrHandle: handle } });
+      if (!source) {
+        await interaction.reply({ content: "❌ Source introuvable.", ephemeral: true });
+        break;
+      }
+      let detail = "Source enregistrée; aucun test réseau disponible pour ce type.";
+      if (/^https?:\/\//i.test(source.urlOrHandle)) {
+        try {
+          const response = await safeFetch(
+            source.urlOrHandle,
+            { method: "GET", signal: AbortSignal.timeout(10000) },
+            "source-test",
+          );
+          detail = `HTTP ${response.status} (${response.ok ? "OK" : "échec"})`;
+        } catch (error) {
+          detail = `Échec réseau: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      await prisma.log.create({
+        data: {
+          guildId,
+          type: "source",
+          action: "test",
+          targetId: String(source.id),
+          details: detail,
+        },
+      });
+      embed.setTitle("🧪 Test de source").setDescription(`\`${source.urlOrHandle}\`: ${detail}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "source-logs":
-      embed.setTitle("📋 Logs de source").setDescription("Logs récupérés.");
+    }
+    case "source-logs": {
+      const logs = await prisma.log.findMany({
+        where: { guildId, type: "source" },
+        orderBy: { createdAt: "desc" },
+        take: 15,
+      });
+      embed.setTitle("📋 Logs de source").setDescription(
+        logs.length
+          ? logs
+              .map((log) => `${log.action}: ${log.details ?? ""}`)
+              .join("\n")
+              .slice(0, 4000)
+          : "Aucun log de source.",
+      );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
+    }
     case "source-pause-all":
-      embed.setTitle("⏸️ Toutes les sources en pause").setDescription("Surveillance suspendue.");
+      await writeSetting(guildId, "sources_paused", "true");
+      embed.setTitle("⏸️ Sources en pause").setDescription("La surveillance est suspendue.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     case "source-resume-all":
-      embed.setTitle("▶️ Toutes les sources reprises").setDescription("Surveillance reprise.");
+      await writeSetting(guildId, "sources_paused", "false");
+      embed.setTitle("▶️ Sources reprises").setDescription("La surveillance est active.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "source-health":
-      embed.setTitle("💚 Santé des sources").setDescription("Toutes les sources opérationnelles.");
+    case "source-health": {
+      const sources = await prisma.source.findMany({ where: { guildId } });
+      const paused = (await readSetting(guildId, "sources_paused")) === "true";
+      embed
+        .setTitle("💚 Santé des sources")
+        .setDescription(
+          `${sources.length} source(s) configurée(s) • ${paused ? "en pause" : "actives"}.`,
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "source-export":
-      embed.setTitle("📤 Export des sources").setDescription("Configuration exportée en JSON.");
+    }
+    case "source-export": {
+      const sources = await prisma.source.findMany({ where: { guildId }, orderBy: { id: "asc" } });
+      const payload = JSON.stringify(
+        { version: 1, guildId, sources: sources.map(({ id: _id, ...source }) => source) },
+        null,
+        2,
+      );
+      await interaction.reply({
+        content: `📤 ${sources.length} source(s) exportée(s).`,
+        files: [
+          new AttachmentBuilder(Buffer.from(payload, "utf8"), { name: `sources-${guildId}.json` }),
+        ],
+        ephemeral: true,
+      });
+      break;
+    }
+    case "source-import": {
+      const raw = interaction.options.getString("json", true);
+      let parsed: {
+        sources?: Array<{
+          channelId?: string;
+          type?: string;
+          urlOrHandle?: string;
+          priority?: number;
+        }>;
+      };
+      try {
+        parsed = JSON.parse(raw) as typeof parsed;
+      } catch {
+        await interaction.reply({ content: "❌ JSON invalide.", ephemeral: true });
+        break;
+      }
+      const sources = parsed.sources ?? [];
+      let imported = 0;
+      for (const source of sources) {
+        if (!source.urlOrHandle || !source.type || !source.channelId) continue;
+        await prisma.source.upsert({
+          where: {
+            urlOrHandle_type_channelId: {
+              urlOrHandle: source.urlOrHandle,
+              type: source.type,
+              channelId: source.channelId,
+            },
+          },
+          create: {
+            guildId,
+            channelId: source.channelId,
+            type: source.type,
+            urlOrHandle: source.urlOrHandle,
+            priority: source.priority ?? 0,
+          },
+          update: { guildId, priority: source.priority ?? 0 },
+        });
+        imported++;
+      }
+      embed
+        .setTitle("📥 Import des sources")
+        .setDescription(`${imported}/${sources.length} source(s) importée(s).`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "source-import":
-      embed.setTitle("📥 Import des sources").setDescription("Configuration importée.");
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
+    }
     default:
       await interaction.reply({ content: "❌ Non implémentée.", ephemeral: true });
   }
@@ -905,41 +1218,120 @@ export async function handleCasierExtra(
   _client: Client,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
+  const guildId = interaction.guildId ?? "global";
   const embed = new EmbedBuilder().setColor(0x8e44ad);
+  const typeMap: Record<
+    string,
+    "BAN" | "KICK" | "MUTE" | "WARN" | "TIMEOUT" | "TEMPBAN" | "UNBAN"
+  > = {
+    ban: "BAN",
+    kick: "KICK",
+    mute: "MUTE",
+    warn: "WARN",
+    timeout: "TIMEOUT",
+    tempban: "TEMPBAN",
+    unban: "UNBAN",
+  };
 
   switch (action) {
     case "add": {
       const cible = interaction.options.getUser("cible", true);
-      const type = interaction.options.getString("type", true);
+      const type = interaction.options.getString("type", true).toLowerCase();
       const raison = interaction.options.getString("raison", true);
+      const sanctionType = typeMap[type] ?? "WARN";
+      const locked = (await readSetting(guildId, `casier_locked:${cible.id}`)) === "true";
+      if (locked) {
+        await interaction.reply({
+          content: "❌ Le casier de ce membre est verrouillé.",
+          ephemeral: true,
+        });
+        break;
+      }
+      const sanction = await prisma.sanction.create({
+        data: {
+          userId: cible.id,
+          guildId,
+          moderatorId: interaction.user.id,
+          type: sanctionType,
+          reason: raison,
+        },
+      });
       embed
         .setTitle("✅ Sanction ajoutée")
-        .setDescription(`<@${cible.id}> • ${type}\nRaison: ${raison}`);
+        .setDescription(`<@${cible.id}> • ${sanctionType} • #${sanction.id}\nRaison: ${raison}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
     case "export": {
       const cible = interaction.options.getUser("cible", true);
-      embed.setTitle("📤 Export du casier").setDescription(`Casier de <@${cible.id}> exporté.`);
+      const sanctions = await prisma.sanction.findMany({
+        where: { guildId, userId: cible.id },
+        orderBy: { createdAt: "asc" },
+      });
+      const payload = JSON.stringify({ guildId, userId: cible.id, sanctions }, null, 2);
+      await interaction.reply({
+        content: `📤 ${sanctions.length} sanction(s) exportée(s).`,
+        files: [
+          new AttachmentBuilder(Buffer.from(payload, "utf8"), { name: `casier-${cible.id}.json` }),
+        ],
+        ephemeral: true,
+      });
+      break;
+    }
+    case "stats": {
+      const [total, active, grouped] = await Promise.all([
+        prisma.sanction.count({ where: { guildId } }),
+        prisma.sanction.count({ where: { guildId, active: true } }),
+        prisma.sanction.groupBy({ by: ["type"], where: { guildId }, _count: { _all: true } }),
+      ]);
+      const details =
+        grouped.map((entry) => `${entry.type}: ${entry._count._all}`).join(" • ") || "Aucune";
+      embed
+        .setTitle("📊 Statistiques des sanctions")
+        .setDescription(`Total: ${total} • Actives: ${active}\n${details}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
-    case "stats":
-      embed.setTitle("📊 Statistiques des sanctions").setDescription("Stats du serveur.");
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
-    case "top-sanctioned":
+    case "top-sanctioned": {
+      const grouped = await prisma.sanction.groupBy({
+        by: ["userId"],
+        where: { guildId },
+        _count: { _all: true },
+        orderBy: { _count: { userId: "desc" } },
+        take: 10,
+      });
       embed
         .setTitle("🏆 Top sanctionnés")
-        .setDescription("Top 10 des membres les plus sanctionnés.");
+        .setDescription(
+          grouped.length
+            ? grouped
+                .map((entry, index) => `${index + 1}. <@${entry.userId}> — ${entry._count._all}`)
+                .join("\n")
+            : "Aucune sanction.",
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
-    case "history":
-      embed.setTitle("📜 Historique des sanctions").setDescription("Historique complet.");
+    }
+    case "history": {
+      const history = await prisma.sanction.findMany({
+        where: { guildId },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+      });
+      embed.setTitle("📜 Historique des sanctions").setDescription(
+        history.length
+          ? history
+              .map((entry) => `#${entry.id} <@${entry.userId}> — ${entry.type} — ${entry.reason}`)
+              .join("\n")
+              .slice(0, 4000)
+          : "Aucune sanction.",
+      );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
+    }
     case "lock": {
       const cible = interaction.options.getUser("cible", true);
+      await writeSetting(guildId, `casier_locked:${cible.id}`, "true");
       embed
         .setTitle("🔒 Casier verrouillé")
         .setDescription(`Casier de <@${cible.id}> en lecture seule.`);
@@ -948,16 +1340,37 @@ export async function handleCasierExtra(
     }
     case "unlock": {
       const cible = interaction.options.getUser("cible", true);
+      await writeSetting(guildId, `casier_locked:${cible.id}`, "false");
       embed
         .setTitle("🔓 Casier déverrouillé")
         .setDescription(`Casier de <@${cible.id}> modifiable.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
-    case "migrate":
-      embed.setTitle("🔄 Migration").setDescription("Anciens warns migrés vers le casier.");
+    case "migrate": {
+      const legacyWarns = await prisma.log.findMany({
+        where: { guildId, type: { in: ["warn", "WARN"] } },
+      });
+      let migrated = 0;
+      for (const legacy of legacyWarns) {
+        if (!legacy.userId) continue;
+        await prisma.sanction.create({
+          data: {
+            userId: legacy.userId,
+            guildId,
+            moderatorId: legacy.moderator ?? "system",
+            type: "WARN",
+            reason: legacy.details ?? legacy.action,
+          },
+        });
+        migrated++;
+      }
+      embed
+        .setTitle("🔄 Migration terminée")
+        .setDescription(`${migrated} warn(s) migré(s) vers le casier.`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
+    }
     default:
       await interaction.reply({ content: "❌ Non implémentée.", ephemeral: true });
   }
@@ -986,6 +1399,22 @@ export async function handleCommunityExtraCmd(
         embed.addFields({ name: emojis[i], value: opt, inline: true });
       });
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
+      await prisma.poll
+        .create({
+          data: {
+            guildId: interaction.guildId ?? "global",
+            channelId: interaction.channelId,
+            messageId: msg.id,
+            authorId: interaction.user.id,
+            question,
+            options: JSON.stringify(options),
+          },
+        })
+        .catch((error) =>
+          logger.warn(
+            `[community] poll persistence failed: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       for (let i = 0; i < options.length; i++) {
         await msg.react(emojis[i]).catch(() => {});
       }
@@ -996,68 +1425,216 @@ export async function handleCommunityExtraCmd(
       const duree = interaction.options.getString("duree", true);
       const prix = interaction.options.getString("prix", true);
       const gagnants = interaction.options.getInteger("gagnants") ?? 1;
+      const durationMatch = duree.match(/^(\d+)\s*(m|h|d|j)$/i);
+      const multiplier =
+        durationMatch?.[2].toLowerCase() === "m"
+          ? 60_000
+          : durationMatch?.[2].toLowerCase() === "h"
+            ? 3_600_000
+            : 86_400_000;
+      const endsAt = durationMatch
+        ? new Date(Date.now() + Number(durationMatch[1]) * multiplier).toISOString()
+        : null;
       embed
         .setTitle("🎉 Giveaway!")
         .setDescription(
-          `**Prix:** ${prix}\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}\n\nRéagis avec 🎉 pour participer!`,
+          `**Prix:** ${prix}\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}${endsAt ? `\nFin: <t:${Math.floor(new Date(endsAt).getTime() / 1000)}:R>` : ""}\n\nRéagis avec 🎉 pour participer!`,
         );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
+      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+        interaction.guildId ?? "global",
+        "community_giveaways",
+        [],
+      );
+      giveaways.push({
+        messageId: msg.id,
+        channelId: interaction.channelId,
+        prize: prix,
+        winners: gagnants,
+        endsAt,
+        createdBy: interaction.user.id,
+        active: true,
+      });
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "community_giveaways",
+        JSON.stringify(giveaways),
+      );
       await msg.react("🎉").catch(() => {});
       break;
     }
 
-    case "giveaway-list":
-      embed.setTitle("🎉 Giveaways actifs").setDescription("Liste des giveaways en cours.");
+    case "giveaway-list": {
+      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+        interaction.guildId ?? "global",
+        "community_giveaways",
+        [],
+      );
+      const active = giveaways.filter(
+        (giveaway) =>
+          giveaway.active !== false &&
+          (!giveaway.endsAt || new Date(String(giveaway.endsAt)).getTime() > Date.now()),
+      );
+      embed
+        .setTitle("🎉 Giveaways actifs")
+        .setDescription(
+          active.length
+            ? active
+                .map(
+                  (giveaway) =>
+                    `\`${String(giveaway.messageId)}\` — ${String(giveaway.prize)} — ${giveaway.endsAt ? `<t:${Math.floor(new Date(String(giveaway.endsAt)).getTime() / 1000)}:R>` : "sans échéance"}`,
+                )
+                .join("\n")
+            : "Aucun giveaway actif.",
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
+    }
 
     case "giveaway-reroll": {
       const msgId = interaction.options.getString("message_id", true);
-      embed.setTitle("🎲 Re-tirage").setDescription(`Nouveau tirage pour le message ${msgId}.`);
+      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+        interaction.guildId ?? "global",
+        "community_giveaways",
+        [],
+      );
+      const giveaway = giveaways.find((entry) => entry.messageId === msgId);
+      if (!giveaway) {
+        await interaction.reply({ content: "❌ Giveaway introuvable.", ephemeral: true });
+        break;
+      }
+      try {
+        const channel = interaction.guild?.channels.cache.get(String(giveaway.channelId));
+        if (!channel || !channel.isTextBased() || !("messages" in channel))
+          throw new Error("Salon inaccessible");
+        const message = await channel.messages.fetch(msgId);
+        const reaction = message.reactions.cache.get("🎉");
+        const users = reaction
+          ? (await reaction.users.fetch()).filter((user) => !user.bot).map((user) => user)
+          : [];
+        const winner = users.length ? users[Math.floor(Math.random() * users.length)] : null;
+        embed
+          .setTitle("🎲 Re-tirage")
+          .setDescription(
+            winner ? `Nouveau gagnant: <@${winner.id}>` : "Aucun participant disponible.",
+          );
+        if (winner) giveaway.lastWinner = winner.id;
+        await writeSetting(
+          interaction.guildId ?? "global",
+          "community_giveaways",
+          JSON.stringify(giveaways),
+        );
+      } catch {
+        embed
+          .setTitle("❌ Re-tirage impossible")
+          .setDescription("Le message ou le salon est inaccessible.");
+      }
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
     case "reaction-roles":
-      embed.setTitle("🎭 Reaction Roles").setDescription("Configuration des rôles par réaction.");
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "reaction_roles_config",
+        JSON.stringify({
+          enabled: true,
+          updatedBy: interaction.user.id,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+      embed
+        .setTitle("🎭 Reaction Roles")
+        .setDescription(
+          "Configuration enregistrée. Ajoute ensuite les règles de rôle dans le dashboard.",
+        );
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
     case "welcome-config":
-      embed
-        .setTitle("👋 Configuration de bienvenue")
-        .setDescription("Message de bienvenue configuré.");
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "welcome_config",
+        JSON.stringify({
+          enabled: true,
+          updatedBy: interaction.user.id,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+      embed.setTitle("👋 Configuration de bienvenue").setDescription("Configuration enregistrée.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
     case "goodbye-config":
-      embed.setTitle("👋 Configuration de départ").setDescription("Message de départ configuré.");
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "goodbye_config",
+        JSON.stringify({
+          enabled: true,
+          updatedBy: interaction.user.id,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+      embed.setTitle("👋 Configuration de départ").setDescription("Configuration enregistrée.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
     case "birthday-set": {
       const date = interaction.options.getString("date", true);
+      const birthdays = await readJsonSetting<Record<string, string>>(
+        interaction.guildId ?? "global",
+        "birthdays",
+        {},
+      );
+      birthdays[interaction.user.id] = date;
+      await writeSetting(interaction.guildId ?? "global", "birthdays", JSON.stringify(birthdays));
       embed.setTitle("🎂 Anniversaire défini").setDescription(`Ton anniversaire: ${date}`);
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }
 
-    case "birthday-list":
-      embed.setTitle("🎂 Anniversaires à venir").setDescription("Liste des anniversaires.");
+    case "birthday-list": {
+      const birthdays = await readJsonSetting<Record<string, string>>(
+        interaction.guildId ?? "global",
+        "birthdays",
+        {},
+      );
+      embed.setTitle("🎂 Anniversaires à venir").setDescription(
+        Object.entries(birthdays).length
+          ? Object.entries(birthdays)
+              .map(([userId, date]) => `<@${userId}> — ${date}`)
+              .join("\n")
+          : "Aucun anniversaire enregistré.",
+      );
       await interaction.reply({ embeds: [embed] });
       break;
+    }
 
     case "birthday-config":
-      embed
-        .setTitle("🎂 Configuration anniversaire")
-        .setDescription("Salon/role d'anniversaire configuré.");
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "birthday_config",
+        JSON.stringify({
+          enabled: true,
+          updatedBy: interaction.user.id,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+      embed.setTitle("🎂 Configuration anniversaire").setDescription("Configuration enregistrée.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
     case "level-config":
-      embed
-        .setTitle("📈 Configuration des niveaux")
-        .setDescription("Système de niveaux configuré.");
+      await writeSetting(
+        interaction.guildId ?? "global",
+        "level_config",
+        JSON.stringify({
+          enabled: true,
+          updatedBy: interaction.user.id,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+      embed.setTitle("📈 Configuration des niveaux").setDescription("Configuration enregistrée.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
 
@@ -1115,20 +1692,54 @@ export async function handleCommunityExtraCmd(
     case "lfg": {
       const jeu = interaction.options.getString("jeu", true);
       const nombre = interaction.options.getInteger("nombre") ?? 4;
+      const duree = interaction.options.getString("duree");
       embed
         .setTitle("🎮 Looking For Group")
         .setDescription(
-          `**Jeu:** ${jeu}\n**Joueurs recherchés:** ${nombre}\n\nRéagis avec ✅ pour rejoindre!`,
+          `**Jeu:** ${jeu}\n**Joueurs recherchés:** ${nombre}${duree ? `\n**Durée:** ${duree}` : ""}\n\nRéagis avec ✅ pour rejoindre!`,
         );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
+      const groups = await readJsonSetting<Array<Record<string, unknown>>>(
+        interaction.guildId ?? "global",
+        "community_lfg",
+        [],
+      );
+      groups.push({
+        messageId: msg.id,
+        channelId: interaction.channelId,
+        game: jeu,
+        players: nombre,
+        duration: duree ?? null,
+        createdBy: interaction.user.id,
+        active: true,
+      });
+      await writeSetting(interaction.guildId ?? "global", "community_lfg", JSON.stringify(groups));
       await msg.react("✅").catch(() => {});
       break;
     }
 
-    case "lfg-list":
-      embed.setTitle("🎮 Groupes LFG actifs").setDescription("Liste des groupes.");
+    case "lfg-list": {
+      const groups = await readJsonSetting<Array<Record<string, unknown>>>(
+        interaction.guildId ?? "global",
+        "community_lfg",
+        [],
+      );
+      const active = groups.filter((group) => group.active !== false);
+      embed
+        .setTitle("🎮 Groupes LFG actifs")
+        .setDescription(
+          active.length
+            ? active
+                .map(
+                  (group) =>
+                    `\`${String(group.messageId)}\` — ${String(group.game)} — ${String(group.players)} joueur(s)`,
+                )
+                .join("\n")
+            : "Aucun groupe actif.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
+    }
 
     case "server-info": {
       const g = interaction.guild!;
@@ -2171,99 +2782,267 @@ export async function handleEconomy(
   _client: Client,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
+  const guildId = interaction.guildId ?? "global";
   const embed = new EmbedBuilder().setColor(0xf1c40f);
+  const userId = interaction.user.id;
+
+  const grant = async (amount: number, period: string, title: string): Promise<void> => {
+    const key = `economy_claim:${userId}:${period}`;
+    const last = Number((await readSetting(guildId, key)) ?? 0);
+    const windows: Record<string, number> = {
+      daily: 86_400_000,
+      weekly: 604_800_000,
+      work: 3_600_000,
+    };
+    const remaining = last + (windows[period] ?? 0) - Date.now();
+    if (remaining > 0) {
+      embed
+        .setTitle(`⏳ ${title}`)
+        .setDescription(`Réessaie <t:${Math.ceil((Date.now() + remaining) / 1000)}:R>.`);
+    } else {
+      const user = await ensureEconomyUser(userId, guildId);
+      await prisma.user.update({
+        where: { discordId: userId },
+        data: { balance: { increment: amount } },
+      });
+      await writeSetting(guildId, key, String(Date.now()));
+      embed
+        .setTitle(`✅ ${title}`)
+        .setDescription(`Tu as reçu **${amount} crédits**. Solde: **${user.balance + amount}**.`);
+    }
+    await interaction.reply({ embeds: [embed] });
+  };
 
   switch (action) {
     case "balance": {
       const cible = interaction.options.getUser("cible") ?? interaction.user;
-      embed.setTitle(`💰 Solde de ${cible.username}`).setDescription("Solde: 0 crédits");
+      const user = await ensureEconomyUser(cible.id, guildId);
+      embed
+        .setTitle(`💰 Solde de ${cible.username}`)
+        .setDescription(`Solde: **${user.balance} crédits**`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "daily":
-      embed.setTitle("📅 Récompense quotidienne").setDescription("Tu as reçu 100 crédits!");
-      await interaction.reply({ embeds: [embed] });
+      await grant(100, "daily", "Récompense quotidienne");
       break;
     case "weekly":
-      embed.setTitle("📅 Récompense hebdomadaire").setDescription("Tu as reçu 500 crédits!");
-      await interaction.reply({ embeds: [embed] });
+      await grant(500, "weekly", "Récompense hebdomadaire");
       break;
     case "work":
-      embed.setTitle("💼 Travail").setDescription("Tu as travaillé et gagné 50 crédits!");
-      await interaction.reply({ embeds: [embed] });
+      await grant(50, "work", "Travail");
       break;
     case "gamble": {
       const montant = interaction.options.getInteger("montant", true);
-      const win = Math.random() < 0.45;
-      if (win) {
-        embed.setTitle("🎲 Gagné!").setDescription(`Tu as gagné ${montant * 2} crédits!`);
+      const user = await ensureEconomyUser(userId, guildId);
+      if (user.balance < montant) {
+        embed.setTitle("❌ Pari impossible").setDescription("Solde insuffisant.");
+      } else if (Math.random() < 0.45) {
+        await prisma.user.update({
+          where: { discordId: userId },
+          data: { balance: { increment: montant } },
+        });
+        embed.setTitle("🎲 Gagné!").setDescription(`Gain net: **${montant} crédits**.`);
       } else {
-        embed.setTitle("🎲 Perdu!").setDescription(`Tu as perdu ${montant} crédits.`);
+        await prisma.user.update({
+          where: { discordId: userId },
+          data: { balance: { decrement: montant } },
+        });
+        embed.setTitle("🎲 Perdu!").setDescription(`Perte: **${montant} crédits**.`);
       }
       await interaction.reply({ embeds: [embed] });
       break;
     }
-    case "shop":
-      embed.setTitle("🛒 Boutique").setDescription("Boutique en cours de développement.");
+    case "shop": {
+      const items = await prisma.shopItem.findMany({
+        where: { guildId },
+        orderBy: { price: "asc" },
+        take: 25,
+      });
+      embed
+        .setTitle("🛒 Boutique")
+        .setDescription(
+          items.length
+            ? items
+                .map(
+                  (item) =>
+                    `${item.emoji ?? "▫️"} **${item.name}** — ${item.price} crédits${item.stock !== null && item.stock >= 0 ? ` (${item.stock} restant(s))` : ""}`,
+                )
+                .join("\n")
+            : "Aucun article configuré.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
+    }
     case "buy": {
-      const item = interaction.options.getString("item", true);
-      embed.setTitle("🛒 Achat").setDescription(`Achat de "${item}" — en développement.`);
+      const itemName = interaction.options.getString("item", true);
+      const item = await prisma.shopItem.findFirst({
+        where: { guildId, name: { equals: itemName, mode: "insensitive" } },
+      });
+      if (!item || (item.stock !== null && item.stock === 0)) {
+        await interaction.reply({ content: "❌ Article introuvable ou épuisé.", ephemeral: true });
+        break;
+      }
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.upsert({
+          where: { discordId: userId },
+          create: { discordId: userId, guildId },
+          update: { guildId },
+        });
+        const charged = await tx.user.updateMany({
+          where: { discordId: userId, balance: { gte: item.price } },
+          data: { balance: { decrement: item.price } },
+        });
+        if (charged.count !== 1) return { ok: false, balance: user.balance };
+        if (item.stock !== null && item.stock > 0)
+          await tx.shopItem.update({ where: { id: item.id }, data: { stock: { decrement: 1 } } });
+        await tx.inventory.upsert({
+          where: { userId_guildId_itemName: { userId, guildId, itemName: item.name } },
+          create: { userId, guildId, itemName: item.name, quantity: 1 },
+          update: { quantity: { increment: 1 } },
+        });
+        return { ok: true, balance: user.balance - item.price };
+      });
+      embed
+        .setTitle(result.ok ? "✅ Achat effectué" : "❌ Achat refusé")
+        .setDescription(
+          result.ok
+            ? `**${item.name}** ajouté à ton inventaire. Solde: ${result.balance} crédits.`
+            : "Solde insuffisant.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "sell": {
-      const item = interaction.options.getString("item", true);
-      embed.setTitle("🛒 Vente").setDescription(`Vente de "${item}" — en développement.`);
+      const itemName = interaction.options.getString("item", true);
+      const inventory = await prisma.inventory.findUnique({
+        where: { userId_guildId_itemName: { userId, guildId, itemName } },
+      });
+      if (!inventory) {
+        await interaction.reply({
+          content: "❌ Article absent de ton inventaire.",
+          ephemeral: true,
+        });
+        break;
+      }
+      const item = await prisma.shopItem.findFirst({
+        where: { guildId, name: { equals: itemName, mode: "insensitive" } },
+      });
+      const refund = Math.max(1, Math.floor((item?.price ?? 10) / 2));
+      await prisma.$transaction(async (tx) => {
+        if (inventory.quantity > 1)
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: { decrement: 1 } },
+          });
+        else await tx.inventory.delete({ where: { id: inventory.id } });
+        await tx.user.upsert({
+          where: { discordId: userId },
+          create: { discordId: userId, guildId, balance: refund },
+          update: { guildId, balance: { increment: refund } },
+        });
+      });
+      embed
+        .setTitle("✅ Vente effectuée")
+        .setDescription(`**${itemName}** vendu pour ${refund} crédits.`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
-    case "inventory":
-      embed.setTitle("📦 Inventaire").setDescription("Ton inventaire est vide.");
+    case "inventory": {
+      const items = await prisma.inventory.findMany({
+        where: { userId, guildId },
+        orderBy: { itemName: "asc" },
+      });
+      embed
+        .setTitle("📦 Inventaire")
+        .setDescription(
+          items.length
+            ? items.map((item) => `• **${item.itemName}** × ${item.quantity}`).join("\n")
+            : "Ton inventaire est vide.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
+    }
     case "transfer": {
       const cible = interaction.options.getUser("cible", true);
       const montant = interaction.options.getInteger("montant", true);
+      if (cible.id === userId) {
+        await interaction.reply({
+          content: "❌ Tu ne peux pas te transférer des crédits.",
+          ephemeral: true,
+        });
+        break;
+      }
+      const result = await prisma.$transaction(async (tx) => {
+        const sender = await tx.user.upsert({
+          where: { discordId: userId },
+          create: { discordId: userId, guildId },
+          update: { guildId },
+        });
+        if (sender.balance < montant) return false;
+        const charged = await tx.user.updateMany({
+          where: { discordId: userId, balance: { gte: montant } },
+          data: { balance: { decrement: montant } },
+        });
+        if (charged.count !== 1) return false;
+        await tx.user.upsert({
+          where: { discordId: cible.id },
+          create: { discordId: cible.id, guildId, balance: montant },
+          update: { guildId, balance: { increment: montant } },
+        });
+        return true;
+      });
       embed
-        .setTitle("💸 Transfert")
-        .setDescription(`Tu as envoyé ${montant} crédits à <@${cible.id}>.`);
+        .setTitle(result ? "✅ Transfert effectué" : "❌ Transfert refusé")
+        .setDescription(
+          result ? `${montant} crédits envoyés à <@${cible.id}>.` : "Solde insuffisant.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
     }
-    case "leaderboard":
+    case "leaderboard": {
+      const users = await prisma.user.findMany({
+        where: { guildId, balance: { gt: 0 } },
+        orderBy: { balance: "desc" },
+        take: 10,
+      });
       embed
         .setTitle("🏆 Classement des plus riches")
-        .setDescription("Classement en développement.");
+        .setDescription(
+          users.length
+            ? users
+                .map(
+                  (user, index) => `${index + 1}. <@${user.discordId}> — ${user.balance} crédits`,
+                )
+                .join("\n")
+            : "Aucun solde enregistré.",
+        );
       await interaction.reply({ embeds: [embed] });
       break;
+    }
     case "level": {
-      const xpData = await getUserXp(interaction.user.id);
-      const level = xpData?.level ?? 0;
-      const xp = xpData?.xp ?? 0;
-      embed.setTitle("📈 Ton niveau").setDescription(`Niveau ${level} • ${xp.toLocaleString()} XP`);
+      const xpData = await getUserXp(userId);
+      embed
+        .setTitle("📈 Ton niveau")
+        .setDescription(`Niveau ${xpData?.level ?? 0} • ${(xpData?.xp ?? 0).toLocaleString()} XP`);
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "rank": {
       const cible = interaction.options.getUser("cible") ?? interaction.user;
       const xpData = await getUserXp(cible.id);
-      if (!xpData) {
-        embed.setTitle(`🏆 Rang de ${cible.username}`).setDescription("Aucun XP enregistré.");
-        await interaction.reply({ embeds: [embed] });
-        break;
-      }
       embed
         .setTitle(`🏆 Rang de ${cible.username}`)
         .setDescription(
-          `Niveau ${xpData.level} • ${xpData.xp.toLocaleString()} XP • Rang #${xpData.rank}`,
+          xpData
+            ? `Niveau ${xpData.level} • ${xpData.xp.toLocaleString()} XP • Rang #${xpData.rank}`
+            : "Aucun XP enregistré.",
         );
       await interaction.reply({ embeds: [embed] });
       break;
     }
     case "rank-card": {
-      const xpData = await getUserXp(interaction.user.id);
+      const xpData = await getUserXp(userId);
       if (!xpData) {
         embed.setTitle("🏆 Carte de rang").setDescription("Aucun XP enregistré.");
         await interaction.reply({ embeds: [embed] });
@@ -2283,13 +3062,19 @@ export async function handleEconomy(
           files: [new AttachmentBuilder(buffer, { name: "rank-card.png" })],
         });
       } catch {
-        embed.setTitle("🏆 Carte de rang").setDescription("Erreur lors de la génération.");
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ content: "❌ Erreur lors de la génération." });
       }
       break;
     }
     case "xp-config":
-      embed.setTitle("⚙️ Configuration XP").setDescription("Système XP en développement.");
+      await writeSetting(
+        guildId,
+        "xp_config",
+        JSON.stringify({ enabled: true, updatedBy: userId, updatedAt: new Date().toISOString() }),
+      );
+      embed
+        .setTitle("⚙️ Configuration XP")
+        .setDescription("Système XP activé et configuration enregistrée.");
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     default:

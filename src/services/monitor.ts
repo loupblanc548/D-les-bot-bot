@@ -449,6 +449,17 @@ async function checkAndNotify(client: Client) {
 
     // Batch: fetch all guild configs in one query to avoid N+1
     const guildIds = [...new Set(sources.map((s) => s.guildId))];
+    const pausedSettings = guildIds.length
+      ? await prisma.setting.findMany({
+          where: { guildId: { in: guildIds }, key: "sources_paused" },
+          select: { guildId: true, value: true },
+        })
+      : [];
+    const pausedGuilds = new Set(
+      pausedSettings
+        .filter((setting) => setting.value === "true")
+        .map((setting) => setting.guildId),
+    );
     const guildConfigs = await prisma.guildConfig.findMany({
       where: { guildId: { in: guildIds } },
       select: { guildId: true, monitoringEnabled: true },
@@ -459,8 +470,12 @@ async function checkAndNotify(client: Client) {
 
     for (const source of sources) {
       try {
-        // Check if monitoring is enabled for this guild (from batch cache)
-        if (!monitoringMap.get(source.guildId)) {
+        // Respect both the guild-wide monitoring switch and the explicit pause command.
+        if (
+          source.priority < 0 ||
+          pausedGuilds.has(source.guildId) ||
+          !monitoringMap.get(source.guildId)
+        ) {
           continue;
         }
 
@@ -791,6 +806,18 @@ export async function runDbSourcesRetrospective(client: Client) {
 
   const startTime = Date.now();
   const sources = await prisma.source.findMany({ take: 500 });
+  const pausedSettings = sources.length
+    ? await prisma.setting.findMany({
+        where: {
+          guildId: { in: [...new Set(sources.map((source) => source.guildId))] },
+          key: "sources_paused",
+        },
+        select: { guildId: true, value: true },
+      })
+    : [];
+  const pausedGuilds = new Set(
+    pausedSettings.filter((setting) => setting.value === "true").map((setting) => setting.guildId),
+  );
   let totalPublished = 0;
   let sourcesCreated = 0;
   let notificationsInserted = 0;
@@ -801,6 +828,7 @@ export async function runDbSourcesRetrospective(client: Client) {
   // requete guildConfig par iteration.
   const maxRetroPosts = config.maxRetroPosts;
   dbRetroLoop: for (const source of sources) {
+    if (source.priority < 0 || pausedGuilds.has(source.guildId)) continue;
     try {
       let items: YouTubeRSSContent[] = [];
       if (source.type === "YOUTUBE") {
