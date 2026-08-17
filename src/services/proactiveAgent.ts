@@ -28,8 +28,6 @@ const QUESTION_PATTERNS = [
   /\b(how|why|when|where|what|can someone|anyone know|is there)\b/i,
 ];
 
-const BOT_REPLY_INDICATORS = ["agent", "assistant", "bot", "ia", "ai"];
-
 /**
  * Scanne les messages récents d'un salon et détecte les questions sans réponse.
  * Ne se déclenche que si le bot n'a pas déjà répondu dans les 5 minutes.
@@ -40,7 +38,7 @@ export async function detectUnansweredQuestions(
   channelId: string,
 ): Promise<UnansweredQuestion[]> {
   try {
-    const channel = await client.channels.fetch(channelId).catch(() => null);
+    const channel = await client.channels.fetch(channelId).catch((): null => null);
     if (!channel || !channel.isTextBased()) return [];
 
     const messages = await channel.messages.fetch({ limit: 30 });
@@ -93,7 +91,7 @@ export async function tryProactiveReply(
   question: UnansweredQuestion,
 ): Promise<boolean> {
   try {
-    const channel = await client.channels.fetch(question.channelId).catch(() => null);
+    const channel = await client.channels.fetch(question.channelId).catch((): null => null);
     if (!channel || !("send" in channel)) return false;
 
     // Generate a brief helpful response
@@ -277,7 +275,7 @@ export async function sendPersonalDigest(client: Client, userId: string): Promis
       });
     }
 
-    const dm = await client.users.send(userId, { embeds: [embed] }).catch(() => null);
+    const dm = await client.users.send(userId, { embeds: [embed] }).catch((): null => null);
     if (!dm) return false;
 
     logger.info(`[Digest] Digest hebdomadaire envoyé à ${userId}`);

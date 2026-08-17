@@ -101,7 +101,7 @@ export async function toolPercentageCalculator(
   const v1 = Number(args.value1),
     v2 = Number(args.value2);
   if (isNaN(v1) || isNaN(v2)) return err("Paramètres manquants");
-  let r = "";
+  let r: string;
   if (mode === "of") r = `${v1}% de ${v2} = ${((v1 * v2) / 100).toFixed(2)}`;
   else if (mode === "is_what") r = `${v1} = ${((v1 / v2) * 100).toFixed(2)}% de ${v2}`;
   else if (mode === "increase") r = `Aug: ${(((v2 - v1) / v1) * 100).toFixed(2)}%`;

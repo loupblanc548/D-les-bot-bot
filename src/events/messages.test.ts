@@ -146,6 +146,76 @@ vi.mock("../utils/logger", () => ({
   },
 }));
 
+vi.mock("../services/autoMod", () => ({
+  checkMessage: vi.fn().mockReturnValue({ violated: false, action: "none", reason: "" }),
+  isMemberExempt: vi.fn().mockReturnValue(false),
+  executeAction: vi.fn().mockResolvedValue(undefined),
+  DEFAULT_RULES: [],
+}));
+vi.mock("../services/antiRaid", () => ({ checkMessageSimilarity: vi.fn().mockReturnValue(null) }));
+vi.mock("../services/aiAvatarDetector", () => ({
+  checkMessageMediaForAI: vi.fn().mockResolvedValue(undefined),
+  checkMessageLinksForSecurity: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../services/voiceAgent", () => ({
+  joinVoiceChannelById: vi.fn().mockResolvedValue(undefined),
+  isInVoiceChannel: vi.fn().mockReturnValue(false),
+  speakResponseInVoice: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../services/agentFeedback", () => ({
+  AgentStatusIndicator: class {
+    update() {}
+    cleanup() {
+      return Promise.resolve(undefined);
+    }
+    setTyping() {}
+    setThinking() {}
+    setGenerating() {}
+  },
+  addFeedbackReactions: vi.fn().mockResolvedValue(undefined),
+  trackConversation: vi.fn(),
+  suggestThread: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../services/gemini", () => ({
+  analyzeImageWithGemini: vi.fn().mockResolvedValue(""),
+  chatWithGemini: vi.fn().mockResolvedValue(""),
+  isGeminiAvailable: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../services/localLlm", () => ({
+  isLocalLlmAvailable: vi.fn().mockReturnValue(false),
+  chatWithLocalLlm: vi.fn().mockResolvedValue(""),
+  checkLocalLlmAvailability: vi.fn().mockResolvedValue(false),
+}));
+vi.mock("../services/nvidiaNim", () => ({
+  isNvidiaNimAvailable: vi.fn().mockReturnValue(false),
+  chatWithNvidiaNim: vi.fn().mockResolvedValue(""),
+}));
+vi.mock("../utils/imageSender", () => ({
+  sendImagesFromResponse: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../utils/aiResponseCache", () => ({
+  getCachedResponse: vi.fn().mockReturnValue(null),
+  setCachedResponse: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../utils/languageDetector", () => ({
+  detectLanguage: vi.fn().mockReturnValue({ lang: "fr", confidence: 1 }),
+}));
+vi.mock("../services/streamingResponse", () => ({
+  simulateStreamEdit: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../services/deepResearch", () => ({
+  isDeepResearchRequest: vi.fn().mockReturnValue(false),
+  runDeepResearch: vi.fn().mockResolvedValue(""),
+}));
+vi.mock("../services/capabilitiesGenerator", () => ({
+  isCapabilityQuery: vi.fn().mockReturnValue(false),
+  generateCapabilitiesEmbed: vi.fn().mockReturnValue({}),
+}));
+vi.mock("../services/artifacts", () => ({ sendArtifacts: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../services/modelRotation", () => ({
+  getNextAvailableModel: vi.fn().mockReturnValue(null),
+}));
+
 // ── Imports ──────────────────────────────────────────────────────────────────
 
 import { handleMessageEvents, startMapCleanup, stopMapCleanup } from "./messages.js";
@@ -209,6 +279,8 @@ function createMockMessage(overrides: Record<string, unknown> = {}) {
     react: vi.fn().mockResolvedValue(undefined),
     pinned: false,
     authorId: "user-123",
+    attachments: new Collection(),
+    url: "https://discord.com/channels/guild-123/channel-123/msg-123",
     ...overrides,
   };
 }

@@ -13,12 +13,36 @@ import logger from "../utils/logger.js";
 
 const LOCAL_LLM_URL = process.env.LOCAL_LLM_URL || "http://127.0.0.1:11434/v1";
 const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:14b";
+// Optional vision model (for example qwen2.5vl:7b or llava:latest).
+// The text model is never sent an image unless it is explicitly configured as a vision model.
+const LOCAL_LLM_VISION_MODEL = process.env.LOCAL_LLM_VISION_MODEL?.trim() || "";
 // Standby: set LOCAL_LLM_ENABLED=false in .env to disable local LLM and use APIs only
 const LOCAL_LLM_ENABLED = process.env.LOCAL_LLM_ENABLED !== "false";
+
+export type LocalLlmContent =
+  | string
+  | Array<
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }
+    >;
+
+export interface LocalLlmMessage {
+  role: string;
+  content: LocalLlmContent;
+}
+
+function contentToText(content: LocalLlmContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+}
 
 let client: OpenAI | null = null;
 let availabilityChecked = false;
 let available = false;
+let visionAvailable = false;
 
 /**
  * Vérifie si Ollama est accessible (cache le résultat pour éviter les ping à chaque appel).
@@ -27,6 +51,15 @@ export function isLocalLlmAvailable(): boolean {
   if (!LOCAL_LLM_ENABLED) return false;
   if (!availabilityChecked) return false;
   return available;
+}
+
+/** Returns true only when an explicitly configured local vision model is installed. */
+export function isLocalLlmVisionAvailable(): boolean {
+  return LOCAL_LLM_ENABLED && availabilityChecked && visionAvailable;
+}
+
+export function getLocalLlmVisionModelName(): string | null {
+  return isLocalLlmVisionAvailable() ? LOCAL_LLM_VISION_MODEL : null;
 }
 
 /**
@@ -43,14 +76,20 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
       signal: AbortSignal.timeout(3_000),
     });
     if (res.ok) {
-      const data = await res.json() as { models?: Array<{ name: string }> };
+      const data = (await res.json()) as { models?: Array<{ name: string }> };
       const hasModel = data.models?.some((m) => m.name === LOCAL_LLM_MODEL);
+      visionAvailable = Boolean(
+        LOCAL_LLM_VISION_MODEL && data.models?.some((m) => m.name === LOCAL_LLM_VISION_MODEL),
+      );
       if (!hasModel) {
         logger.warn(`[LocalLLM] Ollama en ligne mais modèle ${LOCAL_LLM_MODEL} non trouvé`);
         available = false;
       } else {
         if (!available) {
           logger.info(`[LocalLLM] ✅ Ollama disponible — modèle: ${LOCAL_LLM_MODEL}`);
+        }
+        if (visionAvailable) {
+          logger.info(`[LocalLLM] 👁️ Vision locale disponible — modèle: ${LOCAL_LLM_VISION_MODEL}`);
         }
         available = true;
       }
@@ -59,12 +98,14 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
         logger.warn("[LocalLLM] Ollama indisponible — fallback vers OpenRouter/NVIDIA");
       }
       available = false;
+      visionAvailable = false;
     }
   } catch {
     if (available) {
       logger.warn("[LocalLLM] Ollama indisponible — fallback vers OpenRouter/NVIDIA");
     }
     available = false;
+    visionAvailable = false;
   }
   availabilityChecked = true;
   return available;
@@ -104,12 +145,15 @@ export async function preWarmLocalModel(): Promise<void> {
   try {
     logger.info(`[LocalLLM] 🔥 Pre-warm ${LOCAL_LLM_MODEL}...`);
     const localClient = getLocalClient();
-    await localClient.chat.completions.create({
-      model: LOCAL_LLM_MODEL,
-      messages: [{ role: "user", content: "Hello" }],
-      max_tokens: 1,
-      stream: false,
-    }, { timeout: 30_000 });
+    await localClient.chat.completions.create(
+      {
+        model: LOCAL_LLM_MODEL,
+        messages: [{ role: "user", content: "Hello" }],
+        max_tokens: 1,
+        stream: false,
+      },
+      { timeout: 30_000 },
+    );
     logger.info(`[LocalLLM] ✅ Modèle pré-chargé en RAM — premier message sera rapide`);
   } catch {
     logger.warn(`[LocalLLM] Pre-warm échoué — le premier message sera plus lent`);
@@ -135,38 +179,45 @@ function getLocalClient(): OpenAI {
  * Appelle le LLM local avec une conversation simple (sans tools).
  * Retourne le texte de la réponse, ou null si échec.
  */
+const DEFAULT_LOCAL_REQUEST_TIMEOUT_MS = 20_000;
+
 export async function chatWithLocalLlm(
-  messages: Array<{ role: string; content: string }>,
-  options?: { maxTokens?: number; temperature?: number },
+  messages: LocalLlmMessage[],
+  options?: { maxTokens?: number; temperature?: number; timeoutMs?: number; model?: string },
 ): Promise<string | null> {
   if (!isLocalLlmAvailable()) return null;
 
   // Adaptive max_tokens: fewer tokens for simple chat = faster response
-  const lastMsg = messages[messages.length - 1]?.content || "";
+  const lastMsg = contentToText(messages[messages.length - 1]?.content || "");
   const isShortQuestion = lastMsg.length < 100;
   const adaptiveMaxTokens = options?.maxTokens ?? (isShortQuestion ? 300 : 800);
 
   try {
     const localClient = getLocalClient();
-    const response = await localClient.chat.completions.create({
-      model: LOCAL_LLM_MODEL,
-      messages: messages as never,
-      max_tokens: adaptiveMaxTokens,
-      temperature: options?.temperature ?? 0.7,
-      stream: false,
-    });
+    const response = await localClient.chat.completions.create(
+      {
+        model: options?.model || LOCAL_LLM_MODEL,
+        messages: messages as never,
+        max_tokens: adaptiveMaxTokens,
+        temperature: options?.temperature ?? 0.7,
+        stream: false,
+      },
+      { timeout: options?.timeoutMs ?? DEFAULT_LOCAL_REQUEST_TIMEOUT_MS },
+    );
     const text = response.choices?.[0]?.message?.content;
     if (!text) {
       logger.warn("[LocalLLM] Réponse vide du modèle local");
       return null;
     }
-    logger.info(`[LocalLLM] ✅ Réponse locale (${text.length} chars, ${adaptiveMaxTokens} max) — ${LOCAL_LLM_MODEL}`);
+    logger.info(
+      `[LocalLLM] ✅ Réponse locale (${text.length} chars, ${adaptiveMaxTokens} max) — ${LOCAL_LLM_MODEL}`,
+    );
     return text.trim();
   } catch (error) {
     // Don't log timeouts as warnings — they're expected on CPU for complex prompts
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout (120s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout — tâche trop lourde, fallback API rapide`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local: ${error instanceof Error ? error.message : String(error)}`,
@@ -186,22 +237,25 @@ export async function chatWithLocalLlm(
  * Ollama supporte le tool calling avec qwen2.5.
  */
 export async function chatWithLocalLlmTools(
-  messages: Array<{ role: string; content: string }>,
+  messages: LocalLlmMessage[],
   tools: unknown[],
-  options?: { maxTokens?: number; temperature?: number },
+  options?: { maxTokens?: number; temperature?: number; timeoutMs?: number; model?: string },
 ): Promise<{ text: string | null; toolCalls: unknown[] | null } | null> {
   if (!isLocalLlmAvailable()) return null;
 
   try {
     const localClient = getLocalClient();
-    const response = await localClient.chat.completions.create({
-      model: LOCAL_LLM_MODEL,
-      messages: messages as never,
-      tools: tools as never,
-      max_tokens: options?.maxTokens ?? 800,
-      temperature: options?.temperature ?? 0.7,
-      stream: false,
-    });
+    const response = await localClient.chat.completions.create(
+      {
+        model: options?.model || LOCAL_LLM_MODEL,
+        messages: messages as never,
+        tools: tools as never,
+        max_tokens: options?.maxTokens ?? 800,
+        temperature: options?.temperature ?? 0.7,
+        stream: false,
+      },
+      { timeout: options?.timeoutMs ?? DEFAULT_LOCAL_REQUEST_TIMEOUT_MS },
+    );
     const choice = response.choices?.[0];
     if (!choice) return null;
 
@@ -215,7 +269,7 @@ export async function chatWithLocalLlmTools(
   } catch (error) {
     const isTimeout = error instanceof Error && error.message.includes("timeout");
     if (isTimeout) {
-      logger.info(`[LocalLLM] Timeout tools (120s) — tâche trop lourde, fallback API`);
+      logger.info(`[LocalLLM] Timeout tools — tâche trop lourde, fallback API rapide`);
     } else {
       logger.warn(
         `[LocalLLM] Échec modèle local (tools): ${error instanceof Error ? error.message : String(error)}`,
@@ -229,3 +283,4 @@ export async function chatWithLocalLlmTools(
 }
 
 export const LOCAL_LLM_MODEL_NAME = LOCAL_LLM_MODEL;
+export const LOCAL_LLM_VISION_MODEL_NAME = LOCAL_LLM_VISION_MODEL;

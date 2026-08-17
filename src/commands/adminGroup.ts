@@ -11,7 +11,6 @@ import { handleCommand as handleMaintenance } from "./maintenance.js";
 import { handleCommand as handleChannelRouting } from "./channelRouting.js";
 import { handleCommand as handlePurgeContent } from "./purgeContent.js";
 import { handleCommand as handlePurgeRange } from "./purgeRange.js";
-import { handleCommand as handleAdvanced } from "./advanced.js";
 import { handleAdminExtra } from "./stubHandlers.js";
 import { ingestUrl, searchKnowledge } from "../services/webIngestion.js";
 import { EmbedBuilder } from "discord.js";

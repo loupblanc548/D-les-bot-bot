@@ -3,18 +3,31 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 1200px) {
-  .charts-grid { grid-template-columns: 1fr; }
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
   :root {
     --sidebar-width: 200px;
   }
-  .bento-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .bento-cell--lg, .bento-cell--wide { grid-column: span 2 !important; }
-  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-  .stat-value { font-size: 22px; }
-  .server-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .bento-cell--lg,
+  .bento-cell--wide {
+    grid-column: span 2 !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .stat-value {
+    font-size: 22px;
+  }
+  .server-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -22,62 +35,124 @@
     --sidebar-width: 0px;
   }
   #sidebar {
-    position: fixed; left: 0; top: var(--titlebar-height);
-    bottom: 0; width: 220px; z-index: 150;
+    position: fixed;
+    left: 0;
+    top: var(--titlebar-height);
+    bottom: 0;
+    width: 220px;
+    z-index: 150;
     transform: translateX(-100%);
     transition: transform var(--transition);
   }
-  #sidebar.open { transform: translateX(0); }
-  #main { padding: 14px; padding-bottom: 80px; }
+  #sidebar.open {
+    transform: translateX(0);
+  }
+  #main {
+    padding: 14px;
+    padding-bottom: 80px;
+  }
 
-  .bento-grid { grid-template-columns: 1fr !important; }
-  .bento-cell--lg, .bento-cell--wide, .bento-cell--md, .bento-cell--sm {
+  .bento-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .bento-cell--lg,
+  .bento-cell--wide,
+  .bento-cell--md,
+  .bento-cell--sm {
     grid-column: span 1 !important;
   }
-  .bento-value { font-size: 22px !important; }
+  .bento-value {
+    font-size: 22px !important;
+  }
 
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .two-col { grid-template-columns: 1fr; }
-  .charts-grid { grid-template-columns: 1fr; }
-  .row-header { flex-direction: column; align-items: flex-start; }
-  #statusbar { padding: 0 12px; gap: 12px; font-size: 10px; }
-  .data-table { font-size: 10px; }
-  .data-table th, .data-table td { padding: 6px 8px; }
-  .btn { font-size: 11px; padding: 6px 10px; }
-  .card { padding: 12px !important; }
-  .server-grid { grid-template-columns: 1fr !important; }
-  .log-console { height: 300px !important; font-size: 10px !important; }
-  .setting-row { flex-direction: column !important; align-items: stretch !important; gap: 6px !important; }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .row-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #statusbar {
+    padding: 0 12px;
+    gap: 12px;
+    font-size: 10px;
+  }
+  .data-table {
+    font-size: 10px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 6px 8px;
+  }
+  .btn {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+  .card {
+    padding: 12px !important;
+  }
+  .server-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .log-console {
+    height: 300px !important;
+    font-size: 10px !important;
+  }
+  .setting-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
 }
 
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
-  #statusbar { font-size: 9px; }
-  .stat-value { font-size: 20px; }
-  .bento-value { font-size: 18px !important; }
-  .bento-title { font-size: 10px !important; }
-  .row-header h2 { font-size: 16px !important; }
-  .gauge-circle { width: 80px !important; height: 80px !important; }
-  .gauge-value { font-size: 18px !important; }
-}
-
-/* ─── Light Theme ─────────────────────────────────────────────── */
-html[data-theme="light"] {
-  --bg-base: #f8fafc;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f1f5f9;
-  --bg-tertiary: #e2e8f0;
-  --bg-hover: #cbd5e1;
-  --border: #e2e8f0;
-  --border-light: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  #statusbar {
+    font-size: 9px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .bento-value {
+    font-size: 18px !important;
+  }
+  .bento-title {
+    font-size: 10px !important;
+  }
+  .row-header h2 {
+    font-size: 16px !important;
+  }
+  .gauge-circle {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  .gauge-value {
+    font-size: 18px !important;
+  }
 }
 
 /* ─── Print ───────────────────────────────────────────────────── */
 @media print {
-  #sidebar, #titlebar, #statusbar { display: none; }
-  #main { position: static; overflow: visible; }
-  .btn, .toggle, .actions { display: none; }
+  #sidebar,
+  #titlebar,
+  #statusbar {
+    display: none;
+  }
+  #main {
+    position: static;
+    overflow: visible;
+  }
+  .btn,
+  .toggle,
+  .actions {
+    display: none;
+  }
 }

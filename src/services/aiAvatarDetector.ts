@@ -36,6 +36,7 @@ interface AIDetectionResult {
   isAIGenerated: boolean;
   confidence: number; // 0-1
   details?: Record<string, number>;
+  source?: string;
 }
 
 /**
@@ -45,6 +46,25 @@ async function detectAIMedia(
   mediaUrl: string,
   mediaType: "image" | "video" | "audio",
 ): Promise<AIDetectionResult | null> {
+  // Try Colab GPU backend first (free, no API quota)
+  if (mediaType === "image") {
+    try {
+      const { detectAiImageViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+      if (isColabToolsAvailable()) {
+        const colabResult = await detectAiImageViaColab(mediaUrl);
+        if (colabResult) {
+          return {
+            isAIGenerated: colabResult.is_ai,
+            confidence: colabResult.ai_score,
+            source: "colab-gpu",
+          };
+        }
+      }
+    } catch {
+      // Colab unavailable — continue to Sightengine/HuggingFace
+    }
+  }
+
   const apiKey = process.env.SIGHTENGINE_API_KEY;
   const apiUser = process.env.SIGHTENGINE_API_USER;
 
@@ -161,7 +181,7 @@ async function sendSignalement(
   isNewMember: boolean,
 ): Promise<void> {
   try {
-    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch(() => null);
+    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch((): null => null);
     if (!channel?.isTextBased()) {
       logger.warn(
         `[AIAvatarDetector] Salon de signalement introuvable (${SIGNALEMENT_CHANNEL_ID})`,
@@ -242,7 +262,7 @@ export async function checkAvatarForAI(
       const fullMember =
         member instanceof GuildMember
           ? member
-          : await member.guild.members.fetch(member.id).catch(() => null);
+          : await member.guild.members.fetch(member.id).catch((): null => null);
       if (fullMember) {
         await sendSignalement(client, fullMember, result, isNewMember);
       }
@@ -333,7 +353,7 @@ async function sendLinkSecurityAlert(
   },
 ): Promise<void> {
   try {
-    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch(() => null);
+    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const embed = new EmbedBuilder()
@@ -432,13 +452,12 @@ async function sendMediaSignalement(
   result: AIDetectionResult,
 ): Promise<void> {
   try {
-    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch(() => null);
+    const channel = await client.channels.fetch(SIGNALEMENT_CHANNEL_ID).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const confidencePercent = Math.round(result.confidence * 100);
     const typeLabel =
       mediaType === "image" ? "🖼️ Image" : mediaType === "video" ? "🎬 Vidéo" : "🎵 Audio";
-    const member = message.member;
     const avatarUrl = message.author.displayAvatarURL({ size: 128 });
 
     const embed = new EmbedBuilder()

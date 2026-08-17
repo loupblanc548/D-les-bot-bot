@@ -47,7 +47,7 @@ export async function createPoll(
     const pollOptions: PollOption[] = options.map((o) => ({
       emoji: o.emoji,
       label: o.label,
-      votes: [],
+      votes: [] as string[],
     }));
 
     const embed = new EmbedBuilder()
@@ -55,7 +55,11 @@ export async function createPoll(
       .setColor(0x3498db)
       .setDescription(`**${question}**`)
       .addFields(
-        { name: "Options", value: pollOptions.map((o) => `${o.emoji} ${o.label}`).join("\n"), inline: false },
+        {
+          name: "Options",
+          value: pollOptions.map((o) => `${o.emoji} ${o.label}`).join("\n"),
+          inline: false,
+        },
         { name: "⏰ Fin", value: `<t:${Math.floor(endsAt.getTime() / 1000)}:R>`, inline: true },
         { name: "👤 Par", value: `<@${authorId}>`, inline: true },
       )
@@ -89,7 +93,11 @@ export async function createPoll(
   }
 }
 
-export function vote(pollId: string, userId: string, emoji: string): { success: boolean; message: string } {
+export function vote(
+  pollId: string,
+  userId: string,
+  emoji: string,
+): { success: boolean; message: string } {
   const poll = activePolls.get(pollId);
   if (!poll) return { success: false, message: "Sondage introuvable." };
   if (poll.ended) return { success: false, message: "Sondage terminé." };
@@ -158,17 +166,14 @@ export async function checkEndedPolls(guild: Guild): Promise<void> {
   }
 }
 
-export async function syncVotesFromReactions(
-  pollId: string,
-  message: Message,
-): Promise<void> {
+export async function syncVotesFromReactions(pollId: string, message: Message): Promise<void> {
   const poll = activePolls.get(pollId);
   if (!poll) return;
 
   for (const option of poll.options) {
     const reaction = message.reactions.cache.get(option.emoji);
     if (reaction) {
-      const users = await reaction.users.fetch().catch(() => null);
+      const users = await reaction.users.fetch().catch((): null => null);
       if (users) {
         option.votes = users.filter((u) => !u.bot).map((u) => u.id);
       }

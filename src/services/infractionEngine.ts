@@ -5,7 +5,7 @@
  * warn → mute → kick → ban selon les seuils configurables.
  */
 
-import type { Guild, GuildMember } from "discord.js";
+import type { Guild } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 

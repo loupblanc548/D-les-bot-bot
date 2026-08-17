@@ -50,7 +50,7 @@ const ALLOWED_AUDIT_TARGETS: string[] = ["127.0.0.1", "localhost", "192.168.1.",
  * Validate that a target is within the allowed audit scope.
  * Returns true if the target matches any whitelist entry.
  */
-function isTargetAllowed(target: string): boolean {
+function _isTargetAllowed(target: string): boolean {
   const normalized = target.trim().toLowerCase();
   if (!normalized) return false;
 
@@ -196,12 +196,36 @@ export async function handleKaliReject(auditId: string): Promise<void> {
 
 async function dockerExec(command: string, timeout = 60_000): Promise<string> {
   // Sanitize: reject shell injection attempts
-  const dangerous = /[;&|`$(){}]/.test(command) || /\b(rm|cat|wget|curl|bash|sh|nc|python|perl|ruby)\b/i.test(command.split(/\s+/)[0] || "");
+  const dangerous =
+    /[;&|`$(){}]/.test(command) ||
+    /\b(rm|cat|wget|curl|bash|sh|nc|python|perl|ruby)\b/i.test(command.split(/\s+/)[0] || "");
   if (dangerous) {
     throw new Error(`Blocked potentially dangerous command: ${command.slice(0, 50)}`);
   }
   // Only allow known-safe Kali tools
-  const allowedTools = ["nmap", "nikto", "arp-scan", "arping", "airodump-ng", "aircrack-ng", "lynis", "suricata", "clamscan", "hashcat", "john", "hydra", "gobuster", "dirb", "wpscan", "sqlmap", "masscan", "rustscan", "tcpreplay", "kismet", "wifite"];
+  const allowedTools = [
+    "nmap",
+    "nikto",
+    "arp-scan",
+    "arping",
+    "airodump-ng",
+    "aircrack-ng",
+    "lynis",
+    "suricata",
+    "clamscan",
+    "hashcat",
+    "john",
+    "hydra",
+    "gobuster",
+    "dirb",
+    "wpscan",
+    "sqlmap",
+    "masscan",
+    "rustscan",
+    "tcpreplay",
+    "kismet",
+    "wifite",
+  ];
   const toolName = command.trim().split(/\s+/)[0];
   if (!allowedTools.includes(toolName)) {
     throw new Error(`Tool "${toolName}" not in allowed list. Allowed: ${allowedTools.join(", ")}`);

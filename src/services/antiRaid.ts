@@ -4,7 +4,7 @@
  * Détecte: burst de joins, nouveaux comptes, messages similaires en rafale
  */
 
-import type { GuildMember, Message, TextChannel } from "discord.js";
+import type { GuildMember, Message } from "discord.js";
 import logger from "../utils/logger.js";
 
 interface RaidConfig {
@@ -32,7 +32,10 @@ export interface RaidAlert {
   severity: "low" | "medium" | "high";
 }
 
-export function checkJoinBurst(member: GuildMember, config: RaidConfig = DEFAULT_RAID_CONFIG): RaidAlert | null {
+export function checkJoinBurst(
+  member: GuildMember,
+  config: RaidConfig = DEFAULT_RAID_CONFIG,
+): RaidAlert | null {
   const now = Date.now();
   joinTimestamps.push(now);
   // Keep only recent joins
@@ -41,7 +44,9 @@ export function checkJoinBurst(member: GuildMember, config: RaidConfig = DEFAULT
   }
 
   if (joinTimestamps.length >= config.joinThreshold) {
-    logger.warn(`[AntiRaid] Join burst detected: ${joinTimestamps.length} joins in ${config.joinWindowMs}ms`);
+    logger.warn(
+      `[AntiRaid] Join burst detected: ${joinTimestamps.length} joins in ${config.joinWindowMs}ms`,
+    );
     return {
       type: "join_burst",
       detail: `${joinTimestamps.length} joins en ${config.joinWindowMs / 1000}s`,
@@ -63,7 +68,10 @@ export function checkJoinBurst(member: GuildMember, config: RaidConfig = DEFAULT
   return null;
 }
 
-export function checkMessageSimilarity(message: Message, config: RaidConfig = DEFAULT_RAID_CONFIG): RaidAlert | null {
+export function checkMessageSimilarity(
+  message: Message,
+  config: RaidConfig = DEFAULT_RAID_CONFIG,
+): RaidAlert | null {
   const content = message.content.toLowerCase().trim();
   if (content.length < 5) return null;
 
@@ -71,19 +79,19 @@ export function checkMessageSimilarity(message: Message, config: RaidConfig = DE
   if (recentMessages.length > config.similarityWindowSize) recentMessages.shift();
 
   // Count similar messages from different users
-  let similarCount = 0;
   const uniqueUsers = new Set<string>();
   for (const msg of recentMessages) {
     if (msg.userId === message.author.id) continue;
     const similarity = computeSimilarity(content, msg.content);
     if (similarity >= config.similarityThreshold) {
-      similarCount++;
       uniqueUsers.add(msg.userId);
     }
   }
 
   if (uniqueUsers.size >= 3) {
-    logger.warn(`[AntiRaid] Message spam detected: ${uniqueUsers.size} users posting similar content`);
+    logger.warn(
+      `[AntiRaid] Message spam detected: ${uniqueUsers.size} users posting similar content`,
+    );
     return {
       type: "message_spam",
       detail: `${uniqueUsers.size} utilisateurs postant du contenu similaire`,

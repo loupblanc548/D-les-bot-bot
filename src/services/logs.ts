@@ -2,7 +2,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { EmbedBuilder, Client, TextChannel } from "discord.js";
 import { config } from "../config.js";
-import { enqueueLog, initLogQueue } from "../queues/logQueue.js";
+import { enqueueLog } from "../queues/logQueue.js";
 
 export interface LogEntry {
   type: string;

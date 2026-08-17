@@ -18,27 +18,51 @@ import { config } from "../config.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { safeInterval } from "../utils/safe-interval.js";
 
-import type { RetailerModule, RetailerProduct, RetailerSearchResult, RetailerId, CountryCode, AlertType } from "./retailers/types.js";
+import type {
+  RetailerModule,
+  RetailerProduct,
+  RetailerSearchResult,
+  RetailerId,
+  CountryCode,
+  AlertType,
+} from "./retailers/types.js";
 import { RETAILER_NAMES, RETAILER_EMOJIS } from "./retailers/types.js";
 
 // Modules revendeurs
-import { amazonModule, getKeepaPriceHistory } from "./retailers/amazon.js";
+import { amazonModule } from "./retailers/amazon.js";
 import { ebayModule } from "./retailers/ebay.js";
 import {
-  cdiscountModule, fnacModule, dartyModule, boulangerModule,
-  ldlcModule, decathlonModule, backmarketModule, vintedModule,
-  leboncoinModule, rakutenModule, ikeaModule, zalandoModule,
+  cdiscountModule,
+  fnacModule,
+  dartyModule,
+  boulangerModule,
+  ldlcModule,
+  decathlonModule,
+  backmarketModule,
+  vintedModule,
+  leboncoinModule,
+  rakutenModule,
+  ikeaModule,
+  zalandoModule,
 } from "./retailers/frenchRetailers.js";
+import { alternateModule, mindfactoryModule, casekingModule } from "./retailers/euRetailers.js";
 import {
-  alternateModule, mindfactoryModule, casekingModule,
-} from "./retailers/euRetailers.js";
-import {
-  dealabsModule, mydealzModule, hotukdealsModule,
-  idealoModule, pricespyModule,
+  dealabsModule,
+  mydealzModule,
+  hotukdealsModule,
+  idealoModule,
+  pricespyModule,
 } from "./retailers/dealAggregators.js";
 import {
-  cdkeysModule, fanaticalModule, enebaModule, kinguinModule,
-  g2aModule, shoptoModule, games365Module, basecomModule, gamesplanetModule,
+  cdkeysModule,
+  fanaticalModule,
+  enebaModule,
+  kinguinModule,
+  g2aModule,
+  shoptoModule,
+  games365Module,
+  basecomModule,
+  gamesplanetModule,
 } from "./retailers/gamingRetailers.js";
 
 // ─── Registry ───────────────────────────────────────────────────────────────
@@ -123,8 +147,11 @@ export async function searchAllRetailers(
     for (const country of countries) {
       if (!mod.countries.includes(country)) continue;
       tasks.push(
-        mod.search(query, country, limit).catch(() => ({
-          products: [], retailer: retailerId, totalFound: 0, searchQuery: query,
+        mod.search(query, country, limit).catch((): RetailerSearchResult => ({
+          products: [],
+          retailer: retailerId,
+          totalFound: 0,
+          searchQuery: query,
         })),
       );
     }
@@ -170,7 +197,7 @@ export async function searchRetailer(
   const mod = RETAILER_REGISTRY.get(retailerId);
   if (!mod) return [];
   if (!mod.countries.includes(country)) return [];
-  const result = await mod.search(query, country, limit).catch(() => null);
+  const result = await mod.search(query, country, limit).catch((): null => null);
   return result?.products || [];
 }
 
@@ -184,7 +211,7 @@ export async function getRetailerDeals(
   const mod = RETAILER_REGISTRY.get(retailerId);
   if (!mod?.getDeals) return [];
   if (!mod.countries.includes(country)) return [];
-  return mod.getDeals(country, limit).catch(() => []);
+  return mod.getDeals(country, limit).catch((): RetailerProduct[] => []);
 }
 
 // ─── Récupère les nouveautés ─────────────────────────────────────────────────
@@ -198,7 +225,7 @@ export async function getRetailerNewProducts(
   const mod = RETAILER_REGISTRY.get(retailerId);
   if (!mod?.getNewProducts) return [];
   if (!mod.countries.includes(country)) return [];
-  return mod.getNewProducts(country, category, limit).catch(() => []);
+  return mod.getNewProducts(country, category, limit).catch((): RetailerProduct[] => []);
 }
 
 // ─── Tracking de prix ────────────────────────────────────────────────────────
@@ -291,28 +318,32 @@ async function checkTrackedProducts(client: Client): Promise<void> {
         const drop = tracked.lastPrice - product.price;
         const dropPercent = Math.round((drop / tracked.lastPrice) * 100);
         alertType = "price_drop";
-        alertMsg = `📉 **Baisse de prix** — ${product.title}\n` +
+        alertMsg =
+          `📉 **Baisse de prix** — ${product.title}\n` +
           `Ancien: ${tracked.lastPrice}€ → Nouveau: ${product.price}€ (-${dropPercent}%)`;
       }
 
       // Target price reached
       if (tracked.targetPrice && product.price <= tracked.targetPrice) {
         alertType = "price_drop";
-        alertMsg = `🎯 **Prix cible atteint** — ${product.title}\n` +
+        alertMsg =
+          `🎯 **Prix cible atteint** — ${product.title}\n` +
           `Prix cible: ${tracked.targetPrice}€ → Prix actuel: ${product.price}€`;
       }
 
       // Restock
       if (tracked.alertOnRestock && !tracked.wasInStock && product.inStock) {
         alertType = "restock";
-        alertMsg = `✅ **Remise en stock** — ${product.title}\n` +
+        alertMsg =
+          `✅ **Remise en stock** — ${product.title}\n` +
           `Prix: ${product.price}€ sur ${RETAILER_NAMES[tracked.retailer]}`;
       }
 
       // Promotion
       if (tracked.alertOnPromotion && product.discountPercent && product.discountPercent >= 20) {
         alertType = "promotion";
-        alertMsg = `🔥 **Promotion détectée** — ${product.title}\n` +
+        alertMsg =
+          `🔥 **Promotion détectée** — ${product.title}\n` +
           `-${product.discountPercent}% (${product.originalPrice}€ → ${product.price}€)`;
       }
 
@@ -329,7 +360,9 @@ async function checkTrackedProducts(client: Client): Promise<void> {
       tracked.lastPrice = product.price;
       tracked.wasInStock = product.inStock;
     } catch (err) {
-      logger.debug(`[RetailerAlerts] Erreur tracking ${id}: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[RetailerAlerts] Erreur tracking ${id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     // Rate limit entre les checks
@@ -344,19 +377,38 @@ const RETAILER_ALERT_CHANNEL = "1532189747500421152";
 // ─── Pays : drapeaux et noms multilingues ───────────────────────────────────
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  FR: "🇫🇷", DE: "🇩🇪", BE: "🇧🇪", NL: "🇳🇱", ES: "🇪🇸",
-  IT: "🇮🇹", CH: "🇨🇭", UK: "🇬🇧", US: "🇺🇸",
+  FR: "🇫🇷",
+  DE: "🇩🇪",
+  BE: "🇧🇪",
+  NL: "🇳🇱",
+  ES: "🇪🇸",
+  IT: "🇮🇹",
+  CH: "🇨🇭",
+  UK: "🇬🇧",
+  US: "🇺🇸",
 };
 
 const COUNTRY_NAMES: Record<string, Record<string, string>> = {
   FR: { fr: "France", en: "France", de: "Frankreich", es: "Francia", it: "Francia" },
   DE: { fr: "Allemagne", en: "Germany", de: "Deutschland", es: "Alemania", it: "Germania" },
   BE: { fr: "Belgique", en: "Belgium", de: "Belgien", es: "Bélgica", it: "Belgio" },
-  NL: { fr: "Pays-Bas", en: "Netherlands", de: "Niederlande", es: "Países Bajos", it: "Paesi Bassi" },
+  NL: {
+    fr: "Pays-Bas",
+    en: "Netherlands",
+    de: "Niederlande",
+    es: "Países Bajos",
+    it: "Paesi Bassi",
+  },
   ES: { fr: "Espagne", en: "Spain", de: "Spanien", es: "España", it: "Spagna" },
   IT: { fr: "Italie", en: "Italy", de: "Italien", es: "Italia", it: "Italia" },
   CH: { fr: "Suisse", en: "Switzerland", de: "Schweiz", es: "Suiza", it: "Svizzera" },
-  UK: { fr: "Royaume-Uni", en: "United Kingdom", de: "Vereinigtes Königreich", es: "Reino Unido", it: "Regno Unito" },
+  UK: {
+    fr: "Royaume-Uni",
+    en: "United Kingdom",
+    de: "Vereinigtes Königreich",
+    es: "Reino Unido",
+    it: "Regno Unito",
+  },
   US: { fr: "États-Unis", en: "United States", de: "USA", es: "Estados Unidos", it: "Stati Uniti" },
 };
 
@@ -369,69 +421,97 @@ function getCountryDisplay(country: string): string {
 // ─── Couleurs par catégorie de produit ──────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, number> = {
-  gaming: 0x9b59b6,       // Violet — jeux vidéo, consoles
-  tech: 0x0099ff,          // Bleu — high-tech, électronique
-  phone: 0x3498db,         // Bleu clair — smartphones, tablettes
-  computer: 0x1abc9c,      // Turquoise — PC, composants
-  tv: 0x2ecc71,            // Vert — TV, home cinéma
-  audio: 0xe67e22,         // Orange — casque, enceintes
-  photo: 0xf1c40f,         // Jaune — photo, caméras
-  sport: 0xe74c3c,         // Rouge — sport, fitness
-  fashion: 0xff69b4,       // Rose — mode, vêtements
-  home: 0x95a5a6,          // Gris — maison, déco
-  kitchen: 0xd35400,       // Orange foncé — cuisine
-  toy: 0xffd700,           // Or — jouets
-  book: 0x8e44ad,          // Violet foncé — livres
-  beauty: 0xff79c6,        // Rose clair — beauté
-  auto: 0x2c3e50,          // Gris foncé — auto/moto
-  garden: 0x27ae60,        // Vert foncé — jardin
-  pet: 0xf39c12,           // Orange clair — animaux
-  food: 0x16a085,          // Vert turquoise — alimentation
-  music: 0xc0392b,         // Rouge foncé — instruments
-  office: 0x7f8c8d,        // Gris clair — bureau
-  other: 0x607d8b,         // Bleu-gris — autre
+  gaming: 0x9b59b6, // Violet — jeux vidéo, consoles
+  tech: 0x0099ff, // Bleu — high-tech, électronique
+  phone: 0x3498db, // Bleu clair — smartphones, tablettes
+  computer: 0x1abc9c, // Turquoise — PC, composants
+  tv: 0x2ecc71, // Vert — TV, home cinéma
+  audio: 0xe67e22, // Orange — casque, enceintes
+  photo: 0xf1c40f, // Jaune — photo, caméras
+  sport: 0xe74c3c, // Rouge — sport, fitness
+  fashion: 0xff69b4, // Rose — mode, vêtements
+  home: 0x95a5a6, // Gris — maison, déco
+  kitchen: 0xd35400, // Orange foncé — cuisine
+  toy: 0xffd700, // Or — jouets
+  book: 0x8e44ad, // Violet foncé — livres
+  beauty: 0xff79c6, // Rose clair — beauté
+  auto: 0x2c3e50, // Gris foncé — auto/moto
+  garden: 0x27ae60, // Vert foncé — jardin
+  pet: 0xf39c12, // Orange clair — animaux
+  food: 0x16a085, // Vert turquoise — alimentation
+  music: 0xc0392b, // Rouge foncé — instruments
+  office: 0x7f8c8d, // Gris clair — bureau
+  other: 0x607d8b, // Bleu-gris — autre
 };
 
 function detectCategory(title: string, retailer: RetailerId): string {
   const t = title.toLowerCase();
 
-  if (/ps5|ps4|playstation|xbox|nintendo|switch|jeu |game|gaming|console|steam|epic|cdkey|fanatical|eneba|kinguin|g2a|gamesplanet|shopto|base\.com|365games/.test(t) ||
-      ["cdkeys", "fanatical", "eneba", "kinguin", "g2a", "gamesplanet", "shopto", "basecom", "365games"].includes(retailer))
+  if (
+    /ps5|ps4|playstation|xbox|nintendo|switch|jeu |game|gaming|console|steam|epic|cdkey|fanatical|eneba|kinguin|g2a|gamesplanet|shopto|base\.com|365games/.test(
+      t,
+    ) ||
+    [
+      "cdkeys",
+      "fanatical",
+      "eneba",
+      "kinguin",
+      "g2a",
+      "gamesplanet",
+      "shopto",
+      "basecom",
+      "365games",
+    ].includes(retailer)
+  )
     return "gaming";
   if (/iphone|samsung|galaxy|phone|smartphone|tablet|ipad|mobile|xiaomi|oppo|oneplus|pixel/.test(t))
     return "phone";
-  if (/rtx|rx |gpu|carte graphique|processor|cpu|ram|ssd|disque dur|motherboard|carte mère|pc gamer|tour pc|boîtier|alimentation|refroidissement|watercooling/.test(t))
+  if (
+    /rtx|rx |gpu|carte graphique|processor|cpu|ram|ssd|disque dur|motherboard|carte mère|pc gamer|tour pc|boîtier|alimentation|refroidissement|watercooling/.test(
+      t,
+    )
+  )
     return "computer";
   if (/tv|télé|oled|qled|4k|8k|projecteur|home cinema|sony bravia|samsung tv|lg tv/.test(t))
     return "tv";
-  if (/casque|headphone|earbud|airpods|galaxy buds|enceinte|speaker|jbl|bose|sonos|soundbar|barre de son/.test(t))
+  if (
+    /casque|headphone|earbud|airpods|galaxy buds|enceinte|speaker|jbl|bose|sonos|soundbar|barre de son/.test(
+      t,
+    )
+  )
     return "audio";
   if (/appareil photo|camera|canon|nikon|sony alpha|objectif|lens|gopro|drone/.test(t))
     return "photo";
-  if (/vélo|bike|tapis|fitness|running|yoga|dumbbell|haltère|sport|gym|decathlon/.test(t) || retailer === "decathlon")
+  if (
+    /vélo|bike|tapis|fitness|running|yoga|dumbbell|haltère|sport|gym|decathlon/.test(t) ||
+    retailer === "decathlon"
+  )
     return "sport";
-  if (/t-shirt|chemise|robe|jean|veste|manteau|chaussure|sneaker|nike|adidas|zalando|vêtement|mode|fashion/.test(t) || retailer === "zalando" || retailer === "vinted")
+  if (
+    /t-shirt|chemise|robe|jean|veste|manteau|chaussure|sneaker|nike|adidas|zalando|vêtement|mode|fashion/.test(
+      t,
+    ) ||
+    retailer === "zalando" ||
+    retailer === "vinted"
+  )
     return "fashion";
-  if (/canapé|table|chaise|lampe|déco|meuble|matelas|rideau|tapis|ikea/.test(t) || retailer === "ikea")
+  if (
+    /canapé|table|chaise|lampe|déco|meuble|matelas|rideau|tapis|ikea/.test(t) ||
+    retailer === "ikea"
+  )
     return "home";
-  if (/poêle|casserole|friteuse|robot|mixeur|cafetière| Nespresso|thermomix|kitchen|cuisine/.test(t))
+  if (
+    /poêle|casserole|friteuse|robot|mixeur|cafetière| Nespresso|thermomix|kitchen|cuisine/.test(t)
+  )
     return "kitchen";
-  if (/jouet|lego|playmobil|figurine|peluche|toy/.test(t))
-    return "toy";
-  if (/livre|book|roman|bd|manga|kindle|comic/.test(t) || retailer === "fnac")
-    return "book";
-  if (/parfum|maquillage|crème|shampooing|beauté|cosmétique|soin/.test(t))
-    return "beauty";
-  if (/voiture|moto|auto|pneu|huile|carrosserie|dashcam|gps auto/.test(t))
-    return "auto";
-  if (/jardin|tondeuse|brouette|plant|graine|potager|outdoor/.test(t))
-    return "garden";
-  if (/croquette|chien|chat|oiseau|aquarium|animal|pet/.test(t))
-    return "pet";
-  if (/épicerie|alimentaire|chocolat|café|thé|food|boisson/.test(t))
-    return "food";
-  if (/guitare|piano|batterie|synthé|micro|instrument|music/.test(t))
-    return "music";
+  if (/jouet|lego|playmobil|figurine|peluche|toy/.test(t)) return "toy";
+  if (/livre|book|roman|bd|manga|kindle|comic/.test(t) || retailer === "fnac") return "book";
+  if (/parfum|maquillage|crème|shampooing|beauté|cosmétique|soin/.test(t)) return "beauty";
+  if (/voiture|moto|auto|pneu|huile|carrosserie|dashcam|gps auto/.test(t)) return "auto";
+  if (/jardin|tondeuse|brouette|plant|graine|potager|outdoor/.test(t)) return "garden";
+  if (/croquette|chien|chat|oiseau|aquarium|animal|pet/.test(t)) return "pet";
+  if (/épicerie|alimentaire|chocolat|café|thé|food|boisson/.test(t)) return "food";
+  if (/guitare|piano|batterie|synthé|micro|instrument|music/.test(t)) return "music";
   if (/bureau|chaise de bureau|clavier|souris|imprimante|scanner|office|papeterie/.test(t))
     return "office";
   if (/lave|frigo|réfrigérateur|aspirateur|lave-linge|sèche|électroménager|darty|boulanger/.test(t))
@@ -511,30 +591,45 @@ async function sendRetailerAlert(
       { name: "Lien", value: `[Voir le produit](${product.url})`, inline: true },
     )
     .setURL(product.url)
-    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[tracked.retailer]} • <@${tracked.userId}>` })
+    .setFooter({
+      text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[tracked.retailer]} • <@${tracked.userId}>`,
+    })
     .setTimestamp();
 
   if (product.image) {
-    try { embed.setThumbnail(product.image); } catch { /* URL invalide */ }
+    try {
+      embed.setThumbnail(product.image);
+    } catch {
+      /* URL invalide */
+    }
   }
 
   // ── 1. Envoyer dans le salon dédié ──
   try {
     await channel.send({ content: `<@${tracked.userId}>`, embeds: [embed] });
-    logger.info(`[RetailerAlerts] Alerte ${alertType} envoyée pour ${product.title} (${tracked.retailer})`);
+    logger.info(
+      `[RetailerAlerts] Alerte ${alertType} envoyée pour ${product.title} (${tracked.retailer})`,
+    );
   } catch (err) {
-    logger.error(`[RetailerAlerts] Erreur envoi alerte salon: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[RetailerAlerts] Erreur envoi alerte salon: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // ── 2. Envoyer en DM à l'utilisateur ──
   try {
     const user = await client.users.fetch(tracked.userId);
     if (user) {
-      await user.send({ content: `${alertTypeLabels[alertType]} sur ${RETAILER_NAMES[tracked.retailer]} (${countryDisplay})`, embeds: [embed] });
+      await user.send({
+        content: `${alertTypeLabels[alertType]} sur ${RETAILER_NAMES[tracked.retailer]} (${countryDisplay})`,
+        embeds: [embed],
+      });
       logger.info(`[RetailerAlerts] DM envoyé à ${user.tag} pour ${product.title}`);
     }
   } catch (dmErr) {
-    logger.warn(`[RetailerAlerts] DM impossible pour ${tracked.userId}: ${dmErr instanceof Error ? dmErr.message : String(dmErr)}`);
+    logger.warn(
+      `[RetailerAlerts] DM impossible pour ${tracked.userId}: ${dmErr instanceof Error ? dmErr.message : String(dmErr)}`,
+    );
   }
 }
 
@@ -582,17 +677,27 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
       { name: "Marketplace", value: `${emoji} ${RETAILER_NAMES[product.retailer]}`, inline: true },
       { name: "Pays", value: countryDisplay, inline: true },
       { name: "Prix", value: `${product.price} ${product.currency}`, inline: true },
-      { name: "Réduction", value: product.discountPercent ? `-${product.discountPercent}%` : "N/A", inline: true },
+      {
+        name: "Réduction",
+        value: product.discountPercent ? `-${product.discountPercent}%` : "N/A",
+        inline: true,
+      },
       { name: "Catégorie", value: categoryLabel, inline: true },
       { name: "Stock", value: product.inStock ? "✅ En stock" : "❌ Rupture", inline: true },
       { name: "Lien", value: `[Voir le deal](${product.url})`, inline: true },
     )
     .setURL(product.url)
-    .setFooter({ text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[product.retailer]} • Deals Monitor` })
+    .setFooter({
+      text: `Retailer Alerts • ${categoryLabel} • ${countryDisplay} • ${RETAILER_NAMES[product.retailer]} • Deals Monitor`,
+    })
     .setTimestamp();
 
   if (product.image) {
-    try { embed.setThumbnail(product.image); } catch { /* */ }
+    try {
+      embed.setThumbnail(product.image);
+    } catch {
+      /* */
+    }
   }
 
   try {
@@ -627,7 +732,9 @@ export function startRetailerMonitoring(client: Client): void {
     return;
   }
 
-  logger.info(`[RetailerAlerts] Démarrage monitoring (tracking: ${TRACKING_INTERVAL_MS / 60000}min, deals: ${DEALS_INTERVAL_MS / 60000}min)`);
+  logger.info(
+    `[RetailerAlerts] Démarrage monitoring (tracking: ${TRACKING_INTERVAL_MS / 60000}min, deals: ${DEALS_INTERVAL_MS / 60000}min)`,
+  );
 
   // Premier check après 2 min
   setTimeout(() => {
@@ -635,8 +742,16 @@ export function startRetailerMonitoring(client: Client): void {
     void checkRetailerDeals(client);
   }, 120000);
 
-  trackingInterval = safeInterval("RetailerTracking", () => checkTrackedProducts(client), TRACKING_INTERVAL_MS);
-  dealsInterval = safeInterval("RetailerDeals", () => checkRetailerDeals(client), DEALS_INTERVAL_MS);
+  trackingInterval = safeInterval(
+    "RetailerTracking",
+    () => checkTrackedProducts(client),
+    TRACKING_INTERVAL_MS,
+  );
+  dealsInterval = safeInterval(
+    "RetailerDeals",
+    () => checkRetailerDeals(client),
+    DEALS_INTERVAL_MS,
+  );
 }
 
 export function stopRetailerMonitoring(): void {
@@ -653,7 +768,11 @@ export function stopRetailerMonitoring(): void {
 
 // ─── Export pour Quent (agent tools) ─────────────────────────────────────────
 
-export function getAvailableRetailers(): Array<{ id: RetailerId; name: string; countries: CountryCode[] }> {
+export function getAvailableRetailers(): Array<{
+  id: RetailerId;
+  name: string;
+  countries: CountryCode[];
+}> {
   return Array.from(RETAILER_REGISTRY.values()).map((mod) => ({
     id: mod.id,
     name: mod.name,

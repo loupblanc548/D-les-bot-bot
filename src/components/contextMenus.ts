@@ -212,8 +212,6 @@ export const MESSAGE_CONTEXT_MENUS: ContextMenuConfig[] = [
     handler: async (interaction) => {
       if (!interaction.isMessageContextMenuCommand()) return;
 
-      const _targetMessage = interaction.targetMessage;
-
       await interaction.reply({
         content: `🚨 Signalement du message envoyé aux modérateurs`,
         ephemeral: true,
@@ -227,8 +225,6 @@ export const MESSAGE_CONTEXT_MENUS: ContextMenuConfig[] = [
     handler: async (interaction) => {
       if (!interaction.isMessageContextMenuCommand()) return;
 
-      const _targetMessage = interaction.targetMessage;
-
       await interaction.reply({
         content: `🤖 Analyse IA du message en cours...`,
         ephemeral: true,
@@ -241,8 +237,6 @@ export const MESSAGE_CONTEXT_MENUS: ContextMenuConfig[] = [
     permissions: [PermissionFlagsBits.SendMessages],
     handler: async (interaction) => {
       if (!interaction.isMessageContextMenuCommand()) return;
-
-      const _targetMessage = interaction.targetMessage;
 
       await interaction.reply({
         content: `📝 Message sauvegardé dans vos notes`,
@@ -331,8 +325,6 @@ export const MODERATION_CONTEXT_MENUS: ContextMenuConfig[] = [
     permissions: [PermissionFlagsBits.ManageMessages],
     handler: async (interaction) => {
       if (!interaction.isMessageContextMenuCommand()) return;
-
-      const _targetMessage = interaction.targetMessage;
 
       await interaction.reply({
         content: `🗑️ Suppression du message - Confirmation requise`,

@@ -28,10 +28,7 @@ import {
   getTrackedProducts,
   getRetailerModule,
 } from "../services/retailerAlerts.js";
-import {
-  RETAILER_NAMES,
-  RETAILER_EMOJIS,
-} from "../services/retailers/types.js";
+import { RETAILER_NAMES, RETAILER_EMOJIS } from "../services/retailers/types.js";
 import type { RetailerId, CountryCode } from "../services/retailers/types.js";
 
 const RETAILER_ALERT_CHANNEL = "1532189747500421152";
@@ -41,7 +38,6 @@ const isDM = (interaction: ChatInputCommandInteraction) => !interaction.guild;
 const FOOTER = { text: "Retailer Alerts • Suivi de produits" };
 
 const VALID_RETAILERS = Object.keys(RETAILER_NAMES) as RetailerId[];
-const VALID_COUNTRIES: CountryCode[] = ["FR", "DE", "BE", "NL", "ES", "IT", "CH", "UK", "US"];
 
 // ─── Définition des commandes Slash ──────────────────────────────────────────
 
@@ -204,8 +200,9 @@ export async function handleAutocomplete(interaction: AutocompleteInteraction): 
   const focusedValue = focused.value.toLowerCase();
 
   if (focused.name === "revendeur") {
-    const filtered = VALID_RETAILERS
-      .filter((r) => RETAILER_NAMES[r].toLowerCase().includes(focusedValue))
+    const filtered = VALID_RETAILERS.filter((r) =>
+      RETAILER_NAMES[r].toLowerCase().includes(focusedValue),
+    )
       .slice(0, 25)
       .map((r) => ({ name: `${RETAILER_EMOJIS[r]} ${RETAILER_NAMES[r]}`, value: r }));
     await interaction.respond(filtered);
@@ -216,7 +213,9 @@ export async function handleAutocomplete(interaction: AutocompleteInteraction): 
     const userFilter = interaction.user.id;
     const tracked = getTrackedProducts(userFilter);
     const filtered = focusedValue
-      ? tracked.filter((t) => t.id.includes(focusedValue) || t.title.toLowerCase().includes(focusedValue))
+      ? tracked.filter(
+          (t) => t.id.includes(focusedValue) || t.title.toLowerCase().includes(focusedValue),
+        )
       : tracked;
     await interaction.respond(
       filtered.slice(0, 25).map((t) => ({
@@ -292,7 +291,8 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
   //    dans messages.ts) et Quent utilisera les tools retailer. ──
   const botId = interaction.client.user!.id;
   const targetInfo = targetPrice ? ` avec un prix cible de ${targetPrice}€` : "";
-  let promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de suivre le produit "${productName}" sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId}) en ${country}${targetInfo}. ` +
+  let promptForQuent =
+    `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de suivre le produit "${productName}" sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId}) en ${country}${targetInfo}. ` +
     `Utilise les tools retailer disponibles (searchSingleRetailer puis trackRetailerProduct) pour: ` +
     `1) Rechercher ce produit sur ${retailerId} en ${country} ` +
     `2) Ajouter le meilleur résultat au tracking avec alertes prix/restock/promo ` +
@@ -300,7 +300,9 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
     `Réponds en français avec un formatage Discord riche (embed si possible).`;
 
   // En DM (owner): envoyer le prompt directement dans le DM au lieu du salon d'alertes
-  const targetChannel = dm ? (interaction.channel as TextChannel) : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+  const targetChannel = dm
+    ? (interaction.channel as TextChannel)
+    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
       content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`} Le bot ne peut pas déléguer à Quent.`,
@@ -330,9 +332,13 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
         ? `✅ Demande envoyée à Quent en DM !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront en DM et dans le salon d'alertes.`
         : `✅ Demande envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront dans ce salon.`,
     });
-    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})${attachment ? " + capture" : ""}${dm ? " [DM]" : ""}`);
+    logger.info(
+      `[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})${attachment ? " + capture" : ""}${dm ? " [DM]" : ""}`,
+    );
   } catch (err) {
-    logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err instanceof Error ? err.message : "[REDACTED]"}`);
+    logger.error(
+      `[TrackRetailer] Erreur envoi prompt à Quent: ${err instanceof Error ? err.message : "[REDACTED]"}`,
+    );
     await interaction.editReply({
       content: `❌ Erreur lors de l'envoi de la demande à Quent${dm ? " en DM" : ` dans <#${RETAILER_ALERT_CHANNEL}>`}.`,
     });
@@ -351,7 +357,9 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
   const dm = isDM(interaction);
 
   // Vérifier que c'est une image
-  const isImage = attachment.contentType?.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(attachment.name || "");
+  const isImage =
+    attachment.contentType?.startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(attachment.name || "");
   if (!isImage) {
     await interaction.editReply({
       content: `❌ Le fichier joint doit être une image (PNG, JPG, WEBP, GIF, etc.).`,
@@ -359,7 +367,9 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
     return;
   }
 
-  const targetChannel = dm ? (interaction.channel as TextChannel) : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+  const targetChannel = dm
+    ? (interaction.channel as TextChannel)
+    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
       content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`}`,
@@ -372,7 +382,8 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
     ? `sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId})`
     : `sur la boutique indiquée dans la capture (auto-détection)`;
 
-  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> envoie une capture d'écran de son panier ou d'une page produit. ` +
+  const promptForQuent =
+    `<@${botId}> L'utilisateur <@${interaction.user.id}> envoie une capture d'écran de son panier ou d'une page produit. ` +
     `Analyse cette image avec les tools de vision disponibles (analyzeImageGemini) pour identifier TOUS les produits visibles dans la capture. ` +
     `Pour chaque produit identifié: ` +
     `1) Recherche-le ${retailerInfo} en ${country} avec searchSingleRetailer ` +
@@ -393,7 +404,9 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
         ? `✅ Capture envoyée à Quent en DM !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation ici.`
         : `✅ Capture envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation dans le salon.`,
     });
-    logger.info(`[TrackRetailer] ${interaction.user.tag} a envoyé une capture pour scan (${attachment.name}, ${attachment.size}o)${dm ? " [DM]" : ""}`);
+    logger.info(
+      `[TrackRetailer] ${interaction.user.tag} a envoyé une capture pour scan (${attachment.name}, ${attachment.size}o)${dm ? " [DM]" : ""}`,
+    );
   } catch (err) {
     logger.error(`[TrackRetailer] Erreur envoi capture à Quent: ${err}`);
     await interaction.editReply({
@@ -429,7 +442,9 @@ async function handleTrackRemove(interaction: ChatInputCommandInteraction): Prom
   const embed = new EmbedBuilder()
     .setTitle(`${emoji} Suivi arrêté`)
     .setColor(0xff4444)
-    .setDescription(`**${found.title}** ne sera plus suivi sur ${RETAILER_NAMES[found.retailer]} (${found.country}).`)
+    .setDescription(
+      `**${found.title}** ne sera plus suivi sur ${RETAILER_NAMES[found.retailer]} (${found.country}).`,
+    )
     .addFields(
       { name: "Boutique", value: RETAILER_NAMES[found.retailer], inline: true },
       { name: "Dernier prix", value: `${found.lastPrice}€`, inline: true },
@@ -444,12 +459,16 @@ async function handleTrackRemove(interaction: ChatInputCommandInteraction): Prom
     if (channel?.isTextBased()) {
       try {
         await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
-      } catch { /* */ }
+      } catch {
+        /* */
+      }
     }
   }
 
   await interaction.editReply({
-    content: dm ? `✅ Suivi arrêté.` : `✅ Suivi arrêté. Confirmation envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
+    content: dm
+      ? `✅ Suivi arrêté.`
+      : `✅ Suivi arrêté. Confirmation envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
     embeds: [embed],
   });
   logger.info(`[TrackRetailer] ${interaction.user.tag} a retiré le tracking ${trackId}`);
@@ -498,7 +517,9 @@ async function handleTrackList(interaction: ChatInputCommandInteraction): Promis
     if (channel?.isTextBased()) {
       try {
         await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
-      } catch { /* */ }
+      } catch {
+        /* */
+      }
     }
   }
 
@@ -520,7 +541,9 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
   const dm = isDM(interaction);
 
   // ── Déléguer à Quent : envoyer un message dans le salon d'alertes (ou en DM si owner) ──
-  const targetChannel = dm ? (interaction.channel as TextChannel) : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+  const targetChannel = dm
+    ? (interaction.channel as TextChannel)
+    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
       content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`}`,
@@ -532,7 +555,8 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
   const retailerInfo = retailerId
     ? `sur la boutique ${RETAILER_NAMES[retailerId]} (${retailerId})`
     : `sur toutes les boutiques disponibles`;
-  const promptForQuent = `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de rechercher le produit "${productName}" ${retailerInfo} en ${country}. ` +
+  const promptForQuent =
+    `<@${botId}> L'utilisateur <@${interaction.user.id}> demande de rechercher le produit "${productName}" ${retailerInfo} en ${country}. ` +
     `Utilise les tools retailer disponibles (searchRetailers ou searchSingleRetailer) pour faire cette recherche. ` +
     `Réponds avec un résumé clair des produits trouvés, triés par prix, avec le meilleur prix mis en avant. ` +
     `Réponds en français avec un formatage Discord riche.`;
@@ -544,7 +568,9 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
         ? `✅ Recherche envoyée à Quent en DM !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre ici.`
         : `✅ Recherche envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre dans le salon.`,
     });
-    logger.info(`[TrackRetailer] ${interaction.user.tag} a délégué à Quent: search ${productName} ${retailerInfo} (${country})${dm ? " [DM]" : ""}`);
+    logger.info(
+      `[TrackRetailer] ${interaction.user.tag} a délégué à Quent: search ${productName} ${retailerInfo} (${country})${dm ? " [DM]" : ""}`,
+    );
   } catch (err) {
     logger.error(`[TrackRetailer] Erreur envoi prompt à Quent: ${err}`);
     await interaction.editReply({

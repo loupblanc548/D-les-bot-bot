@@ -25,7 +25,6 @@ import {
 } from "./infrastructure/bridge/remoteRouter.js";
 import { evaluateOffload, recordExecution } from "./infrastructure/monitors/offloadController.js";
 import { isOffloadableCommand } from "./infrastructure/bridge/bridgeTypes.js";
-import { handleMainSelectMenu } from "./commandRouter.js";
 import { handleHelpSelectMenu } from "./commands/helpSystem.js";
 import { handleVerifButton } from "./commands/security.js";
 import { handleAutocomplete } from "./commands/trackGame.js";
@@ -38,6 +37,7 @@ import { handleAutocomplete as handleTwitchAutocomplete } from "./commands/twitc
 import { handleAutocomplete as handleFollowAutocomplete } from "./commands/follow.js";
 import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
 import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
+import { handleAutocomplete as handleRetailerAutocomplete } from "./commands/trackRetailer.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 0. Context Menus (clic droit) ──────────────────────────────────
@@ -320,6 +320,9 @@ export function attachInteractionHandlers(client: Client): void {
         await handleProfileAutocomplete(interaction);
         break;
       }
+      case "track-retailer":
+        await handleRetailerAutocomplete(interaction);
+        break;
     }
   });
 }

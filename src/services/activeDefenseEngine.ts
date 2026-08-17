@@ -97,7 +97,9 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
 /**
  * Build OSINT enrichment fields for the validation embed.
  */
-function buildOsintFields(enr: OsintEnrichment | null): { name: string; value: string; inline: boolean }[] {
+function buildOsintFields(
+  enr: OsintEnrichment | null,
+): { name: string; value: string; inline: boolean }[] {
   if (!enr) return [];
   const fields: { name: string; value: string; inline: boolean }[] = [];
   if (enr.country) fields.push({ name: "🌍 Pays", value: enr.country, inline: true });
@@ -106,7 +108,8 @@ function buildOsintFields(enr: OsintEnrichment | null): { name: string; value: s
   if (enr.org) fields.push({ name: "🏢 Org", value: enr.org, inline: true });
   if (enr.as) fields.push({ name: "🔗 AS", value: enr.as, inline: true });
   if (enr.hostname) fields.push({ name: "🔄 Reverse DNS", value: enr.hostname, inline: true });
-  if (enr.lat && enr.lon) fields.push({ name: "📍 GPS", value: `${enr.lat}, ${enr.lon}`, inline: true });
+  if (enr.lat && enr.lon)
+    fields.push({ name: "📍 GPS", value: `${enr.lat}, ${enr.lon}`, inline: true });
   return fields;
 }
 
@@ -118,17 +121,17 @@ const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // PIDs that must NEVER be killed
 const PROTECTED_PROCESS_NAMES = [
-  "node", "postgres", "wazuh-manager", "wazuh-agent",
-  "redis-server", "prisma", "nginx",
+  "node",
+  "postgres",
+  "wazuh-manager",
+  "wazuh-agent",
+  "redis-server",
+  "prisma",
+  "nginx",
 ];
 
 // IPs that must NEVER be banned
-const PROTECTED_IPS = new Set<string>([
-  ADMIN_HOME_IP,
-  "127.0.0.1",
-  "::1",
-  "localhost",
-]);
+const PROTECTED_IPS = new Set<string>([ADMIN_HOME_IP, "127.0.0.1", "::1", "localhost"]);
 
 /**
  * Check if an IP is protected (admin or localhost).
@@ -183,16 +186,35 @@ interface ProposedAction {
 function proposeAction(alert: WazuhAlert): ProposedAction {
   if (alert.level >= 14) {
     if (alert.data?.pid) {
-      return { action: "PROCESS_TERMINATION", command: `kill -9 ${alert.data.pid}`, targetPid: alert.data.pid, description: `Terminer le processus malveillant PID ${alert.data.pid} via kill -9` };
+      return {
+        action: "PROCESS_TERMINATION",
+        command: `kill -9 ${alert.data.pid}`,
+        targetPid: alert.data.pid,
+        description: `Terminer le processus malveillant PID ${alert.data.pid} via kill -9`,
+      };
     }
     if (alert.data?.srcip) {
-      return { action: "NETWORK_BAN", command: `sudo ufw deny from ${alert.data.srcip} to any`, targetIp: alert.data.srcip, description: `Bannir l'IP source ${alert.data.srcip} via UFW` };
+      return {
+        action: "NETWORK_BAN",
+        command: `sudo ufw deny from ${alert.data.srcip} to any`,
+        targetIp: alert.data.srcip,
+        description: `Bannir l'IP source ${alert.data.srcip} via UFW`,
+      };
     }
   }
   if (alert.level >= 12 && alert.data?.srcip) {
-    return { action: "NETWORK_BAN", command: `sudo ufw deny from ${alert.data.srcip} to any`, targetIp: alert.data.srcip, description: `Bannir l'IP source ${alert.data.srcip} via UFW (brute-force/network attack)` };
+    return {
+      action: "NETWORK_BAN",
+      command: `sudo ufw deny from ${alert.data.srcip} to any`,
+      targetIp: alert.data.srcip,
+      description: `Bannir l'IP source ${alert.data.srcip} via UFW (brute-force/network attack)`,
+    };
   }
-  return { action: "LOG_ONLY", command: "none", description: "Journalisation uniquement — aucune action pour ce niveau" };
+  return {
+    action: "LOG_ONLY",
+    command: "none",
+    description: "Journalisation uniquement — aucune action pour ce niveau",
+  };
 }
 
 async function executeApprovedAction(proposal: ProposedAction): Promise<DefenseResult> {
@@ -200,30 +222,77 @@ async function executeApprovedAction(proposal: ProposedAction): Promise<DefenseR
   switch (proposal.action) {
     case "NETWORK_BAN": {
       const ip = proposal.targetIp ?? "";
-      if (!ip || isProtectedIP(ip)) return { action: "NETWORK_BAN", command: "BLOCKED (protected IP)", output: `IP ${ip} is whitelisted — action refused`, latencyMs: 0, success: false };
+      if (!ip || isProtectedIP(ip))
+        return {
+          action: "NETWORK_BAN",
+          command: "BLOCKED (protected IP)",
+          output: `IP ${ip} is whitelisted — action refused`,
+          latencyMs: 0,
+          success: false,
+        };
       try {
-        const { stdout, stderr } = await execAsync(`sudo ufw deny from ${ip} to any 2>&1 || sudo iptables -A INPUT -s ${ip} -j DROP 2>&1`, { timeout: 5000 });
+        const { stdout, stderr } = await execAsync(
+          `sudo ufw deny from ${ip} to any 2>&1 || sudo iptables -A INPUT -s ${ip} -j DROP 2>&1`,
+          { timeout: 5000 },
+        );
         const latency = Date.now() - start;
         logger.info(`[SOAR] 🔒 IP banned: ${ip} (${latency}ms)`);
-        return { action: "NETWORK_BAN", command: `ufw deny from ${ip} / iptables -A INPUT -s ${ip} -j DROP`, output: (stdout + stderr).trim().slice(0, 200), latencyMs: latency, success: true };
+        return {
+          action: "NETWORK_BAN",
+          command: `ufw deny from ${ip} / iptables -A INPUT -s ${ip} -j DROP`,
+          output: (stdout + stderr).trim().slice(0, 200),
+          latencyMs: latency,
+          success: true,
+        };
       } catch (err) {
-        return { action: "NETWORK_BAN", command: proposal.command, output: (err instanceof Error ? err.message : String(err)).slice(0, 200), latencyMs: Date.now() - start, success: false };
+        return {
+          action: "NETWORK_BAN",
+          command: proposal.command,
+          output: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+          latencyMs: Date.now() - start,
+          success: false,
+        };
       }
     }
     case "PROCESS_TERMINATION": {
       const pid = proposal.targetPid ?? "";
-      if (!pid || (await isProtectedPID(pid))) return { action: "PROCESS_TERMINATION", command: "BLOCKED (protected process)", output: `PID ${pid} belongs to a protected system process — action refused`, latencyMs: 0, success: false };
+      if (!pid || (await isProtectedPID(pid)))
+        return {
+          action: "PROCESS_TERMINATION",
+          command: "BLOCKED (protected process)",
+          output: `PID ${pid} belongs to a protected system process — action refused`,
+          latencyMs: 0,
+          success: false,
+        };
       try {
         const { stdout, stderr } = await execAsync(`kill -9 ${pid} 2>&1`, { timeout: 3000 });
         const latency = Date.now() - start;
         logger.info(`[SOAR] 💀 Process terminated: PID ${pid} (${latency}ms)`);
-        return { action: "PROCESS_TERMINATION", command: `kill -9 ${pid}`, output: (stdout + stderr).trim().slice(0, 200) || `Process ${pid} killed`, latencyMs: latency, success: true };
+        return {
+          action: "PROCESS_TERMINATION",
+          command: `kill -9 ${pid}`,
+          output: (stdout + stderr).trim().slice(0, 200) || `Process ${pid} killed`,
+          latencyMs: latency,
+          success: true,
+        };
       } catch (err) {
-        return { action: "PROCESS_TERMINATION", command: proposal.command, output: (err instanceof Error ? err.message : String(err)).slice(0, 200), latencyMs: Date.now() - start, success: false };
+        return {
+          action: "PROCESS_TERMINATION",
+          command: proposal.command,
+          output: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+          latencyMs: Date.now() - start,
+          success: false,
+        };
       }
     }
     default:
-      return { action: "LOG_ONLY", command: "none", output: "Threat logged — no action taken", latencyMs: 0, success: true };
+      return {
+        action: "LOG_ONLY",
+        command: "none",
+        output: "Threat logged — no action taken",
+        latencyMs: 0,
+        success: true,
+      };
   }
 }
 
@@ -244,7 +313,11 @@ const pendingApprovals = new Map<string, PendingApproval>();
 
 // ─── Embed Builders ──────────────────────────────────────────────────────────
 
-function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction, osintFields: { name: string; value: string; inline: boolean }[] = []): EmbedBuilder {
+function buildValidationRequestEmbed(
+  alert: WazuhAlert,
+  proposal: ProposedAction,
+  osintFields: { name: string; value: string; inline: boolean }[] = [],
+): EmbedBuilder {
   const baseFields = [
     { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
     { name: "🖥️ Endpoint", value: alert.agent?.name ?? "unknown", inline: true },
@@ -256,11 +329,15 @@ function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction
 
   const allFields = [...baseFields, ...osintFields];
   allFields.push({ name: "⚔️ Action Proposée", value: proposal.description, inline: false });
-  allFields.push({ name: "💻 Commande", value: `\`\`\`bash\n${proposal.command}\n\`\`\``, inline: false });
+  allFields.push({
+    name: "💻 Commande",
+    value: `\`\`\`bash\n${proposal.command}\n\`\`\``,
+    inline: false,
+  });
 
   return new EmbedBuilder()
     .setTitle("🚨 [ATTENTE DE VALIDATION - RIPOSTE REQUISE]")
-    .setColor(0xFF8C00)
+    .setColor(0xff8c00)
     .addFields(...allFields)
     .setFooter({ text: "⏱️ Auto-abort dans 5 minutes sans réponse" })
     .setTimestamp();
@@ -268,8 +345,14 @@ function buildValidationRequestEmbed(alert: WazuhAlert, proposal: ProposedAction
 
 function buildApprovalButtons(wazuhAlertId: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`soar_approve_${wazuhAlertId}`).setLabel("⚔️ AUTORISER LA RIPOSTE").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`soar_reject_${wazuhAlertId}`).setLabel("❌ IGNORER / REJETER").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`soar_approve_${wazuhAlertId}`)
+      .setLabel("⚔️ AUTORISER LA RIPOSTE")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`soar_reject_${wazuhAlertId}`)
+      .setLabel("❌ IGNORER / REJETER")
+      .setStyle(ButtonStyle.Secondary),
   );
 }
 
@@ -282,33 +365,57 @@ function buildPostExecutionEmbed(alert: WazuhAlert, result: DefenseResult): Embe
     { name: "✅ Statut", value: result.success ? "Exécuté" : "Échec/Refusé", inline: true },
     { name: "💻 Commande", value: `\`\`\`bash\n${result.command}\n\`\`\``, inline: false },
   ];
-  if (result.output) fields.push({ name: "📋 Output", value: `\`\`\`\n${result.output.slice(0, 200)}\n\`\`\``, inline: false });
-  return new EmbedBuilder().setTitle("⚔️ [RIPOSTE APPROUVÉE ET EXÉCUTÉE]").setColor(0xDC143C).addFields(...fields).setTimestamp();
+  if (result.output)
+    fields.push({
+      name: "📋 Output",
+      value: `\`\`\`\n${result.output.slice(0, 200)}\n\`\`\``,
+      inline: false,
+    });
+  return new EmbedBuilder()
+    .setTitle("⚔️ [RIPOSTE APPROUVÉE ET EXÉCUTÉE]")
+    .setColor(0xdc143c)
+    .addFields(...fields)
+    .setTimestamp();
 }
 
 function buildRejectedEmbed(alert: WazuhAlert): EmbedBuilder {
-  return new EmbedBuilder().setTitle("❌ [RIPOSTE REJETÉE PAR L'ADMIN]").setColor(0x808080)
+  return new EmbedBuilder()
+    .setTitle("❌ [RIPOSTE REJETÉE PAR L'ADMIN]")
+    .setColor(0x808080)
     .addFields(
       { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
       { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
       { name: "📋 Statut", value: "DISMISSED_BY_ADMIN", inline: false },
-    ).setTimestamp();
+    )
+    .setTimestamp();
 }
 
 function buildTimeoutEmbed(alert: WazuhAlert): EmbedBuilder {
-  return new EmbedBuilder().setTitle("⏱️ [VALIDATION EXPIRÉE - RIPOSTE AUTO-ABORTÉE]").setColor(0x808080)
+  return new EmbedBuilder()
+    .setTitle("⏱️ [VALIDATION EXPIRÉE - RIPOSTE AUTO-ABORTÉE]")
+    .setColor(0x808080)
     .addFields(
       { name: "🔴 Niveau", value: `Level ${alert.level}`, inline: true },
       { name: "📝 Description", value: alert.description.slice(0, 200), inline: false },
       { name: "📋 Statut", value: "TIMEOUT — No admin response within 5 minutes", inline: false },
-    ).setTimestamp();
+    )
+    .setTimestamp();
 }
 
 function buildUndoButton(wazuhAlertId: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`soar_undo_${wazuhAlertId}`).setLabel("🔓 UNDO / ROLLBACK").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`soar_investigate_${wazuhAlertId}`).setLabel("🟡 INVESTIGATE").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`soar_falsepos_${wazuhAlertId}`).setLabel("🟢 FALSE POSITIVE").setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`soar_undo_${wazuhAlertId}`)
+      .setLabel("🔓 UNDO / ROLLBACK")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`soar_investigate_${wazuhAlertId}`)
+      .setLabel("🟡 INVESTIGATE")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`soar_falsepos_${wazuhAlertId}`)
+      .setLabel("🟢 FALSE POSITIVE")
+      .setStyle(ButtonStyle.Success),
   );
 }
 
@@ -323,15 +430,33 @@ export function setDiscordClient(client: Client): void {
 // ─── Main Entry Point — Human-in-the-Loop Validation Gate ────────────────────
 
 export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
-  const CYAN = "\x1b[36m", RED = "\x1b[31m", YELLOW = "\x1b[33m", RESET = "\x1b[0m", BOLD = "\x1b[1m";
+  const CYAN = "\x1b[36m",
+    RED = "\x1b[31m",
+    YELLOW = "\x1b[33m",
+    RESET = "\x1b[0m",
+    BOLD = "\x1b[1m";
 
-  logger.warn(`${CYAN}${BOLD}[SOAR]${RESET} ${RED}Critical threat L${alert.level}: ${alert.description}${RESET}\n${YELLOW}→ Entering Human-in-the-Loop validation gate${RESET}`);
+  logger.warn(
+    `${CYAN}${BOLD}[SOAR]${RESET} ${RED}Critical threat L${alert.level}: ${alert.description}${RESET}\n${YELLOW}→ Entering Human-in-the-Loop validation gate${RESET}`,
+  );
 
   const proposal = proposeAction(alert);
 
   if (proposal.action === "LOG_ONLY") {
     logger.info(`[SOAR] Threat L${alert.level} — log only, no validation needed`);
-    try { await prisma.securityIncident.update({ where: { wazuhAlertId: alert.id }, data: { status: "OPEN", agentAssessment: `Logged only — level ${alert.level} below retaliation threshold` } }).catch(() => {}); } catch { /* non-fatal */ }
+    try {
+      await prisma.securityIncident
+        .update({
+          where: { wazuhAlertId: alert.id },
+          data: {
+            status: "OPEN",
+            agentAssessment: `Logged only — level ${alert.level} below retaliation threshold`,
+          },
+        })
+        .catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
     return;
   }
 
@@ -343,7 +468,9 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
     const enrichment = await enrichIP(srcIp);
     osintFields = buildOsintFields(enrichment);
     if (enrichment) {
-      logger.info(`[SOAR] 🔍 OSINT: ${srcIp} → ${enrichment.country ?? "?"} / ${enrichment.isp ?? "?"} / ${enrichment.hostname ?? "no PTR"}`);
+      logger.info(
+        `[SOAR] 🔍 OSINT: ${srcIp} → ${enrichment.country ?? "?"} / ${enrichment.isp ?? "?"} / ${enrichment.hostname ?? "no PTR"}`,
+      );
     }
   }
 
@@ -351,8 +478,28 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
   // When a virus/malware alert is detected, automatically run ALL available
   // threat intelligence tools: VirusTotal, AbuseIPDB, PhishTank, Google Safe
   // Browsing, IPVoid. This provides maximum visibility on the threat.
-  const alertText = `${alert.description} ${alert.rule?.description ?? ""} ${alert.rule?.groups?.join(" ") ?? ""}`.toLowerCase();
-  const virusKeywords = ["virus", "malware", "trojan", "ransomware", "worm", "backdoor", "rootkit", "spyware", "adware", "botnet", "c2", "command and control", "exploit", "shellcode", "payload", "injection", "mining", "cryptominer"];
+  const alertText =
+    `${alert.description} ${alert.rule?.description ?? ""} ${alert.rule?.groups?.join(" ") ?? ""}`.toLowerCase();
+  const virusKeywords = [
+    "virus",
+    "malware",
+    "trojan",
+    "ransomware",
+    "worm",
+    "backdoor",
+    "rootkit",
+    "spyware",
+    "adware",
+    "botnet",
+    "c2",
+    "command and control",
+    "exploit",
+    "shellcode",
+    "payload",
+    "injection",
+    "mining",
+    "cryptominer",
+  ];
   const isVirusAlert = virusKeywords.some((kw) => alertText.includes(kw));
 
   if (isVirusAlert) {
@@ -362,92 +509,110 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
 
     // 1. IP Reputation (AbuseIPDB + IPVoid geo/proxy detection)
     if (srcIp) {
-    try {
-      const { checkIPReputation } = await import("./threatIntel.js");
-      const ipRep = await checkIPReputation(srcIp);
-      const flags: string[] = [];
-      if (ipRep.isProxy) flags.push("PROXY/VPN");
-      if (ipRep.isHosting) flags.push("DATACENTER");
-      if (ipRep.isMalicious) flags.push("🚨 MALICIOUS");
+      try {
+        const { checkIPReputation } = await import("./threatIntel.js");
+        const ipRep = await checkIPReputation(srcIp);
+        const flags: string[] = [];
+        if (ipRep.isProxy) flags.push("PROXY/VPN");
+        if (ipRep.isHosting) flags.push("DATACENTER");
+        if (ipRep.isMalicious) flags.push("🚨 MALICIOUS");
 
-      threatFields.push({
-        name: "🛡️ IP Reputation (AbuseIPDB + IPVoid)",
-        value: `**Score:** ${ipRep.abuseScore}/100\n**Pays:** ${ipRep.country ?? "?"}\n**ISP:** ${ipRep.isp ?? "?"}\n**Flags:** ${flags.length > 0 ? flags.join(", ") : "Aucune"}\n**Malicious:** ${ipRep.isMalicious ? "⚠️ OUI" : "Non"}`,
-        inline: false,
-      });
+        threatFields.push({
+          name: "🛡️ IP Reputation (AbuseIPDB + IPVoid)",
+          value: `**Score:** ${ipRep.abuseScore}/100\n**Pays:** ${ipRep.country ?? "?"}\n**ISP:** ${ipRep.isp ?? "?"}\n**Flags:** ${flags.length > 0 ? flags.join(", ") : "Aucune"}\n**Malicious:** ${ipRep.isMalicious ? "⚠️ OUI" : "Non"}`,
+          inline: false,
+        });
 
-      // Log each source result
-      for (const r of ipRep.results) {
-        if (r.malicious) {
-          logger.warn(`[SOAR] 🦠 ${r.source}: ${r.query} → MALICIOUS (${r.confidence}%) — ${r.details}`);
+        // Log each source result
+        for (const r of ipRep.results) {
+          if (r.malicious) {
+            logger.warn(
+              `[SOAR] 🦠 ${r.source}: ${r.query} → MALICIOUS (${r.confidence}%) — ${r.details}`,
+            );
+          }
         }
+      } catch (err) {
+        logger.debug(
+          `[SOAR] IP reputation failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-    } catch (err) {
-      logger.debug(`[SOAR] IP reputation failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
     }
 
     // 2. URL scanning (VirusTotal + PhishTank + Safe Browsing) if URL present
-    const alertUrl = (alert.data as Record<string, unknown>)?.url as string ?? "";
+    const alertUrl = ((alert.data as Record<string, unknown>)?.url as string) ?? "";
     if (alertUrl && alertUrl.startsWith("http")) {
-    try {
-      const { scanURL } = await import("./threatIntel.js");
-      const urlScan = await scanURL(alertUrl);
-      const maliciousSources = urlScan.results.filter((r) => r.malicious).map((r) => r.source);
-      threatFields.push({
-        name: "🔬 URL Scan (VirusTotal + PhishTank + Safe Browsing)",
-        value: `**URL:** ${alertUrl.slice(0, 100)}\n**Malicious:** ${urlScan.overallMalicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${urlScan.overallConfidence}%\n**Sources malveillantes:** ${maliciousSources.length > 0 ? maliciousSources.join(", ") : "Aucune"}`,
-        inline: false,
-      });
+      try {
+        const { scanURL } = await import("./threatIntel.js");
+        const urlScan = await scanURL(alertUrl);
+        const maliciousSources = urlScan.results.filter((r) => r.malicious).map((r) => r.source);
+        threatFields.push({
+          name: "🔬 URL Scan (VirusTotal + PhishTank + Safe Browsing)",
+          value: `**URL:** ${alertUrl.slice(0, 100)}\n**Malicious:** ${urlScan.overallMalicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${urlScan.overallConfidence}%\n**Sources malveillantes:** ${maliciousSources.length > 0 ? maliciousSources.join(", ") : "Aucune"}`,
+          inline: false,
+        });
 
-      if (urlScan.overallMalicious) {
-        logger.warn(`[SOAR] 🦠 URL ${alertUrl} flagged as MALICIOUS by ${maliciousSources.length} sources`);
+        if (urlScan.overallMalicious) {
+          logger.warn(
+            `[SOAR] 🦠 URL ${alertUrl} flagged as MALICIOUS by ${maliciousSources.length} sources`,
+          );
+        }
+      } catch (err) {
+        logger.debug(`[SOAR] URL scan failed: ${err instanceof Error ? err.message : String(err)}`);
       }
-    } catch (err) {
-      logger.debug(`[SOAR] URL scan failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
     }
 
     // 3. File hash scanning via VirusTotal if file hash present
-    const fileHash = (alert.data as Record<string, unknown>)?.hash as string
-      ?? (alert.data as Record<string, unknown>)?.md5 as string
-      ?? (alert.data as Record<string, unknown>)?.sha256 as string
-      ?? "";
+    const fileHash =
+      ((alert.data as Record<string, unknown>)?.hash as string) ??
+      ((alert.data as Record<string, unknown>)?.md5 as string) ??
+      ((alert.data as Record<string, unknown>)?.sha256 as string) ??
+      "";
     if (fileHash && fileHash.length >= 32) {
-    try {
-      const { scanFileHashVirusTotal } = await import("./threatIntel.js");
-      const hashResult = await scanFileHashVirusTotal(fileHash);
-      threatFields.push({
-        name: "🧬 File Hash Scan (VirusTotal)",
-        value: `**Hash:** ${fileHash.slice(0, 32)}...\n**Malicious:** ${hashResult.malicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${hashResult.confidence}%\n**Détails:** ${hashResult.details.slice(0, 200)}`,
-        inline: false,
-      });
+      try {
+        const { scanFileHashVirusTotal } = await import("./threatIntel.js");
+        const hashResult = await scanFileHashVirusTotal(fileHash);
+        threatFields.push({
+          name: "🧬 File Hash Scan (VirusTotal)",
+          value: `**Hash:** ${fileHash.slice(0, 32)}...\n**Malicious:** ${hashResult.malicious ? "🚨 OUI" : "Non"}\n**Confiance:** ${hashResult.confidence}%\n**Détails:** ${hashResult.details.slice(0, 200)}`,
+          inline: false,
+        });
 
-      if (hashResult.malicious) {
-        logger.warn(`[SOAR] 🦠 File hash ${fileHash.slice(0, 16)}... flagged as MALICIOUS by VirusTotal`);
+        if (hashResult.malicious) {
+          logger.warn(
+            `[SOAR] 🦠 File hash ${fileHash.slice(0, 16)}... flagged as MALICIOUS by VirusTotal`,
+          );
+        }
+      } catch (err) {
+        logger.debug(
+          `[SOAR] File hash scan failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-    } catch (err) {
-      logger.debug(`[SOAR] File hash scan failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
     }
 
     // 4. GitHub dorking for leaked credentials related to the threat
     if (srcIp || alertUrl) {
-    try {
-      const { githubDorkSearch } = await import("./threatIntel.js");
-      const dorkQuery = srcIp ? `ip:${srcIp}` : `url:${alertUrl}`;
-      const leakResult = await githubDorkSearch(dorkQuery);
-      if (leakResult.found) {
-        threatFields.push({
-          name: "🔑 GitHub Leak Search",
-          value: `**Repos affectés:** ${leakResult.repositories.length}\n**Détails:** ${leakResult.repositories.slice(0, 3).map((r) => `${r.repo}/${r.file}`).join("\n")}`,
-          inline: false,
-        });
-        logger.warn(`[SOAR] 🦠 GitHub leaks found for threat query: ${leakResult.repositories.length} repos`);
+      try {
+        const { githubDorkSearch } = await import("./threatIntel.js");
+        const dorkQuery = srcIp ? `ip:${srcIp}` : `url:${alertUrl}`;
+        const leakResult = await githubDorkSearch(dorkQuery);
+        if (leakResult.found) {
+          threatFields.push({
+            name: "🔑 GitHub Leak Search",
+            value: `**Repos affectés:** ${leakResult.repositories.length}\n**Détails:** ${leakResult.repositories
+              .slice(0, 3)
+              .map((r) => `${r.repo}/${r.file}`)
+              .join("\n")}`,
+            inline: false,
+          });
+          logger.warn(
+            `[SOAR] 🦠 GitHub leaks found for threat query: ${leakResult.repositories.length} repos`,
+          );
+        }
+      } catch (err) {
+        logger.debug(
+          `[SOAR] GitHub leak search failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-    } catch (err) {
-      logger.debug(`[SOAR] GitHub leak search failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
     }
 
     // Add all threat intel fields to the OSINT fields for the embed
@@ -459,34 +624,66 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
       });
       osintFields.push(...threatFields);
 
-      logger.warn(`[SOAR] 🦠 Threat intel sweep complete — ${threatFields.length} results appended to validation embed`);
+      logger.warn(
+        `[SOAR] 🦠 Threat intel sweep complete — ${threatFields.length} results appended to validation embed`,
+      );
     }
   }
 
   const validationEmbed = buildValidationRequestEmbed(alert, proposal, osintFields);
   const approvalButtons = buildApprovalButtons(alert.id);
 
-  let dmMessage: Message | null = null;
+  let dmMessage: Message | null;
   if (discordClient && ADMIN_DISCORD_ID) {
     try {
       const adminUser = await discordClient.users.fetch(ADMIN_DISCORD_ID);
-      dmMessage = await adminUser.send({ embeds: [validationEmbed], components: [approvalButtons] });
+      dmMessage = await adminUser.send({
+        embeds: [validationEmbed],
+        components: [approvalButtons],
+      });
       logger.info(`[SOAR] 📨 Validation request DM sent to admin — awaiting approval`);
     } catch (err) {
-      logger.error(`[SOAR] Failed to send validation DM: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[SOAR] Failed to send validation DM: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return;
     }
   } else {
-    logger.warn(`[SOAR] No admin Discord ID configured — cannot request validation. Threat logged only.`);
+    logger.warn(
+      `[SOAR] No admin Discord ID configured — cannot request validation. Threat logged only.`,
+    );
     return;
   }
 
   // FREEZE — register pending approval with 5-min timeout
-  const timeoutHandle = setTimeout(() => { void handleApprovalTimeout(alert.id).catch(() => {}); }, APPROVAL_TIMEOUT_MS);
+  const timeoutHandle = setTimeout(() => {
+    void handleApprovalTimeout(alert.id).catch(() => {});
+  }, APPROVAL_TIMEOUT_MS);
 
-  pendingApprovals.set(alert.id, { alert, dmMessage, proposedAction: proposal.action, proposedCommand: proposal.command, targetIp: proposal.targetIp, targetPid: proposal.targetPid, timeoutHandle, resolved: false });
+  pendingApprovals.set(alert.id, {
+    alert,
+    dmMessage,
+    proposedAction: proposal.action,
+    proposedCommand: proposal.command,
+    targetIp: proposal.targetIp,
+    targetPid: proposal.targetPid,
+    timeoutHandle,
+    resolved: false,
+  });
 
-  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alert.id }, data: { status: "OPEN", agentAssessment: `PENDING_ADMIN_APPROVAL — Proposed: ${proposal.description}` } }).catch(() => {}); } catch { /* non-fatal */ }
+  try {
+    await prisma.securityIncident
+      .update({
+        where: { wazuhAlertId: alert.id },
+        data: {
+          status: "OPEN",
+          agentAssessment: `PENDING_ADMIN_APPROVAL — Proposed: ${proposal.description}`,
+        },
+      })
+      .catch(() => {});
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // ─── Approval Resolution Handlers ────────────────────────────────────────────
@@ -499,11 +696,19 @@ export async function handleApproval(alertId: string): Promise<void> {
   pendingApprovals.delete(alertId);
 
   const { alert, dmMessage, targetIp, targetPid } = pending;
-  const proposal: ProposedAction = { action: pending.proposedAction, command: pending.proposedCommand, targetIp, targetPid, description: pending.proposedCommand };
+  const proposal: ProposedAction = {
+    action: pending.proposedAction,
+    command: pending.proposedCommand,
+    targetIp,
+    targetPid,
+    description: pending.proposedCommand,
+  };
 
   logger.info(`[SOAR] ⚔️ Admin APPROVED retaliation for alert ${alertId}`);
   const result = await executeApprovedAction(proposal);
-  logger.info(`[SOAR] ✅ Action executed: ${result.action} | Latency: ${result.latencyMs}ms | Success: ${result.success}`);
+  logger.info(
+    `[SOAR] ✅ Action executed: ${result.action} | Latency: ${result.latencyMs}ms | Success: ${result.success}`,
+  );
 
   if (dmMessage) {
     try {
@@ -516,7 +721,19 @@ export async function handleApproval(alertId: string): Promise<void> {
     }
   }
 
-  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: result.success ? "MUTATED_AND_CONTAINED" : "OPEN", agentAssessment: `APPROVED & EXECUTED — Action: ${result.action} | Latency: ${result.latencyMs}ms | Output: ${result.output.slice(0, 200)}` } }).catch(() => {}); } catch { /* non-fatal */ }
+  try {
+    await prisma.securityIncident
+      .update({
+        where: { wazuhAlertId: alertId },
+        data: {
+          status: result.success ? "MUTATED_AND_CONTAINED" : "OPEN",
+          agentAssessment: `APPROVED & EXECUTED — Action: ${result.action} | Latency: ${result.latencyMs}ms | Output: ${result.output.slice(0, 200)}`,
+        },
+      })
+      .catch(() => {});
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export async function handleRejection(alertId: string): Promise<void> {
@@ -530,10 +747,28 @@ export async function handleRejection(alertId: string): Promise<void> {
   logger.info(`[SOAR] ❌ Admin REJECTED retaliation for alert ${alertId}`);
 
   if (dmMessage) {
-    try { await dmMessage.edit({ embeds: [buildRejectedEmbed(alert)], components: [] }); } catch (err) { logger.error(`[SOAR] Failed to edit DM on rejection: ${err instanceof Error ? err.message : String(err)}`); }
+    try {
+      await dmMessage.edit({ embeds: [buildRejectedEmbed(alert)], components: [] });
+    } catch (err) {
+      logger.error(
+        `[SOAR] Failed to edit DM on rejection: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
-  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: "FALSE_POSITIVE", agentAssessment: "DISMISSED_BY_ADMIN — Admin rejected the proposed retaliation" } }).catch(() => {}); } catch { /* non-fatal */ }
+  try {
+    await prisma.securityIncident
+      .update({
+        where: { wazuhAlertId: alertId },
+        data: {
+          status: "FALSE_POSITIVE",
+          agentAssessment: "DISMISSED_BY_ADMIN — Admin rejected the proposed retaliation",
+        },
+      })
+      .catch(() => {});
+  } catch {
+    /* non-fatal */
+  }
 }
 
 async function handleApprovalTimeout(alertId: string): Promise<void> {
@@ -546,35 +781,83 @@ async function handleApprovalTimeout(alertId: string): Promise<void> {
   logger.warn(`[SOAR] ⏱️ Approval timeout for alert ${alertId} — auto-aborting`);
 
   if (dmMessage) {
-    try { await dmMessage.edit({ embeds: [buildTimeoutEmbed(alert)], components: [] }); } catch (err) { logger.error(`[SOAR] Failed to edit DM on timeout: ${err instanceof Error ? err.message : String(err)}`); }
+    try {
+      await dmMessage.edit({ embeds: [buildTimeoutEmbed(alert)], components: [] });
+    } catch (err) {
+      logger.error(
+        `[SOAR] Failed to edit DM on timeout: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
-  try { await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: "OPEN", agentAssessment: "VALIDATION_TIMEOUT — No admin response within 5 minutes. Auto-aborted." } }).catch(() => {}); } catch { /* non-fatal */ }
+  try {
+    await prisma.securityIncident
+      .update({
+        where: { wazuhAlertId: alertId },
+        data: {
+          status: "OPEN",
+          agentAssessment: "VALIDATION_TIMEOUT — No admin response within 5 minutes. Auto-aborted.",
+        },
+      })
+      .catch(() => {});
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // ─── Rollback & Investigation ────────────────────────────────────────────────
 
 export async function undoNetworkBan(ip: string): Promise<boolean> {
   if (!ip) return false;
-  try { await execAsync(`sudo ufw delete deny from ${ip} 2>&1 || sudo iptables -D INPUT -s ${ip} -j DROP 2>&1`, { timeout: 5000 }); logger.info(`[SOAR] ↩️ Undo: IP ${ip} unbanned`); return true; } catch { return false; }
+  try {
+    await execAsync(
+      `sudo ufw delete deny from ${ip} 2>&1 || sudo iptables -D INPUT -s ${ip} -j DROP 2>&1`,
+      { timeout: 5000 },
+    );
+    logger.info(`[SOAR] ↩️ Undo: IP ${ip} unbanned`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function markFalsePositive(wazuhAlertId: string): Promise<void> {
-  try { await prisma.securityIncident.update({ where: { wazuhAlertId }, data: { status: "FALSE_POSITIVE" } }).catch(() => {}); logger.info(`[SOAR] Alert ${wazuhAlertId} marked as FALSE POSITIVE`); } catch { /* non-fatal */ }
+  try {
+    await prisma.securityIncident
+      .update({ where: { wazuhAlertId }, data: { status: "FALSE_POSITIVE" } })
+      .catch(() => {});
+    logger.info(`[SOAR] Alert ${wazuhAlertId} marked as FALSE POSITIVE`);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export async function investigateAlert(wazuhAlertId: string, srcIp?: string): Promise<string> {
   try {
     let output = "";
-    if (srcIp) { const { stdout } = await execAsync(`ss -tunap | grep "${srcIp}" 2>/dev/null || netstat -tunap | grep "${srcIp}" 2>/dev/null`, { timeout: 5000 }); output += `Connections from ${srcIp}:\n${stdout}\n\n`; }
+    if (srcIp) {
+      const { stdout } = await execAsync(
+        `ss -tunap | grep "${srcIp}" 2>/dev/null || netstat -tunap | grep "${srcIp}" 2>/dev/null`,
+        { timeout: 5000 },
+      );
+      output += `Connections from ${srcIp}:\n${stdout}\n\n`;
+    }
     const { stdout: psOut } = await execAsync("ps aux --sort=-%cpu | head -20", { timeout: 5000 });
     output += `Top processes:\n${psOut}`;
     logger.info(`[SOAR] 🔍 Investigation completed for ${wazuhAlertId}`);
     return output.slice(0, 2000);
-  } catch (err) { return `Investigation failed: ${err instanceof Error ? err.message : String(err)}`; }
+  } catch (err) {
+    return `Investigation failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
 }
 
 export function purgeAllPendingApprovals(): void {
-  for (const [id, pending] of pendingApprovals) { if (!pending.resolved) { clearTimeout(pending.timeoutHandle); pending.resolved = true; logger.info(`[SOAR] Purged pending approval ${id} on shutdown`); } }
+  for (const [id, pending] of pendingApprovals) {
+    if (!pending.resolved) {
+      clearTimeout(pending.timeoutHandle);
+      pending.resolved = true;
+      logger.info(`[SOAR] Purged pending approval ${id} on shutdown`);
+    }
+  }
   pendingApprovals.clear();
 }

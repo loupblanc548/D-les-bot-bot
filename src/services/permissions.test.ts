@@ -62,6 +62,20 @@ function mockMember(
 function mockInteraction(member?: GuildMember | null): CommandInteraction {
   return {
     member: member ?? null,
+    // Default to a guild-context interaction (not a DM) so these tests
+    // exercise the member-permission path rather than the DM-only
+    // ("owner only") branch added to requireAdmin/requireMod.
+    guild: member?.guild ?? { id: "guild-1" },
+    user: { id: "user-non-owner" },
+    reply: vi.fn().mockResolvedValue(undefined),
+  } as unknown as CommandInteraction;
+}
+
+function mockDmInteraction(userId: string): CommandInteraction {
+  return {
+    member: null,
+    guild: null,
+    user: { id: userId },
     reply: vi.fn().mockResolvedValue(undefined),
   } as unknown as CommandInteraction;
 }
@@ -179,6 +193,27 @@ describe("requireAdmin", () => {
     expect(interaction.reply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining("serveur"),
+      }),
+    );
+  });
+
+  it("should return true for the bot owner in DMs", async () => {
+    const { config } = await import("../config.js");
+    (config as any).ownerId = "owner-123";
+    const interaction = mockDmInteraction("owner-123");
+    const result = await requireAdmin(interaction);
+    expect(result).toBe(true);
+  });
+
+  it("should return false and reply for non-owners in DMs", async () => {
+    const { config } = await import("../config.js");
+    (config as any).ownerId = "owner-123";
+    const interaction = mockDmInteraction("someone-else");
+    const result = await requireAdmin(interaction);
+    expect(result).toBe(false);
+    expect(interaction.reply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining("propriétaire"),
       }),
     );
   });

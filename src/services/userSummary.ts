@@ -20,22 +20,23 @@ export interface UserSummary {
   achievements: string[];
 }
 
-export async function generateUserSummary(
-  userId: string,
-  guildId: string,
-): Promise<UserSummary> {
+export async function generateUserSummary(userId: string, guildId: string): Promise<UserSummary> {
   try {
     const [activityLogs, modActions] = await Promise.all([
-      prisma.userActivityLog.findMany({
-        where: { userId, guildId },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }).catch(() => []),
-      prisma.modAction.findMany({
-        where: { targetId: userId, guildId },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-      }).catch(() => []),
+      prisma.userActivityLog
+        .findMany({
+          where: { userId, guildId },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        })
+        .catch((): [] => []),
+      prisma.modAction
+        .findMany({
+          where: { targetId: userId, guildId },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        })
+        .catch((): [] => []),
     ]);
 
     const messageCount = activityLogs.length;
@@ -141,8 +142,16 @@ export async function generateUserEmbed(summary: UserSummary): Promise<EmbedBuil
       { name: "📝 Activités", value: String(summary.messageCount), inline: true },
       { name: "⚠️ Niveau de risque", value: summary.riskLevel, inline: true },
       { name: `${sentimentEmoji} Tendance`, value: summary.sentimentTrend, inline: true },
-      { name: "📅 Dernière activité", value: `<t:${Math.floor(summary.lastActive.getTime() / 1000)}:R>`, inline: true },
-      { name: "📅 Première activité", value: `<t:${Math.floor(summary.joinedAt.getTime() / 1000)}:R>`, inline: true },
+      {
+        name: "📅 Dernière activité",
+        value: `<t:${Math.floor(summary.lastActive.getTime() / 1000)}:R>`,
+        inline: true,
+      },
+      {
+        name: "📅 Première activité",
+        value: `<t:${Math.floor(summary.joinedAt.getTime() / 1000)}:R>`,
+        inline: true,
+      },
     )
     .setTimestamp();
 

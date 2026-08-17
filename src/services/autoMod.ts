@@ -5,7 +5,7 @@
  * Seuils configurables par serveur via Prisma.
  */
 
-import type { Message, GuildMember, TextChannel } from "discord.js";
+import type { Message, GuildMember } from "discord.js";
 import logger from "../utils/logger.js";
 
 export type AutoModAction = "warn" | "delete" | "mute" | "kick";
@@ -81,7 +81,8 @@ export function checkMessage(message: Message, rules: AutoModRule): ViolationRes
 
   // Caps
   if (content.length >= rules.capsMinLength) {
-    const capsRatio = (content.replace(/[^A-Za-z]/g, "").match(/[A-Z]/g)?.length ?? 0) /
+    const capsRatio =
+      (content.replace(/[^A-Za-z]/g, "").match(/[A-Z]/g)?.length ?? 0) /
       Math.max(1, content.replace(/[^A-Za-z]/g, "").length);
     if (capsRatio * 100 >= rules.capsThreshold) {
       return { violated: true, reason: "Excès de majuscules", action: rules.action };
@@ -131,7 +132,9 @@ export async function executeAction(
         break;
     }
   } catch (err) {
-    logger.warn(`[AutoMod] Action ${action} failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[AutoMod] Action ${action} failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 

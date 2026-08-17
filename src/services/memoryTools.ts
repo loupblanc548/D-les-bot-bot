@@ -5,16 +5,10 @@
  * quand l'utilisateur @mentionne le bot, sans commande slash.
  */
 
-import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
-import { searchVectorMemories, storeVectorMemory, pruneVectorMemories } from "./vectorMemory.js";
+import { searchVectorMemories } from "./vectorMemory.js";
 import { getCustomInstructions, setInstruction, clearInstruction } from "./customInstructions.js";
-import {
-  startSession,
-  endSession,
-  getActiveSession,
-  loadConversationContext,
-} from "./conversationSessions.js";
+import { startSession, endSession, getActiveSession } from "./conversationSessions.js";
 import type { AgentToolDef } from "./agentTools.js";
 
 export const MEMORY_TOOLS: AgentToolDef[] = [

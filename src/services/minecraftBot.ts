@@ -67,36 +67,6 @@ let lastPosition: { x: number; y: number; z: number } | null = null;
 let lastHealth = 20;
 let lastHunger = 20;
 
-const _DANGEROUS_BLOCKS = new Set([
-  "minecraft:lava",
-  "minecraft:flowing_lava",
-  "minecraft:water",
-  "minecraft:flowing_water",
-  "minecraft:fire",
-  "minecraft:magma",
-  "minecraft:cactus",
-  "minecraft:sweet_berry_bush",
-]);
-
-const _ORE_BLOCKS = new Set([
-  "minecraft:coal_ore",
-  "minecraft:iron_ore",
-  "minecraft:gold_ore",
-  "minecraft:diamond_ore",
-  "minecraft:emerald_ore",
-  "minecraft:lapis_ore",
-  "minecraft:redstone_ore",
-  "minecraft:nether_gold_ore",
-  "minecraft:ancient_debris",
-  "minecraft:deepslate_coal_ore",
-  "minecraft:deepslate_iron_ore",
-  "minecraft:deepslate_gold_ore",
-  "minecraft:deepslate_diamond_ore",
-  "minecraft:deepslate_emerald_ore",
-  "minecraft:deepslate_lapis_ore",
-  "minecraft:deepslate_redstone_ore",
-]);
-
 /**
  * Connecte le bot à un serveur Bedrock.
  */
@@ -223,7 +193,7 @@ export async function connectBot(
           );
           if (mentionPattern.test(msg) && sender.toLowerCase() !== botName.toLowerCase()) {
             logger.info(`[MinecraftBot] Mention détectée de ${sender}: ${msg}`);
-            // Réponse IA asynchrone (OpenRouter → Groq → Gemini → patterns)
+            // Réponse IA asynchrone (Groq → OpenRouter → patterns)
             generateAIResponse(msg, sender, botName)
               .then((response) => {
                 sendChat(`§b[${botName}] §f${response}`);
@@ -482,11 +452,6 @@ function pickRandom(arr: string[]): string {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateChatResponse(message: string, sender: string, botName: string): string {
-  // Version synchrone : utilise les patterns (fallback immédiat)
-  return generatePatternResponse(message, sender, botName);
-}
-
 // ─── Cache de conversations par joueur (contexte pour l'IA) ──────────────────
 const playerConversations = new Map<
   string,
@@ -495,7 +460,7 @@ const playerConversations = new Map<
 const MAX_CONV_HISTORY = 6;
 
 /**
- * Génère une réponse intelligente via OpenRouter/Groq/Gemini avec contexte Minecraft.
+ * Génère une réponse intelligente via Groq/OpenRouter avec contexte Minecraft.
  * Tombe sur les patterns si l'IA échoue ou timeout.
  */
 async function generateAIResponse(
@@ -581,23 +546,6 @@ async function generateAIResponse(
           while (history.length > MAX_CONV_HISTORY * 2) history.shift();
           playerConversations.set(sender, history);
           return groqReply;
-        }
-      }
-    } catch {
-      // Continue to pattern fallback
-    }
-
-    // Fallback 2: Gemini
-    try {
-      const { chatWithGemini, isGeminiAvailable } = await import("./gemini.js");
-      if (isGeminiAvailable()) {
-        const geminiReply = await chatWithGemini(systemPrompt, message, 150);
-        if (geminiReply) {
-          history.push({ role: "user", content: message });
-          history.push({ role: "assistant", content: geminiReply });
-          while (history.length > MAX_CONV_HISTORY * 2) history.shift();
-          playerConversations.set(sender, history);
-          return geminiReply;
         }
       }
     } catch {
@@ -1341,10 +1289,8 @@ async function runFarmingLoop(): Promise<void> {
 const SERVER_DIR = join(process.cwd(), "bedrock-server");
 const SERVER_EXE = process.platform === "win32" ? "bedrock_server.exe" : "bedrock_server";
 const SERVER_VERSION = "1.26.33";
-const _DOWNLOAD_URL = `https://minecraft.azureedge.net/bin-win/bedrock-server-${SERVER_VERSION}.zip`;
 
 let serverProcess: ChildProcess | null = null;
-let _serverPort = 19132;
 
 /**
  * Télécharge et extrait le Bedrock Dedicated Server si pas déjà présent.
@@ -1433,8 +1379,6 @@ export async function startServerWithSeed(
   }
 
   try {
-    _serverPort = port;
-
     // Écrire server.properties avec la graine
     const propsPath = join(SERVER_DIR, "server.properties");
     const props = generateServerProperties(seed, port);

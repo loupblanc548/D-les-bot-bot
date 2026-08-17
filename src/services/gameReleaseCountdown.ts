@@ -14,7 +14,7 @@
  * - GAME_RELEASE_PLATFORM : plateforme filtrée (all, pc, playstation, xbox, switch) défaut: all
  */
 
-import { Client, EmbedBuilder, Message } from "discord.js";
+import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { isIgdbAvailable } from "./igdb.js";
@@ -77,7 +77,7 @@ function getPlatformChannelId(platforms: string[]): string | null {
   return null;
 }
 
-function getGuildId(): string {
+function _getGuildId(): string {
   return process.env.GUILD_ID || process.env.DISCORD_GUILD_ID || process.env.MAIN_GUILD_ID || "";
 }
 
@@ -282,7 +282,6 @@ function buildCountdownBar(target: Date, totalSpanMs: number): string {
 }
 
 function buildReleaseEmbed(release: TrackedRelease): EmbedBuilder {
-  const now = Date.now();
   const totalSpan = 90 * 24 * 60 * 60 * 1000; // 90 days span for progress bar
 
   const embed = new EmbedBuilder()
@@ -340,7 +339,7 @@ function buildReleaseEmbed(release: TrackedRelease): EmbedBuilder {
 
 // ─── Core logic ─────────────────────────────────────────────────────────────
 
-async function refreshReleaseList(client: Client): Promise<void> {
+async function refreshReleaseList(_client: Client): Promise<void> {
   if (!VOICE_CHANNEL_ID) {
     logger.debug("[GameReleaseCountdown] Pas de GAME_RELEASE_VOICE_CHANNEL_ID configuré");
     return;
@@ -495,9 +494,8 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
       const message = `${roleMention}⏳ **${tracked.gameName}** sort dans moins d'1 heure ! Préparez-vous ! 🔥`;
 
       const platformChannelId = getPlatformChannelId(tracked.platforms);
-      const targetChannelIds = (platformChannelId
-        ? [platformChannelId]
-        : getAllTargetChannels().map((t) => t.channelId)
+      const targetChannelIds = (
+        platformChannelId ? [platformChannelId] : getAllTargetChannels().map((t) => t.channelId)
       ).filter((id) => id !== VOICE_CHANNEL_ID); // Ne pas notifier dans le salon vocal
 
       for (const channelId of targetChannelIds) {
@@ -505,7 +503,9 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
           const channel = client.channels.cache.get(channelId);
           if (channel && "send" in channel) {
             await channel.send({ content: message });
-            logger.info(`[GameReleaseCountdown] Notif J-1h: ${tracked.gameName} → salon ${channelId}`);
+            logger.info(
+              `[GameReleaseCountdown] Notif J-1h: ${tracked.gameName} → salon ${channelId}`,
+            );
           }
         } catch (err) {
           logger.error(
@@ -529,7 +529,7 @@ async function checkReleaseNotifications(client: Client): Promise<void> {
         // Determine target channel based on platform
         const platformChannelId = getPlatformChannelId(tracked.platforms);
 
-        let targetChannelIds: string[] = [];
+        let targetChannelIds: string[];
 
         if (platformChannelId) {
           // Use dedicated platform channel
@@ -588,9 +588,8 @@ async function updateCountdowns(client: Client): Promise<void> {
     if (tracked.releaseDate.getTime() <= Date.now() && !tracked.notifiedDays.has(0)) {
       tracked.notifiedDays.add(0);
       const platformChannelId = getPlatformChannelId(tracked.platforms);
-      const historyChannelIds = (platformChannelId
-        ? [platformChannelId]
-        : getAllTargetChannels().map((t) => t.channelId)
+      const historyChannelIds = (
+        platformChannelId ? [platformChannelId] : getAllTargetChannels().map((t) => t.channelId)
       ).filter((id) => id !== VOICE_CHANNEL_ID);
       for (const channelId of historyChannelIds) {
         try {
@@ -599,15 +598,20 @@ async function updateCountdowns(client: Client): Promise<void> {
             const embed = buildReleaseEmbed(tracked);
             embed.setColor(0x00d26a);
             embed.setTitle(`🎉 ${tracked.gameName} — Sorti aujourd'hui !`);
-            const platformLabel = tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
+            const platformLabel =
+              tracked.platforms.length > 0 ? tracked.platforms.join(", ") : "Multi-plateforme";
             await (histChannel as any).send({
               content: `📜 **Historique des sorties**\n🎮 **${tracked.gameName}** est maintenant disponible !\n*Plateforme: ${platformLabel}*`,
               embeds: [embed],
             });
-            logger.info(`[GameReleaseCountdown] Historique posté: ${tracked.gameName} → salon ${channelId}`);
+            logger.info(
+              `[GameReleaseCountdown] Historique posté: ${tracked.gameName} → salon ${channelId}`,
+            );
           }
         } catch (err) {
-          logger.error(`[GameReleaseCountdown] Erreur post historique: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(
+            `[GameReleaseCountdown] Erreur post historique: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     }

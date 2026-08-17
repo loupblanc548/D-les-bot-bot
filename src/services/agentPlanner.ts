@@ -624,7 +624,7 @@ export function detectAmbiguity(userMessage: string): string[] | null {
   // ─── Package NPM/PyPI ───
   if (
     (lower.includes("npm") || lower.includes("pypi") || lower.includes("package")) &&
-    !lower.match(/[a-z@\-\/]{2,}/) &&
+    !lower.match(/[a-z@\-/]{2,}/) &&
     words.length < 5
   ) {
     questions.push("Quel package veux-tu que je vérifie ? (donne le nom)");

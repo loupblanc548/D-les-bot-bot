@@ -1,0 +1,42 @@
+name: "📋 License Check"
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate license report
+        run: npx license-checker --production --json > licenses.json
+
+      - name: Check for problematic licenses
+        run: |
+          PROBLEMATIC=$(npx license-checker --production --json | jq '[.[] | select(.licenses | test("GPL|AGPL|LGPL|MPL|CDDL|EPL"; "i"))] | length')
+          if [ "$PROBLEMATIC" -gt 0 ]; then
+            echo "⚠️  Found $PROBLEMATIC dependencies with copyleft licenses"
+            npx license-checker --production --json | jq '[.[] | select(.licenses | test("GPL|AGPL|LGPL|MPL|CDDL|EPL"; "i")) | {name, version, licenses}]'
+            echo "::warning::Found $PROBLEMATIC dependencies with copyleft licenses"
+          else
+            echo "✅ No problematic licenses found"
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.json

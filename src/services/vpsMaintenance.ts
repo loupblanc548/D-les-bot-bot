@@ -12,14 +12,13 @@
  *  - checkVpsUptime(): Heartbeat ping to monitoring endpoint
  */
 
-import { exec, execFile } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { readFile } from "fs/promises";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client } from "discord.js";
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 const ADMIN_DISCORD_ID = process.env.ADMIN_DISCORD_ID || "";
@@ -402,10 +401,6 @@ export async function vpsMaintenanceCheck(): Promise<{
   } catch {
     /* non-critical */
   }
-
-  const diskStr = disk
-    ? `${disk.used}/${disk.size} (${disk.usePercent}%) — ${disk.available} available`
-    : "N/A";
 
   const status = disk
     ? disk.usePercent >= DISK_CRITICAL_THRESHOLD

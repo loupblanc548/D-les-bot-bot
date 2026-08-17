@@ -101,7 +101,7 @@ export async function detectAltAccount(
 
   // 5. Check if user was previously banned (ban evasion)
   try {
-    const bans = await guild.bans.fetch().catch(() => null);
+    const bans = await guild.bans.fetch().catch((): null => null);
     if (bans) {
       const matchingBan = bans.find((b) => {
         const banReason = b.reason?.toLowerCase() ?? "";
@@ -127,7 +127,7 @@ export async function detectAltAccount(
         where: { guildId: guild.id, userId: member.id, type: "WARN" },
         take: 1,
       })
-      .catch(() => []);
+      .catch((): any[] => []);
     if (warnings.length > 0) {
       reasons.push("Historique de warnings existant");
       riskScore += 10;
@@ -197,7 +197,7 @@ export async function notifyStaff(
   const channel = guild.channels.cache.get(logChannelId) as TextChannel | undefined;
   if (!channel || channel.type !== ChannelType.GuildText) return;
 
-  const member = await guild.members.fetch(flag.userId).catch(() => null);
+  const member = await guild.members.fetch(flag.userId).catch((): null => null);
   if (!member) return;
 
   const embed = generateAltAlertEmbed(flag, member);

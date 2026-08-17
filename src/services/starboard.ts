@@ -50,7 +50,9 @@ export async function handleReaction(
     if (existing?.starboardMessageId) {
       const sbChannel = guild.channels.cache.get(starboardChannelId) as TextChannel | undefined;
       if (sbChannel && sbChannel.type === ChannelType.GuildText) {
-        const sbMessage = await sbChannel.messages.fetch(existing.starboardMessageId).catch(() => null);
+        const sbMessage = await sbChannel.messages
+          .fetch(existing.starboardMessageId)
+          .catch((): null => null);
         if (sbMessage) await sbMessage.delete().catch(() => {});
       }
       starboardEntries.delete(messageId);
@@ -62,7 +64,7 @@ export async function handleReaction(
   const channel = guild.channels.cache.get(channelId) as TextChannel | undefined;
   if (!channel || channel.type !== ChannelType.GuildText) return;
 
-  const message = await channel.messages.fetch(messageId).catch(() => null);
+  const message = await channel.messages.fetch(messageId).catch((): null => null);
   if (!message) return;
 
   const sbChannel = guild.channels.cache.get(starboardChannelId) as TextChannel | undefined;
@@ -74,7 +76,9 @@ export async function handleReaction(
 
   if (existing && existing.starboardMessageId) {
     // Update existing starboard message
-    const sbMessage = await sbChannel.messages.fetch(existing.starboardMessageId).catch(() => null);
+    const sbMessage = await sbChannel.messages
+      .fetch(existing.starboardMessageId)
+      .catch((): null => null);
     if (sbMessage) {
       await sbMessage.edit({ embeds: [embed] }).catch(() => {});
       existing.starCount = starCount;
@@ -83,7 +87,7 @@ export async function handleReaction(
   }
 
   // Create new starboard entry
-  const sbMessage = await sbChannel.send({ embeds: [embed] }).catch(() => null);
+  const sbMessage = await sbChannel.send({ embeds: [embed] }).catch((): null => null);
   if (sbMessage) {
     starboardEntries.set(messageId, {
       messageId,
@@ -126,7 +130,11 @@ function buildStarEmbed(message: Message, starCount: number): EmbedBuilder {
   return embed;
 }
 
-export function getStarboardStats(guildId: string): { totalEntries: number; totalStars: number; topMessage?: StarboardEntry } {
+export function getStarboardStats(guildId: string): {
+  totalEntries: number;
+  totalStars: number;
+  topMessage?: StarboardEntry;
+} {
   const entries = Array.from(starboardEntries.values()).filter((e) => e.guildId === guildId);
   const totalStars = entries.reduce((sum, e) => sum + e.starCount, 0);
   const topMessage = entries.sort((a, b) => b.starCount - a.starCount)[0];

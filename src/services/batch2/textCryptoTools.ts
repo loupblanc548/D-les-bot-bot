@@ -382,7 +382,7 @@ export async function toolMarkdownToHtml(args: Record<string, unknown>): Promise
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
-    .replace(/^\- (.+)$/gm, "<li>$1</li>");
+    .replace(/^- (.+)$/gm, "<li>$1</li>");
   return ok(`📝 **HTML:**\n\`\`\`html\n${html.slice(0, 1800)}\n\`\`\``);
 }
 

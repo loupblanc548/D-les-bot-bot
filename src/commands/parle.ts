@@ -21,13 +21,8 @@ import {
   NoSubscriberBehavior,
 } from "@discordjs/voice";
 import { Readable } from "node:stream";
-import { writeFile, unlink, mkdir } from "fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
-import { randomUUID } from "crypto";
 import logger from "../utils/logger.js";
 
-const TTS_DIR = join(tmpdir(), "bot-parle");
 const MAX_LENGTH = 500;
 
 export const commands = [
@@ -173,7 +168,8 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
 
   // 2. ElevenLabs
   try {
-    const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("../services/elevenLabsTts.js");
+    const { generateElevenLabsTTS, isElevenLabsConfigured } =
+      await import("../services/elevenLabsTts.js");
     if (isElevenLabsConfigured()) {
       const result = await generateElevenLabsTTS(text.slice(0, 500));
       if (result?.audioUrl?.startsWith("data:audio/mpeg;base64,")) {
@@ -195,9 +191,18 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
   // 4. StreamElements / Amazon Polly
   try {
     const voiceMap: Record<string, string> = {
-      fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
-      it: "Giorgio", pt: "Ricardo", ja: "Takumi", ko: "Minho",
-      zh: "Zhiyu", ru: "Maxim", ar: "Zeina", nl: "Ruben",
+      fr: "Mathieu",
+      en: "Brian",
+      es: "Enrique",
+      de: "Hans",
+      it: "Giorgio",
+      pt: "Ricardo",
+      ja: "Takumi",
+      ko: "Minho",
+      zh: "Zhiyu",
+      ru: "Maxim",
+      ar: "Zeina",
+      nl: "Ruben",
     };
     const voice = voiceMap[lang] || "Brian";
     const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
@@ -261,7 +266,9 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
     const finish = (result: Buffer | null) => {
       if (resolved) return;
       resolved = true;
-      try { ws.close(); } catch {}
+      try {
+        ws.close();
+      } catch {}
       resolve(result);
     };
 

@@ -1,0 +1,58 @@
+name: "📦 SBOM & Container Scan"
+
+on:
+  push:
+    branches: [main, chore/cleanup-security-ci]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  sbom-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          npx @cyclonedx/cyclonedx-npm --output-format json --output-file sbom.json
+          npx @cyclonedx/cyclonedx-npm --output-format xml --output-file sbom.xml
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom.json
+            sbom.xml
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile.scraper -t bot-scraper:scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'bot-scraper:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'

@@ -144,24 +144,38 @@ function getApiBase() {
 
 // ─── API Helper ─────────────────────────────────────────────────────────
 
+let _apiOfflineLogged = false;
+
 async function apiFetch(endpoint, options = {}) {
   const token = getToken();
-  // Validate token format before sending (prevent injection via malformed stored token)
   if (token && !/^[a-zA-Z0-9_\-.]{0,256}$/.test(token)) {
     throw new Error("Invalid token format");
   }
-  const res = await fetch(getApiBase() + endpoint, {
-    ...options,
-    headers: {
-      Authorization: "Bearer " + token,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    throw new Error("API error " + res.status + ": " + (await res.text()));
+  try {
+    const res = await fetch(getApiBase() + endpoint, {
+      ...options,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      console.error(`[API] ${endpoint} -> ${res.status}`);
+      return null;
+    }
+    return res.json();
+  } catch (err) {
+    if (err?.cause?.code === "ECONNREFUSED" || err?.code === "ECONNREFUSED") {
+      if (!_apiOfflineLogged) {
+        _apiOfflineLogged = true;
+        console.error(`[API] Server unreachable at ${getApiBase()} — requests will return null silently`);
+      }
+      return null;
+    }
+    console.error(`[API] ${endpoint} failed:`, err?.message || err);
+    return null;
   }
-  return res.json();
 }
 
 // ─── IPC Handlers ───────────────────────────────────────────────────────
@@ -234,6 +248,24 @@ ipcMain.handle("api:amazon-deals", (_e, params) => {
 // Security
 ipcMain.handle("api:security", () => apiFetch("/api/security"));
 
+// Minecraft LLM Agent
+ipcMain.handle("mc:status", () => apiFetch("/api/mc/agent/status"));
+ipcMain.handle("mc:world", () => apiFetch("/api/mc/agent/world"));
+ipcMain.handle("mc:goal", (_e, { goal, maxActions }) =>
+  apiFetch("/api/mc/agent/goal", { method: "POST", body: JSON.stringify({ goal, max_actions: maxActions || 80 }) })
+);
+ipcMain.handle("mc:stop", () => apiFetch("/api/mc/agent/stop", { method: "POST" }));
+ipcMain.handle("mc:log", (_e, lines) => apiFetch("/api/mc/agent/log?lines=" + (lines || 50)));
+ipcMain.handle("mc:chat", (_e, { message }) =>
+  apiFetch("/api/mc/agent/chat", { method: "POST", body: JSON.stringify({ message }) })
+);
+ipcMain.handle("mc:action", (_e, { type, params }) =>
+  apiFetch("/api/mc/agent/action", { method: "POST", body: JSON.stringify({ type, params: params || {} }) })
+);
+ipcMain.handle("mc:connect", (_e, { server, username }) =>
+  apiFetch("/api/mc/agent/connect", { method: "POST", body: JSON.stringify({ server, username: username || "LLM_Bot" }) })
+);
+
 // Music
 ipcMain.handle("api:music", () => apiFetch("/api/music"));
 ipcMain.handle("api:music-control", (_e, { action, guildId }) =>
@@ -269,6 +301,7 @@ ipcMain.handle("window:close", () => mainWindow?.close());
 let ws = null;
 let wsReconnectTimer = null;
 let wsReconnectAttempts = 0;
+let _wsErrorLogged = false;
 const WS_MAX_RECONNECT_DELAY = 30000;
 const WS_BASE_RECONNECT_DELAY = 1000;
 const WS_MAX_ATTEMPTS = 10;
@@ -286,8 +319,7 @@ function scheduleWsReconnect() {
   mainWindow?.webContents.send("ws:status", "reconnecting");
   wsReconnectTimer = setTimeout(() => {
     wsReconnectTimer = null;
-    doWsConnect().catch((err) => {
-      console.error("[WS] Reconnect failed:", err);
+    doWsConnect().catch(() => {
       scheduleWsReconnect();
     });
   }, delay);
@@ -306,6 +338,8 @@ async function doWsConnect() {
     ws.onopen = () => {
       console.log("[WS] Connected");
       wsReconnectAttempts = 0;
+      _wsErrorLogged = false;
+      _apiOfflineLogged = false;
       mainWindow?.webContents.send("ws:status", "connected");
       resolve();
     };
@@ -326,7 +360,10 @@ async function doWsConnect() {
     };
 
     ws.onerror = (err) => {
-      console.error("[WS] Error:", err);
+      if (!_wsErrorLogged) {
+        _wsErrorLogged = true;
+        console.error(`[WS] Connection error — ${getApiBase()} unreachable`);
+      }
       reject(err);
     };
   });

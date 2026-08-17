@@ -58,7 +58,9 @@ export async function getSuggestionConfig(guildId: string): Promise<SuggestionCo
   const cached = configs.get(guildId);
   if (cached) return cached;
   try {
-    const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
+    const record = await prisma.guildConfig
+      .findUnique({ where: { guildId } })
+      .catch((): null => null);
     if (record?.suggestionConfig) {
       const parsed = {
         ...DEFAULT_CONFIG,
@@ -170,7 +172,7 @@ export async function createSuggestion(
         name: `discussion-${title.slice(0, 40)}`,
         autoArchiveDuration: 1440,
       })
-      .catch(() => null);
+      .catch((): null => null);
     if (thread) {
       suggestion.threadId = thread.id;
     }
@@ -225,7 +227,7 @@ export async function updateStatus(
   if (guild) {
     const channel = guild.channels.cache.get(suggestion.channelId) as TextChannel | undefined;
     if (channel && channel.type === ChannelType.GuildText) {
-      const message = await channel.messages.fetch(suggestion.messageId).catch(() => null);
+      const message = await channel.messages.fetch(suggestion.messageId).catch((): null => null);
       if (message) {
         const config = await getSuggestionConfig(suggestion.guildId);
         const statusEmoji =

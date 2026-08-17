@@ -41,7 +41,7 @@ export function jsonPathQuery(jsonStr: string, path: string): string {
     const data = JSON.parse(jsonStr);
     const parts = path
       .replace(/^\$\.?/, "")
-      .split(/[.\[]/)
+      .split(/[.[]/)
       .filter(Boolean);
     let current: any = data;
     for (const part of parts) {

@@ -110,13 +110,6 @@ function mockFetchMyMemory429(): void {
     });
 }
 
-/**
- * Mock fetch: les deux services échouent.
- */
-function _mockFetchBothFail(): void {
-  global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
-}
-
 // ─── Suite 1: État initial ──────────────────────────────────────────────────
 
 describe("Circuit Breaker — État initial", () => {
@@ -169,9 +162,7 @@ describe("Circuit Breaker — Bannissement 1h", () => {
   });
 
   it("banMyMemory() enregistre un timestamp récent", () => {
-    const _before = Date.now();
     banMyMemory("Erreur 429");
-    const _after = Date.now();
 
     const state = getCircuitBreakerState();
     expect(state.banned).toBe(true);

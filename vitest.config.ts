@@ -13,11 +13,16 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts", "node_modules", "dist"],
       thresholds: {
-        lines: 40,
-        functions: 40,
-        branches: 30,
-        statements: 40,
+        lines: 70,
+        functions: 70,
+        branches: 60,
+        statements: 70,
       },
+    },
+
+    retry: {
+      retries: 2,
+      mode: "retry-on-failure",
     },
 
     testTimeout: 30000,

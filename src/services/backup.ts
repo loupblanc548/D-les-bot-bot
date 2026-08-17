@@ -25,7 +25,7 @@ export function startBackupService(client: Client) {
   logger.info("[Backup] Service de sauvegarde programmé (hebdomadaire + auto 6h)");
 }
 
-async function performAutoBackup(client: Client) {
+async function performAutoBackup(_client: Client) {
   try {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");

@@ -210,7 +210,10 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ["hash_crack", { level: "medium", module: "extended", reason: "Dictionary attack on hashes" }],
     ["sqli_detect", { level: "low", module: "extended", reason: "Local pattern matching" }],
     ["xss_detect", { level: "low", module: "extended", reason: "Local pattern matching" }],
-    ["password_analyze", { level: "low", module: "extended", reason: "Local analysis, no network" }],
+    [
+      "password_analyze",
+      { level: "low", module: "extended", reason: "Local analysis, no network" },
+    ],
     ["subdomain_enum", { level: "medium", module: "extended", reason: "Active DNS brute-force" }],
     ["reverse_ip", { level: "low", module: "extended", reason: "Read-only DNS PTR" }],
     ["cidr_calc", { level: "low", module: "extended", reason: "Local calculation" }],
@@ -234,18 +237,47 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ["hash_gen", { level: "low", module: "extended", reason: "Local hashing" }],
     ["lorem_gen", { level: "low", module: "extended", reason: "Local generation" }],
     ["color_convert", { level: "low", module: "extended", reason: "Local conversion" }],
-    ["metasploit", { level: "high", module: "extended", reason: "Exploitation framework — admin validation required" }],
+    [
+      "metasploit",
+      {
+        level: "high",
+        module: "extended",
+        reason: "Exploitation framework — admin validation required",
+      },
+    ],
     ["tshark_capture", { level: "medium", module: "extended", reason: "Network packet capture" }],
-    ["hydra_brute", { level: "high", module: "extended", reason: "Brute force authentication — admin validation" }],
-    ["sqlmap_scan", { level: "high", module: "extended", reason: "Active SQL injection — admin validation" }],
-    ["searchsploit", { level: "low", module: "extended", reason: "Read-only exploit database search" }],
-    ["hashcat_crack", { level: "medium", module: "extended", reason: "Hash cracking in isolated container" }],
+    [
+      "hydra_brute",
+      {
+        level: "high",
+        module: "extended",
+        reason: "Brute force authentication — admin validation",
+      },
+    ],
+    [
+      "sqlmap_scan",
+      { level: "high", module: "extended", reason: "Active SQL injection — admin validation" },
+    ],
+    [
+      "searchsploit",
+      { level: "low", module: "extended", reason: "Read-only exploit database search" },
+    ],
+    [
+      "hashcat_crack",
+      { level: "medium", module: "extended", reason: "Hash cracking in isolated container" },
+    ],
     ["snmp_walk", { level: "low", module: "extended", reason: "Read-only SNMP enumeration" }],
     ["enum4linux_scan", { level: "medium", module: "extended", reason: "Active SMB enumeration" }],
     ["harvester_osint", { level: "low", module: "extended", reason: "OSINT — public data only" }],
-    ["crackmapexec_scan", { level: "high", module: "extended", reason: "Active pentest tool — admin validation" }],
+    [
+      "crackmapexec_scan",
+      { level: "high", module: "extended", reason: "Active pentest tool — admin validation" },
+    ],
     ["whatweb_scan", { level: "low", module: "extended", reason: "Read-only web fingerprinting" }],
-    ["gobuster_scan", { level: "medium", module: "extended", reason: "Active directory brute force" }],
+    [
+      "gobuster_scan",
+      { level: "medium", module: "extended", reason: "Active directory brute force" },
+    ],
     ["nmap_nse_scan", { level: "medium", module: "extended", reason: "Active NSE scripts" }],
     ["base64_codec", { level: "low", module: "extended", reason: "Local encoding" }],
     ["url_codec", { level: "low", module: "extended", reason: "Local encoding" }],
@@ -1543,11 +1575,19 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     // ════════════════════════════════════════════════════════════════════════
     [
       "amazon_wishlist_scrape",
-      { level: "low", module: "amazon", reason: "Read-only public wishlist scraping, no persistence" },
+      {
+        level: "low",
+        module: "amazon",
+        reason: "Read-only public wishlist scraping, no persistence",
+      },
     ],
     [
       "amazon_price_track",
-      { level: "low", module: "amazon", reason: "Read-only price lookup via Keepa API or scraping" },
+      {
+        level: "low",
+        module: "amazon",
+        reason: "Read-only price lookup via Keepa API or scraping",
+      },
     ],
     [
       "amazon_price_history",
@@ -1559,7 +1599,11 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ],
     [
       "amazon_cart_monitor",
-      { level: "medium", module: "amazon", reason: "Uses Puppeteer with saved session cookies — accesses private cart" },
+      {
+        level: "medium",
+        module: "amazon",
+        reason: "Uses Puppeteer with saved session cookies — accesses private cart",
+      },
     ],
     [
       "amazon_price_alert_create",
@@ -1571,7 +1615,11 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ],
     [
       "amazon_price_alert_delete",
-      { level: "medium", module: "amazon", reason: "Deletes alert state — modifies in-memory store" },
+      {
+        level: "medium",
+        module: "amazon",
+        reason: "Deletes alert state — modifies in-memory store",
+      },
     ],
     [
       "amazon_wishlist_diff",
@@ -1591,11 +1639,19 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ],
     [
       "amazon_subscribe_save_check",
-      { level: "medium", module: "amazon", reason: "Uses Puppeteer with session — accesses private subscriptions" },
+      {
+        level: "medium",
+        module: "amazon",
+        reason: "Uses Puppeteer with session — accesses private subscriptions",
+      },
     ],
     [
       "amazon_order_history",
-      { level: "medium", module: "amazon", reason: "Uses Puppeteer with session — accesses private order history" },
+      {
+        level: "medium",
+        module: "amazon",
+        reason: "Uses Puppeteer with session — accesses private order history",
+      },
     ],
     [
       "amazon_review_summary",
@@ -1642,21 +1698,27 @@ export function getRegistrySummary(): {
   low: number;
   medium: number;
   high: number;
+  restricted: number;
   unclassified: string[];
 } {
   let low = 0,
     medium = 0,
-    high = 0;
-  for (const [, entry] of TOOL_RISK_REGISTRY) {
+    high = 0,
+    restricted = 0;
+  const unclassified: string[] = [];
+  for (const [name, entry] of TOOL_RISK_REGISTRY) {
     if (entry.level === "low") low++;
     else if (entry.level === "medium") medium++;
     else if (entry.level === "high") high++;
+    else if (entry.level === "restricted") restricted++;
+    else unclassified.push(name);
   }
   return {
     total: TOOL_RISK_REGISTRY.size,
     low,
     medium,
     high,
-    unclassified: [],
+    restricted,
+    unclassified,
   };
 }

@@ -19,11 +19,6 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? "";
 const CREDENTIALS_PATH = process.env.GOOGLE_CALENDAR_CREDENTIALS_JSON ?? "";
 
 let calendarClient: calendar_v3.Calendar | null = null;
-let authClient: GoogleAuth | null = null;
-
-interface GoogleAuth {
-  getClient(): Promise<unknown>;
-}
 
 async function getCalendarClient(): Promise<calendar_v3.Calendar | null> {
   if (calendarClient) return calendarClient;
@@ -48,7 +43,6 @@ async function getCalendarClient(): Promise<calendar_v3.Calendar | null> {
       version: "v3",
       auth: client as unknown as string,
     });
-    authClient = auth as unknown as GoogleAuth;
     logger.info("[GoogleCalendar] Client initialized successfully");
     return calendarClient;
   } catch (err) {

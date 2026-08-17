@@ -15,8 +15,8 @@ const envSchema = z.object({
   DISCORD_GUILD_ID: z.string().min(1, "DISCORD_GUILD_ID is required"),
   OWNER_ID: z.string().min(1, "OWNER_ID is required"),
 
-  // OpenRouter AI (required)
-  OPENROUTER_API_KEY: z.string().min(1, "OPENROUTER_API_KEY is required"),
+  // OpenRouter AI (optional — local Ollama can run the chatbot without external keys)
+  OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v3:free"),
   AI_SYSTEM_PROMPT: z.string().default("Tu es un assistant utile et concis. Reponds en francais."),
 
@@ -125,6 +125,8 @@ const envSchema = z.object({
   BRAVE_ANSWERS_API_KEY: z.string().optional(),
   ASSEMBLYAI_API_KEY: z.string().optional(),
   COHERE_API_KEY: z.string().optional(),
+  OMNIROUTE_API_KEY: z.string().optional(),
+  OMNIROUTE_URL: z.string().default("http://localhost:20128/v1"),
 
   // Google Cloud
   GOOGLE_CLOUD_PROJECT_ID: z.string().optional(),

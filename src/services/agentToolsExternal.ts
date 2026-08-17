@@ -19,7 +19,7 @@
 import { exec, execFile } from "child_process";
 import { createHash } from "crypto";
 import { promisify } from "util";
-import { readFile, writeFile, access } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import cron, { ScheduledTask } from "node-cron";
 import Parser from "rss-parser";
@@ -103,7 +103,13 @@ function isCommandAllowed(cmd: string): { allowed: boolean; binary: string; args
   if (binary === "pm2" && args[0] === "info" && args.length === 2) {
     return { allowed: true, binary, args };
   }
-  if (binary === "docker" && args[0] === "logs" && args[1] === "--tail" && args[2] === "20" && args.length === 4) {
+  if (
+    binary === "docker" &&
+    args[0] === "logs" &&
+    args[1] === "--tail" &&
+    args[2] === "20" &&
+    args.length === 4
+  ) {
     return { allowed: true, binary, args };
   }
   if (binary === "du" && args[0] === "-sh" && args.length === 2) {
@@ -433,12 +439,16 @@ export async function executeExternalTool(
           }
         }
 
-        const res = await safeFetch(url, {
-          method,
-          headers,
-          body: args.body ? String(args.body) : undefined,
-          signal: AbortSignal.timeout(15_000),
-        }, "http_request");
+        const res = await safeFetch(
+          url,
+          {
+            method,
+            headers,
+            body: args.body ? String(args.body) : undefined,
+            signal: AbortSignal.timeout(15_000),
+          },
+          "http_request",
+        );
 
         const text = await res.text();
         return {
@@ -490,7 +500,7 @@ export async function executeExternalTool(
         if (!check.allowed) {
           return {
             success: false,
-            data: `Commande non autorisée. Whitelist: ${SHELL_WHITELIST.map(w => `${w.cmd} ${w.args.join(" ")}`).join(", ")}`,
+            data: `Commande non autorisée. Whitelist: ${SHELL_WHITELIST.map((w) => `${w.cmd} ${w.args.join(" ")}`).join(", ")}`,
           };
         }
         // Use execFile (no shell interpretation) instead of exec (passes through shell)
@@ -503,19 +513,49 @@ export async function executeExternalTool(
 
       // ─── 4. DB Query ─────────
       case "db_query": {
-        if (!DB_ENABLED) return { success: false, data: "DB query désactivé. Set AGENT_DB_ENABLED=true pour activer." };
+        if (!DB_ENABLED)
+          return {
+            success: false,
+            data: "DB query désactivé. Set AGENT_DB_ENABLED=true pour activer.",
+          };
         const query = String(args.query ?? "").trim();
         const upperQuery = query.toUpperCase();
         if (!upperQuery.startsWith("SELECT")) {
           return { success: false, data: "Seules les requêtes SELECT sont autorisées" };
         }
-        if (upperQuery.includes(";") || upperQuery.includes("DROP") || upperQuery.includes("DELETE") || upperQuery.includes("INSERT") || upperQuery.includes("UPDATE") || upperQuery.includes("ALTER") || upperQuery.includes("TRUNCATE") || upperQuery.includes("CREATE") || upperQuery.includes("GRANT") || upperQuery.includes("--") || upperQuery.includes("/*")) {
-          return { success: false, data: "Requête non-autorisée (seul SELECT simple est permis, pas de commentaires ni d'empilement)" };
+        if (
+          upperQuery.includes(";") ||
+          upperQuery.includes("DROP") ||
+          upperQuery.includes("DELETE") ||
+          upperQuery.includes("INSERT") ||
+          upperQuery.includes("UPDATE") ||
+          upperQuery.includes("ALTER") ||
+          upperQuery.includes("TRUNCATE") ||
+          upperQuery.includes("CREATE") ||
+          upperQuery.includes("GRANT") ||
+          upperQuery.includes("--") ||
+          upperQuery.includes("/*")
+        ) {
+          return {
+            success: false,
+            data: "Requête non-autorisée (seul SELECT simple est permis, pas de commentaires ni d'empilement)",
+          };
         }
-        const FORBIDDEN_TABLES = ["_prisma_migrations", "session", "token", "apikey", "credential", "secret", "password"];
+        const FORBIDDEN_TABLES = [
+          "_prisma_migrations",
+          "session",
+          "token",
+          "apikey",
+          "credential",
+          "secret",
+          "password",
+        ];
         for (const ft of FORBIDDEN_TABLES) {
           if (upperQuery.includes(ft.toUpperCase())) {
-            return { success: false, data: `Accès à la table '${ft}' interdit pour des raisons de sécurité` };
+            return {
+              success: false,
+              data: `Accès à la table '${ft}' interdit pour des raisons de sécurité`,
+            };
           }
         }
         const rows = await prisma.$queryRawUnsafe(query);
@@ -565,12 +605,17 @@ export async function executeExternalTool(
         if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
 
         const ssrfCheck = await checkUrlForSsrf(url, "website_diff");
-        if (!ssrfCheck.allowed) return { success: false, data: `URL bloquée (SSRF): ${ssrfCheck.reason}` };
+        if (!ssrfCheck.allowed)
+          return { success: false, data: `URL bloquée (SSRF): ${ssrfCheck.reason}` };
 
-        const res = await safeFetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
-          signal: AbortSignal.timeout(10_000),
-        }, "website_diff");
+        const res = await safeFetch(
+          url,
+          {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; DiscordBot/1.0)" },
+            signal: AbortSignal.timeout(10_000),
+          },
+          "website_diff",
+        );
         if (!res.ok) return { success: false, data: `Fetch ${res.status}` };
         const html = await res.text();
         const contentHash = createHash("sha256").update(html).digest("hex").slice(0, 16);
@@ -620,7 +665,9 @@ export async function executeExternalTool(
               ),
             );
           } else {
-            logger.info(`[DynamicCron] ${name} (log only — SSH disabled or command not whitelisted): ${command}`);
+            logger.info(
+              `[DynamicCron] ${name} (log only — SSH disabled or command not whitelisted): ${command}`,
+            );
           }
         });
 
@@ -636,32 +683,45 @@ export async function executeExternalTool(
         const container = String(args.container ?? "");
 
         if (container && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(container)) {
-          return { success: false, data: "Nom de container invalide (caractères autorisés: alphanumérique, -, _, .)" };
+          return {
+            success: false,
+            data: "Nom de container invalide (caractères autorisés: alphanumérique, -, _, .)",
+          };
         }
 
         let dockerBinary: string;
         let dockerArgs: string[];
         switch (action) {
           case "logs":
-            if (!container) return { success: false, data: "Paramètre 'container' requis pour 'logs'" };
+            if (!container)
+              return { success: false, data: "Paramètre 'container' requis pour 'logs'" };
             dockerBinary = "docker";
             dockerArgs = ["logs", "--tail", "30", container];
             break;
           case "restart":
-            if (!container) return { success: false, data: "Paramètre 'container' requis pour 'restart'" };
+            if (!container)
+              return { success: false, data: "Paramètre 'container' requis pour 'restart'" };
             dockerBinary = "docker";
             dockerArgs = ["restart", container];
             break;
           case "stats":
             dockerBinary = "docker";
-            dockerArgs = ["stats", "--no-stream", "--format", "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"];
+            dockerArgs = [
+              "stats",
+              "--no-stream",
+              "--format",
+              "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+            ];
             break;
           default:
             dockerBinary = "docker";
             dockerArgs = ["ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"];
         }
 
-        const { stdout } = await execFileAsync(dockerBinary, dockerArgs, { timeout: 15_000, maxBuffer: 1024 * 1024 });
+        const { stdout } = await execFileAsync(dockerBinary, dockerArgs, {
+          timeout: 15_000,
+          maxBuffer: 1024 * 1024,
+        });
         return { success: true, data: `Docker ${action}:\n${truncate(stdout)}` };
       }
 
@@ -697,7 +757,10 @@ export async function executeExternalTool(
         ];
         if (FORBIDDEN_PATH_PATTERNS.some((p) => p.test(path))) {
           logger.warn(`[file_read] Blocked sensitive path access attempt: ${path}`);
-          return { success: false, data: "Accès à ce fichier interdit pour des raisons de sécurité" };
+          return {
+            success: false,
+            data: "Accès à ce fichier interdit pour des raisons de sécurité",
+          };
         }
         if (!existsSync(path)) return { success: false, data: "Fichier introuvable" };
 

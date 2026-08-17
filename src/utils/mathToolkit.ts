@@ -178,7 +178,6 @@ export function limitCalculator(expression: string, variable: string, point: num
 
     const leftLimit = f(p - epsilon);
     const rightLimit = f(p + epsilon);
-    const atPoint = f(p);
 
     if (Math.abs(leftLimit - rightLimit) < 1e-4) {
       return JSON.stringify({

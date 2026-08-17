@@ -11,7 +11,6 @@
  */
 
 import { getOpenAIClient } from "./ai.js";
-import { config } from "../config.js";
 import logger from "../utils/logger.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

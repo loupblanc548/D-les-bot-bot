@@ -59,7 +59,7 @@ export function handleSoarInteractions(client: Client): void {
             .findUnique({
               where: { wazuhAlertId: alertId },
             })
-            .catch(() => null);
+            .catch((): null => null);
 
           if (!incident) {
             await interaction.editReply({ content: "⚠️ Incident introuvable dans la base." });
@@ -96,7 +96,7 @@ export function handleSoarInteractions(client: Client): void {
             .findUnique({
               where: { wazuhAlertId: alertId },
             })
-            .catch(() => null);
+            .catch((): null => null);
 
           if (!incident) {
             await interaction.editReply({ content: "⚠️ Incident introuvable." });
@@ -321,7 +321,7 @@ async function executeTimeout(userId: string, guildId: string, interaction: Butt
   const guild = interaction.guild;
   if (!guild) return;
 
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member = await guild.members.fetch(userId).catch((): null => null);
   if (member) {
     await member.timeout(60 * 60 * 1000, "Timeout depuis alerte de mod\u00E9ration");
   }
@@ -339,7 +339,7 @@ async function executeKick(userId: string, guildId: string, interaction: ButtonI
   const guild = interaction.guild;
   if (!guild) return;
 
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member = await guild.members.fetch(userId).catch((): null => null);
   if (member) {
     await member.kick("Expulsion depuis alerte de mod\u00E9ration");
   }

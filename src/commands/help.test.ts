@@ -15,6 +15,7 @@ const REGISTERED_COMMANDS = new Set([
   "security",
   "shadow",
   "game",
+  "mc",
   "community",
   "tools",
   "casier",
@@ -44,9 +45,21 @@ describe("Command /help - Categories coverage", () => {
       }
     }
 
+    // Commands intentionally excluded from the /bot help menu during a
+    // cleanup pass (see helpCategories.test.ts REMOVED_COMMANDS). They
+    // remain fully functional — just undocumented to reduce menu clutter.
+    const intentionallyUndocumented = new Set([
+      "sources",
+      "alert",
+      "shadow",
+      "community",
+      "tools",
+      "casier",
+    ]);
+
     const missingCommands: string[] = [];
     for (const cmd of REGISTERED_COMMANDS) {
-      if (!allCategoryCommands.has(cmd)) {
+      if (!allCategoryCommands.has(cmd) && !intentionallyUndocumented.has(cmd)) {
         missingCommands.push(cmd);
       }
     }

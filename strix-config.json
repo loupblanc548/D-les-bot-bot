@@ -1,0 +1,7 @@
+{
+  "llm": {
+    "model": "openrouter/deepseek/deepseek-chat",
+    "api_key": "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",
+    "base_url": "https://openrouter.ai/api/v1"
+  }
+}

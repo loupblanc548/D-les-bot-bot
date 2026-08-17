@@ -22,7 +22,6 @@ import * as dnsPromises from "dns/promises";
 import { createHash } from "crypto";
 import { request as httpsRequest } from "https";
 import { request as httpRequest } from "http";
-import logger from "./logger.js";
 
 // ─── 1. Hash Cracker (dictionary) ────────────────────────────────────────────
 
@@ -36,18 +35,87 @@ export interface HashCrackResult {
 }
 
 const COMMON_WORDS = [
-  "password", "123456", "admin", "root", "test", "guest", "user",
-  "login", "welcome", "monkey", "dragon", "master", "qwerty", "abc123",
-  "letmein", "trustno1", "baseball", "shadow", "football", "michael",
-  "charlie", "robert", "thomas", "hockey", "ranger", "daniel", "starwars",
-  "klaster", "computer", "george", "sexy", "ashley", "thunder", "ginger",
-  "hammer", "silver", "internet", "server", "biteme", "matrix", "sparky",
-  "camaro", "corvette", "independence", "tucker", "hunter", "amanda",
-  "heather", "secret", "summer", "winter", "autumn", "spring", "january",
-  "february", "march", "april", "may", "june", "july", "august",
-  "september", "october", "november", "december", "love", "god", "sex",
-  "money", "power", "peace", "hello", "world", "default", "changeme",
-  "passw0rd", "p@ssword", "p@ssw0rd", "Pa$$w0rd", "pass123", "pass1234",
+  "password",
+  "123456",
+  "admin",
+  "root",
+  "test",
+  "guest",
+  "user",
+  "login",
+  "welcome",
+  "monkey",
+  "dragon",
+  "master",
+  "qwerty",
+  "abc123",
+  "letmein",
+  "trustno1",
+  "baseball",
+  "shadow",
+  "football",
+  "michael",
+  "charlie",
+  "robert",
+  "thomas",
+  "hockey",
+  "ranger",
+  "daniel",
+  "starwars",
+  "klaster",
+  "computer",
+  "george",
+  "sexy",
+  "ashley",
+  "thunder",
+  "ginger",
+  "hammer",
+  "silver",
+  "internet",
+  "server",
+  "biteme",
+  "matrix",
+  "sparky",
+  "camaro",
+  "corvette",
+  "independence",
+  "tucker",
+  "hunter",
+  "amanda",
+  "heather",
+  "secret",
+  "summer",
+  "winter",
+  "autumn",
+  "spring",
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+  "love",
+  "god",
+  "sex",
+  "money",
+  "power",
+  "peace",
+  "hello",
+  "world",
+  "default",
+  "changeme",
+  "passw0rd",
+  "p@ssword",
+  "p@ssw0rd",
+  "Pa$$w0rd",
+  "pass123",
+  "pass1234",
 ];
 
 export function detectHashAlgorithm(hash: string): string | null {
@@ -238,7 +306,8 @@ export function analyzePassword(password: string): PasswordAnalysis {
   const entropy = password.length * Math.log2(charsetSize || 1);
 
   const commonPatterns: string[] = [];
-  if (/^123|abc|qwe|azerty|password|admin|root/i.test(password)) commonPatterns.push("Séquence commune");
+  if (/^123|abc|qwe|azerty|password|admin|root/i.test(password))
+    commonPatterns.push("Séquence commune");
   if (/(.)\1{2,}/.test(password)) commonPatterns.push("Caractères répétés");
   if (/^\d+$/.test(password)) commonPatterns.push("Que des chiffres");
   if (/^[a-z]+$/i.test(password)) commonPatterns.push("Que des lettres");
@@ -252,8 +321,10 @@ export function analyzePassword(password: string): PasswordAnalysis {
   else if (secondsToCrack < 3600) estimatedCrackTime = `${Math.round(secondsToCrack / 60)}min`;
   else if (secondsToCrack < 86400) estimatedCrackTime = `${Math.round(secondsToCrack / 3600)}h`;
   else if (secondsToCrack < 31536000) estimatedCrackTime = `${Math.round(secondsToCrack / 86400)}j`;
-  else if (secondsToCrack < 31536000 * 100) estimatedCrackTime = `${Math.round(secondsToCrack / 31536000)} ans`;
-  else if (secondsToCrack < 31536000 * 1e6) estimatedCrackTime = `${Math.round(secondsToCrack / (31536000 * 1000))}K ans`;
+  else if (secondsToCrack < 31536000 * 100)
+    estimatedCrackTime = `${Math.round(secondsToCrack / 31536000)} ans`;
+  else if (secondsToCrack < 31536000 * 1e6)
+    estimatedCrackTime = `${Math.round(secondsToCrack / (31536000 * 1000))}K ans`;
   else estimatedCrackTime = "millions d'années+";
 
   let score = 0;
@@ -268,7 +339,17 @@ export function analyzePassword(password: string): PasswordAnalysis {
   score = Math.max(0, Math.min(100, score));
 
   const rating: PasswordAnalysis["rating"] =
-    score >= 90 ? "very-strong" : score >= 75 ? "strong" : score >= 60 ? "good" : score >= 40 ? "fair" : score >= 20 ? "weak" : "very-weak";
+    score >= 90
+      ? "very-strong"
+      : score >= 75
+        ? "strong"
+        : score >= 60
+          ? "good"
+          : score >= 40
+            ? "fair"
+            : score >= 20
+              ? "weak"
+              : "very-weak";
 
   const recommendations: string[] = [];
   if (!hasUpper) recommendations.push("Ajouter des majuscules");
@@ -304,18 +385,100 @@ export interface SubdomainResult {
 }
 
 const COMMON_SUBDOMAINS = [
-  "www", "mail", "ftp", "localhost", "webmail", "smtp", "pop", "ns1", "ns2",
-  "dns", "dns1", "dns2", "api", "dev", "staging", "test", "beta", "alpha",
-  "admin", "portal", "dashboard", "panel", "control", "manage", "console",
-  "app", "apps", "m", "mobile", "shop", "store", "blog", "forum", "wiki",
-  "docs", "help", "support", "status", "monitor", "grafana", "prometheus",
-  "jenkins", "ci", "cd", "git", "gitlab", "github", "jira", "confluence",
-  "vpn", "remote", "secure", "ssl", "cert", "auth", "sso", "oauth",
-  "cdn", "static", "assets", "media", "img", "images", "video", "stream",
-  "db", "database", "sql", "redis", "elastic", "search", "solr",
-  "backup", "bak", "old", "new", "v1", "v2", "internal", "private",
-  "intranet", "extranet", "corp", "office", "hr", "sales", "marketing",
-  "int", "qa", "uat", "sandbox", "demo", "preview", "stage",
+  "www",
+  "mail",
+  "ftp",
+  "localhost",
+  "webmail",
+  "smtp",
+  "pop",
+  "ns1",
+  "ns2",
+  "dns",
+  "dns1",
+  "dns2",
+  "api",
+  "dev",
+  "staging",
+  "test",
+  "beta",
+  "alpha",
+  "admin",
+  "portal",
+  "dashboard",
+  "panel",
+  "control",
+  "manage",
+  "console",
+  "app",
+  "apps",
+  "m",
+  "mobile",
+  "shop",
+  "store",
+  "blog",
+  "forum",
+  "wiki",
+  "docs",
+  "help",
+  "support",
+  "status",
+  "monitor",
+  "grafana",
+  "prometheus",
+  "jenkins",
+  "ci",
+  "cd",
+  "git",
+  "gitlab",
+  "github",
+  "jira",
+  "confluence",
+  "vpn",
+  "remote",
+  "secure",
+  "ssl",
+  "cert",
+  "auth",
+  "sso",
+  "oauth",
+  "cdn",
+  "static",
+  "assets",
+  "media",
+  "img",
+  "images",
+  "video",
+  "stream",
+  "db",
+  "database",
+  "sql",
+  "redis",
+  "elastic",
+  "search",
+  "solr",
+  "backup",
+  "bak",
+  "old",
+  "new",
+  "v1",
+  "v2",
+  "internal",
+  "private",
+  "intranet",
+  "extranet",
+  "corp",
+  "office",
+  "hr",
+  "sales",
+  "marketing",
+  "int",
+  "qa",
+  "uat",
+  "sandbox",
+  "demo",
+  "preview",
+  "stage",
 ];
 
 export async function enumerateSubdomains(
@@ -357,12 +520,18 @@ export interface ZoneTransferResult {
 }
 
 export async function testZoneTransfer(domain: string): Promise<ZoneTransferResult> {
-  let nsRecords: string[] = [];
+  let nsRecords: string[];
   try {
     const ns = await dnsPromises.resolveNs(domain);
     nsRecords = ns;
   } catch {
-    return { domain, vulnerable: false, nsRecords: [], zoneRecords: [], error: "Impossible de résoudre les NS" };
+    return {
+      domain,
+      vulnerable: false,
+      nsRecords: [],
+      zoneRecords: [],
+      error: "Impossible de résoudre les NS",
+    };
   }
 
   // Note: Node.js dns module doesn't support AXFR directly
@@ -568,7 +737,15 @@ export async function checkHsts(domain: string): Promise<HstsCheckResult> {
     });
 
     if (!result) {
-      return { domain, hasHsts: false, maxAge: null, includeSubDomains: false, preload: false, success: false, error: "Connexion échouée" };
+      return {
+        domain,
+        hasHsts: false,
+        maxAge: null,
+        includeSubDomains: false,
+        preload: false,
+        success: false,
+        error: "Connexion échouée",
+      };
     }
 
     const hsts = result["strict-transport-security"] || "";
@@ -585,7 +762,15 @@ export async function checkHsts(domain: string): Promise<HstsCheckResult> {
       success: true,
     };
   } catch (err) {
-    return { domain, hasHsts: false, maxAge: null, includeSubDomains: false, preload: false, success: false, error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    return {
+      domain,
+      hasHsts: false,
+      maxAge: null,
+      includeSubDomains: false,
+      preload: false,
+      success: false,
+      error: err instanceof Error ? err.message.slice(0, 200) : String(err),
+    };
   }
 }
 
@@ -610,19 +795,15 @@ export async function detectWaf(url: string): Promise<WafDetectResult> {
       const timeout = setTimeout(() => controller.abort(), 10_000);
       const isHTTPS = url.startsWith("https://");
       const reqFn = isHTTPS ? httpsRequest : httpRequest;
-      const req = reqFn(
-        url,
-        { signal: controller.signal, rejectUnauthorized: false },
-        (res) => {
-          clearTimeout(timeout);
-          const h: Record<string, string> = {};
-          for (const [k, v] of Object.entries(res.headers)) {
-            h[k] = Array.isArray(v) ? v.join(", ") : String(v);
-          }
-          res.destroy();
-          resolve(h);
-        },
-      );
+      const req = reqFn(url, { signal: controller.signal, rejectUnauthorized: false }, (res) => {
+        clearTimeout(timeout);
+        const h: Record<string, string> = {};
+        for (const [k, v] of Object.entries(res.headers)) {
+          h[k] = Array.isArray(v) ? v.join(", ") : String(v);
+        }
+        res.destroy();
+        resolve(h);
+      });
       req.on("error", () => {
         clearTimeout(timeout);
         resolve(null);
@@ -631,24 +812,67 @@ export async function detectWaf(url: string): Promise<WafDetectResult> {
     });
 
     if (!result) {
-      return { url, detected: false, wafName: null, evidence: [], success: false, error: "Connexion échouée" };
+      return {
+        url,
+        detected: false,
+        wafName: null,
+        evidence: [],
+        success: false,
+        error: "Connexion échouée",
+      };
     }
 
     const server = result["server"] || "";
     const cookie = result["set-cookie"] || "";
 
-    if (/cloudflare/i.test(server)) { wafName = "Cloudflare"; evidence.push(`Server: ${server}`); }
-    if (/cloudflare/i.test(result["cf-ray"] || "")) { wafName = "Cloudflare"; evidence.push("CF-Ray header"); }
-    if (/akamai/i.test(server)) { wafName = "Akamai"; evidence.push(`Server: ${server}`); }
-    if (/imperva|incapsula/i.test(server)) { wafName = "Imperva/Incapsula"; evidence.push(`Server: ${server}`); }
-    if (/sucuri/i.test(server)) { wafName = "Sucuri"; evidence.push(`Server: ${server}`); }
-    if (/f5|bigip/i.test(server)) { wafName = "F5 BIG-IP"; evidence.push(`Server: ${server}`); }
-    if (/fortinet|fortiweb/i.test(server)) { wafName = "Fortinet"; evidence.push(`Server: ${server}`); }
-    if (/barracuda/i.test(server)) { wafName = "Barracuda"; evidence.push(`Server: ${server}`); }
-    if (/aws|amazon/i.test(result["x-amz-cf-id"] || "")) { wafName = "AWS WAF/CloudFront"; evidence.push("X-Amz-Cf-Id header"); }
-    if (/incap_ses/i.test(cookie)) { wafName = "Imperva/Incapsula"; evidence.push("Cookie: incap_ses"); }
-    if (/__cfduid/i.test(cookie)) { wafName = "Cloudflare"; evidence.push("Cookie: __cfduid"); }
-    if (/sucuri_cloudproxy/i.test(cookie)) { wafName = "Sucuri"; evidence.push("Cookie: sucuri_cloudproxy"); }
+    if (/cloudflare/i.test(server)) {
+      wafName = "Cloudflare";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/cloudflare/i.test(result["cf-ray"] || "")) {
+      wafName = "Cloudflare";
+      evidence.push("CF-Ray header");
+    }
+    if (/akamai/i.test(server)) {
+      wafName = "Akamai";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/imperva|incapsula/i.test(server)) {
+      wafName = "Imperva/Incapsula";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/sucuri/i.test(server)) {
+      wafName = "Sucuri";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/f5|bigip/i.test(server)) {
+      wafName = "F5 BIG-IP";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/fortinet|fortiweb/i.test(server)) {
+      wafName = "Fortinet";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/barracuda/i.test(server)) {
+      wafName = "Barracuda";
+      evidence.push(`Server: ${server}`);
+    }
+    if (/aws|amazon/i.test(result["x-amz-cf-id"] || "")) {
+      wafName = "AWS WAF/CloudFront";
+      evidence.push("X-Amz-Cf-Id header");
+    }
+    if (/incap_ses/i.test(cookie)) {
+      wafName = "Imperva/Incapsula";
+      evidence.push("Cookie: incap_ses");
+    }
+    if (/__cfduid/i.test(cookie)) {
+      wafName = "Cloudflare";
+      evidence.push("Cookie: __cfduid");
+    }
+    if (/sucuri_cloudproxy/i.test(cookie)) {
+      wafName = "Sucuri";
+      evidence.push("Cookie: sucuri_cloudproxy");
+    }
 
     return {
       url,
@@ -658,7 +882,14 @@ export async function detectWaf(url: string): Promise<WafDetectResult> {
       success: true,
     };
   } catch (err) {
-    return { url, detected: false, wafName: null, evidence: [], success: false, error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    return {
+      url,
+      detected: false,
+      wafName: null,
+      evidence: [],
+      success: false,
+      error: err instanceof Error ? err.message.slice(0, 200) : String(err),
+    };
   }
 }
 
@@ -689,7 +920,9 @@ export async function parseRobotsTxt(url: string): Promise<RobotsResult> {
         (res) => {
           clearTimeout(timeout);
           let body = "";
-          res.on("data", (chunk) => { body += chunk; });
+          res.on("data", (chunk) => {
+            body += chunk;
+          });
           res.on("end", () => resolve(body));
         },
       );
@@ -701,13 +934,19 @@ export async function parseRobotsTxt(url: string): Promise<RobotsResult> {
     });
 
     if (!result) {
-      return { url, rules: [], sitemaps: [], crawlDelay: null, success: false, error: "robots.txt introuvable" };
+      return {
+        url,
+        rules: [],
+        sitemaps: [],
+        crawlDelay: null,
+        success: false,
+        error: "robots.txt introuvable",
+      };
     }
 
     const rules: { userAgent: string; disallow: string[]; allow: string[] }[] = [];
     const sitemaps: string[] = [];
     let crawlDelay: number | null = null;
-    let currentUA = "*";
     let currentRule: { userAgent: string; disallow: string[]; allow: string[] } | null = null;
 
     for (const line of result.split("\n")) {
@@ -722,7 +961,6 @@ export async function parseRobotsTxt(url: string): Promise<RobotsResult> {
         if (currentRule && currentRule.userAgent !== value) {
           rules.push(currentRule);
         }
-        currentUA = value;
         currentRule = { userAgent: value, disallow: [], allow: [] };
       } else if (keyLower === "disallow" && currentRule) {
         if (value) currentRule.disallow.push(value);
@@ -739,7 +977,14 @@ export async function parseRobotsTxt(url: string): Promise<RobotsResult> {
 
     return { url, rules, sitemaps, crawlDelay, success: true };
   } catch (err) {
-    return { url, rules: [], sitemaps: [], crawlDelay: null, success: false, error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    return {
+      url,
+      rules: [],
+      sitemaps: [],
+      crawlDelay: null,
+      success: false,
+      error: err instanceof Error ? err.message.slice(0, 200) : String(err),
+    };
   }
 }
 
@@ -769,7 +1014,9 @@ export async function parseSitemap(url: string): Promise<SitemapResult> {
         (res) => {
           clearTimeout(timeout);
           let body = "";
-          res.on("data", (chunk) => { body += chunk; });
+          res.on("data", (chunk) => {
+            body += chunk;
+          });
           res.on("end", () => resolve(body));
         },
       );
@@ -793,7 +1040,13 @@ export async function parseSitemap(url: string): Promise<SitemapResult> {
 
     return { url, urls, count: urls.length, success: true };
   } catch (err) {
-    return { url, urls: [], count: 0, success: false, error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    return {
+      url,
+      urls: [],
+      count: 0,
+      success: false,
+      error: err instanceof Error ? err.message.slice(0, 200) : String(err),
+    };
   }
 }
 
@@ -807,26 +1060,66 @@ export interface HttpStatusInfo {
 }
 
 const HTTP_STATUSES: Record<number, HttpStatusInfo> = {
-  100: { code: 100, category: "1xx Informational", name: "Continue", description: "Le serveur a reçu les en-têtes et le client doit envoyer le corps" },
-  101: { code: 101, category: "1xx", name: "Switching Protocols", description: "Changement de protocole (ex: WebSocket)" },
+  100: {
+    code: 100,
+    category: "1xx Informational",
+    name: "Continue",
+    description: "Le serveur a reçu les en-têtes et le client doit envoyer le corps",
+  },
+  101: {
+    code: 101,
+    category: "1xx",
+    name: "Switching Protocols",
+    description: "Changement de protocole (ex: WebSocket)",
+  },
   200: { code: 200, category: "2xx Success", name: "OK", description: "Requête réussie" },
   201: { code: 201, category: "2xx", name: "Created", description: "Ressource créée" },
   204: { code: 204, category: "2xx", name: "No Content", description: "Succès sans contenu" },
-  301: { code: 301, category: "3xx Redirection", name: "Moved Permanently", description: "Redirection permanente" },
+  301: {
+    code: 301,
+    category: "3xx Redirection",
+    name: "Moved Permanently",
+    description: "Redirection permanente",
+  },
   302: { code: 302, category: "3xx", name: "Found", description: "Redirection temporaire" },
   304: { code: 304, category: "3xx", name: "Not Modified", description: "Cache valide" },
-  400: { code: 400, category: "4xx Client Error", name: "Bad Request", description: "Requête malformée" },
-  401: { code: 401, category: "4xx", name: "Unauthorized", description: "Authentification requise" },
+  400: {
+    code: 400,
+    category: "4xx Client Error",
+    name: "Bad Request",
+    description: "Requête malformée",
+  },
+  401: {
+    code: 401,
+    category: "4xx",
+    name: "Unauthorized",
+    description: "Authentification requise",
+  },
   403: { code: 403, category: "4xx", name: "Forbidden", description: "Accès refusé" },
   404: { code: 404, category: "4xx", name: "Not Found", description: "Ressource introuvable" },
-  405: { code: 405, category: "4xx", name: "Method Not Allowed", description: "Méthode HTTP non autorisée" },
+  405: {
+    code: 405,
+    category: "4xx",
+    name: "Method Not Allowed",
+    description: "Méthode HTTP non autorisée",
+  },
   408: { code: 408, category: "4xx", name: "Request Timeout", description: "Délai dépassé" },
   409: { code: 409, category: "4xx", name: "Conflict", description: "Conflit de version" },
   418: { code: 418, category: "4xx", name: "I'm a teapot", description: "Easter egg RFC 2324" },
   429: { code: 429, category: "4xx", name: "Too Many Requests", description: "Rate limit dépassé" },
-  500: { code: 500, category: "5xx Server Error", name: "Internal Server Error", description: "Erreur serveur générique" },
+  500: {
+    code: 500,
+    category: "5xx Server Error",
+    name: "Internal Server Error",
+    description: "Erreur serveur générique",
+  },
   502: { code: 502, category: "5xx", name: "Bad Gateway", description: "Proxy invalide" },
-  503: { code: 503, category: "5xx", name: "Service Unavailable", description: "Serveur surchargé ou en maintenance" },
+  503: {
+    code: 503,
+    category: "5xx",
+    name: "Service Unavailable",
+    description: "Serveur surchargé ou en maintenance",
+  },
   504: { code: 504, category: "5xx", name: "Gateway Timeout", description: "Délai proxy dépassé" },
 };
 
@@ -862,11 +1155,26 @@ const PORT_REFERENCE: Record<number, PortInfo> = {
   3389: { port: 3389, protocol: "TCP", service: "RDP", description: "Remote Desktop" },
   5432: { port: 5432, protocol: "TCP", service: "PostgreSQL", description: "PostgreSQL" },
   5900: { port: 5900, protocol: "TCP", service: "VNC", description: "VNC Remote Desktop" },
-  6379: { port: 6379, protocol: "TCP", service: "Redis", description: "Redis (souvent sans auth!)" },
+  6379: {
+    port: 6379,
+    protocol: "TCP",
+    service: "Redis",
+    description: "Redis (souvent sans auth!)",
+  },
   8080: { port: 8080, protocol: "TCP", service: "HTTP-Alt", description: "HTTP alternatif" },
   8443: { port: 8443, protocol: "TCP", service: "HTTPS-Alt", description: "HTTPS alternatif" },
-  27017: { port: 27017, protocol: "TCP", service: "MongoDB", description: "MongoDB (souvent sans auth!)" },
-  9200: { port: 9200, protocol: "TCP", service: "Elasticsearch", description: "Elasticsearch (souvent sans auth!)" },
+  27017: {
+    port: 27017,
+    protocol: "TCP",
+    service: "MongoDB",
+    description: "MongoDB (souvent sans auth!)",
+  },
+  9200: {
+    port: 9200,
+    protocol: "TCP",
+    service: "Elasticsearch",
+    description: "Elasticsearch (souvent sans auth!)",
+  },
 };
 
 export function getPortInfo(port: number): PortInfo | null {

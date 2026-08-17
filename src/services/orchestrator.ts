@@ -16,7 +16,13 @@ import OpenAI from "openai";
 import logger from "../utils/logger.js";
 import { getOpenAIClient } from "./ai.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
-import { getAllAvailableModels, markModelSuccess, markModelFailure } from "./modelRotation.js";
+import {
+  getAllAvailableModels,
+  markModelSuccess,
+  markModelFailure,
+  claimModel,
+  releaseModel,
+} from "./modelRotation.js";
 
 // Model tiers for delegation
 const MODEL_TIERS = {
@@ -99,32 +105,42 @@ export async function delegateToExpert(
     return "[Délégation échouée: aucun modèle disponible]";
   }
 
+  if (!claimModel(model)) {
+    logger.debug(`[Orchestrator] ⏭️ ${model} déjà utilisé ou en cooldown`);
+    return "[Délégation reportée: modèle occupé ou temporairement indisponible]";
+  }
+
   const client = getClientForModel(model);
 
   // Adaptive tokens: small tier = shorter response, large = more room
   const adaptiveMaxTokens = tier === "small" ? 300 : tier === "medium" ? 500 : 800;
 
-  logger.info(`[Orchestrator] 🎯 qwen2.5 délègue à ${model} (tier: ${tier}, ${adaptiveMaxTokens} tokens) — tâche: ${task.slice(0, 80)}...`);
+  logger.info(
+    `[Orchestrator] 🎯 qwen2.5 délègue à ${model} (tier: ${tier}, ${adaptiveMaxTokens} tokens) — tâche: ${task.slice(0, 80)}...`,
+  );
 
   try {
-    const response = await client.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Tu es un expert IA. Réponds de manière précise et concise à la tâche qui t'est confiée. " +
-            "Réponds dans la langue de la demande. Sois direct et factuel.",
-        },
-        {
-          role: "user",
-          content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
-        },
-      ],
-      max_tokens: adaptiveMaxTokens,
-      temperature: 0.5,
-      stream: false,
-    }, { timeout: 10_000 });
+    const response = await client.chat.completions.create(
+      {
+        model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es un expert IA. Réponds de manière précise et concise à la tâche qui t'est confiée. " +
+              "Réponds dans la langue de la demande. Sois direct et factuel.",
+          },
+          {
+            role: "user",
+            content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
+          },
+        ],
+        max_tokens: adaptiveMaxTokens,
+        temperature: 0.5,
+        stream: false,
+      },
+      { timeout: 10_000 },
+    );
 
     const result = response.choices?.[0]?.message?.content?.trim();
 
@@ -144,26 +160,29 @@ export async function delegateToExpert(
 
     // Try one fallback model (fast — 8s timeout)
     const fallbackModel = pickModelForTier(tier === "large" ? "medium" : "small");
-    if (fallbackModel && fallbackModel !== model) {
+    if (fallbackModel && fallbackModel !== model && claimModel(fallbackModel)) {
       logger.info(`[Orchestrator] 🔄 Fallback vers ${fallbackModel}`);
       try {
         const fallbackClient = getClientForModel(fallbackModel);
-        const response = await fallbackClient.chat.completions.create({
-          model: fallbackModel,
-          messages: [
-            {
-              role: "system",
-              content: "Tu es un expert IA. Réponds de manière précise et concise.",
-            },
-            {
-              role: "user",
-              content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
-            },
-          ],
-          max_tokens: 600,
-          temperature: 0.5,
-          stream: false,
-        });
+        const response = await fallbackClient.chat.completions.create(
+          {
+            model: fallbackModel,
+            messages: [
+              {
+                role: "system",
+                content: "Tu es un expert IA. Réponds de manière précise et concise.",
+              },
+              {
+                role: "user",
+                content: `Contexte: ${context.slice(0, 400)}\n\nTâche: ${task}`,
+              },
+            ],
+            max_tokens: 600,
+            temperature: 0.5,
+            stream: false,
+          },
+          { timeout: 8_000 },
+        );
         const result = response.choices?.[0]?.message?.content?.trim();
         if (result) {
           markModelSuccess(fallbackModel);
@@ -171,10 +190,14 @@ export async function delegateToExpert(
         }
       } catch {
         // Give up
+      } finally {
+        releaseModel(fallbackModel);
       }
     }
 
     return `[Délégation échouée: ${msg.slice(0, 100)}]`;
+  } finally {
+    releaseModel(model);
   }
 }
 
@@ -191,7 +214,9 @@ export async function delegateMultiple(
   const results = await Promise.all(
     tasks.map((t) => delegateToExpert(t.task, t.tier, t.context || defaultContext)),
   );
-  logger.info(`[Orchestrator] ✅ ${results.filter((r) => !r.startsWith("[Délégation échouée")).length}/${tasks.length} sous-tâches réussies`);
+  logger.info(
+    `[Orchestrator] ✅ ${results.filter((r) => !r.startsWith("[Délégation échouée")).length}/${tasks.length} sous-tâches réussies`,
+  );
   return results;
 }
 

@@ -14,7 +14,7 @@ const { mockLogger, mockPrisma, mockSentry, mockCommandRouter, mockHandlers } = 
     help: vi.fn().mockResolvedValue(undefined),
   },
   mockHandlers: {
-    handleMainSelectMenu: vi.fn().mockResolvedValue(undefined),
+    handleHelpSelectMenu: vi.fn().mockResolvedValue(undefined),
     handleVerifButton: vi.fn().mockReturnValue(false),
     handleAutocomplete: vi.fn().mockResolvedValue(undefined),
     handleMp3Autocomplete: vi.fn().mockResolvedValue(undefined),
@@ -30,13 +30,41 @@ vi.mock("@sentry/node", () => ({
 }));
 vi.mock("./commandRouter", () => ({
   commandRouter: mockCommandRouter,
-  handleMainSelectMenu: mockHandlers.handleMainSelectMenu,
+}));
+vi.mock("./commands/helpSystem", () => ({
+  handleHelpSelectMenu: mockHandlers.handleHelpSelectMenu,
 }));
 vi.mock("./commands/security", () => ({ handleVerifButton: mockHandlers.handleVerifButton }));
 vi.mock("./commands/trackGame", () => ({ handleAutocomplete: mockHandlers.handleAutocomplete }));
 vi.mock("./commands/mp3", () => ({ handleAutocomplete: mockHandlers.handleMp3Autocomplete }));
 vi.mock("./commands/fun/wishlist", () => ({
   handleAutocomplete: mockHandlers.handleWishlistAutocomplete,
+}));
+vi.mock("./commands/twitch", () => ({ handleAutocomplete: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./commands/follow", () => ({ handleAutocomplete: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./commands/fun/fortniteParty", () => ({
+  handleAutocomplete: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("./commands/profile", () => ({ handleAutocomplete: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./services/ticketService", () => ({
+  createTicket: vi.fn(),
+  closeTicket: vi.fn(),
+  claimTicket: vi.fn(),
+  getPanel: vi.fn(),
+}));
+vi.mock("./services/triviaService", () => ({ handleTriviaButton: vi.fn() }));
+vi.mock("./services/agentFeedback", () => ({ resetConversationTracking: vi.fn() }));
+vi.mock("./infrastructure/bridge/remoteRouter", () => ({
+  tryRemoteExecution: vi.fn().mockResolvedValue(null),
+  applyRemoteResult: vi.fn(),
+  notifyRemoteProcessing: vi.fn(),
+}));
+vi.mock("./infrastructure/monitors/offloadController", () => ({
+  evaluateOffload: vi.fn().mockReturnValue({ shouldOffload: false }),
+  recordExecution: vi.fn(),
+}));
+vi.mock("./infrastructure/bridge/bridgeTypes", () => ({
+  isOffloadableCommand: vi.fn().mockReturnValue(false),
 }));
 
 import { Events } from "discord.js";
@@ -148,7 +176,7 @@ describe("interactionHandler", () => {
       expect(mockHandlers.handleVerifButton).toHaveBeenCalledWith(interaction);
     });
 
-    it("délègue le select menu help_category_select à handleMainSelectMenu", async () => {
+    it("délègue le select menu help_category_select à handleHelpSelectMenu", async () => {
       attachInteractionHandlers(mockClient);
       const handler = extractHandler(Events.InteractionCreate, 2);
 
@@ -159,11 +187,13 @@ describe("interactionHandler", () => {
         customId: "help_category_select",
         replied: false,
         deferred: false,
+        reply: vi.fn().mockResolvedValue(undefined),
+        followUp: vi.fn().mockResolvedValue(undefined),
       };
 
       await handler(interaction);
 
-      expect(mockHandlers.handleMainSelectMenu).toHaveBeenCalledWith(interaction);
+      expect(mockHandlers.handleHelpSelectMenu).toHaveBeenCalledWith(interaction);
     });
   });
 

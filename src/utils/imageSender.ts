@@ -6,7 +6,7 @@
  * and sends them as Discord attachments alongside the text response.
  */
 
-import { AttachmentBuilder, Message, TextChannel } from "discord.js";
+import { AttachmentBuilder, TextChannel } from "discord.js";
 import logger from "./logger.js";
 
 const IMAGE_URL_PATTERN = /https?:\/\/[^\s<>"']+\.(?:png|jpg|jpeg|gif|webp|bmp|svg)\b[^\s<>"']*/gi;

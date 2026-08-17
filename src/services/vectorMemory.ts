@@ -10,7 +10,6 @@
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import type { Prisma } from "@prisma/client";
-import { config } from "../config.js";
 
 // ─── Embedding generation ────────────────────────────────────────────────────
 

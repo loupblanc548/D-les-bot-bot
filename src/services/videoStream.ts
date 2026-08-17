@@ -102,7 +102,9 @@ export function startVideoStream(): void {
 
   if (!streamToken) {
     logger.info("[VideoStream] Désactivé — SCREEN_SHARE_USER_TOKEN non configuré");
-    logger.info("[VideoStream] Le Go Live vidéo nécessite un token utilisateur (les bots ne peuvent pas streamer de vidéo)");
+    logger.info(
+      "[VideoStream] Le Go Live vidéo nécessite un token utilisateur (les bots ne peuvent pas streamer de vidéo)",
+    );
     return;
   }
 
@@ -250,7 +252,6 @@ async function startVideoStreamAsync(): Promise<void> {
           });
           frameCount++;
           if (frameCount % 120 === 1) {
-            const fps = (120 / ((Date.now() - (frameCount > 120 ? frameStart : frameStart)) / 1000)).toFixed(1);
             logger.info(`[VideoStream] Frame #${frameCount} (${screenshot.length} bytes)`);
           }
           if (!videoStream.destroyed && videoStream.writable) {
@@ -277,7 +278,11 @@ async function startVideoStreamAsync(): Promise<void> {
       },
     }) ?? { name: "software", options: { preset: "ultrafast", tune: "zerolatency" } };
 
-    const { command, output, promise: ffmpegPromise } = prepareStream(videoStream, {
+    const {
+      command,
+      output,
+      promise: ffmpegPromise,
+    } = prepareStream(videoStream, {
       encoder,
       height: STREAM_HEIGHT,
       width: STREAM_WIDTH,
@@ -288,18 +293,20 @@ async function startVideoStreamAsync(): Promise<void> {
       includeAudio: false,
       videoCodec: Utils.normalizeVideoCodec("H264"),
       minimizeLatency: true,
-      customInputOptions: [
-        "-f", "image2pipe",
-        "-c:v", "mjpeg",
-        "-r", String(STREAM_FPS),
-      ],
+      customInputOptions: ["-f", "image2pipe", "-c:v", "mjpeg", "-r", String(STREAM_FPS)],
       customFfmpegFlags: [
-        "-pix_fmt", "yuv420p",
-        "-profile:v", "high",
-        "-bf", "0",
-        "-g", "60",
-        "-keyint_min", "30",
-        "-x264-params", "no-scenecut=1:force-cfr=1",
+        "-pix_fmt",
+        "yuv420p",
+        "-profile:v",
+        "high",
+        "-bf",
+        "0",
+        "-g",
+        "60",
+        "-keyint_min",
+        "30",
+        "-x264-params",
+        "no-scenecut=1:force-cfr=1",
       ],
     } as any);
 
@@ -380,7 +387,11 @@ function cleanupResources(): void {
     reconnectTimer = null;
   }
   if (activeFfmpeg) {
-    try { activeFfmpeg.kill("SIGTERM"); } catch { /* already dead */ }
+    try {
+      activeFfmpeg.kill("SIGTERM");
+    } catch {
+      /* already dead */
+    }
     activeFfmpeg = null;
   }
   if (activePage) {
@@ -425,13 +436,17 @@ export function startStreamWatchdog(): NodeJS.Timeout {
       }
       watchdogFailures++;
       if (watchdogFailures >= 2) {
-        logger.warn("[VideoStream] Watchdog: stream inactif (non-volontaire) — tentative de redémarrage");
+        logger.warn(
+          "[VideoStream] Watchdog: stream inactif (non-volontaire) — tentative de redémarrage",
+        );
         watchdogFailures = 0;
         try {
           stopVideoStream();
           setTimeout(() => startVideoStream(), 5000);
         } catch (err) {
-          logger.error(`[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(
+            `[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
       return;
@@ -440,7 +455,9 @@ export function startStreamWatchdog(): NodeJS.Timeout {
     // Vérifier si les frames progressent (capture bloquée ?)
     if (frameCount === lastFrameCount) {
       watchdogFailures++;
-      logger.warn(`[VideoStream] Watchdog: frames bloquées (${frameCount} == ${lastFrameCount}), failures=${watchdogFailures}`);
+      logger.warn(
+        `[VideoStream] Watchdog: frames bloquées (${frameCount} == ${lastFrameCount}), failures=${watchdogFailures}`,
+      );
       if (watchdogFailures >= 3) {
         logger.warn("[VideoStream] Watchdog: frames bloquées 3x — redémarrage forcé");
         watchdogFailures = 0;
@@ -448,7 +465,9 @@ export function startStreamWatchdog(): NodeJS.Timeout {
           stopVideoStream();
           setTimeout(() => startVideoStream(), 5000);
         } catch (err) {
-          logger.error(`[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`);
+          logger.error(
+            `[VideoStream] Watchdog redémarrage échoué: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     } else {

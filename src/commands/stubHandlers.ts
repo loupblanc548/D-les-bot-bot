@@ -10,6 +10,7 @@ import {
   ChannelType,
   Role,
   AttachmentBuilder,
+  Collection,
 } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
@@ -159,7 +160,7 @@ export async function handleModExtra(
           orderBy: { createdAt: "desc" },
           take: 10,
         })
-        .catch(() => []);
+        .catch((): [] => []);
       if (!warns.length) {
         await interaction.reply({ content: `ℹ️ Aucun warn pour <@${cible.id}>.`, ephemeral: true });
         return;
@@ -206,7 +207,8 @@ export async function handleModExtra(
     case "lockdown": {
       const raison = interaction.options.getString("raison") ?? "Lockdown";
       const channels =
-        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
+        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ??
+        new Collection();
       let count = 0;
       for (const ch of channels.values()) {
         try {
@@ -229,7 +231,8 @@ export async function handleModExtra(
 
     case "unlock-all": {
       const channels =
-        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ?? [];
+        interaction.guild?.channels.cache.filter((c) => c.type === ChannelType.GuildText) ??
+        new Collection();
       let count = 0;
       for (const ch of channels.values()) {
         try {
@@ -252,7 +255,7 @@ export async function handleModExtra(
       const members =
         interaction.guild?.members.cache.filter((m) =>
           /^[!@#$%^&*()_+=\-.~`]/.test(m.displayName),
-        ) ?? [];
+        ) ?? new Collection();
       let count = 0;
       for (const m of members.values()) {
         try {
@@ -317,7 +320,7 @@ export async function handleModExtra(
 
     case "role-all": {
       const role = interaction.options.getRole("rôle", true) as Role;
-      const members = interaction.guild?.members.cache ?? [];
+      const members = interaction.guild?.members.cache ?? new Collection();
       let count = 0;
       for (const m of members.values()) {
         try {
@@ -337,7 +340,8 @@ export async function handleModExtra(
     case "role-remove-all": {
       const role = interaction.options.getRole("rôle", true) as Role;
       const members =
-        interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)) ?? [];
+        interaction.guild?.members.cache.filter((m) => m.roles.cache.has(role.id)) ??
+        new Collection();
       let count = 0;
       for (const m of members.values()) {
         try {
@@ -1310,7 +1314,7 @@ export async function handleAiExtra(
           await interaction.editReply({ content: "❌ Salon invalide." });
           break;
         }
-        const msg = await channel.messages.fetch(messageId).catch(() => null);
+        const msg = await channel.messages.fetch(messageId).catch((): null => null);
         if (!msg) {
           await interaction.editReply({ content: "❌ Message introuvable." });
           break;
@@ -1497,7 +1501,7 @@ export async function handleAiExtra(
           "isTextBased" in interaction.channel &&
           interaction.channel.isTextBased()
         ) {
-          const msg = await interaction.channel.messages.fetch(messageId).catch(() => null);
+          const msg = await interaction.channel.messages.fetch(messageId).catch((): null => null);
           if (msg) messageContent = msg.content;
         }
         if (!messageContent) {

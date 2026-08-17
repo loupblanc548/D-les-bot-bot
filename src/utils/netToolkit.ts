@@ -17,7 +17,6 @@ import * as dnsPromises from "dns/promises";
 import { connect as netConnect, Socket } from "net";
 import { request as httpsRequest } from "https";
 import { request as httpRequest } from "http";
-import logger from "./logger.js";
 
 // ─── 1. DNS Lookup ───────────────────────────────────────────────────────────
 

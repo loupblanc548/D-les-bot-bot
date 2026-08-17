@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Paris",
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 2,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "packageRules": [
+    {
+      "description": "Auto-merge patch and minor updates",
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Group major updates for review",
+      "matchUpdateTypes": ["major"],
+      "groupName": "Major Updates",
+      "automerge": false,
+      "labels": ["major", "review-required"]
+    },
+    {
+      "description": "Group ESLint packages",
+      "matchPackagePatterns": ["eslint", "@eslint/", "@typescript-eslint/"],
+      "groupName": "ESLint"
+    },
+    {
+      "description": "Group Prisma packages",
+      "matchPackagePatterns": ["prisma", "@prisma/"],
+      "groupName": "Prisma"
+    },
+    {
+      "description": "Group Discord.js packages",
+      "matchPackagePatterns": ["discord.js", "@discordjs/"],
+      "groupName": "Discord.js"
+    },
+    {
+      "description": "Pin TypeScript major version",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
+}

@@ -50,7 +50,9 @@ export async function getModmailConfig(guildId: string): Promise<ModmailConfig> 
   const cached = configs.get(guildId);
   if (cached) return cached;
   try {
-    const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
+    const record = await prisma.guildConfig
+      .findUnique({ where: { guildId } })
+      .catch((): null => null);
     if (record?.modmailConfig) {
       const parsed = JSON.parse(record.modmailConfig as string) as ModmailConfig;
       configs.set(guildId, parsed);
@@ -169,7 +171,7 @@ export async function staffReply(
   const ticket = ticketByThread.get(threadId);
   if (!ticket || ticket.closed) return false;
 
-  const user = await client.users.fetch(ticket.userId).catch(() => null);
+  const user = await client.users.fetch(ticket.userId).catch((): null => null);
   if (!user) return false;
 
   const embed = new EmbedBuilder()
@@ -234,7 +236,7 @@ export async function closeTicket(
   }
 
   // DM user
-  const user = await client.users.fetch(ticket.userId).catch(() => null);
+  const user = await client.users.fetch(ticket.userId).catch((): null => null);
   if (user) {
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)

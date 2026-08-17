@@ -7,7 +7,6 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import crypto from "crypto";
 
 // ─── Image resize/crop ──────────────────────────────────────────────────────
 export async function imageResizeCrop(
@@ -107,7 +106,7 @@ export function audioConvert(inputPath: string, targetFormat: string, bitrate: s
     const br = bitrate || "192k";
     const outputPath = path.join(os.tmpdir(), `audio_${Date.now()}.${targetFormat}`);
     const cmd = `ffmpeg -i "${inputPath}" -b:a ${br} "${outputPath}" -y 2>&1`;
-    const output = execSync(cmd, { timeout: 60_000, encoding: "utf8" }).trim();
+    execSync(cmd, { timeout: 60_000, encoding: "utf8" });
     return `Audio converted to ${targetFormat} (${br}). Output: ${outputPath}`;
   } catch (err) {
     return `Error: ${(err as Error).message}. Ensure ffmpeg is installed.`;

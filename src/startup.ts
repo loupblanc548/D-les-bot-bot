@@ -28,22 +28,19 @@ import {
 import { startWishlistCron } from "./cron/wishlistCron.js";
 import { startHourlyMaintenance } from "./cron/hourlyMaintenance.js";
 import { startBoutiqueCron } from "./cron/boutiqueCron.js";
-import { startInstantGamingCheck } from "./services/instantgaming.js";
-import { startSteamNewsMonitoring, checkTrackedGames } from "./cron/steamNewsCron.js";
+import { checkTrackedGames } from "./cron/steamNewsCron.js";
 import { checkFreeGames } from "./cron/freeGamesCron.js";
 import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron.js";
-import { startDealsMonitoring, checkDeals } from "./cron/dealsCron.js";
+import { checkDeals } from "./cron/dealsCron.js";
 import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron.js";
 import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
 import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
-import { startMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
 import { startDigestScheduler } from "./services/communityDigest.js";
 import { startPersonalDigestScheduler } from "./services/proactiveAgent.js";
 import { registerInterval } from "./shutdown.js";
 import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
-import { startAutoCleanup } from "./services/auto-cleanup.js";
 import { startBotHealthCheck } from "./cron/botHealthCheck.js";
 import { startNotificationCleanup } from "./cron/notificationCleanup.js";
 import { startAlertDigest } from "./cron/alertDigest.js";
@@ -58,7 +55,7 @@ import { startVpsStorageWatchdog } from "./cron/vpsStorageWatchdog.js";
 import { setVpsMaintenanceClient } from "./services/vpsMaintenance.js";
 import { generateHoneytokens } from "./services/honeytokenEngine.js";
 import { setGitHealerClient } from "./services/gitAutoHealer.js";
-import { setKaliClient, ensureKaliContainer, KALI_TOOLS } from "./services/agentToolsKali.js";
+import { setKaliClient, ensureKaliContainer } from "./services/agentToolsKali.js";
 import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
@@ -74,55 +71,22 @@ import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
 import { handleAutoEvents } from "./events/autoEvents.js";
-import { startAutoEscalation } from "./cron/autoEscalation.js";
 import { startMiscCrons } from "./cron/miscCrons.js";
 import { startCommandAutomation } from "./cron/commandAutomation.js";
 import { startMemoryGrooming } from "./cron/memoryGrooming.js";
-import { startRadioGamingCron } from "./cron/radioGaming.js";
-import { attachDramaPrediction } from "./services/dramaPrediction.js";
-import { startToxicityScanCron } from "./cron/toxicityScan.js";
 import { startLogRetention } from "./cron/logRetention.js";
-import { startShadowBrokerCron } from "./cron/shadowBrokerCron.js";
 import { startLogChannelCleanup } from "./cron/logChannelCleanup.js";
-import { startBrokenImageCleanup } from "./cron/brokenImageCleanup.js";
-import { startShowcaseLinkCron } from "./cron/showcaseLinkCron.js";
 import { startSecurityIntegration } from "./services/securityIntegration.js";
 import { initHoneypotMonitoring } from "./services/cyberDefense.js";
 import { startPriceAlertsMonitoring } from "./services/price-alerts.js";
 import { startGameUpdatesMonitoring } from "./services/game-updates.js";
-import { startReportScheduler } from "./services/reportScheduler.js";
-import { enableSmartAlerts } from "./utils/smart-alerts.js";
-import { startTikTokMonitoring } from "./services/tiktokAlerts.js";
-import { startKickMonitoring } from "./services/kickAlerts.js";
-import { startVodMonitoring } from "./services/vodNotifications.js";
-import { startClipForwarding } from "./services/clipForwarding.js";
-import { startScheduledMessages } from "./services/scheduledMessages.js";
-import { startOnboardingFlow } from "./services/onboardingFlow.js";
-import { startReactionRoles } from "./services/reactionRoles.js";
-import { startTicketSystem } from "./services/ticketSystem.js";
-import { startFaqAutoResponder } from "./services/faqAutoResponder.js";
-import { startCreatorRoleSync } from "./services/creatorRoleSync.js";
-import { startRateLimitDashboard } from "./services/rateLimitDashboard.js";
-import { startCommandAnalytics } from "./services/commandAnalytics.js";
-import { startReleaseCalendar } from "./services/releaseCalendar.js";
-import { startHotTopicsDetector } from "./services/hotTopicsDetector.js";
-import { startConversationSummarizer } from "./services/conversationSummarizer.js";
-import { startChurnPrediction } from "./services/churnPrediction.js";
-import { startLFGMatchmaker } from "./services/lfgMatchmaker.js";
-import { startActivityHeatmap } from "./services/activityHeatmap.js";
-import { startPinRotation } from "./services/pinRotation.js";
-import { startPresenceTracker } from "./services/presenceTracker.js";
+import { initRetailerCron } from "./cron/retailerCron.js";
 import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
-import { startProactiveAgent } from "./services/agentProactive.js";
 import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
 import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
-import { startAutoTranslate } from "./services/autoTranslate.js";
-import { startAiSpamDetector } from "./services/aiSpamDetector.js";
-import { startVoiceScreenShare } from "./services/voiceScreenShare.js";
-import { startVideoStream, startStreamWatchdog, setMainClient } from "./services/videoStream.js";
-import { startMediaWorker, stopMediaWorker } from "./infrastructure/processIsolator.js";
+import { startMediaWorker } from "./infrastructure/processIsolator.js";
 import { initLogQueue } from "./queues/logQueue.js";
 import { waitForRedisWritable } from "./utils/redisClient.js";
 
@@ -218,10 +182,11 @@ async function initSchedulers(client: Client): Promise<void> {
   startWishlistCron(client);
   startHourlyMaintenance(client);
   startBoutiqueCron(client);
-  startShadowBrokerCron(client);
-  startLogChannelCleanup(client);
-  startBrokenImageCleanup(client);
-  startShowcaseLinkCron(client);
+  // Crons désactivés pour économiser de la RAM
+  // startShadowBrokerCron(client);
+  // startLogChannelCleanup(client);
+  // startBrokenImageCleanup(client);
+  // startShowcaseLinkCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
@@ -241,7 +206,8 @@ export function attachStartupLogic(
 
     // ─── Vérifier Ollama (LLM local) ──────────────────────────────────
     try {
-      const { checkLocalLlmAvailability, startLocalLlmHealthCheck, preWarmLocalModel } = await import("./services/localLlm.js");
+      const { checkLocalLlmAvailability, startLocalLlmHealthCheck, preWarmLocalModel } =
+        await import("./services/localLlm.js");
       void checkLocalLlmAvailability().then((ok) => {
         if (ok) {
           logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
@@ -257,19 +223,21 @@ export function attachStartupLogic(
       try {
         const { checkPiperAvailability } = await import("./services/localTts.js");
         void checkPiperAvailability().then((piperOk) => {
-          if (piperOk) logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
+          if (piperOk)
+            logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
         });
       } catch {
         // localTts.ts non disponible — ignorer
       }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
-      try {
-        const { startHealthEndpoint } = await import("./services/healthEndpoint.js");
-        startHealthEndpoint(parseInt(process.env.HEALTH_PORT || "7890", 10));
-      } catch {
-        // healthEndpoint.ts non disponible — ignorer
-      }
+      // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
+      // try {
+      //   const { startHealthEndpoint } = await import("./services/healthEndpoint.js");
+      //   startHealthEndpoint(parseInt(process.env.HEALTH_PORT || "7890", 10));
+      // } catch {
+      //   // healthEndpoint.ts non disponible — ignorer
+      // }
     } catch {
       // localLlm.ts non disponible — ignorer
     }
@@ -319,7 +287,9 @@ export function attachStartupLogic(
       const downtimeMs = Date.now() - lastShutdown;
       if (downtimeMs < 5 * 60 * 1000) {
         wasRealOutage = false;
-        logger.info(`[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`);
+        logger.info(
+          `[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`,
+        );
       }
     } catch {
       // File doesn't exist — first boot or after deploy, run retrospective
@@ -350,15 +320,13 @@ export function attachStartupLogic(
 
     // ─── Topic du salon d'alertes revendeurs ─────────────────────────────
     try {
-      const retailerChannel = await client.channels
-        .fetch("1532189747500421152")
-        .catch(() => null);
+      const retailerChannel = await client.channels.fetch("1532189747500421152").catch(() => null);
       if (retailerChannel?.isTextBased()) {
         const topic =
           "**Suivi de Produits Revendeurs**\n" +
           "Bienvenue ! Demande à Quent de tracker des produits sur les boutiques en ligne. Tout en langage naturel.\n\n" +
           "**Utilisation** — @mentionne le bot :\n" +
-          "• @Quent Track-moi \"RTX 4070\" sur Amazon\n" +
+          '• @Quent Track-moi "RTX 4070" sur Amazon\n' +
           "• @Quent Suis ce produit sur Fnac\n" +
           "• @Quent Y'a une promo ?\n" +
           "• @Quent Compare le prix partout\n" +
@@ -407,12 +375,12 @@ export function attachStartupLogic(
           () => startSocialFollowMonitoring(client),
           () => startPatchNotesService(client),
           () => startBackupService(client),
-          () => startInstantGamingCheck(client),
-          () => startSteamNewsMonitoring(client),
-          () => startDealsMonitoring(client),
-          () => startMonthlyMaintenance(client),
-          () => startGlobalPatchNotesMonitoring(client),
-          () => startAutoCleanup(client),
+          // () => startInstantGamingCheck(client), // DÉSACTIVÉ — inutilisé
+          // () => startSteamNewsMonitoring(client), // DÉSACTIVÉ — inutilisé
+          // () => startDealsMonitoring(client), // DÉSACTIVÉ — inutilisé
+          // () => startMonthlyMaintenance(client), // DÉSACTIVÉ — inutilisé
+          // () => startGlobalPatchNotesMonitoring(client), // DÉSACTIVÉ — inutilisé
+          () => startLogChannelCleanup(client),
           () => startBotHealthCheck(client),
           () => startNotificationCleanup(client),
           () => startAlertDigest(client),
@@ -421,48 +389,49 @@ export function attachStartupLogic(
           () => handleInviteTracker(client),
           () => handleServerCloneDetect(client),
           () => handleAutoEvents(client),
-          () => startAutoEscalation(client),
+          // () => startShowcaseLinkCron(client), // DÉSACTIVÉ — inutilisé
           () => startMiscCrons(client),
           () => startCommandAutomation(client),
           () => startMemoryGrooming(client),
-          () => startRadioGamingCron(client),
-          () => attachDramaPrediction(client),
-          () => startToxicityScanCron(client),
+          // () => startRadioGamingCron(client), // DÉSACTIVÉ — inutilisé
+          // () => attachDramaPrediction(client), // DÉSACTIVÉ — inutilisé
+          // () => startToxicityScanCron(client), // DÉSACTIVÉ — inutilisé
           () => startLogRetention(),
           () => startSecurityIntegration(client),
           () => initHoneypotMonitoring(client),
           () => startPriceAlertsMonitoring(client),
           () => startGameUpdatesMonitoring(client),
-          () => startReportScheduler(client),
-          () => enableSmartAlerts(client),
-          () => startTikTokMonitoring(client),
-          () => startKickMonitoring(client),
-          () => startVodMonitoring(client),
-          () => startClipForwarding(client),
-          () => startScheduledMessages(client),
-          () => startOnboardingFlow(client),
-          () => startReactionRoles(client),
-          () => startTicketSystem(client),
-          () => startFaqAutoResponder(client),
-          () => startCreatorRoleSync(client),
-          () => startRateLimitDashboard(client),
-          () => startCommandAnalytics(client),
-          () => startReleaseCalendar(client),
-          () => startHotTopicsDetector(client),
-          () => startConversationSummarizer(client),
-          () => startChurnPrediction(client),
-          () => startLFGMatchmaker(client),
-          () => startActivityHeatmap(client),
-          () => startPinRotation(client),
-          () => startPresenceTracker(client),
+          () => initRetailerCron(client),
+          // () => startReportScheduler(client), // DÉSACTIVÉ — inutilisé
+          // () => enableSmartAlerts(client), // DÉSACTIVÉ — channel logs non disponible, erreurs en boucle
+          // () => startTikTokMonitoring(client), // DÉSACTIVÉ — inutilisé
+          // () => startKickMonitoring(client), // DÉSACTIVÉ — inutilisé
+          // () => startVodMonitoring(client), // DÉSACTIVÉ — inutilisé
+          // () => startClipForwarding(client), // DÉSACTIVÉ — inutilisé
+          // () => startScheduledMessages(client), // DÉSACTIVÉ — inutilisé
+          // () => startOnboardingFlow(client), // DÉSACTIVÉ — inutilisé
+          // () => startReactionRoles(client), // DÉSACTIVÉ — inutilisé
+          // () => startTicketSystem(client), // DÉSACTIVÉ — inutilisé
+          // () => startFaqAutoResponder(client), // DÉSACTIVÉ — inutilisé
+          // () => startCreatorRoleSync(client), // DÉSACTIVÉ — inutilisé
+          // () => startRateLimitDashboard(client), // DÉSACTIVÉ — inutilisé
+          // () => startCommandAnalytics(client), // DÉSACTIVÉ — inutilisé
+          // () => startReleaseCalendar(client), // DÉSACTIVÉ — inutilisé
+          // () => startHotTopicsDetector(client), // DÉSACTIVÉ — inutilisé
+          // () => startConversationSummarizer(client), // DÉSACTIVÉ — inutilisé
+          // () => startChurnPrediction(client), // DÉSACTIVÉ — inutilisé
+          // () => startLFGMatchmaker(client), // DÉSACTIVÉ — inutilisé
+          // () => startActivityHeatmap(client), // DÉSACTIVÉ — inutilisé
+          // () => startPinRotation(client), // DÉSACTIVÉ — inutilisé
+          // () => startPresenceTracker(client), // DÉSACTIVÉ — inutilisé
           () => startDealFusion(client),
           () => startGitHubReleasesMonitor(client),
           () => startMultiSiteDealsMonitor(client),
           // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
           () => startGameReleaseCountdown(client),
           () => startSteamWishlistMonitor(client),
-          () => startAutoTranslate(client),
-          () => startAiSpamDetector(client),
+          // () => startAutoTranslate(client), // DÉSACTIVÉ — inutilisé
+          // () => startAiSpamDetector(client), // DÉSACTIVÉ — inutilisé
           // ── Directive 1: Media/gaming offloaded to isolated child process ──
           () => startMediaWorker(),
           () => startSyncFreeForDev(),

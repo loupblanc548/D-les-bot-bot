@@ -12,7 +12,12 @@
 
 import logger from "../../utils/logger.js";
 import { safeFetch } from "../../utils/ssrfGuard.js";
-import type { RetailerModule, RetailerProduct, RetailerSearchResult, CountryCode } from "./types.js";
+import type {
+  RetailerModule,
+  RetailerProduct,
+  RetailerSearchResult,
+  CountryCode,
+} from "./types.js";
 
 const AMAZON_DOMAINS: Record<CountryCode, string> = {
   FR: "www.amazon.fr",
@@ -40,14 +45,7 @@ const AMAZON_CURRENCIES: Record<CountryCode, string> = {
   AT: "EUR",
 };
 
-const PA_API_KEY = process.env.AMAZON_PA_API_KEY || "";
-const PA_API_SECRET = process.env.AMAZON_PA_API_SECRET || "";
-const PA_ASSOCIATE_TAG = process.env.AMAZON_ASSOCIATE_TAG || "";
 const KEEPA_API_KEY = process.env.KEEPA_API_KEY || "";
-
-function hasAmazonApi(): boolean {
-  return !!(PA_API_KEY && PA_API_SECRET && PA_ASSOCIATE_TAG);
-}
 
 function hasKeepaApi(): boolean {
   return !!KEEPA_API_KEY;
@@ -56,7 +54,11 @@ function hasKeepaApi(): boolean {
 /**
  * Recherche produits Amazon via scraping HTML (fallback sans clé API)
  */
-async function searchScraping(query: string, country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchScraping(
+  query: string,
+  country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const domain = AMAZON_DOMAINS[country] || AMAZON_DOMAINS.FR;
   const currency = AMAZON_CURRENCIES[country] || "EUR";
   const products: RetailerProduct[] = [];
@@ -104,8 +106,12 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
         const price = parseFloat(priceStr) || 0;
 
         // Prix original barré
-        const originalMatch = blockHtml.match(/class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/);
-        const originalStr = originalMatch ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "") : "";
+        const originalMatch = blockHtml.match(
+          /class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/,
+        );
+        const originalStr = originalMatch
+          ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "")
+          : "";
         const originalPrice = originalStr ? parseFloat(originalStr) : undefined;
 
         // Image
@@ -148,7 +154,9 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
       }
     }
   } catch (err) {
-    logger.debug(`[Amazon] Search scraping error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[Amazon] Search scraping error: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   return { products, retailer: "amazon", totalFound: products.length, searchQuery: query };
@@ -157,7 +165,10 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
 /**
  * Récupère un produit Amazon spécifique par ASIN
  */
-async function getProductScraping(asin: string, country: CountryCode): Promise<RetailerProduct | null> {
+async function getProductScraping(
+  asin: string,
+  country: CountryCode,
+): Promise<RetailerProduct | null> {
   const domain = AMAZON_DOMAINS[country] || AMAZON_DOMAINS.FR;
   const currency = AMAZON_CURRENCIES[country] || "EUR";
 
@@ -187,8 +198,12 @@ async function getProductScraping(asin: string, country: CountryCode): Promise<R
     const price = parseFloat(priceStr) || 0;
 
     // Prix original
-    const originalMatch = html.match(/class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/);
-    const originalStr = originalMatch ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "") : "";
+    const originalMatch = html.match(
+      /class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/,
+    );
+    const originalStr = originalMatch
+      ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "")
+      : "";
     const originalPrice = originalStr ? parseFloat(originalStr) : undefined;
 
     // Stock
@@ -216,7 +231,9 @@ async function getProductScraping(asin: string, country: CountryCode): Promise<R
 
     // Review count
     const reviewMatch = html.match(/(\d[\d.,]*)\s*(?:évaluations|ratings|global ratings)/);
-    const reviewCount = reviewMatch ? parseInt(reviewMatch[1].replace(/[^\d]/g, ""), 10) : undefined;
+    const reviewCount = reviewMatch
+      ? parseInt(reviewMatch[1].replace(/[^\d]/g, ""), 10)
+      : undefined;
 
     return {
       retailer: "amazon",
@@ -243,7 +260,10 @@ async function getProductScraping(asin: string, country: CountryCode): Promise<R
 /**
  * Récupère l'historique de prix via Keepa API
  */
-export async function getKeepaPriceHistory(asin: string, country: CountryCode = "FR"): Promise<{
+export async function getKeepaPriceHistory(
+  asin: string,
+  country: CountryCode = "FR",
+): Promise<{
   currentPrice: number;
   lowestPrice: number;
   highestPrice: number;
@@ -254,7 +274,16 @@ export async function getKeepaPriceHistory(asin: string, country: CountryCode = 
   if (!hasKeepaApi()) return null;
 
   const domainMap: Record<CountryCode, number> = {
-    FR: 3, DE: 4, BE: 3, NL: 3, ES: 5, IT: 6, CH: 3, UK: 2, US: 1, AT: 4,
+    FR: 3,
+    DE: 4,
+    BE: 3,
+    NL: 3,
+    ES: 5,
+    IT: 6,
+    CH: 3,
+    UK: 2,
+    US: 1,
+    AT: 4,
   };
   const domainId = domainMap[country] || 3;
 
@@ -350,8 +379,12 @@ async function getAmazonDeals(country: CountryCode, limit = 10): Promise<Retaile
         const priceStr = priceMatch ? priceMatch[1].replace(",", ".").replace(/[^\d.]/g, "") : "";
         const price = parseFloat(priceStr) || 0;
 
-        const originalMatch = blockHtml.match(/class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/);
-        const originalStr = originalMatch ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "") : "";
+        const originalMatch = blockHtml.match(
+          /class="a-price a-text-price[\s\S]*?<span[^>]*>([\d.,]+)<\/span>/,
+        );
+        const originalStr = originalMatch
+          ? originalMatch[1].replace(",", ".").replace(/[^\d.]/g, "")
+          : "";
         const originalPrice = originalStr ? parseFloat(originalStr) : undefined;
 
         const discountMatch = blockHtml.match(/-(\d+)%/);

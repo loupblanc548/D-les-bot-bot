@@ -12,7 +12,7 @@
  */
 
 import logger from "../utils/logger.js";
-import { getAvailableFreeModels, markModelFailure, markModelSuccess } from "./modelRotation.js";
+import { getAvailableFreeModels } from "./modelRotation.js";
 import { NVIDIA_MODEL_TIERS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 
 // ─── Niveaux de complexité ───────────────────────────────────────────────────

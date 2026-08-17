@@ -17,6 +17,13 @@ import chat from "./chat.js";
 import follow from "./follow.js";
 import farm from "./farm.js";
 import stopFarm from "./stop-farm.js";
+import agent from "./agent.js";
+import agentstop from "./agentstop.js";
+import agentstatus from "./agentstatus.js";
+import agentlog from "./agentlog.js";
+import agentworld from "./agentworld.js";
+import agentchat from "./agentchat.js";
+import agentaction from "./agentaction.js";
 
 const subcommands: SubcommandDef[] = [
   connect,
@@ -28,6 +35,13 @@ const subcommands: SubcommandDef[] = [
   follow,
   farm,
   stopFarm,
+  agent,
+  agentstop,
+  agentstatus,
+  agentlog,
+  agentworld,
+  agentchat,
+  agentaction,
 ];
 
 export default {
@@ -35,7 +49,7 @@ export default {
   build: () => {
     const builder = new SlashCommandBuilder()
       .setName("mc")
-      .setDescription("Bot Minecraft Bedrock (mining, follow, farm, inventory, serveur)");
+      .setDescription("Bot Minecraft — Bedrock + LLM Agent Java (Mineflayer sur Colab)");
 
     for (const sub of subcommands) {
       builder.addSubcommand((sc) => sub.build(sc.setName(sub.name)));

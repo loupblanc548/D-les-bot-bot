@@ -32,7 +32,7 @@ function normalizeQuery(text: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // remove accents
-    .replace(/[?!.,;:'"`~@#$%^&*()_+=\[\]{}|\\<>\/]/g, " ")
+    .replace(/[?!.,;:'"`~@#$%^&*()_+=[\]{}|\\<>/]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .replace(

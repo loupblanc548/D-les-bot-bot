@@ -71,7 +71,9 @@ async function analyzeMessage(message: Message): Promise<MessageAnalysis | null>
     const client = getOpenAIClient();
 
     // Récupérer l'historique récent du salon (5 derniers messages pour le contexte)
-    const recentMessages = await message.channel.messages.fetch({ limit: 5 }).catch(() => null);
+    const recentMessages = await message.channel.messages
+      .fetch({ limit: 5 })
+      .catch((): null => null);
     const context = recentMessages
       ? recentMessages
           .filter((m) => !m.author.bot)
@@ -222,7 +224,7 @@ async function executeAgentAction(
         break;
 
       case "TIMEOUT": {
-        const member = await guild.members.fetch(message.author.id).catch(() => null);
+        const member = await guild.members.fetch(message.author.id).catch((): null => null);
         if (!member) return;
         const duration = Math.min(24 * 60 * 60 * 1000, (profile.timeoutCount + 1) * 60 * 60 * 1000);
         await member.timeout(duration, reason);
@@ -231,7 +233,7 @@ async function executeAgentAction(
       }
 
       case "KICK": {
-        const member = await guild.members.fetch(message.author.id).catch(() => null);
+        const member = await guild.members.fetch(message.author.id).catch((): null => null);
         if (!member) return;
         await member.kick(reason);
         await recordSanction(message.author.id, guild.id, "KICK");
@@ -321,7 +323,7 @@ export async function autoResolveAlerts(client: Client): Promise<void> {
             if (guild) {
               switch (decision.action) {
                 case "TIMEOUT": {
-                  const member = await guild.members.fetch(alert.userId).catch(() => null);
+                  const member = await guild.members.fetch(alert.userId).catch((): null => null);
                   if (member) {
                     await member.timeout(
                       60 * 60 * 1000,
@@ -332,7 +334,7 @@ export async function autoResolveAlerts(client: Client): Promise<void> {
                   break;
                 }
                 case "KICK": {
-                  const member = await guild.members.fetch(alert.userId).catch(() => null);
+                  const member = await guild.members.fetch(alert.userId).catch((): null => null);
                   if (member) {
                     await member.kick(`[Agent IA] ${decision.reasoning}`.slice(0, 512));
                     await recordSanction(alert.userId, alert.guildId, "KICK");

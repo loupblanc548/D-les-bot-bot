@@ -22,7 +22,7 @@ const DEFAULT_SKIN_PATH = "/opt/bot/assets/bot-skin.png";
 
 // Default geometry for a standard 64x64 skin
 // This is the "steve.json" geometry that bedrock-protocol uses by default
-const DEFAULT_GEOMETRY = {
+const DEFAULT_GEOMETRY: Record<string, unknown> = {
   SkinId: "custom_bot_skin",
   SkinResourcePatch: "",
   SkinGeometryData: "",
@@ -42,9 +42,13 @@ const DEFAULT_GEOMETRY = {
  * @param skinPath Path to the PNG skin file (64x64 or 128x128)
  * @returns skinData object for bedrock-protocol Client options, or null if failed
  */
-export function loadCustomSkin(skinPath: string = DEFAULT_SKIN_PATH): Record<string, unknown> | null {
+export function loadCustomSkin(
+  skinPath: string = DEFAULT_SKIN_PATH,
+): Record<string, unknown> | null {
   if (!existsSync(skinPath)) {
-    logger.info(`[MinecraftSkin] Pas de skin personnalisé trouvé (${skinPath}) — utilisation du skin par défaut (Steve)`);
+    logger.info(
+      `[MinecraftSkin] Pas de skin personnalisé trouvé (${skinPath}) — utilisation du skin par défaut (Steve)`,
+    );
     return null;
   }
 
@@ -71,7 +75,9 @@ export function loadCustomSkin(skinPath: string = DEFAULT_SKIN_PATH): Record<str
       FullSkinId: `custom_bot_${Date.now()}_full`,
     };
 
-    logger.info(`[MinecraftSkin] ✅ Skin personnalisé chargé (${skinBuffer.length} bytes, ${skinBase64.length} chars base64)`);
+    logger.info(
+      `[MinecraftSkin] ✅ Skin personnalisé chargé (${skinBuffer.length} bytes, ${skinBase64.length} chars base64)`,
+    );
     return skinData;
   } catch (err) {
     logger.warn(

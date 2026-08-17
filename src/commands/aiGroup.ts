@@ -207,28 +207,6 @@ export const commands = [
 
 const AI_BASIC_SUBS = ["chat", "ask-bot"];
 const AI_BASIC_STUB = ["image", "summarize"];
-const _AI_ANALYSIS_STUB = [
-  "sentiment",
-  "summarize-user",
-  "channel-summary",
-  "behavior-timeline",
-  "spam-analysis",
-];
-const _AI_ADVANCED_STUB = [
-  "persona",
-  "mood",
-  "prompt-templates",
-  "fine-tune",
-  "context",
-  "history",
-];
-const _AI_CONFIG_STUB = [
-  "model-select",
-  "temperature",
-  "token-usage",
-  "moderation-config",
-  "fun-mode",
-];
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
   const group = interaction.options.getSubcommandGroup();

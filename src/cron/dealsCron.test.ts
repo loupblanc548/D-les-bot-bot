@@ -15,8 +15,8 @@ const { mockLoggerInfo, mockLoggerWarn, mockLoggerError, mockLoggerDebug } = vi.
   mockLoggerDebug: vi.fn(),
 }));
 
-const { mockAxiosGet } = vi.hoisted(() => ({
-  mockAxiosGet: vi.fn(),
+const { mockParseURL } = vi.hoisted(() => ({
+  mockParseURL: vi.fn(),
 }));
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -39,10 +39,10 @@ vi.mock("../utils/logger", () => ({
   },
 }));
 
-vi.mock("axios", () => ({
-  default: {
-    get: mockAxiosGet,
-  },
+vi.mock("rss-parser", () => ({
+  default: vi.fn().mockImplementation(function RSSParserMock(this: any) {
+    this.parseURL = mockParseURL;
+  }),
 }));
 
 vi.mock("../utils/retry", () => ({
@@ -120,6 +120,7 @@ import {
   stopDealsMonitoring,
   detectPlatforms,
   PLATFORM_CONFIGS,
+  __resetDealsCronStateForTests,
 } from "./dealsCron.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ beforeEach(() => {
   PLATFORM_CONFIGS[5].channelId = "fortnite-chan";
   PLATFORM_CONFIGS[6].channelId = "ig-chan";
   stopDealsMonitoring();
+  __resetDealsCronStateForTests();
 });
 
 vi.mock("../utils/deduplicationCache", () => ({
@@ -191,6 +193,13 @@ vi.mock("../utils/image-helpers", () => ({
 vi.mock("../utils/image-optimizer", () => ({
   fetchAndOptimizeImage: vi.fn().mockResolvedValue(null),
   isOptimizableImageUrl: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("../utils/translator", () => ({
+  // Returns null (no translation) so sendDealEmbed falls back to the
+  // original text — avoids real network calls to OpenRouter/MyMemory
+  // during tests, which would pollute logger.warn/error call history.
+  translateAutoToFrench: vi.fn().mockResolvedValue(null),
 }));
 
 afterEach(() => {
@@ -333,7 +342,7 @@ describe("checkDeals", () => {
       await checkDeals(client);
 
       expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("CHANNEL_ID"));
-      expect(mockAxiosGet).not.toHaveBeenCalled();
+      expect(mockParseURL).not.toHaveBeenCalled();
     });
 
     it("continue si au moins un channel est configure", async () => {
@@ -344,11 +353,11 @@ describe("checkDeals", () => {
       const channel = makeMockTextChannel({ id: "steam-epic-chan" });
       const client = makeMockClient({ "steam-epic-chan": channel });
 
-      mockAxiosGet.mockResolvedValue({ data: { items: [] } });
+      mockParseURL.mockResolvedValue({ items: [] });
 
       await checkDeals(client);
 
-      expect(mockAxiosGet).toHaveBeenCalled();
+      expect(mockParseURL).toHaveBeenCalled();
     });
   });
 
@@ -358,15 +367,14 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       // Premier flux echoue, deuxieme reussit
-      mockAxiosGet
+      mockParseURL
         .mockRejectedValueOnce(new Error("Network error"))
-        .mockResolvedValueOnce({ data: { items: [] } });
+        .mockResolvedValueOnce({ items: [] });
 
       await checkDeals(client);
 
       expect(mockLoggerError).toHaveBeenCalledWith(
         expect.stringContaining("Erreur analyse du flux"),
-        expect.any(Object),
       );
     });
   });
@@ -376,9 +384,7 @@ describe("checkDeals", () => {
       const channel = makeMockTextChannel({ id: "steam-epic-chan" });
       const client = makeMockClient({ "steam-epic-chan": channel });
 
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: [] });
 
       await checkDeals(client);
 
@@ -392,9 +398,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const item = makeFeedItem({ title: "[Steam] Already Seen Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
 
       mockProcessedDealFindUnique.mockResolvedValue({ id: 1 }); // deja traite
 
@@ -408,9 +412,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const item = makeFeedItem({ title: "[Steam] New Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
 
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -425,9 +427,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const item = makeFeedItem({ title: "[Steam] DB Error Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
 
       mockProcessedDealFindUnique.mockRejectedValue(new Error("DB error"));
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -452,9 +452,7 @@ describe("checkDeals", () => {
       });
 
       const item = makeFeedItem({ title: "[Steam] PC Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -473,9 +471,7 @@ describe("checkDeals", () => {
       });
 
       const item = makeFeedItem({ title: "[PS5] PS Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -492,9 +488,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": pcChannel });
 
       const item = makeFeedItem({ title: "Generic Gaming Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -512,9 +506,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({}); // Aucun channel dans la map
 
       const item = makeFeedItem({ title: "[Xbox] Xbox Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -531,9 +523,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": nonTextChannel });
 
       const item = makeFeedItem({ title: "[Steam] Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -552,9 +542,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const item = makeFeedItem({ title: "[Steam] Error Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
 
@@ -573,9 +561,7 @@ describe("checkDeals", () => {
       const client = makeMockClient({ "steam-epic-chan": channel });
 
       const item = makeFeedItem({ title: "[Steam] Duplicate DB Deal" });
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items: [item] } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items: [item] }).mockResolvedValueOnce({ items: [] });
       mockProcessedDealFindUnique.mockResolvedValue(null);
       // create echoue (doublon)
       mockProcessedDealCreate.mockRejectedValue(new Error("Unique constraint"));
@@ -597,9 +583,7 @@ describe("checkDeals", () => {
       const items = Array.from({ length: 15 }, (_, i) =>
         makeFeedItem({ title: "[Steam] Deal #" + i, link: "https://reddit.com/" + i }),
       );
-      mockAxiosGet
-        .mockResolvedValueOnce({ data: { items } })
-        .mockResolvedValueOnce({ data: { items: [] } });
+      mockParseURL.mockResolvedValueOnce({ items }).mockResolvedValueOnce({ items: [] });
 
       mockProcessedDealFindUnique.mockResolvedValue(null);
       mockProcessedDealCreate.mockResolvedValue({ id: 1 });
@@ -659,14 +643,12 @@ describe("startDealsMonitoring / stopDealsMonitoring", () => {
     const channel = makeMockTextChannel({ id: "steam-epic-chan" });
     const client = makeMockClient({ "steam-epic-chan": channel });
 
-    mockAxiosGet
-      .mockResolvedValueOnce({ data: { items: [] } })
-      .mockResolvedValueOnce({ data: { items: [] } });
+    mockParseURL.mockResolvedValueOnce({ items: [] }).mockResolvedValueOnce({ items: [] });
 
     startDealsMonitoring(client);
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(mockAxiosGet).toHaveBeenCalled();
+    expect(mockParseURL).toHaveBeenCalled();
   });
 });

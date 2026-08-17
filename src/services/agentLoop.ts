@@ -13,17 +13,21 @@
 import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import { getOpenAIClient, getOpenAIPremiumClient, isOpenAIPremiumAvailable } from "./ai.js";
+import { getOpenAIClient } from "./ai.js";
 import { getGroqClient, isGroqAvailable } from "./groq.js";
-import { markModelFailure, markModelSuccess, getAllAvailableModels } from "./modelRotation.js";
+import {
+  markModelFailure,
+  markModelSuccess,
+  recordModelLatency,
+  isModelAvailable,
+  claimModel,
+  releaseModel,
+  getAllAvailableModels,
+} from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
 import { sanitizeForLlm } from "../utils/promptSanitizer.js";
-import {
-  classifyTaskComplexity,
-  getModelChainForTask,
-  type TaskComplexity,
-} from "./taskModelRouter.js";
+import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
 import {
   ALL_AGENT_TOOLS,
   executeTool,
@@ -58,23 +62,24 @@ import {
   suggestToolChain,
   getApiKeyStatusLine,
   isPrivateChannel,
-  RESTRICTED_TOOLS as RESTRICTED_TOOL_NAMES,
 } from "./agentToolRouter.js";
-import { isRestrictedTool, requestToolApproval, setSoarGateClient } from "./agentSoarGate.js";
+import { isRestrictedTool, requestToolApproval } from "./agentSoarGate.js";
 import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
 import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
-import { isLocalLlmAvailable, chatWithLocalLlm, chatWithLocalLlmTools, checkLocalLlmAvailability, LOCAL_LLM_MODEL_NAME } from "./localLlm.js";
+import {
+  isLocalLlmAvailable,
+  isLocalLlmVisionAvailable,
+  getLocalLlmVisionModelName,
+  chatWithLocalLlm,
+  chatWithLocalLlmTools,
+  LOCAL_LLM_MODEL_NAME,
+} from "./localLlm.js";
 import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
 import { isKilled } from "./killSwitch.js";
-import {
-  detectLanguage,
-  getNativeName,
-  getFlag,
-  type SupportedLang,
-} from "../utils/languageDetector.js";
+import { detectLanguage, getNativeName, getFlag } from "../utils/languageDetector.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityModel,
@@ -83,6 +88,7 @@ import {
 } from "../infrastructure/middleware/personalityMiddleware.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
+import type { ChatRuntimeSignal } from "./chatRuntime.js";
 import {
   agentLoopIterations,
   agentLoopDuration,
@@ -146,14 +152,17 @@ const userCooldowns = new Map<string, number>();
 const COOLDOWN_MS = 3_000; // 3s between agent calls per user
 
 // Cleanup expired user cooldowns every 5 minutes to prevent memory leak
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, lastCall] of userCooldowns.entries()) {
-    if (now - lastCall > COOLDOWN_MS * 20) {
-      userCooldowns.delete(userId);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [userId, lastCall] of userCooldowns.entries()) {
+      if (now - lastCall > COOLDOWN_MS * 20) {
+        userCooldowns.delete(userId);
+      }
     }
-  }
-}, 5 * 60 * 1000).unref?.();
+  },
+  5 * 60 * 1000,
+).unref?.();
 
 // Tool failure tracker: auto-disable tools that crash repeatedly
 const toolFailureCounts = new Map<string, { count: number; lastFail: number }>();
@@ -270,6 +279,45 @@ interface ChatMessage {
   tool_calls?: unknown;
 }
 
+type VisionContent = Array<
+  { type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: "auto" } }
+>;
+
+type ProviderChatMessage = Omit<ChatMessage, "content"> & {
+  content: string | VisionContent;
+};
+
+function buildProviderConversation(
+  conversation: ChatMessage[],
+  imageUrls: string[],
+): ProviderChatMessage[] {
+  const safeImageUrls = imageUrls.filter((url) => /^https?:\/\//i.test(url)).slice(0, 5);
+  if (safeImageUrls.length === 0) return conversation;
+
+  let lastUserIndex = -1;
+  for (let index = conversation.length - 1; index >= 0; index--) {
+    if (conversation[index]?.role === "user") {
+      lastUserIndex = index;
+      break;
+    }
+  }
+  if (lastUserIndex < 0) return conversation;
+
+  return conversation.map((entry, index) => {
+    if (index !== lastUserIndex) return entry;
+    return {
+      ...entry,
+      content: [
+        { type: "text", text: entry.content },
+        ...safeImageUrls.map((url) => ({
+          type: "image_url" as const,
+          image_url: { url, detail: "auto" as const },
+        })),
+      ],
+    };
+  });
+}
+
 // ─── Mémoire long-terme ──────────────────────────────────────────────────────
 
 /**
@@ -361,6 +409,8 @@ export async function runAgentLoop(
   message: Message,
   userMessage: string,
   onToolCall?: (toolName: string, iteration: number) => void,
+  signal?: ChatRuntimeSignal,
+  imageUrls: string[] = [],
 ): Promise<string> {
   const statusCallback = onToolCall;
   // Cooldown check: prevent spam @mentions
@@ -377,6 +427,7 @@ export async function runAgentLoop(
   }
   activeAgentLoops.add(message.author.id);
   userCooldowns.set(message.author.id, now);
+  signal?.throwIfAborted();
 
   try {
     const complex = isComplexTask(userMessage);
@@ -387,12 +438,33 @@ export async function runAgentLoop(
         `[AgentLoop] 🧠 Complex task detected — using ${maxIter} iterations, ${timeout / 1000}s timeout`,
       );
     }
-    return await Promise.race([
-      runAgentLoopInternal(message, userMessage, statusCallback, maxIter),
-      new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error(`AgentLoop timeout (${timeout / 1000}s)`)), timeout),
-      ),
-    ]);
+    let abortCheck: ReturnType<typeof setInterval> | undefined;
+    const abortPromise = signal
+      ? new Promise<string>((_, reject) => {
+          if (signal.aborted) {
+            reject(new Error(signal.reason || "Chat request cancelled"));
+            return;
+          }
+          abortCheck = setInterval(() => {
+            if (signal.aborted) {
+              if (abortCheck) clearInterval(abortCheck);
+              reject(new Error(signal.reason || "Chat request cancelled"));
+            }
+          }, 100);
+        })
+      : new Promise<string>(() => {});
+
+    try {
+      return await Promise.race([
+        runAgentLoopInternal(message, userMessage, statusCallback, maxIter, signal, imageUrls),
+        new Promise<string>((_, reject) => {
+          setTimeout(() => reject(new Error(`AgentLoop timeout (${timeout / 1000}s)`)), timeout);
+        }),
+        abortPromise,
+      ]);
+    } finally {
+      if (abortCheck) clearInterval(abortCheck);
+    }
   } finally {
     activeAgentLoops.delete(message.author.id);
   }
@@ -400,8 +472,8 @@ export async function runAgentLoop(
 
 // ─── Retry wrapper for OpenRouter API calls ─────────────────────────────────
 
-const API_MAX_RETRIES = 3;
-const API_BASE_DELAY_MS = 1_000;
+const API_MAX_RETRIES = 1;
+const API_BASE_DELAY_MS = 250;
 
 interface RetryableError {
   status?: number;
@@ -422,12 +494,7 @@ function isRetryableError(err: unknown): boolean {
   if (e.status === 404 || e.status === 400) {
     return false;
   }
-  if (
-    e.status === 500 ||
-    e.status === 502 ||
-    e.status === 503 ||
-    e.status === 504
-  ) {
+  if (e.status === 500 || e.status === 502 || e.status === 503 || e.status === 504) {
     return true;
   }
   if (
@@ -477,6 +544,8 @@ async function runAgentLoopInternal(
   userMessage: string,
   statusCallback?: (toolName: string, iteration: number) => void,
   maxIterations: number = MAX_ITERATIONS,
+  signal?: ChatRuntimeSignal,
+  imageUrls: string[] = [],
 ): Promise<string> {
   // Sanitize user input to prevent prompt injection (AGENTFLOW-001 / ASI01)
   userMessage = sanitizeForLlm(userMessage);
@@ -495,7 +564,11 @@ async function runAgentLoopInternal(
   };
 
   // ─── MODULE 1: Circuit Breaker — track execution state ───
-  const breakerState = beginInteraction(message.author.id, message.guildId || "", maxIterations > 8);
+  const breakerState = beginInteraction(
+    message.author.id,
+    message.guildId || "",
+    maxIterations > 8,
+  );
 
   // ─── Cognitive Loop Engine — init embedding cache for this run ───
   const cognitiveSessionId = breakerState.interactionId;
@@ -539,7 +612,9 @@ async function runAgentLoopInternal(
   // Add delegation tool when local LLM is active — qwen2.5 becomes orchestrator
   if (isLocalLlmAvailable()) {
     availableTools.push(DELEGATE_TOOL);
-    logger.info(`[AgentLoop] 🎼 Mode orchestrateur activé — qwen2.5 peut déléguer aux modèles experts`);
+    logger.info(
+      `[AgentLoop] 🎼 Mode orchestrateur activé — qwen2.5 peut déléguer aux modèles experts`,
+    );
   }
   const toolNames = availableTools.map((t) => t.function.name);
   const plan = await generatePlan(userMessage, toolNames);
@@ -631,55 +706,55 @@ async function runAgentLoopInternal(
     "Toutes les alertes et réponses vont dans le salon 1532189747500421152 + DM à l'utilisateur.\n\n" +
     "### ⚠️ RÈGLE ABSOLUE — NE JAMAIS AFFICHER DE LIMITATIONS\n" +
     "- Tu DOIS TOUJOURS appeler les tools retailer quand on te demande de tracker/rechercher un produit.\n" +
-    "- N'affiche JAMAIS de tableau de \"limitations\" ou de message disant que tu ne peux pas.\n" +
+    '- N\'affiche JAMAIS de tableau de "limitations" ou de message disant que tu ne peux pas.\n' +
     "- Si un tool retourne 0 résultat, dis-le honnêtement mais RECOMMANDE d'essayer sur une autre boutique.\n" +
     "- Les tools retailer FONCTIONNENT en scraping HTML même sans clé API. UTILISE-LES.\n" +
     "- Si searchRetailers échoue, essaie searchSingleRetailer sur chaque boutique individuellement.\n" +
     "- N'invente JAMAIS de limitations. Essaie d'abord, rapporte le résultat après.\n\n" +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (FR)\n" +
-    "- \"Track-moi ça\" / \"Track ça\" / \"Track ce produit\"\n" +
-    "- \"Suis-moi ça\" / \"Suis ce produit\" / \"Suivre ce produit\"\n" +
-    "- \"Piste-moi ça\" / \"Piste ce produit\" / \"Pister ça\"\n" +
-    "- \"Surveille ça pour moi\" / \"Surveille ce produit\"\n" +
-    "- \"Mets une alerte sur ça\" / \"Mets une alerte sur ce produit\"\n" +
-    "- \"Préviens-moi si le prix baisse\" / \"Préviens-moi quand c'est en stock\"\n" +
-    "- \"Ajoute ça à mes suivis\" / \"Ajoute ce produit\"\n" +
-    "- \"Je veux suivre ça\" / \"Je veux tracker ça\"\n" +
-    "- \"Check le prix de ça\" / \"Check si c'est dispo\"\n" +
-    "- \"Trouve-moi ça sur Amazon\" / \"Trouve-moi ça sur eBay\"\n" +
-    "- \"Y'a une promo sur ça ?\" / \"Y'a une ristourne ?\" / \"Y'a un deal ?\"\n" +
-    "- \"Compare le prix de ça\" / \"Compare ça partout\"\n" +
-    "- \"Scan mon panier\" / \"Scan ma capture\" / \"Regarde mon panier\"\n" +
-    "- \"Track tout ça\" / \"Suis tout ce qui est dans l'image\"\n" +
-    "- \"Qu'est-ce qui est dispo ?\" / \"Quel est le meilleur prix ?\"\n\n" +
+    '- "Track-moi ça" / "Track ça" / "Track ce produit"\n' +
+    '- "Suis-moi ça" / "Suis ce produit" / "Suivre ce produit"\n' +
+    '- "Piste-moi ça" / "Piste ce produit" / "Pister ça"\n' +
+    '- "Surveille ça pour moi" / "Surveille ce produit"\n' +
+    '- "Mets une alerte sur ça" / "Mets une alerte sur ce produit"\n' +
+    '- "Préviens-moi si le prix baisse" / "Préviens-moi quand c\'est en stock"\n' +
+    '- "Ajoute ça à mes suivis" / "Ajoute ce produit"\n' +
+    '- "Je veux suivre ça" / "Je veux tracker ça"\n' +
+    '- "Check le prix de ça" / "Check si c\'est dispo"\n' +
+    '- "Trouve-moi ça sur Amazon" / "Trouve-moi ça sur eBay"\n' +
+    '- "Y\'a une promo sur ça ?" / "Y\'a une ristourne ?" / "Y\'a un deal ?"\n' +
+    '- "Compare le prix de ça" / "Compare ça partout"\n' +
+    '- "Scan mon panier" / "Scan ma capture" / "Regarde mon panier"\n' +
+    '- "Track tout ça" / "Suis tout ce qui est dans l\'image"\n' +
+    '- "Qu\'est-ce qui est dispo ?" / "Quel est le meilleur prix ?"\n\n' +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (EN)\n" +
-    "- \"Track this\" / \"Track this for me\" / \"Track this product\"\n" +
-    "- \"Follow this\" / \"Follow this product\" / \"Keep an eye on this\"\n" +
-    "- \"Watch this\" / \"Watch the price\" / \"Monitor this\"\n" +
-    "- \"Alert me on this\" / \"Set an alert for this\"\n" +
-    "- \"Add this to my tracked\" / \"Add this product\"\n" +
-    "- \"Find this on Amazon\" / \"Find this on eBay\"\n" +
-    "- \"Any deals on this?\" / \"Any discount?\" / \"Any promotion?\"\n" +
-    "- \"Compare the price\" / \"Compare this everywhere\"\n" +
-    "- \"Scan my cart\" / \"Scan my screenshot\" / \"Look at my cart\"\n" +
-    "- \"Track everything in this image\" / \"Follow all of these\"\n\n" +
+    '- "Track this" / "Track this for me" / "Track this product"\n' +
+    '- "Follow this" / "Follow this product" / "Keep an eye on this"\n' +
+    '- "Watch this" / "Watch the price" / "Monitor this"\n' +
+    '- "Alert me on this" / "Set an alert for this"\n' +
+    '- "Add this to my tracked" / "Add this product"\n' +
+    '- "Find this on Amazon" / "Find this on eBay"\n' +
+    '- "Any deals on this?" / "Any discount?" / "Any promotion?"\n' +
+    '- "Compare the price" / "Compare this everywhere"\n' +
+    '- "Scan my cart" / "Scan my screenshot" / "Look at my cart"\n' +
+    '- "Track everything in this image" / "Follow all of these"\n\n' +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (DE)\n" +
-    "- \"Verfolge das\" / \"Verfolge dieses Produkt\" / \"Track das für mich\"\n" +
-    "- \"Überwache das\" / \"Beobachte den Preis\" / \"Melde mir das\"\n" +
-    "- \"Finde das auf Amazon\" / \"Gibt es Rabatt?\" / \"Gibt es ein Deal?\"\n" +
-    "- \"Scanne meinen Warenkorb\" / \"Sieh dir meinen Warenkorb an\"\n\n" +
+    '- "Verfolge das" / "Verfolge dieses Produkt" / "Track das für mich"\n' +
+    '- "Überwache das" / "Beobachte den Preis" / "Melde mir das"\n' +
+    '- "Finde das auf Amazon" / "Gibt es Rabatt?" / "Gibt es ein Deal?"\n' +
+    '- "Scanne meinen Warenkorb" / "Sieh dir meinen Warenkorb an"\n\n' +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (ES)\n" +
-    "- \"Rastrea esto\" / \"Sigue este producto\" / \"Rastrea esto para mí\"\n" +
-    "- \"Vigila esto\" / \"Avísame del precio\" / \"Mira mi carrito\"\n" +
-    "- \"Busca esto en Amazon\" / \"¿Hay descuento?\" / \"¿Hay oferta?\"\n" +
-    "- \"Escanea mi carrito\" / \"Sigue todo de la imagen\"\n\n" +
+    '- "Rastrea esto" / "Sigue este producto" / "Rastrea esto para mí"\n' +
+    '- "Vigila esto" / "Avísame del precio" / "Mira mi carrito"\n' +
+    '- "Busca esto en Amazon" / "¿Hay descuento?" / "¿Hay oferta?"\n' +
+    '- "Escanea mi carrito" / "Sigue todo de la imagen"\n\n' +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (IT)\n" +
-    "- \"Traccia questo\" / \"Segui questo prodotto\" / \"Monitora questo\"\n" +
-    "- \"Avvisami sul prezzo\" / \"Cerca su Amazon\" / \"C'è uno sconto?\"\n" +
-    "- \"Scansiona il carrello\" / \"Guarda il mio carrello\"\n\n" +
+    '- "Traccia questo" / "Segui questo prodotto" / "Monitora questo"\n' +
+    '- "Avvisami sul prezzo" / "Cerca su Amazon" / "C\'è uno sconto?"\n' +
+    '- "Scansiona il carrello" / "Guarda il mio carrello"\n\n' +
     "### VARIANTES DE PHRASES À RECONNAÎTRE (NL)\n" +
-    "- \"Volg dit\" / \"Houd dit in de gaten\" / \"Track dit voor mij\"\n" +
-    "- \"Zoek dit op Amazon\" / \"Is er korting?\" / \"Scan mijn winkelwagen\"\n\n" +
+    '- "Volg dit" / "Houd dit in de gaten" / "Track dit voor mij"\n' +
+    '- "Zoek dit op Amazon" / "Is er korting?" / "Scan mijn winkelwagen"\n\n' +
     "### RÈGLES DE TRACKING\n" +
     "- Si l'utilisateur envoie une IMAGE (capture de panier, page produit): analyse-la d'abord avec analyzeImageGemini, identifie les produits, puis utilise searchSingleRetailer + trackRetailerProduct pour chaque produit.\n" +
     "- Si l'utilisateur donne un NOM DE PRODUIT + NOM DE BOUTIQUE: utilise searchSingleRetailer(retailer, productName, country) puis trackRetailerProduct.\n" +
@@ -796,6 +871,7 @@ async function runAgentLoopInternal(
 
   // 2. Boucle Think → Act → Observe → Respond
   for (let iteration = 0; iteration < maxIterations; iteration++) {
+    signal?.throwIfAborted();
     logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${maxIterations}`);
 
     // ─── Context compression: after 1/3 of iterations, summarize tool results to save tokens ───
@@ -859,11 +935,15 @@ async function runAgentLoopInternal(
     const modelsToTry: string[] = [];
 
     // Modèle routé en priorité absolue
-    if (routedModel && !modelsToTry.includes(routedModel)) {
+    if (routedModel && isModelAvailable(routedModel) && !modelsToTry.includes(routedModel)) {
       modelsToTry.push(routedModel);
     }
     // Mettre le modèle préféré en premier s'il est dans la chaîne ou dans allModels
-    if (modelChain.includes(preferredModel) && !modelsToTry.includes(preferredModel)) {
+    if (
+      modelChain.includes(preferredModel) &&
+      isModelAvailable(preferredModel) &&
+      !modelsToTry.includes(preferredModel)
+    ) {
       modelsToTry.push(preferredModel);
     }
     // Ajouter le reste de la chaîne du routeur
@@ -878,21 +958,80 @@ async function runAgentLoopInternal(
     // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
     // Les petits modèles (7B, 8B, 3B) ne gèrent pas bien le function calling complexe
     const SMALL_MODEL_PATTERNS = [
-      /-7b/i, /-8b/i, /-3b/i, /-3\.5b/i, /-9b/i, /-11b/i, /-12b/i,
-      /phi-3/i, /zephyr/i, /openchat/i, /openhermes/i, /lfm-7b/i,
-      /gemma-2-9b/i, /gemini-flash-1.5-8b/i, /gemini-2.0-flash-lite/i,
-      /mistral-7b/i, /magmell-8b/i, /rocinante/i,
+      /-7b/i,
+      /-8b/i,
+      /-3b/i,
+      /-3\.5b/i,
+      /-9b/i,
+      /-11b/i,
+      /-12b/i,
+      /phi-3/i,
+      /zephyr/i,
+      /openchat/i,
+      /openhermes/i,
+      /lfm-7b/i,
+      /gemma-2-9b/i,
+      /gemini-flash-1.5-8b/i,
+      /gemini-2.0-flash-lite/i,
+      /mistral-7b/i,
+      /magmell-8b/i,
+      /rocinante/i,
     ];
     let effectiveModels = modelsToTry;
-    let maxModelAttempts = 5;
+    // Keep failover bounded: one slow provider must not serialize a long chain of waits.
+    let maxModelAttempts = 3;
+    // Compute skipLocalForRetailer early (needed before local LLM attempt)
+    const lowerUserMsgEarly = userMessage.toLowerCase();
+    const needsRetailerToolsEarly =
+      lowerUserMsgEarly.includes("track") ||
+      lowerUserMsgEarly.includes("tracker") ||
+      lowerUserMsgEarly.includes("suivre") ||
+      lowerUserMsgEarly.includes("pister") ||
+      lowerUserMsgEarly.includes("surveille") ||
+      lowerUserMsgEarly.includes("alerte") ||
+      lowerUserMsgEarly.includes("prix") ||
+      lowerUserMsgEarly.includes("price") ||
+      lowerUserMsgEarly.includes("produit") ||
+      lowerUserMsgEarly.includes("product") ||
+      lowerUserMsgEarly.includes("amazon") ||
+      lowerUserMsgEarly.includes("ebay") ||
+      lowerUserMsgEarly.includes("fnac") ||
+      lowerUserMsgEarly.includes("cdiscount") ||
+      lowerUserMsgEarly.includes("deal") ||
+      lowerUserMsgEarly.includes("promo") ||
+      lowerUserMsgEarly.includes("compar") ||
+      lowerUserMsgEarly.includes("boutique") ||
+      lowerUserMsgEarly.includes("revendeur") ||
+      lowerUserMsgEarly.includes("retailer") ||
+      lowerUserMsgEarly.includes("stock") ||
+      lowerUserMsgEarly.includes("dispo") ||
+      lowerUserMsgEarly.includes("panier") ||
+      lowerUserMsgEarly.includes("cart");
+    const hasRetailerToolAvailableEarly = availableTools.some(
+      (t) =>
+        t.function.name === "searchRetailers" ||
+        t.function.name === "searchSingleRetailer" ||
+        t.function.name === "trackRetailerProduct" ||
+        t.function.name === "compareProductPrices" ||
+        t.function.name === "getRetailerDeals" ||
+        t.function.name === "listAvailableRetailers",
+    );
+    const localModelIsSmallEarly =
+      LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
+    const skipLocalForRetailer =
+      needsRetailerToolsEarly && hasRetailerToolAvailableEarly && localModelIsSmallEarly;
     if (skipLocalForRetailer) {
       const bigModels = modelsToTry.filter((m) => !SMALL_MODEL_PATTERNS.some((p) => p.test(m)));
       if (bigModels.length > 0) {
         effectiveModels = bigModels;
-        maxModelAttempts = Math.min(bigModels.length, 8);
-        logger.info(`[AgentLoop] 🏪 Retailer filter: ${bigModels.length} big models kept, ${modelsToTry.length - bigModels.length} small models skipped`);
+        maxModelAttempts = Math.min(bigModels.length, 4);
+        logger.info(
+          `[AgentLoop] 🏪 Retailer filter: ${bigModels.length} big models kept, ${modelsToTry.length - bigModels.length} small models skipped`,
+        );
       } else {
-        logger.warn(`[AgentLoop] 🏪 Retailer filter: no big models available, using all ${modelsToTry.length} models`);
+        logger.warn(
+          `[AgentLoop] 🏪 Retailer filter: no big models available, using all ${modelsToTry.length} models`,
+        );
       }
     }
 
@@ -907,147 +1046,141 @@ async function runAgentLoopInternal(
     // NOTE: Si le modèle local est qwen2.5:3b (config ancienne), les tâches retailer
     // seront gérées par les modèles API car le 3B est trop petit.
     // La détection se fait via LOCAL_LLM_MODEL dans .env (qwen2.5:14b par défaut).
-    const lowerUserMsg = userMessage.toLowerCase();
-    const needsRetailerTools =
-      lowerUserMsg.includes("track") || lowerUserMsg.includes("tracker") ||
-      lowerUserMsg.includes("suivre") || lowerUserMsg.includes("pister") ||
-      lowerUserMsg.includes("surveille") || lowerUserMsg.includes("alerte") ||
-      lowerUserMsg.includes("prix") || lowerUserMsg.includes("price") ||
-      lowerUserMsg.includes("produit") || lowerUserMsg.includes("product") ||
-      lowerUserMsg.includes("amazon") || lowerUserMsg.includes("ebay") ||
-      lowerUserMsg.includes("fnac") || lowerUserMsg.includes("cdiscount") ||
-      lowerUserMsg.includes("deal") || lowerUserMsg.includes("promo") ||
-      lowerUserMsg.includes("compar") || lowerUserMsg.includes("boutique") ||
-      lowerUserMsg.includes("revendeur") || lowerUserMsg.includes("retailer") ||
-      lowerUserMsg.includes("stock") || lowerUserMsg.includes("dispo") ||
-      lowerUserMsg.includes("panier") || lowerUserMsg.includes("cart");
-    const hasRetailerToolAvailable = availableTools.some(
-      (t) => t.function.name === "searchRetailers" || t.function.name === "searchSingleRetailer" ||
-             t.function.name === "trackRetailerProduct" || t.function.name === "compareProductPrices" ||
-             t.function.name === "getRetailerDeals" || t.function.name === "listAvailableRetailers",
-    );
-    // Skip local only if using the old 3B model (too small for retailer tools)
-    // With 14B, the local LLM handles everything including retailer tools
-    const localModelIsSmall = LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
-    const skipLocalForRetailer = needsRetailerTools && hasRetailerToolAvailable && localModelIsSmall;
+    // skipLocalForRetailer already computed above
 
-    if (isLocalLlmAvailable() && !skipLocalForRetailer) {
-      logger.info(`[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`);
+    const canUseLocalForImages = imageUrls.length === 0 || isLocalLlmVisionAvailable();
+    if (isLocalLlmAvailable() && !skipLocalForRetailer && canUseLocalForImages) {
+      logger.info(
+        `[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`,
+      );
 
       try {
         if (availableTools.length > 0) {
           // Tâche avec tools — le 14B gère le function calling
           const localResult = await chatWithLocalLlmTools(
-            conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
+            buildProviderConversation(conversation, imageUrls),
             availableTools,
-            { maxTokens: getPersonalityMaxTokens(), temperature: getPersonalityTemperature() },
+            {
+              maxTokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              timeoutMs: 20_000,
+              model: imageUrls.length > 0 ? getLocalLlmVisionModelName() || undefined : undefined,
+            },
           );
           if (localResult) {
             if (localResult.toolCalls && localResult.toolCalls.length > 0) {
               response = {
-                choices: [{
-                  message: {
-                    role: "assistant",
-                    content: localResult.text || "",
-                    tool_calls: localResult.toolCalls as never,
+                choices: [
+                  {
+                    message: {
+                      role: "assistant",
+                      content: localResult.text || "",
+                      tool_calls: localResult.toolCalls as never,
+                    },
+                    finish_reason: "tool_calls",
                   },
-                  finish_reason: "tool_calls",
-                }],
+                ],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`);
+              logger.info(
+                `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`,
+              );
               continue; // Passer à l'exécution des tools
             } else if (localResult.text && localResult.text.length > 5) {
               response = {
-                choices: [{
-                  message: { role: "assistant", content: localResult.text },
-                  finish_reason: "stop",
-                }],
+                choices: [
+                  {
+                    message: { role: "assistant", content: localResult.text },
+                    finish_reason: "stop",
+                  },
+                ],
               } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`);
+              logger.info(
+                `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`,
+              );
               recordLocalLlm();
               break;
             }
             // Réponse vide/courte — fallback vers API
-            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante — fallback API`);
+            logger.warn(
+              `[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante — fallback API`,
+            );
           } else {
             logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} retour null — fallback API`);
           }
         } else {
           // Pas de tools — chat simple, le local est parfait pour ça
           const localText = await chatWithLocalLlm(
-            conversation.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
-            { maxTokens: getPersonalityMaxTokens(), temperature: getPersonalityTemperature() },
+            buildProviderConversation(conversation, imageUrls),
+            {
+              maxTokens: getPersonalityMaxTokens(),
+              temperature: getPersonalityTemperature(),
+              timeoutMs: 12_000,
+              model: imageUrls.length > 0 ? getLocalLlmVisionModelName() || undefined : undefined,
+            },
           );
           if (localText && localText.length > 2) {
             response = {
-              choices: [{
-                message: { role: "assistant", content: localText },
-                finish_reason: "stop",
-              }],
+              choices: [
+                {
+                  message: { role: "assistant", content: localText },
+                  finish_reason: "stop",
+                },
+              ],
             } as never;
-            logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`);
+            logger.info(
+              `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`,
+            );
             recordLocalLlm();
             break;
           }
           logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
         }
       } catch (localErr) {
+        // Do not retry a timed-out local request with tools removed: that can
+        // produce a plausible but incorrect answer and delays API failover.
         const isTimeout = localErr instanceof Error && localErr.message.includes("timeout");
-        if (isTimeout && isLocalLlmAvailable()) {
-          // Retry once with reduced context (last 2 messages only)
-          logger.info(`[AgentLoop] 🔄 Retry ${LOCAL_LLM_MODEL_NAME} avec contexte réduit...`);
-          try {
-            const reducedMessages = conversation.slice(-2).map((m) => ({
-              role: m.role,
-              content: typeof m.content === "string" ? m.content.slice(0, 500) : JSON.stringify(m.content).slice(0, 500),
-            }));
-            const retryText = await chatWithLocalLlm(reducedMessages, {
-              maxTokens: 300,
-              temperature: 0.5,
-            });
-            if (retryText && retryText.length > 2) {
-              response = {
-                choices: [{
-                  message: { role: "assistant", content: retryText },
-                  finish_reason: "stop",
-                }],
-              } as never;
-              logger.info(`[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi après retry (contexte réduit, ${retryText.length} chars) — API économisée`);
-              recordLocalLlm();
-              break;
-            }
-          } catch {
-            // Give up, fall through to API
-          }
-        }
-        logger.warn(`[AgentLoop] ❌ LLM local échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`);
+        logger.warn(
+          `[AgentLoop] ❌ LLM local ${isTimeout ? "timeout" : "échec"} — fallback API immédiat: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
+        );
       }
+    } else if (imageUrls.length > 0 && !canUseLocalForImages) {
+      logger.info(`[AgentLoop] 👁️ Vision locale indisponible — passage au provider vision/API`);
     } else if (skipLocalForRetailer) {
       // Local LLM skippé pour tâche retailer — on va directement aux API models
-      logger.info(`[AgentLoop] 🏠⏭️ LLM local skippé (retailer tools nécessaires) — utilisation API directement`);
+      logger.info(
+        `[AgentLoop] 🏠⏭️ LLM local skippé (retailer tools nécessaires) — utilisation API directement`,
+      );
     } else {
       // Ollama non disponible — on log et on passe directement aux API
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
     for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {
+      // Revalidate immediately before the call: the route was built earlier and
+      // another request may have put this model in cooldown in the meantime.
+      if (!claimModel(modelName)) {
+        logger.debug(`[AgentLoop] ⏭️ ${modelName} indisponible ou déjà utilisé — modèle suivant`);
+        continue;
+      }
+
+      const modelStartedAt = Date.now();
       try {
         logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
-        // Use OpenAI premium client for gpt-* models, NVIDIA NIM client for nvidia models,
-        // OmniRoute client for OmniRoute models, OpenRouter for the rest
-        const isGptModel = modelName.startsWith("gpt-");
+        // Use NVIDIA NIM client for nvidia models,
+        // OmniRoute client for OmniRoute models, OpenRouter for the rest (including gpt-* via OpenRouter)
         const isNvidia = isNvidiaModel(modelName);
         const isOmniroute = isOmnirouteModel(modelName);
         const activeClient =
-          isGptModel && isOpenAIPremiumAvailable() ? getOpenAIPremiumClient()! :
-          isNvidia && isNvidiaNimAvailable() ? getNvidiaNimClient()! :
-          isOmniroute && isOmnirouteAvailable() ? getOmnirouteClient()! :
-          client;
+          isNvidia && isNvidiaNimAvailable()
+            ? getNvidiaNimClient()!
+            : isOmniroute && isOmnirouteAvailable()
+              ? getOmnirouteClient()!
+              : client;
         response = await callLlmWithRetry(
           activeClient,
           {
             model: modelName,
-            messages: conversation as never,
+            messages: buildProviderConversation(conversation, imageUrls) as never,
             tools: availableTools as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
@@ -1057,15 +1190,20 @@ async function runAgentLoopInternal(
           { timeout: 8_000 },
         );
         markModelSuccess(modelName);
+        recordModelLatency(modelName, Date.now() - modelStartedAt);
         agentModelUsed.labels(modelName, "success").inc();
         logger.info(`[AgentLoop] ✅ ${modelName} réussi`);
         recordApiLlm();
         break; // Succès → on sort de la boucle de rotation
       } catch (modelErr) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
-        const isRateLimit = msg.includes("429") || msg.includes("rate");
+        const lowerError = msg.toLowerCase();
+        const isRateLimit = /\b429\b|rate.?limit|cooldown|too many requests/.test(lowerError);
         // 404/400/402 = modèle invalide ou credits insuffisants, pas un vrai échec — ne pas mettre en cooldown
-        const isInvalidModel = msg.includes("404") || msg.includes("400") || msg.includes("is not a valid model") || msg.includes("402") || msg.includes("more credits");
+        const isInvalidModel =
+          /\b(400|402|404)\b/.test(lowerError) ||
+          lowerError.includes("is not a valid model") ||
+          lowerError.includes("more credits");
         if (!isInvalidModel) {
           markModelFailure(modelName, isRateLimit);
         }
@@ -1073,6 +1211,8 @@ async function runAgentLoopInternal(
         lastErrMsg = msg;
         logger.warn(`[AgentLoop] ❌ ${modelName} échoué: ${msg.slice(0, 100)}`);
         // Continue au prochain modèle
+      } finally {
+        releaseModel(modelName);
       }
     }
 
@@ -1086,7 +1226,7 @@ async function runAgentLoopInternal(
         response = await groqClient.chat.completions.create(
           {
             model: config.groqModel,
-            messages: conversation as never,
+            messages: buildProviderConversation(conversation, imageUrls) as never,
             tools: availableTools as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
@@ -1108,7 +1248,8 @@ async function runAgentLoopInternal(
       try {
         logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
         const geminiReply = await chatWithGemini(
-          config.aiSystemPrompt + "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
+          config.aiSystemPrompt +
+            "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
           userMessage,
           800,
         );
@@ -1331,7 +1472,9 @@ async function runAgentLoopInternal(
             if (result === null || result === undefined) {
               // ─── Orchestrateur: qwen2.5 délègue à un modèle expert ───
               if (toolName === "delegateToExpert") {
-                logger.info(`[AgentLoop] 🎼 Délégation orchestrateur: tier=${args.tier}, tâche=${String(args.task).slice(0, 60)}...`);
+                logger.info(
+                  `[AgentLoop] 🎼 Délégation orchestrateur: tier=${args.tier}, tâche=${String(args.task).slice(0, 60)}...`,
+                );
                 try {
                   const expertResult = await delegateToExpert(
                     String(args.task),

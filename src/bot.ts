@@ -291,12 +291,13 @@ async function main(): Promise<void> {
     }
   }
 
-  try {
-    const { startBullBoard } = await import("./utils/bull-board.js");
-    startBullBoard();
-  } catch {
-    logger.warn("Bull Board failed to start (port 3006 in use?)");
-  }
+  // BullBoard désactivé — dashboard inutilisé
+  // try {
+  //   const { startBullBoard } = await import("./utils/bull-board.js");
+  //   startBullBoard();
+  // } catch {
+  //   logger.warn("Bull Board failed to start (port 3006 in use?)");
+  // }
   try {
     const { sendRestartAlert } = await import("./utils/crash-webhook.js");
     void sendRestartAlert();

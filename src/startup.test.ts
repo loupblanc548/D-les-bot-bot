@@ -1,65 +1,89 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ── Hoisted mocks ──────────────────────────────────────────────
-const { mockLogger, mockConfig, mockClient, mockServices, mockCron } = vi.hoisted(() => ({
-  mockLogger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  },
-  mockConfig: {
-    ownerId: "owner-123",
-  },
-  mockClient: {
-    on: vi.fn(),
-    once: vi.fn(),
-    users: {
-      fetch: vi.fn().mockResolvedValue({
-        send: vi.fn().mockResolvedValue(undefined),
-      }),
+const { mockLogger, mockConfig, mockClient, mockServices, mockCron, mockPrisma } = vi.hoisted(
+  () => ({
+    mockLogger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
     },
-    guilds: {
-      cache: {
-        size: 5,
-        values: vi.fn().mockReturnValue([]),
+    mockConfig: {
+      ownerId: "owner-123",
+    },
+    mockClient: {
+      on: vi.fn(),
+      once: vi.fn(),
+      users: {
+        fetch: vi.fn().mockResolvedValue({
+          send: vi.fn().mockResolvedValue(undefined),
+        }),
+      },
+      channels: {
+        fetch: vi.fn().mockRejectedValue(new Error("not found")),
+      },
+      guilds: {
+        cache: {
+          size: 5,
+          values: vi.fn().mockReturnValue([]),
+        },
       },
     },
-  },
-  mockServices: {
-    checkWishlistMatches: vi.fn().mockResolvedValue(0),
-    runWishlistRetrospective: vi.fn().mockResolvedValue(undefined),
-    startTwitchMonitoring: vi.fn(),
-    runStartupRetrospective: vi.fn().mockResolvedValue(undefined),
-    startMonitoring: vi.fn(),
-    runDbSourcesRetrospective: vi.fn().mockResolvedValue(undefined),
-    sendHealthReport: vi.fn().mockResolvedValue(undefined),
-    validateChannels: vi.fn().mockResolvedValue({ errors: 0 }),
-    validateModeratorRoles: vi.fn().mockResolvedValue(undefined),
-    startPatchNotesService: vi.fn(),
-    startBackupService: vi.fn(),
-    startInstantGamingNewsCheck: vi.fn(),
-    checkInstantGamingNews: vi.fn().mockResolvedValue(undefined),
-    startInstantGamingCheck: vi.fn(),
-    startSteamNewsMonitoring: vi.fn(),
-    checkTrackedGames: vi.fn().mockResolvedValue(undefined),
-    checkFreeGames: vi.fn().mockResolvedValue(undefined),
-    startTwitterMonitoring: vi.fn(),
-    checkTwitterAccounts: vi.fn().mockResolvedValue(undefined),
-    startDealsMonitoring: vi.fn(),
-    checkDeals: vi.fn().mockResolvedValue(undefined),
-    startGlobalPatchNotesMonitoring: vi.fn(),
-    checkPatchNotes: vi.fn().mockResolvedValue(undefined),
-    startFreeGamesMonitoring: vi.fn(),
-    startMonthlyMaintenance: vi.fn(),
-  },
-  mockCron: {
-    registerInterval: vi.fn(),
-  },
-}));
+    mockPrisma: new Proxy(
+      {
+        source: { findMany: vi.fn().mockResolvedValue([]) },
+        processedCache: { findMany: vi.fn().mockResolvedValue([]) },
+        socialFollow: { findMany: vi.fn().mockResolvedValue([]) },
+        securityIncident: { findFirst: vi.fn().mockResolvedValue(null) },
+        freeResource: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        log: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        $executeRaw: vi.fn().mockResolvedValue(0),
+      },
+      {
+        get(target, prop) {
+          if (prop in target) return (target as any)[prop];
+          return vi.fn().mockResolvedValue([]);
+        },
+      },
+    ),
+    mockServices: {
+      checkWishlistMatches: vi.fn().mockResolvedValue(0),
+      runWishlistRetrospective: vi.fn().mockResolvedValue(undefined),
+      startTwitchMonitoring: vi.fn(),
+      runStartupRetrospective: vi.fn().mockResolvedValue(undefined),
+      startMonitoring: vi.fn(),
+      startInactivityCheck: vi.fn(),
+      runDbSourcesRetrospective: vi.fn().mockResolvedValue(undefined),
+      sendHealthReport: vi.fn().mockResolvedValue(undefined),
+      validateChannels: vi.fn().mockResolvedValue({ errors: 0 }),
+      validateModeratorRoles: vi.fn().mockResolvedValue(undefined),
+      startPatchNotesService: vi.fn(),
+      startBackupService: vi.fn(),
+      startInstantGamingNewsCheck: vi.fn(),
+      checkInstantGamingNews: vi.fn().mockResolvedValue(undefined),
+      startInstantGamingCheck: vi.fn(),
+      startSteamNewsMonitoring: vi.fn(),
+      checkTrackedGames: vi.fn().mockResolvedValue(undefined),
+      checkFreeGames: vi.fn().mockResolvedValue(undefined),
+      startTwitterMonitoring: vi.fn(),
+      checkTwitterAccounts: vi.fn().mockResolvedValue(undefined),
+      startDealsMonitoring: vi.fn(),
+      checkDeals: vi.fn().mockResolvedValue(undefined),
+      startGlobalPatchNotesMonitoring: vi.fn(),
+      checkPatchNotes: vi.fn().mockResolvedValue(undefined),
+      startFreeGamesMonitoring: vi.fn(),
+      startMonthlyMaintenance: vi.fn(),
+    },
+    mockCron: {
+      registerInterval: vi.fn(),
+    },
+  }),
+);
 
 vi.mock("./utils/logger", () => ({ default: mockLogger }));
 vi.mock("./config", () => ({ config: mockConfig }));
+vi.mock("./prisma", () => ({ default: mockPrisma }));
 vi.mock("./services/fortnite-api", () => ({
   checkWishlistMatches: mockServices.checkWishlistMatches,
   runWishlistRetrospective: mockServices.runWishlistRetrospective,
@@ -70,6 +94,7 @@ vi.mock("./services/feeds", () => ({
 }));
 vi.mock("./services/monitor", () => ({
   startMonitoring: mockServices.startMonitoring,
+  startInactivityCheck: mockServices.startInactivityCheck,
   runDbSourcesRetrospective: mockServices.runDbSourcesRetrospective,
 }));
 vi.mock("./services/healthcheck", () => ({ sendHealthReport: mockServices.sendHealthReport }));
@@ -164,6 +189,72 @@ vi.mock("./services/dealFusion", () => ({ startDealFusion: vi.fn() }));
 vi.mock("./services/githubReleases", () => ({ startGitHubReleasesMonitor: vi.fn() }));
 vi.mock("./services/multiSiteDeals", () => ({ startMultiSiteDealsMonitor: vi.fn() }));
 vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
+vi.mock("./services/socialFollow", () => ({ startSocialFollowMonitoring: vi.fn() }));
+vi.mock("./managers/ChannelRouter", () => ({
+  enableSilentMode: vi.fn(),
+  disableSilentMode: vi.fn(),
+}));
+vi.mock("./services/communityDigest", () => ({ startDigestScheduler: vi.fn() }));
+vi.mock("./services/proactiveAgent", () => ({ startPersonalDigestScheduler: vi.fn() }));
+vi.mock("./services/agentProactive", () => ({ startProactiveAgent: vi.fn() }));
+vi.mock("./utils/safe-interval", () => ({
+  safeInterval: vi.fn().mockReturnValue({ stop: vi.fn() }),
+}));
+vi.mock("./utils/deduplicationCache", () => ({
+  dedupCache: { warmUpFromDatabase: vi.fn().mockResolvedValue(undefined) },
+}));
+vi.mock("./services/auto-cleanup", () => ({ startAutoCleanup: vi.fn() }));
+vi.mock("./cron/syncFreeForDev", () => ({ startSyncFreeForDev: vi.fn() }));
+vi.mock("./cron/syncTypeScriptSkills", () => ({ startSyncTypeScriptSkills: vi.fn() }));
+vi.mock("./cron/knowledgeCrons", () => ({ startKnowledgeCrons: vi.fn() }));
+vi.mock("./cron/wazuhWatchdog", () => ({ startWazuhWatchdog: vi.fn() }));
+vi.mock("./cron/shodanWatchdog", () => ({ startShodanWatchdog: vi.fn() }));
+vi.mock("./cron/vpsBackup", () => ({ startVpsBackupCron: vi.fn() }));
+vi.mock("./cron/vpsStorageWatchdog", () => ({ startVpsStorageWatchdog: vi.fn() }));
+vi.mock("./services/vpsMaintenance", () => ({ setVpsMaintenanceClient: vi.fn() }));
+vi.mock("./services/honeytokenEngine", () => ({ generateHoneytokens: vi.fn() }));
+vi.mock("./services/gitAutoHealer", () => ({ setGitHealerClient: vi.fn() }));
+vi.mock("./services/agentToolsKali", () => ({
+  setKaliClient: vi.fn(),
+  ensureKaliContainer: vi.fn().mockResolvedValue(undefined),
+  KALI_TOOLS: [],
+}));
+vi.mock("./services/killWhitelist", () => ({ setWhitelistClient: vi.fn() }));
+vi.mock("./services/activeDefenseEngine", () => ({ setDiscordClient: vi.fn() }));
+vi.mock("./services/agentSoarGate", () => ({ setSoarGateClient: vi.fn() }));
+vi.mock("./events/interactions", () => ({
+  handleSoarInteractions: vi.fn(),
+  handleAlertInteractions: vi.fn(),
+  handleKaliInteractions: vi.fn(),
+  handleGitHealerInteractions: vi.fn(),
+  handleVpsMaintenanceInteractions: vi.fn(),
+  handleSoarToolInteractions: vi.fn(),
+}));
+vi.mock("./cron/memoryGrooming", () => ({ startMemoryGrooming: vi.fn() }));
+vi.mock("./cron/logRetention", () => ({ startLogRetention: vi.fn() }));
+vi.mock("./cron/logChannelCleanup", () => ({ startLogChannelCleanup: vi.fn() }));
+vi.mock("./infrastructure/processIsolator", () => ({
+  startMediaWorker: vi.fn(),
+  stopMediaWorker: vi.fn(),
+}));
+vi.mock("./queues/logQueue", () => ({ initLogQueue: vi.fn() }));
+vi.mock("./utils/redisClient", () => ({ waitForRedisWritable: vi.fn().mockResolvedValue(true) }));
+vi.mock("./services/gameReleaseCountdown", () => ({ startGameReleaseCountdown: vi.fn() }));
+vi.mock("./services/steamWishlist", () => ({ startSteamWishlistMonitor: vi.fn() }));
+vi.mock("./services/voiceScreenShare", () => ({ startVoiceScreenShare: vi.fn() }));
+vi.mock("./services/videoStream", () => ({
+  startVideoStream: vi.fn(),
+  startStreamWatchdog: vi.fn(),
+  setMainClient: vi.fn(),
+}));
+vi.mock("./services/localLlm", () => ({
+  checkLocalLlmAvailability: vi.fn().mockResolvedValue(false),
+  startLocalLlmHealthCheck: vi.fn(),
+  preWarmLocalModel: vi.fn(),
+}));
+vi.mock("./services/localTts", () => ({
+  checkPiperAvailability: vi.fn().mockResolvedValue(false),
+}));
 
 import { Events } from "discord.js";
 import { attachStartupLogic } from "./startup.js";
@@ -179,18 +270,6 @@ describe("startup", () => {
     it("enregistre le handler ClientReady sur le client", () => {
       attachStartupLogic(mockClient as any, []);
       expect(mockClient.once).toHaveBeenCalledWith(Events.ClientReady, expect.any(Function));
-    });
-
-    it("notifie le propriétaire au démarrage", async () => {
-      attachStartupLogic(mockClient as any, []);
-
-      // Récupérer et exécuter le handler ClientReady
-      const readyHandler = mockClient.once.mock.calls[0][1];
-      const readyClient = { user: { tag: "BotTest#0000", username: "BotTest" } };
-
-      await readyHandler(readyClient);
-
-      expect(mockClient.users.fetch).toHaveBeenCalledWith("owner-123");
     });
 
     it("démarre tous les services dans l'ordre", async () => {

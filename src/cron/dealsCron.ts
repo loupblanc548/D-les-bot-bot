@@ -2,11 +2,9 @@ import { Client, TextChannel, EmbedBuilder, AttachmentBuilder } from "discord.js
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import cron from "node-cron";
-import axios from "axios";
 import RSSParser from "rss-parser";
 import { stripHtml } from "../utils/stripHtml.js";
 import { config } from "../config.js";
-import { retry } from "../utils/retry.js";
 import { dbCache } from "../utils/cache.js";
 import { validateRssItem, sanitizeString } from "../utils/validation.js";
 import { metricsCollector } from "../utils/metrics.js";
@@ -18,7 +16,10 @@ import { generateStableId } from "../utils/url-cleaner.js";
 
 const rssParser = new RSSParser({
   timeout: 10000,
-  headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  },
 });
 
 interface DealItem {
@@ -389,7 +390,9 @@ async function checkDeals(client: Client): Promise<void> {
       // Cache check: skip if fetched less than 5 min ago
       const cached = rssFetchCache.get(feedUrl);
       if (cached && Date.now() - cached.timestamp < RSS_CACHE_TTL) {
-        logger.debug(`[DealsCron] Flux ${feedUrl.substring(0, 40)}... en cache (${cached.items.length} items)`);
+        logger.debug(
+          `[DealsCron] Flux ${feedUrl.substring(0, 40)}... en cache (${cached.items.length} items)`,
+        );
         await Promise.all(cached.items.map((item) => processDealItem(client, item)));
         continue;
       }
@@ -406,7 +409,9 @@ async function checkDeals(client: Client): Promise<void> {
           content: item.content || "",
           contentSnippet: item.contentSnippet || item.summary || "",
           thumbnail: item.enclosure?.url,
-          enclosure: item.enclosure ? { url: item.enclosure.url, type: item.enclosure.type || "" } : undefined,
+          enclosure: item.enclosure
+            ? { url: item.enclosure.url, type: item.enclosure.type || "" }
+            : undefined,
           guid: item.guid || item.link,
         }));
 
@@ -430,7 +435,9 @@ async function checkDeals(client: Client): Promise<void> {
         if (f.count >= 3) {
           f.skipUntil = Date.now() + 60 * 60 * 1000;
           f.count = 0;
-          logger.warn(`[DealsCron] Flux ${feedUrl.substring(0, 60)}... désactivé 60min (3 échecs — Reddit 429)`);
+          logger.warn(
+            `[DealsCron] Flux ${feedUrl.substring(0, 60)}... désactivé 60min (3 échecs — Reddit 429)`,
+          );
         }
         dealsFeedFailures.set(feedUrl, f);
         logger.error(
@@ -487,6 +494,17 @@ export function stopDealsMonitoring(): void {
     dealsCronJob = null;
     logger.info("[DealsCron] Surveillance arretee");
   }
+}
+
+/**
+ * @internal Test-only helper — clears module-level RSS fetch cache and
+ * circuit-breaker state. Without this, tests that call checkDeals()
+ * multiple times within the same file would silently reuse stale cached
+ * RSS items instead of exercising freshly mocked responses.
+ */
+export function __resetDealsCronStateForTests(): void {
+  rssFetchCache.clear();
+  dealsFeedFailures.clear();
 }
 
 export { checkDeals, detectPlatforms, PLATFORM_CONFIGS };

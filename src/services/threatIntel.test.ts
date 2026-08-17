@@ -56,7 +56,14 @@ describe("Threat Intelligence", () => {
 
   describe("isConfigured", () => {
     it("retourne false pour VirusTotal sans clé", () => {
-      expect(isConfigured("VIRUSTOTAL" as ThreatSource)).toBe(false);
+      const originalKey = process.env.VIRUSTOTAL_API_KEY;
+      delete process.env.VIRUSTOTAL_API_KEY;
+      try {
+        expect(isConfigured("VIRUSTOTAL" as ThreatSource)).toBe(false);
+      } finally {
+        if (originalKey === undefined) delete process.env.VIRUSTOTAL_API_KEY;
+        else process.env.VIRUSTOTAL_API_KEY = originalKey;
+      }
     });
 
     it("retourne true pour IPVOID (free API)", () => {

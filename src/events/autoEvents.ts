@@ -22,7 +22,7 @@ import prisma from "../prisma.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { checkVoiceSoundboard } from "../services/serverRules.js";
 import { handleReactionRoleAdd, handleReactionRoleRemove } from "../commands/reactionRoles.js";
-import { handleFeedbackReaction, resetConversationTracking } from "../services/agentFeedback.js";
+import { handleFeedbackReaction } from "../services/agentFeedback.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 

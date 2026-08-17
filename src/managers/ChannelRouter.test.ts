@@ -41,6 +41,9 @@ function clearEnv() {
   for (const cfg of PLATFORM_CONFIGS) {
     delete process.env[cfg.envChannelKey];
   }
+  // The full-pipeline test must not inherit fallback channels from the local .env.
+  delete process.env.DEDICATED_CHANNEL_ID;
+  delete process.env.FREE_GAMES_CHANNEL_ID;
 }
 
 beforeEach(() => {

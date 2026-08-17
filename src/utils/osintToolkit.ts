@@ -95,7 +95,7 @@ export async function haveibeenpwnedCheck(email: string): Promise<string> {
 }
 
 // ─── DeHashed search ────────────────────────────────────────────────────────
-export async function dehashedSearch(query: string): Promise<string> {
+export async function dehashedSearch(_query: string): Promise<string> {
   return "DeHashed requires API credentials. Set DEHASHED_API_KEY and DEHASHED_EMAIL in .env to use this tool.";
 }
 
@@ -367,9 +367,9 @@ export async function reverseWhois(email: string): Promise<string> {
 export async function dnsHistoryPassive(domain: string): Promise<string> {
   try {
     const records = await dns.resolve4(domain);
-    const mxRecords = await dns.resolveMx(domain).catch(() => []);
-    const txtRecords = await dns.resolveTxt(domain).catch(() => []);
-    const nsRecords = await dns.resolveNs(domain).catch(() => []);
+    const mxRecords = await dns.resolveMx(domain).catch((): [] => []);
+    const txtRecords = await dns.resolveTxt(domain).catch((): [] => []);
+    const nsRecords = await dns.resolveNs(domain).catch((): [] => []);
     return JSON.stringify(
       {
         domain,
@@ -401,7 +401,6 @@ export function breachParse(filePath: string, format: string): string {
 // ─── Malware sample lookup ──────────────────────────────────────────────────
 export async function malwareSampleLookup(hash: string): Promise<string> {
   try {
-    const data = await fetchJson(`https://mb-api.abuse.ch/api/v1/`, 10000);
     return `Malware hash lookup for ${hash}:\n  - VirusTotal: https://www.virustotal.com/gui/search/${hash}\n  - MalwareBazaar: https://bazaar.abuse.ch/sample/${hash}\n  - AlienVault OTX: https://otx.alienvault.com/indicator/file/${hash}\n  - Hybrid Analysis: https://hybrid-analysis.com/search?query=${hash}`;
   } catch (err) {
     return `Error: ${(err as Error).message}`;

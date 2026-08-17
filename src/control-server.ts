@@ -506,7 +506,7 @@ export async function startControlServer(port: number, client: Client): Promise<
               orderBy: { id: "desc" },
               take: 15,
             })
-            .catch(() => []);
+            .catch((): any[] => []);
 
           // Mapper les détections
           const detections = [
@@ -686,14 +686,14 @@ export async function startControlServer(port: number, client: Client): Promise<
               orderBy: { createdAt: "desc" },
               take: 20,
             })
-            .catch(() => []),
+            .catch((): any[] => []),
           prisma.log
             .findMany({
               where: { type: "tempban" },
               orderBy: { createdAt: "desc" },
               take: 10,
             })
-            .catch(() => []),
+            .catch((): any[] => []),
         ]);
         const automodFeed = logBuffer
           .filter((l) => l.message?.includes("[AutoMod]") || l.message?.includes("automod"))
@@ -738,7 +738,7 @@ export async function startControlServer(port: number, client: Client): Promise<
               take: 15,
               distinct: ["userId"],
             })
-            .catch(() => []),
+            .catch((): any[] => []),
           prisma.log.count({ where: { type: "shadowban" } }).catch(() => 0),
           prisma.log
             .findMany({
@@ -746,7 +746,7 @@ export async function startControlServer(port: number, client: Client): Promise<
               orderBy: { createdAt: "desc" },
               take: 10,
             })
-            .catch(() => []),
+            .catch((): any[] => []),
         ]);
         const eventsFeed = logBuffer
           .filter(
@@ -912,7 +912,6 @@ export async function startControlServer(port: number, client: Client): Promise<
           const sessionId = (body.sessionId as string) || "api-default";
           const username = (body.username as string) || "API User";
           const useTools = body.tools !== false; // default true
-          const _stream = body.stream === true;
 
           if (!message || message.length > 4000) {
             sendJson(res, 400, { error: "Paramètre 'message' requis (max 4000 caractères)" });
@@ -1132,7 +1131,11 @@ export async function startControlServer(port: number, client: Client): Promise<
             return;
           }
           const { amazonPriceAlertCreate } = await import("./utils/amazonToolkit.js");
-          const result = amazonPriceAlertCreate(asin, targetPrice, body.channelId as string | undefined);
+          const result = amazonPriceAlertCreate(
+            asin,
+            targetPrice,
+            body.channelId as string | undefined,
+          );
           sendJson(res, 200, JSON.parse(result));
         } catch (err) {
           sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
@@ -1171,7 +1174,11 @@ export async function startControlServer(port: number, client: Client): Promise<
     }
     const token = url.searchParams.get("token") || "";
     const expectedToken = config.controlToken;
-    if (expectedToken && (token.length !== expectedToken.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken)))) {
+    if (
+      expectedToken &&
+      (token.length !== expectedToken.length ||
+        !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken)))
+    ) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;

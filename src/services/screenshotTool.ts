@@ -56,6 +56,23 @@ export async function takeScreenshot(
     return { success: false, data: "URL refusée: cible une adresse réseau privée/interne" };
   }
 
+  // Try Colab GPU screenshot first (offloads Playwright from VPS)
+  try {
+    const { screenshotViaColab, isColabToolsAvailable } = await import("./colabTools.js");
+    if (isColabToolsAvailable()) {
+      const colabResult = await screenshotViaColab(url);
+      if (colabResult?.image_base64) {
+        const buffer = Buffer.from(colabResult.image_base64, "base64");
+        const attachment = new AttachmentBuilder(buffer, { name: "screenshot.png" });
+        await (ctx.message.channel as TextChannel).send({ files: [attachment] });
+        logger.info(`[Screenshot] Captured via Colab GPU: ${url}`);
+        return { success: true, data: `Screenshot de ${url} capturé via Colab GPU` };
+      }
+    }
+  } catch {
+    // Colab unavailable — continue to VPS Playwright
+  }
+
   let browser: Browser | null = null;
   try {
     logger.info(`[Screenshot] Capturing: ${url} (fullPage: ${fullPage})`);

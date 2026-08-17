@@ -88,7 +88,7 @@ async function setCachedData<T>(key: string, data: T, ttl: number = 300): Promis
   }
 }
 
-function getCacheStats(): string {
+function _getCacheStats(): string {
   const total = cacheStats.hits + cacheStats.misses;
   const hitRate = total > 0 ? ((cacheStats.hits / total) * 100).toFixed(1) : "0.0";
   return `Hits: ${cacheStats.hits} | Misses: ${cacheStats.misses} | Hit Rate: ${hitRate}%`;
@@ -141,7 +141,6 @@ async function checkYouTubeChannel(handle: string): Promise<{
 const NITTER_INSTANCES = [
   "https://xcancel.com",
   "https://nitter.poast.org",
-  "https://nitter.privacydev.net",
   "https://nitter.woodland.cafe",
   "https://bird.trom.tf",
   "https://nitter.cz",

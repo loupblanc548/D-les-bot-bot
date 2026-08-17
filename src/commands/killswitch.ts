@@ -6,7 +6,6 @@ import {
   PermissionFlagsBits,
   MessageFlags,
 } from "discord.js";
-import { config } from "../config.js";
 import { requireAdmin } from "../services/permissions.js";
 import {
   isKilled,

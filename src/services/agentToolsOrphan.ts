@@ -21,7 +21,7 @@ import { exportChannelMessages, exportToMarkdown, exportToCSV } from "./chatExpo
 import { fullDnsLookup } from "./dnsResolver.js";
 import { compareGamePrices } from "./priceComparator.js";
 import { queryMinecraft } from "./gameServerStatus.js";
-import { setReminder, getUserReminders, cancelReminder } from "./reminderService.js";
+import { setReminder } from "./reminderService.js";
 import { AttachmentBuilder, TextChannel } from "discord.js";
 import prisma from "../prisma.js";
 

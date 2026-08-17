@@ -100,7 +100,7 @@ describe("buildEntries", () => {
         reason: "Insultes",
         moderatorId: "mod-3",
         createdAt: new Date("2025-03-10"),
-        duration: null,
+        duration: null as number | null,
       },
     ];
     const entries = buildEntries([], [], kicks, [], []);
@@ -116,7 +116,7 @@ describe("buildEntries", () => {
         reason: "Raid",
         moderatorId: "mod-4",
         createdAt: new Date("2025-04-01"),
-        duration: null,
+        duration: null as number | null,
       },
     ];
     const entries = buildEntries([], [], [], bans, []);
@@ -182,15 +182,29 @@ describe("buildEntries", () => {
         reason: "M1",
         moderatorId: "m2",
         createdAt: now,
-        duration: 600,
+        duration: 600 as number | null,
         endTime: new Date(now.getTime() + 600 * 1000),
       },
     ];
     const kicks = [
-      { id: 3, type: "KICK", reason: "K1", moderatorId: "m3", createdAt: now, duration: null },
+      {
+        id: 3,
+        type: "KICK",
+        reason: "K1",
+        moderatorId: "m3",
+        createdAt: now,
+        duration: null as number | null,
+      },
     ];
     const bans = [
-      { id: 4, type: "BAN", reason: "B1", moderatorId: "m4", createdAt: now, duration: null },
+      {
+        id: 4,
+        type: "BAN",
+        reason: "B1",
+        moderatorId: "m4",
+        createdAt: now,
+        duration: null as number | null,
+      },
     ];
     const entries = buildEntries(warns, mutes, kicks, bans, []);
     const headers = entries.filter((e: any) => e.isHeader);

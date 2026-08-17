@@ -26,7 +26,6 @@
  */
 
 import logger from "../utils/logger.js";
-import { fetchRetry } from "../utils/fetchRetry.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
 import { RawgClient } from "../rawgClient.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
@@ -2690,7 +2689,7 @@ async function toolDiscordEvents(ctx: ToolContext): Promise<ToolCallResult> {
   if (!guildId) return { success: false, data: "GUILD_ID non configuré" };
   const guild = ctx.client.guilds.cache.get(guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
-  const events = await guild.scheduledEvents.fetch().catch(() => null);
+  const events = await guild.scheduledEvents.fetch().catch((): null => null);
   if (!events || events.size === 0) return { success: true, data: "Aucun événement programmé" };
   const formatted = events
     .map((e, i) => {
@@ -4094,11 +4093,6 @@ async function toolGenerateAsciiArt(args: Record<string, unknown>): Promise<Tool
   if (!text) return { success: false, data: "Paramètre manquant: text" };
   if (text.length > 20)
     return { success: false, data: "Texte trop long (max 20 caractères pour l'ASCII art)" };
-
-  const fonts: Record<string, Record<string, string[]>> = {
-    Standard: {},
-    Block: {},
-  };
 
   const simpleFont: Record<string, string[]> = {
     A: ["  ▄▀█  ", " █▀█  "],

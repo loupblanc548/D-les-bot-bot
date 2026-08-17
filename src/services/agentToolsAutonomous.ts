@@ -1580,7 +1580,7 @@ async function tTrackAvatarHash(
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
   try {
-    const user = await ctx.client.users.fetch(userId).catch(() => null);
+    const user = await ctx.client.users.fetch(userId).catch((): null => null);
     if (!user) return { success: false, data: "Utilisateur introuvable" };
 
     const avatarURL = user.displayAvatarURL({ size: 256, extension: "png" });
@@ -3265,10 +3265,10 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
       const resolveTxt = dns.promises.resolveTxt;
 
       const [a, mx, ns, txt] = await Promise.all([
-        resolveA(target).catch(() => []),
-        resolveMx(target).catch(() => []),
-        resolveNs(target).catch(() => []),
-        resolveTxt(target).catch(() => []),
+        resolveA(target).catch((): [] => []),
+        resolveMx(target).catch((): [] => []),
+        resolveNs(target).catch((): [] => []),
+        resolveTxt(target).catch((): [] => []),
       ]);
 
       results.dnsRecords = {

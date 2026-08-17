@@ -1,24 +1,19 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="glass">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bot Control Panel</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#f97316">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="BotPanel">
   <meta name="description" content="Panneau de contrôle pour bot Discord">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="css/dashboard.css">
-  <link rel="stylesheet" href="css/visual-fx.css">
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/responsive.css">
-  <link rel="stylesheet" href="css/themes.css">
-  <link rel="stylesheet" href="css/design-enhance.css">
-  <link rel="stylesheet" href="css/premium-overlay.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -31,7 +26,6 @@
     <div class="splash-title">Bot Control Panel</div>
     <div class="splash-subtitle">Initialisation...</div>
     <div class="splash-bar"><div class="splash-bar-fill"></div></div>
-    <div class="loader-orbit"></div>
   </div>
   <div id="app">
     <!-- Titlebar -->
@@ -79,6 +73,7 @@
         <button class="nav-btn" data-tab="security"><span class="nav-icon">🛡</span> Sécurité</button>
         <button class="nav-btn" data-tab="music"><span class="nav-icon">🎵</span> Musique</button>
         <button class="nav-btn" data-tab="amazon"><span class="nav-icon">📦</span> Amazon</button>
+        <button class="nav-btn" data-tab="minecraft"><span class="nav-icon">⛏</span> Minecraft</button>
         <div class="sidebar-section">Configuration</div>
         <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙</span> Paramètres</button>
         <button class="nav-btn" data-tab="alerts"><span class="nav-icon">⚠</span> Alertes</button>
@@ -99,8 +94,8 @@
         <div class="row-header">
           <h2>Tableau de bord</h2>
           <div class="actions">
-            <button class="btn btn-primary btn-sm btn-magnetic" onclick="restartBot()">↻ Redémarrer</button>
-            <button class="btn btn-warn btn-sm btn-magnetic" onclick="triggerCleanup()">🗑 Nettoyer cache</button>
+            <button class="btn btn-primary btn-sm" onclick="restartBot()">↻ Redémarrer</button>
+            <button class="btn btn-warn btn-sm" onclick="triggerCleanup()">🗑 Nettoyer cache</button>
           </div>
         </div>
         <div class="bento-grid" id="bento-overview">
@@ -873,6 +868,103 @@
         </div>
       </div>
 
+      <!-- TAB: Minecraft -->
+      <div id="tab-minecraft" class="tab">
+        <div class="row-header">
+          <h2>⛏ Minecraft LLM Agent</h2>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm btn-magnetic" onclick="Minecraft.refresh()">↻ Actualiser</button>
+            <button class="btn btn-warn btn-sm btn-magnetic" onclick="Minecraft.stop()">⏹ Stop</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <!-- Status cards -->
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Statut Bot</div>
+            <div class="bento-value" id="mc-connected">--</div>
+            <div class="bento-label" id="mc-username">--</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Santé</div>
+            <div class="bento-value" id="mc-health">--</div>
+            <div class="bento-label" id="mc-food">Faim: --</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">Agent LLM</div>
+            <div class="bento-value" id="mc-agent-status">--</div>
+            <div class="bento-label" id="mc-llm-model">--</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--neutral">
+            <div class="bento-title">Position</div>
+            <div class="bento-value" id="mc-pos" style="font-size:14px">--</div>
+            <div class="bento-label" id="mc-server">--</div>
+          </div>
+
+          <!-- Goal input -->
+          <div class="bento-cell bento-cell--wide bento-cell--accent">
+            <div class="bento-title">🎯 Objectif de l'agent</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <input type="text" id="mc-goal-input" placeholder="Ex: Collecte 20 bois puis construis une maison" style="flex:1;min-width:250px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <input type="number" id="mc-max-actions" value="80" min="1" max="200" style="width:80px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px" title="Max actions">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Minecraft.setGoal()">🎯 Lancer</button>
+            </div>
+          </div>
+
+          <!-- Connect to server -->
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">🔗 Connexion serveur</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <input type="text" id="mc-server-input" placeholder="IP:port (ex: 123.45.67.89:25565)" style="flex:1;min-width:180px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <input type="text" id="mc-username-input" placeholder="Pseudo" value="LLM_Bot" style="width:100px;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Minecraft.connect()">🔗 Connecter</button>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">⚡ Actions rapides</div>
+            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('collectBlocks',{blockType:'oak_log',count:10})">🪵 Bois x10</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('collectBlocks',{blockType:'stone',count:20})">🪨 Pierre x20</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('mineResource',{resource:'iron_ore',count:10})">⛏ Fer x10</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('mineResource',{resource:'diamond_ore',count:5})">💎 Diamants x5</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('eat',{})">🍖 Manger</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('sleep',{})">😴 Dormir</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('defend',{})">🛡 Défendre</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('hunt',{})">🏹 Chasser</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('explore',{radius:50})">🧭 Explorer</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('sortInventory',{})">🎒 Trier sac</button>
+              <button class="btn btn-sm btn-magnetic" onclick="Minecraft.quickAction('stop',{})">⏹ Stop</button>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">💬 Chat Minecraft</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input type="text" id="mc-chat-input" placeholder="Message à envoyer dans le chat Minecraft..." style="flex:1;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px" onkeydown="if(event.key==='Enter')Minecraft.sendChat()">
+              <button class="btn btn-primary btn-sm btn-magnetic" onclick="Minecraft.sendChat()">📤</button>
+            </div>
+          </div>
+
+          <!-- Agent log console -->
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">📋 Journal de l'agent</div>
+            <div id="mc-log-console" style="margin-top:8px;max-height:300px;overflow-y:auto;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:var(--text-muted)">
+              <div class="empty-state"><div class="empty-icon">📋</div>En attente des logs de l'agent...</div>
+            </div>
+          </div>
+
+          <!-- World state -->
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">🌍 État du monde</div>
+            <div id="mc-world-state" style="margin-top:8px;max-height:250px;overflow-y:auto;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:var(--text-muted)">
+              <div class="empty-state"><div class="empty-icon">🌍</div>Cliquez sur Actualiser pour voir l'état du monde</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -892,6 +984,7 @@
   <script src="js/security.js"></script>
   <script src="js/music.js"></script>
   <script src="js/amazon.js"></script>
+  <script src="js/minecraft.js"></script>
   <script src="js/enhancements.js"></script>
   <script src="js/dashboard.js"></script>
 
@@ -955,6 +1048,7 @@
       Moderation.init();
       Security.init();
       Music.init();
+      Minecraft.init();
       Dashboard.init();
       WS.connect();
     });

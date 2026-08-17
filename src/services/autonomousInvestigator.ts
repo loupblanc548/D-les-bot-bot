@@ -401,7 +401,7 @@ async function autoExecuteAction(
         await recordSanction(userId, guildId, "WARN");
         break;
       case "TIMEOUT": {
-        const member = await guild.members.fetch(userId).catch(() => null);
+        const member = await guild.members.fetch(userId).catch((): null => null);
         if (!member) return false;
         // Escalader la durée du timeout selon le nombre de timeouts précédents
         const timeoutDuration = Math.min(
@@ -413,7 +413,7 @@ async function autoExecuteAction(
         break;
       }
       case "KICK": {
-        const member = await guild.members.fetch(userId).catch(() => null);
+        const member = await guild.members.fetch(userId).catch((): null => null);
         if (!member) return false;
         await member.kick(reason);
         await recordSanction(userId, guildId, "KICK");
@@ -465,7 +465,7 @@ async function gatherDiscordIntel(
       logger.warn(`[Investigator] Guilde ${guildId} non trouvée pour Discord Intel`);
       return null;
     }
-    const member = await guild.members.fetch(userId).catch(() => null);
+    const member = await guild.members.fetch(userId).catch((): null => null);
     if (!member) {
       logger.warn(`[Investigator] Membre ${userId} non trouvé dans la guilde`);
       return null;

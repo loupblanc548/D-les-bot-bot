@@ -62,7 +62,7 @@ export async function getGuildAnalytics(guildId: string): Promise<GuildAnalytics
         distinct: ["userId"],
         select: { userId: true },
       })
-      .catch(() => []),
+      .catch((): [] => []),
     prisma.chatHistory
       .count({ where: { guildId, createdAt: { gte: sevenDaysAgo } } })
       .catch(() => 0),
@@ -75,7 +75,7 @@ export async function getGuildAnalytics(guildId: string): Promise<GuildAnalytics
       orderBy: { _count: { activity: "desc" } },
       take: 10,
     })
-    .catch(() => []);
+    .catch((): [] => []);
   return {
     totalMembers: 0,
     activeMembers: activities.length,
@@ -169,7 +169,7 @@ export async function getTopCommands(
       orderBy: { _count: { command: "desc" } },
       take: 10,
     })
-    .catch(() => []);
+    .catch((): [] => []);
   return result.map((r: Record<string, unknown>) => ({
     command: String(r.command || ""),
     count: Number(r._count || 0),
@@ -189,7 +189,7 @@ export async function getModerationStats(
       orderBy: { _count: { action: "desc" } },
       take: 10,
     })
-    .catch(() => []);
+    .catch((): [] => []);
   return result.map((r: Record<string, unknown>) => ({
     action: String(r.action || ""),
     count: Number(r._count || 0),

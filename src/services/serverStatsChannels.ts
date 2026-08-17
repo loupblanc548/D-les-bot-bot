@@ -31,7 +31,9 @@ export async function getServerStatsConfig(guildId: string): Promise<ServerStats
   const cached = configs.get(guildId);
   if (cached) return cached;
   try {
-    const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
+    const record = await prisma.guildConfig
+      .findUnique({ where: { guildId } })
+      .catch((): null => null);
     if (record?.serverStatsConfig) {
       const parsed = {
         ...DEFAULT_CONFIG,
@@ -84,7 +86,7 @@ export async function setupStatsChannels(guild: Guild): Promise<ServerStatsConfi
           },
         ],
       })
-      .catch(() => null);
+      .catch((): null => null);
 
     if (category) {
       config.categoryChannelId = category.id;
@@ -105,7 +107,7 @@ export async function setupStatsChannels(guild: Guild): Promise<ServerStatsConfi
           },
         ],
       })
-      .catch(() => null);
+      .catch((): null => null);
     return channel?.id ?? null;
   };
 

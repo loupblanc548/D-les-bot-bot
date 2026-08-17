@@ -14,7 +14,7 @@ export const config = {
   ownerId: env.OWNER_ID,
 
   // OpenRouter AI
-  openRouterApiKey: env.OPENROUTER_API_KEY,
+  openRouterApiKey: env.OPENROUTER_API_KEY || "",
   openRouterModel: env.OPENROUTER_MODEL,
   aiSystemPrompt: env.AI_SYSTEM_PROMPT,
 
@@ -52,7 +52,7 @@ export const config = {
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
   groqApiKey: env.GROQ_API_KEY || "",
-  groqModel: env.GROQ_MODEL,
+  groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
   geminiApiKey: env.GEMINI_API_KEY || "",
   geminiModel: env.GEMINI_MODEL,
   nvidiaApiKey: env.NVIDIA_API_KEY || "",
@@ -261,8 +261,10 @@ export function validateConfig(): { errors: string[]; warnings: string[] } {
   // Discord (fatal)
   if (!config.token) errors.push("DISCORD_TOKEN manquant dans .env");
   if (!config.clientId) errors.push("DISCORD_CLIENT_ID manquant dans .env");
-  // AI (fatal)
-  if (!config.openRouterApiKey) errors.push("OPENROUTER_API_KEY manquant dans .env");
+  // AI: local Ollama is a valid standalone mode; external providers are optional.
+  if (!config.openRouterApiKey && process.env.LOCAL_LLM_ENABLED === "false") {
+    warnings.push("Aucun provider IA externe configuré et LLM local désactivé");
+  }
   // Channels (warning - le bot fonctionne sans)
   if (!config.logChannel)
     warnings.push("LOG_CHANNEL_ID manquant dans .env (les logs ne seront pas envoyes)");

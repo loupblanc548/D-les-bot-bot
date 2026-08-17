@@ -1,8 +1,8 @@
 <!-- Badges -->
 <div align="center">
 
-  <!-- CI Badge - Remplacer USER/REPO par votre dépôt GitHub -->
-  <img src="https://img.shields.io/github/actions/workflow/status/USER/REPO/.github/workflows/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI%2FCD" alt="CI/CD" />
+  <!-- CI Badge -->
+  <img src="https://img.shields.io/github/actions/workflow/status/loupblanc548/D-les-bot-bot/.github/workflows/ci.yml?branch=main&style=for-the-badge&logo=github&label=CI%2FCD" alt="CI/CD" />
 
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js" />
@@ -22,6 +22,7 @@ Bot de surveillance Discord avancé avec modération, surveillance de sources, I
 ## 🚀 Fonctionnalités
 
 ### 🛡️ Sécurité & Modération
+
 - **Anti-Raid** : Détection automatique des raids avec cooldown
 - **Anti-Phishing** : Détection des liens malveillants
 - **Modération** : Ban, kick, mute, timeout, etc.
@@ -29,6 +30,7 @@ Bot de surveillance Discord avancé avec modération, surveillance de sources, I
 - **Auto-Modération IA** : Détection de spam et contenu haineux
 
 ### 📡 Surveillance
+
 - **YouTube** : Surveillance des chaînes YouTube
 - **Twitter/X** : Surveillance des comptes Twitter
 - **Bluesky** : Surveillance des comptes Bluesky
@@ -37,12 +39,14 @@ Bot de surveillance Discord avancé avec modération, surveillance de sources, I
 - **Prix réduits** : Alertes de promotions (-50% ou plus)
 
 ### 🤖 Intelligence Artificielle
+
 - **Chat IA** : Conversation avec OpenRouter API
 - **Traduction** : Traduction automatique
 - **Résumé** : Résumé de textes
 - **Smart Polls** : Sondages intelligents
 
 ### 🔧 Outils Admin
+
 - **Debug** : Diagnostic complet du bot
 - **Hot Reload** : Rechargement sans redémarrage
 - **Alertes Intelligentes** : Groupement et escalation
@@ -56,13 +60,13 @@ Le bot analyse automatiquement le titre de chaque article (deal, patch note, jeu
 
 ### Plateformes détectées
 
-| Plateforme | Mots-clés détectés | Salon `.env` | Couleur embed |
-|---|---|---|---|
-| **Epic Games** | `[Epic Games]`, `[Epic Game]`, `epic` + `free`/`gratuit` | `STEAM_EPIC_CHANNEL_ID` | `#2A2A2A` (noir) |
-| **Steam** | `[Steam]`, `steam`, `GOG` | `STEAM_EPIC_CHANNEL_ID` | `#000080` (bleu marine) |
-| **PlayStation** | `[PS5]`, `[PS4]`, `PSN`, `playstation` | `PLAYSTATION_CHANNEL_ID` | `#003791` (bleu royal) |
-| **Xbox** | `[Xbox Series]`, `[XBL]`, `Xbox`, `Microsoft` | `XBOX_CHANNEL_ID` | `#107C10` (vert émeraude) |
-| **Nintendo** | `[Switch]`, `[Nintendo]` | `NINTENDO_CHANNEL_ID` | `#E60012` (rouge Switch) |
+| Plateforme      | Mots-clés détectés                                       | Salon `.env`             | Couleur embed             |
+| --------------- | -------------------------------------------------------- | ------------------------ | ------------------------- |
+| **Epic Games**  | `[Epic Games]`, `[Epic Game]`, `epic` + `free`/`gratuit` | `STEAM_EPIC_CHANNEL_ID`  | `#2A2A2A` (noir)          |
+| **Steam**       | `[Steam]`, `steam`, `GOG`                                | `STEAM_EPIC_CHANNEL_ID`  | `#000080` (bleu marine)   |
+| **PlayStation** | `[PS5]`, `[PS4]`, `PSN`, `playstation`                   | `PLAYSTATION_CHANNEL_ID` | `#003791` (bleu royal)    |
+| **Xbox**        | `[Xbox Series]`, `[XBL]`, `Xbox`, `Microsoft`            | `XBOX_CHANNEL_ID`        | `#107C10` (vert émeraude) |
+| **Nintendo**    | `[Switch]`, `[Nintendo]`                                 | `NINTENDO_CHANNEL_ID`    | `#E60012` (rouge Switch)  |
 
 ### Fonctionnement
 
@@ -74,13 +78,13 @@ Le bot analyse automatiquement le titre de chaque article (deal, patch note, jeu
 
 ### Cron jobs utilisant le routage
 
-| Cron | Source | Fréquence |
-|---|---|---|
-| `dealsCron` | Flux RSS Reddit r/GameDeals | Toutes les 10 min |
-| `freeGamesCron` | Flux RSS r/FreeGameFindings | Toutes les 15 min |
-| `steamNewsCron` | Flux RSS Steam News | Toutes les 5 min |
-| `globalPatchNotesCron` | Multi-flux RSS gaming | Toutes les 30 min |
-| `twitterCron` | Comptes Twitter/X gaming | Toutes les 15 min |
+| Cron                   | Source                      | Fréquence         |
+| ---------------------- | --------------------------- | ----------------- |
+| `dealsCron`            | Flux RSS Reddit r/GameDeals | Toutes les 10 min |
+| `freeGamesCron`        | Flux RSS r/FreeGameFindings | Toutes les 15 min |
+| `steamNewsCron`        | Flux RSS Steam News         | Toutes les 5 min  |
+| `globalPatchNotesCron` | Multi-flux RSS gaming       | Toutes les 30 min |
+| `twitterCron`          | Comptes Twitter/X gaming    | Toutes les 15 min |
 
 ---
 
@@ -97,6 +101,7 @@ Tous les crons utilisant des flux RSS (`dealsCron`, `freeGamesCron`, `steamNewsC
 ## 📦 Installation
 
 ### Prérequis
+
 - Node.js 18+
 - npm ou yarn
 - Compte Discord avec bot token
@@ -105,34 +110,40 @@ Tous les crons utilisant des flux RSS (`dealsCron`, `freeGamesCron`, `steamNewsC
 ### Étapes
 
 1. **Cloner le repository**
+
 ```bash
 git clone <repository-url>
 cd bot
 ```
 
 2. **Installer les dépendances**
+
 ```bash
 npm install
 ```
 
 3. **Configurer les variables d'environnement**
+
 ```bash
 cp .env.example .env
 # Éditer .env avec vos configurations
 ```
 
 4. **Initialiser la base de données**
+
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
 5. **Enregistrer les commandes Discord**
+
 ```bash
 npm run register-commands
 ```
 
 6. **Démarrer le bot**
+
 ```bash
 npm start
 ```
@@ -180,17 +191,20 @@ TELEGRAM_CHAT_ID=chat_id
 ## 📚 Commandes
 
 ### Commandes Principales
+
 - `/help` - Affiche l'aide
 - `/status` - Statut du bot
 - `/debug` - Diagnostic complet
 - `/hotreload` - Gestion du hot reload
 
 ### Commandes de Surveillance
+
 - `/addsource [@handle] [plateforme]` - Ajouter une source
 - `/removesource [id]` - Supprimer une source
 - `/listsources` - Lister les sources
 
 ### Commandes de Modération
+
 - `/ban [@user] [raison]` - Bannir un utilisateur
 - `/kick [@user] [raison]` - Expulser un utilisateur
 - `/mute [@user] [durée]` - Rendre muet
@@ -201,6 +215,7 @@ TELEGRAM_CHAT_ID=chat_id
 - `/linkcheck` - Vérifier les liens d'un message
 
 ### Commandes Gaming
+
 - `/free-games` - Jeux gratuits actuels (manuel ; les alertes automatiques utilisent le routage multi-plateforme)
 - `/game-status [jeu]` - Statut d'un jeu
 - `/deal` - Meilleures offres
@@ -298,5 +313,5 @@ Pour le support, rejoignez le serveur Discord ou ouvrez une issue sur GitHub.
 
 - Discord.js pour la librairie Discord
 - Prisma pour l'ORM
-- devin GLM.5.2 et freebfuff deepseekv4 pro 
+- devin GLM.5.2 et freebfuff deepseekv4 pro
 - La communauté pour le suppor

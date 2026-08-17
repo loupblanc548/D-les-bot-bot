@@ -19,7 +19,7 @@ const INJECTION_PATTERNS = [
   /show (me )?(your|the) (system|initial|original) (prompt|instructions)/gi,
   /\[SYSTEM\]/gi,
   /\[ADMIN\]/gi,
-  /\[/INST\]/gi,
+  /\[\/INST\]/gi,
   /<\|system\|>/gi,
   /<\|im_start\|>/gi,
   /new instructions:/gi,
@@ -64,6 +64,7 @@ export function sanitizePromptInput(input: string, maxLength = 4000): string {
   }
 
   // Supprimer les caractères de contrôle non imprimables
+  // eslint-disable-next-line no-control-regex -- suppression volontaire des chars de contrôle
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
   return sanitized;

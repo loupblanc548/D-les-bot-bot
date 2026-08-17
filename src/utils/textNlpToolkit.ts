@@ -287,7 +287,6 @@ export function textReadabilityScore(text: string): string {
     const sentences = (text.match(/[.!?]+/g) || []).length || 1;
     const words = (text.match(/\b\w+\b/g) || []).length;
     const syllables = (text.match(/[aeiouy]+/gi) || []).length;
-    const chars = text.length;
 
     // Flesch-Kincaid
     const fk = 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words);

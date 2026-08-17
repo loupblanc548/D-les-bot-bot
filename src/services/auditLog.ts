@@ -5,7 +5,6 @@
  * et envoie une notification via webhook dédié.
  */
 
-import type { Client, Guild, User } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 
@@ -45,7 +44,9 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
         color: 0xffa500,
         fields: [
           { name: "Modérateur", value: `<@${entry.moderatorId}>`, inline: true },
-          ...(entry.targetId ? [{ name: "Cible", value: `<@${entry.targetId}>`, inline: true }] : []),
+          ...(entry.targetId
+            ? [{ name: "Cible", value: `<@${entry.targetId}>`, inline: true }]
+            : []),
           ...(entry.reason ? [{ name: "Raison", value: entry.reason, inline: false }] : []),
         ],
         timestamp: new Date().toISOString(),
@@ -57,11 +58,15 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
         body: JSON.stringify({ embeds: [embed] }),
         signal: AbortSignal.timeout(5000),
       }).catch((err) => {
-        logger.debug(`[AuditLog] Webhook send failed: ${err instanceof Error ? err.message : String(err)}`);
+        logger.debug(
+          `[AuditLog] Webhook send failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       });
     }
 
-    logger.info(`[AuditLog] ${entry.action} by ${entry.moderatorId} on ${entry.targetId ?? "N/A"}: ${entry.reason ?? "no reason"}`);
+    logger.info(
+      `[AuditLog] ${entry.action} by ${entry.moderatorId} on ${entry.targetId ?? "N/A"}: ${entry.reason ?? "no reason"}`,
+    );
   } catch (err) {
     logger.warn(`[AuditLog] Failed to log: ${err instanceof Error ? err.message : String(err)}`);
   }

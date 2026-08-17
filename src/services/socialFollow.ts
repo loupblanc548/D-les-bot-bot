@@ -1,4 +1,4 @@
-import { Client, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
+import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
@@ -47,7 +47,7 @@ async function getTwitchToken(): Promise<string> {
   return twitchToken;
 }
 
-async function checkTwitch(follows: typeof followsType): Promise<void> {
+async function checkTwitch(follows: FollowType): Promise<void> {
   const twitchFollows = follows.filter((f) => f.platform === "twitch");
   if (twitchFollows.length === 0) return;
 
@@ -102,7 +102,7 @@ async function checkTwitch(follows: typeof followsType): Promise<void> {
 
 // ─── YouTube ─────────────────────────────────────────────────────────────────
 
-async function checkYouTube(follows: typeof followsType): Promise<void> {
+async function checkYouTube(follows: FollowType): Promise<void> {
   const ytFollows = follows.filter((f) => f.platform === "youtube");
   if (ytFollows.length === 0) return;
 
@@ -154,7 +154,7 @@ async function checkYouTube(follows: typeof followsType): Promise<void> {
 
 // ─── Twitter / X ─────────────────────────────────────────────────────────────
 
-async function checkTwitter(follows: typeof followsType): Promise<void> {
+async function checkTwitter(follows: FollowType): Promise<void> {
   const twFollows = follows.filter((f) => f.platform === "twitter");
   if (twFollows.length === 0) return;
 
@@ -305,7 +305,7 @@ const PLATFORM_CONFIG: Record<
       return `https://${instance}/@${user}.rss`;
     },
     idExtractor: (xml) => {
-      const m = xml.match(/<guid>[^<]*\/([^\/<]+)<\/guid>/);
+      const m = xml.match(/<guid>[^<]*\/([^/<]+)<\/guid>/);
       return m?.[1] ?? null;
     },
     titleExtractor: (xml) => {
@@ -417,7 +417,7 @@ const PLATFORM_CONFIG: Record<
   },
 };
 
-async function checkRSSPlatforms(follows: typeof followsType): Promise<void> {
+async function checkRSSPlatforms(follows: FollowType): Promise<void> {
   const rssPlatforms = Object.keys(PLATFORM_CONFIG);
   const rssFollows = follows.filter((f) => rssPlatforms.includes(f.platform));
   if (rssFollows.length === 0) return;
@@ -540,9 +540,8 @@ async function sendNotification(
 
 // Type helper for Prisma results
 type FollowType = Awaited<ReturnType<typeof prisma.socialFollow.findMany>>;
-const followsType: FollowType = [];
 
-async function checkAllPlatforms(client: Client): Promise<void> {
+async function checkAllPlatforms(_client: Client): Promise<void> {
   try {
     const follows = await prisma.socialFollow.findMany({ take: 500 });
     if (follows.length === 0) return;

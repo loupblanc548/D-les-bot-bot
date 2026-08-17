@@ -4,9 +4,7 @@
  */
 
 import { execSync } from "child_process";
-import net from "net";
 import dns from "dns/promises";
-import { Buffer } from "buffer";
 
 // ─── SMTP relay test ──────────────────────────────────────────────────────
 export function smtpRelayTest(host: string, port: number): string {

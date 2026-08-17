@@ -10,9 +10,15 @@
  */
 
 import { config } from "../config.js";
+import { isNvidiaNimAvailable } from "./nvidiaNim.js";
 import logger from "../utils/logger.js";
 
 // ─── Model presets ───────────────────────────────────────────────────────────
+
+// Ne jamais router vers un modèle NVIDIA si sa clé n'est pas configurée :
+// l'agent l'enverrait alors à OpenRouter, où cet identifiant peut être invalide.
+const providerModel = (nvidiaModel: string): string =>
+  isNvidiaNimAvailable() ? nvidiaModel : config.openRouterModel;
 
 interface ModelPreset {
   id: string;
@@ -23,32 +29,32 @@ interface ModelPreset {
 
 const MODELS: Record<string, ModelPreset> = {
   fast: {
-    id: "meta-llama/llama-3.2-3b-instruct:free",
-    label: "Llama 3.2 3B (free, fast)",
+    id: providerModel("nvidia/nemotron-mini-4b-instruct"),
+    label: "Nemotron Mini 4B (fast)",
     maxTokens: 800,
     temperature: 0.5,
   },
   balanced: {
     id: config.openRouterModel,
-    label: "Default configured model",
+    label: "Default configured model (Llama 3.3 70B)",
     maxTokens: 1000,
     temperature: 0.7,
   },
   powerful: {
-    id: "anthropic/claude-3.5-sonnet",
-    label: "Claude 3.5 Sonnet (powerful)",
+    id: providerModel("meta/llama-3.3-70b-instruct"),
+    label: "Llama 3.3 70B (powerful, free)",
     maxTokens: 2000,
     temperature: 0.7,
   },
   code: {
-    id: "deepseek/deepseek-coder",
-    label: "DeepSeek Coder (code specialist)",
+    id: providerModel("meta/llama-3.3-70b-instruct"),
+    label: "Llama 3.3 70B (code/complex)",
     maxTokens: 2000,
     temperature: 0.3,
   },
   vision: {
-    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
-    label: "Nemotron 3 Ultra (text + Gemini vision)",
+    id: providerModel("nvidia/nemotron-3-ultra-550b-a55b"),
+    label: "Nemotron Ultra (vision via Gemini fallback)",
     maxTokens: 1500,
     temperature: 0.5,
   },
@@ -168,7 +174,11 @@ export function routeModel(userMessage: string): RoutedModel {
 export function getAgentLoopModel(userMessage: string): string | null {
   const routed = routeModel(userMessage);
   // Override for code, powerful, and vision categories
-  if (routed.category === "code" || routed.category === "powerful" || routed.category === "vision") {
+  if (
+    routed.category === "code" ||
+    routed.category === "powerful" ||
+    routed.category === "vision"
+  ) {
     return routed.model;
   }
   return null;

@@ -38,7 +38,7 @@ export class AgentStatusIndicator {
     this.startTime = Date.now();
   }
 
-  async onToolCall(toolName: string, iteration: number): Promise<void> {
+  async onToolCall(toolName: string, _iteration: number): Promise<void> {
     if (this.isCancelled) return;
 
     const elapsed = Date.now() - this.startTime;

@@ -18,13 +18,12 @@ import {
   VoiceConnection,
   VoiceConnectionStatus,
   EndBehaviorType,
-  AudioReceiveStream,
 } from "@discordjs/voice";
 import prism from "prism-media";
 import { Client, TextChannel } from "discord.js";
 import logger from "../utils/logger.js";
 import { transcribeAudio } from "./dictation.js";
-import { isVoiceOptedIn, getVoiceAgentConfig } from "./voiceAgent.js";
+import { getVoiceAgentConfig } from "./voiceAgent.js";
 
 interface SubtitleSession {
   connection: VoiceConnection;

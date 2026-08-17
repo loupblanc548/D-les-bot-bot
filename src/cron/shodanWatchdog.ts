@@ -7,7 +7,7 @@
  * automated firewall lockdown.
  */
 
-import { schedule, ScheduledTask } from "node-cron";
+import { schedule } from "node-cron";
 import logger from "../utils/logger.js";
 import { searchShodan, isShodanConfigured } from "../services/shodan.js";
 import { executeActiveDefense } from "../services/activeDefenseEngine.js";
@@ -41,7 +41,9 @@ async function runShodanExposureAudit(): Promise<void> {
   }
 
   if (!MY_VPS_IP) {
-    logger.info(`${CYAN}[SHODAN-WATCHDOG]${RESET} No VPS IP configured (MY_VPS_IP) — skipping audit`);
+    logger.info(
+      `${CYAN}[SHODAN-WATCHDOG]${RESET} No VPS IP configured (MY_VPS_IP) — skipping audit`,
+    );
     return;
   }
 
@@ -55,7 +57,9 @@ async function runShodanExposureAudit(): Promise<void> {
     const result = await searchShodan(`ip:${MY_VPS_IP}`);
 
     for (const match of result.matches) {
-      const severity: ExposureFinding["severity"] = DANGEROUS_EXPOSED_PORTS.includes(match.port) ? "CRITICAL" : "HIGH";
+      const severity: ExposureFinding["severity"] = DANGEROUS_EXPOSED_PORTS.includes(match.port)
+        ? "CRITICAL"
+        : "HIGH";
       findings.push({
         ip: match.ip,
         port: match.port,
@@ -65,7 +69,9 @@ async function runShodanExposureAudit(): Promise<void> {
       });
     }
   } catch (err) {
-    logger.error(`[SHODAN-WATCHDOG] Audit failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[SHODAN-WATCHDOG] Audit failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return;
   }
 
@@ -74,7 +80,9 @@ async function runShodanExposureAudit(): Promise<void> {
   );
 
   if (dangerousFindings.length === 0) {
-    logger.info(`${CYAN}[SHODAN-WATCHDOG]${RESET} ✅ No dangerous port exposure detected for ${MY_VPS_IP}`);
+    logger.info(
+      `${CYAN}[SHODAN-WATCHDOG]${RESET} ✅ No dangerous port exposure detected for ${MY_VPS_IP}`,
+    );
     return;
   }
 
@@ -113,23 +121,25 @@ async function runShodanExposureAudit(): Promise<void> {
     try {
       await executeActiveDefense(syntheticAlert);
     } catch (err) {
-      logger.error(`[SHODAN-WATCHDOG] Failed to route to SOAR: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[SHODAN-WATCHDOG] Failed to route to SOAR: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
 
 // ─── Cron Scheduler ──────────────────────────────────────────────────────────
 
-let cronTask: ScheduledTask | null = null;
-
 export function startShodanWatchdog(): void {
   const cronExpression = "0 3 */14 * *";
 
-  cronTask = schedule(cronExpression, async () => {
+  schedule(cronExpression, async () => {
     try {
       await runShodanExposureAudit();
     } catch (err) {
-      logger.error(`[SHODAN-WATCHDOG] Cron error: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[SHODAN-WATCHDOG] Cron error: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   });
 

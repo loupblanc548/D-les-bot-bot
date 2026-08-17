@@ -154,7 +154,7 @@ export async function requestToolApproval(
  */
 export async function handleSoarToolInteraction(
   interactionId: string,
-  approved: boolean,
+  _approved: boolean,
 ): Promise<boolean> {
   // Extract approval ID from customId: soar_tool_approve_xxx or soar_tool_reject_xxx
   const match = interactionId.match(/^soar_tool_(approve|reject)_(.+)$/);

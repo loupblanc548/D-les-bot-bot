@@ -40,11 +40,7 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, chatWithGemini, isGeminiAvailable } from "../services/gemini.js";
-import {
-  isLocalLlmAvailable,
-  chatWithLocalLlm,
-  checkLocalLlmAvailability,
-} from "../services/localLlm.js";
+import { isLocalLlmAvailable, chatWithLocalLlm } from "../services/localLlm.js";
 import { isNvidiaNimAvailable, chatWithNvidiaNim } from "../services/nvidiaNim.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
@@ -218,14 +214,19 @@ function getRandomHelldiverReply(lang: SupportedLang = "fr"): string {
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|tiff?|heic|heif|avif|svg)$/i;
 const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|avi|mkv|wmv|flv|m4v)$/i;
 
+function attachmentPath(url: string): string {
+  return url.split(/[?#]/, 1)[0] || url;
+}
+
 function isImageAttachment(a: { contentType?: string | null; url: string }): boolean {
   if (a.contentType?.startsWith("image/")) return true;
-  return IMAGE_EXTENSIONS.test(a.url);
+  return IMAGE_EXTENSIONS.test(attachmentPath(a.url));
 }
 
 function isMediaAttachment(a: { contentType?: string | null; url: string }): boolean {
   if (a.contentType?.startsWith("image/") || a.contentType?.startsWith("video/")) return true;
-  return IMAGE_EXTENSIONS.test(a.url) || VIDEO_EXTENSIONS.test(a.url);
+  const path = attachmentPath(a.url);
+  return IMAGE_EXTENSIONS.test(path) || VIDEO_EXTENSIONS.test(path);
 }
 
 // Multilingual Gemini image analysis prompts
@@ -1489,14 +1490,8 @@ async function handleAiChatMention(
     // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      await message.reply({
-        content:
-          "\u26a0\ufe0f Circuits non configur\u00e9s ! Configure OPENROUTER_API_KEY. \u{1f985}",
-        allowedMentions: { repliedUser: false },
-      });
-      return;
-    }
+    // Le pipeline local-first fonctionne sans clé externe. `apiKey` reste
+    // optionnelle et n'est utilisée que par le dernier fallback OpenRouter.
 
     // ── Construire le contexte : faits long-terme + historique conversation ──
     const messages = await buildConversationContext(
@@ -1543,6 +1538,7 @@ async function handleAiChatMention(
     // ── Vision auto: analyser les images jointes avec Gemini ──
     let enrichedContent = `${langInstruction}\n\n${effectiveContent}`;
     const imageAttachments = [...message.attachments.values()].filter(isImageAttachment);
+    let imageUrls: string[] = [];
 
     // Also check embeds for image URLs (when user posts a direct image link)
     const embedImageUrls: string[] = [];
@@ -1557,7 +1553,7 @@ async function handleAiChatMention(
       );
 
       // Always pass image URLs to the agent so it can use analyzeImageGemini tool as fallback
-      const allImageUrls = [
+      imageUrls = [
         ...imageAttachments.slice(0, 3).map((a) => a.url),
         ...embedImageUrls.slice(0, 2),
       ];
@@ -1607,17 +1603,17 @@ async function handleAiChatMention(
         // If Gemini failed (e.g. 403), still pass URLs to agent so it can try analyzeImageGemini tool
         if (!geminiSuccess) {
           logger.warn(`[AIChat] Gemini Vision échoué — passage des URLs à l'agent pour fallback`);
-          for (const imgUrl of allImageUrls) {
+          for (const imgUrl of imageUrls) {
             enrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(La description visuelle automatique a échoué. Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
           }
         }
       } else {
         // Gemini not available — pass image URLs to the agent so it can use analyzeImageGemini tool
-        for (const imgUrl of allImageUrls) {
+        for (const imgUrl of imageUrls) {
           enrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
         }
         logger.info(
-          `[AIChat] ${allImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
+          `[AIChat] ${imageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
         );
       }
     }
@@ -1664,9 +1660,15 @@ async function handleAiChatMention(
     // puis synthétise sa réponse finale.
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, enrichedContent, (toolName, iter) => {
-        void statusIndicator.onToolCall(toolName, iter);
-      });
+      aiResponse = await runAgentLoop(
+        message as Message,
+        enrichedContent,
+        (toolName, iter) => {
+          void statusIndicator.onToolCall(toolName, iter);
+        },
+        undefined,
+        imageUrls,
+      );
     } catch (loopError) {
       // Fallback : si l'agent loop échoue (ex: modèle sans function calling),
       // on retombe sur le simple fetch OpenRouter
@@ -1717,7 +1719,10 @@ async function handleAiChatMention(
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+          aiResponse.includes("Le serveur IA est sous forte charge") ||
+          aiResponse.includes("Problème de communication avec le serveur IA") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+          aiResponse.includes("Circuit breaker activated")) &&
         isGeminiAvailable()
       ) {
         logger.warn(`[AIChat] Fallback: Gemini`);
@@ -1743,7 +1748,10 @@ async function handleAiChatMention(
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+          aiResponse.includes("Le serveur IA est sous forte charge") ||
+          aiResponse.includes("Problème de communication avec le serveur IA") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+          aiResponse.includes("Circuit breaker activated")) &&
         isNvidiaNimAvailable()
       ) {
         logger.warn(`[AIChat] Fallback: NVIDIA NIM`);
@@ -1773,29 +1781,35 @@ async function handleAiChatMention(
         aiResponse.includes("Circuit breaker activated")
       ) {
         try {
-          const fallbackModel = getNextAvailableModel() || "openrouter/auto";
-          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": "https://discord-bot.com",
-              "X-Title": "John Helldiver - Discord Bot",
-            },
-            body: JSON.stringify({
-              model: fallbackModel,
-              messages,
-              max_tokens: 500,
-              temperature: 0.7,
-            }),
-            signal: AbortSignal.timeout(15000),
-          });
-          if (fallbackResponse.ok) {
-            const fallbackData = (await fallbackResponse.json()) as {
-              choices: Array<{ message: { content: string } }>;
-            };
-            aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-            logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
+          const fallbackModel = apiKey ? getNextAvailableModel() : null;
+          if (!apiKey) {
+            logger.info(`[AIChat] OpenRouter ignoré: aucune clé configurée`);
+          } else if (!fallbackModel) {
+            logger.warn(
+              `[AIChat] Aucun modèle OpenRouter disponible — providers indépendants déjà tentés`,
+            );
+          } else {
+            const fallbackResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: fallbackModel,
+                messages,
+                max_tokens: 500,
+                temperature: 0.7,
+              }),
+              signal: AbortSignal.timeout(15000),
+            });
+            if (fallbackResponse.ok) {
+              const fallbackData = (await fallbackResponse.json()) as {
+                choices: Array<{ message: { content: string } }>;
+              };
+              aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+              logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
+            }
           }
         } catch (fallbackErr) {
           logger.error(
@@ -1809,10 +1823,13 @@ async function handleAiChatMention(
     if (
       !aiResponse ||
       aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED")
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated")
     ) {
       aiResponse =
-        "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+        "⚠️ Je n’ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
@@ -2017,13 +2034,8 @@ async function handleDMMessage(
     // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      await message.reply({
-        content: "Circuits non configurés ! OPENROUTER_API_KEY manquant. 🦉",
-        allowedMentions: { repliedUser: false },
-      });
-      return;
-    }
+    // Les DMs peuvent être traités par Ollama ou les providers disponibles
+    // sans rendre OpenRouter obligatoire.
 
     // Indicateur de frappe réaliste
     await simulateHumanTyping(message.channel as TextChannel, effectiveDmContent.length);
@@ -2035,6 +2047,7 @@ async function handleDMMessage(
     // ── Vision auto: analyser les images jointes en DM aussi ──
     let dmEnrichedContent = effectiveDmContent;
     const dmImageAttachments = [...message.attachments.values()].filter(isImageAttachment);
+    let dmImageUrls: string[] = [];
 
     // Also check embeds for image URLs in DM
     const dmEmbedImageUrls: string[] = [];
@@ -2044,7 +2057,7 @@ async function handleDMMessage(
     }
 
     if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
-      const dmAllImageUrls = [
+      dmImageUrls = [
         ...dmImageAttachments.slice(0, 3).map((a) => a.url),
         ...dmEmbedImageUrls.slice(0, 2),
       ];
@@ -2090,17 +2103,17 @@ async function handleDMMessage(
 
         if (!dmGeminiSuccess) {
           logger.warn(`[DM] Gemini Vision échoué — passage des URLs à l'agent pour fallback`);
-          for (const imgUrl of dmAllImageUrls) {
+          for (const imgUrl of dmImageUrls) {
             dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(La description visuelle automatique a échoué. Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
           }
         }
       } else {
         // Gemini not available — pass image URLs to the agent
-        for (const imgUrl of dmAllImageUrls) {
+        for (const imgUrl of dmImageUrls) {
           dmEnrichedContent += `\n\n[Image jointe: ${imgUrl}]\n(Utilise l'outil analyzeImageGemini avec imageUrl=${imgUrl} pour analyser cette image.)`;
         }
         logger.info(
-          `[DM] ${dmAllImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
+          `[DM] ${dmImageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
         );
       }
     }
@@ -2135,9 +2148,15 @@ async function handleDMMessage(
     // En DM, guildId est vide — les tools Discord seront limités mais les tools web/APIs fonctionnent
     let aiResponse: string;
     try {
-      aiResponse = await runAgentLoop(message as Message, dmEnrichedContent, (toolName, iter) => {
-        void dmStatusIndicator.onToolCall(toolName, iter);
-      });
+      aiResponse = await runAgentLoop(
+        message as Message,
+        dmEnrichedContent,
+        (toolName, iter) => {
+          void dmStatusIndicator.onToolCall(toolName, iter);
+        },
+        undefined,
+        dmImageUrls,
+      );
     } catch (loopError) {
       logger.warn(
         `[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
@@ -2186,7 +2205,10 @@ async function handleDMMessage(
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+          aiResponse.includes("Le serveur IA est sous forte charge") ||
+          aiResponse.includes("Problème de communication avec le serveur IA") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+          aiResponse.includes("Circuit breaker activated")) &&
         isGeminiAvailable()
       ) {
         logger.warn(`[DM] Fallback: Gemini`);
@@ -2212,7 +2234,10 @@ async function handleDMMessage(
       if (
         (!aiResponse ||
           aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED")) &&
+          aiResponse.includes("Le serveur IA est sous forte charge") ||
+          aiResponse.includes("Problème de communication avec le serveur IA") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+          aiResponse.includes("Circuit breaker activated")) &&
         isNvidiaNimAvailable()
       ) {
         logger.warn(`[DM] Fallback: NVIDIA NIM`);
@@ -2236,45 +2261,50 @@ async function handleDMMessage(
 
       // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
       if (
-        !aiResponse ||
-        aiResponse.includes("Le serveur IA a rencontré un problème") ||
-        aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-        aiResponse.includes("Circuit breaker activated")
+        (!aiResponse ||
+          aiResponse.includes("Le serveur IA a rencontré un problème") ||
+          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+          aiResponse.includes("Circuit breaker activated")) &&
+        apiKey
       ) {
         try {
-          const dmFallbackModel = getNextAvailableModel() || "openrouter/auto";
-          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-              "HTTP-Referer": "https://discord-bot.com",
-              "X-Title": "John Helldiver - Discord Bot",
-            },
-            body: JSON.stringify({
-              model: dmFallbackModel,
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    config.aiSystemPrompt +
-                    "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
-                    "Adapte-toi à n'importe quelle langue du monde. " +
-                    "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-                },
-                { role: "user", content: `${message.author.username}: ${content}` },
-              ],
-              max_tokens: 500,
-              temperature: 0.7,
-            }),
-            signal: AbortSignal.timeout(15000),
-          });
-          if (fallbackResponse.ok) {
-            const fallbackData = (await fallbackResponse.json()) as {
-              choices: Array<{ message: { content: string } }>;
-            };
-            aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-            logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
+          const dmFallbackModel = getNextAvailableModel();
+          if (!dmFallbackModel) {
+            logger.warn(
+              `[DM] Aucun modèle OpenRouter disponible — providers indépendants déjà tentés`,
+            );
+          } else {
+            const fallbackResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: dmFallbackModel,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      config.aiSystemPrompt +
+                      "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
+                      "Adapte-toi à n'importe quelle langue du monde. " +
+                      "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+                  },
+                  { role: "user", content: `${message.author.username}: ${content}` },
+                ],
+                max_tokens: 500,
+                temperature: 0.7,
+              }),
+              signal: AbortSignal.timeout(15000),
+            });
+            if (fallbackResponse.ok) {
+              const fallbackData = (await fallbackResponse.json()) as {
+                choices: Array<{ message: { content: string } }>;
+              };
+              aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
+              logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
+            }
           }
         } catch (fallbackErr) {
           logger.error(
@@ -2288,10 +2318,13 @@ async function handleDMMessage(
     if (
       !aiResponse ||
       aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED")
+      aiResponse.includes("Le serveur IA est sous forte charge") ||
+      aiResponse.includes("Problème de communication avec le serveur IA") ||
+      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
+      aiResponse.includes("Circuit breaker activated")
     ) {
       aiResponse =
-        "⚠️ Tous les modèles IA sont temporairement indisponibles (quota/cooldown). Réessaie dans 1-2 minutes, soldat.";
+        "⚠️ Je n’ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
@@ -2486,7 +2519,9 @@ async function handleSecurityModules(
 
     // ── Perspective API (Google) : toxicité en complément de l'IA ──
     if (isPerspectiveConfigured()) {
-      const perspectiveResult = await analyzePerspectiveToxicity(message.content).catch(() => null);
+      const perspectiveResult = await analyzePerspectiveToxicity(message.content).catch(
+        (): null => null,
+      );
       if (
         perspectiveResult &&
         (perspectiveResult.recommendedAction === "remove" ||
@@ -2497,7 +2532,9 @@ async function handleSecurityModules(
           const pAlert = await message.channel.send({
             content: `⚠️ ${message.author} message supprimé (toxicité: ${Math.round(perspectiveResult.overallScore * 100)}%)`,
           });
-          setTimeout(() => pAlert.delete().catch(() => {}), 8000);
+          setTimeout((): void => {
+            void pAlert.delete().catch((): void => {});
+          }, 8000);
           if (perspectiveResult.recommendedAction === "timeout" && member.moderatable) {
             await member.timeout(
               5 * 60 * 1000,
@@ -2505,7 +2542,7 @@ async function handleSecurityModules(
             );
           }
           await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION").catch(
-            () => {},
+            (): void => {},
           );
           logger.info(
             `[Perspective] ${message.author.tag}: toxicité ${Math.round(perspectiveResult.overallScore * 100)}% → ${perspectiveResult.recommendedAction}`,

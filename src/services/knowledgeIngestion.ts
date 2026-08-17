@@ -27,7 +27,7 @@ export async function syncPublicApis(): Promise<number> {
     { timeoutMs: TIMEOUT },
   );
   // Fallback: parse JSON from api-list directory
-  let entries: PublicApiEntry[] = [];
+  let entries: PublicApiEntry[];
   if (data?.entries) {
     entries = data.entries;
   } else {
@@ -145,7 +145,7 @@ export async function syncFreeBooks(): Promise<number> {
     // Parse: [Title](URL) by Author (License) - tags
     const bookRegex =
       /\*\s*\[([^\]]+)\]\(([^)]+)\)(?:\s*(?:by|[-–—]\s*)(.+?))?(?:\s*\(([^)]+)\))?/g;
-    let match: RegExpExecArray | null;
+    let _match: RegExpExecArray | null;
     const books: Array<{ name: string; url: string; description: string; tags: string }> = [];
     let currentSection = "general";
     const sectionRegex = /^#{2,3}\s+(.+)$/gm;

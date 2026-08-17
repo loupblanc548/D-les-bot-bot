@@ -258,6 +258,69 @@ if (!window.electronAPI) {
     minimizeWindow: function () {},
     maximizeWindow: function () {},
     closeWindow: function () {},
+
+    // Minecraft LLM Agent — try real API, fallback to mock
+    mcStatus: function () {
+      return this.apiFetch("/api/mc/agent/status").catch(function () {
+        return {
+          connected: true,
+          username: "LLM_Bot",
+          health: 18,
+          food: 16,
+          agent_running: false,
+          llm_model: "qwen2.5:14b",
+          position: { x: 128, y: 64, z: -340 },
+          server: "localhost:25565",
+        };
+      });
+    },
+    mcWorld: function () {
+      return this.apiFetch("/api/mc/agent/world").catch(function () {
+        return {
+          health: 18,
+          food: 16,
+          position: { x: 128, y: 64, z: -340 },
+          inventory: [
+            { name: "oak_log", count: 32 },
+            { name: "stone", count: 64 },
+            { name: "iron_ingot", count: 12 },
+            { name: "diamond", count: 3 },
+          ],
+          nearbyBlocks: [
+            { type: "oak_log", x: 129, y: 65, z: -340 },
+            { type: "stone", x: 127, y: 63, z: -340 },
+          ],
+          nearbyEntities: [
+            { type: "cow", distance: 5 },
+            { type: "zombie", distance: 12 },
+          ],
+        };
+      });
+    },
+    mcGoal: function (goal, maxActions) {
+      return this.apiFetch("/api/mc/agent/goal", { method: "POST", body: JSON.stringify({ goal: goal, max_actions: maxActions || 80 }) })
+        .catch(function () { return { success: true, goal: goal, max_actions: maxActions || 80 }; });
+    },
+    mcStop: function () {
+      return this.apiFetch("/api/mc/agent/stop", { method: "POST" }).catch(function () { return { success: true }; });
+    },
+    mcLog: function (lines) {
+      return this.apiFetch("/api/mc/agent/log?lines=" + (lines || 50)).catch(function () {
+        return { log: "[DEV] Agent prêt — en attente d'un objectif\n[DEV] Connecté à localhost:25565 en tant que LLM_Bot", total_lines: 2 };
+      });
+    },
+    mcChat: function (message) {
+      return this.apiFetch("/api/mc/agent/chat", { method: "POST", body: JSON.stringify({ message: message }) })
+        .catch(function () { return { success: true }; });
+    },
+    mcAction: function (type, params) {
+      return this.apiFetch("/api/mc/agent/action", { method: "POST", body: JSON.stringify({ type: type, params: params || {} }) })
+        .catch(function () { return { success: true, message: "[DEV] " + type + " executed (mock)" }; });
+    },
+    mcConnect: function (server, username) {
+      return this.apiFetch("/api/mc/agent/connect", { method: "POST", body: JSON.stringify({ server: server, username: username || "LLM_Bot" }) })
+        .catch(function () { return { success: true, message: "[DEV] Connected to " + server + " as " + (username || "LLM_Bot") }; });
+    },
   };
 
   console.log("[DEV MODE] Mock electronAPI activé — données simulées");

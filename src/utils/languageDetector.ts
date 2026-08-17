@@ -1221,7 +1221,7 @@ export function detectLanguage(text: string): DetectionResult {
       if (!profile.scriptRegex) {
         const words = lowerText
           .trim()
-          .split(/[\s,.!?;:'"()\[\]{}\/\\\-—–]+/)
+          .split(/[\s,.!?;:'"()[\]{}/\\\-—–]+/)
           .filter((w) => w.length > 1);
         for (const word of words) {
           if (extDict.has(word)) hits++;

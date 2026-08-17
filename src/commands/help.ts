@@ -13,7 +13,6 @@ import {
   ButtonStyle,
   ComponentType,
 } from "discord.js";
-import logger from "../utils/logger.js";
 
 export const data = new SlashCommandBuilder()
   .setName("help")
@@ -58,7 +57,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const categoryFilter = interaction.options.getString("categorie");
 
   let commands: CommandInfo[] = [];
-  let categories: string[] = [];
+  let categories: string[];
 
   if (categoryFilter) {
     const cat = Object.keys(COMMAND_CATEGORIES).find((k) =>
@@ -99,17 +98,26 @@ function buildPages(commands: CommandInfo[]): EmbedBuilder[] {
       .setTitle("📖 Aide — Commandes")
       .setColor(0x5865f2)
       .setDescription(chunk.map((c) => `**${c.name}** — ${c.description}`).join("\n"))
-      .setFooter({ text: `Page ${Math.floor(i / COMMANDS_PER_PAGE) + 1}/${Math.ceil(commands.length / COMMANDS_PER_PAGE)}` });
+      .setFooter({
+        text: `Page ${Math.floor(i / COMMANDS_PER_PAGE) + 1}/${Math.ceil(commands.length / COMMANDS_PER_PAGE)}`,
+      });
     pages.push(embed);
   }
   return pages;
 }
 
-async function sendPaginated(interaction: ChatInputCommandInteraction, pages: EmbedBuilder[]): Promise<void> {
+async function sendPaginated(
+  interaction: ChatInputCommandInteraction,
+  pages: EmbedBuilder[],
+): Promise<void> {
   let currentPage = 0;
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId("help_prev").setLabel("◀️").setStyle(ButtonStyle.Primary).setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId("help_prev")
+      .setLabel("◀️")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(true),
     new ButtonBuilder().setCustomId("help_next").setLabel("▶️").setStyle(ButtonStyle.Primary),
   );
 

@@ -6,7 +6,6 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { handleCommand as handleSecurityCore } from "./security/core.js";
-import { handleCommand as handleExtraCmd } from "./extraCommands.js";
 import { handleCommand as handleModPro } from "./moderationPro.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";

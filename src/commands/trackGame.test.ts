@@ -44,14 +44,16 @@ import {
 
 // === Helpers ===
 
-function mockInteraction(overrides: {
-  commandName?: string;
-  getString?: string;
-  getFocused?: () => { name: string; value: string; focused: boolean };
-  guildId?: string;
-  member?: any;
-  user?: any;
-} = {}) {
+function mockInteraction(
+  overrides: {
+    commandName?: string;
+    getString?: string;
+    getFocused?: () => { name: string; value: string; focused: boolean };
+    guildId?: string;
+    member?: any;
+    user?: any;
+  } = {},
+) {
   return {
     commandName: overrides.commandName ?? "track-game",
     options: {
@@ -104,7 +106,6 @@ beforeEach(() => {
 });
 
 // ==================== Tests ====================
-
 
 // ===========================================================================
 describe("handleTrackGame", () => {
@@ -212,10 +213,7 @@ describe("handleTrackGame", () => {
 
     await handleTrackGameCommand(interaction as any);
 
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      "[TrackGame] Erreur:",
-      "Error: Steam API down"
-    );
+    expect(mockLogger.error).toHaveBeenCalledWith("[TrackGame] Erreur:", "Error: Steam API down");
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining("Une erreur est survenue"),
     });
@@ -238,10 +236,7 @@ describe("handleTrackGame", () => {
 
     await handleTrackGameCommand(interaction as any);
 
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      "[TrackGame] Erreur:",
-      "Error: DB constraint"
-    );
+    expect(mockLogger.error).toHaveBeenCalledWith("[TrackGame] Erreur:", "Error: DB constraint");
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: expect.stringContaining("Une erreur est survenue"),
     });
@@ -274,7 +269,7 @@ describe("handleTrackGame", () => {
     const derniereNews = embed.data.fields[2].value;
     expect(derniereNews).toBe("Aucune news détectée");
     expect(mockLogger.info).toHaveBeenCalledWith(
-      expect.stringContaining("ajouté à la surveillance")
+      expect.stringContaining("ajouté à la surveillance"),
     );
   });
 
@@ -298,7 +293,6 @@ describe("handleTrackGame", () => {
     // findAppIdByName doit être appelé avec la valeur trimée
     expect(mockFindAppIdByName).toHaveBeenCalledWith("Celeste");
   });
-
 });
 describe("handleUntrackGame", () => {
   it("supprime un jeu tracke et renvoie un embed de confirmation", async () => {
@@ -509,10 +503,7 @@ describe("handleListTracked", () => {
 
     await handleTrackGameCommand(interaction);
 
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      "[TrackGame] Erreur list:",
-      expect.any(String),
-    );
+    expect(mockLogger.error).toHaveBeenCalledWith("[TrackGame] Erreur list:", expect.any(String));
 
     expect(interaction.editReply).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -528,13 +519,13 @@ describe("handleListTracked", () => {
       appId: 1000 + i,
       gameName: `Very Long Game Name Number ${i} With Extra Padding`,
       lastNewsDate: new Date("2026-06-01"),
-      lastNewsGid: null,
+      lastNewsGid: null as string | null,
       guildId: "guild-1",
       addedBy: "user-1",
       addedAt: new Date(),
-      lastNewsTitle: null,
-      lastNewsUrl: null,
-      lastCheckAt: null,
+      lastNewsTitle: null as string | null,
+      lastNewsUrl: null as string | null,
+      lastCheckAt: null as Date | null,
       active: true,
     }));
 

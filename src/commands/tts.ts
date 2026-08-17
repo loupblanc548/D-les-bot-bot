@@ -84,7 +84,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
   try {
     // Générer l'audio TTS via le pipeline neuronal (Edge TTS / Piper / ElevenLabs)
-    const { speakResponseInVoice } = await import("../services/voiceAgent.js");
     const audioBuffer = await generateNeuralTTS(text, lang);
     if (!audioBuffer) {
       await interaction.editReply({
@@ -176,7 +175,8 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
 
   // 2. ElevenLabs si configuré
   try {
-    const { generateElevenLabsTTS, isElevenLabsConfigured } = await import("../services/elevenLabsTts.js");
+    const { generateElevenLabsTTS, isElevenLabsConfigured } =
+      await import("../services/elevenLabsTts.js");
     if (isElevenLabsConfigured()) {
       const result = await generateElevenLabsTTS(text.slice(0, 500));
       if (result?.audioUrl?.startsWith("data:audio/mpeg;base64,")) {
@@ -200,9 +200,18 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
   // 4. StreamElements / Amazon Polly (gratuit, voix naturelle)
   try {
     const voiceMap: Record<string, string> = {
-      fr: "Mathieu", en: "Brian", es: "Enrique", de: "Hans",
-      it: "Giorgio", pt: "Ricardo", ja: "Takumi", ko: "Minho",
-      zh: "Zhiyu", ru: "Maxim", ar: "Zeina", nl: "Ruben",
+      fr: "Mathieu",
+      en: "Brian",
+      es: "Enrique",
+      de: "Hans",
+      it: "Giorgio",
+      pt: "Ricardo",
+      ja: "Takumi",
+      ko: "Minho",
+      zh: "Zhiyu",
+      ru: "Maxim",
+      ar: "Zeina",
+      nl: "Ruben",
     };
     const voice = voiceMap[lang] || "Brian";
     const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text.slice(0, 500))}`;
@@ -273,7 +282,9 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
     const finish = (result: Buffer | null) => {
       if (resolved) return;
       resolved = true;
-      try { ws.close(); } catch {}
+      try {
+        ws.close();
+      } catch {}
       resolve(result);
     };
 

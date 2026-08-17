@@ -43,7 +43,8 @@ export function getNvidiaNimClient(): OpenAI | null {
     client = new OpenAI({
       apiKey: process.env.NVIDIA_API_KEY!,
       baseURL: NVIDIA_BASE_URL,
-      maxRetries: 2,
+      // The shared rotation handles failover and keeps latency predictable.
+      maxRetries: 0,
       timeout: 30_000,
     });
     logger.info("[NvidiaNIM] Client initialisé — modèles NVIDIA gratuits disponibles");
@@ -52,21 +53,15 @@ export function getNvidiaNimClient(): OpenAI | null {
 }
 
 // ─── Modèles NVIDIA NIM gratuits (OpenAI-compatible, function calling) ───────
-// Ordre: du plus puissant au plus léger
+// Priorité: Llama (gratuit, cloud) → Nemotron (NVIDIA) → légers (fallback)
 export const NVIDIA_FREE_MODELS = [
-  "nvidia/llama-3.1-nemotron-ultra-253b-v1", // 253B MoE — le plus puissant
+  "meta/llama-3.3-70b-instruct", // 70B Llama 3.3 — priorité 1
+  "meta/llama-3.1-70b-instruct", // 70B Llama 3.1 — backup
   "nvidia/nemotron-3-ultra-550b-a55b", // 550B MoE
-  "deepseek-ai/deepseek-v4-pro", // 1M context, coding
-  "deepseek-ai/deepseek-v4-flash", // 284B MoE, fast
   "nvidia/nemotron-3-super-120b-a12b", // 120B MoE
-  "openai/gpt-oss-120b", // 120B OpenAI open-source
-  "nvidia/llama-3.3-nemotron-super-49b-v1.5", // 49B
-  "nvidia/llama-3.3-nemotron-super-49b-v1", // 49B v1
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", // 30B MoE reasoning
+  "nvidia/llama-3.3-nemotron-super-49b-v1", // 49B
   "nvidia/nemotron-3-nano-30b-a3b", // 30B MoE
-  "openai/gpt-oss-20b", // 20B
   "nvidia/nvidia-nemotron-nano-9b-v2", // 9B
-  "nvidia/llama-3.1-nemotron-nano-8b-v1", // 8B
   "nvidia/nemotron-mini-4b-instruct", // 4B — ultra léger
 ];
 
@@ -107,11 +102,9 @@ export function getNvidiaFreeModels(): string[] {
  * Vérifie si un nom de modèle est un modèle NVIDIA NIM.
  */
 export function isNvidiaModel(modelName: string): boolean {
-  return (
-    modelName.startsWith("nvidia/") ||
-    modelName.startsWith("deepseek-ai/deepseek-v4") ||
-    modelName.startsWith("openai/gpt-oss-")
-  );
+  // Use exact identifiers only. Broad prefix checks can misroute an
+  // OpenRouter model such as `openai/gpt-oss-*:free` to NVIDIA NIM.
+  return NVIDIA_FREE_MODELS.includes(modelName);
 }
 
 /**

@@ -9,8 +9,6 @@ import { vi } from "vitest";
 
 // ─── Types helpers ────────────────────────────────────────────────
 
-type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
-
 // ─── Mock User ────────────────────────────────────────────────────
 
 export function mockUser(overrides: Record<string, unknown> = {}) {
@@ -21,7 +19,7 @@ export function mockUser(overrides: Record<string, unknown> = {}) {
     discriminator: "0001",
     bot: false,
     createdTimestamp: Date.now() - 999_999_999,
-    avatar: null,
+    avatar: null as string | null,
     displayAvatarURL: vi.fn(() => "https://cdn.discordapp.com/embed/avatar/0.png"),
     fetch: vi.fn().mockResolvedValue(null),
     ...overrides,
@@ -36,7 +34,7 @@ export function mockMember(overrides: Record<string, unknown> = {}) {
     id: "123456789012345678",
     user: mockUser(),
     guild: mockGuild(),
-    nickname: null,
+    nickname: null as string | null,
     roles: {
       cache: new Map([
         ["role1", { id: "role1", name: "Member", permissions: { has: vi.fn(() => false) } }],
@@ -104,7 +102,9 @@ export function mockChannel(overrides: Record<string, unknown> = {}) {
       fetch: vi.fn().mockResolvedValue(new Map()),
       bulkDelete: vi.fn().mockResolvedValue(undefined),
     },
-    createWebhook: vi.fn().mockResolvedValue({ id: "wh1", url: "https://discord.com/api/webhooks/1/token" }),
+    createWebhook: vi
+      .fn()
+      .mockResolvedValue({ id: "wh1", url: "https://discord.com/api/webhooks/1/token" }),
     ...overrides,
   };
 }
@@ -168,7 +168,7 @@ export function mockInteraction(overrides: Record<string, unknown> = {}) {
       getRole: vi.fn(() => ({ id: "role1", name: "Member" })),
       getNumber: vi.fn((name: string) => options.get(name)?.value ?? null),
       getFocused: vi.fn(() => ({ name: "", value: "" })),
-      data: { options: [] },
+      data: { options: [] as unknown[] },
     },
     reply: vi.fn().mockResolvedValue(undefined),
     deferReply: vi.fn().mockResolvedValue(undefined),

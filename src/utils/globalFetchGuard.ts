@@ -37,6 +37,16 @@ export function installGlobalFetchGuard(): void {
       return originalFetch!(input, init);
     }
 
+    // Skip SSRF check for localhost (internal API calls)
+    const parsed = new URL(url);
+    if (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1"
+    ) {
+      return originalFetch!(input, init);
+    }
+
     // Skip if already using manual redirect (safeFetch is calling us)
     if (init?.redirect === "manual") {
       return originalFetch!(input, init);

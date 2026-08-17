@@ -5,7 +5,7 @@ import { config } from "../config.js";
 import { createLog } from "../services/logs.js";
 import { isAntiRaidActive } from "../commands/security.js";
 import { checkMemberProfile } from "../services/serverRules.js";
-import { sendWelcomeMessage, sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
+import { sendGoodbyeMessage } from "../services/welcomeGoodbye.js";
 import { sendStealthAlert } from "../services/shadowBroker.js";
 import { stealthGuildLeave } from "../services/stealthLeave.js";
 import { handleMemberSecurityIntegration } from "../services/securityIntegration.js";
@@ -13,7 +13,6 @@ import { checkSuspiciousJoin, checkSuspiciousNewMember } from "../services/repor
 import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
 import { invalidateGuild } from "../services/configCache.js";
 import { checkJoinBurst as checkRaidJoinBurst } from "../services/antiRaid.js";
-import { onMemberJoin as gatekeeperOnJoin, type GatekeeperConfig } from "../services/gatekeeper.js";
 
 const BOOST_CHANNEL_ID = "1203399031351545887";
 

@@ -128,7 +128,7 @@ async function handleUserContextMenu(
           orderBy: { createdAt: "desc" },
           take: 10,
         })
-        .catch(() => []);
+        .catch((): [] => []);
       const embed = new EmbedBuilder()
         .setTitle(`📋 Casier de ${target.tag}`)
         .setColor(sanctions.length > 0 ? 0xff8800 : 0x2ecc71)
@@ -157,14 +157,14 @@ async function handleUserContextMenu(
           orderBy: { createdAt: "desc" },
           take: 20,
         })
-        .catch(() => []);
+        .catch((): [] => []);
       const userLogs = await prisma.userActivityLog
         .findMany({
           where: { userId: target.id, guildId: interaction.guildId || "" },
           orderBy: { createdAt: "desc" },
           take: 20,
         })
-        .catch(() => []);
+        .catch((): [] => []);
       const activityScore = userLogs.length;
       const sanctionScore = sanctions.length;
       const accountAgeDays = Math.floor((Date.now() - target.createdTimestamp) / 86_400_000);

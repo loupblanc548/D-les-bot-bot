@@ -20,12 +20,7 @@ import logger from "../utils/logger.js";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ThreatSource =
-  | "VIRUSTOTAL"
-  | "ABUSEIPDB"
-  | "PHISHTANK"
-  | "SAFE_BROWSING"
-  | "GITHUB_DORKING"
-  | "IPVOID";
+  "VIRUSTOTAL" | "ABUSEIPDB" | "PHISHTANK" | "SAFE_BROWSING" | "GITHUB_DORKING" | "IPVOID";
 
 export interface ThreatResult {
   source: ThreatSource;
@@ -70,11 +65,9 @@ export interface GitHubLeakResult {
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const VIRUSTOTAL_API_KEY = process.env.VIRUSTOTAL_API_KEY ?? "";
-const ABUSEIPDB_API_KEY = process.env.ABUSEIPDB_API_KEY ?? "";
-const PHISHTANK_API_KEY = process.env.PHISHTANK_API_KEY ?? "";
-const GOOGLE_SAFE_BROWSING_API_KEY = process.env.GOOGLE_SAFE_BROWSING_API_KEY ?? "";
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? "";
+function getApiKey(name: string): string {
+  return process.env[name]?.trim() ?? "";
+}
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 const cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -115,7 +108,7 @@ export async function scanURLVirusTotal(url: string): Promise<ThreatResult> {
     detectedAt: new Date(),
   };
 
-  if (!VIRUSTOTAL_API_KEY) {
+  if (!getApiKey("VIRUSTOTAL_API_KEY")) {
     result.details = "VirusTotal API key not configured";
     return result;
   }
@@ -124,7 +117,7 @@ export async function scanURLVirusTotal(url: string): Promise<ThreatResult> {
     const res = await fetch(
       `https://www.virustotal.com/api/v3/urls/${Buffer.from(url).toString("base64url").slice(0, 64)}`,
       {
-        headers: { "x-apikey": VIRUSTOTAL_API_KEY },
+        headers: { "x-apikey": getApiKey("VIRUSTOTAL_API_KEY") },
         signal: AbortSignal.timeout(10000),
       },
     );
@@ -179,19 +172,16 @@ export async function scanFileHashVirusTotal(hash: string): Promise<ThreatResult
     detectedAt: new Date(),
   };
 
-  if (!VIRUSTOTAL_API_KEY) {
+  if (!getApiKey("VIRUSTOTAL_API_KEY")) {
     result.details = "VirusTotal API key not configured";
     return result;
   }
 
   try {
-    const res = await fetch(
-      `https://www.virustotal.com/api/v3/files/${hash}`,
-      {
-        headers: { "x-apikey": VIRUSTOTAL_API_KEY },
-        signal: AbortSignal.timeout(10000),
-      },
-    );
+    const res = await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
+      headers: { "x-apikey": getApiKey("VIRUSTOTAL_API_KEY") },
+      signal: AbortSignal.timeout(10000),
+    });
 
     if (!res.ok) {
       result.details = `VirusTotal HTTP ${res.status}`;
@@ -238,7 +228,7 @@ export async function checkIPAbuseIPDB(ip: string): Promise<ThreatResult> {
     detectedAt: new Date(),
   };
 
-  if (!ABUSEIPDB_API_KEY) {
+  if (!getApiKey("ABUSEIPDB_API_KEY")) {
     return result;
   }
 
@@ -246,7 +236,7 @@ export async function checkIPAbuseIPDB(ip: string): Promise<ThreatResult> {
     const res = await fetch(
       `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
       {
-        headers: { Key: ABUSEIPDB_API_KEY, Accept: "application/json" },
+        headers: { Key: getApiKey("ABUSEIPDB_API_KEY"), Accept: "application/json" },
         signal: AbortSignal.timeout(10000),
       },
     );
@@ -293,13 +283,13 @@ export async function checkPhishTank(url: string): Promise<ThreatResult> {
     detectedAt: new Date(),
   };
 
-  if (!PHISHTANK_API_KEY) {
+  if (!getApiKey("PHISHTANK_API_KEY")) {
     return result;
   }
 
   try {
     const body = new URLSearchParams();
-    body.append("app_key", PHISHTANK_API_KEY);
+    body.append("app_key", getApiKey("PHISHTANK_API_KEY"));
     body.append("format", "json");
     body.append("url", url);
 
@@ -357,13 +347,13 @@ export async function checkGoogleSafeBrowsing(url: string): Promise<ThreatResult
     detectedAt: new Date(),
   };
 
-  if (!GOOGLE_SAFE_BROWSING_API_KEY) {
+  if (!getApiKey("GOOGLE_SAFE_BROWSING_API_KEY")) {
     return result;
   }
 
   try {
     const res = await fetch(
-      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_SAFE_BROWSING_API_KEY}`,
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${getApiKey("GOOGLE_SAFE_BROWSING_API_KEY")}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -430,7 +420,7 @@ export async function githubDorkSearch(
     scannedAt: new Date(),
   };
 
-  if (!GITHUB_TOKEN) {
+  if (!getApiKey("GITHUB_TOKEN")) {
     logger.info("[ThreatIntel] GitHub token not configured — dorking skipped");
     return result;
   }
@@ -440,7 +430,7 @@ export async function githubDorkSearch(
       `https://api.github.com/search/code?q=${encodeURIComponent(query)}&per_page=${maxResults}`,
       {
         headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          Authorization: `Bearer ${getApiKey("GITHUB_TOKEN")}`,
           Accept: "application/vnd.github.v3+json",
         },
         signal: AbortSignal.timeout(15000),
@@ -621,15 +611,15 @@ export function getCacheSize(): number {
 export function isConfigured(source: ThreatSource): boolean {
   switch (source) {
     case "VIRUSTOTAL":
-      return !!VIRUSTOTAL_API_KEY;
+      return !!getApiKey("VIRUSTOTAL_API_KEY");
     case "ABUSEIPDB":
-      return !!ABUSEIPDB_API_KEY;
+      return !!getApiKey("ABUSEIPDB_API_KEY");
     case "PHISHTANK":
-      return !!PHISHTANK_API_KEY;
+      return !!getApiKey("PHISHTANK_API_KEY");
     case "SAFE_BROWSING":
-      return !!GOOGLE_SAFE_BROWSING_API_KEY;
+      return !!getApiKey("GOOGLE_SAFE_BROWSING_API_KEY");
     case "GITHUB_DORKING":
-      return !!GITHUB_TOKEN;
+      return !!getApiKey("GITHUB_TOKEN");
     case "IPVOID":
       return true; // Uses free API
   }

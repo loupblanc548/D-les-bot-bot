@@ -67,10 +67,24 @@ const UNIT_TABLES: Record<string, { unit: string; factor: number }[]> = {
 
 export function convertUnit(value: number, fromUnit: string, category: string): UnitResult {
   const table = UNIT_TABLES[category];
-  if (!table) return { category, input: `${value} ${fromUnit}`, conversions: [], success: false, error: `Catégorie inconnue: ${category}` };
+  if (!table)
+    return {
+      category,
+      input: `${value} ${fromUnit}`,
+      conversions: [],
+      success: false,
+      error: `Catégorie inconnue: ${category}`,
+    };
 
   const fromEntry = table.find((e) => e.unit.toLowerCase() === fromUnit.toLowerCase());
-  if (!fromEntry) return { category, input: `${value} ${fromUnit}`, conversions: [], success: false, error: `Unité inconnue: ${fromUnit}` };
+  if (!fromEntry)
+    return {
+      category,
+      input: `${value} ${fromUnit}`,
+      conversions: [],
+      success: false,
+      error: `Unité inconnue: ${fromUnit}`,
+    };
 
   const baseValue = value * fromEntry.factor;
   const conversions = table.map((e) => ({
@@ -86,11 +100,11 @@ export function convertTemperature(value: number, from: "C" | "F" | "K"): UnitRe
   let celsius: number;
 
   if (from === "C") celsius = value;
-  else if (from === "F") celsius = (value - 32) * 5 / 9;
+  else if (from === "F") celsius = ((value - 32) * 5) / 9;
   else celsius = value - 273.15;
 
   conversions.push({ unit: "°C", value: Math.round(celsius * 100) / 100 });
-  conversions.push({ unit: "°F", value: Math.round((celsius * 9 / 5 + 32) * 100) / 100 });
+  conversions.push({ unit: "°F", value: Math.round(((celsius * 9) / 5 + 32) * 100) / 100 });
   conversions.push({ unit: "K", value: Math.round((celsius + 273.15) * 100) / 100 });
 
   return { category: "temperature", input: `${value} ${from}`, conversions, success: true };
@@ -157,7 +171,21 @@ export interface StatsResult {
 
 export function calculateStats(values: number[]): StatsResult {
   if (!values || values.length === 0) {
-    return { count: 0, mean: 0, median: 0, std: 0, variance: 0, min: 0, max: 0, range: 0, q1: 0, q3: 0, sum: 0, success: false, error: "Aucune valeur" };
+    return {
+      count: 0,
+      mean: 0,
+      median: 0,
+      std: 0,
+      variance: 0,
+      min: 0,
+      max: 0,
+      range: 0,
+      q1: 0,
+      q3: 0,
+      sum: 0,
+      success: false,
+      error: "Aucune valeur",
+    };
   }
 
   const sorted = [...values].sort((a, b) => a - b);
@@ -199,15 +227,51 @@ export interface SentimentResult {
 }
 
 const POSITIVE_WORDS = [
-  "bon", "super", "génial", "excellent", "parfait", "aimer", "content",
-  "heureux", "merci", "bravo", "cool", "top", "awesome", "great", "good",
-  "love", "amazing", "fantastic", "wonderful", "best", "nice", "perfect",
+  "bon",
+  "super",
+  "génial",
+  "excellent",
+  "parfait",
+  "aimer",
+  "content",
+  "heureux",
+  "merci",
+  "bravo",
+  "cool",
+  "top",
+  "awesome",
+  "great",
+  "good",
+  "love",
+  "amazing",
+  "fantastic",
+  "wonderful",
+  "best",
+  "nice",
+  "perfect",
 ];
 
 const NEGATIVE_WORDS = [
-  "mauvais", "nul", "horrible", "terrible", "hate", "triste", "colère",
-  "problème", "bug", "erreur", "fail", "bad", "worst", "awful", "broken",
-  "crash", "dead", "wrong", "stupid", "boring",
+  "mauvais",
+  "nul",
+  "horrible",
+  "terrible",
+  "hate",
+  "triste",
+  "colère",
+  "problème",
+  "bug",
+  "erreur",
+  "fail",
+  "bad",
+  "worst",
+  "awful",
+  "broken",
+  "crash",
+  "dead",
+  "wrong",
+  "stupid",
+  "boring",
 ];
 
 export function analyzeSentiment(text: string): SentimentResult {
@@ -249,12 +313,44 @@ export interface LangResult {
 }
 
 const LANG_MARKERS: { lang: string; words: string[] }[] = [
-  { lang: "Français", words: ["le", "la", "les", "de", "et", "est", "que", "dans", "pour", "avec", "ce", "une", "pas"] },
-  { lang: "English", words: ["the", "and", "is", "that", "in", "for", "with", "this", "not", "have", "are", "was"] },
-  { lang: "Español", words: ["el", "la", "los", "de", "y", "es", "que", "en", "para", "con", "no", "una"] },
-  { lang: "Deutsch", words: ["der", "die", "das", "und", "ist", "nicht", "ein", "mit", "für", "auf", "auch"] },
-  { lang: "Italiano", words: ["il", "la", "di", "e", "che", "non", "per", "con", "una", "sono", "questo"] },
-  { lang: "Português", words: ["o", "a", "de", "e", "que", "não", "para", "com", "uma", "é", "este"] },
+  {
+    lang: "Français",
+    words: [
+      "le",
+      "la",
+      "les",
+      "de",
+      "et",
+      "est",
+      "que",
+      "dans",
+      "pour",
+      "avec",
+      "ce",
+      "une",
+      "pas",
+    ],
+  },
+  {
+    lang: "English",
+    words: ["the", "and", "is", "that", "in", "for", "with", "this", "not", "have", "are", "was"],
+  },
+  {
+    lang: "Español",
+    words: ["el", "la", "los", "de", "y", "es", "que", "en", "para", "con", "no", "una"],
+  },
+  {
+    lang: "Deutsch",
+    words: ["der", "die", "das", "und", "ist", "nicht", "ein", "mit", "für", "auf", "auch"],
+  },
+  {
+    lang: "Italiano",
+    words: ["il", "la", "di", "e", "che", "non", "per", "con", "una", "sono", "questo"],
+  },
+  {
+    lang: "Português",
+    words: ["o", "a", "de", "e", "que", "não", "para", "com", "uma", "é", "este"],
+  },
 ];
 
 export function detectLanguage(text: string): LangResult {
@@ -295,7 +391,11 @@ export interface WordFreqResult {
 }
 
 export function wordFrequency(text: string, topN: number = 10): WordFreqResult {
-  const words = text.toLowerCase().replace(/[^\w\sàâäéèêëïîôöùûüÿç]/gi, "").split(/\s+/).filter(Boolean);
+  const words = text
+    .toLowerCase()
+    .replace(/[^\w\sàâäéèêëïîôöùûüÿç]/gi, "")
+    .split(/\s+/)
+    .filter(Boolean);
   const freq = new Map<string, number>();
 
   for (const word of words) {
@@ -330,12 +430,30 @@ export interface CaseResult {
 }
 
 export function convertCase(input: string): CaseResult {
-  const words = input.trim().split(/[\s_-]+/).filter(Boolean);
+  const words = input
+    .trim()
+    .split(/[\s_-]+/)
+    .filter(Boolean);
   if (words.length === 0) {
-    return { input, camelCase: "", pascalCase: "", snakeCase: "", kebabCase: "", constantCase: "", lower: "", upper: "", titleCase: "", success: false };
+    return {
+      input,
+      camelCase: "",
+      pascalCase: "",
+      snakeCase: "",
+      kebabCase: "",
+      constantCase: "",
+      lower: "",
+      upper: "",
+      titleCase: "",
+      success: false,
+    };
   }
 
-  const camel = words.map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+  const camel = words
+    .map((w, i) =>
+      i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+    )
+    .join("");
   const pascal = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
   const snake = words.map((w) => w.toLowerCase()).join("_");
   const kebab = words.map((w) => w.toLowerCase()).join("-");
@@ -438,7 +556,14 @@ export interface CronResult {
 export function parseCron(expression: string): CronResult {
   const parts = expression.trim().split(/\s+/);
   if (parts.length !== 5) {
-    return { expression, description: "", fields: [], nextRun: "", success: false, error: "Format cron invalide (5 champs requis: min hour day month weekday)" };
+    return {
+      expression,
+      description: "",
+      fields: [],
+      nextRun: "",
+      success: false,
+      error: "Format cron invalide (5 champs requis: min hour day month weekday)",
+    };
   }
 
   const [min, hour, day, month, weekday] = parts;
@@ -447,14 +572,20 @@ export function parseCron(expression: string): CronResult {
     { field: "Heure", value: hour, meaning: hour === "*" ? "Chaque heure" : `Heure ${hour}` },
     { field: "Jour du mois", value: day, meaning: day === "*" ? "Chaque jour" : `Jour ${day}` },
     { field: "Mois", value: month, meaning: month === "*" ? "Chaque mois" : `Mois ${month}` },
-    { field: "Jour de la semaine", value: weekday, meaning: weekday === "*" ? "Chaque jour de la semaine" : `Jour ${weekday}` },
+    {
+      field: "Jour de la semaine",
+      value: weekday,
+      meaning: weekday === "*" ? "Chaque jour de la semaine" : `Jour ${weekday}`,
+    },
   ];
 
-  let desc = "";
+  let desc: string;
   if (min === "*" && hour === "*") desc = "Chaque minute";
   else if (hour === "*") desc = `Chaque heure à la minute ${min}`;
-  else if (day === "*" && month === "*" && weekday === "*") desc = `Chaque jour à ${hour}:${min.padStart(2, "0")}`;
-  else if (weekday !== "*") desc = `À ${hour}:${min.padStart(2, "0")} le jour de semaine ${weekday}`;
+  else if (day === "*" && month === "*" && weekday === "*")
+    desc = `Chaque jour à ${hour}:${min.padStart(2, "0")}`;
+  else if (weekday !== "*")
+    desc = `À ${hour}:${min.padStart(2, "0")} le jour de semaine ${weekday}`;
   else desc = `À ${hour}:${min.padStart(2, "0")} le jour ${day} du mois ${month}`;
 
   // Approximate next run
@@ -485,12 +616,19 @@ export interface IpRangeResult {
 export function generateIpRange(cidr: string, maxResults: number = 256): IpRangeResult {
   const match = cidr.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)\/(\d+)$/);
   if (!match) {
-    return { cidr, ips: [], count: 0, success: false, error: "Format CIDR invalide (ex: 192.168.1.0/24)" };
+    return {
+      cidr,
+      ips: [],
+      count: 0,
+      success: false,
+      error: "Format CIDR invalide (ex: 192.168.1.0/24)",
+    };
   }
 
   const [, a, b, c, d, maskStr] = match;
   const mask = parseInt(maskStr, 10);
-  const ipInt = (parseInt(a, 10) << 24) | (parseInt(b, 10) << 16) | (parseInt(c, 10) << 8) | parseInt(d, 10);
+  const ipInt =
+    (parseInt(a, 10) << 24) | (parseInt(b, 10) << 16) | (parseInt(c, 10) << 8) | parseInt(d, 10);
   const networkMask = mask === 0 ? 0 : (0xffffffff << (32 - mask)) >>> 0;
   const network = (ipInt & networkMask) >>> 0;
   const broadcast = (network | (~networkMask >>> 0)) >>> 0;
@@ -507,8 +645,40 @@ export function generateIpRange(cidr: string, maxResults: number = 256): IpRange
 
 // ─── 12. Number to Words (FR) ────────────────────────────────────────────────
 
-const UNITS_FR = ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
-const TENS_FR = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante", "quatre-vingt", "quatre-vingt"];
+const UNITS_FR = [
+  "zéro",
+  "un",
+  "deux",
+  "trois",
+  "quatre",
+  "cinq",
+  "six",
+  "sept",
+  "huit",
+  "neuf",
+  "dix",
+  "onze",
+  "douze",
+  "treize",
+  "quatorze",
+  "quinze",
+  "seize",
+  "dix-sept",
+  "dix-huit",
+  "dix-neuf",
+];
+const TENS_FR = [
+  "",
+  "",
+  "vingt",
+  "trente",
+  "quarante",
+  "cinquante",
+  "soixante",
+  "soixante",
+  "quatre-vingt",
+  "quatre-vingt",
+];
 
 export function numberToWordsFr(n: number): string {
   if (n < 0) return "moins " + numberToWordsFr(-n);
@@ -583,7 +753,12 @@ export function generatePasswords(
   if (entropy > 80) strength = "Très fort";
   if (entropy > 100) strength = "Extrême";
 
-  return { passwords, length, strength: `${strength} (${Math.round(entropy)} bits)`, success: true };
+  return {
+    passwords,
+    length,
+    strength: `${strength} (${Math.round(entropy)} bits)`,
+    success: true,
+  };
 }
 
 // ─── 14. Data Size Formatter ─────────────────────────────────────────────────

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Control Panel — Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0c0a09;
+      --bg-primary: #161210;
+      --bg-secondary: #1e1a17;
+      --bg-tertiary: #28231f;
+      --bg-hover: #322b27;
+      --border: #2a2520;
+      --border-hover: #3a332d;
+      --text-primary: #fafaf9;
+      --text-secondary: #a8a29e;
+      --text-muted: #78716c;
+      --accent: #f97316;
+      --accent-hover: #fb923c;
+      --accent-glow: rgba(249, 115, 22, 0.15);
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --info: #06b6d4;
+      --info-bg: rgba(6, 182, 212, 0.1);
+      --radius: 8px;
+      --radius-sm: 5px;
+      --transition: 150ms ease-out;
+      --font-ui: 'Inter', -apple-system, system-ui, sans-serif;
+      --font-display: 'Space Grotesk', -apple-system, system-ui, sans-serif;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-font-smoothing: antialiased;
+      padding: 2rem;
+    }
+
+    .launcher {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .launcher-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .launcher-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background: var(--accent);
+      border-radius: var(--radius);
+      font-size: 22px;
+      margin-bottom: 1rem;
+    }
+
+    .launcher-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .launcher-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    .launcher-version {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 0.6rem;
+      border: 1px solid var(--accent);
+    }
+
+    .launcher-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .option-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.1rem 1.25rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .option-card:hover {
+      border-color: var(--border-hover);
+      background: var(--bg-secondary);
+    }
+
+    .option-card:active {
+      transform: translateY(1px);
+    }
+
+    .option-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .option-card:hover::before {
+      opacity: 1;
+    }
+
+    .option-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+      font-size: 18px;
+    }
+
+    .option-icon.local { background: var(--accent-glow); border: 1px solid var(--accent); }
+    .option-icon.online { background: var(--success-bg); border: 1px solid var(--success); }
+    .option-icon.vps { background: var(--info-bg); border: 1px solid var(--info); }
+
+    .option-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .option-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .option-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .option-arrow {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      transition: var(--transition);
+    }
+
+    .option-card:hover .option-arrow {
+      color: var(--text-primary);
+      transform: translateX(3px);
+    }
+
+    .launcher-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-hover);
+      color: var(--text-primary);
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 200ms ease-out;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show { opacity: 1; }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="launcher">
+    <div class="launcher-header">
+      <div class="launcher-logo">⚡</div>
+      <div class="launcher-title">Bot Control Panel</div>
+      <div class="launcher-subtitle">Sélectionnez votre mode de lancement</div>
+      <div class="launcher-version">v3.0</div>
+    </div>
+
+    <div class="launcher-options">
+      <a class="option-card" href="botpanel://launch" onclick="showToast('Lancement de l&#39;app locale...', 'success')">
+        <div class="option-icon local">🖥</div>
+        <div class="option-content">
+          <div class="option-title">App Locale (Electron)</div>
+          <div class="option-desc">Application desktop native — hors ligne</div>
+        </div>
+        <div class="option-arrow">→</div>
+      </a>
+
+      <a class="option-card" href="https://bot-control-panel.netlify.app" target="_blank" onclick="showToast('Ouverture version en ligne...', 'success')">
+        <div class="option-icon online">🌐</div>
+        <div class="option-content">
+          <div class="option-title">Version En Ligne (Netlify)</div>
+          <div class="option-desc">Accessible depuis n'importe quel navigateur</div>
+        </div>
+        <div class="option-arrow">→</div>
+      </a>
+
+      <a class="option-card" href="http://31.220.79.90:3721" target="_blank" onclick="showToast('Ouverture du dashboard VPS...', 'success')">
+        <div class="option-icon vps">📡</div>
+        <div class="option-content">
+          <div class="option-title">Dashboard Web (VPS)</div>
+          <div class="option-desc">Serveur dédié — 31.220.79.90:3721</div>
+        </div>
+        <div class="option-arrow">→</div>
+      </a>
+    </div>
+
+    <div class="launcher-footer">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        Système opérationnel
+      </div>
+      <div style="margin-top: 0.4rem">John Helldiver · Bot Control Panel v3.0</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    function showToast(msg, type) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast show ' + (type || '');
+      setTimeout(() => {
+        toast.className = 'toast ' + (type || '');
+      }, 2500);
+    }
+  </script>
+</body>
+</html>

@@ -196,7 +196,7 @@ describe("toolRiskRegistry — immutability", () => {
 
   it("registry summary counts are consistent", () => {
     const summary = getRegistrySummary();
-    expect(summary.total).toBe(summary.low + summary.medium + summary.high);
+    expect(summary.total).toBe(summary.low + summary.medium + summary.high + summary.restricted);
     expect(summary.low).toBeGreaterThan(50); // majority of tools are low-risk
     expect(summary.high).toBeGreaterThan(10);
     expect(summary.unclassified).toHaveLength(0);

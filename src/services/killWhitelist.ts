@@ -22,10 +22,9 @@
  *  5. The whitelist is frozen at module load — no runtime mutation API exists
  */
 
-import { Client } from "discord.js";
+import type { Client } from "discord.js";
 import logger from "../utils/logger.js";
 
-const PURPLE = "\x1b[35m";
 const RED = "\x1b[31m";
 const BOLD = "\x1b[1m";
 const RESET = "\x1b[0m";

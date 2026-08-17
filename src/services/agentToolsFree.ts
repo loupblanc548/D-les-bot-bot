@@ -11,17 +11,14 @@ import prisma from "../prisma.js";
 import {
   generateImage,
   generateTTSUrl,
-  TTS_VOICES,
   getEarthquakes,
   getChessStats,
   getLichessStats,
   searchBooks,
   searchFood,
   searchArxiv,
-  getFlights,
   getGoogleTrends,
   getRssHubFeed,
-  isRssHubConfigured,
   getDevToArticles,
 } from "./freeApis.js";
 import { generateElevenLabsTTS, getMonthlyUsage } from "./elevenLabsTts.js";
@@ -180,7 +177,8 @@ export const FREE_TOOLS: AgentToolDef[] = [
           },
           region: {
             type: "string",
-            description: "Ville ou région pour filtrer les vols (ex: Paris, London, France, Europe). Optionnel.",
+            description:
+              "Ville ou région pour filtrer les vols (ex: Paris, London, France, Europe). Optionnel.",
           },
         },
         required: [],
@@ -534,15 +532,24 @@ export async function executeFreeTool(
           const data = (await res.json()) as { states?: Array<Array<unknown>> };
           let states = data.states;
           if (!states || states.length === 0)
-            return { success: true, data: `Aucun vol trouvé${callsign ? ` pour ${callsign}` : region ? ` près de ${region}` : ""}` };
+            return {
+              success: true,
+              data: `Aucun vol trouvé${callsign ? ` pour ${callsign}` : region ? ` près de ${region}` : ""}`,
+            };
 
           // Filter by callsign if specified
           if (callsign) {
             states = states.filter(
-              (s) => String(s[1] || "").trim().toUpperCase() === callsign,
+              (s) =>
+                String(s[1] || "")
+                  .trim()
+                  .toUpperCase() === callsign,
             );
             if (states.length === 0)
-              return { success: true, data: `✈️ Vol ${callsign} non trouvé parmi les vols actifs.` };
+              return {
+                success: true,
+                data: `✈️ Vol ${callsign} non trouvé parmi les vols actifs.`,
+              };
           }
 
           const limited = states.slice(0, 10);
@@ -556,13 +563,20 @@ export async function executeFreeTool(
               const onGround = s[8] as boolean;
               const lat = s[6] as number | null;
               const lon = s[5] as number | null;
-              const pos = lat !== null && lon !== null ? `${lat.toFixed(2)},${lon.toFixed(2)}` : "?";
+              const pos =
+                lat !== null && lon !== null ? `${lat.toFixed(2)},${lon.toFixed(2)}` : "?";
               return `✈️ **${cs}** (${origin}) — ${onGround ? "🛬 Sol" : `🛩️ ${alt?.toFixed(0) || "?"}m`} | 💨 ${vel ? (vel * 3.6).toFixed(0) : "?"}km/h | 🧭 ${heading?.toFixed(0) || "?"}° | 📍 ${pos}`;
             })
             .join("\n");
-          return { success: true, data: `✈️ **Vols en temps réel${callsign ? ` — ${callsign}` : region ? ` — ${region}` : ""}** (${states.length} au total, ${limited.length} affichés)\n\n${formatted}` };
+          return {
+            success: true,
+            data: `✈️ **Vols en temps réel${callsign ? ` — ${callsign}` : region ? ` — ${region}` : ""}** (${states.length} au total, ${limited.length} affichés)\n\n${formatted}`,
+          };
         } catch (err) {
-          return { success: false, data: `Erreur OpenSky: ${err instanceof Error ? err.message : String(err)}` };
+          return {
+            success: false,
+            data: `Erreur OpenSky: ${err instanceof Error ? err.message : String(err)}`,
+          };
         }
       }
 

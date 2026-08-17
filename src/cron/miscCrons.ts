@@ -31,14 +31,14 @@ export async function checkBirthdays(client: Client): Promise<void> {
       const userId = setting.key.replace("birthday:", "");
       const guildId = setting.guildId;
 
-      const guild = await client.guilds.fetch(guildId).catch(() => null);
+      const guild = await client.guilds.fetch(guildId).catch((): null => null);
       if (!guild) continue;
 
-      const member = await guild.members.fetch(userId).catch(() => null);
+      const member = await guild.members.fetch(userId).catch((): null => null);
       if (!member) continue;
 
       const generalChannelId = "1134242473334554774";
-      const channel = await client.channels.fetch(generalChannelId).catch(() => null);
+      const channel = await client.channels.fetch(generalChannelId).catch((): null => null);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
           .setTitle("🎂 Joyeux Anniversaire !")
@@ -115,7 +115,7 @@ export async function runAiServerHealth(client: Client): Promise<void> {
 
     const logChannelId = config.logChannel;
     if (logChannelId) {
-      const channel = await client.channels.fetch(logChannelId).catch(() => null);
+      const channel = await client.channels.fetch(logChannelId).catch((): null => null);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
           .setTitle("🤖 Rapport de Santé IA (24h)")

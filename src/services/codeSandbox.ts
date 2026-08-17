@@ -15,7 +15,7 @@
 
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { writeFile, mkdir, rm, readFile } from "fs/promises";
+import { writeFile, mkdir, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";

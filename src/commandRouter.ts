@@ -10,7 +10,6 @@ import { config } from "./config.js";
 import logger from "./utils/logger.js";
 import {
   createLoggingMiddleware,
-  createRateLimitMiddleware,
   createPermissionGuardMiddleware,
   withMiddleware,
 } from "./middleware/index.js";
@@ -120,8 +119,11 @@ import { data as privacyCommandData, execute as privacyExecute } from "./command
 import {
   commands as followCommands,
   handleCommand as handleFollowCommand,
-  handleAutocomplete as handleFollowAutocomplete,
 } from "./commands/follow.js";
+import {
+  commands as retailerCommands,
+  handleCommand as handleRetailerCommand,
+} from "./commands/trackRetailer.js";
 
 export type CmdHandler = (interaction: Interaction, client: Client) => Promise<void>;
 export const commandRouter: Record<string, CmdHandler> = {};
@@ -495,6 +497,8 @@ export const allCommands = [
   privacyCommandData,
   // ── Follow (social media tracking) ──
   ...followCommands,
+  // ── Track Retailer (suivi produits revendeurs) ──
+  ...retailerCommands,
   // ── Nouvelles commandes standalone ──
   statsCommandData,
   configCommandData,
@@ -554,7 +558,7 @@ export function buildCommandRouter(): void {
   registerGroup(["game2"], handleGame2Group);
   registerGroup(["music"], handleMusicGroup);
   registerGroup(["track"], handleTrackGroup);
-// ─── Releases command ───
+  // ─── Releases command ───
   commandRouter["releases"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleReleasesCommand(interaction as ChatInputCommandInteraction);
@@ -588,6 +592,11 @@ export function buildCommandRouter(): void {
   commandRouter["follow"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await handleFollowCommand(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Track Retailer (suivi produits revendeurs) command ───
+  commandRouter["track-retailer"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleRetailerCommand(interaction as ChatInputCommandInteraction);
   };
   // ─── Stats command ───
   commandRouter["stats"] = async (interaction, _client) => {

@@ -40,7 +40,7 @@ export function codeComplexityAnalyzer(code: string, language: string): string {
 }
 
 // ─── Code format beautifier ─────────────────────────────────────────────────
-export function codeFormatBeautifier(code: string, language: string): string {
+export function codeFormatBeautifier(code: string, _language: string): string {
   // Basic indentation beautifier
   let indent = 0;
   const indentSize = 2;
@@ -57,7 +57,7 @@ export function codeFormatBeautifier(code: string, language: string): string {
 }
 
 // ─── Code minifier ──────────────────────────────────────────────────────────
-export function codeMinifier(code: string, language: string): string {
+export function codeMinifier(code: string, _language: string): string {
   const minified = code
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/\/\/.*$/gm, "")
@@ -235,7 +235,6 @@ export function yamlValidate(yamlStr: string): string {
   try {
     // Basic YAML validation without external library
     const lines = yamlStr.split("\n");
-    const valid = true;
     const errors: string[] = [];
     let lastIndent = -1;
     for (let i = 0; i < lines.length; i++) {

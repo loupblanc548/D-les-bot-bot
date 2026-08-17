@@ -22,7 +22,8 @@ export function getGroqClient(): OpenAI | null {
       baseURL: "https://api.groq.com/openai/v1",
       apiKey: config.groqApiKey,
       timeout: 10_000,
-      maxRetries: 1,
+      // Fail over at the provider layer instead of waiting on hidden SDK retries.
+      maxRetries: 0,
     });
   }
   return groqClient;
@@ -90,7 +91,9 @@ export async function chatWithGroqJSON(opts: ChatOptions): Promise<Record<string
     if (!jsonMatch) return null;
     return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
   } catch (error) {
-    logger.debug(`[Groq] JSON chat failed: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[Groq] JSON chat failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }

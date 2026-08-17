@@ -17,20 +17,18 @@ import logger, { fortniteLogger } from "./logger.js";
 // ================================================================
 
 describe("logger (principal)", () => {
-  it("doit avoir 2 transports : Console + File (combined.log)", () => {
+  it("doit avoir 3 transports : Console + File (combined.log) + File (error.log)", () => {
     const transports = (logger as any).transports as winston.transport[];
-    expect(transports.length).toBe(2);
+    expect(transports.length).toBe(3);
 
     const types = transports.map((t) => t.constructor.name);
     expect(types).toContain("Console");
-    expect(types).toContain("File");
+    expect(types.filter((t) => t === "File").length).toBe(2);
   });
 
   it("le transport Console doit être au niveau 'info' (ou configuré via LOG_LEVEL)", () => {
     const transports = (logger as any).transports as winston.transport[];
-    const consoleTransport = transports.find(
-      (t) => t.constructor.name === "Console",
-    );
+    const consoleTransport = transports.find((t) => t.constructor.name === "Console");
     expect(consoleTransport).toBeDefined();
     // Le niveau par défaut du logger est 'info', le transport hérite de ce niveau
     expect(consoleTransport!.level).toBeUndefined(); // pas de niveau propre → hérite du logger
@@ -38,9 +36,7 @@ describe("logger (principal)", () => {
 
   it("le transport File doit écrire dans logs/combined.log", () => {
     const transports = (logger as any).transports as winston.transport[];
-    const anyFile = transports.find(
-      (t) => t.constructor.name === "File",
-    ) as any;
+    const anyFile = transports.find((t) => t.constructor.name === "File") as any;
     expect(anyFile).toBeDefined();
     expect(anyFile._baseFilename || anyFile.filename).toContain("combined");
   });
@@ -74,52 +70,39 @@ describe("logger (principal)", () => {
 
 describe("fortniteLogger", () => {
   it("doit avoir exactement 3 transports", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
+    const transports = (fortniteLogger as any).transports as winston.transport[];
     expect(transports.length).toBe(3);
   });
 
   it("doit avoir 2 transports File (combined.log + fortnite.log)", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
-    const fileTransports = transports.filter(
-      (t) => t.constructor.name === "File",
-    );
+    const transports = (fortniteLogger as any).transports as winston.transport[];
+    const fileTransports = transports.filter((t) => t.constructor.name === "File");
     expect(fileTransports.length).toBe(2);
   });
 
   it("un File doit écrire dans logs/fortnite.log", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
+    const transports = (fortniteLogger as any).transports as winston.transport[];
     const fortniteFile = transports.find(
       (t) =>
         t.constructor.name === "File" &&
-        ((t as any)._baseFilename || (t as any).filename || "").includes(
-          "fortnite",
-        ),
+        ((t as any)._baseFilename || (t as any).filename || "").includes("fortnite"),
     );
     expect(fortniteFile).toBeDefined();
   });
 
   it("l'autre File doit écrire dans logs/combined.log", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
+    const transports = (fortniteLogger as any).transports as winston.transport[];
     const combinedFile = transports.find(
       (t) =>
         t.constructor.name === "File" &&
-        ((t as any)._baseFilename || (t as any).filename || "").includes(
-          "combined",
-        ),
+        ((t as any)._baseFilename || (t as any).filename || "").includes("combined"),
     );
     expect(combinedFile).toBeDefined();
   });
 
   it("doit avoir 1 transport Console configuré en niveau 'error' uniquement", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
-    const consoleTransport = transports.find(
-      (t) => t.constructor.name === "Console",
-    ) as any;
+    const transports = (fortniteLogger as any).transports as winston.transport[];
+    const consoleTransport = transports.find((t) => t.constructor.name === "Console") as any;
 
     expect(consoleTransport).toBeDefined();
     expect(consoleTransport.level).toBe("error");
@@ -151,11 +134,8 @@ describe("fortniteLogger", () => {
 
 describe("Protection anti-flood console", () => {
   it("fortniteLogger NE doit PAS avoir de Console transport au niveau info ou warn", () => {
-    const transports = (fortniteLogger as any)
-      .transports as winston.transport[];
-    const consoleTransports = transports.filter(
-      (t) => t.constructor.name === "Console",
-    );
+    const transports = (fortniteLogger as any).transports as winston.transport[];
+    const consoleTransports = transports.filter((t) => t.constructor.name === "Console");
 
     // Un seul Console transport
     expect(consoleTransports.length).toBe(1);
@@ -170,9 +150,7 @@ describe("Protection anti-flood console", () => {
     const fortniteFiles = transports.filter(
       (t) =>
         t.constructor.name === "File" &&
-        ((t as any)._baseFilename || (t as any).filename || "").includes(
-          "fortnite",
-        ),
+        ((t as any)._baseFilename || (t as any).filename || "").includes("fortnite"),
     );
     expect(fortniteFiles.length).toBe(0);
   });

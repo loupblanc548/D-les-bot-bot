@@ -27,18 +27,26 @@ import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
 import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
 import { ORPHAN_TOOLS, executeOrphanTool } from "./agentToolsOrphan.js";
-import { ingestUrl, searchKnowledge, fetchAndExtract } from "./webIngestion.js";
+import { ingestUrl, searchKnowledge } from "./webIngestion.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
 import { classifyNsfw } from "./nsfwClassifier.js";
 import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.js";
-import { getDigestConfig, setDigestConfig, startDigestScheduler } from "./communityDigest.js";
-import { generatePassword, generateMultiplePasswords } from "./passwordGenerator.js";
+import { setDigestConfig } from "./communityDigest.js";
+import { generateMultiplePasswords } from "./passwordGenerator.js";
 import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEmail.js";
 import { generateImage } from "./freeApis.js";
 import { removeBackground } from "./removeBg.js";
 import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
 import { RETAILER_TOOL_DEFS, handleRetailerTool } from "./agentToolsRetailers.js";
+import { searchDocumentation, isContext7Available } from "./context7.js";
+import {
+  getGodlyInspiration,
+  getAceternityComponents,
+  getAceternityComponentDoc,
+  listImpeccableCommands,
+  auditDesignForSlop,
+} from "./designTools.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -75,6 +83,116 @@ export interface ToolContext {
 // ─── Définitions des outils (JSON Schema pour l'API LLM) ─────────────────────
 
 export const AGENT_TOOLS: AgentToolDef[] = [
+  {
+    type: "function",
+    function: {
+      name: "searchDocs",
+      description:
+        "Recherche la documentation à jour d'une librairie/framework/SDK via Context7. Utilise cet outil quand l'utilisateur demande de la doc, des exemples de code, ou comment utiliser une librairie spécifique (React, Next.js, Prisma, Express, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          library: {
+            type: "string",
+            description:
+              "Le nom de la librairie (ex: 'React', 'Next.js', 'Prisma', 'Tailwind CSS')",
+          },
+          question: {
+            type: "string",
+            description:
+              "La question spécifique ou le sujet recherché dans la doc (ex: 'how to use useEffect cleanup', 'setup authentication with JWT')",
+          },
+        },
+        required: ["library", "question"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getDesignInspiration",
+      description:
+        "Récupère les derniers sites web en vedette sur Godly (godly.website) pour inspiration design. Utile quand l'utilisateur cherche des idées de design web, des exemples de beaux sites, ou veut voir les tendances design actuelles.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            description:
+              "Catégorie optionnelle (ex: 'portfolio', 'ecommerce', 'animation', 'agency', 'minimal')",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getUiComponents",
+      description:
+        "Liste ou recherche des composants React/Tailwind prêts à l'emploi depuis Aceternity UI (200+ components: hero, bento grid, cards, navbar, pricing, etc.). Donne la commande d'installation npx et le lien vers la doc.",
+      parameters: {
+        type: "object",
+        properties: {
+          filter: {
+            type: "string",
+            description: "Terme de recherche optionnel (ex: 'hero', 'card', 'navbar', 'pricing')",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getComponentDoc",
+      description:
+        "Récupère la documentation et un exemple de code pour un composant Aceternity UI spécifique.",
+      parameters: {
+        type: "object",
+        properties: {
+          component: {
+            type: "string",
+            description: "Nom du composant (ex: 'bento-grid', 'hero-sections', 'cards')",
+          },
+        },
+        required: ["component"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listDesignCommands",
+      description:
+        "Liste les 23 commandes design Impeccable disponibles pour auditer et améliorer du design frontend (polish, audit, critique, animate, typeset, layout, etc.).",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "auditDesign",
+      description:
+        "Audite du HTML/CSS pour détecter les anti-patterns design 'AI slop' (purple gradients, bounce easing, over-rounding, etc.) basé sur les règles Impeccable. Retourne une liste de problèmes trouvés.",
+      parameters: {
+        type: "object",
+        properties: {
+          html: {
+            type: "string",
+            description: "Le code HTML/CSS à auditer",
+          },
+        },
+        required: ["html"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -758,6 +876,18 @@ export async function executeTool(
 
   try {
     switch (toolName) {
+      case "searchDocs":
+        return await toolSearchDocs(args);
+      case "getDesignInspiration":
+        return await toolGetDesignInspiration(args);
+      case "getUiComponents":
+        return await toolGetUiComponents(args);
+      case "getComponentDoc":
+        return await toolGetComponentDoc(args);
+      case "listDesignCommands":
+        return await toolListDesignCommands();
+      case "auditDesign":
+        return await toolAuditDesign(args);
       case "deleteMessages":
         return await toolDeleteMessages(args, ctx);
       case "getBotStatus":
@@ -872,6 +1002,80 @@ export async function executeTool(
 
 // ─── Implémentation des tools ────────────────────────────────────────────────
 
+async function toolSearchDocs(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const library = args.library as string;
+  const question = args.question as string;
+
+  if (!library || !question) {
+    return { success: false, data: "Paramètres manquants: 'library' et 'question' sont requis." };
+  }
+
+  if (!isContext7Available()) {
+    return { success: false, data: "Context7 n'est pas disponible." };
+  }
+
+  try {
+    const result = await searchDocumentation(library, question, 5000);
+    if (!result) {
+      return {
+        success: false,
+        data: `Aucune documentation trouvée pour "${library}" avec la question: ${question}`,
+      };
+    }
+
+    return {
+      success: true,
+      data: `📚 Documentation ${result.library} (via Context7):\n\n${result.content.slice(0, 4000)}`,
+    };
+  } catch (err) {
+    logger.error("[AgentTools] searchDocs error:", String(err));
+    return { success: false, data: `Erreur lors de la recherche de doc: ${String(err)}` };
+  }
+}
+
+async function toolGetDesignInspiration(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const category = args.category as string | undefined;
+  try {
+    const result = await getGodlyInspiration(category);
+    if (!result) {
+      return { success: false, data: "Impossible de récupérer l'inspiration design depuis Godly." };
+    }
+    return { success: true, data: result };
+  } catch (err) {
+    return { success: false, data: `Erreur Godly: ${String(err)}` };
+  }
+}
+
+async function toolGetUiComponents(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const filter = args.filter as string | undefined;
+  return { success: true, data: getAceternityComponents(filter) };
+}
+
+async function toolGetComponentDoc(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const component = args.component as string;
+  if (!component) {
+    return { success: false, data: "Paramètre 'component' requis." };
+  }
+  try {
+    const result = await getAceternityComponentDoc(component);
+    return { success: true, data: result || `Composant "${component}" non trouvé.` };
+  } catch (err) {
+    return { success: false, data: `Erreur: ${String(err)}` };
+  }
+}
+
+async function toolListDesignCommands(): Promise<ToolCallResult> {
+  return { success: true, data: listImpeccableCommands() };
+}
+
+async function toolAuditDesign(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const html = args.html as string;
+  if (!html) {
+    return { success: false, data: "Paramètre 'html' requis (le code HTML/CSS à auditer)." };
+  }
+  return { success: true, data: auditDesignForSlop(html) };
+}
+
 async function toolDeleteMessages(
   args: Record<string, unknown>,
   ctx: ToolContext,
@@ -883,7 +1087,7 @@ async function toolDeleteMessages(
   }
 
   const messages = await channel.messages.fetch({ limit: amount });
-  const deleted = await channel.bulkDelete(messages, true).catch(() => null);
+  const deleted = await channel.bulkDelete(messages, true).catch((): null => null);
 
   const count = deleted?.size ?? 0;
   return {
@@ -923,7 +1127,7 @@ async function toolTimeoutUser(
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
 
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member = await guild.members.fetch(userId).catch((): null => null);
   if (!member) return { success: false, data: "Utilisateur introuvable" };
 
   await member.timeout(durationMin * 60 * 1000, `[Agent IA] ${reason}`.slice(0, 512));
@@ -1067,7 +1271,7 @@ async function toolGetChannelInfo(ctx: ToolContext): Promise<ToolCallResult> {
   const channel = ctx.client.channels.cache.get(ctx.channelId) as TextChannel | undefined;
   if (!channel) return { success: false, data: "Salon introuvable" };
 
-  const recentMessages = await channel.messages.fetch({ limit: 1 }).catch(() => null);
+  const recentMessages = await channel.messages.fetch({ limit: 1 }).catch((): null => null);
 
   return {
     success: true,
@@ -1098,7 +1302,7 @@ async function toolPinMessage(
     msgId = last.id;
   }
 
-  const msg = await channel.messages.fetch(msgId).catch(() => null);
+  const msg = await channel.messages.fetch(msgId).catch((): null => null);
   if (!msg) return { success: false, data: "Message introuvable" };
 
   await msg.pin().catch(() => {
@@ -1159,7 +1363,7 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
     const iaRes = await fetch(iaUrl, {
       headers: { "User-Agent": "DiscordBot/1.0" },
       signal: AbortSignal.timeout(8000),
-    }).catch(() => null);
+    }).catch((): null => null);
 
     let abstract = "";
     if (iaRes?.ok) {
@@ -1180,7 +1384,7 @@ async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallRes
         "Accept-Language": lang,
       },
       signal: AbortSignal.timeout(10000),
-    }).catch(() => null);
+    }).catch((): null => null);
 
     const results: Array<{ title: string; url: string; snippet: string }> = [];
     if (htmlRes?.ok) {

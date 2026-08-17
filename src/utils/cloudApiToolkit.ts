@@ -6,7 +6,7 @@
 import { execSync } from "child_process";
 import https from "https";
 
-function fetchJson(url: string, timeout = 10000): Promise<any> {
+function _fetchJson(url: string, timeout = 10000): Promise<any> {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { timeout, headers: { "User-Agent": "QuantBot/1.0" } }, (res) => {
       let data = "";
@@ -246,7 +246,6 @@ export async function graphqlIntrospectionCheck(url: string): Promise<string> {
 // ─── API rate limit discover ────────────────────────────────────────────────
 export async function apiRateLimitDiscover(url: string): Promise<string> {
   try {
-    const headers: Record<string, string | undefined> = {};
     const resp = await new Promise<{
       status: number;
       headers: Record<string, string | string[] | undefined>;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockPrisma } = vi.hoisted(() => {
+const { mockPrisma, mockEnqueueLog } = vi.hoisted(() => {
   return {
     mockPrisma: {
       log: {
@@ -9,11 +9,17 @@ const { mockPrisma } = vi.hoisted(() => {
         deleteMany: vi.fn(),
       },
     },
+    mockEnqueueLog: vi.fn(),
   };
 });
 
 vi.mock("../prisma", () => ({
   default: mockPrisma,
+}));
+
+vi.mock("../queues/logQueue", () => ({
+  enqueueLog: mockEnqueueLog,
+  initLogQueue: vi.fn(),
 }));
 
 vi.mock("../utils/logger", () => ({
@@ -31,7 +37,15 @@ vi.mock("../config", () => ({
   },
 }));
 
-import { createLog, getLogs, getLogsByType, getLogsByUser, deleteOldLogs, sendErrorLog, sendBanPurgeLog } from "./logs.js";
+import {
+  createLog,
+  getLogs,
+  getLogsByType,
+  getLogsByUser,
+  deleteOldLogs,
+  sendErrorLog,
+  sendBanPurgeLog,
+} from "./logs.js";
 import type { LogEntry } from "./logs.js";
 import logger from "../utils/logger.js";
 
@@ -50,21 +64,15 @@ describe("createLog", () => {
       moderator: "mod-1",
     };
 
-    const expected = { id: "log-1", ...entry, createdAt: new Date() };
-    mockPrisma.log.create.mockResolvedValue(expected);
-
-    const result = await createLog(entry);
-    expect(mockPrisma.log.create).toHaveBeenCalledWith({
-      data: {
-        type: "MODERATION",
-        action: "BAN",
-        userId: "user-1",
-        targetId: "target-1",
-        details: "Banned for spam",
-        moderator: "mod-1",
-      },
+    await createLog(entry);
+    expect(mockEnqueueLog).toHaveBeenCalledWith({
+      type: "MODERATION",
+      action: "BAN",
+      userId: "user-1",
+      targetId: "target-1",
+      details: "Banned for spam",
+      moderator: "mod-1",
     });
-    expect(result).toEqual(expected);
   });
 
   it("should convert undefined optional fields to null", async () => {
@@ -73,18 +81,14 @@ describe("createLog", () => {
       action: "STARTUP",
     };
 
-    mockPrisma.log.create.mockResolvedValue({ id: "log-2" });
-
     await createLog(entry);
-    expect(mockPrisma.log.create).toHaveBeenCalledWith({
-      data: {
-        type: "SYSTEM",
-        action: "STARTUP",
-        userId: null,
-        targetId: null,
-        details: null,
-        moderator: null,
-      },
+    expect(mockEnqueueLog).toHaveBeenCalledWith({
+      type: "SYSTEM",
+      action: "STARTUP",
+      userId: undefined,
+      targetId: undefined,
+      details: undefined,
+      moderator: undefined,
     });
   });
 
@@ -98,23 +102,21 @@ describe("createLog", () => {
       moderator: "",
     };
 
-    mockPrisma.log.create.mockResolvedValue({ id: "log-3" });
-
     await createLog(entry);
-    expect(mockPrisma.log.create).toHaveBeenCalledWith({
-      data: {
-        type: "TEST",
-        action: "DEBUG",
-        userId: null,
-        targetId: null,
-        details: null,
-        moderator: null,
-      },
+    expect(mockEnqueueLog).toHaveBeenCalledWith({
+      type: "TEST",
+      action: "DEBUG",
+      userId: "",
+      targetId: "",
+      details: "",
+      moderator: "",
     });
   });
 
   it("should propagate prisma errors", async () => {
-    mockPrisma.log.create.mockRejectedValue(new Error("DB error"));
+    mockEnqueueLog.mockImplementation(() => {
+      throw new Error("DB error");
+    });
     const entry: LogEntry = { type: "X", action: "Y" };
     await expect(createLog(entry)).rejects.toThrow("DB error");
   });
@@ -425,9 +427,7 @@ describe("sendBanPurgeLog", () => {
     const mockClient = {};
     // consoleSpy replaced with logger.error
 
-    expect(() =>
-      sendBanPurgeLog("User#1234", "user-1", 10, 5, mockClient as any)
-    ).not.toThrow();
+    expect(() => sendBanPurgeLog("User#1234", "user-1", 10, 5, mockClient as any)).not.toThrow();
 
     // consoleSpy.mockRestore() replaced
   });
@@ -444,9 +444,7 @@ describe("sendBanPurgeLog", () => {
       },
     };
 
-    expect(() =>
-      sendBanPurgeLog("User#1234", "user-1", 10, 5, mockClient as any)
-    ).not.toThrow();
+    expect(() => sendBanPurgeLog("User#1234", "user-1", 10, 5, mockClient as any)).not.toThrow();
 
     expect(mockClient.channels.cache.get).toHaveBeenCalledWith("channel-missing");
   });

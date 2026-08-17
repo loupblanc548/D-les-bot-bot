@@ -252,16 +252,16 @@ export async function reloadCommands(client: Client) {
  * Enregistre les commandes Discord
  */
 async function registerCommands(_client: Client) {
-  const _commandsPath = "./src/commands";
-  // Importer dynamiquement toutes les commandes
+  // Importer dynamiquement toutes les commandes.
+  // Keep the extension in the static part so Vite can analyze this import.
   const commandFiles = ["main", "moderation", "admin", "security", "community", "gaming", "debug"];
 
-  const commands = [];
+  const commands: object[] = [];
   for (const file of commandFiles) {
     try {
-      const module = await import(`../commands/${file}`);
+      const module = await import(`../commands/${file}.js`);
       if (module.data) {
-        commands.push(module.data.toJSON() as never);
+        commands.push(module.data.toJSON() as object);
       }
     } catch (error) {
       logger.error(`[HotReload] Erreur lors du chargement de ${file}:`, error);

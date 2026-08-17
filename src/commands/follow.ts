@@ -10,7 +10,6 @@ import {
   ButtonStyle,
   ActionRowBuilder,
   ComponentType,
-  ChannelType,
 } from "discord.js";
 import prisma from "../prisma.js";
 import {
@@ -217,7 +216,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
         componentType: ComponentType.Button,
         time: 60_000,
       })
-      .catch(() => null);
+      .catch((): null => null);
 
     if (!response) {
       await interaction.editReply({
@@ -305,7 +304,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
           componentType: ComponentType.Button,
           time: 60_000,
         })
-        .catch(() => null);
+        .catch((): null => null);
 
       if (!channelResponse) {
         await interaction.editReply({
@@ -442,7 +441,7 @@ async function handleList(interaction: ChatInputCommandInteraction) {
     while (true) {
       const response = await reply
         .awaitMessageComponent({ componentType: ComponentType.Button, time: 60_000 })
-        .catch(() => null);
+        .catch((): null => null);
 
       if (!response) {
         await interaction.editReply({ components: [] }).catch(() => {});

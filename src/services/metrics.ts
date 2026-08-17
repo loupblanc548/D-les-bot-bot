@@ -106,6 +106,49 @@ const rateLimitCounter = new Counter({
   registers: [register],
 });
 
+// External API reliability metrics
+const externalRetryCounter = new Counter({
+  name: "external_request_retries_total",
+  help: "Total retries for external API requests",
+  labelNames: ["api"],
+  registers: [register],
+});
+
+const externalFailureCounter = new Counter({
+  name: "external_request_failures_total",
+  help: "Total failures for external API requests",
+  labelNames: ["api"],
+  registers: [register],
+});
+
+const externalSuccessCounter = new Counter({
+  name: "external_request_success_total",
+  help: "Total successful external API requests",
+  labelNames: ["api"],
+  registers: [register],
+});
+
+const circuitBreakerGauge = new Gauge({
+  name: "circuitbreaker_state",
+  help: "Circuit breaker state (0=CLOSED, 1=OPEN, 2=HALF_OPEN)",
+  labelNames: ["api"],
+  registers: [register],
+});
+
+const concurrencyPoolRunningGauge = new Gauge({
+  name: "concurrency_pool_running",
+  help: "Active concurrent calls in pool",
+  labelNames: ["pool"],
+  registers: [register],
+});
+
+const concurrencyPoolPendingGauge = new Gauge({
+  name: "concurrency_pool_pending",
+  help: "Pending queued calls in pool",
+  labelNames: ["pool"],
+  registers: [register],
+});
+
 // Update process metrics periodically
 function updateProcessMetrics(): void {
   uptimeGauge.set(process.uptime());
@@ -154,6 +197,22 @@ export const metrics = {
   },
   incrementRateLimit: (guildId?: string, type?: string) => {
     rateLimitCounter.inc({ guild_id: guildId || "unknown", type: type || "general" });
+  },
+  incrementExternalRetry: (api: string) => {
+    externalRetryCounter.inc({ api });
+  },
+  incrementExternalFailure: (api: string) => {
+    externalFailureCounter.inc({ api });
+  },
+  incrementExternalSuccess: (api: string) => {
+    externalSuccessCounter.inc({ api });
+  },
+  setCircuitBreakerState: (api: string, state: "CLOSED" | "OPEN" | "HALF_OPEN") => {
+    circuitBreakerGauge.set({ api }, state === "OPEN" ? 1 : state === "HALF_OPEN" ? 2 : 0);
+  },
+  setConcurrencyPool: (pool: string, running: number, pending: number) => {
+    concurrencyPoolRunningGauge.set({ pool }, running);
+    concurrencyPoolPendingGauge.set({ pool }, pending);
   },
 };
 

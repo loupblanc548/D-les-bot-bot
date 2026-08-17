@@ -13,77 +13,47 @@
 
 import logger from "../utils/logger.js";
 import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
-import { NVIDIA_FREE_MODELS } from "./nvidiaNim.js";
+import { NVIDIA_FREE_MODELS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
+import { config } from "../config.js";
 
-// ─── Modèles OpenRouter gratuits supportant le function calling ─────────────
-// Liste étendue — maximise l'utilisation de la clé OpenRouter
-// Ordre: du plus puissant au plus léger
-const FREE_MODELS_OPENROUTER = [
-  // ─── Modèles gratuits avec tools/function calling (July 2026 verified) ───
-  // Ordre: du plus puissant au plus léger
-  "nvidia/nemotron-3-ultra-550b-a55b:free", // 550B MoE, tools ✅, 1M context
-  "openai/gpt-oss-120b:free", // 120B, tools ✅, 131K context
-  "z-ai/glm-4.5-air:free", // GLM 4.5 Air, tools ✅, 131K context
-  "google/gemma-3-27b-it:free", // 27B Gemma 3, tools ✅, 131K context
-  "nvidia/nemotron-3-super-120b-a12b:free", // 120B MoE, tools ✅
-  "openai/gpt-oss-20b:free", // 20B, tools ✅, 131K context
-  "moonshotai/kimi-k2.6:free", // K2.6 reasoning, tools ✅, 262K context
-  "nvidia/nemotron-3-nano-30b-a3b:free", // 30B MoE, tools ✅, 256K context
-  "google/gemma-4-31b-it:free", // 31B Gemma 4, tools ✅, 262K context (if available)
-  "meta-llama/llama-3.3-70b-instruct:free", // 70B, tools ✅ (sometimes available)
-  "qwen/qwen-2.5-72b-instruct:free", // 72B, tools ✅ (sometimes available)
-  "mistralai/mistral-small-3.1-24b-instruct:free", // 24B, tools ✅
-  "meta-llama/llama-3.2-3b-instruct:free", // 3B, tools ✅ (min size for reliable tool calls)
-  // ─── Vision-capable free models ───
-  "meta-llama/llama-3.2-11b-vision-instruct:free", // 11B vision, tools ✅ (sometimes available)
-  "microsoft/phi-3-medium-4k-instruct:free", // 14B, tools ✅
-  "microsoft/phi-3.5-mini-128k-instruct:free", // 3.8B, tools ✅
-  "thudm/glm-4-9b-chat:free", // 9B, tools ✅
-  "01-ai/yi-1.5-9b-chat:free", // 9B, tools ✅
-  "01-ai/yi-1.5-34b-chat:free", // 34B, tools ✅
-  "huggingfaceh4/zephyr-7b-beta:free", // 7B, tools ✅
-  "openchat/openchat-3.5-1210:free", // 7B, tools ✅
-  "teknium/openhermes-2.5-mistral-7b:free", // 7B, tools ✅
-  "sao10k/l3-euryale-70b:free", // 70B roleplay, tools ✅
-  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
-  "cognitivecomputations/dolphin-mixtral-8x7b:free", // 8x7B, tools ✅
-  "gryphe/corvus-72b:free", // 72B, tools ✅
-  "anthracite-org/magmell-72b:free", // 72B, tools ✅
-  "neversleep/llama-3-lumimaid-70b:free", // 70B, tools ✅
-  "thedrummer/rocinante-12b:free", // 12B, tools ✅
-  "anthracite-org/magmell-8b:free", // 8B, tools ✅
-  "raifle/sorcererlm-8x22b:free", // 8x22B, tools ✅
-  "sophosympatheia/rogue-rose-103b-v0.2:free", // 103B, tools ✅
-  "sao10k/l3.1-euryale-70b:free", // 70B v3.1, tools ✅
-  "perplexity/llama-3.1-sonar-large-128k-online:free", // 128K online, tools ✅
-  "perplexity/llama-3.1-sonar-small-128k-online:free", // 128K online, tools ✅
-  "liquid/lfm-40b:free", // 40B MoE, tools ✅
-  "liquid/lfm-7b:free", // 7B MoE, tools ✅
-  // ─── Modèles NVIDIA NIM gratuits (build.nvidia.com, OpenAI-compatible) ───
-  // Requiert NVIDIA_API_KEY dans .env — ajoutés à la fin car nécessitent une clé séparée
-  ...NVIDIA_FREE_MODELS,
-  // ─── Modèles OmniRoute gratuits (90+ free providers, OpenAI-compatible) ───
-  // Requiert OMNIROUTE_API_KEY dans .env — failover automatique entre providers
-  ...(isOmnirouteAvailable() ? OMNIROUTE_FREE_MODELS : []),
+// ─── Modèles réellement routables ────────────────────────────────────────────
+// Le modèle OpenRouter configuré est le seul candidat OpenRouter garanti valide.
+// Les modèles NVIDIA/OmniRoute ne sont ajoutés que si leur provider est configuré;
+// sinon ils seraient envoyés au mauvais endpoint et échoueraient en boucle (404).
+const OPENROUTER_FREE_MODELS = [
+  // Toujours essayer d'abord le modèle choisi par l'installation.
+  config.openRouterModel,
+  // Fallbacks OpenRouter uniquement — aucun modèle NVIDIA/OmniRoute implicite.
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
+  "google/gemma-3-27b-it:free",
+  "openai/gpt-oss-20b:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
-// ─── Modèles ultra-bon-marché (backup si tous les gratuits sont épuisés) ─────
-// Prix < $0.000001/token — quasi gratuit
+function getCandidateModels(): string[] {
+  return [
+    ...(config.openRouterApiKey ? OPENROUTER_FREE_MODELS : []),
+    ...(isNvidiaNimAvailable() ? NVIDIA_FREE_MODELS : []),
+    ...(isOmnirouteAvailable() ? OMNIROUTE_FREE_MODELS : []),
+  ].filter((model, index, models) => model && models.indexOf(model) === index);
+}
+
+// ─── Modèles backup (si les principaux sont en cooldown) ─────────────────────
 const CHEAP_FALLBACK_MODELS = [
-  "meta-llama/llama-3.1-8b-instruct", // $0.05/$0.08 per 1M tokens
-  "qwen/qwen-2.5-7b-instruct", // $0.04/$0.10 per 1M tokens
-  "mistralai/mistral-nemo", // $0.02/$0.04 per 1M tokens
-  "meta-llama/llama-3.2-3b-instruct", // $0.05/$0.33 per 1M tokens
+  "meta-llama/llama-3.1-8b-instruct",
+  "qwen/qwen-2.5-7b-instruct",
+  "mistralai/mistral-nemo",
+  "meta-llama/llama-3.2-3b-instruct",
 ];
 
-// ─── Modèles gratuits SANS function calling — chat texte simple uniquement ────
-// Ne jamais utiliser pendant une boucle d'outils active
-const NO_TOOLS_MODELS = [
-  "meta-llama/llama-3.2-1b-instruct:free", // 1B — too small for tool calls
-];
-
-// ─── Routeur auto OpenRouter (toujours disponible) ───────────────────────────
+// ─── Modèle de dernier recours OpenRouter ─────────────────────────────────────
+// `openrouter/auto` choisit un modèle disponible côté OpenRouter; il ne doit
+// être utilisé qu'en chat texte, jamais pour une boucle de tools.
 const AUTO_ROUTER_MODEL = "openrouter/auto";
 
 // ─── État de rotation ────────────────────────────────────────────────────────
@@ -104,10 +74,15 @@ interface ModelHealth {
 
 const modelHealth = new Map<string, ModelHealth>();
 
-// Cooldown après un 429: 1 minute par défaut (was 2 min — still too aggressive)
-const RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
-// Cooldown après une erreur générique: 5 secondes (was 15s — only real errors like timeout/network)
-const ERROR_COOLDOWN_MS = 5 * 1000;
+// A model can be healthy and still be busy. Claiming prevents concurrent requests
+// from colliding on the same provider/model and generating avoidable 429s.
+const inFlightModels = new Map<string, number>();
+const MODEL_CLAIM_TTL_MS = 30_000;
+
+// Un cooldown évite de marteler un provider défaillant, mais ne doit jamais
+// bloquer la réponse : les autres providers sont essayés immédiatement.
+const RATE_LIMIT_COOLDOWN_MS = 15 * 1000;
+const ERROR_COOLDOWN_MS = 1_500;
 // Reset du compteur d'échecs après 30 minutes sans erreur
 const HEALTH_RESET_MS = 30 * 60 * 1000;
 // Max échecs avant de blacklister un modèle pour plus longtemps
@@ -116,9 +91,9 @@ const MAX_FAILURES_BEFORE_BLACKLIST = 3;
 // ─── Circuit breaker configuration ───────────────────────────────────────────
 const LATENCY_WINDOW_SIZE = 10; // track last 10 calls for moving average
 const LATENCY_THRESHOLD_MS = 15_000; // 15s average → open circuit
-const CIRCUIT_OPEN_INITIAL_MS = 60_000; // initial cooldown when circuit opens
+const CIRCUIT_OPEN_INITIAL_MS = 10_000; // fail fast; independent fallbacks remain available
 const CIRCUIT_HALF_OPEN_MAX_ATTEMPTS = 1; // single test call in half-open
-const CIRCUIT_OPEN_MAX_BACKOFF_MS = 30 * 60 * 1000; // max backoff: 30 minutes
+const CIRCUIT_OPEN_MAX_BACKOFF_MS = 2 * 60 * 1000; // cap recovery backoff at 2 minutes
 const EMPTY_RESPONSE_THRESHOLD = 5; // 5 empty responses → open circuit
 
 function getOrCreateHealth(modelName: string): ModelHealth {
@@ -333,6 +308,39 @@ export function isModelAvailable(modelName: string): boolean {
 }
 
 /**
+ * Reserve a model for one request. This is deliberately synchronous: JavaScript
+ * cannot interleave two callers between the availability check and the claim.
+ */
+export function claimModel(modelName: string): boolean {
+  const claimedAt = inFlightModels.get(modelName);
+  if (claimedAt !== undefined) {
+    if (Date.now() - claimedAt < MODEL_CLAIM_TTL_MS) return false;
+    inFlightModels.delete(modelName);
+  }
+
+  if (!canUseModel(modelName)) return false;
+
+  inFlightModels.set(modelName, Date.now());
+  const health = modelHealth.get(modelName);
+  if (health?.circuitState === "half-open") {
+    health.halfOpenAttempts++;
+  }
+  return true;
+}
+
+/** Release a model reservation after the request settles. */
+export function releaseModel(modelName: string): void {
+  inFlightModels.delete(modelName);
+}
+
+/** Return the remaining health cooldown for diagnostics and user-facing status. */
+export function getModelRetryAfterMs(modelName: string): number {
+  const health = modelHealth.get(modelName);
+  if (!health) return 0;
+  return Math.max(0, health.rateLimitedUntil - Date.now());
+}
+
+/**
  * Increment half-open attempt counter (call this when attempting a half-open test call).
  */
 export function recordHalfOpenAttempt(modelName: string): void {
@@ -348,7 +356,7 @@ export function recordHalfOpenAttempt(modelName: string): void {
  * (non en cooldown)
  */
 export function getAvailableFreeModels(): string[] {
-  return FREE_MODELS_OPENROUTER.filter((model) => canUseModel(model));
+  return getCandidateModels().filter((model) => canUseModel(model));
 }
 
 /**
@@ -359,25 +367,10 @@ export function getAvailableCheapModels(): string[] {
 }
 
 // ─── Modèles OpenAI premium (si clé API configurée) ──────────────────────────
-// Utilisés en priorité si OPENAI_API_KEY est défini
-const OPENAI_PREMIUM_MODELS = [
-  "gpt-4o-mini", // Rapide, pas cher, excellent en français
-  "gpt-4o", // Haute qualité, plus cher
-  "gpt-4.1-mini", // Dernière génération, bon rapport qualité/prix
-  "gpt-4.1-nano", // Ultra-rapide, le moins cher
-];
-
-/**
- * Retourne les modèles OpenAI premium si la clé API est configurée.
- */
-export function getOpenAIPremiumModels(): string[] {
-  if (!process.env.OPENAI_API_KEY) return [];
-  return [...OPENAI_PREMIUM_MODELS];
-}
+// OpenAI Premium supprimé — utilisation d'OpenRouter pour les modèles gpt-*
 
 /**
  * Retourne TOUS les modèles disponibles, par ordre de priorité:
- * 0. Modèles OpenAI premium (si clé API configurée)
  * 1. Modèles gratuits (du plus puissant au plus léger)
  * 2. Modèles bon marché (backup quasi gratuit)
  * 3. Routeur auto OpenRouter (toujours disponible, coûte variable)
@@ -385,10 +378,6 @@ export function getOpenAIPremiumModels(): string[] {
  * @param requiresTools Si true, exclut l'auto-router et les modèles sans function calling
  */
 export function getAllAvailableModels(requiresTools = false): string[] {
-  // 0. OpenAI premium en priorité si disponible
-  const premium = getOpenAIPremiumModels();
-  if (premium.length > 0) return premium;
-
   // 1. Modèles gratuits OpenRouter
   const free = getAvailableFreeModels();
   if (free.length > 0) return free;
@@ -402,14 +391,16 @@ export function getAllAvailableModels(requiresTools = false): string[] {
     return cheap;
   }
 
-  // Dernier recours: routeur auto (coût variable mais toujours dispo)
+  // Dernier recours: routeur auto uniquement si OpenRouter est configuré.
   // Mais pas si on a besoin de function calling — l'auto-router ne garantit pas le support tools
-  if (requiresTools) {
+  if (requiresTools || !config.openRouterApiKey) {
     logger.warn(
       `[ModelRotation] ⚠️ Tous les modèles avec tools sont en cooldown — utilisation des modèles sans tools en mode texte seul`,
     );
-    // Retourner les modèles sans tools quand même (mieux que rien)
-    return [...NO_TOOLS_MODELS];
+    // Aucun modèle compatible tools n'est disponible. L'appelant doit alors
+    // passer aux providers indépendants (Groq/Gemini/local), plutôt que de
+    // rappeler le modèle OpenRouter actuellement en cooldown.
+    return [];
   }
 
   logger.warn(`[ModelRotation] 🔄 Tous les modèles en cooldown — fallback routeur auto OpenRouter`);
@@ -442,7 +433,7 @@ export function getModelRotationStatus(): string {
   const lines: string[] = [];
 
   lines.push("── Modèles gratuits ──");
-  for (const model of FREE_MODELS_OPENROUTER) {
+  for (const model of OPENROUTER_FREE_MODELS) {
     const health = modelHealth.get(model);
     if (!health || (health.failures === 0 && health.circuitState === "closed")) {
       lines.push(`  ✅ ${model}`);
@@ -479,7 +470,11 @@ export function getModelRotationStatus(): string {
   }
 
   lines.push(`── Routeur auto ──`);
-  lines.push(`  ✅ ${AUTO_ROUTER_MODEL} (toujours disponible)`);
+  lines.push(
+    config.openRouterApiKey
+      ? `  ✅ ${AUTO_ROUTER_MODEL} (fallback OpenRouter)`
+      : `  ⏸️ ${AUTO_ROUTER_MODEL} (OpenRouter non configuré)`,
+  );
 
   return lines.join("\n");
 }

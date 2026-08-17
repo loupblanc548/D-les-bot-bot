@@ -234,7 +234,11 @@ export function scanPii(input: string): PiiResult {
     if (matches && matches.length > 0) {
       const unique = [...new Set(matches)];
       for (const val of unique) {
-        findings.push({ type, value: val.slice(0, 50), count: matches.filter((m) => m === val).length });
+        findings.push({
+          type,
+          value: val.slice(0, 50),
+          count: matches.filter((m) => m === val).length,
+        });
       }
     }
   }
@@ -264,7 +268,9 @@ export function parseIocs(input: string): IocResult {
     iocs.push({ type, value: h });
   }
 
-  const domainMatches = input.matchAll(/\b([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,}(?:\.[a-z]{2,})?)\b/gi);
+  const domainMatches = input.matchAll(
+    /\b([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,}(?:\.[a-z]{2,})?)\b/gi,
+  );
   for (const m of domainMatches) iocs.push({ type: "Domain", value: m[1].toLowerCase() });
 
   const urlMatches = input.matchAll(/https?:\/\/[^\s<>"']+/gi);
@@ -307,7 +313,13 @@ export function analyzeEntropy(input: string): EntropyResult {
   if (entropy > 6) rating = "Forte";
   if (entropy > 7) rating = "Très forte (potentiel chiffré/compressé)";
 
-  return { input: input.slice(0, 50), entropy: Math.round(entropy * 100) / 100, rating, charsetSize, success: true };
+  return {
+    input: input.slice(0, 50),
+    entropy: Math.round(entropy * 100) / 100,
+    rating,
+    charsetSize,
+    success: true,
+  };
 }
 
 // ─── 9. Hex Dump ─────────────────────────────────────────────────────────────
@@ -331,7 +343,9 @@ export function hexDump(input: string, bytesPerLine: number = 16): HexDumpResult
     const asciiPart = Array.from(slice)
       .map((b) => (b >= 32 && b <= 126 ? String.fromCharCode(b) : "."))
       .join("");
-    lines.push(`${offset.toString(16).padStart(8, "0")}  ${hexPart.padEnd(bytesPerLine * 3)}  ${asciiPart}`);
+    lines.push(
+      `${offset.toString(16).padStart(8, "0")}  ${hexPart.padEnd(bytesPerLine * 3)}  ${asciiPart}`,
+    );
   }
 
   return {
@@ -390,12 +404,28 @@ export async function parsePeHeader(filePath: string): Promise<PeHeaderResult> {
   try {
     const data = await fs.readFile(filePath);
     if (data.length < 64 || data[0] !== 0x4d || data[1] !== 0x5a) {
-      return { machine: "", sections: 0, timestamp: "", characteristics: [], subsystem: "", success: false, error: "Not a PE file (no MZ header)" };
+      return {
+        machine: "",
+        sections: 0,
+        timestamp: "",
+        characteristics: [],
+        subsystem: "",
+        success: false,
+        error: "Not a PE file (no MZ header)",
+      };
     }
 
     const peOffset = data.readUInt32LE(0x3c);
     if (data[peOffset] !== 0x50 || data[peOffset + 1] !== 0x45) {
-      return { machine: "", sections: 0, timestamp: "", characteristics: [], subsystem: "", success: false, error: "Invalid PE signature" };
+      return {
+        machine: "",
+        sections: 0,
+        timestamp: "",
+        characteristics: [],
+        subsystem: "",
+        success: false,
+        error: "Invalid PE signature",
+      };
     }
 
     const machine = data.readUInt16LE(peOffset + 4);
@@ -425,7 +455,15 @@ export async function parsePeHeader(filePath: string): Promise<PeHeaderResult> {
       success: true,
     };
   } catch (err) {
-    return { machine: "", sections: 0, timestamp: "", characteristics: [], subsystem: "", success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      machine: "",
+      sections: 0,
+      timestamp: "",
+      characteristics: [],
+      subsystem: "",
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -445,8 +483,23 @@ export interface ElfHeaderResult {
 export async function parseElfHeader(filePath: string): Promise<ElfHeaderResult> {
   try {
     const data = await fs.readFile(filePath);
-    if (data.length < 64 || data[0] !== 0x7f || data[1] !== 0x45 || data[2] !== 0x4c || data[3] !== 0x46) {
-      return { class: "", endian: "", machine: "", type: "", entry: "", sections: 0, success: false, error: "Not an ELF file" };
+    if (
+      data.length < 64 ||
+      data[0] !== 0x7f ||
+      data[1] !== 0x45 ||
+      data[2] !== 0x4c ||
+      data[3] !== 0x46
+    ) {
+      return {
+        class: "",
+        endian: "",
+        machine: "",
+        type: "",
+        entry: "",
+        sections: 0,
+        success: false,
+        error: "Not an ELF file",
+      };
     }
 
     const is64 = data[4] === 2;
@@ -470,12 +523,20 @@ export async function parseElfHeader(filePath: string): Promise<ElfHeaderResult>
     };
 
     const entry = is64
-      ? (isLE ? data.readBigUInt64LE(24) : data.readBigUInt64BE(24))
-      : (isLE ? data.readUInt32LE(24) : data.readUInt32BE(24));
+      ? isLE
+        ? data.readBigUInt64LE(24)
+        : data.readBigUInt64BE(24)
+      : isLE
+        ? data.readUInt32LE(24)
+        : data.readUInt32BE(24);
 
     const sectionCount = is64
-      ? (isLE ? data.readUInt16LE(60) : data.readUInt16BE(60))
-      : (isLE ? data.readUInt16LE(48) : data.readUInt16BE(48));
+      ? isLE
+        ? data.readUInt16LE(60)
+        : data.readUInt16BE(60)
+      : isLE
+        ? data.readUInt16LE(48)
+        : data.readUInt16BE(48);
 
     return {
       class: is64 ? "ELF64" : "ELF32",
@@ -487,7 +548,16 @@ export async function parseElfHeader(filePath: string): Promise<ElfHeaderResult>
       success: true,
     };
   } catch (err) {
-    return { class: "", endian: "", machine: "", type: "", entry: "", sections: 0, success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      class: "",
+      endian: "",
+      machine: "",
+      type: "",
+      entry: "",
+      sections: 0,
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -551,12 +621,36 @@ export interface DepVulnResult {
 }
 
 const VULN_PATTERNS: { pattern: string; severity: string; regex: RegExp }[] = [
-  { pattern: "Known vulnerable lodash <4.17.21", severity: "high", regex: /"lodash":\s*"[~^]?(\d+\.\d+\.\d+)"/ },
-  { pattern: "Known vulnerable axios <0.21.1", severity: "medium", regex: /"axios":\s*"[~^]?0\.\d+\.\d+"/ },
-  { pattern: "Known vulnerable minimist <1.2.6", severity: "high", regex: /"minimist":\s*"[~^]?0\.\d+|1\.[01]\.\d+"/ },
-  { pattern: "Known vulnerable handlebars <4.7.7", severity: "high", regex: /"handlebars":\s*"[~^]?[0-3]\.\d+\.\d+|4\.[0-6]\.\d+"/ },
-  { pattern: "Known vulnerable ws <7.4.6", severity: "medium", regex: /"ws":\s*"[~^]?[0-6]\.\d+\.\d+"/ },
-  { pattern: "Known vulnerable node-forge <1.3.0", severity: "high", regex: /"node-forge":\s*"[~^]?0\.\d+\.\d+|1\.[0-2]\.\d+"/ },
+  {
+    pattern: "Known vulnerable lodash <4.17.21",
+    severity: "high",
+    regex: /"lodash":\s*"[~^]?(\d+\.\d+\.\d+)"/,
+  },
+  {
+    pattern: "Known vulnerable axios <0.21.1",
+    severity: "medium",
+    regex: /"axios":\s*"[~^]?0\.\d+\.\d+"/,
+  },
+  {
+    pattern: "Known vulnerable minimist <1.2.6",
+    severity: "high",
+    regex: /"minimist":\s*"[~^]?0\.\d+|1\.[01]\.\d+"/,
+  },
+  {
+    pattern: "Known vulnerable handlebars <4.7.7",
+    severity: "high",
+    regex: /"handlebars":\s*"[~^]?[0-3]\.\d+\.\d+|4\.[0-6]\.\d+"/,
+  },
+  {
+    pattern: "Known vulnerable ws <7.4.6",
+    severity: "medium",
+    regex: /"ws":\s*"[~^]?[0-6]\.\d+\.\d+"/,
+  },
+  {
+    pattern: "Known vulnerable node-forge <1.3.0",
+    severity: "high",
+    regex: /"node-forge":\s*"[~^]?0\.\d+\.\d+|1\.[0-2]\.\d+"/,
+  },
   { pattern: "Eval in dependency", severity: "medium", regex: /"eval"/ },
   { pattern: "Shell script in dependency", severity: "low", regex: /"shelljs"/ },
 ];
@@ -564,7 +658,12 @@ const VULN_PATTERNS: { pattern: string; severity: string; regex: RegExp }[] = [
 export async function checkDependencyVulns(filePath: string): Promise<DepVulnResult> {
   try {
     const content = await fs.readFile(filePath, "utf8");
-    const vulnerabilities: { package: string; version: string; severity: string; pattern: string }[] = [];
+    const vulnerabilities: {
+      package: string;
+      version: string;
+      severity: string;
+      pattern: string;
+    }[] = [];
 
     for (const { pattern, severity, regex } of VULN_PATTERNS) {
       const match = content.match(regex);
@@ -584,7 +683,7 @@ export async function checkDependencyVulns(filePath: string): Promise<DepVulnRes
       count: vulnerabilities.length,
       success: true,
     };
-  } catch (err) {
+  } catch (_err) {
     return {
       file: filePath,
       vulnerabilities: [],

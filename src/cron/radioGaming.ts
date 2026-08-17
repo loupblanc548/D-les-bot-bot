@@ -68,7 +68,7 @@ async function gatherGamingData(): Promise<GamingData> {
         orderBy: { sentAt: "desc" },
         take: 5,
       })
-      .catch(() => []),
+      .catch((): { content: string; url: string }[] => []),
     prisma.notification
       .findMany({
         where: { sentAt: { gte: since }, content: { contains: "deal", mode: "insensitive" } },
@@ -76,7 +76,7 @@ async function gatherGamingData(): Promise<GamingData> {
         orderBy: { sentAt: "desc" },
         take: 5,
       })
-      .catch(() => []),
+      .catch((): { content: string; url: string }[] => []),
     prisma.notification
       .findMany({
         where: { sentAt: { gte: since }, content: { contains: "patch", mode: "insensitive" } },
@@ -84,7 +84,7 @@ async function gatherGamingData(): Promise<GamingData> {
         orderBy: { sentAt: "desc" },
         take: 5,
       })
-      .catch(() => []),
+      .catch((): { content: string; url: string }[] => []),
     prisma.notification
       .findMany({
         where: { sentAt: { gte: since }, content: { contains: "fortnite", mode: "insensitive" } },
@@ -92,7 +92,7 @@ async function gatherGamingData(): Promise<GamingData> {
         orderBy: { sentAt: "desc" },
         take: 3,
       })
-      .catch(() => []),
+      .catch((): { content: string; url: string }[] => []),
   ]);
 
   return {
@@ -314,7 +314,7 @@ async function resolveVoiceChannel(
   const envChannelId = process.env[RADIO_CHANNEL_ENV];
 
   if (envChannelId) {
-    const channel = await client.channels.fetch(envChannelId).catch(() => null);
+    const channel = await client.channels.fetch(envChannelId).catch((): null => null);
     if (channel && channel.isVoiceBased()) {
       return {
         channelId: channel.id,

@@ -203,7 +203,7 @@ describe("extractAllNamesFromEntry", () => {
   // ─── ENTRÉE SIMPLE (pas de bundle) ──────────────────────
 
   it("extrait uniquement les items pour une entrée sans bundle", () => {
-    const entry = {
+    const entry: Record<string, unknown> = {
       items: [{ name: "Renegade Raider" }],
     };
 
@@ -214,7 +214,7 @@ describe("extractAllNamesFromEntry", () => {
   });
 
   it("utilise entry.displayName puis entry.name quand il n'y a ni bundle ni items", () => {
-    const entry = {
+    const entry: Record<string, unknown> = {
       displayName: "Direct Shop Item",
       items: [],
     };
@@ -226,7 +226,7 @@ describe("extractAllNamesFromEntry", () => {
   });
 
   it("utilise entry.name comme dernier fallback", () => {
-    const entry = {
+    const entry: Record<string, unknown> = {
       name: "Fallback Item Name",
       items: [],
     };
@@ -283,7 +283,7 @@ describe("extractAllNamesFromEntry", () => {
   // ─── EDGE CASES ─────────────────────────────────────────
 
   it("retourne un tableau vide silencieusement pour une entrée vide (fetchShop() logue l'avertissement)", () => {
-    const entry = { items: [] };
+    const entry: Record<string, unknown> = { items: [] };
     const result = extractAllNamesFromEntry(entry);
 
     expect(result).toEqual([]);
@@ -407,32 +407,6 @@ describe("checkWishlistMatches", () => {
           entries,
         },
       }),
-    };
-  }
-
-  // Helper : construire un ShopEntry (simule ce que fetchShop produit)
-  function _makeShopEntry(
-    overrides: Partial<{
-      displayName: string;
-      allNames: string[];
-      rarity: string;
-      price: number;
-      type: string;
-      featuredImage: string | null;
-      icon: string;
-    }> = {},
-  ): any {
-    return {
-      displayName: overrides.displayName || "Default Skin",
-      allNames: overrides.allNames || [overrides.displayName?.toLowerCase() || "default skin"],
-      description: "A test item",
-      type: overrides.type || "Outfit",
-      rarity: overrides.rarity || "Legendary",
-      rarityColor: 0xff6600,
-      price: overrides.price ?? 1500,
-      icon: overrides.icon || "https://example.com/icon.png",
-      featuredImage: overrides.featuredImage || null,
-      section: "featured",
     };
   }
 

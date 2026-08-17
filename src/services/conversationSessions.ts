@@ -11,7 +11,6 @@ import { ChatInputCommandInteraction, MessageFlags, EmbedBuilder } from "discord
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getOpenAIClient } from "./ai.js";
-import { config } from "../config.js";
 
 // ─── Active session tracking (in-memory) ─────────────────────────────────────
 

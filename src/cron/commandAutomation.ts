@@ -56,7 +56,7 @@ async function runTrendReport(client: Client): Promise<void> {
 
     const logChannelId = config.gamingBlogChannel || config.logChannel;
     if (logChannelId) {
-      const channel = await client.channels.fetch(logChannelId).catch(() => null);
+      const channel = await client.channels.fetch(logChannelId).catch((): null => null);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
           .setColor(0xef7f1a)
@@ -91,7 +91,7 @@ async function runScraperStatus(client: Client): Promise<void> {
 
     const logChannelId = config.logChannel;
     if (!logChannelId) return;
-    const channel = await client.channels.fetch(logChannelId).catch(() => null);
+    const channel = await client.channels.fetch(logChannelId).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const embed = new EmbedBuilder()
@@ -126,7 +126,7 @@ async function runSourceStats(client: Client): Promise<void> {
 
     const logChannelId = config.logChannel;
     if (!logChannelId) return;
-    const channel = await client.channels.fetch(logChannelId).catch(() => null);
+    const channel = await client.channels.fetch(logChannelId).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const topSources = sources
@@ -167,7 +167,7 @@ async function runSecurityAudit(client: Client): Promise<void> {
 
     const logChannelId = config.logChannel;
     if (!logChannelId) return;
-    const channel = await client.channels.fetch(logChannelId).catch(() => null);
+    const channel = await client.channels.fetch(logChannelId).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const embed = new EmbedBuilder()
@@ -206,7 +206,7 @@ export function handleAutoSnipe(client: Client): void {
       // Auto-post dans le log channel
       const logChannelId = config.logChannel;
       if (logChannelId) {
-        const channel = await client.channels.fetch(logChannelId).catch(() => null);
+        const channel = await client.channels.fetch(logChannelId).catch((): null => null);
         if (channel?.isTextBased()) {
           const embed = new EmbedBuilder()
             .setColor(0x95a5a6)
@@ -277,7 +277,7 @@ async function runCommandStatsReport(client: Client): Promise<void> {
 
     const logChannelId = config.logChannel;
     if (!logChannelId) return;
-    const channel = await client.channels.fetch(logChannelId).catch(() => null);
+    const channel = await client.channels.fetch(logChannelId).catch((): null => null);
     if (!channel?.isTextBased()) return;
 
     const lines = sorted.map(([name, stats]) => `• /${name} — ${stats.count} utilisations`);
@@ -350,7 +350,7 @@ async function runTrendPredict(client: Client): Promise<void> {
 
     const logChannelId = config.gamingBlogChannel || config.logChannel;
     if (logChannelId) {
-      const channel = await client.channels.fetch(logChannelId).catch(() => null);
+      const channel = await client.channels.fetch(logChannelId).catch((): null => null);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
           .setColor(0xff6b35)

@@ -73,23 +73,35 @@ function countEvents(tracker: EventTracker, action: string): number {
 
 export async function getAntiNukeConfig(guildId: string): Promise<AntiNukeConfig> {
   try {
-    const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
+    const record = await prisma.guildConfig
+      .findUnique({ where: { guildId } })
+      .catch((): null => null);
     if (record?.antiNukeConfig) {
-      return { ...DEFAULT_CONFIG, ...(JSON.parse(record.antiNukeConfig as string) as Partial<AntiNukeConfig>) };
+      return {
+        ...DEFAULT_CONFIG,
+        ...(JSON.parse(record.antiNukeConfig as string) as Partial<AntiNukeConfig>),
+      };
     }
-  } catch { /* table might not exist */ }
+  } catch {
+    /* table might not exist */
+  }
   return { ...DEFAULT_CONFIG };
 }
 
-export async function setAntiNukeConfig(guildId: string, config: Partial<AntiNukeConfig>): Promise<void> {
+export async function setAntiNukeConfig(
+  guildId: string,
+  config: Partial<AntiNukeConfig>,
+): Promise<void> {
   try {
     const current = await getAntiNukeConfig(guildId);
     const merged = { ...current, ...config };
-    await prisma.guildConfig.upsert({
-      where: { guildId },
-      create: { guildId, antiNukeConfig: JSON.stringify(merged) },
-      update: { antiNukeConfig: JSON.stringify(merged) },
-    }).catch(() => {});
+    await prisma.guildConfig
+      .upsert({
+        where: { guildId },
+        create: { guildId, antiNukeConfig: JSON.stringify(merged) },
+        update: { antiNukeConfig: JSON.stringify(merged) },
+      })
+      .catch(() => {});
   } catch (error) {
     logger.error("[AntiNuke] setAntiNukeConfig:", String(error));
   }
@@ -105,7 +117,7 @@ async function autoPunish(
   reason: string,
 ): Promise<void> {
   try {
-    const member = await guild.members.fetch(executorId).catch(() => null);
+    const member = await guild.members.fetch(executorId).catch((): null => null);
     if (!member) return;
 
     // Don't punish owners or whitelist
@@ -116,7 +128,14 @@ async function autoPunish(
 
     if (action === "strip") {
       // Remove all dangerous permissions
-      const dangerousPerms = ["Administrator", "ManageChannels", "ManageRoles", "BanMembers", "KickMembers", "ManageGuild"];
+      const dangerousPerms = [
+        "Administrator",
+        "ManageChannels",
+        "ManageRoles",
+        "BanMembers",
+        "KickMembers",
+        "ManageGuild",
+      ];
       const rolesToRemove = member.roles.cache.filter((r) =>
         r.permissions.toArray().some((p) => dangerousPerms.includes(p)),
       );
@@ -139,7 +158,11 @@ async function autoPunish(
           .setTitle("🛡️ Anti-Nuke — Action automatique")
           .setColor(0xe74c3c)
           .addFields(
-            { name: "👤 Utilisateur", value: `<@${executorId}> (${member.user.tag})`, inline: false },
+            {
+              name: "👤 Utilisateur",
+              value: `<@${executorId}> (${member.user.tag})`,
+              inline: false,
+            },
             { name: "⚡ Action", value: action.toUpperCase(), inline: true },
             { name: "📝 Raison", value: reason, inline: false },
           )
@@ -165,9 +188,9 @@ export async function checkAuditLogs(client: Client, guild: Guild): Promise<void
       type: AuditLogEvent.ChannelDelete,
     });
 
-    const recentEntries = audits.entries.filter(
-      (e) => Date.now() - e.createdTimestamp < config.timeWindowMs,
-    ).values();
+    const recentEntries = audits.entries
+      .filter((e) => Date.now() - e.createdTimestamp < config.timeWindowMs)
+      .values();
 
     for (const entry of recentEntries) {
       const executorId = entry.executorId;
@@ -185,18 +208,26 @@ export async function checkAuditLogs(client: Client, guild: Guild): Promise<void
       // Check thresholds
       const channelDeletes = countEvents(tracker, AuditLogEvent.ChannelDelete.toString());
       if (channelDeletes >= config.channelDeleteThreshold) {
-        await autoPunish(client, guild, executorId, config.action, `Mass channel delete (${channelDeletes})`);
+        await autoPunish(
+          client,
+          guild,
+          executorId,
+          config.action,
+          `Mass channel delete (${channelDeletes})`,
+        );
         tracker.events = []; // Reset after punishment
         continue;
       }
     }
 
     // Also check ban audits
-    const banAudits = await guild.fetchAuditLogs({ limit: 20, type: AuditLogEvent.MemberBanAdd }).catch(() => null);
+    const banAudits = await guild
+      .fetchAuditLogs({ limit: 20, type: AuditLogEvent.MemberBanAdd })
+      .catch((): null => null);
     if (banAudits) {
-      const recentBans = banAudits.entries.filter(
-        (e) => Date.now() - e.createdTimestamp < config.timeWindowMs,
-      ).values();
+      const recentBans = banAudits.entries
+        .filter((e) => Date.now() - e.createdTimestamp < config.timeWindowMs)
+        .values();
       for (const entry of recentBans) {
         const executorId = entry.executorId;
         if (!executorId || config.whitelist.includes(executorId)) continue;
@@ -220,11 +251,13 @@ export async function checkAuditLogs(client: Client, guild: Guild): Promise<void
     }
 
     // Check role deletes
-    const roleAudits = await guild.fetchAuditLogs({ limit: 20, type: AuditLogEvent.RoleDelete }).catch(() => null);
+    const roleAudits = await guild
+      .fetchAuditLogs({ limit: 20, type: AuditLogEvent.RoleDelete })
+      .catch((): null => null);
     if (roleAudits) {
-      const recentRoleDeletes = roleAudits.entries.filter(
-        (e) => Date.now() - e.createdTimestamp < config.timeWindowMs,
-      ).values();
+      const recentRoleDeletes = roleAudits.entries
+        .filter((e) => Date.now() - e.createdTimestamp < config.timeWindowMs)
+        .values();
       for (const entry of recentRoleDeletes) {
         const executorId = entry.executorId;
         if (!executorId || config.whitelist.includes(executorId)) continue;
@@ -240,7 +273,13 @@ export async function checkAuditLogs(client: Client, guild: Guild): Promise<void
 
         const roleDeleteCount = countEvents(tracker, "ROLE_DELETE");
         if (roleDeleteCount >= config.roleDeleteThreshold) {
-          await autoPunish(client, guild, executorId, config.action, `Mass role delete (${roleDeleteCount})`);
+          await autoPunish(
+            client,
+            guild,
+            executorId,
+            config.action,
+            `Mass role delete (${roleDeleteCount})`,
+          );
           tracker.events = [];
           break;
         }
@@ -263,7 +302,7 @@ export async function checkBotAdd(
   if (!config.enabled) return;
   if (config.whitelist.includes(adderId)) return;
 
-  const adder = await guild.members.fetch(adderId).catch(() => null);
+  const adder = await guild.members.fetch(adderId).catch((): null => null);
   if (!adder || adder.id === guild.ownerId) return;
 
   // Check if adder is trusted (has been in server for > 30 days and has no sanctions)
@@ -272,7 +311,7 @@ export async function checkBotAdd(
 
   if (accountAge < 7 * 86_400_000 || joinAge < 86_400_000) {
     // Untrusted: kick the bot and punish adder
-    const botMember = await guild.members.fetch(botId).catch(() => null);
+    const botMember = await guild.members.fetch(botId).catch((): null => null);
     if (botMember) {
       await botMember.kick("Anti-Nuke: Bot added by untrusted member").catch(() => {});
     }
@@ -298,14 +337,25 @@ export async function generateAntiNukeStatusEmbed(guildId: string): Promise<Embe
       { name: "Status", value: config.enabled ? "✅ Activé" : "❌ Désactivé", inline: true },
       { name: "Action", value: config.action.toUpperCase(), inline: true },
       { name: "Fenêtre", value: `${config.timeWindowMs / 1000}s`, inline: true },
-      { name: "📊 Seuils", value: [
-        `Channel delete: ${config.channelDeleteThreshold}`,
-        `Role delete: ${config.roleDeleteThreshold}`,
-        `Ban: ${config.banThreshold}`,
-        `Kick: ${config.kickThreshold}`,
-        `Emoji delete: ${config.emojiDeleteThreshold}`,
-      ].join("\n"), inline: false },
-      { name: "👥 Whitelist", value: config.whitelist.length > 0 ? config.whitelist.map((id) => `<@${id}>`).join(", ") : "Vide", inline: false },
+      {
+        name: "📊 Seuils",
+        value: [
+          `Channel delete: ${config.channelDeleteThreshold}`,
+          `Role delete: ${config.roleDeleteThreshold}`,
+          `Ban: ${config.banThreshold}`,
+          `Kick: ${config.kickThreshold}`,
+          `Emoji delete: ${config.emojiDeleteThreshold}`,
+        ].join("\n"),
+        inline: false,
+      },
+      {
+        name: "👥 Whitelist",
+        value:
+          config.whitelist.length > 0
+            ? config.whitelist.map((id) => `<@${id}>`).join(", ")
+            : "Vide",
+        inline: false,
+      },
       { name: "📈 Événements récents", value: `${totalEvents} dans la fenêtre`, inline: true },
     )
     .setTimestamp();
