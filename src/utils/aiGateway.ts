@@ -1,4 +1,17 @@
-import { withCircuitBreaker } from "./circuitBreaker.js";
+import { CircuitBreaker } from "./circuitBreaker.js";
+
+const circuitBreakers = new Map<string, CircuitBreaker>();
+
+function getBreaker(name: string): CircuitBreaker {
+  if (!circuitBreakers.has(name)) {
+    circuitBreakers.set(name, new CircuitBreaker({ name }));
+  }
+  return circuitBreakers.get(name)!;
+}
+
+async function withCircuitBreaker<T>(name: string, fn: () => Promise<T>): Promise<T> {
+  return getBreaker(name).execute(fn);
+}
 
 export type Provider = "colab" | "local" | "openai" | "anthropic" | "openrouter";
 
@@ -9,7 +22,9 @@ let latencyHistogram: any = null;
 
 async function getMetrics() {
   try {
-    const { register, Counter, Histogram } = await import("../services/metrics.js");
+    const metricsMod = await import("../services/metrics.js");
+    const { register } = metricsMod;
+    const { Counter, Histogram } = await import("prom-client");
     if (!tokenCounter) {
       tokenCounter = new Counter({
         name: "bot_ai_tokens_total",
@@ -78,8 +93,8 @@ export async function callAi(
       const elapsed = (Date.now() - startTime) / 1000;
       metrics?.callCounter?.inc({ provider, status: "success" });
       metrics?.latencyHistogram?.observe({ provider }, elapsed);
-      if (result.tokensUsed) {
-        metrics?.tokenCounter?.inc({ provider, type: "total" }, result.tokensUsed);
+      if ((result as any).tokensUsed) {
+        metrics?.tokenCounter?.inc({ provider, type: "total" }, (result as any).tokensUsed);
       }
       return result;
     } catch (e) {

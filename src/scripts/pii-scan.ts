@@ -20,26 +20,26 @@ export async function scanForPii(): Promise<{ emails: number; phones: number; de
   let emails = 0;
   let phones = 0;
 
-  // Scan recent messages for PII (not deleted, within retention window)
-  const recentMessages = await prisma.message.findMany({
+  // Scan recent logs for PII (not deleted, within retention window)
+  const recentMessages = await prisma.log.findMany({
     where: {
       createdAt: { gte: cutoff },
-      content: { not: null },
+      details: { not: null },
     },
-    select: { id: true, content: true },
+    select: { id: true, details: true },
     take: 1000,
   });
 
   for (const msg of recentMessages) {
-    if (!msg.content) continue;
-    const emailMatches = msg.content.match(EMAIL_PATTERN);
-    const phoneMatches = msg.content.match(PHONE_PATTERN);
+    if (!msg.details) continue;
+    const emailMatches = msg.details.match(EMAIL_PATTERN);
+    const phoneMatches = msg.details.match(PHONE_PATTERN);
     if (emailMatches) emails += emailMatches.length;
     if (phoneMatches) phones += phoneMatches.length;
   }
 
-  // Delete messages older than retention period
-  const deleted = await prisma.message.deleteMany({
+  // Delete logs older than retention period
+  const deleted = await prisma.log.deleteMany({
     where: { createdAt: { lt: cutoff } },
   });
 

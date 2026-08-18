@@ -64,7 +64,7 @@ export async function takeScreenshot(
       if (colabResult?.image_base64) {
         const buffer = Buffer.from(colabResult.image_base64, "base64");
         const attachment = new AttachmentBuilder(buffer, { name: "screenshot.png" });
-        await ctx.send({ files: [attachment] });
+        await (ctx.message.channel as any).send({ files: [attachment] });
         logger.info(`[Screenshot] Captured via Colab GPU: ${url}`);
         return { success: true, data: `Screenshot de ${url} capturé via Colab GPU` };
       }
