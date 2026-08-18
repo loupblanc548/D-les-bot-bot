@@ -14,10 +14,10 @@ module.exports = {
       cwd: "/opt/bot",
       instances: 1,
       exec_mode: "fork",
-      max_memory_restart: "4G",
+      max_memory_restart: "1G",
       env: {
         NODE_ENV: "production",
-        NODE_OPTIONS: "--max-old-space-size=4096",
+        NODE_OPTIONS: "--max-old-space-size=512",
       },
       error_file: "/root/.pm2/logs/bot-error.log",
       out_file: "/root/.pm2/logs/bot-out.log",

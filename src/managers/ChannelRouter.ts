@@ -13,6 +13,11 @@
 import { EmbedBuilder, TextChannel, Client, MessageCreateOptions } from "discord.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
+
+// Cache channels that don't exist anymore to avoid repeated fetch + log spam
+const deadChannels = new Set<string>();
+const DEAD_CHANNEL_TTL_MS = 30 * 60 * 1000; // 30 min before retrying
+const deadChannelTimestamps = new Map<string, number>();
 import { generateCardAttachment } from "../utils/notificationCards.js";
 
 // ─── Configuration des plateformes ─────────────────────────────────────────
@@ -205,14 +210,28 @@ export async function dispatchToChannels(
 
   // Construire l'embed pour chaque plateforme et envoyer
   for (const channelId of article.channelIds) {
+    // Skip known-dead channels (cached for 30 min to avoid log spam)
+    if (deadChannels.has(channelId)) {
+      const ts = deadChannelTimestamps.get(channelId) ?? 0;
+      if (Date.now() - ts < DEAD_CHANNEL_TTL_MS) {
+        result.errors.push(`Channel ${channelId} introuvable (cache)`);
+        continue;
+      }
+      // TTL expired — retry
+      deadChannels.delete(channelId);
+      deadChannelTimestamps.delete(channelId);
+    }
+
     try {
       let channel;
       try {
         channel = await client.channels.fetch(channelId);
       } catch {
-        // Channel deleted or bot lacks access — skip silently with warning
+        // Channel deleted or bot lacks access — cache and skip
+        deadChannels.add(channelId);
+        deadChannelTimestamps.set(channelId, Date.now());
         result.errors.push(`Channel ${channelId} introuvable (supprimé ou inaccessible)`);
-        logger.warn(`[ChannelRouter] Channel ${channelId} introuvable — ignoré`);
+        logger.warn(`[ChannelRouter] Channel ${channelId} introuvable — ignoré (cache 30min)`);
         continue;
       }
       if (!channel || !channel.isTextBased()) {
