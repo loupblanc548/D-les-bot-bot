@@ -1,6 +1,10 @@
 import logger from "./logger.js";
 import { detectLanguage, type SupportedLang } from "./languageDetector.js";
 import { config } from "../config.js";
+import { ensureConnected } from "./redisClient.js";
+
+const REDIS_TRANSLATION_PREFIX = "trans:";
+const REDIS_TRANSLATION_TTL = 86400; // 24h
 
 /**
  * Service de traduction intelligent avec Circuit Breaker (Disjoncteur réseau)
@@ -187,6 +191,18 @@ export async function translateAutoToFrench(text: string): Promise<TranslationRe
 /**
  * Traduit un texte vers une langue cible avec Circuit Breaker + Failover
  */
+async function cacheToRedis(cacheKey: string, result: TranslationResult): Promise<void> {
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_TRANSLATION_PREFIX}${Buffer.from(cacheKey).toString("base64url")}`;
+      await redis.set(redisKey, JSON.stringify(result), { EX: REDIS_TRANSLATION_TTL });
+    }
+  } catch {
+    // Redis unavailable — silent
+  }
+}
+
 export async function translateText(
   text: string,
   targetLang: LanguageCode,
@@ -196,8 +212,24 @@ export async function translateText(
     return null;
   }
 
-  // Check cache first
+  // Check Redis cache first (persistent across restarts)
   const cacheKey = `${text}|${targetLang}|${sourceLang}`;
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_TRANSLATION_PREFIX}${Buffer.from(cacheKey).toString("base64url")}`;
+      const redisCached = (await redis.get(redisKey)) as string | null;
+      if (redisCached) {
+        const parsed = JSON.parse(redisCached) as TranslationResult;
+        translationCache.set(cacheKey, parsed); // also populate in-memory cache
+        return parsed;
+      }
+    }
+  } catch {
+    // Redis unavailable — continue to in-memory cache
+  }
+
+  // Check in-memory cache
   const cached = translationCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -254,6 +286,7 @@ export async function translateText(
           if (firstKey) translationCache.delete(firstKey);
         }
         translationCache.set(cacheKey, openRouterResult);
+        await cacheToRedis(cacheKey, openRouterResult);
         return openRouterResult;
       }
     } catch (error) {
@@ -313,6 +346,7 @@ export async function translateText(
           if (firstKey) translationCache.delete(firstKey);
         }
         translationCache.set(cacheKey, result);
+        await cacheToRedis(cacheKey, result);
         logger.info("[Translator] LibreTranslate ✓ (Plan C)");
         return result;
       }

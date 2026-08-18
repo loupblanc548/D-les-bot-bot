@@ -27,6 +27,8 @@ import {
 } from "./modelRotation.js";
 import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
 import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
+import { getCerebrasClient, isCerebrasAvailable, getCerebrasModel } from "./cerebras.js";
+import { getSambaNovaClient, isSambaNovaAvailable, getSambaNovaModel } from "./sambanova.js";
 import { sanitizeForLlm } from "../utils/promptSanitizer.js";
 import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
 import {
@@ -1247,7 +1249,58 @@ async function runAgentLoopInternal(
       }
     }
 
-    // ─── Étape 2b: Fallback Gemini si OpenRouter + Groq ont échoué ───
+    // ─── Étape 2a: Fallback Cerebras (1000 tok/s) si Groq a échoué ───
+    if (!response && isCerebrasAvailable()) {
+      try {
+        logger.warn(`[AgentLoop] Fallback Cerebras (${getCerebrasModel()}) — ultra-rapide`);
+        const cerebrasClient = getCerebrasClient()!;
+        response = await cerebrasClient.chat.completions.create(
+          {
+            model: getCerebrasModel(),
+            messages: buildProviderConversation(conversation, imageUrls) as never,
+            tools: availableTools as never,
+            max_tokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+            parallel_tool_calls: true,
+            stream: false,
+          } as never,
+          { timeout: 12_000 } as never,
+        );
+        logger.info(`[AgentLoop] ✅ Cerebras fallback réussi`);
+      } catch (cerebrasErr) {
+        const cerebrasErrMsg =
+          cerebrasErr instanceof Error ? cerebrasErr.message : String(cerebrasErr);
+        logger.error(`[AgentLoop] Cerebras fallback failed: ${cerebrasErrMsg}`);
+        lastErrMsg = cerebrasErrMsg;
+      }
+    }
+
+    // ─── Étape 2b: Fallback SambaNova (Llama 405B) si Cerebras a échoué ───
+    if (!response && isSambaNovaAvailable()) {
+      try {
+        logger.warn(`[AgentLoop] Fallback SambaNova (${getSambaNovaModel()}) — gros modèle`);
+        const sambaClient = getSambaNovaClient()!;
+        response = await sambaClient.chat.completions.create(
+          {
+            model: getSambaNovaModel(),
+            messages: buildProviderConversation(conversation, imageUrls) as never,
+            tools: availableTools as never,
+            max_tokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+            parallel_tool_calls: true,
+            stream: false,
+          } as never,
+          { timeout: 18_000 } as never,
+        );
+        logger.info(`[AgentLoop] ✅ SambaNova fallback réussi`);
+      } catch (sambaErr) {
+        const sambaErrMsg = sambaErr instanceof Error ? sambaErr.message : String(sambaErr);
+        logger.error(`[AgentLoop] SambaNova fallback failed: ${sambaErrMsg}`);
+        lastErrMsg = sambaErrMsg;
+      }
+    }
+
+    // ─── Étape 2c: Fallback Gemini si tout a échoué ───
     if (!response && isGeminiAvailable()) {
       try {
         logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
