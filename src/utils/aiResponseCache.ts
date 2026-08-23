@@ -9,6 +9,7 @@
 import logger from "./logger.js";
 import { aiCacheHits, aiCacheMisses } from "../services/prometheusExporter.js";
 import { ensureConnected } from "./redisClient.js";
+import { isErrorResponse } from "../services/responseClassifier.js";
 
 interface CacheEntry {
   response: string;
@@ -78,13 +79,18 @@ export async function getCachedResponse(
   const normalized = normalize(message);
 
   // L1: In-memory cache
-  for (const [, entry] of cache) {
+  for (const [key, entry] of cache) {
     if (Date.now() - entry.timestamp > CACHE_TTL_MS) continue;
     if (entry.userId !== userId) continue;
 
     const cachedNorm = normalize(entry.response.slice(0, 500));
     const sim = cosineSimilarity(normalized, cachedNorm);
     if (sim >= SIMILARITY_THRESHOLD) {
+      if (isErrorResponse(entry.response)) {
+        logger.warn(`[AICache] L1 hit but response is error/hallucination — skipping`);
+        cache.delete(key);
+        continue;
+      }
       logger.info(`[AICache] L1 hit (similarity: ${sim.toFixed(2)})`);
       aiCacheHits.labels(channelType).inc();
       return entry.response;
@@ -99,6 +105,12 @@ export async function getCachedResponse(
       const redisVal = (await redis.get(redisKey)) as string | null;
       if (redisVal) {
         const entry = JSON.parse(redisVal) as CacheEntry;
+        if (isErrorResponse(entry.response)) {
+          logger.warn(`[AICache] L2 (Redis) hit but response is error/hallucination — deleting`);
+          await redis.del(redisKey).catch(() => {});
+          aiCacheMisses.labels(channelType).inc();
+          return null;
+        }
         // Populate L1 for future fast access
         cache.set(`${userId}:${normalized.slice(0, 100)}`, entry);
         logger.info(`[AICache] L2 (Redis) hit`);
@@ -106,13 +118,24 @@ export async function getCachedResponse(
         return entry.response;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   aiCacheMisses.labels(channelType).inc();
   return null;
 }
 
-export async function setCachedResponse(message: string, response: string, userId: string): Promise<void> {
+export async function setCachedResponse(
+  message: string,
+  response: string,
+  userId: string,
+): Promise<void> {
+  // Never cache error/hallucinated responses
+  if (isErrorResponse(response)) {
+    logger.warn(`[AICache] Refusing to cache error/hallucination response`);
+    return;
+  }
   const normalized = normalize(message);
   const entry: CacheEntry = { response, timestamp: Date.now(), userId };
   const key = `${userId}:${normalized.slice(0, 100)}`;
@@ -128,7 +151,9 @@ export async function setCachedResponse(message: string, response: string, userI
       const redisKey = `${REDIS_PREFIX}${key}`;
       await redis.setEx(redisKey, REDIS_TTL_S, JSON.stringify(entry));
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export function clearCache(): void {

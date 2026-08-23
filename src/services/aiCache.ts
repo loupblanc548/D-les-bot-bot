@@ -1,5 +1,6 @@
 import logger from "../utils/logger.js";
 import crypto from "crypto";
+import { isErrorResponse } from "./responseClassifier.js";
 
 /**
  * Service de cache pour les réponses IA
@@ -70,6 +71,13 @@ export function getCachedResponse(message: string, context?: string): string | n
     return null;
   }
 
+  // Filtrer les réponses d'erreur/hallucination en cache
+  if (isErrorResponse(cached.response)) {
+    responseCache.delete(key);
+    logger.warn(`[AICache] Cache hit mais réponse est erreur/hallucination — supprimé`);
+    return null;
+  }
+
   // Incrémenter le compteur de hits
   cached.hitCount++;
   responseCache.set(key, cached);
@@ -85,8 +93,8 @@ export function getCachedResponse(message: string, context?: string): string | n
 export function cacheResponse(message: string, response: string, context?: string): void {
   // Ne pas cacher les réponses trop courtes (erreurs, clarifications)
   if (response.length < 20) return;
-  // Ne pas cacher les messages d'erreur
-  if (response.includes("Le serveur IA") || response.includes("Problème de communication")) return;
+  // Ne pas cacher les réponses d'erreur/hallucination
+  if (isErrorResponse(response)) return;
   // Ne pas cacher les questions de clarification (ambiguïté)
   if (response.startsWith("🤔")) return;
 
