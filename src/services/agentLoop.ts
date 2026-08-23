@@ -14,6 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm } from "./aiGateway.js";
+import { isErrorResponse } from "./responseClassifier.js";
 import {
   markModelSuccess,
   recordModelLatency,
@@ -1199,7 +1200,7 @@ async function runAgentLoopInternal(
 
     // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      const finalReply = assistantMessage.content || "*(silence)*";
+      const finalReply = assistantMessage.content || "";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
       logStatsSummary();
       completeInteraction(breakerState);
@@ -1233,14 +1234,20 @@ async function runAgentLoopInternal(
         })
         .catch(() => {});
 
-      // ─── MODULE B2: Mettre en cache sémantique ───
-      cacheResponse(userMessage, finalReply, cacheCtx);
-
       // ─── MODULE C: Reset retry state ───
       resetRetries(breakerState.interactionId);
 
       // ─── Cognitive Loop Engine: purge on success ───
       purgeCognitiveSession(cognitiveSessionId);
+
+      // ─── Filter hallucinated error responses ──
+      if (isErrorResponse(finalReply)) {
+        logger.warn(`[AgentLoop] ⚠️ LLM returned a hallucinated error response — filtering`);
+        return "";
+      }
+
+      // ─── MODULE B2: Mettre en cache sémantique (only valid responses) ───
+      cacheResponse(userMessage, finalReply, cacheCtx);
 
       return finalReply;
     }
