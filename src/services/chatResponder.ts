@@ -13,11 +13,7 @@
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm, getProviderStatus, type LlmCallRequest, type ProviderName } from "./aiGateway.js";
-import {
-  classifyResponse,
-  isHallucinatedError,
-  sanitizeResponse as classifySanitize,
-} from "./responseClassifier.js";
+import { isHallucinatedError, sanitizeResponse as classifySanitize } from "./responseClassifier.js";
 import { hallucinationDetected } from "./prometheusExporter.js";
 
 // ─── Sanitization des réponses (délégué au classifieur unique) ───────────────

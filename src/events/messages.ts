@@ -1498,16 +1498,8 @@ async function handleAiChatMention(
 
     // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    // Le pipeline local-first fonctionne sans clé externe. `apiKey` reste
-    // optionnelle et n'est utilisée que par le dernier fallback OpenRouter.
-
     // ── Construire le contexte : faits long-terme + historique conversation ──
-    const messages = await buildConversationContext(
-      message.author.id,
-      effectiveContent,
-      message.author.username,
-    );
+    await buildConversationContext(message.author.id, effectiveContent, message.author.username);
 
     // ── Marquer la conversation comme active ──
     touchConversation(message.author.id);
@@ -2069,7 +2061,6 @@ async function handleDMMessage(
 
     // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
     // Les DMs peuvent être traités par Ollama ou les providers disponibles
     // sans rendre OpenRouter obligatoire.
 
