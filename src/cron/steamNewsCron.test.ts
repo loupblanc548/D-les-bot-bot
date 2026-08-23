@@ -122,6 +122,10 @@ vi.mock("../utils/retry", () => ({
   retry: vi.fn(async (fn: () => Promise<any>) => fn()),
 }));
 
+vi.mock("../utils/translator", () => ({
+  translateAutoToFrench: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../utils/cache", () => ({
   dbCache: {
     get: vi.fn(),
@@ -162,6 +166,16 @@ function makeMockClient(channelsMap: Record<string, TextChannel | null> = {}): C
   } as unknown as Client;
 }
 
+async function runCheckTrackedGames(client: Client): Promise<void> {
+  const check = checkTrackedGames(client);
+  await Promise.resolve();
+  await Promise.resolve();
+  await vi.runAllTimersAsync();
+  await Promise.resolve();
+  await vi.runAllTimersAsync();
+  await check;
+}
+
 function makeFeedItem(overrides: Record<string, string> = {}) {
   return {
     title: "PC Update 1.0 Patch Notes",
@@ -179,6 +193,12 @@ function makeFeedItem(overrides: Record<string, string> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFetch.mockReset();
+  mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
+  mockProcessedPatchNotesFindUnique.mockReset();
+  mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
+  mockProcessedPatchNotesCreate.mockReset();
+  mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
   vi.useFakeTimers({ shouldAdvanceTime: true });
   // Configurer PLATFORM_CONFIGS pour que tous les channels soient actifs
   PLATFORM_CONFIGS.epic.channelId = "steam-epic-chan";
@@ -191,6 +211,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopSteamNewsMonitoring();
   vi.useRealTimers();
 });
 
@@ -207,7 +228,7 @@ describe("checkTrackedGames", () => {
       PLATFORM_CONFIGS.nintendo.channelId = undefined;
 
       const client = makeMockClient();
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Aucun CHANNEL_ID"));
       expect(mockFetch).not.toHaveBeenCalled();
@@ -225,7 +246,7 @@ describe("checkTrackedGames", () => {
 
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockFetch).toHaveBeenCalled();
     });
@@ -263,7 +284,7 @@ describe("checkTrackedGames", () => {
 
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockLoggerWarn).toHaveBeenCalledWith(
         expect.stringContaining("Flux Reddit inaccessible"),
@@ -279,7 +300,7 @@ describe("checkTrackedGames", () => {
 
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Aucun article trouve"));
       expect(channel.send).not.toHaveBeenCalled();
@@ -295,7 +316,7 @@ describe("checkTrackedGames", () => {
       mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [item] }) });
       mockProcessedPatchNotesFindUnique.mockResolvedValue({ id: 1 }); // deja traite
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(channel.send).not.toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith(
@@ -312,7 +333,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null); // nouveau
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(channel.send).toHaveBeenCalledTimes(1);
     });
@@ -332,7 +353,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(pcChannel.send).toHaveBeenCalledTimes(1);
       expect(psChannel.send).not.toHaveBeenCalled();
@@ -356,7 +377,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(psChannel.send).toHaveBeenCalledTimes(1);
       expect(pcChannel.send).not.toHaveBeenCalled();
@@ -375,7 +396,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(xboxChannel.send).toHaveBeenCalledTimes(1);
       expect(pcChannel.send).not.toHaveBeenCalled();
@@ -394,7 +415,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(ninChannel.send).toHaveBeenCalledTimes(1);
       expect(pcChannel.send).not.toHaveBeenCalled();
@@ -415,7 +436,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(pcChannel.send).toHaveBeenCalledTimes(1);
       expect(psChannel.send).toHaveBeenCalledTimes(1);
@@ -437,7 +458,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(channels["steam-epic-chan"].send).toHaveBeenCalledTimes(2);
       expect(channels["playstation-chan"].send).toHaveBeenCalledTimes(1);
@@ -457,7 +478,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockProcessedPatchNotesCreate).toHaveBeenCalledTimes(1);
       expect(mockProcessedPatchNotesCreate).toHaveBeenCalledWith({
@@ -480,7 +501,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       // Aucun canal ne recoit le message (aucune plateforme detectee = aucun routage)
       // Le code fait un continue sans persister quand aucune plateforme nest detectee
@@ -501,7 +522,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Salon"));
     });
@@ -518,7 +539,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(nonTextChannel.send).not.toHaveBeenCalled();
     });
@@ -537,7 +558,7 @@ describe("checkTrackedGames", () => {
       mockProcessedPatchNotesFindUnique.mockResolvedValue(null);
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Echec envoi"));
       // Persiste quand meme
@@ -557,7 +578,7 @@ describe("checkTrackedGames", () => {
       // Prisma throw sur findUnique
       mockProcessedPatchNotesFindUnique.mockRejectedValue(new Error("DB connection lost"));
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       // isPatchProcessed catches DB errors internally and logs a warning
       expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Erreur verification"));
@@ -585,7 +606,7 @@ describe("checkTrackedGames", () => {
         .mockResolvedValueOnce(null); // item3 nouveau
       mockProcessedPatchNotesCreate.mockResolvedValue({ id: 1 });
 
-      await checkTrackedGames(client);
+      await runCheckTrackedGames(client);
 
       expect(channel.send).toHaveBeenCalledTimes(2);
     });
@@ -595,10 +616,10 @@ describe("checkTrackedGames", () => {
 // ─── Tests: startSteamNewsMonitoring / stopSteamNewsMonitoring ─────────────
 
 describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
-  it("demarre et arrete la surveillance", () => {
+  it("demarre et arrete la surveillance", async () => {
     const client = makeMockClient();
 
-    startSteamNewsMonitoring(client);
+    await startSteamNewsMonitoring(client);
 
     expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Demarrage"));
 
@@ -607,13 +628,14 @@ describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
     expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining("Arrete"));
   });
 
-  it("empeche le double demarrage", () => {
+  it("empeche le double demarrage", async () => {
     const client = makeMockClient();
 
-    startSteamNewsMonitoring(client);
-    startSteamNewsMonitoring(client);
+    await startSteamNewsMonitoring(client);
+    await startSteamNewsMonitoring(client);
 
     expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Deja actif"));
+    stopSteamNewsMonitoring();
   });
 
   it("execute une premiere verification immediate au demarrage", async () => {
@@ -622,10 +644,7 @@ describe("startSteamNewsMonitoring / stopSteamNewsMonitoring", () => {
 
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [] }) });
 
-    startSteamNewsMonitoring(client);
-
-    // Attendre le traitement des microtasks (la verification immediate est synchrone)
-    await vi.advanceTimersByTimeAsync(0);
+    await startSteamNewsMonitoring(client);
 
     expect(mockFetch).toHaveBeenCalled();
   });

@@ -175,6 +175,80 @@ export const aiCacheMisses = new Counter({
   registers: [registry],
 });
 
+// ─── Token & cost metrics (P3.1) ───
+export const llmTokensUsed = new Counter({
+  name: "llm_tokens_used_total",
+  help: "Total tokens used by the LLM",
+  labelNames: ["provider", "model", "type"],
+  registers: [registry],
+});
+export const llmCostEur = new Counter({
+  name: "llm_cost_eur_total",
+  help: "Total cost in EUR",
+  labelNames: ["provider", "model"],
+  registers: [registry],
+});
+export const llmRequestLatency = new Histogram({
+  name: "llm_request_latency_seconds",
+  help: "LLM request latency by provider and model",
+  labelNames: ["provider", "model"],
+  buckets: [0.5, 1, 2, 5, 10, 20, 30, 60],
+  registers: [registry],
+});
+
+// ─── Fallback reason metrics (P3.1) ───
+export const aiFallbackReason = new Counter({
+  name: "ai_fallback_reason_total",
+  help: "Reason for AI fallback (rate_limit, timeout, error, empty_response, hallucination)",
+  labelNames: ["reason", "from_provider", "to_provider"],
+  registers: [registry],
+});
+
+// ─── Tool latency metrics (P3.1) ───
+export const toolExecutionLatency = new Histogram({
+  name: "tool_execution_latency_seconds",
+  help: "Tool execution latency by tool name",
+  labelNames: ["tool", "status"],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30],
+  registers: [registry],
+});
+
+// ─── SOAR gate metrics (P3.1) ───
+export const soarApprovals = new Counter({
+  name: "soar_approvals_total",
+  help: "SOAR gate approvals",
+  labelNames: ["tool", "risk_level"],
+  registers: [registry],
+});
+export const soarDenials = new Counter({
+  name: "soar_denials_total",
+  help: "SOAR gate denials",
+  labelNames: ["tool", "risk_level", "reason"],
+  registers: [registry],
+});
+
+// ─── Hallucination & evaluation metrics (P3.1) ───
+export const hallucinationDetected = new Counter({
+  name: "hallucination_detected_total",
+  help: "Detected hallucinations in AI responses",
+  labelNames: ["type"],
+  registers: [registry],
+});
+export const aiEvaluationScore = new Gauge({
+  name: "ai_evaluation_score",
+  help: "AI response evaluation score (0-1)",
+  labelNames: ["metric"],
+  registers: [registry],
+});
+
+// ─── Budget metrics (P3.1) ───
+export const budgetExceeded = new Counter({
+  name: "budget_exceeded_total",
+  help: "Budget limit exceeded events",
+  labelNames: ["scope", "reason"],
+  registers: [registry],
+});
+
 export async function getMetrics(): Promise<string> {
   return registry.metrics();
 }

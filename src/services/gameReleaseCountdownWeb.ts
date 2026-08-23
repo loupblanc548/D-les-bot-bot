@@ -7,7 +7,6 @@
  */
 
 import { getTrackedReleases } from "./gameReleaseCountdown.js";
-import logger from "../utils/logger.js";
 
 // ─── HTTP response cache (5 min TTL) ────────────────────────────────────────
 let cachedHtml: string | null = null;

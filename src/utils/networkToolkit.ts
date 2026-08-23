@@ -1,21 +1,38 @@
-/**
- * networkToolkit.ts — Network & Infrastructure utilities
- * Called by Quant (the AI brain) via tool handlers in agentToolsExtended.ts
- */
-
 import { execSync } from "child_process";
 import logger from "../utils/logger.js";
 import dns from "dns/promises";
 
+// ─── Input Sanitizers & Validators ─────────────────────────────────────────
+const HOST_REGEX = /^[a-zA-Z0-9.-]+$/;
+const IDENT_REGEX = /^[a-zA-Z0-9._-]+$/;
+const SUBNET_REGEX = /^[0-9./]+$/;
+
+function isValidHost(host: string): boolean {
+  return (
+    typeof host === "string" && host.length > 0 && host.length < 255 && HOST_REGEX.test(host.trim())
+  );
+}
+
+function isValidPort(port: number): boolean {
+  return Number.isInteger(port) && port >= 1 && port <= 65535;
+}
+
+function sanitizeIdent(name: string): string | null {
+  const trimmed = name.trim();
+  return IDENT_REGEX.test(trimmed) ? trimmed : null;
+}
+
 // ─── SMTP relay test ──────────────────────────────────────────────────────
 export function smtpRelayTest(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 25;
   try {
-    const cmd = `docker exec kali-box bash -c "echo 'QUIT' | timeout 10 nc ${host} ${port || 25} 2>&1"`;
+    const cmd = `docker exec kali-box bash -c "echo 'QUIT' | timeout 10 nc ${host} ${p} 2>&1"`;
     const output = execSync(cmd, { timeout: 15_000, encoding: "utf8" }).trim();
     const isOpenRelay = /220.*SMTP/i.test(output);
     return JSON.stringify({
       host,
-      port: port || 25,
+      port: p,
       banner: output.slice(0, 500),
       openRelayPossible: isOpenRelay,
     });
@@ -26,14 +43,18 @@ export function smtpRelayTest(host: string, port: number): string {
 
 // ─── SMTP enum VRFY ────────────────────────────────────────────────────────
 export function smtpEnumVrfy(host: string, port: number, usernames: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 25;
   try {
     const users = usernames
       .split(",")
-      .map((u) => u.trim())
+      .map((u) => sanitizeIdent(u))
+      .filter((u): u is string => u !== null)
       .slice(0, 20);
+    if (users.length === 0) return "Error: No valid usernames provided";
     const results: string[] = [];
     for (const user of users) {
-      const cmd = `docker exec kali-box bash -c "echo -e 'VRFY ${user}\\r\\nQUIT\\r\\n' | timeout 5 nc ${host} ${port || 25} 2>&1"`;
+      const cmd = `docker exec kali-box bash -c "echo -e 'VRFY ${user}\\r\\nQUIT\\r\\n' | timeout 5 nc ${host} ${p} 2>&1"`;
       const output = execSync(cmd, { timeout: 10_000, encoding: "utf8" }).trim();
       const exists = /252|250/i.test(output);
       results.push(`${user}: ${exists ? "EXISTS" : "NOT FOUND"} (${output.slice(0, 100)})`);
@@ -46,13 +67,15 @@ export function smtpEnumVrfy(host: string, port: number, usernames: string): str
 
 // ─── FTP anonymous check ────────────────────────────────────────────────────
 export function ftpAnonymousCheck(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 21;
   try {
-    const cmd = `docker exec kali-box bash -c "echo -e 'USER anonymous\\r\\nPASS anonymous@test\\r\\nQUIT\\r\\n' | timeout 10 nc ${host} ${port || 21} 2>&1"`;
+    const cmd = `docker exec kali-box bash -c "echo -e 'USER anonymous\\r\\nPASS anonymous@test\\r\\nQUIT\\r\\n' | timeout 10 nc ${host} ${p} 2>&1"`;
     const output = execSync(cmd, { timeout: 15_000, encoding: "utf8" }).trim();
     const allowsAnonymous = /230.*login|230.*access|230.*successful/i.test(output);
     return JSON.stringify({
       host,
-      port: port || 21,
+      port: p,
       allowsAnonymous,
       banner: output.slice(0, 500),
     });
@@ -63,6 +86,7 @@ export function ftpAnonymousCheck(host: string, port: number): string {
 
 // ─── SMB enum shares ────────────────────────────────────────────────────────
 export function smbEnumShares(host: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
   try {
     const cmd = `docker exec kali-box enum4linux -S ${host} 2>&1 | head -50`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
@@ -74,6 +98,7 @@ export function smbEnumShares(host: string): string {
 
 // ─── SMB version detect ─────────────────────────────────────────────────────
 export function smbVersionDetect(host: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
   try {
     const cmd = `docker exec kali-box nmap -p 445 --script smb-os-discovery ${host} 2>&1 | head -30`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
@@ -85,8 +110,10 @@ export function smbVersionDetect(host: string): string {
 
 // ─── LDAP enum ──────────────────────────────────────────────────────────────
 export function ldapEnum(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 389;
   try {
-    const cmd = `docker exec kali-box nmap -p ${port || 389} --script ldap-search ${host} 2>&1 | head -60`;
+    const cmd = `docker exec kali-box nmap -p ${p} --script ldap-search ${host} 2>&1 | head -60`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
     return output || "No LDAP data found";
   } catch (err) {
@@ -96,21 +123,23 @@ export function ldapEnum(host: string, port: number): string {
 
 // ─── Kerberos user enum ─────────────────────────────────────────────────────
 export function kerberosUserEnum(host: string, realm: string, usernames: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const cleanRealm = sanitizeIdent(realm) || "DOMAIN.LOCAL";
   try {
     const users = usernames
       .split(",")
-      .map((u) => u.trim())
+      .map((u) => sanitizeIdent(u))
+      .filter((u): u is string => u !== null)
       .slice(0, 20);
+    if (users.length === 0) return "Error: No valid usernames provided";
     const results: string[] = [];
     for (const user of users) {
       const cmd = `docker exec kali-box python3 -c "
 import socket, struct
-# Simple Kerberos pre-auth probe
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(5)
 s.connect(('${host}', 88))
-# AS-REQ without pre-auth
-req = bytes.fromhex('6a82') + struct.pack('>I', len('${user}@${realm}')+30) + b'\\x00\\x00\\x00\\x00\\xa0\\x03\\x02\\x01\\x05\\xa1\\x03\\x02\\x01\\x0a\\xa2\\x07\\x03\\x05\\x00\\x40\\x00\\x10\\x00' + b'${user}@${realm}'
+req = bytes.fromhex('6a82') + struct.pack('>I', len('${user}@${cleanRealm}')+30) + b'\\x00\\x00\\x00\\x00\\xa0\\x03\\x02\\x01\\x05\\xa1\\x03\\x02\\x01\\x0a\\xa2\\x07\\x03\\x05\\x00\\x40\\x00\\x10\\x00' + b'${user}@${cleanRealm}'
 s.send(req)
 resp = s.recv(4096)
 s.close()
@@ -131,8 +160,10 @@ print('VALID' if len(resp) > 50 else 'INVALID')
 
 // ─── RDP check ──────────────────────────────────────────────────────────────
 export function rdpCheck(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 3389;
   try {
-    const cmd = `docker exec kali-box nmap -p ${port || 3389} --script rdp-enum-encryption,rdp-vuln-ms12-020 ${host} 2>&1 | head -30`;
+    const cmd = `docker exec kali-box nmap -p ${p} --script rdp-enum-encryption,rdp-vuln-ms12-020 ${host} 2>&1 | head -30`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
     return output || "RDP not accessible";
   } catch (err) {
@@ -142,8 +173,10 @@ export function rdpCheck(host: string, port: number): string {
 
 // ─── SSH version scan ───────────────────────────────────────────────────────
 export function sshVersionScan(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 22;
   try {
-    const cmd = `docker exec kali-box nmap -p ${port || 22} -sV --script ssh2-enum-algos,ssh-hostkey ${host} 2>&1 | head -40`;
+    const cmd = `docker exec kali-box nmap -p ${p} -sV --script ssh2-enum-algos,ssh-hostkey ${host} 2>&1 | head -40`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
     return output || "SSH not accessible";
   } catch (err) {
@@ -153,8 +186,10 @@ export function sshVersionScan(host: string, port: number): string {
 
 // ─── Telnet banner grab ─────────────────────────────────────────────────────
 export function telnetBannerGrab(host: string, port: number): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const p = isValidPort(port) ? port : 23;
   try {
-    const cmd = `docker exec kali-box bash -c "echo '' | timeout 5 nc ${host} ${port || 23} 2>&1"`;
+    const cmd = `docker exec kali-box bash -c "echo '' | timeout 5 nc ${host} ${p} 2>&1"`;
     const output = execSync(cmd, { timeout: 10_000, encoding: "utf8" }).trim();
     return output || "No banner received";
   } catch (err) {
@@ -164,8 +199,10 @@ export function telnetBannerGrab(host: string, port: number): string {
 
 // ─── SNMP walk ──────────────────────────────────────────────────────────────
 export function snmpWalk(host: string, community: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
+  const comm = sanitizeIdent(community) || "public";
   try {
-    const cmd = `docker exec kali-box snmpwalk -v 2c -c ${community || "public"} ${host} 2>&1 | head -80`;
+    const cmd = `docker exec kali-box snmpwalk -v 2c -c ${comm} ${host} 2>&1 | head -80`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
     return output || "No SNMP response";
   } catch (err) {
@@ -175,6 +212,7 @@ export function snmpWalk(host: string, community: string): string {
 
 // ─── NTP monlist ────────────────────────────────────────────────────────────
 export function ntpMonlist(host: string): string {
+  if (!isValidHost(host)) return "Error: Invalid hostname or IP address";
   try {
     const cmd = `docker exec kali-box nmap -p 123 -sU --script ntp-monlist ${host} 2>&1 | head -30`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
@@ -187,10 +225,12 @@ export function ntpMonlist(host: string): string {
 
 // ─── DNS zone transfer ──────────────────────────────────────────────────────
 export async function dnsZoneTransfer(domain: string): Promise<string> {
+  if (!isValidHost(domain)) return "Error: Invalid domain name";
   try {
     const nsRecords = await dns.resolveNs(domain);
     const results: string[] = [];
     for (const ns of nsRecords.slice(0, 5)) {
+      if (!isValidHost(ns)) continue;
       try {
         const cmd = `dig AXFR ${domain} @${ns} +short 2>&1 | head -50`;
         const output = execSync(cmd, { timeout: 10_000, encoding: "utf8" }).trim();
@@ -211,12 +251,15 @@ export async function dnsZoneTransfer(domain: string): Promise<string> {
 
 // ─── DNS subdomain brute ────────────────────────────────────────────────────
 export async function dnsSubdomainBrute(domain: string, wordlist: string): Promise<string> {
+  if (!isValidHost(domain)) return "Error: Invalid domain name";
   const subdomains = (
     wordlist ||
     "www,mail,ftp,admin,api,dev,staging,test,vpn,blog,shop,portal,secure,demo,git,ci,app,mobile,cdn,cloud,db,redis,elastic,grafana,jenkins,kubernetes,docker,registry,nexus,sonar,sentry,prometheus"
   )
     .split(",")
-    .map((s) => s.trim());
+    .map((s) => sanitizeIdent(s))
+    .filter((s): s is string => s !== null);
+
   const found: string[] = [];
   for (const sub of subdomains) {
     try {
@@ -224,7 +267,9 @@ export async function dnsSubdomainBrute(domain: string, wordlist: string): Promi
       if (records.length > 0) {
         found.push(`${sub}.${domain} -> ${records.join(", ")}`);
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      // ignore nxdomain
+    }
   }
   return found.length > 0
     ? `Found ${found.length} subdomains:\n${found.join("\n")}`
@@ -233,6 +278,7 @@ export async function dnsSubdomainBrute(domain: string, wordlist: string): Promi
 
 // ─── DNS rebinding check ────────────────────────────────────────────────────
 export async function dnsRebindingCheck(domain: string): Promise<string> {
+  if (!isValidHost(domain)) return "Error: Invalid domain name";
   try {
     const records = await dns.resolve4(domain);
     const hasPrivate = records.some((ip) => {
@@ -256,8 +302,9 @@ export async function dnsRebindingCheck(domain: string): Promise<string> {
 
 // ─── IPv6 scan ──────────────────────────────────────────────────────────────
 export function ipv6Scan(interfaceName: string): string {
+  const iface = sanitizeIdent(interfaceName) || "eth0";
   try {
-    const cmd = `docker exec kali-box nmap -6 --script targets-ipv6-multicast-invalid.nse --script-args 'newtargets,interface=${interfaceName || "eth0"}' -sn 2>&1 | head -30`;
+    const cmd = `docker exec kali-box nmap -6 --script targets-ipv6-multicast-invalid.nse --script-args 'newtargets,interface=${iface}' -sn 2>&1 | head -30`;
     const output = execSync(cmd, { timeout: 30_000, encoding: "utf8" }).trim();
     return output || "No IPv6 hosts found";
   } catch (err) {
@@ -267,8 +314,9 @@ export function ipv6Scan(interfaceName: string): string {
 
 // ─── VLAN hop test ──────────────────────────────────────────────────────────
 export function vlanHopTest(interfaceName: string): string {
+  const iface = sanitizeIdent(interfaceName) || "eth0";
   try {
-    const cmd = `docker exec kali-box bash -c "echo 'VLAN hopping test requires manual configuration. Checking switch config...' && nmap -sn --script broadcast-arp-sweep ${interfaceName || "eth0"} 2>&1" | head -20`;
+    const cmd = `docker exec kali-box bash -c "echo 'VLAN hopping test requires manual configuration. Checking switch config...' && nmap -sn --script broadcast-arp-sweep ${iface} 2>&1" | head -20`;
     const output = execSync(cmd, { timeout: 20_000, encoding: "utf8" }).trim();
     return output || "VLAN hop test inconclusive";
   } catch (err) {
@@ -278,9 +326,10 @@ export function vlanHopTest(interfaceName: string): string {
 
 // ─── WiFi deauth detect ─────────────────────────────────────────────────────
 export function wifiDeauthDetect(interfaceName: string, duration: number): string {
+  const iface = sanitizeIdent(interfaceName) || "wlan0mon";
+  const dur = Number.isInteger(duration) && duration > 0 && duration <= 120 ? duration : 30;
   try {
-    const dur = duration || 30;
-    const cmd = `docker exec kali-box timeout ${dur} tshark -i ${interfaceName || "wlan0mon"} -Y 'deauth' -c 10 2>&1 || echo "No deauth frames detected in ${dur}s"`;
+    const cmd = `docker exec kali-box timeout ${dur} tshark -i ${iface} -Y 'deauth' -c 10 2>&1 || echo "No deauth frames detected in ${dur}s"`;
     const output = execSync(cmd, { timeout: (dur + 5) * 1000, encoding: "utf8" }).trim();
     return output || "No deauth frames detected";
   } catch (err) {
@@ -290,8 +339,9 @@ export function wifiDeauthDetect(interfaceName: string, duration: number): strin
 
 // ─── ARP poison detect ──────────────────────────────────────────────────────
 export function arpPoisonDetect(interfaceName: string): string {
+  const iface = sanitizeIdent(interfaceName) || "eth0";
   try {
-    const cmd = `docker exec kali-box arpwatch -i ${interfaceName || "eth0"} -d 2>&1 & sleep 10 && kill %1 2>/dev/null; docker exec kali-box bash -c "arp -n 2>&1 | head -20"`;
+    const cmd = `docker exec kali-box arpwatch -i ${iface} -d 2>&1 & sleep 10 && kill %1 2>/dev/null; docker exec kali-box bash -c "arp -n 2>&1 | head -20"`;
     const output = execSync(cmd, { timeout: 20_000, encoding: "utf8" }).trim();
     const suspicious = /changed|flip|duplicate/i.test(output);
     return JSON.stringify({ suspicious, details: output.slice(0, 500) });
@@ -302,8 +352,12 @@ export function arpPoisonDetect(interfaceName: string): string {
 
 // ─── Network map generate ───────────────────────────────────────────────────
 export function networkMapGenerate(subnet: string): string {
+  const sub =
+    typeof subnet === "string" && SUBNET_REGEX.test(subnet.trim())
+      ? subnet.trim()
+      : "192.168.1.0/24";
   try {
-    const cmd = `docker exec kali-box nmap -sn ${subnet || "192.168.1.0/24"} -oG - 2>&1 | grep "Up" | head -50`;
+    const cmd = `docker exec kali-box nmap -sn ${sub} -oG - 2>&1 | grep "Up" | head -50`;
     const output = execSync(cmd, { timeout: 60_000, encoding: "utf8" }).trim();
     const hosts = output
       .split("\n")
@@ -312,7 +366,7 @@ export function networkMapGenerate(subnet: string): string {
         return match ? match[1] : null;
       })
       .filter(Boolean);
-    return `Discovered ${hosts.length} hosts on ${subnet}:\n${hosts.join("\n")}`;
+    return `Discovered ${hosts.length} hosts on ${sub}:\n${hosts.join("\n")}`;
   } catch (err) {
     return `Error: ${(err as Error).message}`;
   }

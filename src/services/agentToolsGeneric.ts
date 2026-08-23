@@ -90,7 +90,7 @@ function handleMath(toolName: string, args: Args): ToolCallResult | null {
     switch (toolName) {
       case "bayes_theorem": {
         const pa = argNum(args, "prior_a");
-        const pb = argNum(args, "prior_b");
+        const _pb = argNum(args, "prior_b");
         const paGivenB = argNum(args, "p_a_given_b");
         const pbGivenA = argNum(args, "p_b_given_a");
         if (!pa || !pbGivenA) return fail("Paramètres requis: prior_a, p_b_given_a");
@@ -176,7 +176,7 @@ function handleMath(toolName: string, args: Args): ToolCallResult | null {
         return ok(`IC 95%: [${(mean - margin).toFixed(4)}, ${(mean + margin).toFixed(4)}]`);
       }
       case "correlation_matrix": {
-        const data = args["data"];
+        const _data = args["data"];
         return ok(
           `Matrice de corrélation calculée pour les données fournies. Utilisez execute_code pour un calcul détaillé.`,
         );
@@ -597,7 +597,7 @@ function handleMath(toolName: string, args: Args): ToolCallResult | null {
       }
       case "ovulation_calc": {
         const cycleLength = argNum(args, "cycle_length", 28);
-        const lastPeriod = arg(args, "last_period_date");
+        const _lastPeriod = arg(args, "last_period_date");
         return ok(
           `Ovulation ≈ jour ${cycleLength - 14} du cycle. Fertile: jours ${cycleLength - 19} à ${cycleLength - 9}.`,
         );
@@ -928,7 +928,6 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
           s2 = arg(args, "string2");
         const longer = s1.length > s2.length ? s1 : s2;
         const shorter = s1.length > s2.length ? s2 : s1;
-        const dist = longer.length - shorter.length;
         let common = 0;
         for (let i = 0; i < shorter.length; i++) if (longer.includes(shorter[i])) common++;
         const similarity = (2 * common) / (s1.length + s2.length);
@@ -1004,7 +1003,7 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
         if (ips) entities.push(...ips.map((i) => `IP: ${i}`));
         const urls = text.match(/https?:\/\/[^\s]+/g);
         if (urls) entities.push(...urls.map((u) => `URL: ${u}`));
-        const dates = text.match(/\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/g);
+        const dates = text.match(/\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/g);
         if (dates) entities.push(...dates.map((d) => `DATE: ${d}`));
         return ok(`Entités (${entities.length}): ${entities.join(", ")}`);
       }
@@ -1016,7 +1015,7 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
         );
       }
       case "json_path_query": {
-        const json = args["json"],
+        const _json = args["json"],
           path = arg(args, "path");
         return ok(
           `JSONPath "${path}" sur les données. Utilisez execute_code avec jsonpath-plus pour exécuter.`,
@@ -1060,8 +1059,8 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
         return ok(`Minification de code. Utilisez execute_code avec terser pour minifier.`);
       }
       case "code_diff_unified": {
-        const s1 = arg(args, "source1"),
-          s2 = arg(args, "source2");
+        const _s1 = arg(args, "source1"),
+          _s2 = arg(args, "source2");
         return ok(
           `Diff entre les deux sources. Utilisez execute_code avec diff pour générer le patch.`,
         );

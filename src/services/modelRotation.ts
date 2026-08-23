@@ -15,7 +15,7 @@ import logger from "../utils/logger.js";
 import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
 import { NVIDIA_FREE_MODELS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
-import { config } from "../config.js";
+import { findModelsByCapability, type ModelCapability } from "./aiGateway.js";
 
 // ─── Modèles réellement routables ────────────────────────────────────────────
 // Le modèle OpenRouter configuré est le seul candidat OpenRouter garanti valide.
@@ -41,6 +41,38 @@ function getCandidateModels(): string[] {
     ...(isNvidiaNimAvailable() ? NVIDIA_FREE_MODELS : []),
     ...(isOmnirouteAvailable() ? OMNIROUTE_FREE_MODELS : []),
   ].filter((model, index, models) => model && models.indexOf(model) === index);
+}
+
+/**
+ * Sélectionne les modèles candidats en utilisant la matrice de capacités du gateway.
+ * Les modèles sont filtrés par capacité requise et triés par coût.
+ */
+export function getCandidateModelsFromGateway(requiredCapability?: ModelCapability): string[] {
+  if (requiredCapability) {
+    const models = findModelsByCapability(requiredCapability);
+    // Filtrer par provider disponible
+    const available = models
+      .filter((m) => {
+        switch (m.provider) {
+          case "nvidia-nim":
+            return isNvidiaNimAvailable() || !!config.openRouterApiKey;
+          case "omniroute":
+            return isOmnirouteAvailable();
+          case "groq":
+            return true; // Groq est toujours configuré
+          case "gemini":
+            return true; // Gemini est toujours configuré
+          case "local-llm":
+            return true;
+          default:
+            return false;
+        }
+      })
+      .map((m) => m.id);
+    return available;
+  }
+  // Sans capacité requise, utiliser la liste classique
+  return getCandidateModels();
 }
 
 // ─── Modèles backup (si les principaux sont en cooldown) ─────────────────────
@@ -365,7 +397,7 @@ export function getAvailableFreeModels(): string[] {
  */
 export function resetAllCircuitBreakers(): void {
   let resetCount = 0;
-  for (const [name, health] of modelHealth) {
+  for (const [, health] of modelHealth) {
     if (health.circuitState !== "closed" || health.rateLimitedUntil > Date.now()) {
       health.circuitState = "closed";
       health.failures = 0;

@@ -421,10 +421,10 @@ async function checkTrackedGames(client: Client): Promise<void> {
 
 export { checkTrackedGames, PLATFORM_CONFIGS };
 
-export function startSteamNewsMonitoring(client: Client): void {
+export function startSteamNewsMonitoring(client: Client): Promise<void> {
   if (intervalId) {
     logger.warn("[PatchNotesCron] Deja actif — ignore");
-    return;
+    return Promise.resolve();
   }
 
   const intervalMs = 600000; // 10 minutes
@@ -433,13 +433,13 @@ export function startSteamNewsMonitoring(client: Client): void {
     "[PatchNotesCron] Demarrage — intervalle " + (intervalMs / 60000).toFixed(1) + " min",
   );
 
-  checkTrackedGames(client).catch((err) =>
+  const initialCheck = checkTrackedGames(client).catch((err) => {
     logger.error(
       "[PatchNotesCron] Erreur check initial: " +
         (err instanceof Error ? err.message : String(err)),
       { stack: err instanceof Error ? err.stack : undefined },
-    ),
-  );
+    );
+  });
 
   intervalId = setInterval(() => {
     checkTrackedGames(client).catch((err) =>
@@ -451,6 +451,8 @@ export function startSteamNewsMonitoring(client: Client): void {
     );
   }, intervalMs);
   if (intervalId.unref) intervalId.unref();
+
+  return initialCheck;
 }
 
 export function stopSteamNewsMonitoring(): void {

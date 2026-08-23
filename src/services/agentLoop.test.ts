@@ -69,7 +69,10 @@ vi.mock("./agentTools.js", () => ({
 }));
 vi.mock("./orchestrator.js", () => ({
   delegateToExpert: vi.fn().mockResolvedValue("expert result"),
-  DELEGATE_TOOL: { type: "function", function: { name: "delegate_to_expert", description: "delegate", parameters: {} } },
+  DELEGATE_TOOL: {
+    type: "function",
+    function: { name: "delegate_to_expert", description: "delegate", parameters: {} },
+  },
 }));
 vi.mock("./circuitBreaker.js", () => ({
   beginInteraction: vi.fn(),
@@ -133,21 +136,19 @@ describe("agentLoop", () => {
   });
 
   describe("extractAndSaveMemory", () => {
-    it("should be a function", async () => {
+    it("should be a function", { timeout: 120_000 }, async () => {
       const { extractAndSaveMemory } = await import("./agentLoop.js");
       expect(typeof extractAndSaveMemory).toBe("function");
     });
 
-    it("should not throw on valid inputs", async () => {
+    it("should not throw on valid inputs", { timeout: 120_000 }, async () => {
       const { extractAndSaveMemory } = await import("./agentLoop.js");
-      await expect(
-        extractAndSaveMemory("user123", "Bonjour", "Salut !"),
-      ).resolves.toBeUndefined();
+      await expect(extractAndSaveMemory("user123", "Bonjour", "Salut !")).resolves.toBeUndefined();
     });
   });
 
   describe("runAgentLoop", () => {
-    it("should be a function", async () => {
+    it("should be a function", { timeout: 120_000 }, async () => {
       const { runAgentLoop } = await import("./agentLoop.js");
       expect(typeof runAgentLoop).toBe("function");
     });

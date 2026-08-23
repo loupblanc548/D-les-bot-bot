@@ -410,13 +410,29 @@ export function startSecurityIntegration(_client: Client): void {
   const originalLog = console.log;
   console.log = (...args: any[]) => {
     originalLog(...args);
-    ingestBotLog("info", "console", args.join(" "));
+    try {
+      const msg = args
+        .map((a) => (typeof a === "string" ? a : a instanceof Error ? a.message : String(a)))
+        .join(" ");
+      ingestBotLog("info", "console", msg);
+    } catch {
+      // safe ignore
+    }
   };
 
   const originalError = console.error;
   console.error = (...args: any[]) => {
     originalError(...args);
-    ingestBotLog("error", "console", args.join(" "));
+    try {
+      const msg = args
+        .map((a) =>
+          typeof a === "string" ? a : a instanceof Error ? a.stack || a.message : String(a),
+        )
+        .join(" ");
+      ingestBotLog("error", "console", msg);
+    } catch {
+      // safe ignore
+    }
   };
 
   logger.info("[SecurityIntegration] ✅ Toutes les intégrations de sécurité sont actives");

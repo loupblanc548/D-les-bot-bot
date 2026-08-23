@@ -33,7 +33,6 @@ const PREFIX = "mcmenu";
 const COLOR_MC = 0x44b366; // Minecraft green
 const COLOR_DANGER = 0xff3b3b;
 const COLOR_WARN = 0xffaa00;
-const COLOR_INFO = 0x00aaff;
 
 // ─── Main menu ─────────────────────────────────────────────────────
 function buildMainMenu(connected: boolean): {
@@ -45,12 +44,12 @@ function buildMainMenu(connected: boolean): {
     .setTitle("⛏️ **MINECRAFT CONTROL PANEL**")
     .setDescription(
       "```\n" +
-      " ╔══════════════════════════════════════╗\n" +
-      ` ║   Statut: ${status.padEnd(26)} ║\n` +
-      " ╠══════════════════════════════════════╣\n" +
-      " ║  Sélectionne une action ci-dessous    ║\n" +
-      " ╚══════════════════════════════════════╝\n" +
-      "```"
+        " ╔══════════════════════════════════════╗\n" +
+        ` ║   Statut: ${status.padEnd(26)} ║\n` +
+        " ╠══════════════════════════════════════╣\n" +
+        " ║  Sélectionne une action ci-dessous    ║\n" +
+        " ╚══════════════════════════════════════╝\n" +
+        "```",
     )
     .setColor(COLOR_MC)
     .setFooter({ text: "Shadow Broker • MC Control Panel" })
@@ -132,15 +131,33 @@ function buildMiningMenu(): {
     .setCustomId(`${PREFIX}:mine_mode`)
     .setPlaceholder("Mode de mining...")
     .addOptions([
-      { label: "Strip Mining", description: "Mine en lignes droites (le plus efficace)", value: "strip", emoji: "⛏️" },
-      { label: "Branch Mining", description: "Mine en branches à différents niveaux", value: "branch", emoji: "🌿" },
-      { label: "Quarry Mining", description: "Mine une grande zone en surface", value: "quarry", emoji: "🏗️" },
+      {
+        label: "Strip Mining",
+        description: "Mine en lignes droites (le plus efficace)",
+        value: "strip",
+        emoji: "⛏️",
+      },
+      {
+        label: "Branch Mining",
+        description: "Mine en branches à différents niveaux",
+        value: "branch",
+        emoji: "🌿",
+      },
+      {
+        label: "Quarry Mining",
+        description: "Mine une grande zone en surface",
+        value: "quarry",
+        emoji: "🏗️",
+      },
       { label: "Stop Mining", description: "Arrête l'auto-mining", value: "stop", emoji: "🛑" },
     ]);
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
   const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`${PREFIX}:back`).setLabel("⬅️ Retour").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`${PREFIX}:back`)
+      .setLabel("⬅️ Retour")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   return { embed, row, backRow };
@@ -162,16 +179,39 @@ function buildFarmMenu(): {
     .setCustomId(`${PREFIX}:farm_mode`)
     .setPlaceholder("Mode de farm...")
     .addOptions([
-      { label: "Wheat (Blé)", description: "Planter et récolter du blé", value: "wheat", emoji: "🌾" },
-      { label: "Carrots (Carottes)", description: "Planter et récolter des carottes", value: "carrot", emoji: "🥕" },
-      { label: "Potatoes (Pommes de terre)", description: "Planter et récolter des patates", value: "potato", emoji: "🥔" },
-      { label: "Beetroots (Betteraves)", description: "Planter et récolter des betteraves", value: "beetroot", emoji: "🫐" },
+      {
+        label: "Wheat (Blé)",
+        description: "Planter et récolter du blé",
+        value: "wheat",
+        emoji: "🌾",
+      },
+      {
+        label: "Carrots (Carottes)",
+        description: "Planter et récolter des carottes",
+        value: "carrot",
+        emoji: "🥕",
+      },
+      {
+        label: "Potatoes (Pommes de terre)",
+        description: "Planter et récolter des patates",
+        value: "potato",
+        emoji: "🥔",
+      },
+      {
+        label: "Beetroots (Betteraves)",
+        description: "Planter et récolter des betteraves",
+        value: "beetroot",
+        emoji: "🫐",
+      },
       { label: "Stop Farm", description: "Arrête l'agriculture", value: "stop", emoji: "🛑" },
     ]);
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
   const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`${PREFIX}:back`).setLabel("⬅️ Retour").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`${PREFIX}:back`)
+      .setLabel("⬅️ Retour")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   return { embed, row, backRow };
@@ -193,17 +233,40 @@ function buildEquipMenu(): {
     .setCustomId(`${PREFIX}:equip_tool`)
     .setPlaceholder("Type d'outil...")
     .addOptions([
-      { label: "Pioche en diamant", description: "Diamond Pickaxe", value: "diamond_pickaxe", emoji: "⛏️" },
+      {
+        label: "Pioche en diamant",
+        description: "Diamond Pickaxe",
+        value: "diamond_pickaxe",
+        emoji: "⛏️",
+      },
       { label: "Hache en diamant", description: "Diamond Axe", value: "diamond_axe", emoji: "🪓" },
-      { label: "Pelle en diamant", description: "Diamond Shovel", value: "diamond_shovel", emoji: "🪏" },
-      { label: "Épée en diamant", description: "Diamond Sword", value: "diamond_sword", emoji: "🗡️" },
+      {
+        label: "Pelle en diamant",
+        description: "Diamond Shovel",
+        value: "diamond_shovel",
+        emoji: "🪏",
+      },
+      {
+        label: "Épée en diamant",
+        description: "Diamond Sword",
+        value: "diamond_sword",
+        emoji: "🗡️",
+      },
       { label: "Pioche en fer", description: "Iron Pickaxe", value: "iron_pickaxe", emoji: "⛏️" },
-      { label: "Pioche en pierre", description: "Stone Pickaxe", value: "stone_pickaxe", emoji: "⛏️" },
+      {
+        label: "Pioche en pierre",
+        description: "Stone Pickaxe",
+        value: "stone_pickaxe",
+        emoji: "⛏️",
+      },
     ]);
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
   const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(`${PREFIX}:back`).setLabel("⬅️ Retour").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`${PREFIX}:back`)
+      .setLabel("⬅️ Retour")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   return { embed, row, backRow };
@@ -223,7 +286,7 @@ async function isMcBotConnected(): Promise<boolean> {
 // ─── Handle button interactions ────────────────────────────────────
 export async function handleMcMenuButton(
   interaction: ButtonInteraction,
-  client: Client,
+  _client: Client,
 ): Promise<boolean> {
   if (!interaction.customId.startsWith(PREFIX)) return false;
 
@@ -283,10 +346,12 @@ export async function handleMcMenuButton(
         embed.setTitle("✅ Déconnecté").setDescription("Le bot Minecraft a été déconnecté.");
         await interaction.update({ embeds: [embed], components: rows }).catch(() => {});
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur déconnexion: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur déconnexion: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }
@@ -305,20 +370,31 @@ export async function handleMcMenuButton(
             { name: "Mining", value: status?.mining ? "⛏️ En cours" : "⏸️ Arrêté", inline: true },
             { name: "Blocs minés", value: `${status?.blocksMined || 0}`, inline: true },
             { name: "Santé", value: `${status?.health || 0}/20`, inline: true },
-            { name: "Position", value: status?.position ? `x:${status.position.x} y:${status.position.y} z:${status.position.z}` : "N/A", inline: true },
+            {
+              name: "Position",
+              value: status?.position
+                ? `x:${status.position.x} y:${status.position.y} z:${status.position.z}`
+                : "N/A",
+              inline: true,
+            },
           )
           .setFooter({ text: "Shadow Broker • MC Control" })
           .setTimestamp();
 
         const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder().setCustomId(`${PREFIX}:back`).setLabel("⬅️ Retour").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`${PREFIX}:back`)
+            .setLabel("⬅️ Retour")
+            .setStyle(ButtonStyle.Secondary),
         );
         await interaction.update({ embeds: [embed], components: [backRow] }).catch(() => {});
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur statut: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur statut: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }
@@ -354,9 +430,7 @@ export async function handleMcMenuButton(
         .setRequired(true)
         .setMaxLength(200);
 
-      modal.addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(msgInput),
-      );
+      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(msgInput));
 
       await interaction.showModal(modal);
       return true;
@@ -374,18 +448,14 @@ export async function handleMcMenuButton(
         .setPlaceholder("Steve")
         .setRequired(true);
 
-      modal.addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(playerInput),
-      );
+      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(playerInput));
 
       await interaction.showModal(modal);
       return true;
     }
 
     case "give": {
-      const modal = new ModalBuilder()
-        .setCustomId(`${PREFIX}:give_modal`)
-        .setTitle("🎁 Give item");
+      const modal = new ModalBuilder().setCustomId(`${PREFIX}:give_modal`).setTitle("🎁 Give item");
 
       const itemInput = new TextInputBuilder()
         .setCustomId("item")
@@ -422,9 +492,7 @@ export async function handleMcMenuButton(
         .setPlaceholder("ABC123XYZ ou play.example.com:19132")
         .setRequired(true);
 
-      modal.addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(codeInput),
-      );
+      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(codeInput));
 
       await interaction.showModal(modal);
       return true;
@@ -438,10 +506,7 @@ export async function handleMcMenuButton(
 }
 
 // ─── Handle select menu interactions ───────────────────────────────
-export async function handleMcMenuSelect(
-  interaction: any,
-  _client: Client,
-): Promise<boolean> {
+export async function handleMcMenuSelect(interaction: any, _client: Client): Promise<boolean> {
   if (!interaction.customId.startsWith(PREFIX)) return false;
 
   const action = interaction.customId.replace(`${PREFIX}:`, "");
@@ -465,7 +530,9 @@ export async function handleMcMenuSelect(
           const { startMining } = await import("./minecraftBot.js");
           await startMining(mode);
           await interaction.update({
-            embeds: [new EmbedBuilder().setTitle(`⛏️ Mining démarré — Mode: ${mode}`).setColor(COLOR_MC)],
+            embeds: [
+              new EmbedBuilder().setTitle(`⛏️ Mining démarré — Mode: ${mode}`).setColor(COLOR_MC),
+            ],
             components: [],
           });
         } catch (e) {
@@ -493,7 +560,9 @@ export async function handleMcMenuSelect(
           const { startFarming } = await import("./minecraftBot.js");
           await startFarming(crop);
           await interaction.update({
-            embeds: [new EmbedBuilder().setTitle(`🌾 Farm démarré — Culture: ${crop}`).setColor(COLOR_MC)],
+            embeds: [
+              new EmbedBuilder().setTitle(`🌾 Farm démarré — Culture: ${crop}`).setColor(COLOR_MC),
+            ],
             components: [],
           });
         } catch (e) {
@@ -548,10 +617,12 @@ export async function handleMcMenuModal(
           ephemeral: true,
         });
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur connexion: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur connexion: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }
@@ -566,10 +637,12 @@ export async function handleMcMenuModal(
           ephemeral: true,
         });
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur chat: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur chat: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }
@@ -584,10 +657,12 @@ export async function handleMcMenuModal(
           ephemeral: true,
         });
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur follow: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur follow: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }
@@ -605,10 +680,12 @@ export async function handleMcMenuModal(
           ephemeral: true,
         });
       } catch (e) {
-        await interaction.reply({
-          content: `❌ Erreur give: ${e instanceof Error ? e.message : String(e)}`,
-          ephemeral: true,
-        }).catch(() => {});
+        await interaction
+          .reply({
+            content: `❌ Erreur give: ${e instanceof Error ? e.message : String(e)}`,
+            ephemeral: true,
+          })
+          .catch(() => {});
       }
       return true;
     }

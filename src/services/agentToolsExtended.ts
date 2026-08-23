@@ -396,8 +396,6 @@ import {
   sqlFormatBeautify,
   dockerfileLint,
   changelogGenerator,
-  sqlFormatBeautify as sqlFormatBeautify2,
-  dockerfileLint as dockerfileLint2,
 } from "../utils/codeDevToolkit.js";
 import {
   imageResizeCrop,
@@ -7232,6 +7230,42 @@ export async function executeExtendedTool(
         return await tAmazonOrderHistory(args);
       case "amazon_review_summary":
         return await tAmazonReviewSummary(args);
+      // Code Dev Toolkit
+      case "api_endpoint_tester":
+        return await tApiEndpointTester(args);
+      case "json_schema_validate":
+        return tJsonSchemaValidate(args);
+      case "yaml_validate":
+        return tYamlValidate(args);
+      case "xml_to_json":
+        return tXmlToJson(args);
+      case "sql_format_beautify":
+        return tSqlFormatBeautify(args);
+      case "dockerfile_lint":
+        return tDockerfileLint(args);
+      case "changelog_generator":
+        return tChangelogGenerator(args);
+      // Media Toolkit
+      case "image_resize_crop":
+        return await tImageResizeCrop(args);
+      case "image_format_convert":
+        return await tImageFormatConvert(args);
+      case "image_metadata_strip":
+        return await tImageMetadataStrip(args);
+      case "image_collage_create":
+        return await tImageCollageCreate(args);
+      case "audio_convert":
+        return tAudioConvert(args);
+      case "audio_extract_from_video":
+        return tAudioExtractFromVideo(args);
+      case "video_compress":
+        return tVideoCompress(args);
+      case "video_gif_convert":
+        return tVideoGifConvert(args);
+      case "text_to_speech_multi":
+        return tTextToSpeechMulti(args);
+      case "image_watermark_add":
+        return await tImageWatermarkAdd(args);
       default:
         return null;
     }
@@ -8724,10 +8758,7 @@ async function tAddRole(args: Record<string, any>, ctx: ToolContext): Promise<To
   return { success: true, data: `Rôle ${roleId} ajouté à <@${userId}>` };
 }
 
-async function tRemoveRole(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tRemoveRole(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const roleId = String(args.roleId);
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
@@ -8785,10 +8816,7 @@ async function tSetChannelTopic(
   return { success: true, data: `Topic du salon ${channelId} mis à jour` };
 }
 
-async function tCreateInvite(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tCreateInvite(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
   const channelId = args.channelId ? String(args.channelId) : ctx.channelId;
@@ -8860,10 +8888,7 @@ async function tGetServerRoles(ctx: ToolContext): Promise<ToolCallResult> {
   return { success: true, data: JSON.stringify(roles.slice(0, 30)) };
 }
 
-async function tSetNickname(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tSetNickname(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const nickname = String(args.nickname);
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
@@ -8887,10 +8912,7 @@ async function tSendDM(args: Record<string, any>, ctx: ToolContext): Promise<Too
   return { success: true, data: `Message privé envoyé à <@${userId}>` };
 }
 
-async function tCreateEmbed(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tCreateEmbed(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const { EmbedBuilder } = await import("discord.js");
   const title = String(args.title);
   const description = String(args.description);
@@ -8939,10 +8961,7 @@ async function tGetVoiceChannels(ctx: ToolContext): Promise<ToolCallResult> {
   return { success: true, data: JSON.stringify(voiceChannels) };
 }
 
-async function tLockChannel(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tLockChannel(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
@@ -8979,10 +8998,7 @@ async function tGetEmojis(ctx: ToolContext): Promise<ToolCallResult> {
   return { success: true, data: JSON.stringify(emojis.slice(0, 50)) };
 }
 
-async function tGetAuditLog(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function tGetAuditLog(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const limit = Math.min(25, Math.max(1, Number(args.limit) || 5));
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
@@ -13233,26 +13249,6 @@ function tChangelogGenerator(args: Record<string, any>): ToolCallResult {
   const version = String(args.version || "");
   try {
     const result = changelogGenerator(commits, version);
-    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
-  } catch (err) {
-    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
-  }
-}
-
-function tSqlFormatBeautify2(args: Record<string, any>): ToolCallResult {
-  const sql = String(args.sql || "");
-  try {
-    const result = sqlFormatBeautify2(sql);
-    return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
-  } catch (err) {
-    return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };
-  }
-}
-
-function tDockerfileLint2(args: Record<string, any>): ToolCallResult {
-  const dockerfile = String(args.dockerfile || "");
-  try {
-    const result = dockerfileLint2(dockerfile);
     return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };
   } catch (err) {
     return { success: false, data: `❌ ${err instanceof Error ? err.message : String(err)}` };

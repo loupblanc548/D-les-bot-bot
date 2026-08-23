@@ -1,4 +1,3 @@
-import { config } from "../../config.js";
 import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
 import logger from "../../utils/logger.js";
 import { ensureConnected } from "../../utils/redisClient.js";
@@ -41,9 +40,25 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
 
     const systemPrompt =
       process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
-    const model = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
 
-    const response = await fetchOpenRouter(context, systemPrompt, model);
+    const { respondChat } = await import("../../services/chatResponder.js");
+    const chatHistory = context
+      .slice(0, -1)
+      .filter((m): m is MessageContext & { role: "user" | "assistant" } => m.role !== "system")
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+    const result = await respondChat(
+      context[context.length - 1]?.content ?? message.content,
+      chatHistory,
+      {
+        systemPrompt,
+        userId,
+        guildId: message.guildId ?? undefined,
+        maxTokens: 1000,
+        deadlineMs: 20_000,
+      },
+    );
+    const response = result.content;
 
     if (response) {
       context.push({ role: "assistant", content: response });
@@ -66,7 +81,7 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
   } catch (error) {
     logger.error("[AIChat] Error:", error);
     await message.reply({
-      content: "❌ Erreur lors du traitement de votre message",
+      content: "Hmm, j'ai eu un petit blanc… Repose-moi ta question ?",
     });
   }
 }
@@ -95,33 +110,4 @@ async function saveContext(key: string, context: MessageContext[]): Promise<void
 
 function estimateTokens(context: MessageContext[]): number {
   return context.reduce((total, msg) => total + msg.content.length, 0);
-}
-
-async function fetchOpenRouter(
-  context: MessageContext[],
-  systemPrompt: string,
-  model: string,
-): Promise<string> {
-  try {
-    const messages = [{ role: "system", content: systemPrompt }, ...context];
-
-    const response = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model, messages }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${response.status}`);
-    }
-
-    const data = (await response.json()) as any;
-    return data.choices[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse.";
-  } catch (error) {
-    logger.error("[AIChat] OpenRouter error:", error);
-    return "Désolé, une erreur s'est produite lors de la communication avec l'IA.";
-  }
 }

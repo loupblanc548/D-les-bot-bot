@@ -1482,3 +1482,27 @@ model RetailerDealCache {
   @@index([processedAt])
   @@map("retailer_deal_cache")
 }
+
+model AiUsageLog {
+  id          BigInt    @id @default(autoincrement())
+  timestamp   DateTime  @default(now())
+  provider    String
+  model       String
+  promptTokens     Int
+  completionTokens Int
+  totalTokens      Int
+  costEur          Float
+  latencyMs        Int
+  success          Boolean
+  fallbackCount    Int      @default(0)
+  fallbackReason   String?
+  userId           String?
+  guildId          String?
+  commandName      String?
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([guildId])
+  @@index([provider])
+  @@map("ai_usage_log")
+}

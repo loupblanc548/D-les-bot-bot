@@ -1,58 +1,28 @@
-import { CircuitBreaker } from "./circuitBreaker.js";
-import logger from "../utils/logger.js";
-
-const circuitBreakers = new Map<string, CircuitBreaker>();
-
-function getBreaker(name: string): CircuitBreaker {
-  if (!circuitBreakers.has(name)) {
-    circuitBreakers.set(name, new CircuitBreaker({ name }));
-  }
-  return circuitBreakers.get(name)!;
-}
-
-async function withCircuitBreaker<T>(name: string, fn: () => Promise<T>): Promise<T> {
-  return getBreaker(name).execute(fn);
-}
+import { callLlm, type LlmCallRequest, type ProviderName } from "../services/aiGateway.js";
 
 export type Provider = "colab" | "local" | "openai" | "anthropic" | "openrouter";
 
-// Prometheus token counters (lazy-loaded)
-let tokenCounter: any = null;
-let callCounter: any = null;
-let latencyHistogram: any = null;
+const PROVIDER_ALIASES: Record<Provider, ProviderName> = {
+  colab: "colab",
+  local: "local-llm",
+  openai: "openai",
+  anthropic: "openrouter",
+  openrouter: "openrouter",
+};
 
-async function getMetrics() {
-  try {
-    const metricsMod = await import("../services/metrics.js");
-    const { register } = metricsMod;
-    const { Counter, Histogram } = await import("prom-client");
-    if (!tokenCounter) {
-      tokenCounter = new Counter({
-        name: "bot_ai_tokens_total",
-        help: "Total AI tokens used",
-        labelNames: ["provider", "type"],
-        registers: [register],
-      });
-      callCounter = new Counter({
-        name: "bot_ai_calls_total",
-        help: "Total AI calls",
-        labelNames: ["provider", "status"],
-        registers: [register],
-      });
-      latencyHistogram = new Histogram({
-        name: "bot_ai_response_seconds",
-        help: "AI response latency in seconds",
-        labelNames: ["provider"],
-        buckets: [1, 5, 10, 20, 30, 60, 90, 120],
-        registers: [register],
-      });
-    }
-    return { tokenCounter, callCounter, latencyHistogram };
-  } catch {
-    return null;
-  }
+function parseProviderOrder(): ProviderName[] {
+  return (process.env.AI_PROVIDER_ORDER || "local,openai")
+    .split(",")
+    .map((provider) => provider.trim() as Provider)
+    .filter((provider): provider is Provider => provider in PROVIDER_ALIASES)
+    .map((provider) => PROVIDER_ALIASES[provider]);
 }
 
+/**
+ * Compatibility wrapper for callers that still use the former utility gateway.
+ * All provider selection, fallback, usage recording and cost metrics live in
+ * services/aiGateway.ts.
+ */
 export async function callAi(
   prompt: string,
   opts?: {
@@ -60,51 +30,18 @@ export async function callAi(
     provider?: Provider;
   },
 ): Promise<{ content: string; provider: string; tokensUsed?: number }> {
-  const order = (process.env.AI_PROVIDER_ORDER || "local,openai").split(",");
-  const metrics = await getMetrics();
-  const startTime = Date.now();
+  const providerOrder = opts?.provider ? [PROVIDER_ALIASES[opts.provider]] : parseProviderOrder();
 
-  for (const p of order) {
-    const provider = p.trim() as Provider;
-    try {
-      const result = await withCircuitBreaker(provider, async () => {
-        if (provider === "colab") {
-          const { chatWithColabLlm, isColabLlmAvailable } = await import("../services/colabLlm.js");
-          if (!isColabLlmAvailable()) throw new Error("Colab LLM not available");
-          const content = await chatWithColabLlm([{ role: "user", content: prompt }], {
-            maxTokens: opts?.maxTokens,
-          });
-          if (!content) throw new Error("Colab LLM returned empty");
-          return { content, provider: "colab" };
-        } else if (provider === "local") {
-          const { chatWithLocalLlm, isLocalLlmAvailable } = await import("../services/localLlm.js");
-          if (!isLocalLlmAvailable()) throw new Error("Local LLM not available");
-          const content = await chatWithLocalLlm([{ role: "user", content: prompt }], {
-            maxTokens: opts?.maxTokens,
-          });
-          if (!content) throw new Error("Local LLM returned empty");
-          return { content, provider: "local" };
-        } else if (provider === "openai") {
-          // call OpenAI via key
-          return { content: "", provider: "openai" };
-        }
-        return { content: "", provider };
-      });
+  const request: LlmCallRequest = {
+    messages: [{ role: "user", content: prompt }],
+    maxTokens: opts?.maxTokens,
+    providerOrder: providerOrder.length > 0 ? providerOrder : undefined,
+  };
+  const result = await callLlm(request);
 
-      const elapsed = (Date.now() - startTime) / 1000;
-      metrics?.callCounter?.inc({ provider, status: "success" });
-      metrics?.latencyHistogram?.observe({ provider }, elapsed);
-      if ((result as any).tokensUsed) {
-        metrics?.tokenCounter?.inc({ provider, type: "total" }, (result as any).tokensUsed);
-      }
-      return result;
-    } catch (e) {
-      logger.warn(
-        `[aiGateway] provider ${provider} failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
-      metrics?.callCounter?.inc({ provider, status: "error" });
-      continue;
-    }
-  }
-  throw new Error("No AI provider available");
+  return {
+    content: result.content,
+    provider: result.provider,
+    tokensUsed: result.usage.totalTokens,
+  };
 }

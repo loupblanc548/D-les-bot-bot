@@ -43,32 +43,62 @@ const originalLog = console.log;
 const originalError = console.error;
 const originalWarn = console.warn;
 
+function safeFormatArg(a: any): string {
+  if (typeof a === "string") return a;
+  if (a instanceof Error) return a.stack || a.message;
+  try {
+    return JSON.stringify(a);
+  } catch {
+    return String(a);
+  }
+}
+
 function pushLog(level: string, args: any[]) {
-  const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-  logBuffer.push({ timestamp: Date.now(), level, message });
-  if (logBuffer.length > MAX_LOGS) logBuffer.shift();
-  broadcastWs({ type: "log", timestamp: Date.now(), level, message });
+  try {
+    const message = args.map(safeFormatArg).join(" ");
+    logBuffer.push({ timestamp: Date.now(), level, message });
+    if (logBuffer.length > MAX_LOGS) logBuffer.shift();
+    broadcastWs({ type: "log", timestamp: Date.now(), level, message });
+  } catch {
+    // Ignorer silencieusement si échec de push log
+  }
 }
 
 function broadcastWs(data: any) {
-  const payload = JSON.stringify(data);
-  for (const ws of wsClients) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(payload);
+  try {
+    const payload = JSON.stringify(data);
+    for (const ws of wsClients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
     }
+  } catch {
+    // WebSocket send error ignored
   }
 }
 
 console.log = (...args: any[]) => {
-  pushLog("info", args);
+  try {
+    pushLog("info", args);
+  } catch {
+    /* ignore */
+  }
   originalLog(...args);
 };
 console.error = (...args: any[]) => {
-  pushLog("error", args);
+  try {
+    pushLog("error", args);
+  } catch {
+    /* ignore */
+  }
   originalError(...args);
 };
 console.warn = (...args: any[]) => {
-  pushLog("warn", args);
+  try {
+    pushLog("warn", args);
+  } catch {
+    /* ignore */
+  }
   originalWarn(...args);
 };
 
@@ -417,7 +447,9 @@ export async function startControlServer(port: number, client: Client): Promise<
         if (platformId && platformId !== "all") {
           try {
             await prisma.source.delete({ where: { id: Number(platformId) } });
-          } catch { logger.error("[Silent catch]"); }
+          } catch {
+            logger.error("[Silent catch]");
+          }
         }
         sendJson(res, 200, { success: true });
         return;

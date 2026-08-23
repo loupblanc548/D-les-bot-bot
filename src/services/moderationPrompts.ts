@@ -12,10 +12,10 @@ export interface ModerationVerdict {
     step3_context: string;
     step4_verdict: string;
   };
-  verdict: "spam" | "phishing" | "clean";
+  verdict: "spam" | "phishing" | "clean" | "uncertain";
   confidence: number;
   raison: string;
-  action: "delete" | "warn" | "ban" | "none";
+  action: "delete" | "warn" | "ban" | "none" | "flag";
 }
 
 export interface DeepSentimentResult {
@@ -351,7 +351,10 @@ export function buildContextAnalysisPrompt(
   targetMessage: string,
   previousMessages: string[],
 ): string {
-  const context = previousMessages.slice(-10).map((m, i) => `[${i + 1}] ${m}`).join("\n");
+  const context = previousMessages
+    .slice(-10)
+    .map((m, i) => `[${i + 1}] ${m}`)
+    .join("\n");
   return `${CONTEXT_ANALYSIS_PROMPT}
 
 MESSAGES PRÉCÉDENTS (contexte):
@@ -410,7 +413,9 @@ export function buildCodeReviewPrompt(
     context.framework ? `- Framework: ${context.framework}` : null,
     context.version ? `- Version: ${context.version}` : null,
     context.environment ? `- Environnement: ${context.environment}` : null,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return `${CODE_REVIEW_PROMPT}
 
@@ -545,9 +550,10 @@ Analyse sur 5 dimensions (0-10):
 Réponds en JSON: {sentiment, toxicity, urgency, confidence, engagement, summary}`;
 
 export function buildQuickSentimentPrompt(message: string, context?: string): string {
-  return SENTIMENT_PROMPT
-    .replace("{message}", message.slice(0, 2000))
-    .replace("{context}", context ?? "serveur Discord gaming francophone");
+  return SENTIMENT_PROMPT.replace("{message}", message.slice(0, 2000)).replace(
+    "{context}",
+    context ?? "serveur Discord gaming francophone",
+  );
 }
 
 // ─── Prompt 9: General Moderation (rule violation) ───────────────────
@@ -578,8 +584,7 @@ export function buildModerationPrompt(
   context?: string,
   serverType?: string,
 ): string {
-  return MODERATION_PROMPT
-    .replace("{content}", content.slice(0, 2000))
+  return MODERATION_PROMPT.replace("{content}", content.slice(0, 2000))
     .replace("{context}", context ?? "message isolé")
     .replace("{server_type}", serverType ?? "gaming francophone");
 }
@@ -612,8 +617,7 @@ export function buildRiskAssessmentPrompt(
   activityLog: string,
   serverInfo?: string,
 ): string {
-  return RISK_ASSESSMENT_PROMPT
-    .replace("{user_data}", userData.slice(0, 1000))
+  return RISK_ASSESSMENT_PROMPT.replace("{user_data}", userData.slice(0, 1000))
     .replace("{activity_log}", activityLog.slice(0, 1500))
     .replace("{server_info}", serverInfo ?? "serveur Discord gaming francophone");
 }
@@ -683,9 +687,11 @@ export function buildFullModerationPrompt(
   message: string,
   ctx: FullModerationContext = {},
 ): string {
-  return FULL_MOD_PROMPT
-    .replace("{server_type}", ctx.serverType ?? "gaming francophone")
-    .replace("{server_rules}", ctx.serverRules ?? "pas de spam, pas d'insultes, pas de phishing, respect mutuel")
+  return FULL_MOD_PROMPT.replace("{server_type}", ctx.serverType ?? "gaming francophone")
+    .replace(
+      "{server_rules}",
+      ctx.serverRules ?? "pas de spam, pas d'insultes, pas de phishing, respect mutuel",
+    )
     .replace("{previous_context}", ctx.previousContext ?? "aucun précédent")
     .replace("{message}", message.slice(0, 2000))
     .replace("{account_age}", ctx.accountAge ?? "inconnu")
@@ -737,12 +743,14 @@ export function buildAdvancedChatPrompt(
   userMessage: string,
   ctx: AdvancedChatContext = {},
 ): string {
-  return ADVANCED_CHAT_PROMPT
-    .replace("{BOT_NAME}", ctx.botName ?? "John Helldiver")
+  return ADVANCED_CHAT_PROMPT.replace("{BOT_NAME}", ctx.botName ?? "John Helldiver")
     .replace("{personality}", ctx.personality ?? "direct, tactique, loyal")
     .replace("{expertise}", ctx.expertise ?? "gaming, modération, sécurité Discord")
     .replace("{tone}", ctx.tone ?? "amical mais professionnel")
-    .replace("{limitations}", ctx.limitations ?? "pas de contenu NSFW, pas de doxxing, pas de conseils illégaux")
+    .replace(
+      "{limitations}",
+      ctx.limitations ?? "pas de contenu NSFW, pas de doxxing, pas de conseils illégaux",
+    )
     .replace("{username}", ctx.username ?? "utilisateur")
     .replace("{history}", ctx.history ?? "aucun historique")
     .replace("{server_context}", ctx.serverContext ?? "serveur gaming francophone")

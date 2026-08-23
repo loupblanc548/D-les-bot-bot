@@ -1,1 +1,1 @@
-import { config } from "../config.js";
+export * from "../cron/memoryGrooming.js";

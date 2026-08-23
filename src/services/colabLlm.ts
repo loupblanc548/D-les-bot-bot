@@ -7,7 +7,7 @@
 
 import OpenAI from "openai";
 import logger from "../utils/logger.js";
-import { fetchWithRetry, createCircuitBreaker } from "../utils/httpClient.js";
+import { fetchWithRetry } from "../utils/httpClient.js";
 import { ConcurrencyPool } from "../utils/concurrencyPool.js";
 import fs from "fs";
 
@@ -32,7 +32,9 @@ function readColabUrl(): string | null {
   try {
     const content = fs.readFileSync(URL_FILE, "utf-8").trim();
     if (content && content.startsWith("http")) return content;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return null;
 }
 
@@ -41,7 +43,9 @@ function readColabModel(): string {
   try {
     const content = fs.readFileSync(MODEL_FILE, "utf-8").trim();
     if (content) return content;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return DEFAULT_MODEL;
 }
 

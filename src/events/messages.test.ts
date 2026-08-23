@@ -121,6 +121,18 @@ vi.mock("../services/agentLoop", () => ({
   extractAndSaveMemory: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../services/chatResponder", () => ({
+  respondChat: vi.fn().mockResolvedValue({
+    content: "",
+    provider: "fallback",
+    latencyMs: 1,
+    fromFallback: true,
+  }),
+  orderProvidersBySpeed: vi.fn().mockReturnValue([]),
+  containsHallucinatedError: vi.fn().mockReturnValue(false),
+  sanitizeResponse: vi.fn((t: string) => t),
+}));
+
 vi.mock("../services/aiConversation", () => ({
   touchConversation: vi.fn(),
   checkExpiredConversations: vi.fn().mockResolvedValue(undefined),

@@ -70,9 +70,8 @@ async function deleteDuplicateMessages(
         );
 
         for (const msg of sorted) {
-          // Ignorer les messages non-texte, vides, ou des autres bots
-          if (!msg.content || msg.content.trim().length === 0) continue;
-          if (msg.author.bot && msg.author.id !== client.user?.id) continue;
+          // Ignorer tous les messages qui ne sont pas envoyés par ce bot
+          if (msg.author.id !== client.user?.id) continue;
 
           // Normaliser le contenu (enlever whitespace, lowercase)
           const normalized = msg.content.trim().toLowerCase().replace(/\s+/g, " ");

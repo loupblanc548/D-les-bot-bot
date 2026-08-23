@@ -2,16 +2,14 @@
  * aiFallbackHelpers.test.ts — Tests pour les helpers de détection d'erreurs IA
  */
 import { describe, it, expect } from "vitest";
-import {
-  isAiHallucinatedError,
-  isStillError,
-  DEFAULT_ERROR_MESSAGE,
-} from "./aiFallbackHelpers.js";
+import { isAiHallucinatedError, isStillError, DEFAULT_ERROR_MESSAGE } from "./aiFallbackHelpers.js";
 
 describe("aiFallbackHelpers", () => {
   describe("isAiHallucinatedError", () => {
     it("should detect hallucinated error about model unavailability", () => {
-      expect(isAiHallucinatedError("Tous les modèles IA sont temporairement indisponibles")).toBe(true);
+      expect(isAiHallucinatedError("Tous les modèles IA sont temporairement indisponibles")).toBe(
+        true,
+      );
       expect(isAiHallucinatedError("Les modèles IA sont temporairement en cooldown")).toBe(true);
     });
 
@@ -66,8 +64,11 @@ describe("aiFallbackHelpers", () => {
       expect(DEFAULT_ERROR_MESSAGE.length).toBeGreaterThan(10);
     });
 
-    it("should contain warning emoji", () => {
-      expect(DEFAULT_ERROR_MESSAGE).toContain("⚠️");
+    it("should not contain technical error jargon", () => {
+      expect(DEFAULT_ERROR_MESSAGE).not.toContain("indisponible");
+      expect(DEFAULT_ERROR_MESSAGE).not.toContain("provider");
+      expect(DEFAULT_ERROR_MESSAGE).not.toContain("erreur");
+      expect(DEFAULT_ERROR_MESSAGE).not.toContain("⚠️");
     });
   });
 });

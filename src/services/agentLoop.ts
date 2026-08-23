@@ -13,22 +13,14 @@
 import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import { getOpenAIClient } from "./ai.js";
-import { getGroqClient, isGroqAvailable } from "./groq.js";
+import { callLlm } from "./aiGateway.js";
 import {
-  markModelFailure,
   markModelSuccess,
   recordModelLatency,
   isModelAvailable,
-  claimModel,
-  releaseModel,
   getAllAvailableModels,
   ensureAtLeastOneModelAvailable,
 } from "./modelRotation.js";
-import { getNvidiaNimClient, isNvidiaNimAvailable, isNvidiaModel } from "./nvidiaNim.js";
-import { getOmnirouteClient, isOmnirouteAvailable, isOmnirouteModel } from "./omniroute.js";
-import { getCerebrasClient, isCerebrasAvailable, getCerebrasModel } from "./cerebras.js";
-import { getSambaNovaClient, isSambaNovaAvailable, getSambaNovaModel } from "./sambanova.js";
 import { sanitizeForLlm } from "../utils/promptSanitizer.js";
 import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
 import {
@@ -72,13 +64,12 @@ import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
 import { getFeedbackHints } from "./proactiveAgent.js";
 import { getAgentLoopModel } from "./modelRouter.js";
 import { getCustomInstructions } from "./customInstructions.js";
-import { summarizeWithGemini, chatWithGemini, isGeminiAvailable } from "./gemini.js";
+import { summarizeWithGemini, isGeminiAvailable } from "./gemini.js";
 import {
   isLocalLlmAvailable,
   isLocalLlmVisionAvailable,
   getLocalLlmVisionModelName,
   chatWithLocalLlm,
-  chatWithLocalLlmTools,
   LOCAL_LLM_MODEL_NAME,
 } from "./localLlm.js";
 import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
@@ -93,7 +84,12 @@ import {
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
 import { getTrivialResponse } from "./trivialFastPath.js";
-import { getUserPreferences, recordInteraction, formatPreferencesForPrompt, setUserLanguage } from "./userPreferences.js";
+import {
+  getUserPreferences,
+  recordInteraction,
+  formatPreferencesForPrompt,
+  setUserLanguage,
+} from "./userPreferences.js";
 import { detectPrefetchableTool, formatPrefetchResult } from "./toolPrefetch.js";
 import type { ChatRuntimeSignal } from "./chatRuntime.js";
 import {
@@ -304,10 +300,19 @@ const MAX_TOOLS = 120;
 function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
   // Prioriser: tools essentiels d'abord, puis par ordre original
   const ESSENTIAL = new Set([
-    "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
-    "getDateTime", "getWeather", "translateText", "execute_code",
-    "send_message", "ask_user_question", "think_step_by_step",
-    "delegate_to_expert", "analyzeImageGemini",
+    "searchWeb",
+    "readUrl",
+    "fetchAndSummarize",
+    "searchKnowledge",
+    "getDateTime",
+    "getWeather",
+    "translateText",
+    "execute_code",
+    "send_message",
+    "ask_user_question",
+    "think_step_by_step",
+    "delegate_to_expert",
+    "analyzeImageGemini",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));
@@ -400,7 +405,9 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
         content: entry.content,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. Charger l'historique Discord (messages récents en mémoire)
   try {
@@ -418,7 +425,9 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
         content: role === "user" ? `${authorName}: ${msg.content}` : msg.content,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Deduplicate: keep only last MAX_HISTORY_MESSAGES * 2 entries
   const maxHistory = MAX_HISTORY_MESSAGES * 2;
@@ -524,74 +533,7 @@ export async function runAgentLoop(
   }
 }
 
-// ─── Retry wrapper for OpenRouter API calls ─────────────────────────────────
-
-const API_MAX_RETRIES = 1;
-const API_BASE_DELAY_MS = 250;
-
-interface RetryableError {
-  status?: number;
-  message: string;
-}
-
-function isRetryableError(err: any): boolean {
-  const e = err as RetryableError;
-  // 429 = rate limit (per-minute or per-day) — never retry, switch to next model
-  if (e.status === 429) {
-    return false;
-  }
-  // 402 = insufficient credits — never retry
-  if (e.status === 402) {
-    return false;
-  }
-  // 404/400 = invalid model — never retry
-  if (e.status === 404 || e.status === 400) {
-    return false;
-  }
-  if (e.status === 500 || e.status === 502 || e.status === 503 || e.status === 504) {
-    return true;
-  }
-  if (
-    !e.status &&
-    (e.message.includes("timeout") ||
-      e.message.includes("ECONNRESET") ||
-      e.message.includes("fetch failed") ||
-      e.message.includes("socket hang up"))
-  ) {
-    return true;
-  }
-  return false;
-}
-
-async function callLlmWithRetry(
-  client: ReturnType<typeof getOpenAIClient>,
-  params: Record<string, any>,
-  options: { timeout: number },
-): Promise<Awaited<ReturnType<typeof client.chat.completions.create>>> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
-    try {
-      const result = await client.chat.completions.create(params as never, options as never);
-      return result;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-
-      if (attempt < API_MAX_RETRIES && isRetryableError(err)) {
-        const delay = API_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
-        logger.warn(
-          `[AgentLoop] API retry ${attempt + 1}/${API_MAX_RETRIES} in ${Math.round(delay)}ms: ${lastError.message}`,
-        );
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-
-      throw lastError;
-    }
-  }
-
-  throw lastError ?? new Error("API call failed after retries");
-}
+// ─── (callLlmWithRetry removed — aiGateway handles retries) ──────────────
 
 async function runAgentLoopInternal(
   message: Message,
@@ -608,7 +550,6 @@ async function runAgentLoopInternal(
     return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";
   }
 
-  const client = getOpenAIClient();
   const ctx: ToolContext = {
     client: message.client as Client,
     message,
@@ -745,7 +686,7 @@ async function runAgentLoopInternal(
     "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
     "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
     "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
-    "- N'INVENTE JAMAIS de message d'erreur sur la disponibilité des modèles IA (ex: « Tous les modèles IA sont temporairement indisponibles »). Si un tool échoue, utilise un autre tool ou réponds avec les informations dont tu disposes. Ne mentionne JAMAIS de quotas, cooldowns ou indisponibilités de modèles dans ta réponse.\n" +
+    "- Si un tool échoue, utilise un autre tool ou réponds avec les informations dont tu disposes. Ta réponse doit toujours apporter de la valeur à l'utilisateur.\n" +
     "- define_word AUTOMATIQUEMENT quand tu rencontres un mot que tu ne connais pas ou qui semble technique/inhabituel. Ne dis JAMAIS 'je ne connais pas ce mot' — utilise define_word à la place.\n" +
     "\n## ANALYSE D'IMAGES\n" +
     "- Quand le message contient [Image jointe: ...] avec une Description visuelle, UTILISE cette description pour répondre à la question de l'utilisateur.\n" +
@@ -826,7 +767,9 @@ async function runAgentLoopInternal(
       prefetchContext = `\n## RÉSULTAT PRÉ-EXÉCUTÉ (${prefetchTarget.toolName})\n${formatPrefetchResult(prefetchTarget.toolName, prefetchResult.data || JSON.stringify(prefetchResult))}\nTu n'as PAS besoin de rappeler ce tool — utilise directement ce résultat.\n`;
       logger.info(`[Prefetch] ✅ ${prefetchTarget.toolName} pré-exécuté avec succès`);
     } catch (err) {
-      logger.debug(`[Prefetch] ❌ Échec ${prefetchTarget.toolName}: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[Prefetch] ❌ Échec ${prefetchTarget.toolName}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -882,7 +825,12 @@ async function runAgentLoopInternal(
       return `${embed.data.title ?? "Circuit breaker activated"} — L'agent a dépassé la limite de sécurité. Réessaie ta demande.`;
     }
 
-    let response: Awaited<ReturnType<typeof client.chat.completions.create>> | null = null;
+    let response: {
+      choices: Array<{
+        message: { content: string | null; tool_calls?: any[] };
+        finish_reason: string;
+      }>;
+    } | null = null;
     let lastErrMsg = "";
 
     // ─── Étape 1: Routeur intelligent — sélection du modèle selon la complexité ───
@@ -1023,7 +971,12 @@ async function runAgentLoopInternal(
       LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
     const skipLocalForAnyTools = isSmallLocalModel && availableTools.length > 0;
 
-    if (isLocalLlmAvailable() && !skipLocalForRetailer && !skipLocalForAnyTools && canUseLocalForImages) {
+    if (
+      isLocalLlmAvailable() &&
+      !skipLocalForRetailer &&
+      !skipLocalForAnyTools &&
+      canUseLocalForImages
+    ) {
       logger.info(
         `[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (chat simple, sans tools)`,
       );
@@ -1075,181 +1028,75 @@ async function runAgentLoopInternal(
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
-    for (const modelName of effectiveModels.slice(0, maxModelAttempts)) {
-      // Revalidate immediately before the call: the route was built earlier and
-      // another request may have put this model in cooldown in the meantime.
-      if (!claimModel(modelName)) {
-        logger.debug(`[AgentLoop] ⏭️ ${modelName} indisponible ou déjà utilisé — modèle suivant`);
-        continue;
-      }
-
-      const modelStartedAt = Date.now();
+    // ─── Étape 1: Appel unifié via aiGateway ───
+    // aiGateway gère: provider ordering, retry, fallback, budget, metrics, timeout.
+    // On lui passe le modèle préféré et les tools. Si le provider principal échoue,
+    // aiGateway fallback automatiquement vers Groq, Cerebras, SambaNova, Gemini, etc.
+    if (!response) {
+      const preferredModelName = effectiveModels[0] ?? preferredModel;
       try {
-        logger.info(`[AgentLoop] 🎯 Tentative modèle: ${modelName}`);
-        // Use NVIDIA NIM client for nvidia models,
-        // OmniRoute client for OmniRoute models, OpenRouter for the rest (including gpt-* via OpenRouter)
-        const isNvidia = isNvidiaModel(modelName);
-        const isOmniroute = isOmnirouteModel(modelName);
-        const activeClient =
-          isNvidia && isNvidiaNimAvailable()
-            ? getNvidiaNimClient()!
-            : isOmniroute && isOmnirouteAvailable()
-              ? getOmnirouteClient()!
-              : client;
-        response = await callLlmWithRetry(
-          activeClient,
-          {
-            model: modelName,
-            messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: compactTools(availableTools) as never,
-            max_tokens: getPersonalityMaxTokens(),
-            temperature: getPersonalityTemperature(),
-            parallel_tool_calls: true,
-            stream: false,
-          },
-          { timeout: 30_000 },
-        );
-        markModelSuccess(modelName);
-        recordModelLatency(modelName, Date.now() - modelStartedAt);
-        agentModelUsed.labels(modelName, "success").inc();
-        logger.info(`[AgentLoop] ✅ ${modelName} réussi`);
+        logger.info(`[AgentLoop] 🎯 Appel aiGateway (modèle préféré: ${preferredModelName})`);
+        const llmResult = await callLlm({
+          messages: buildProviderConversation(conversation, imageUrls).map((m) => ({
+            role: m.role,
+            content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+          })),
+          model: preferredModelName,
+          tools:
+            availableTools.length > 0
+              ? compactTools(availableTools).map((t) => ({
+                  type: "function" as const,
+                  function: {
+                    name: t.function.name,
+                    description: t.function.description,
+                    parameters: t.function.parameters as object,
+                  },
+                }))
+              : undefined,
+          requireToolCalling: availableTools.length > 0,
+          requireVision: imageUrls.length > 0,
+          maxTokens: getPersonalityMaxTokens(),
+          temperature: getPersonalityTemperature(),
+          timeoutMs: 30_000,
+          maxRetries: 1,
+          deadlineMs: Math.max(
+            5_000,
+            (isComplexTask(userMessage) ? AGENT_LOOP_TIMEOUT_LONG_MS : AGENT_LOOP_TIMEOUT_MS) -
+              (Date.now() - loopStartTime),
+          ),
+          userId: message.author.id,
+          guildId: message.guildId || undefined,
+          commandName: "agentLoop",
+        });
+
+        response = {
+          choices: [
+            {
+              message: {
+                content: llmResult.content,
+                tool_calls: llmResult.toolCalls as any[] | undefined,
+              },
+              finish_reason: llmResult.finishReason,
+            },
+          ],
+        };
+
+        markModelSuccess(llmResult.model);
+        recordModelLatency(llmResult.model, llmResult.latencyMs);
+        agentModelUsed.labels(llmResult.model, "success").inc();
         recordApiLlm();
-        break; // Succès → on sort de la boucle de rotation
-      } catch (modelErr) {
-        const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
-        const lowerError = msg.toLowerCase();
-        const isRateLimit = /\b429\b|rate.?limit|cooldown|too many requests/.test(lowerError);
-        // 404/400/402 = modèle invalide ou credits insuffisants, pas un vrai échec — ne pas mettre en cooldown
-        const isInvalidModel =
-          /\b(400|402|404)\b/.test(lowerError) ||
-          lowerError.includes("is not a valid model") ||
-          lowerError.includes("more credits") ||
-          lowerError.includes("page not found") ||
-          lowerError.includes("maximum number of items");
-        if (!isInvalidModel) {
-          markModelFailure(modelName, isRateLimit);
-        }
-        agentModelUsed.labels(modelName, "fail").inc();
+        logger.info(
+          `[AgentLoop] ✅ ${llmResult.provider}/${llmResult.model} réussi (${llmResult.latencyMs}ms, fallback: ${llmResult.fallbackCount})`,
+        );
+      } catch (llmErr) {
+        const msg = llmErr instanceof Error ? llmErr.message : String(llmErr);
         lastErrMsg = msg;
-        logger.warn(`[AgentLoop] ❌ ${modelName} échoué: ${msg.slice(0, 100)}`);
-        // Continue au prochain modèle
-      } finally {
-        releaseModel(modelName);
+        agentModelUsed.labels(preferredModelName, "fail").inc();
+        logger.warn(`[AgentLoop] ❌ aiGateway call failed: ${msg.slice(0, 120)}`);
       }
     }
 
-    // ─── Étape 2: Fallback Groq si tous les modèles OpenRouter ont échoué ───
-    if (!response && isGroqAvailable()) {
-      try {
-        logger.warn(
-          `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
-        );
-        const groqClient = getGroqClient()!;
-        // Groq free tier: 8K TPM — on réduit drastiquement les tools et le contexte
-        const groqTools = compactTools(availableTools).slice(0, 40);
-        const groqConversation = buildProviderConversation(conversation, imageUrls);
-        // Garder seulement le system prompt + dernier message user pour Groq
-        const lightConversation = [
-          groqConversation[0], // system
-          ...groqConversation.slice(-2), // derniers messages
-        ];
-        response = await groqClient.chat.completions.create(
-          {
-            model: config.groqModel,
-            messages: lightConversation as never,
-            tools: groqTools as never,
-            max_tokens: getPersonalityMaxTokens(),
-            temperature: getPersonalityTemperature(),
-            parallel_tool_calls: true,
-            stream: false,
-          } as never,
-          { timeout: 20_000 } as never,
-        );
-        logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
-      } catch (groqErr) {
-        const groqErrMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
-        logger.error(`[AgentLoop] Groq fallback also failed: ${groqErrMsg}`);
-        lastErrMsg = groqErrMsg;
-      }
-    }
-
-    // ─── Étape 2a: Fallback Cerebras (1000 tok/s) si Groq a échoué ───
-    if (!response && isCerebrasAvailable()) {
-      try {
-        logger.warn(`[AgentLoop] Fallback Cerebras (${getCerebrasModel()}) — ultra-rapide`);
-        const cerebrasClient = getCerebrasClient()!;
-        response = await cerebrasClient.chat.completions.create(
-          {
-            model: getCerebrasModel(),
-            messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: compactTools(availableTools) as never,
-            max_tokens: getPersonalityMaxTokens(),
-            temperature: getPersonalityTemperature(),
-            parallel_tool_calls: true,
-            stream: false,
-          } as never,
-          { timeout: 12_000 } as never,
-        );
-        logger.info(`[AgentLoop] ✅ Cerebras fallback réussi`);
-      } catch (cerebrasErr) {
-        const cerebrasErrMsg =
-          cerebrasErr instanceof Error ? cerebrasErr.message : String(cerebrasErr);
-        logger.error(`[AgentLoop] Cerebras fallback failed: ${cerebrasErrMsg}`);
-        lastErrMsg = cerebrasErrMsg;
-      }
-    }
-
-    // ─── Étape 2b: Fallback SambaNova (Llama 405B) si Cerebras a échoué ───
-    if (!response && isSambaNovaAvailable()) {
-      try {
-        logger.warn(`[AgentLoop] Fallback SambaNova (${getSambaNovaModel()}) — gros modèle`);
-        const sambaClient = getSambaNovaClient()!;
-        response = await sambaClient.chat.completions.create(
-          {
-            model: getSambaNovaModel(),
-            messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: compactTools(availableTools) as never,
-            max_tokens: getPersonalityMaxTokens(),
-            temperature: getPersonalityTemperature(),
-            parallel_tool_calls: true,
-            stream: false,
-          } as never,
-          { timeout: 18_000 } as never,
-        );
-        logger.info(`[AgentLoop] ✅ SambaNova fallback réussi`);
-      } catch (sambaErr) {
-        const sambaErrMsg = sambaErr instanceof Error ? sambaErr.message : String(sambaErr);
-        logger.error(`[AgentLoop] SambaNova fallback failed: ${sambaErrMsg}`);
-        lastErrMsg = sambaErrMsg;
-      }
-    }
-
-    // ─── Étape 2c: Fallback Gemini si tout a échoué ───
-    if (!response && isGeminiAvailable()) {
-      try {
-        logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
-        const geminiReply = await chatWithGemini(
-          config.aiSystemPrompt +
-            "\n\nTu es John Helldiver, un agent IA sur Discord. Tu as accès à Internet via des outils de recherche (searchWeb, readUrl, etc.). " +
-            "Réponds dans la langue du message reçu. Sois concis et naturel. " +
-            "Si tu ne peux pas utiliser un outil maintenant, explique ce que tu ferais avec.",
-          userMessage,
-          800,
-        );
-        if (geminiReply) {
-          // Gemini ne supporte pas les tools ici — on retourne directement la réponse
-          logger.info(`[AgentLoop] ✅ Gemini fallback réussi`);
-          completeInteraction(breakerState);
-          return geminiReply;
-        }
-      } catch (geminiErr) {
-        const geminiErrMsg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
-        logger.error(`[AgentLoop] Gemini fallback also failed: ${geminiErrMsg}`);
-        lastErrMsg = geminiErrMsg;
-      }
-    }
-
-    // ─── Étape 3: Tous les fallbacks ont échoué — retry après 5s ───
+    // ─── Étape 2: Tous les fallbacks ont échoué — retry ───
     if (!response) {
       // Retry automatique après un court délai si c'est un rate-limit ou timeout
       const isRetryable =
@@ -1260,30 +1107,19 @@ async function runAgentLoopInternal(
         lastErrMsg.includes("overloaded");
 
       if (isRetryable && iteration < maxIterations - 1) {
-        logger.warn(`[AgentLoop] ⏳ Retry automatique dans 5s (tous les providers ont échoué)`);
-        await new Promise((r) => setTimeout(r, 5000));
+        logger.warn(`[AgentLoop] ⏳ Retry automatique dans 1.5s (tous les providers ont échoué)`);
+        await new Promise((r) => setTimeout(r, 1500));
         ensureAtLeastOneModelAvailable();
         continue; // Continue l'agent loop au lieu de retourner une erreur
       }
 
       completeInteraction(breakerState);
-      if (lastErrMsg.includes("429") || lastErrMsg.includes("rate")) {
-        return "⏳ Les serveurs IA sont saturés en ce moment. Réessaie dans 30 secondes.";
-      }
-      if (lastErrMsg.includes("413") || lastErrMsg.includes("too large")) {
-        return "⚠️ Requête trop volumineuse pour les serveurs gratuits. Essaie une question plus courte ou reformule.";
-      }
-      if (lastErrMsg.includes("403") || lastErrMsg.includes("PERMISSION_DENIED")) {
-        return "🔑 Problème de configuration API côté serveur. Contacte l'admin.";
-      }
-      if (
-        lastErrMsg.includes("timeout") ||
-        lastErrMsg.includes("ECONNRESET") ||
-        lastErrMsg.includes("fetch")
-      ) {
-        return "📡 Problème de connexion au serveur IA. Réessaie ta demande.";
-      }
-      return "⚠️ Problème technique temporaire. Réessaie ta demande.";
+      // Ne jamais exposer de message d'erreur technique à l'utilisateur.
+      // Retourner "" déclenche la chaîne de fallback de messages.ts.
+      logger.warn(
+        `[AgentLoop] Tous providers échoués (${lastErrMsg.slice(0, 120)}) — fallback aval`,
+      );
+      return "";
     }
 
     const choice = (
@@ -1356,7 +1192,9 @@ async function runAgentLoopInternal(
       // First iteration — just record the thought without stasis check
       try {
         await checkCognitiveStasis(cognitiveSessionId, iteration, thoughtContent);
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
 
     // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
@@ -1667,31 +1505,27 @@ export async function extractAndSaveMemory(
   aiResponse: string,
 ): Promise<void> {
   try {
-    const client = getOpenAIClient();
+    const llmResult = await callLlm({
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
+            'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "..."}]}. ' +
+            'Si rien à mémoriser, réponds {"facts": []}.',
+        },
+        {
+          role: "user",
+          content: `User: ${userMessage}\nAI: ${aiResponse}`,
+        },
+      ],
+      maxTokens: 200,
+      temperature: 0.3,
+      timeoutMs: 10_000,
+      maxRetries: 0,
+    });
 
-    const completion = await client.chat.completions.create(
-      {
-        model: config.openRouterModel,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
-              'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "..."}]}. ' +
-              'Si rien à mémoriser, réponds {"facts": []}.',
-          },
-          {
-            role: "user",
-            content: `User: ${userMessage}\nAI: ${aiResponse}`,
-          },
-        ],
-        max_tokens: 200,
-        temperature: 0.3,
-      },
-      { timeout: 10_000 },
-    );
-
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw = llmResult.content || "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return;
 

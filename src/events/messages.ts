@@ -559,7 +559,9 @@ export function handleMessageEvents(client: Client) {
               content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
               allowedMentions: { roles: [REPORT_ROLE_ID] },
             });
-          } catch { logger.error("[Silent catch]"); }
+          } catch {
+            logger.error("[Silent catch]");
+          }
         }
       }
 
@@ -619,7 +621,9 @@ export function handleMessageEvents(client: Client) {
           await channel.send({
             content: `🎉 ${message.author.toString()} a atteint le **niveau ${xpResult.newLevel}** !`,
           });
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
@@ -1017,7 +1021,9 @@ async function handleVoiceCommand(
   // Réaction pour indiquer que ça travaille
   try {
     await message.react("🗣️");
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // ── Ajouter à la file d'attente TTS ──
   const guildId = message.guildId!;
@@ -1166,7 +1172,9 @@ async function generateVoiceTTS(
         return buf;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. ElevenLabs
   try {
@@ -1179,7 +1187,9 @@ async function generateVoiceTTS(
         return Buffer.from(result.audioUrl.split(",")[1], "base64");
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
@@ -1188,7 +1198,9 @@ async function generateVoiceTTS(
       logger.info(`[VoiceCmd] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 4. StreamElements / Amazon Polly
   try {
@@ -1248,7 +1260,9 @@ async function generateVoiceTTS(
         return seBuffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 5. Fallback: Google Translate TTS
   try {
@@ -1374,7 +1388,9 @@ async function generateEdgeTTS(
       resolved = true;
       try {
         ws.close();
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       resolve(result);
     };
 
@@ -1657,61 +1673,121 @@ async function handleAiChatMention(
     // directement sans passer par l'agent loop (économise ~2-5s de latence)
     const lowerMsgEarly = enrichedContent.toLowerCase();
     const toolKeywords = [
-      "cherche", "search", "recherche", "trouve", "find", "look up",
-      "analyse", "analyze", "scan", "vérifie", "check", "test",
-      "calcule", "calculate", "compute", "résous", "solve",
-      "convert", "transform", "encode", "decode", "hash",
-      "météo", "weather", "prix", "price", "crypto", "stock",
-      "github", "repo", "commit", "issue", "pull request",
-      "site", "url", "page", "lien", "link", "http",
-      "image", "screenshot", "photo", "génère", "generate", "dessine",
-      "code", "script", "exécute", "execute", "run",
-      "wikipedia", "wiki", "news", "article", "video", "youtube",
-      "meme", "blague", "joke", "citation", "quote",
-      "translate", "traduis", "langue", "language",
-      "stock", "prix", "deal", "promo", "shop", "boutique",
-      "server", "serveur", "ping", "ip", "dns", "domain",
-      "password", "mot de passe", "token", "clé", "key",
+      "cherche",
+      "search",
+      "recherche",
+      "trouve",
+      "find",
+      "look up",
+      "analyse",
+      "analyze",
+      "scan",
+      "vérifie",
+      "check",
+      "test",
+      "calcule",
+      "calculate",
+      "compute",
+      "résous",
+      "solve",
+      "convert",
+      "transform",
+      "encode",
+      "decode",
+      "hash",
+      "météo",
+      "weather",
+      "prix",
+      "price",
+      "crypto",
+      "stock",
+      "github",
+      "repo",
+      "commit",
+      "issue",
+      "pull request",
+      "site",
+      "url",
+      "page",
+      "lien",
+      "link",
+      "http",
+      "image",
+      "screenshot",
+      "photo",
+      "génère",
+      "generate",
+      "dessine",
+      "code",
+      "script",
+      "exécute",
+      "execute",
+      "run",
+      "wikipedia",
+      "wiki",
+      "news",
+      "article",
+      "video",
+      "youtube",
+      "meme",
+      "blague",
+      "joke",
+      "citation",
+      "quote",
+      "translate",
+      "traduis",
+      "langue",
+      "language",
+      "stock",
+      "prix",
+      "deal",
+      "promo",
+      "shop",
+      "boutique",
+      "server",
+      "serveur",
+      "ping",
+      "ip",
+      "dns",
+      "domain",
+      "password",
+      "mot de passe",
+      "token",
+      "clé",
+      "key",
     ];
-    const hasToolIntent = toolKeywords.some(kw => lowerMsgEarly.includes(kw));
+    const hasToolIntent = toolKeywords.some((kw) => lowerMsgEarly.includes(kw));
     const isComplexOrTool = hasToolIntent || enrichedContent.length > 200;
 
     if (!isComplexOrTool) {
-      // Chat simple → streaming direct depuis l'API cloud (pas d'agent loop)
+      // Chat simple → réponse rapide via le gateway (multi-providers, pas de message d'erreur)
       try {
-        const { getOpenAIClient: getClient } = await import("../services/ai.js");
-        const streamClient = getClient();
+        const { respondChat } = await import("../services/chatResponder.js");
+        const { isAiHallucinatedError: isHalluc } =
+          await import("../services/aiFallbackHelpers.js");
         const streamMsg = await (message as Message).reply("💭 ...");
-        const stream = await streamClient.chat.completions.create({
-          model: config.openRouterModel,
-          messages: [
-            { role: "system", content: "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle." },
-            { role: "user", content: enrichedContent },
-          ],
-          max_tokens: 1000,
-          temperature: 0.7,
-          stream: true,
+        const result = await respondChat(enrichedContent, [], {
+          systemPrompt:
+            "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.",
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          maxTokens: 1000,
+          deadlineMs: 15_000,
         });
-        let accumulated = "";
-        let lastEdit = 0;
-        for await (const chunk of stream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            accumulated += delta;
-            const nowMs = Date.now();
-            if (nowMs - lastEdit > 1500) {
-              lastEdit = nowMs;
-              await streamMsg.edit((accumulated + " ▌").slice(0, 2000)).catch(() => {});
-            }
-          }
-        }
-        if (accumulated) {
-          await streamMsg.edit(accumulated.slice(0, 2000)).catch(() => {});
-          logger.info(`[AIChat] ⚡ Fast-path streaming réussi (${accumulated.length} chars)`);
+        const fastText = result.content?.trim() ?? "";
+        if (fastText && !isHalluc(fastText)) {
+          await simulateStreamEdit(streamMsg, fastText);
+          logger.info(
+            `[AIChat] ⚡ Fast-path réussi via ${result.provider} (${fastText.length} chars, ${result.latencyMs}ms)`,
+          );
           return;
         }
+        // Hallucination ou vide: supprimer le placeholder et continuer vers l'agent loop
+        await streamMsg.delete().catch(() => {});
       } catch (fastErr) {
-        logger.warn(`[AIChat] Fast-path échoué, fallback agent loop: ${fastErr instanceof Error ? fastErr.message : String(fastErr)}`);
+        logger.warn(
+          `[AIChat] Fast-path échoué, fallback agent loop: ${fastErr instanceof Error ? fastErr.message : String(fastErr)}`,
+        );
       }
     }
 
@@ -1774,11 +1850,7 @@ async function handleAiChatMention(
             },
             { role: "user", content: enrichedContent },
           ]);
-          if (
-            localReply &&
-            localReply.length > 2 &&
-            !isAiHallucinatedError(localReply)
-          ) {
+          if (localReply && localReply.length > 2 && !isAiHallucinatedError(localReply)) {
             aiResponse = localReply;
             logger.info(
               `[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
@@ -1794,10 +1866,7 @@ async function handleAiChatMention(
       }
 
       // ── Fallback 2: Gemini (free, quota séparé) ──
-      if (
-        isStillError(aiResponse) &&
-        isGeminiAvailable()
-      ) {
+      if (isStillError(aiResponse) && isGeminiAvailable()) {
         logger.warn(`[AIChat] Fallback: Gemini`);
         try {
           const geminiReply = await chatWithGemini(
@@ -1818,10 +1887,7 @@ async function handleAiChatMention(
       }
 
       // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
-      if (
-        isStillError(aiResponse) &&
-        isNvidiaNimAvailable()
-      ) {
+      if (isStillError(aiResponse) && isNvidiaNimAvailable()) {
         logger.warn(`[AIChat] Fallback: NVIDIA NIM`);
         try {
           const nvidiaReply = await chatWithNvidiaNim(
@@ -1929,10 +1995,24 @@ async function handleAiChatMention(
       }
     }
 
-    // ── Si toujours vide ou erreur, message par défaut ──
+    // ── Si toujours vide ou erreur, dernier recours via le responder garanti ──
     if (isStillError(aiResponse)) {
-      aiResponse =
-        "⚠️ Je n’ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
+      try {
+        const { respondChat } = await import("../services/chatResponder.js");
+        const rescue = await respondChat(enrichedContent, [], {
+          systemPrompt:
+            config.aiSystemPrompt +
+            "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          maxTokens: 500,
+          deadlineMs: 15_000,
+        });
+        aiResponse = rescue.content;
+      } catch {
+        aiResponse =
+          "Hmm, laisse-moi reformuler ça une seconde… Repose ta question, je te réponds tout de suite, soldat.";
+      }
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
@@ -2028,6 +2108,26 @@ async function handleAiChatMention(
     const lastErr = errorSpamGuard.get(message.author.id) || 0;
     if (now - lastErr > 30_000) {
       errorSpamGuard.set(message.author.id, now);
+      // Dernier recours: tenter une vraie réponse via le responder garanti
+      // plutôt que d'afficher un message d'erreur statique.
+      try {
+        const { respondChat } = await import("../services/chatResponder.js");
+        const rescue = await respondChat(message.content, [], {
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          maxTokens: 400,
+          deadlineMs: 12_000,
+        });
+        if (rescue.content && rescue.provider !== "fallback") {
+          await message.reply({
+            content: rescue.content.slice(0, 1900),
+            allowedMentions: { repliedUser: false },
+          });
+          return;
+        }
+      } catch {
+        // continue vers le message statique
+      }
       const errMsg = error instanceof Error ? error.message : String(error);
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const errorFallbackMsgs: Record<string, { overload: string; error: string }> = {
@@ -2560,6 +2660,24 @@ async function handleDMMessage(
     const lastErr = errorSpamGuard.get(message.author.id) || 0;
     if (now - lastErr > 30_000) {
       errorSpamGuard.set(message.author.id, now);
+      // Dernier recours: vraie réponse via le responder garanti
+      try {
+        const { respondChat } = await import("../services/chatResponder.js");
+        const rescue = await respondChat(message.content, [], {
+          userId: message.author.id,
+          maxTokens: 400,
+          deadlineMs: 12_000,
+        });
+        if (rescue.content && rescue.provider !== "fallback") {
+          await message.reply({
+            content: rescue.content.slice(0, 1900),
+            allowedMentions: { repliedUser: false },
+          });
+          return;
+        }
+      } catch {
+        // continue vers le message statique
+      }
       const errMsg = error instanceof Error ? error.message : String(error);
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const userMsg = isOverload
@@ -2767,7 +2885,9 @@ async function handleSecurityModules(
         if (spamMessages.size > 0) {
           try {
             await (message.channel as TextChannel).bulkDelete(spamMessages, true);
-          } catch (_) { logger.error("[Silent catch]", _); }
+          } catch (_) {
+            logger.error("[Silent catch]", _);
+          }
         }
         await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_SPAM").catch(
           () => {},
