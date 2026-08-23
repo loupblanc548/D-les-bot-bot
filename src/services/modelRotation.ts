@@ -12,6 +12,7 @@
  */
 
 import logger from "../utils/logger.js";
+import { config } from "../config.js";
 import { agentCircuitBreakerTransitions } from "./prometheusExporter.js";
 import { NVIDIA_FREE_MODELS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 import { OMNIROUTE_FREE_MODELS, isOmnirouteAvailable } from "./omniroute.js";
