@@ -11,7 +11,7 @@ import { Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { getOpenAIClient } from "./ai.js";
 
-const EDIT_INTERVAL_MS = 1_500;
+const EDIT_INTERVAL_MS = 400;
 const MAX_DISCORD_LENGTH = 2000;
 const CURSOR = " ▌";
 
@@ -52,7 +52,9 @@ export async function streamToDiscord(replyTo: Message, options: StreamOptions):
     try {
       const display = final ? accumulated : accumulated + CURSOR;
       await statusMessage.edit(display.slice(0, MAX_DISCORD_LENGTH));
-    } catch { logger.error("[Silent catch]"); } finally {
+    } catch {
+      logger.error("[Silent catch]");
+    } finally {
       editing = false;
     }
   };
@@ -113,7 +115,7 @@ export async function streamToDiscord(replyTo: Message, options: StreamOptions):
  */
 export async function simulateStreamEdit(statusMessage: Message, fullText: string): Promise<void> {
   const text = fullText.slice(0, MAX_DISCORD_LENGTH);
-  const chunkSize = Math.max(80, Math.ceil(text.length / 6));
+  const chunkSize = Math.max(200, Math.ceil(text.length / 2));
   let shown = 0;
 
   while (shown < text.length) {

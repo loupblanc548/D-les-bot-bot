@@ -90,30 +90,40 @@ export async function persistUsageRecord(record: PersistedUsageRecord): Promise<
   }
 
   // 2. Persister en base (fire-and-forget, non-bloquant)
-  void prisma.aiUsageLog
-    .create({
-      data: {
-        timestamp: new Date(record.timestamp),
-        provider: record.provider,
-        model: record.model,
-        promptTokens: record.promptTokens,
-        completionTokens: record.completionTokens,
-        totalTokens: record.totalTokens,
-        costEur: record.costEur,
-        latencyMs: record.latencyMs,
-        success: record.success,
-        fallbackCount: record.fallbackCount ?? 0,
-        fallbackReason: record.fallbackReason ?? null,
-        userId: record.userId ?? null,
-        guildId: record.guildId ?? null,
-        commandName: record.commandName ?? null,
-      },
-    })
-    .catch((err: unknown) => {
-      logger.debug(
-        `[BudgetPersistence] Prisma persist failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
+  try {
+    if (!prisma?.aiUsageLog) {
+      logger.debug("[BudgetPersistence] Prisma not ready — skipping DB persist");
+      return;
+    }
+    void prisma.aiUsageLog
+      .create({
+        data: {
+          timestamp: new Date(record.timestamp),
+          provider: record.provider,
+          model: record.model,
+          promptTokens: record.promptTokens,
+          completionTokens: record.completionTokens,
+          totalTokens: record.totalTokens,
+          costEur: record.costEur,
+          latencyMs: record.latencyMs,
+          success: record.success,
+          fallbackCount: record.fallbackCount ?? 0,
+          fallbackReason: record.fallbackReason ?? null,
+          userId: record.userId ?? null,
+          guildId: record.guildId ?? null,
+          commandName: record.commandName ?? null,
+        },
+      })
+      .catch((err: unknown) => {
+        logger.debug(
+          `[BudgetPersistence] Prisma persist failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+  } catch (err) {
+    logger.debug(
+      `[BudgetPersistence] Prisma access failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 /**

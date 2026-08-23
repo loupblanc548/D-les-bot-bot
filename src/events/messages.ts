@@ -1490,29 +1490,7 @@ async function handleAiChatMention(
     // Plus de courts-circuits (reactions, ultra-short replies, natural actions)
     // L'IA gère toutes les langues et tous les types de messages.
 
-    // Déclencher l'indicateur de frappe réaliste
-    await simulateHumanTyping(message.channel as TextChannel, effectiveContent.length);
-
-    // ── Vérifier les conversations expirées avant de continuer ──
-    await checkExpiredConversations();
-
-    // ── Rate limiting géré par runAgentLoop (cooldown 3s par user) ──
-
-    // ── Construire le contexte : faits long-terme + historique conversation ──
-    await buildConversationContext(message.author.id, effectiveContent, message.author.username);
-
-    // ── Marquer la conversation comme active ──
-    touchConversation(message.author.id);
-
-    // ── Ajouter le message utilisateur à la mémoire de conversation ──
-    await addMessageToConversation(
-      message.author.id,
-      "user",
-      effectiveContent,
-      message.guildId || undefined,
-    );
-
-    // ── Détection de langue pour réponse multilingue ──
+    // ── Détection de langue (rapide, synchrone) ──
     const userLangDetection = detectLanguage(effectiveContent);
     userLang = userLangDetection.lang;
     const langNames: Record<SupportedLang, string> = {
@@ -1536,17 +1514,64 @@ async function handleAiChatMention(
     };
     const langInstruction = `[LANGUAGE INSTRUCTION] The user is writing in ${langNames[userLang] || "English"}. You MUST respond in ${langNames[userLang] || "English"}. Always reply in the same language as the user's message. If the user mixes languages, respond in the dominant one.`;
 
-    // ── Vision auto: analyser les images jointes avec Gemini ──
     let enrichedContent = `${langInstruction}\n\n${effectiveContent}`;
+
+    // ── Vérifier les images jointes (rapide, synchrone) ──
     const imageAttachments = [...message.attachments.values()].filter(isImageAttachment);
     let imageUrls: string[] = [];
-
-    // Also check embeds for image URLs (when user posts a direct image link)
     const embedImageUrls: string[] = [];
     for (const embed of message.embeds) {
       if (embed.image?.url) embedImageUrls.push(embed.image.url);
       if (embed.thumbnail?.url) embedImageUrls.push(embed.thumbnail.url);
     }
+
+    // ── CACHE CHECK IMMÉDIAT (avant tout pré-traitement coûteux) ──
+    if (imageAttachments.length === 0 && embedImageUrls.length === 0) {
+      const cached = await getCachedResponse(enrichedContent, message.author.id, "guild");
+      if (cached && !isErrorResponse(cached)) {
+        logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
+        if (cached.length <= 1900) {
+          await message
+            .reply({ content: cached, allowedMentions: { repliedUser: false } })
+            .catch(() => {});
+        } else {
+          await message
+            .reply({ content: cached.slice(0, 1900), allowedMentions: { repliedUser: false } })
+            .catch(() => {});
+        }
+        return;
+      }
+    }
+
+    // ── Trivial fast path (réponses instantanées sans API) ──
+    if (imageAttachments.length === 0 && embedImageUrls.length === 0) {
+      const { getTrivialResponse } = await import("../services/trivialFastPath.js");
+      const trivial = getTrivialResponse(effectiveContent, message.author.id);
+      if (trivial) {
+        await message
+          .reply({ content: trivial, allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+        return;
+      }
+    }
+
+    // ── Indicateur de frappe minimal (non-bloquant) ──
+    (message.channel as TextChannel).sendTyping().catch(() => {});
+
+    // ── Pré-traitement en arrière-plan (non-bloquant) ──
+    void checkExpiredConversations().catch(() => {});
+    void buildConversationContext(
+      message.author.id,
+      effectiveContent,
+      message.author.username,
+    ).catch(() => {});
+    touchConversation(message.author.id);
+    void addMessageToConversation(
+      message.author.id,
+      "user",
+      effectiveContent,
+      message.guildId || undefined,
+    ).catch(() => {});
 
     if (imageAttachments.length > 0 || embedImageUrls.length > 0) {
       logger.info(
@@ -1619,14 +1644,10 @@ async function handleAiChatMention(
       }
     }
 
-    // ── Indicateur d'activité: sendTyping avant l'agent loop ──
-    const channel = message.channel as TextChannel;
-    await channel.sendTyping().catch(() => {});
-
-    // ── Suivi de conversation pour suggestion de thread ──
+    // ── Suivi de conversation pour suggestion de thread (non-bloquant) ──
     const convTracker = trackConversation(message.author.id, message.channel.id);
     if (convTracker.shouldSuggestThread && message.guildId) {
-      await suggestThread(message as Message);
+      void suggestThread(message as Message).catch(() => {});
     }
 
     // ── DEEP RESEARCH: si la requête demande une recherche approfondie ──
@@ -1637,23 +1658,6 @@ async function handleAiChatMention(
         return;
       }
       // Si le deep research échoue, on continue vers l'agent loop
-    }
-
-    // ── Cache sémantique: vérifier si on a déjà une réponse récente ──
-    const cached = await getCachedResponse(enrichedContent, message.author.id, "guild");
-    if (cached && !isErrorResponse(cached)) {
-      logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
-      void statusIndicator.cleanup();
-      if (cached.length <= 1900) {
-        await message
-          .reply({ content: cached, allowedMentions: { repliedUser: false } })
-          .catch(() => {});
-      } else {
-        await message
-          .reply({ content: cached.slice(0, 1900), allowedMentions: { repliedUser: false } })
-          .catch(() => {});
-      }
-      return;
     }
 
     // ── FAST PATH: chat simple sans tools → streaming direct, skip agent loop ──
@@ -2064,13 +2068,6 @@ async function handleDMMessage(
     // Les DMs peuvent être traités par Ollama ou les providers disponibles
     // sans rendre OpenRouter obligatoire.
 
-    // Indicateur de frappe réaliste
-    await simulateHumanTyping(message.channel as TextChannel, effectiveDmContent.length);
-
-    // ── Indicateur d'activité: sendTyping avant l'agent loop ──
-    const dmChannel = message.channel as TextChannel;
-    await dmChannel.sendTyping().catch(() => {});
-
     // ── Vision auto: analyser les images jointes en DM aussi ──
     let dmEnrichedContent = effectiveDmContent;
     const dmImageAttachments = [...message.attachments.values()].filter(isImageAttachment);
@@ -2082,6 +2079,39 @@ async function handleDMMessage(
       if (embed.image?.url) dmEmbedImageUrls.push(embed.image.url);
       if (embed.thumbnail?.url) dmEmbedImageUrls.push(embed.thumbnail.url);
     }
+
+    // ── CACHE CHECK IMMÉDIAT (avant tout pré-traitement coûteux) ──
+    if (dmImageAttachments.length === 0 && dmEmbedImageUrls.length === 0) {
+      const dmCached = await getCachedResponse(dmEnrichedContent, message.author.id, "dm");
+      if (dmCached && !isErrorResponse(dmCached)) {
+        logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
+        if (dmCached.length <= 1900) {
+          await message
+            .reply({ content: dmCached, allowedMentions: { repliedUser: false } })
+            .catch(() => {});
+        } else {
+          await message
+            .reply({ content: dmCached.slice(0, 1900), allowedMentions: { repliedUser: false } })
+            .catch(() => {});
+        }
+        return;
+      }
+    }
+
+    // ── Trivial fast path (DM) ──
+    if (dmImageAttachments.length === 0 && dmEmbedImageUrls.length === 0) {
+      const { getTrivialResponse } = await import("../services/trivialFastPath.js");
+      const trivial = getTrivialResponse(effectiveDmContent, message.author.id);
+      if (trivial) {
+        await message
+          .reply({ content: trivial, allowedMentions: { repliedUser: false } })
+          .catch(() => {});
+        return;
+      }
+    }
+
+    // ── Indicateur de frappe minimal (non-bloquant) ──
+    (message.channel as TextChannel).sendTyping().catch(() => {});
 
     if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
       dmImageUrls = [
@@ -2152,23 +2182,6 @@ async function handleDMMessage(
         void dmStatusIndicator.cleanup();
         return;
       }
-    }
-
-    // ── Cache sémantique (DM): vérifier si on a déjà une réponse récente ──
-    const dmCached = await getCachedResponse(dmEnrichedContent, message.author.id, "dm");
-    if (dmCached && !isErrorResponse(dmCached)) {
-      logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
-      void dmStatusIndicator.cleanup();
-      if (dmCached.length <= 1900) {
-        await message
-          .reply({ content: dmCached, allowedMentions: { repliedUser: false } })
-          .catch(() => {});
-      } else {
-        await message
-          .reply({ content: dmCached.slice(0, 1900), allowedMentions: { repliedUser: false } })
-          .catch(() => {});
-      }
-      return;
     }
 
     // Lancer l'agent loop (Think → Act → Observe → Respond)

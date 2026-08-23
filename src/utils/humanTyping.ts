@@ -15,11 +15,11 @@ import logger from "../utils/logger.js";
  * - Basé sur la longueur du message utilisateur + un peu d'aléatoire
  */
 function calculateTypingDelay(userMessageLength: number): number {
-  const baseDelay = 1500; // 1.5s minimum
-  const charsPerSecond = 80; // vitesse de frappe moyenne
+  const baseDelay = 300; // 300ms minimum
+  const charsPerSecond = 200; // vitesse rapide
   const calculated = (userMessageLength / charsPerSecond) * 1000;
-  const jitter = Math.random() * 1500; // 0-1.5s d'aléatoire
-  return Math.min(baseDelay + calculated + jitter, 8000);
+  const jitter = Math.random() * 300; // 0-300ms d'aléatoire
+  return Math.min(baseDelay + calculated + jitter, 2000); // max 2s
 }
 
 /**
@@ -50,7 +50,9 @@ export async function simulateHumanTyping(
     await sleep(Math.min(5000, delay - i * 5000));
     try {
       await channel.sendTyping();
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 

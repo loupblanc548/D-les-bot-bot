@@ -1260,10 +1260,20 @@ async function runAgentLoopInternal(
     });
 
     // Exécuter tous les tools en parallèle pour la performance
-    const toolCalls = (assistantMessage.tool_calls ?? []) as Array<{
+    const rawToolCalls = (assistantMessage.tool_calls ?? []) as Array<{
       id: string;
       function: { name: string; arguments: string };
     }>;
+
+    // Filter out malformed tool calls (missing function or name)
+    const toolCalls = rawToolCalls.filter(
+      (tc) => tc && tc.function && typeof tc.function.name === "string",
+    );
+    if (rawToolCalls.length > toolCalls.length) {
+      logger.warn(
+        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s)`,
+      );
+    }
 
     // Notify status indicator (if provided) about tool calls
     if (statusCallback && toolCalls.length > 0) {
