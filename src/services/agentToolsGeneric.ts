@@ -673,6 +673,7 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
           return ok("YAML valide ✓");
         } catch {
           try {
+            // @ts-expect-error — js-yaml has no bundled types
             const jsYaml = await import("js-yaml");
             jsYaml.load(text);
             return ok("YAML valide ✓");
@@ -1103,7 +1104,7 @@ export async function executeGenericTool(
   if (mathResult) return mathResult;
 
   // Try text utilities
-  const textResult = handleText(toolName, args);
+  const textResult = await handleText(toolName, args);
   if (textResult) return textResult;
 
   // Try crypto/media
