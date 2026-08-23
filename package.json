@@ -38,7 +38,7 @@
     "@ai-sdk/anthropic": "^4.0.22",
     "@bull-board/api": "^8.1.2",
     "@bull-board/express": "^8.1.2",
-    "@dank074/discord-video-stream": "^5.0.2",
+    "@dank074/discord-video-stream": "^6.0.0",
     "@discordjs/voice": "^0.19.2",
     "@mozilla/readability": "^0.6.0",
     "@napi-rs/canvas": "^1.0.1",
