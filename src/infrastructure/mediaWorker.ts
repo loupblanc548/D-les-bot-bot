@@ -34,9 +34,7 @@ function startHeartbeat(): void {
           memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         },
       });
-    } catch {
-      // Parent might be gone
-    }
+    } catch { logger.error("[Silent catch]"); }
   }, 30_000);
 }
 
@@ -79,16 +77,14 @@ async function initModules(): Promise<void> {
   // Signal ready
   try {
     process.send?.({ type: "ready" });
-  } catch {
-    // Parent gone
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   startHeartbeat();
 }
 
 // ─── Message handler (commands from parent) ───────────────────────────────────
 
-process.on("message", (msg: { type?: string; data?: unknown }) => {
+process.on("message", (msg: { type?: string; data?: any }) => {
   if (msg?.type === "shutdown") {
     logger.info(`${CYAN}[MediaWorker]${RESET} ${YELLOW}Shutdown received — cleaning up...${RESET}`);
     if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -109,9 +105,7 @@ process.on("uncaughtException", (err) => {
   logger.error(`${CYAN}[MediaWorker]${RESET} Uncaught: ${err.message}`);
   try {
     process.send?.({ type: "error", message: err.message });
-  } catch {
-    // Parent gone
-  }
+  } catch { logger.error("[Silent catch]"); }
   process.exit(1);
 });
 
@@ -125,8 +119,6 @@ void initModules().catch((err) => {
       type: "error",
       message: `Init failed: ${err instanceof Error ? err.message : String(err)}`,
     });
-  } catch {
-    // Parent gone
-  }
+  } catch { logger.error("[Silent catch]"); }
   process.exit(1);
 });

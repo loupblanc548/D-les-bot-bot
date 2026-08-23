@@ -11,7 +11,7 @@ import { vi } from "vitest";
 
 // ─── Mock User ────────────────────────────────────────────────────
 
-export function mockUser(overrides: Record<string, unknown> = {}) {
+export function mockUser(overrides: Record<string, any> = {}) {
   return {
     id: "123456789012345678",
     tag: "testuser#0001",
@@ -28,7 +28,7 @@ export function mockUser(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock Member ──────────────────────────────────────────────────
 
-export function mockMember(overrides: Record<string, unknown> = {}) {
+export function mockMember(overrides: Record<string, any> = {}) {
   const perms = new Set<string>(["SendMessages", "ViewChannel"]);
   return {
     id: "123456789012345678",
@@ -58,7 +58,7 @@ export function mockMember(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock Guild ───────────────────────────────────────────────────
 
-export function mockGuild(overrides: Record<string, unknown> = {}) {
+export function mockGuild(overrides: Record<string, any> = {}) {
   return {
     id: "987654321098765432",
     name: "Test Guild",
@@ -90,7 +90,7 @@ export function mockGuild(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock Channel ─────────────────────────────────────────────────
 
-export function mockChannel(overrides: Record<string, unknown> = {}) {
+export function mockChannel(overrides: Record<string, any> = {}) {
   return {
     id: "555555555555555555",
     type: 0, // GuildText
@@ -111,7 +111,7 @@ export function mockChannel(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock Message ─────────────────────────────────────────────────
 
-export function mockMessage(overrides: Record<string, unknown> = {}) {
+export function mockMessage(overrides: Record<string, any> = {}) {
   return {
     id: "999999999999999999",
     content: "",
@@ -137,8 +137,8 @@ export function mockMessage(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock ChatInputCommandInteraction ─────────────────────────────
 
-export function mockInteraction(overrides: Record<string, unknown> = {}) {
-  const options = new Map<string, { value: unknown }>();
+export function mockInteraction(overrides: Record<string, any> = {}) {
+  const options = new Map<string, { value: any }>();
   return {
     id: "interaction-1",
     type: 2, // ApplicationCommand
@@ -168,7 +168,7 @@ export function mockInteraction(overrides: Record<string, unknown> = {}) {
       getRole: vi.fn(() => ({ id: "role1", name: "Member" })),
       getNumber: vi.fn((name: string) => options.get(name)?.value ?? null),
       getFocused: vi.fn(() => ({ name: "", value: "" })),
-      data: { options: [] as unknown[] },
+      data: { options: [] as any[] },
     },
     reply: vi.fn().mockResolvedValue(undefined),
     deferReply: vi.fn().mockResolvedValue(undefined),
@@ -183,7 +183,7 @@ export function mockInteraction(overrides: Record<string, unknown> = {}) {
 
 // ─── Mock Client ──────────────────────────────────────────────────
 
-export function mockClient(overrides: Record<string, unknown> = {}) {
+export function mockClient(overrides: Record<string, any> = {}) {
   return {
     user: mockUser({ bot: true, id: "botid", username: "TestBot" }),
     application: { id: "appid", fetch: vi.fn().mockResolvedValue({ id: "appid" }) },

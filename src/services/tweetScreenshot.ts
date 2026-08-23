@@ -131,9 +131,7 @@ export async function captureTweetScreenshot(
     if (browser) {
       try {
         await browser.close();
-      } catch {
-        // Ignore close errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }

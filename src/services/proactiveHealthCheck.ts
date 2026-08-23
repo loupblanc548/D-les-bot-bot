@@ -32,7 +32,7 @@ export function getHealthStatus(client: Client): HealthStatus {
   };
 }
 
-async function sendWebhook(url: string, payload: Record<string, unknown>): Promise<void> {
+async function sendWebhook(url: string, payload: Record<string, any>): Promise<void> {
   if (!url) return;
   try {
     await fetch(url, {
@@ -59,7 +59,7 @@ async function notifyStatusChange(client: Client, isOk: boolean): Promise<void> 
       isDiscordWebhook =
         (parsed.hostname === "discord.com" || parsed.hostname === "discordapp.com") &&
         parsed.pathname.includes("/api/webhooks/");
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
     if (isDiscordWebhook) {
       await sendWebhook(webhookUrl, {
         embeds: [
@@ -136,15 +136,13 @@ export async function autoBackup(): Promise<void> {
 
     // Export key tables as JSON
     const tables = ["NotificationLog", "ModerationLog", "Casier", "GuildConfig"];
-    const backup: Record<string, unknown> = { timestamp, tables: {} as Record<string, unknown> };
+    const backup: Record<string, any> = { timestamp, tables: {} as Record<string, any> };
 
     for (const table of tables) {
       try {
         const data = await (prisma as any)[table].findMany({ take: 10000 });
-        (backup.tables as Record<string, unknown>)[table] = data;
-      } catch {
-        // Table might not exist
-      }
+        (backup.tables as Record<string, any>)[table] = data;
+      } catch { logger.error("[Silent catch]"); }
     }
 
     // Store backup info

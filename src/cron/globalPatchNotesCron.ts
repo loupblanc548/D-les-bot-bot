@@ -225,9 +225,9 @@ async function checkPatchNotes(client: Client): Promise<void> {
             logger.warn("[GlobalPatchNotes] Unable to parse scraped raw content");
           }
         }
-      } else if ((scraped as Record<string, unknown>).items) {
+      } else if ((scraped as Record<string, any>).items) {
         // Items pre-parses par scraper-bridge (deja valides)
-        items = (scraped as Record<string, unknown>).items as PatchNoteItem[];
+        items = (scraped as Record<string, any>).items as PatchNoteItem[];
       }
     } catch (scraperErr) {
       logger.warn(

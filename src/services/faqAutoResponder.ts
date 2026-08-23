@@ -206,7 +206,7 @@ ${recentContext || "(Aucun message récent)"}`;
     clearTimeout(timeout);
     const reply = completion.choices[0]?.message?.content?.trim();
     return reply || null;
-  } catch (err: unknown) {
+  } catch (err: any) {
     if ((err as Error)?.name === "AbortError") {
       logger.warn("[FAQ] IA timeout — pas de réponse");
       return null;

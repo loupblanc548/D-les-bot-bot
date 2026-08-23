@@ -23,9 +23,7 @@ export async function invalidateModuleCache(modulePath: string): Promise<void> {
     // en ajoutant un query string pour bypasser le cache
     await import(`${url}?t=${Date.now()}`);
     logger.debug(`[HotReload] Cache invalidé: ${modulePath}`);
-  } catch {
-    // Si l'import échoue, le module n'existe peut-être pas encore
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 /**
@@ -51,9 +49,7 @@ export function discoverCommandFiles(): string[] {
 
   try {
     scan(commandsDir);
-  } catch {
-    // ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   return files;
 }
@@ -76,9 +72,7 @@ export function discoverServiceFiles(): string[] {
         files.push(join(servicesDir, entry.name));
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   return files;
 }
@@ -87,7 +81,7 @@ export function discoverServiceFiles(): string[] {
  * Recharge un module spécifique à chaud.
  * Retourne le module rechargé ou null.
  */
-export async function reloadModule(modulePath: string): Promise<unknown | null> {
+export async function reloadModule(modulePath: string): Promise<any | null> {
   try {
     const url = new URL(`file:///${modulePath.replace(/\\/g, "/")}`).href;
     const freshModule = await import(`${url}?t=${Date.now()}`);

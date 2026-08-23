@@ -81,9 +81,7 @@ export async function checkMessage(
 
       await user.send({ embeds: [embed] });
       notifiedCount++;
-    } catch {
-      // DM disabled — skip silently
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   if (notifiedCount > 0) {

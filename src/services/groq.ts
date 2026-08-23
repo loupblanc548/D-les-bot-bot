@@ -87,7 +87,7 @@ export async function chatWithGroq(opts: ChatOptions): Promise<string | null> {
 /**
  * Fast JSON-mode completion (for relevance checks, moderation decisions, etc.)
  */
-export async function chatWithGroqJSON(opts: ChatOptions): Promise<Record<string, unknown> | null> {
+export async function chatWithGroqJSON(opts: ChatOptions): Promise<Record<string, any> | null> {
   const client = getGroqClient();
   if (!client) return null;
 
@@ -108,7 +108,7 @@ export async function chatWithGroqJSON(opts: ChatOptions): Promise<Record<string
     const raw = completion.choices[0]?.message?.content ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+    return JSON.parse(jsonMatch[0]) as Record<string, any>;
   } catch (error) {
     logger.debug(
       `[Groq] JSON chat failed: ${error instanceof Error ? error.message : String(error)}`,

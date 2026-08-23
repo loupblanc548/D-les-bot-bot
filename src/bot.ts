@@ -131,6 +131,8 @@ const client = new Client({
   },
 });
 
+client.setMaxListeners(20);
+
 let healthResults: import("./services/healthcheck.js").CheckResult[] = [];
 let startupNotificationSent = false;
 
@@ -301,9 +303,7 @@ async function main(): Promise<void> {
   try {
     const { sendRestartAlert } = await import("./utils/crash-webhook.js");
     void sendRestartAlert();
-  } catch {
-    // Ignore if crash webhook not configured
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Nettoyage initial + automatique
   pruneOldData().catch((err) =>

@@ -78,7 +78,7 @@ const MANAGE_SUBS = [
   "webhook-config",
 ];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
   Object.defineProperty(interaction, "commandName", { value: action, writable: true });

@@ -198,9 +198,7 @@ async function cacheToRedis(cacheKey: string, result: TranslationResult): Promis
       const redisKey = `${REDIS_TRANSLATION_PREFIX}${Buffer.from(cacheKey).toString("base64url")}`;
       await redis.set(redisKey, JSON.stringify(result), { EX: REDIS_TRANSLATION_TTL });
     }
-  } catch {
-    // Redis unavailable — silent
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 export async function translateText(
@@ -225,9 +223,7 @@ export async function translateText(
         return parsed;
       }
     }
-  } catch {
-    // Redis unavailable — continue to in-memory cache
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Check in-memory cache
   const cached = translationCache.get(cacheKey);
@@ -268,9 +264,7 @@ export async function translateText(
         detectedLanguage: detected || "auto",
       };
     }
-  } catch {
-    // Ollama indisponible — fallback sur la chaîne existante
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // ── PLAN A: OpenRouter API (primaire — plus fiable) ─────────────────
   if (Date.now() < openRouterRateLimitedUntil) {

@@ -18,7 +18,7 @@ interface AlertEntry {
   count: number;
   firstAlert: number;
   lastAlert: number;
-  data?: Record<string, unknown>;
+  data?: Record<string, any>;
 }
 
 const alertMap = new Map<string, AlertEntry>();
@@ -66,7 +66,7 @@ export async function sendEscalatedAlert(
   client: Client,
   key: string,
   message: string,
-  data?: Record<string, unknown>
+  data?: Record<string, any>
 ): Promise<boolean> {
   const rule = ESCALATION_RULES[key];
   if (!rule) {

@@ -62,7 +62,7 @@ export function handleModerationEvents(client: Client) {
             try {
               const deleted = await chan.bulkDelete(userMessages, true);
               totalDeleted += deleted.size;
-            } catch (bulkErr: unknown) {
+            } catch (bulkErr: any) {
               // Erreur silencieuse : messages trop vieux (>14j), salon verrouille, etc.
               if ((bulkErr as any).code === 50034) {
                 // Messages de plus de 14 jours — on les ignore
@@ -74,7 +74,7 @@ export function handleModerationEvents(client: Client) {
               );
             }
           }
-        } catch (fetchErr: unknown) {
+        } catch (fetchErr: any) {
           // Salon inaccessible (verrouille, permissions manquantes, etc.)
           const chan = channel as GuildTextBasedChannel;
           logger.warn(

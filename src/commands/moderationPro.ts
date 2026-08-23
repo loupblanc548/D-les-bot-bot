@@ -111,7 +111,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -297,7 +297,7 @@ async function handleRaidShield(interaction: ChatInputCommandInteraction): Promi
       if (logChannel?.isTextBased()) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 
   logAction(
@@ -326,7 +326,7 @@ async function handleRaidShield(interaction: ChatInputCommandInteraction): Promi
               .setTimestamp();
             await logChannel.send({ embeds: [offEmbed] });
           }
-        } catch {}
+        } catch { logger.error("[Silent catch]"); }
       }
     } catch (error) {
       logger.error(
@@ -389,9 +389,7 @@ async function handleSpamAnalysis(interaction: ChatInputCommandInteraction): Pro
         if (!lastId) break;
         lastId = messages.last()?.id;
       }
-    } catch {
-      // Skip channel si inaccessible
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   if (allMessages.length === 0) {

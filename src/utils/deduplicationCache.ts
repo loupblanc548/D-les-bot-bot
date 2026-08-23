@@ -121,9 +121,7 @@ class DeduplicationCache {
           where: { key: "lastMaintenance" },
         });
         if (state) this.lastMaintenance = state.value;
-      } catch {
-        // Table AppState peut ne pas encore exister
-      }
+      } catch { logger.error("[Silent catch]"); }
       this.initialized = true;
     } catch (error) {
       logger.error(
@@ -177,7 +175,7 @@ class DeduplicationCache {
         create: { platform: platform as any, uniqueId },
         update: {},
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "P2002") {
         logger.error("[DedupCache] Erreur DB markAsProcessed: " + (err?.message || String(error)));
@@ -203,7 +201,7 @@ class DeduplicationCache {
         data: newIds.map((uniqueId) => ({ platform: platform as any, uniqueId })),
         skipDuplicates: true,
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "P2002") {
         logger.error("[DedupCache] Erreur DB markBatch: " + (err?.message || String(error)));
@@ -304,9 +302,7 @@ class DeduplicationCache {
         where: { key: "lastMaintenance" },
       });
       this.lastMaintenance = state?.value ?? null;
-    } catch {
-      // Table potentiellement inexistante
-    }
+    } catch { logger.error("[Silent catch]"); }
     if (this.lastMaintenance) {
       const lastDate = new Date(this.lastMaintenance);
       if (lastDate.getMonth() === now.getMonth() && lastDate.getFullYear() === now.getFullYear()) {

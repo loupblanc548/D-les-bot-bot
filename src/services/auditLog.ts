@@ -16,7 +16,7 @@ export interface AuditEntry {
   moderatorId: string;
   targetId?: string;
   reason?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, any>;
 }
 
 export async function logAuditAction(entry: AuditEntry): Promise<void> {
@@ -33,9 +33,7 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
           metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
         },
       });
-    } catch {
-      // Table might not exist yet — graceful fallback to webhook only
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     // Send to webhook if configured
     if (AUDIT_WEBHOOK_URL) {

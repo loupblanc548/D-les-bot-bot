@@ -3,7 +3,7 @@ import http from "http";
 export function validateBody<T>(
   req: http.IncomingMessage,
   res: http.ServerResponse,
-  validator: (parsed: unknown) => T | null
+  validator: (parsed: any) => T | null
 ): Promise<T | null> {
   return new Promise((resolve) => {
     let body = "";

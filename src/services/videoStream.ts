@@ -69,9 +69,7 @@ async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean>
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (res.ok || res.status === 404) return true;
-    } catch {
-      // Server not ready
-    }
+    } catch { logger.error("[Silent catch]"); }
     await new Promise((r) => setTimeout(r, 2000));
   }
   return false;
@@ -257,9 +255,7 @@ async function startVideoStreamAsync(): Promise<void> {
           if (!videoStream.destroyed && videoStream.writable) {
             videoStream.write(screenshot);
           }
-        } catch {
-          // Page might be loading
-        }
+        } catch { logger.error("[Silent catch]"); }
         const elapsed = Date.now() - frameStart;
         const wait = targetFrameTime - elapsed;
         if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -355,9 +351,7 @@ async function startVideoStreamAsync(): Promise<void> {
       try {
         await activePage.reload({ waitUntil: "domcontentloaded", timeout: 8000 });
         logger.debug("[VideoStream] Page rechargée");
-      } catch {
-        // Ignore reload errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }, 300_000);
 
     // 9. Auto-reconnect if stream stops (check every 30s)

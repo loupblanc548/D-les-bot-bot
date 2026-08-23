@@ -85,9 +85,7 @@ async function checkReleases(client: Client): Promise<void> {
         if (descResult && descResult.detectedLanguage !== "fr") {
           displayDesc = descResult.translatedText;
         }
-      } catch {
-        // Traduction échouée — texte original
-      }
+      } catch { logger.error("[Silent catch]"); }
 
       const embed = new EmbedBuilder()
         .setTitle(`${feed.emoji} ${displayTitle}`)

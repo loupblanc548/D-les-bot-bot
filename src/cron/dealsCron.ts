@@ -236,9 +236,7 @@ async function sendDealEmbed(
       try {
         const ogImage = await getOgImage(item.link);
         if (ogImage) imageUrl = ogImage;
-      } catch {
-        // Ignore OG fetch errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
 
     // Fallback final: image par défaut de la plateforme
@@ -300,7 +298,7 @@ async function processDealItem(client: Client, item: DealItem): Promise<void> {
   }
   try {
     // Validate RSS item
-    if (!validateRssItem(item as unknown as Record<string, unknown>)) {
+    if (!validateRssItem(item as any as Record<string, any>)) {
       logger.warn(`[DealsCron] Item RSS invalide ignore: ${item.title || "sans titre"}`);
       return;
     }

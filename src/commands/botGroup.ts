@@ -29,7 +29,7 @@ export const commands = [
 const MAIN_SUBS = ["start", "help", "restart", "status"];
 const EXTRA_SUBS = ["server-info", "userinfo"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
 

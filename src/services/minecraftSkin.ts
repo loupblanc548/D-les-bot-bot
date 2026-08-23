@@ -22,7 +22,7 @@ const DEFAULT_SKIN_PATH = "/opt/bot/assets/bot-skin.png";
 
 // Default geometry for a standard 64x64 skin
 // This is the "steve.json" geometry that bedrock-protocol uses by default
-const DEFAULT_GEOMETRY: Record<string, unknown> = {
+const DEFAULT_GEOMETRY: Record<string, any> = {
   SkinId: "custom_bot_skin",
   SkinResourcePatch: "",
   SkinGeometryData: "",
@@ -44,7 +44,7 @@ const DEFAULT_GEOMETRY: Record<string, unknown> = {
  */
 export function loadCustomSkin(
   skinPath: string = DEFAULT_SKIN_PATH,
-): Record<string, unknown> | null {
+): Record<string, any> | null {
   if (!existsSync(skinPath)) {
     logger.info(
       `[MinecraftSkin] Pas de skin personnalisé trouvé (${skinPath}) — utilisation du skin par défaut (Steve)`,

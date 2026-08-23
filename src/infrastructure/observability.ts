@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import logger from "../utils/logger.js";
 
 export function initObservability() {
   if (process.env.SENTRY_DSN) {
@@ -13,7 +14,7 @@ export function initObservability() {
         console.info("[observability] OpenTelemetry started");
       })
       .catch(() => {
-        console.warn("[observability] OpenTelemetry SDK not available");
+        logger.warn("[observability] OpenTelemetry SDK not available");
       });
   }
 }

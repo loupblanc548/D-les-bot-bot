@@ -217,7 +217,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
       "[PatchNotesCron] Verification #" + checkCount + " — fetch RSS Reddit r/patchnotes...",
     );
 
-    let feed: Record<string, unknown>;
+    let feed: Record<string, any>;
     try {
       // Utiliser rss2json avec retry logic
       feed = (await retry(
@@ -228,7 +228,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
         },
         3,
         1000,
-      )) as Record<string, unknown>;
+      )) as Record<string, any>;
     } catch (rssError) {
       const msg = rssError instanceof Error ? rssError.message : String(rssError);
       logger.warn("[PatchNotesCron] Flux Reddit inaccessible: " + msg);

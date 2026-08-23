@@ -81,7 +81,7 @@ export async function connectBot(
   }
 
   try {
-    const options: Record<string, unknown> = {
+    const options: Record<string, any> = {
       host: config.host,
       port: config.port,
       username: config.username,
@@ -97,10 +97,10 @@ export async function connectBot(
     }
 
     if (config.realmId) {
-      options.realms = { realmId: config.realmId, pickRealm: (realms: unknown[]) => realms[0] };
+      options.realms = { realmId: config.realmId, pickRealm: (realms: any[]) => realms[0] };
     }
 
-    bot = new Client(options as unknown as ConstructorParameters<typeof Client>[0]);
+    bot = new Client(options as any as ConstructorParameters<typeof Client>[0]);
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
@@ -132,8 +132,8 @@ export async function connectBot(
 
       bot!.on("health", () => {
         if (bot) {
-          lastHealth = (bot as unknown as { health?: number }).health ?? 20;
-          lastHunger = (bot as unknown as { hunger?: number }).hunger ?? 20;
+          lastHealth = (bot as any as { health?: number }).health ?? 20;
+          lastHunger = (bot as any as { hunger?: number }).hunger ?? 20;
           if (lastHealth <= 0) {
             logger.warn("[MinecraftBot] Bot mort ! Arrêt du mining.");
             stopMining();
@@ -159,7 +159,7 @@ export async function connectBot(
         }) => {
           const msg = packet.message || "";
           const sender = packet.source_name || "";
-          const botName = (bot as unknown as { username?: string }).username ?? "Bot";
+          const botName = (bot as any as { username?: string }).username ?? "Bot";
 
           // Détecter les commandes /verify <code>
           const verifyMatch = msg.match(/^\/verify\s+([A-F0-9]{6})$/i);
@@ -208,7 +208,7 @@ export async function connectBot(
         },
       );
 
-      (bot as unknown as { connect: () => void }).connect();
+      (bot as any as { connect: () => void }).connect();
     });
   } catch (err) {
     cleanupBot();
@@ -230,9 +230,7 @@ export function disconnectBot(): { success: boolean; message: string } {
   try {
     if (typeof (bot as any).disconnect === "function") (bot as any).disconnect();
     else if (typeof (bot as any).close === "function") (bot as any).close();
-  } catch {
-    // ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
   cleanupBot();
   logger.info("[MinecraftBot] Bot déconnecté");
   return { success: true, message: "✅ Bot Minecraft déconnecté." };
@@ -295,8 +293,8 @@ export function stopMining(): { success: boolean; message: string } {
 export function getBotStatus(): MCBotStatus {
   return {
     connected: bot !== null,
-    username: bot ? ((bot as unknown as { username?: string }).username ?? "Bot") : null,
-    host: bot ? ((bot as unknown as { options?: { host?: string } }).options?.host ?? null) : null,
+    username: bot ? ((bot as any as { username?: string }).username ?? "Bot") : null,
+    host: bot ? ((bot as any as { options?: { host?: string } }).options?.host ?? null) : null,
     position: lastPosition,
     health: lastHealth,
     hunger: lastHunger,
@@ -548,9 +546,7 @@ async function generateAIResponse(
           return groqReply;
         }
       }
-    } catch {
-      // Continue to pattern fallback
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     // Fallback final: patterns locaux
     return generatePatternResponse(message, sender, botName);
@@ -822,7 +818,7 @@ export function sendChat(message: string): { success: boolean; message: string }
   try {
     bot.queue("text", {
       type: "chat",
-      source_name: (bot as unknown as { username?: string }).username ?? "Bot",
+      source_name: (bot as any as { username?: string }).username ?? "Bot",
       message,
       needs_translation: false,
       xuid: "",
@@ -946,9 +942,7 @@ async function digBlock(pos: { x: number; y: number; z: number }): Promise<void>
     });
 
     miningState.blocksMined++;
-  } catch {
-    // Bloc potentiellement incassable (bedrock, obsidienne)
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 async function moveForward(): Promise<void> {
@@ -1026,9 +1020,7 @@ export function followPlayer(username: string): { success: boolean; message: str
       // Pour simplifier, on envoie un packet de mouvement vers la dernière position connue du joueur
       // Le bot se déplace vers le joueur en envoyant des packets de mouvement
       // (bedrock-protocol expose les entités via les events)
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }, 1000);
 
   if (followInterval.unref) followInterval.unref();

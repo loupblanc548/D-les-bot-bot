@@ -139,7 +139,7 @@ export async function getOrCreateRiskProfile(
     });
   }
 
-  return profile as unknown as RiskProfile;
+  return profile as any as RiskProfile;
 }
 
 // ============================================================
@@ -203,7 +203,7 @@ export async function recordSanction(
 
   logger.info(`[RiskEngine] Score mis \u00E0 jour pour ${userId}: ${score} (${riskLevel})`);
 
-  const finalProfile = { ...updated, riskScore: score, riskLevel } as unknown as RiskProfile;
+  const finalProfile = { ...updated, riskScore: score, riskLevel } as any as RiskProfile;
 
   // Déclencher l'investigation autonome si le profil le justifie
   if (riskCallback) {
@@ -241,7 +241,7 @@ export async function recordSecurityEvent(
     `[RiskEngine] \u00C9v\u00E9nement ${eventType} pour ${userId}: score=${currentScore}`,
   );
 
-  const finalProfile = { ...profile, riskScore: currentScore, riskLevel } as unknown as RiskProfile;
+  const finalProfile = { ...profile, riskScore: currentScore, riskLevel } as any as RiskProfile;
 
   // Déclencher l'investigation autonome si le profil le justifie
   if (riskCallback) {

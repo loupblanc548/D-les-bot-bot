@@ -4,6 +4,7 @@
  */
 
 import { execSync } from "child_process";
+import logger from "../utils/logger.js";
 import dns from "dns/promises";
 
 // ─── SMTP relay test ──────────────────────────────────────────────────────
@@ -223,9 +224,7 @@ export async function dnsSubdomainBrute(domain: string, wordlist: string): Promi
       if (records.length > 0) {
         found.push(`${sub}.${domain} -> ${records.join(", ")}`);
       }
-    } catch {
-      // Not found
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
   return found.length > 0
     ? `Found ${found.length} subdomains:\n${found.join("\n")}`

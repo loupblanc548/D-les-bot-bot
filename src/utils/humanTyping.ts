@@ -6,6 +6,7 @@
  */
 
 import type { TextChannel } from "discord.js";
+import logger from "../utils/logger.js";
 
 /**
  * Calcule un temps de frappe réaliste en ms.
@@ -49,9 +50,7 @@ export async function simulateHumanTyping(
     await sleep(Math.min(5000, delay - i * 5000));
     try {
       await channel.sendTyping();
-    } catch {
-      // Channel potentiellement supprimé, on ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 

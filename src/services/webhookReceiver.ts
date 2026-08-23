@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import logger from "../utils/logger.js";
 
-type WebhookHandler = (event: string, payload: unknown, headers: Record<string, string>) => Promise<void>;
+type WebhookHandler = (event: string, payload: any, headers: Record<string, string>) => Promise<void>;
 
 interface WebhookRoute {
   path: string;
@@ -67,7 +67,7 @@ export async function handleWebhook(
   }
 
   const event = (req.headers["x-github-event"] as string) ?? "webhook";
-  let payload: unknown;
+  let payload: any;
   try {
     payload = JSON.parse(body.toString("utf-8"));
   } catch {
@@ -93,7 +93,7 @@ export async function handleWebhook(
 async function executeWithRetry(
   handler: WebhookHandler,
   event: string,
-  payload: unknown,
+  payload: any,
   headers: Record<string, string>,
   routePath: string,
   maxRetries = 3,

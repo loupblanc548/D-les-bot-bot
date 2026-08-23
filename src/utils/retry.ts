@@ -11,7 +11,7 @@ export { retryWithBackoff as retry } from "./async.js";
  * @param error - Error to check
  * @returns True if the error is retryable
  */
-export function isRetryableError(error: unknown): boolean {
+export function isRetryableError(error: any): boolean {
   if (error instanceof Error) {
     // Network errors
     if (error.message.includes('ECONNREFUSED') || 

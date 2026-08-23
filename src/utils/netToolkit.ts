@@ -14,6 +14,7 @@
  */
 
 import * as dnsPromises from "dns/promises";
+import logger from "../utils/logger.js";
 import { connect as netConnect, Socket } from "net";
 import { request as httpsRequest } from "https";
 import { request as httpRequest } from "http";
@@ -33,9 +34,9 @@ export async function dnsLookup(domain: string, types?: string[]): Promise<DnsRe
 
   for (const type of recordTypes) {
     try {
-      const resolver = dnsPromises as unknown as Record<
+      const resolver = dnsPromises as any as Record<
         string,
-        (hostname: string) => Promise<unknown>
+        (hostname: string) => Promise<any>
       >;
       const fn = resolver[`resolve${type}`];
       if (!fn) continue;
@@ -47,9 +48,7 @@ export async function dnsLookup(domain: string, types?: string[]): Promise<DnsRe
       } else if (result) {
         records.push({ type, value: String(result) });
       }
-    } catch {
-      // Record type not found — normal
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   return {
@@ -164,9 +163,7 @@ export async function checkHttpMethods(url: string): Promise<HttpMethodsResult> 
     if (optionsResult?.allow) {
       allowedMethods.push(...optionsResult.allow.split(",").map((m) => m.trim().toUpperCase()));
     }
-  } catch {
-    // OPTIONS not supported — try individual methods
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // If no Allow header, test each method individually
   if (allowedMethods.length === 0) {
@@ -195,9 +192,7 @@ export async function checkHttpMethods(url: string): Promise<HttpMethodsResult> 
         if (result !== null && result !== 405 && result !== 501) {
           allowedMethods.push(method);
         }
-      } catch {
-        // Method not allowed
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 
@@ -597,9 +592,7 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
   try {
     const mx = await dnsPromises.resolveMx(domain);
     mxRecords = mx.map((r) => r.exchange);
-  } catch {
-    // No MX
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // SPF (TXT record)
   let spfRecord: string | null = null;
@@ -612,9 +605,7 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
         break;
       }
     }
-  } catch {
-    // No TXT
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // DMARC (_dmarc.domain TXT)
   let dmarcRecord: string | null = null;
@@ -627,18 +618,14 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
         break;
       }
     }
-  } catch {
-    // No DMARC
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // DKIM (try default selector)
   let hasDkim = false;
   try {
     const dkimTxt = await dnsPromises.resolveTxt(`default._domainkey.${domain}`);
     hasDkim = dkimTxt.length > 0;
-  } catch {
-    // No DKIM with default selector
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   const hasMx = mxRecords.length > 0;
   const hasSpf = !!spfRecord;
@@ -672,8 +659,8 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
 
 export interface JwtDecodeResult {
   valid: boolean;
-  header: Record<string, unknown> | null;
-  payload: Record<string, unknown> | null;
+  header: Record<string, any> | null;
+  payload: Record<string, any> | null;
   signature: string | null;
   algorithm: string | null;
   expiresAt: string | null;
@@ -705,7 +692,7 @@ export function decodeJwt(token: string): JwtDecodeResult {
       };
     }
 
-    const decodeBase64 = (str: string): Record<string, unknown> => {
+    const decodeBase64 = (str: string): Record<string, any> => {
       const padded = str + "=".repeat((4 - (str.length % 4)) % 4);
       const decoded = Buffer.from(padded, "base64url").toString("utf-8");
       return JSON.parse(decoded);

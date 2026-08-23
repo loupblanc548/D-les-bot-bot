@@ -42,7 +42,7 @@ async function fetchSteamDeals(): Promise<Deal[]> {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
     if (!res.ok) return deals;
-    const data = await res.json() as Record<string, unknown>;
+    const data = await res.json() as Record<string, any>;
 
     // Special offers
     const specials = data.specials as { items: Array<{ id: number; name: string; discount_block?: string; discount_original_price?: number; discount_final_price?: number; header_image?: string; url?: string }> } | undefined;
@@ -176,9 +176,7 @@ async function checkDeals(client: Client): Promise<void> {
       if (titleResult && titleResult.detectedLanguage !== "fr") {
         displayTitle = titleResult.translatedText;
       }
-    } catch {
-      // Traduction échouée
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     const storeConfig = STORE_CONFIGS.find(s => s.name === deal.store);
     const emoji = storeConfig?.emoji || "🏷️";
@@ -200,9 +198,7 @@ async function checkDeals(client: Client): Promise<void> {
     if (deal.image && typeof deal.image === "string" && /^https?:\/\//.test(deal.image)) {
       try {
         embed.setThumbnail(deal.image);
-      } catch {
-        // URL image invalide — on ignore
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
 
     try {

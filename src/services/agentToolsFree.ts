@@ -410,7 +410,7 @@ export const FREE_TOOLS: AgentToolDef[] = [
 
 export async function executeFreeTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   _ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsFree] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
@@ -529,7 +529,7 @@ export async function executeFreeTool(
         try {
           const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
           if (!res.ok) return { success: false, data: `OpenSky API error: ${res.status}` };
-          const data = (await res.json()) as { states?: Array<Array<unknown>> };
+          const data = (await res.json()) as { states?: Array<Array<any>> };
           let states = data.states;
           if (!states || states.length === 0)
             return {
@@ -680,7 +680,7 @@ export async function executeFreeTool(
 // ─── Knowledge Ingestion Tool Handlers ───────────────────────────────────────
 
 async function handleSearchDeveloperResources(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const query = String(args.query ?? "").trim();
   const category = String(args.category ?? "").trim();
@@ -730,7 +730,7 @@ async function handleSearchDeveloperResources(
   }
 }
 
-async function handleLookupTypeScriptSkill(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function handleLookupTypeScriptSkill(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query ?? "").trim();
 
   if (!query) return { success: false, data: "Query vide" };
@@ -809,7 +809,7 @@ export async function autoHealTypeScriptError(errorMessage: string): Promise<str
 
 const CACHE_TTL_24H = 86400;
 
-async function handleSearchPublicApis(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function handleSearchPublicApis(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query ?? "");
   const category = args.category ? String(args.category) : undefined;
   const requiresAuth = args.requiresAuth === true;
@@ -819,7 +819,7 @@ async function handleSearchPublicApis(args: Record<string, unknown>): Promise<To
   const cached = await redisCache.get<ToolCallResult>(cacheKey);
   if (cached) return cached;
 
-  const where: Record<string, unknown> = {
+  const where: Record<string, any> = {
     category: "PUBLIC_API",
     OR: [
       { name: { contains: query, mode: "insensitive" as const } },
@@ -845,7 +845,7 @@ async function handleSearchPublicApis(args: Record<string, unknown>): Promise<To
 
   const formatted = results
     .map((r, i) => {
-      const meta = (r as Record<string, unknown>).metadata as {
+      const meta = (r as Record<string, any>).metadata as {
         auth?: string;
         https?: boolean;
         cors?: string;
@@ -862,7 +862,7 @@ async function handleSearchPublicApis(args: Record<string, unknown>): Promise<To
   return res;
 }
 
-async function handleGetDevSnippet(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function handleGetDevSnippet(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query ?? "");
   const language = args.language ? String(args.language) : undefined;
   if (!query) return { success: false, data: "Recherche vide" };
@@ -871,7 +871,7 @@ async function handleGetDevSnippet(args: Record<string, unknown>): Promise<ToolC
   const cached = await redisCache.get<ToolCallResult>(cacheKey);
   if (cached) return cached;
 
-  const where: Record<string, unknown> = {
+  const where: Record<string, any> = {
     category: "CODE_SNIPPET",
     OR: [
       { name: { contains: query, mode: "insensitive" as const } },
@@ -906,7 +906,7 @@ async function handleGetDevSnippet(args: Record<string, unknown>): Promise<ToolC
 }
 
 async function handleSearchProgrammingBooks(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const topic = String(args.topic ?? "");
   if (!topic) return { success: false, data: "Sujet vide" };
@@ -946,7 +946,7 @@ async function handleSearchProgrammingBooks(
   return res;
 }
 
-async function handleSearchSystemDesign(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function handleSearchSystemDesign(args: Record<string, any>): Promise<ToolCallResult> {
   const topic = String(args.topic ?? "");
   if (!topic) return { success: false, data: "Sujet vide" };
 

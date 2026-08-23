@@ -158,7 +158,7 @@ export async function queryFiveM(host: string, port = 30120): Promise<GameServer
       return { host, port, game: "fivem", online: false, players: { online: 0, max: 0 } };
     }
 
-    const players = (await res.json()) as unknown[];
+    const players = (await res.json()) as any[];
     const dynamicUrl = `http://${host}:${port}/dynamic.json`;
     const dynRes = await fetch(dynamicUrl, { signal: AbortSignal.timeout(10_000) }).catch(
       () => null,

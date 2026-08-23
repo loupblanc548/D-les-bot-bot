@@ -39,13 +39,13 @@ async function checkSteamPrices(): Promise<PriceAlert[]> {
   for (const game of TRACKED_GAMES.filter((g) => g.platform === "steam")) {
     try {
       const response = await fetch(`${PRICE_SOURCES.steam}?appids=${game.id}&cc=FR`);
-      const data = (await response.json()) as Record<string, unknown>;
+      const data = (await response.json()) as Record<string, any>;
 
-      if (data[game.id] && (data[game.id] as Record<string, unknown>).success) {
-        const appData = (data[game.id] as Record<string, unknown>).data as Record<string, unknown>;
+      if (data[game.id] && (data[game.id] as Record<string, any>).success) {
+        const appData = (data[game.id] as Record<string, any>).data as Record<string, any>;
 
         if (appData.price_overview) {
-          const priceOverview = appData.price_overview as Record<string, unknown>;
+          const priceOverview = appData.price_overview as Record<string, any>;
           const currentPrice = (priceOverview.final as number) / 100;
           const originalPrice = (priceOverview.initial as number) / 100;
           const discount = priceOverview.discount_percent as number;

@@ -98,7 +98,7 @@ async function checkCreatorRoles(client: Client): Promise<void> {
           await dm.send(
             `🎉 Félicitations ! Tu as reçu le rôle **${config.roleName}** sur **${guild.name}** car tu as ${followers} followers !`,
           );
-        } catch {}
+        } catch { logger.error("[Silent catch]"); }
       }
     }
   }

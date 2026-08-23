@@ -55,11 +55,11 @@ export async function scanForPii(): Promise<{ emails: number; phones: number; de
 if (process.argv[1]?.includes("pii-scan")) {
   scanForPii()
     .then((result) => {
-      console.log("PII scan result:", result);
+      logger.info("PII scan result:", result);
       process.exit(0);
     })
     .catch((err) => {
-      console.error("PII scan failed:", err);
+      logger.error("PII scan failed:", err);
       process.exit(1);
     });
 }

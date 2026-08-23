@@ -156,7 +156,7 @@ const ALERTCONFIG_SUBS = ["channel", "threshold", "owner_notify", "reset", "view
 // Subcommands that map to advanced
 const ADVANCED_SUBS = ["smart", "auto-report", "viral-alert"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
 

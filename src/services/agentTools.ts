@@ -61,7 +61,7 @@ export interface AgentToolDef {
     description: string;
     parameters: {
       type: "object";
-      properties: Record<string, unknown>;
+      properties: Record<string, any>;
       required: string[];
     };
   };
@@ -1082,6 +1082,29 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "webcheck_scan",
+      description:
+        "Analyse OSINT d'un site web via Web-Check (SSL, DNS, WHOIS, headers, tech-stack, menaces, sous-domaines, ports). Utilise cet outil pour auditer un domaine, vérifier la sécurité d'un site, ou obtenir des infos techniques.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "Le domaine ou URL à analyser (ex: 'google.fr', 'example.com')",
+          },
+          endpoint: {
+            type: "string",
+            description:
+              "Endpoint spécifique à utiliser (optionnel). Choix: ssl, dns, dnssec, whois, headers, http-security, hsts, ports, subdomains, mail-config, tech-stack, threats, block-lists, archives, redirects, robots-txt, security-txt, social-tags, sitemap. Si omis, lance un scan complet.",
+          },
+        },
+        required: ["url"],
+      },
+    },
+  },
 ];
 
 /**
@@ -1093,13 +1116,79 @@ export function generateToolListPrompt(tools: AgentToolDef[]): string {
   const lines: string[] = [];
   for (const t of tools) {
     const name = t.function.name;
-    const desc = t.function.description?.slice(0, 120) || "";
-    lines.push(`- ${name} : ${desc}`);
+    const desc = t.function.description?.slice(0, 80) || "";
+    lines.push(`- ${name}: ${desc}`);
   }
   return lines.join("\n");
 }
 
-// Fusionner avec les tools étendus (APIs gratuites + Discord + bot features)
+// ─── Liste curée des tools envoyés à l'API (max ~100 pour éviter 400/timeout) ──
+// On garde seulement les tools les plus utiles. Les autres restent exécutables
+// via executeTool() mais ne sont pas envoyés dans le prompt pour économiser des tokens.
+const TOOL_NAME_WHITELIST = new Set([
+  // ── Recherche & Web ──
+  "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
+  "searchDocs", "ingestDocumentation", "searchYouTube", "getWikipediaSummary",
+  "search_stackoverflow", "search_recipe", "search_movies", "search_music",
+  "webcheck_scan",
+  // ── OSINT & Sécurité ──
+  "ip_ping", "ip_traceroute", "ip_portscan", "ip_ssl_check", "ip_full_report",
+  "dns_lookup", "subdomain_enum", "reverse_ip", "whois_lookup",
+  "email_validate", "jwt_decode", "url_expand", "security_score",
+  "hash_gen", "hash_crack", "password_analyze", "waf_detect",
+  "banner_grab", "tech_detect", "cors_test", "hsts_check",
+  "robots_parse", "sitemap_parse", "directory_check",
+  // ── Réseaux sociaux ──
+  "get_hackernews_top", "get_github_trending", "get_reddit_posts",
+  "search_reddit", "get_trending_subreddits",
+  "get_twitter_user", "search_tweets",
+  "get_twitch_clips", "get_producthunt_products",
+  // ── Gaming ──
+  "search_igdb_games", "searchRawgGames", "get_steam_requirements",
+  "get_minecraft_status", "get_valorant_agents", "get_space_launches",
+  // ── Crypto & Finance ──
+  "get_crypto_top", "getCryptoPrice",
+  // ── Météo & Nature ──
+  "getWeather", "get_weather_forecast", "getAirQuality", "get_sun_moon_info",
+  // ── Code & Dev ──
+  "execute_code", "code_complexity_analyzer", "code_format_beautifier",
+  "regex_test", "json_format", "yaml_validate", "sql_format_beautify",
+  "dockerfile_lint", "api_endpoint_tester",
+  // ── Texte & Utilitaires ──
+  "translateText", "detect_language", "define_word",
+  "generate_password", "generate_uuid", "generate_qr_code",
+  "base64_encode_decode", "convert_units", "convert_timezone",
+  "convert_color", "convert_number_base", "convert_timestamp",
+  "text_to_speech_multi", "generate_image", "generate_image_advanced",
+  "analyze_pdf", "analyze_sentiment", "set_reminder", "create_poll",
+  "solve_math", "generate_ascii_art", "get_lorem_ipsum",
+  // ── Discord & Modération ──
+  "deleteMessages", "getBotStatus", "timeoutUser", "warnUser",
+  "getUserInfo", "getChannelInfo", "pinMessage", "getServerStats",
+  "get_user_moderation_history", "evaluate_channel_velocity",
+  // ── Mémoire & Cognition ──
+  "searchUserMemory", "saveMemoryFact",
+  "start_conversation_session", "end_conversation_session",
+  // ── Système & Infrastructure ──
+  "system_stats", "http_request", "rss_monitor", "website_diff",
+  // ── Retailers ──
+  "amazon_price_track", "amazon_product_lookup", "amazon_deal_search",
+  // ── Design ──
+  "getDesignInspiration", "getUiComponents", "auditDesign",
+  // ── Notifications ──
+  "sendAlertEmail", "createCalendarEvent",
+  // ── Minecraft ──
+  "mc_connect", "mc_disconnect", "mc_status",
+  // ── Kali (DM only) ──
+  "runKaliPortAudit", "runKaliWebAudit",
+  // ── Data breach ──
+  "checkDataBreach",
+  // ── Screenshot ──
+  "screenshot_url",
+  // ── Multi-expert ──
+  "delegate_to_expert", "think_step_by_step",
+]);
+
 export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...AGENT_TOOLS,
   ...EXTENDED_TOOLS,
@@ -1111,13 +1200,13 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = [
   ...RETAILER_TOOL_DEFS,
   ...ORPHAN_TOOLS,
   ...KALI_TOOLS,
-];
+].filter((t) => TOOL_NAME_WHITELIST.has(t.function.name));
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
 
 export async function executeTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   logger.info(
@@ -1136,6 +1225,8 @@ export async function executeTool(
 
   try {
     switch (toolName) {
+      case "webcheck_scan":
+        return await toolWebcheckScan(args);
       case "searchDocs":
         return await toolSearchDocs(args);
       case "getDesignInspiration":
@@ -1263,6 +1354,10 @@ export async function executeTool(
         // Essayer les tools revendeurs (Amazon, eBay, Cdiscount, etc.)
         const retailerResult = await handleRetailerTool(toolName, args, ctx);
         if (retailerResult.success || retailerResult.data) return retailerResult;
+        // Essayer les tools génériques (math, texte, sécurité, API, crypto)
+        const { executeGenericTool } = await import("./agentToolsGeneric.js");
+        const genericResult = await executeGenericTool(toolName, args, ctx);
+        if (genericResult) return genericResult;
         return { success: false, data: `Outil inconnu: ${toolName}` };
       }
     }
@@ -1279,7 +1374,7 @@ export async function executeTool(
 
 // ─── Implémentation des tools ────────────────────────────────────────────────
 
-async function toolSearchDocs(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchDocs(args: Record<string, any>): Promise<ToolCallResult> {
   const library = args.library as string;
   const question = args.question as string;
 
@@ -1310,7 +1405,7 @@ async function toolSearchDocs(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function toolGetDesignInspiration(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetDesignInspiration(args: Record<string, any>): Promise<ToolCallResult> {
   const category = args.category as string | undefined;
   try {
     const result = await getGodlyInspiration(category);
@@ -1323,12 +1418,12 @@ async function toolGetDesignInspiration(args: Record<string, unknown>): Promise<
   }
 }
 
-async function toolGetUiComponents(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetUiComponents(args: Record<string, any>): Promise<ToolCallResult> {
   const filter = args.filter as string | undefined;
   return { success: true, data: getAceternityComponents(filter) };
 }
 
-async function toolGetComponentDoc(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetComponentDoc(args: Record<string, any>): Promise<ToolCallResult> {
   const component = args.component as string;
   if (!component) {
     return { success: false, data: "Paramètre 'component' requis." };
@@ -1345,7 +1440,7 @@ async function toolListDesignCommands(): Promise<ToolCallResult> {
   return { success: true, data: listImpeccableCommands() };
 }
 
-async function toolAuditDesign(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolAuditDesign(args: Record<string, any>): Promise<ToolCallResult> {
   const html = args.html as string;
   if (!html) {
     return { success: false, data: "Paramètre 'html' requis (le code HTML/CSS à auditer)." };
@@ -1354,7 +1449,7 @@ async function toolAuditDesign(args: Record<string, unknown>): Promise<ToolCallR
 }
 
 async function toolDeleteMessages(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const amount = Math.min(100, Math.max(1, Number(args.amount) || 5));
@@ -1395,7 +1490,7 @@ async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {
 }
 
 async function toolTimeoutUser(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -1429,7 +1524,7 @@ async function toolTimeoutUser(
 }
 
 async function toolWarnUser(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -1454,7 +1549,7 @@ async function toolWarnUser(
 }
 
 async function toolGetUserInfo(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -1486,11 +1581,11 @@ async function toolGetUserInfo(
   };
 }
 
-async function toolSearchUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchUserMemory(args: Record<string, any>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const query = args.query ? String(args.query) : undefined;
 
-  let where: Record<string, unknown> = { userId };
+  let where: Record<string, any> = { userId };
   if (query) {
     where = {
       userId,
@@ -1519,7 +1614,7 @@ async function toolSearchUserMemory(args: Record<string, unknown>): Promise<Tool
   };
 }
 
-async function toolSaveMemoryFact(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSaveMemoryFact(args: Record<string, any>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const key = String(args.key);
   const value = String(args.value);
@@ -1563,7 +1658,7 @@ async function toolGetChannelInfo(ctx: ToolContext): Promise<ToolCallResult> {
 }
 
 async function toolPinMessage(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const messageId = String(args.messageId);
@@ -1605,7 +1700,7 @@ function setCached(key: string, data: string): void {
   }
 }
 
-async function toolSearchWeb(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchWeb(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   const lang = String(args.lang || "fr");
   const cacheKey = `web:${query}:${lang}`;
@@ -1713,14 +1808,12 @@ async function extractTextFromHtml(res: Response): Promise<string> {
       const text = article.textContent.replace(/\s+/g, " ").trim().slice(0, 3000);
       return text || "(page vide ou contenu non-texte)";
     }
-  } catch {
-    // fallback to basic strip
-  }
+  } catch { logger.error("[Silent catch]"); }
   const text = stripAllHtml(html).replace(/\s+/g, " ").trim().slice(0, 3000);
   return text || "(page vide ou contenu non-texte)";
 }
 
-async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolReadUrl(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
 
@@ -1758,7 +1851,7 @@ async function toolReadUrl(args: Record<string, unknown>): Promise<ToolCallResul
   }
 }
 
-async function toolSearchYouTube(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchYouTube(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   const maxResults = Math.min(10, Math.max(1, Number(args.maxResults) || 5));
   const cacheKey = `yt:${query}:${maxResults}`;
@@ -1815,7 +1908,7 @@ async function toolGetServerStats(ctx: ToolContext): Promise<ToolCallResult> {
 // ─── Free API Tools (no API key required) ────────────────────────────────────
 
 // Open-Meteo: free weather API, no key needed
-async function toolGetWeather(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetWeather(args: Record<string, any>): Promise<ToolCallResult> {
   const city = String(args.city);
   const cacheKey = `weather:${city.toLowerCase()}`;
   const cached = getCached(cacheKey);
@@ -1890,7 +1983,7 @@ async function toolGetWeather(args: Record<string, unknown>): Promise<ToolCallRe
 }
 
 // CoinGecko: free crypto prices, no key needed
-async function toolGetCryptoPrice(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetCryptoPrice(args: Record<string, any>): Promise<ToolCallResult> {
   const coin = String(args.coin).toLowerCase().trim();
   const cacheKey = `crypto:${coin}`;
   const cached = getCached(cacheKey);
@@ -1931,7 +2024,7 @@ async function toolGetCryptoPrice(args: Record<string, unknown>): Promise<ToolCa
 }
 
 // Wikipedia: free, no key needed
-async function toolGetWikipediaSummary(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetWikipediaSummary(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   const lang = String(args.lang || "fr");
   const cacheKey = `wiki:${lang}:${query.toLowerCase()}`;
@@ -1979,7 +2072,7 @@ async function toolGetWikipediaSummary(args: Record<string, unknown>): Promise<T
 }
 
 // GitHub API: free for public repos, no key needed (60 req/hour)
-async function toolGetGitHubRepo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallResult> {
   const owner = String(args.owner);
   const repo = String(args.repo);
   const cacheKey = `github:${owner}/${repo}`;
@@ -2030,7 +2123,7 @@ async function toolGetGitHubRepo(args: Record<string, unknown>): Promise<ToolCal
 }
 
 // MyMemory: free translation API, no key needed (5000 chars/day)
-async function toolTranslateText(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolTranslateText(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 500);
   const to = String(args.to);
   const from = args.from ? String(args.from) : "auto";
@@ -2069,7 +2162,7 @@ async function toolTranslateText(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function toolTranscribeAudio(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolTranscribeAudio(args: Record<string, any>): Promise<ToolCallResult> {
   const audioUrl = String(args.audioUrl);
   if (!audioUrl.startsWith("http")) {
     return { success: false, data: "URL audio invalide" };
@@ -2095,7 +2188,7 @@ async function toolTranscribeAudio(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function toolAnalyzeImageGemini(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolAnalyzeImageGemini(args: Record<string, any>): Promise<ToolCallResult> {
   const imageUrl = String(args.imageUrl);
   const question = String(args.question || "Décris cette image en détail");
   if (!imageUrl.startsWith("http")) {
@@ -2123,7 +2216,7 @@ async function toolAnalyzeImageGemini(args: Record<string, unknown>): Promise<To
 }
 
 // Hacker News: free, no key needed
-async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetTechNews(args: Record<string, any>): Promise<ToolCallResult> {
   const maxResults = Math.min(10, Math.max(1, Number(args.maxResults) || 5));
   const cacheKey = `hn:${maxResults}`;
   const cached = getCached(cacheKey);
@@ -2174,7 +2267,7 @@ async function toolGetTechNews(args: Record<string, unknown>): Promise<ToolCallR
 
 // ─── Code Sandbox ────────────────────────────────────────────────────────────
 
-async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolExecuteCode(args: Record<string, any>): Promise<ToolCallResult> {
   const code = String(args.code ?? "");
   const language = String(args.language ?? "python") as "python" | "javascript" | "shell";
 
@@ -2217,7 +2310,7 @@ async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallR
 
 // ─── Web Ingestion Tools ─────────────────────────────────────────────────────
 
-async function toolFetchAndSummarize(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolFetchAndSummarize(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   const customPrompt = args.customPrompt ? String(args.customPrompt) : undefined;
 
@@ -2237,7 +2330,7 @@ async function toolFetchAndSummarize(args: Record<string, unknown>): Promise<Too
   };
 }
 
-async function toolIngestDocumentation(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolIngestDocumentation(args: Record<string, any>): Promise<ToolCallResult> {
   const urls = args.urls as string[];
   if (!Array.isArray(urls) || urls.length === 0) {
     return { success: false, data: "Liste d'URLs vide" };
@@ -2258,7 +2351,7 @@ async function toolIngestDocumentation(args: Record<string, unknown>): Promise<T
   };
 }
 
-async function toolSearchKnowledge(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchKnowledge(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
 
@@ -2322,7 +2415,7 @@ async function toolSearchKnowledge(args: Record<string, unknown>): Promise<ToolC
 
 // ─── NSFW Classifier ──────────────────────────────────────────────────────────
 
-async function toolClassifyNsfw(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolClassifyNsfw(args: Record<string, any>): Promise<ToolCallResult> {
   const imageUrl = String(args.imageUrl || "").trim();
   if (!imageUrl) return { success: false, data: "URL d'image requise" };
   if (!imageUrl.startsWith("http"))
@@ -2349,7 +2442,7 @@ async function toolClassifyNsfw(args: Record<string, unknown>): Promise<ToolCall
 // ─── Voice Translation ────────────────────────────────────────────────────────
 
 async function toolVoiceTranslation(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const targetLang = String(args.targetLang || "FR").toUpperCase() as
@@ -2378,7 +2471,7 @@ async function toolVoiceTranslation(
     ctx.userId,
     ctx.message.author.username,
     targetLang,
-    guild.voiceAdapterCreator as unknown,
+    guild.voiceAdapterCreator as any,
     textChannelId,
   );
 
@@ -2393,7 +2486,7 @@ async function toolStopVoiceTranslation(ctx: ToolContext): Promise<ToolCallResul
 // ─── Community Digest ─────────────────────────────────────────────────────────
 
 async function toolEnableDigest(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const frequency = String(args.frequency || "daily") as "daily" | "weekly";
@@ -2427,7 +2520,7 @@ async function toolDisableDigest(ctx: ToolContext): Promise<ToolCallResult> {
 
 // ─── Password Generator ───────────────────────────────────────────────────────
 
-async function toolGeneratePassword(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGeneratePassword(args: Record<string, any>): Promise<ToolCallResult> {
   const count = args.count !== undefined ? Math.min(10, Math.max(1, Number(args.count))) : 1;
   const options = {
     length: args.length !== undefined ? Math.min(128, Math.max(4, Number(args.length))) : 16,
@@ -2481,7 +2574,7 @@ async function toolCreateTempEmail(): Promise<ToolCallResult> {
   }
 }
 
-async function toolCheckTempEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolCheckTempEmail(args: Record<string, any>): Promise<ToolCallResult> {
   const address = String(args.address || "").trim();
   const providerId = String(args.providerId || "").trim();
   const provider = String(args.provider || "").trim() as "mail.tm" | "1secmail";
@@ -2520,7 +2613,7 @@ async function toolCheckTempEmail(args: Record<string, unknown>): Promise<ToolCa
 
 // ─── OCR: Extract text from image via Gemini Vision ──────────────────────────
 
-async function toolExtractTextFromImage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolExtractTextFromImage(args: Record<string, any>): Promise<ToolCallResult> {
   const imageUrl = String(args.imageUrl ?? "").trim();
   if (!imageUrl) return { success: false, data: "URL d'image requise" };
   if (!isGeminiAvailable())
@@ -2544,7 +2637,7 @@ async function toolExtractTextFromImage(args: Record<string, unknown>): Promise<
 
 // ─── Compose image: generate + optional background removal ───────────────────
 
-async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolComposeImage(args: Record<string, any>): Promise<ToolCallResult> {
   const prompt = String(args.prompt ?? "").trim();
   if (!prompt) return { success: false, data: "Prompt requis" };
   const width = Number(args.width) || 1024;
@@ -2580,7 +2673,7 @@ async function toolComposeImage(args: Record<string, unknown>): Promise<ToolCall
 
 // ─── Minecraft LLM Agent tool implementations ────────────────────────────────
 
-async function toolMcAgentConnect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMcAgentConnect(args: Record<string, any>): Promise<ToolCallResult> {
   const { isAgentAvailable, pingAgent, getUrl } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return {
@@ -2650,7 +2743,7 @@ async function toolMcAgentConnect(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function toolMcAgentGoal(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMcAgentGoal(args: Record<string, any>): Promise<ToolCallResult> {
   const { isAgentAvailable, setAgentGoal } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return {
@@ -2689,7 +2782,7 @@ async function toolMcAgentWorld(): Promise<ToolCallResult> {
   return { success: true, data: formatWorldState(world) };
 }
 
-async function toolMcAgentAction(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMcAgentAction(args: Record<string, any>): Promise<ToolCallResult> {
   const { isAgentAvailable, QUICK_ACTIONS } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return { success: false, data: "❌ Agent Mineflayer non disponible" };
@@ -2703,7 +2796,7 @@ async function toolMcAgentAction(args: Record<string, unknown>): Promise<ToolCal
     : { success: false, data: `❌ ${actionName} a échoué` };
 }
 
-async function toolMcAgentChat(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMcAgentChat(args: Record<string, any>): Promise<ToolCallResult> {
   const { isAgentAvailable, sendAgentChat } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return { success: false, data: "❌ Agent Mineflayer non disponible" };
@@ -2725,7 +2818,7 @@ async function toolMcAgentStop(): Promise<ToolCallResult> {
   return { success: result.success, data: result.message };
 }
 
-async function toolMcAgentLog(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMcAgentLog(args: Record<string, any>): Promise<ToolCallResult> {
   const { isAgentAvailable, getAgentLog } = await import("./mineflayerAgent.js");
   if (!isAgentAvailable()) {
     return { success: false, data: "❌ Agent Mineflayer non disponible" };
@@ -2733,5 +2826,39 @@ async function toolMcAgentLog(args: Record<string, unknown>): Promise<ToolCallRe
   const lines = Math.min(100, Math.max(1, Number(args.lines) || 20));
   const log = await getAgentLog(lines);
   if (!log) return { success: false, data: "❌ Aucun log disponible" };
-  return { success: true, data: log.slice(-1900) };
+  return { success: true, data: `\`\`\`\n${log.slice(0, 1800)}\n\`\`\`` };
+}
+
+// ─── Web-Check OSINT ────────────────────────────────────────────────────────
+
+async function toolWebcheckScan(args: Record<string, any>): Promise<ToolCallResult> {
+  const url = String(args.url || "").trim();
+  if (!url) return { success: false, data: "❌ URL manquante" };
+
+  const endpoint = args.endpoint ? String(args.endpoint).trim() : null;
+
+  try {
+    if (endpoint) {
+      // Endpoint spécifique
+      const { runWebCheckEndpoint } = await import("./webCheck.js");
+      const result = await runWebCheckEndpoint(url, endpoint);
+      if (!result.success) {
+        return { success: false, data: `❌ ${result.label}: ${result.error}` };
+      }
+      return {
+        success: true,
+        data: `✅ **${result.label}** — ${url}\n\`\`\`json\n${JSON.stringify(result.data, null, 2).slice(0, 1500)}\n\`\`\``,
+      };
+    }
+
+    // Scan complet
+    const { runWebCheckQuick } = await import("./webCheck.js");
+    const report = await runWebCheckQuick(url);
+    return { success: true, data: report.summary };
+  } catch (err) {
+    return {
+      success: false,
+      data: `❌ Web-Check erreur: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }

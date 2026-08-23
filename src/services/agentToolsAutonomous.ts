@@ -1167,7 +1167,7 @@ export function trackMessageForGhostPings(
 
 // ═══ 1. MODERATION & SENTIMENT ═══
 
-async function tGetUserModerationHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetUserModerationHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   try {
     const sanctions = await prisma.sanction.findMany({
@@ -1212,7 +1212,7 @@ async function tGetUserModerationHistory(args: Record<string, unknown>): Promise
   }
 }
 
-async function tScrapeUrbanSlang(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tScrapeUrbanSlang(args: Record<string, any>): Promise<ToolCallResult> {
   const word = String(args.word)
     .slice(0, 50)
     .replace(/[^a-zA-Z0-9\s-]/g, "");
@@ -1246,7 +1246,7 @@ async function tScrapeUrbanSlang(args: Record<string, unknown>): Promise<ToolCal
 }
 
 async function tEvaluateChannelVelocity(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -1337,7 +1337,7 @@ async function tCalculateServerPanicIndex(ctx: ToolContext): Promise<ToolCallRes
 }
 
 async function tEmergencyChannelFreeze(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -1377,7 +1377,7 @@ async function tEmergencyChannelFreeze(
 
 // ═══ 2. OSINT & THREAT INTELLIGENCE ═══
 
-async function tVerifyLinkSafety(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tVerifyLinkSafety(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url).slice(0, 500);
   try {
     const domain = new URL(url).hostname;
@@ -1409,7 +1409,7 @@ async function tVerifyLinkSafety(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tDetectDisposableEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDetectDisposableEmail(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email).toLowerCase().trim();
   const domain = email.split("@")[1];
   if (!domain) return { success: false, data: "Email invalide" };
@@ -1451,7 +1451,7 @@ async function tDetectDisposableEmail(args: Record<string, unknown>): Promise<To
   }
 }
 
-async function tScrapeSteamrepStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tScrapeSteamrepStatus(args: Record<string, any>): Promise<ToolCallResult> {
   const steamId = String(args.steamId)
     .replace(/[^0-9]/g, "")
     .slice(0, 20);
@@ -1487,7 +1487,7 @@ async function tScrapeSteamrepStatus(args: Record<string, unknown>): Promise<Too
   }
 }
 
-async function tDetectTyposquatting(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDetectTyposquatting(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url).slice(0, 500);
   try {
     const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
@@ -1575,7 +1575,7 @@ async function tDetectTyposquatting(args: Record<string, unknown>): Promise<Tool
 }
 
 async function tTrackAvatarHash(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -1637,7 +1637,7 @@ async function tTrackAvatarHash(
   }
 }
 
-async function tExposeGhostPinger(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tExposeGhostPinger(args: Record<string, any>): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
   try {
     const entries = ghostPingCache.get(channelId) ?? [];
@@ -1746,7 +1746,7 @@ async function tScrapeEpicFreeCountdown(): Promise<ToolCallResult> {
       },
     );
     if (!res.ok) return { success: false, data: `HTTP ${res.status}` };
-    const data = (await res.json()) as { data?: { Catalog?: { searchStore?: unknown[] } } };
+    const data = (await res.json()) as { data?: { Catalog?: { searchStore?: any[] } } };
 
     const games = data?.data?.Catalog?.searchStore ?? [];
     const now = new Date();
@@ -1781,7 +1781,7 @@ async function tScrapeEpicFreeCountdown(): Promise<ToolCallResult> {
   }
 }
 
-async function tCheckCommunityStreams(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCheckCommunityStreams(args: Record<string, any>): Promise<ToolCallResult> {
   const channelName = String(args.channelName)
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
@@ -1816,7 +1816,7 @@ async function tCheckCommunityStreams(args: Record<string, unknown>): Promise<To
   }
 }
 
-async function tFetchGamePatchnotes(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tFetchGamePatchnotes(args: Record<string, any>): Promise<ToolCallResult> {
   const game = String(args.game).toLowerCase().slice(0, 30);
   try {
     // Steam news RSS for games
@@ -1901,13 +1901,13 @@ async function tGetGalacticWarStatus(): Promise<ToolCallResult> {
     };
 
     // Also fetch current campaigns
-    let campaigns: unknown[] = [];
+    let campaigns: any[] = [];
     try {
       const campRes = await fetchRetry("https://api.helldivers2.dev/api/v1/campaigns", {
         headers: { "User-Agent": "HelldiversBot/1.0" },
         signal: AbortSignal.timeout(8000),
       });
-      if (campRes.ok) campaigns = (await campRes.json()) as unknown[];
+      if (campRes.ok) campaigns = (await campRes.json()) as any[];
     } catch {
       /* non-critical */
     }
@@ -2006,7 +2006,7 @@ async function tSelfInspectLogs(): Promise<ToolCallResult> {
   }
 }
 
-async function tUpsertUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUpsertUserMemory(args: Record<string, any>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const fact = String(args.fact).slice(0, 500);
   try {
@@ -2038,7 +2038,7 @@ async function tUpsertUserMemory(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tRetrieveUserMemory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRetrieveUserMemory(args: Record<string, any>): Promise<ToolCallResult> {
   const userId = String(args.userId);
   try {
     const facts = await prisma.memoryFact.findMany({
@@ -2070,7 +2070,7 @@ async function tRetrieveUserMemory(args: Record<string, unknown>): Promise<ToolC
 
 export async function executeAutonomousTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsAuto] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
@@ -2245,7 +2245,7 @@ export async function executeAutonomousTool(
 
 // ═══ 5. OSINT TOOLKIT ═══
 
-async function tOsintScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOsintScan(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target).slice(0, 200);
   try {
     const report = await runOsintScan(target);
@@ -2267,7 +2267,7 @@ async function tOsintScan(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tShodanSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tShodanSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query).slice(0, 200);
   try {
     const result = await quickShodanSearch(query);
@@ -2279,7 +2279,7 @@ async function tShodanSearch(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ═══ 6. TWITTER API ═══
 
-async function tTwitterGetUser(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTwitterGetUser(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username)
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
@@ -2297,7 +2297,7 @@ async function tTwitterGetUser(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tTwitterSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTwitterSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query).slice(0, 200);
   const max = Math.min(Number(args.maxResults) || 5, 20);
   if (!isTwitterConfigured()) return { success: false, data: "Twitter API non configuré" };
@@ -2314,7 +2314,7 @@ async function tTwitterSearch(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ═══ 7. REDDIT API ═══
 
-async function tRedditGetPosts(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRedditGetPosts(args: Record<string, any>): Promise<ToolCallResult> {
   const subreddit = String(args.subreddit)
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
@@ -2328,7 +2328,7 @@ async function tRedditGetPosts(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tRedditSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRedditSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query).slice(0, 200);
   const limit = Math.min(Number(args.limit) || 5, 10);
   try {
@@ -2356,7 +2356,7 @@ async function tRedditTrending(): Promise<ToolCallResult> {
 
 // ═══ 8. AGENT REACH — Zero-API web access ═══
 
-async function tJinaReadUrl(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tJinaReadUrl(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url).slice(0, 500);
   if (!url.startsWith("http"))
     return { success: false, data: "URL invalide (doit commencer par http)" };
@@ -2380,7 +2380,7 @@ async function tJinaReadUrl(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tYouTubeTranscript(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tYouTubeTranscript(args: Record<string, any>): Promise<ToolCallResult> {
   const videoId = String(args.videoId).slice(0, 200);
   try {
     const result = await getYouTubeTranscript(videoId);
@@ -2402,7 +2402,7 @@ async function tYouTubeTranscript(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tExaSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tExaSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query).slice(0, 200);
   const num = Math.min(Number(args.numResults) || 5, 10);
   try {
@@ -2416,7 +2416,7 @@ async function tExaSearch(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tBilibiliSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBilibiliSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const keyword = String(args.keyword).slice(0, 100);
   const limit = Math.min(Number(args.limit) || 5, 10);
   try {
@@ -2430,7 +2430,7 @@ async function tBilibiliSearch(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tJinaReadReddit(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tJinaReadReddit(args: Record<string, any>): Promise<ToolCallResult> {
   const subreddit = String(args.subreddit)
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
@@ -2455,7 +2455,7 @@ async function tJinaReadReddit(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tJinaReadTwitter(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tJinaReadTwitter(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username)
     .replace(/[^a-zA-Z0-9_]/g, "")
     .slice(0, 50);
@@ -2480,7 +2480,7 @@ async function tJinaReadTwitter(args: Record<string, unknown>): Promise<ToolCall
 
 // ═══ 9. ANALYTICS & BI ═══
 
-async function tGuildAnalytics(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGuildAnalytics(args: Record<string, any>): Promise<ToolCallResult> {
   const guildId = String(args.guildId).slice(0, 50);
   try {
     const data = await getGuildAnalytics(guildId);
@@ -2502,7 +2502,7 @@ async function tBotHealth(): Promise<ToolCallResult> {
   }
 }
 
-async function tMessageTrend(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMessageTrend(args: Record<string, any>): Promise<ToolCallResult> {
   const guildId = String(args.guildId).slice(0, 50);
   const days = Math.min(Number(args.days) || 7, 90);
   try {
@@ -2513,7 +2513,7 @@ async function tMessageTrend(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tTopCommands(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTopCommands(args: Record<string, any>): Promise<ToolCallResult> {
   const guildId = String(args.guildId).slice(0, 50);
   const days = Math.min(Number(args.days) || 7, 90);
   try {
@@ -2527,7 +2527,7 @@ async function tTopCommands(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tModerationStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tModerationStats(args: Record<string, any>): Promise<ToolCallResult> {
   const guildId = String(args.guildId).slice(0, 50);
   const days = Math.min(Number(args.days) || 30, 365);
   try {
@@ -2543,7 +2543,7 @@ async function tModerationStats(args: Record<string, unknown>): Promise<ToolCall
 
 // ═══ 10. RICH EMBEDS ═══
 
-async function tBuildRichEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildRichEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   if (!title) return { success: false, data: "Titre requis" };
   try {
@@ -2555,7 +2555,7 @@ async function tBuildRichEmbed(args: Record<string, unknown>): Promise<ToolCallR
       image: args.image ? String(args.image) : undefined,
       url: args.url ? String(args.url) : undefined,
       fields: Array.isArray(args.fields)
-        ? (args.fields as Record<string, unknown>[]).map((f) => ({
+        ? (args.fields as Record<string, any>[]).map((f) => ({
             name: String(f.name || ""),
             value: String(f.value || ""),
             inline: Boolean(f.inline),
@@ -2573,7 +2573,7 @@ async function tBuildRichEmbed(args: Record<string, unknown>): Promise<ToolCallR
 
 // ═══ 11. MULTI-PLATFORM NOTIFICATIONS ═══
 
-async function tSendTelegram(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSendTelegram(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 4096);
   if (!isTelegramConfigured())
     return {
@@ -2591,7 +2591,7 @@ async function tSendTelegram(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tSendSlack(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSendSlack(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 3000);
   if (!isSlackConfigured())
     return { success: false, data: "Slack non configuré (SLACK_WEBHOOK_URL manquant)" };
@@ -2603,7 +2603,7 @@ async function tSendSlack(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tBroadcastNotification(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBroadcastNotification(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 2000);
   try {
     const result = await broadcastNotification(text);
@@ -2618,7 +2618,7 @@ async function tBroadcastNotification(args: Record<string, unknown>): Promise<To
 
 // ═══ 12. AUTO-TRANSLATION ═══
 
-async function tAutoTranslate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAutoTranslate(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 5000);
   const targetLang = String(args.targetLang || "fr").slice(0, 5);
   const sourceLang = args.sourceLang ? String(args.sourceLang).slice(0, 5) : undefined;
@@ -2633,7 +2633,7 @@ async function tAutoTranslate(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tDetectLanguage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDetectLanguage(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 1000);
   try {
     const result = await detectLanguageAuto(text);
@@ -2648,7 +2648,7 @@ async function tDetectLanguage(args: Record<string, unknown>): Promise<ToolCallR
 
 // ═══ 13. ANOMALY DETECTION ═══
 
-async function tDetectAnomalies(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDetectAnomalies(args: Record<string, any>): Promise<ToolCallResult> {
   const guildId = String(args.guildId).slice(0, 50);
   try {
     const report = await detectAnomalies(guildId);
@@ -2663,14 +2663,14 @@ async function tDetectAnomalies(args: Record<string, unknown>): Promise<ToolCall
 
 // ═══ 14. ADVANCED EMBEDS ═══
 
-async function tBuildComparisonEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildComparisonEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   const columns = Array.isArray(args.columns)
-    ? (args.columns as unknown[]).map((c) => String(c))
+    ? (args.columns as any[]).map((c) => String(c))
     : [];
   const rows = Array.isArray(args.rows)
-    ? (args.rows as unknown[]).map((r) =>
-        Array.isArray(r) ? r.map((c: unknown) => String(c)) : [],
+    ? (args.rows as any[]).map((r) =>
+        Array.isArray(r) ? r.map((c: any) => String(c)) : [],
       )
     : [];
   if (!title || columns.length === 0) return { success: false, data: "Titre et colonnes requis" };
@@ -2690,10 +2690,10 @@ async function tBuildComparisonEmbed(args: Record<string, unknown>): Promise<Too
   }
 }
 
-async function tBuildLeaderboardEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildLeaderboardEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   const entries = Array.isArray(args.entries)
-    ? (args.entries as Record<string, unknown>[]).map((e) => ({
+    ? (args.entries as Record<string, any>[]).map((e) => ({
         rank: Number(e.rank) || 0,
         name: String(e.name || ""),
         score: Number(e.score) || 0,
@@ -2716,10 +2716,10 @@ async function tBuildLeaderboardEmbed(args: Record<string, unknown>): Promise<To
   }
 }
 
-async function tBuildProgressEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildProgressEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   const items = Array.isArray(args.items)
-    ? (args.items as Record<string, unknown>[]).map((i) => ({
+    ? (args.items as Record<string, any>[]).map((i) => ({
         label: String(i.label || ""),
         current: Number(i.current) || 0,
         max: Number(i.max) || 0,
@@ -2738,10 +2738,10 @@ async function tBuildProgressEmbed(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tBuildTimelineEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildTimelineEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   const events = Array.isArray(args.events)
-    ? (args.events as Record<string, unknown>[]).map((e) => ({
+    ? (args.events as Record<string, any>[]).map((e) => ({
         time: String(e.time || ""),
         title: String(e.title || ""),
         description: e.description ? String(e.description) : undefined,
@@ -2759,10 +2759,10 @@ async function tBuildTimelineEmbed(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tBuildStatCardsEmbed(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBuildStatCardsEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
   const cards = Array.isArray(args.cards)
-    ? (args.cards as Record<string, unknown>[]).map((c) => ({
+    ? (args.cards as Record<string, any>[]).map((c) => ({
         icon: String(c.icon || "📊"),
         label: String(c.label || ""),
         value: String(c.value || ""),
@@ -2816,7 +2816,7 @@ const USERNAME_PLATFORMS: Record<string, string> = {
   Etsy: "https://etsy.com/shop/{u}",
 };
 
-async function tUsernameSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUsernameSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username || "")
     .trim()
     .slice(0, 50);
@@ -2867,7 +2867,7 @@ async function tUsernameSearch(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tEmailReputation(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEmailReputation(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email || "")
     .trim()
     .slice(0, 200)
@@ -2890,7 +2890,7 @@ async function tEmailReputation(args: Record<string, unknown>): Promise<ToolCall
       return { success: false, data: `EmailRep erreur ${res.status}` };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     return {
       success: true,
       data: JSON.stringify({
@@ -2917,7 +2917,7 @@ async function tEmailReputation(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tPhoneLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPhoneLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const phone = String(args.phone || "")
     .trim()
     .slice(0, 20);
@@ -2946,7 +2946,7 @@ async function tPhoneLookup(args: Record<string, unknown>): Promise<ToolCallResu
       };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     return {
       success: true,
       data: JSON.stringify({
@@ -2969,7 +2969,7 @@ async function tPhoneLookup(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tIpGeolocation(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpGeolocation(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip || "")
     .trim()
     .slice(0, 45);
@@ -2989,7 +2989,7 @@ async function tIpGeolocation(args: Record<string, unknown>): Promise<ToolCallRe
       return { success: false, data: `ip-api erreur ${res.status}` };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     if (data.status === "fail") {
       return { success: false, data: `ip-api: ${data.message || "échec"}` };
     }
@@ -3019,7 +3019,7 @@ async function tIpGeolocation(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tDomainAge(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDomainAge(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "")
     .trim()
     .slice(0, 200)
@@ -3038,12 +3038,12 @@ async function tDomainAge(args: Record<string, unknown>): Promise<ToolCallResult
       return { success: false, data: `RDAP erreur ${res.status} pour ${domain}` };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
     const registration = events.find((e) => e.eventAction === "registration");
     const expiration = events.find((e) => e.eventAction === "expiration");
 
-    const entities = (data.entities || []) as Array<{ roles: string[]; vcardArray: unknown[] }>;
+    const entities = (data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>;
     const registrarEntity = entities.find((e) => e.roles?.includes("registrar"));
     let registrarName = "Inconnu";
     if (registrarEntity?.vcardArray) {
@@ -3081,7 +3081,7 @@ async function tDomainAge(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGithubProfile(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username || "")
     .trim()
     .slice(0, 50);
@@ -3104,7 +3104,7 @@ async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallRe
       return { success: false, data: `GitHub API erreur ${res.status}` };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     return {
       success: true,
       data: JSON.stringify({
@@ -3136,7 +3136,7 @@ async function tGithubProfile(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── OSINT Network Investigation ─────────────────────────────────────────────
 
-async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tNetworkInvestigate(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "")
     .trim()
     .slice(0, 200);
@@ -3156,7 +3156,7 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
     return { success: false, data: "Target invalide — doit être une IP ou un domaine" };
   }
 
-  const results: Record<string, unknown> = { target, type: isIP ? "ip" : "domain" };
+  const results: Record<string, any> = { target, type: isIP ? "ip" : "domain" };
 
   // 1. IP Geolocation
   if (modules.includes("geo") && isIP) {
@@ -3166,7 +3166,7 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
         { signal: AbortSignal.timeout(8_000) },
       );
       if (res.ok) {
-        const data = (await res.json()) as Record<string, unknown>;
+        const data = (await res.json()) as Record<string, any>;
         if (data.status !== "fail") {
           results.geo = {
             country: data.country,
@@ -3247,11 +3247,11 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
         headers: { Accept: "application/rdap+json" },
       });
       if (res.ok) {
-        const data = (await res.json()) as Record<string, unknown>;
+        const data = (await res.json()) as Record<string, any>;
         const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
         results.whois = {
           registrar: (
-            (data.entities || []) as Array<{ roles: string[]; vcardArray: unknown[] }>
+            (data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>
           ).find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
             ? "available"
             : "unknown",
@@ -3304,7 +3304,7 @@ async function tNetworkInvestigate(args: Record<string, unknown>): Promise<ToolC
 
 // ─── Live Network Status ─────────────────────────────────────────────────────
 
-async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tNetworkStatus(args: Record<string, any>): Promise<ToolCallResult> {
   const scope = String(args.scope || "all").trim();
   const filterIp = String(args.filterIp || "").trim();
 
@@ -3373,7 +3373,7 @@ async function tNetworkStatus(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Open Web Page (Internet) ────────────────────────────────────────────────
 
-async function tOpenWebPage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOpenWebPage(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "").trim();
   if (!url || !url.startsWith("http")) {
     return { success: false, data: "URL invalide — doit commencer par http:// ou https://" };
@@ -3419,7 +3419,7 @@ async function tOpenWebPage(args: Record<string, unknown>): Promise<ToolCallResu
       };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     const title = String(data.title ?? url);
     const content = String(data.content ?? "").slice(0, maxLength);
 
@@ -3444,7 +3444,7 @@ async function tOpenWebPage(args: Record<string, unknown>): Promise<ToolCallResu
 
 // ─── Threat Intel Sweep — Full virus/malware scan ────────────────────────────
 
-async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tThreatIntelSweep(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "").trim();
   if (!target) return { success: false, data: "target requis (IP, URL, ou hash)" };
 
@@ -3463,7 +3463,7 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
       data: "Type de cible non reconnu (doit être IP, URL, ou hash MD5/SHA1/SHA256)",
     };
 
-  const results: Record<string, unknown> = { target, type: detectedType, tools: [] as string[] };
+  const results: Record<string, any> = { target, type: detectedType, tools: [] as string[] };
   const toolsUsed: string[] = [];
 
   try {
@@ -3497,7 +3497,7 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
           { signal: AbortSignal.timeout(5000) },
         );
         if (geoRes.ok) {
-          const geoData = (await geoRes.json()) as Record<string, unknown>;
+          const geoData = (await geoRes.json()) as Record<string, any>;
           results.geolocation = geoData;
         }
       } catch {
@@ -3580,7 +3580,7 @@ async function tThreatIntelSweep(args: Record<string, unknown>): Promise<ToolCal
 
 // ─── 15. Data Breach & URL Safety ────────────────────────────────────────────
 
-async function tCheckDataBreach(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCheckDataBreach(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email || "")
     .trim()
     .toLowerCase();
@@ -3612,7 +3612,7 @@ async function tCheckDataBreach(args: Record<string, unknown>): Promise<ToolCall
   };
 }
 
-async function tScanUrlSafety(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tScanUrlSafety(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "").trim();
   if (!url || !url.startsWith("http")) {
     return { success: false, data: "URL invalide. Doit commencer par http:// ou https://" };
@@ -3647,14 +3647,14 @@ async function tScanUrlSafety(args: Record<string, unknown>): Promise<ToolCallRe
     }
 
     // Poll for result (max 3 attempts, 5s apart)
-    let result: Record<string, unknown> | null = null;
+    let result: Record<string, any> | null = null;
     for (let i = 0; i < 3; i++) {
       await new Promise((r) => setTimeout(r, 5000));
       const pollRes = await fetch(`${baseUrl}/result/${submitData.uuid}/`, {
         signal: AbortSignal.timeout(10_000),
       });
       if (pollRes.ok) {
-        result = (await pollRes.json()) as Record<string, unknown>;
+        result = (await pollRes.json()) as Record<string, any>;
         break;
       }
     }
@@ -3666,10 +3666,10 @@ async function tScanUrlSafety(args: Record<string, unknown>): Promise<ToolCallRe
       };
     }
 
-    const verdicts = result.verdicts as Record<string, unknown> | undefined;
-    const overall = verdicts?.overall as Record<string, unknown> | undefined;
-    const stats = result.stats as Record<string, unknown> | undefined;
-    const page = result.page as Record<string, unknown> | undefined;
+    const verdicts = result.verdicts as Record<string, any> | undefined;
+    const overall = verdicts?.overall as Record<string, any> | undefined;
+    const stats = result.stats as Record<string, any> | undefined;
+    const page = result.page as Record<string, any> | undefined;
 
     const malicious = (overall?.malicious as number) ?? 0;
     const suspicious = (overall?.suspicious as number) ?? 0;

@@ -79,14 +79,14 @@ export interface OSINTResult {
   success: boolean;
   type: OSINTQueryType;
   query: string;
-  data: unknown;
+  data: any;
   durationMs: number;
   fromCache: boolean;
   error?: string;
 }
 
 interface CacheEntry {
-  data: unknown;
+  data: any;
   timestamp: number;
 }
 
@@ -108,7 +108,7 @@ function getCacheKey(type: OSINTQueryType, query: string): string {
   return `${type}:${query.toLowerCase().trim()}`;
 }
 
-function getCached(key: string): unknown | null {
+function getCached(key: string): any | null {
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -118,7 +118,7 @@ function getCached(key: string): unknown | null {
   return entry.data;
 }
 
-function setCached(key: string, data: unknown): void {
+function setCached(key: string, data: any): void {
   cache.set(key, { data, timestamp: Date.now() });
   // LRU simple : éviction si trop d'entrées
   if (cache.size > MAX_CACHE_ENTRIES) {
@@ -264,7 +264,7 @@ async function executeOSINTQuery(
   type: OSINTQueryType,
   query: string,
   options?: { guildId?: string; userId?: string },
-): Promise<unknown> {
+): Promise<any> {
   switch (type) {
     // ── Intelligence Discord (Shadow Broker) ──
     case "intel":

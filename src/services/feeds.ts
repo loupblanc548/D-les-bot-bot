@@ -288,7 +288,7 @@ async function tryInsertNotification(
       },
     });
     return true; // Nouveau contenu, insertion réussie
-  } catch (err: unknown) {
+  } catch (err: any) {
     const errCode = (err as { code?: string }).code;
     if (errCode === "P2002") return false; // Doublon (contrainte unique)
     // Autre erreur : on laisse passer pour ne pas bloquer le flux
@@ -333,8 +333,8 @@ export async function sendToChannel(
         if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
           try {
             const cleanData = { ...embed.data };
-            delete (cleanData as Record<string, unknown>).image;
-            delete (cleanData as Record<string, unknown>).thumbnail;
+            delete (cleanData as Record<string, any>).image;
+            delete (cleanData as Record<string, any>).thumbnail;
             const cleanEmbed = new EmbedBuilder(cleanData);
             await channel.send({ embeds: [cleanEmbed] });
             logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
@@ -445,7 +445,7 @@ async function sendToChannelWithCard(
       if (sent) return true;
       // Attachment send failed — clear the attachment:// image and retry with plain embed
       const cleanData1 = { ...embed.data };
-      delete (cleanData1 as Record<string, unknown>).image;
+      delete (cleanData1 as Record<string, any>).image;
       return await sendToChannel(client, channelId, new EmbedBuilder(cleanData1));
     }
     return await sendToChannel(client, channelId, embed);
@@ -455,7 +455,7 @@ async function sendToChannelWithCard(
     );
     // Clear any attachment:// image that would be invalid without the file
     const cleanData2 = { ...embed.data };
-    delete (cleanData2 as Record<string, unknown>).image;
+    delete (cleanData2 as Record<string, any>).image;
     return await sendToChannel(client, channelId, new EmbedBuilder(cleanData2));
   }
 }

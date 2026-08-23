@@ -99,7 +99,7 @@ export async function createImageAttachment(
  * - Doit avoir une extension d'image valide (png/jpg/jpeg/gif/webp)
  * - Exclut les favicons .ico (non supportées par Discord embeds)
  */
-export function isValidEmbedImageUrl(url: unknown): url is string {
+export function isValidEmbedImageUrl(url: any): url is string {
   if (typeof url !== "string" || url.length === 0) return false;
   if (!/^https?:\/\//i.test(url)) return false;
   if (/\.ico(\?|#|$)/i.test(url)) return false;
@@ -155,7 +155,7 @@ function withCache(key: string, fetcher: () => Promise<string | null>): Promise<
  * Dans le flux Atom YouTube, les miniatures sont triées par taille ;
  * la dernière est maxresdefault (la plus grande).
  */
-export function extractMediaThumbnail(item: Record<string, unknown>): string | undefined {
+export function extractMediaThumbnail(item: Record<string, any>): string | undefined {
   // Format RSS standard : <media:thumbnail url="..." />
   const directThumb = (item as any)["media:thumbnail"];
   if (directThumb?.["@_url"]) return directThumb["@_url"];
@@ -191,7 +191,7 @@ export async function getYouTubeThumbnail(url: string): Promise<string | null> {
       try {
         const head = await fetch(maxresUrl, { method: "HEAD", signal: AbortSignal.timeout(3000) });
         if (head.ok) return maxresUrl;
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     } catch {
       return null;

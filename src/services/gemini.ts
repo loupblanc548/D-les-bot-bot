@@ -62,7 +62,7 @@ async function callGemini(
 
   try {
     const url = `${GEMINI_BASE_URL}/models/${config.geminiModel}:generateContent?key=${config.geminiApiKey}`;
-    const body: Record<string, unknown> = {
+    const body: Record<string, any> = {
       contents,
       generationConfig: {
         maxOutputTokens: maxTokens || 800,

@@ -34,7 +34,7 @@ export function handlePutSettings(req: http.IncomingMessage, res: http.ServerRes
       const allowed = ["refreshInterval", "theme", "notifications", "autoReconnect"];
       const sanitized: Partial<AppSettings> = {};
       for (const key of allowed) {
-        if (key in partial) (sanitized as Record<string, unknown>)[key] = partial[key];
+        if (key in partial) (sanitized as Record<string, any>)[key] = partial[key];
       }
       if (sanitized.refreshInterval && (sanitized.refreshInterval < 1 || sanitized.refreshInterval > 60)) {
         res.writeHead(400, { "Content-Type": "application/json" });

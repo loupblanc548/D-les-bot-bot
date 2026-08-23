@@ -21,6 +21,7 @@
  */
 
 import https from "https";
+import logger from "../utils/logger.js";
 import http from "http";
 import { execSync } from "child_process";
 
@@ -63,7 +64,7 @@ function httpsGetJson(
   url: string,
   headers: Record<string, string> = {},
   timeoutMs = 15_000,
-): Promise<unknown> {
+): Promise<any> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const mod = parsed.protocol === "https:" ? https : http;
@@ -209,13 +210,13 @@ export async function amazonPriceTrack(asin: string, domain: string = "com"): Pr
       return await scrapeCurrentPrice(asin, domain);
     }
     const url = `https://api.keepa.com/product?key=${apiKey}&domain=${domain === "com" ? 1 : domain === "co.uk" ? 2 : domain === "de" ? 3 : domain === "fr" ? 4 : 1}&asin=${asin}&stats=1`;
-    const data = (await httpsGetJson(url)) as Record<string, unknown>;
-    const product = (data.products as unknown[] | undefined)?.[0] as
-      Record<string, unknown> | undefined;
+    const data = (await httpsGetJson(url)) as Record<string, any>;
+    const product = (data.products as any[] | undefined)?.[0] as
+      Record<string, any> | undefined;
     if (!product) return JSON.stringify({ error: "Product not found in Keepa" });
 
     const csv = product.csv as number[][] | undefined;
-    const stats = product.stats as Record<string, unknown> | undefined;
+    const stats = product.stats as Record<string, any> | undefined;
     const currentAmazon = stats?.currentAmazon as number[] | undefined;
     const currentNew = stats?.currentNew as number[] | undefined;
     const currentUsed = stats?.currentUsed as number[] | undefined;
@@ -255,9 +256,9 @@ export async function amazonPriceHistory(
       return JSON.stringify({ error: "KEEPA_API_KEY not set — cannot fetch price history" });
     }
     const url = `https://api.keepa.com/product?key=${apiKey}&domain=${domain === "com" ? 1 : 4}&asin=${asin}&days=${days}&stats=1`;
-    const data = (await httpsGetJson(url)) as Record<string, unknown>;
-    const product = (data.products as unknown[] | undefined)?.[0] as
-      Record<string, unknown> | undefined;
+    const data = (await httpsGetJson(url)) as Record<string, any>;
+    const product = (data.products as any[] | undefined)?.[0] as
+      Record<string, any> | undefined;
     if (!product) return JSON.stringify({ error: "Product not found" });
 
     const csv = product.csv as number[][] | undefined;
@@ -409,7 +410,7 @@ export async function amazonCartMonitor(
 
         await browser.close();
         return JSON.stringify({ itemCount: items.length, items, scrapedAt: new Date().toISOString() });
-      })().catch(e => { console.error(e); process.exit(1); });
+      })().catch(e => { logger.error(e); process.exit(1); });
     `;
     const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
       timeout: 45_000,
@@ -457,7 +458,7 @@ export function amazonPriceAlertCreate(
 
 export async function amazonPriceAlertCheck(): Promise<string> {
   try {
-    const results: Array<Record<string, unknown>> = [];
+    const results: Array<Record<string, any>> = [];
     for (const [id, alert] of priceAlerts) {
       if (alert.triggered) continue;
       const priceResult = await amazonPriceTrack(alert.asin);
@@ -556,7 +557,7 @@ export async function amazonDealSearch(
       "Accept-Language": "en-US,en;q=0.9",
     };
     const html = await httpsGet(url, headers, 20_000);
-    const deals: Array<Record<string, unknown>> = [];
+    const deals: Array<Record<string, any>> = [];
 
     // Parse deal cards
     const dealRegex =
@@ -602,7 +603,7 @@ export async function amazonBestSellers(
       "Accept-Language": "en-US,en;q=0.9",
     };
     const html = await httpsGet(url, headers, 20_000);
-    const items: Array<Record<string, unknown>> = [];
+    const items: Array<Record<string, any>> = [];
 
     const itemRegex =
       /data-asin="([\w]+)"[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<div class="p13n-sc-truncate"[^>]*>([^<]+)<\/div>[\s\S]*?<span class="p13n-sc-price"[^>]*>([^<]+)<\/span>/g;
@@ -667,7 +668,7 @@ export async function amazonCouponSearch(
       "Accept-Language": "en-US,en;q=0.9",
     };
     const html = await httpsGet(url, headers, 20_000);
-    const coupons: Array<Record<string, unknown>> = [];
+    const coupons: Array<Record<string, any>> = [];
 
     const couponRegex =
       /data-asin="([\w]+)"[\s\S]*?coupon[\s\S]*?([$€£]\s*[\d,]+\.?\d*)[\s\S]*?<span[^>]*>([^<]+)<\/span>/gi;
@@ -730,7 +731,7 @@ export async function amazonSubscribeSaveCheck(
         });
         await browser.close();
         return JSON.stringify({ subscriptionCount: items.length, items, scrapedAt: new Date().toISOString() });
-      })().catch(e => { console.error(e); process.exit(1); });
+      })().catch(e => { logger.error(e); process.exit(1); });
     `;
     const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
       timeout: 45_000,
@@ -781,7 +782,7 @@ export async function amazonOrderHistory(
         });
         await browser.close();
         return JSON.stringify({ orderCount: orders.length, orders, year, scrapedAt: new Date().toISOString() });
-      })().catch(e => { console.error(e); process.exit(1); });
+      })().catch(e => { logger.error(e); process.exit(1); });
     `;
     const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
       timeout: 45_000,

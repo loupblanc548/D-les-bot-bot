@@ -145,7 +145,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     logger.error("[Parle] Erreur:", error);
     try {
       await interaction.editReply({ content: "❌ Une erreur est survenue." });
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -164,7 +164,7 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return buf;
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 2. ElevenLabs
   try {
@@ -177,7 +177,7 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return Buffer.from(result.audioUrl.split(",")[1], "base64");
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
@@ -186,7 +186,7 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
       logger.info(`[Parle] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 4. StreamElements / Amazon Polly
   try {
@@ -217,7 +217,7 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return seBuffer;
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 5. Fallback: Google Translate TTS
   try {
@@ -268,7 +268,7 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
       resolved = true;
       try {
         ws.close();
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       resolve(result);
     };
 

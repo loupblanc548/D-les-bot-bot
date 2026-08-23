@@ -138,7 +138,7 @@ async function checkInstantGamingDeals(_client: Client): Promise<void> {
     for (const item of allWishlists) {
       try {
         const res = await fetch(
-          `https://www.instant-gaming.com/fr/recherche/?q=${encodeURIComponent(item.gameName)}`,
+          `https://www.instant-gaming.com/fr/recherche/?q=${encodeURIComponent(item.gameName ?? "")}`,
           { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) },
         );
         if (!res.ok) continue;
@@ -166,9 +166,7 @@ async function checkInstantGamingDeals(_client: Client): Promise<void> {
           logger.info(
             `[WishlistCron] Deal trouvé pour "${item.gameName}" à ${price}€ — notification envoyée`,
           );
-        } catch {
-          // already deleted or not found
-        }
+        } catch { logger.error("[Silent catch]"); }
       } catch (gameErr) {
         logger.warn(
           `[WishlistCron] Recherche IG échouée pour "${item.gameName}": ${gameErr instanceof Error ? gameErr.message : String(gameErr)}`,

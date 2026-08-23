@@ -5,7 +5,7 @@ export interface AnalyticsEvent {
   event: string;
   userId?: string;
   guildId?: string;
-  properties?: Record<string, unknown>;
+  properties?: Record<string, any>;
 }
 
 const eventBuffer: AnalyticsEvent[] = [];
@@ -82,7 +82,7 @@ export async function getGuildAnalytics(guildId: string): Promise<GuildAnalytics
     messagesLast7d: chatHistory,
     commandsUsed: commands,
     moderationActions: modActions,
-    eventBreakdown: eventBreakdown.map((e: Record<string, unknown>) => ({
+    eventBreakdown: eventBreakdown.map((e: Record<string, any>) => ({
       event: String(e.activity || ""),
       count: Number(e._count || 0),
     })),
@@ -170,7 +170,7 @@ export async function getTopCommands(
       take: 10,
     })
     .catch((): [] => []);
-  return result.map((r: Record<string, unknown>) => ({
+  return result.map((r: Record<string, any>) => ({
     command: String(r.command || ""),
     count: Number(r._count || 0),
   }));
@@ -190,7 +190,7 @@ export async function getModerationStats(
       take: 10,
     })
     .catch((): [] => []);
-  return result.map((r: Record<string, unknown>) => ({
+  return result.map((r: Record<string, any>) => ({
     action: String(r.action || ""),
     count: Number(r._count || 0),
   }));

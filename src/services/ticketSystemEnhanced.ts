@@ -204,7 +204,7 @@ export async function claimTicket(channelId: string, staffId: string): Promise<T
   ticket.status = "claimed";
   ticket.claimedBy = staffId;
 
-  const channel = (await ticket.guildId) as unknown;
+  const channel = (await ticket.guildId) as any;
   void channel;
 
   logger.info(`[TicketEnhanced] ${ticket.id} claimed by ${staffId}`);

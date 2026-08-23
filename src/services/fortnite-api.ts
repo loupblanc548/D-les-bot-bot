@@ -94,7 +94,7 @@ function getRarityColor(rarity: string): number {
  * - Récupère le nom de chaque item dans entry.items (utilise displayName ou name en fallback)
  * - Retourne un tableau de noms normalisés (minuscule/trim) et uniques
  */
-export function extractAllNamesFromEntry(entry: Record<string, unknown>): string[] {
+export function extractAllNamesFromEntry(entry: Record<string, any>): string[] {
   const names = new Set<string>();
   const e = entry as Record<string, any>;
 

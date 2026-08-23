@@ -57,9 +57,7 @@ export class RedditScraperStrategy implements FetchStrategy {
           const parsed = JSON.parse(scraped.raw);
           const jsonItems = (parsed.items || parsed.entries || []) as FreeGameItem[];
           if (jsonItems.length > 0) return jsonItems;
-        } catch {
-          // Pas du JSON non plus
-        }
+        } catch { logger.error("[Silent catch]"); }
       }
 
       if ((scraped as any).items && Array.isArray((scraped as any).items) && (scraped as any).items.length > 0) {
@@ -154,17 +152,17 @@ export class EpicApiStrategy implements FetchStrategy {
       if (!elements || !Array.isArray(elements)) return null;
 
       const items = elements
-        .filter((e: Record<string, unknown>) => {
-          const offers = (e as Record<string, unknown>).promotions as Record<string, unknown> | undefined;
+        .filter((e: Record<string, any>) => {
+          const offers = (e as Record<string, any>).promotions as Record<string, any> | undefined;
           return offers?.promotionalOffers && Array.isArray(offers.promotionalOffers) && offers.promotionalOffers.length > 0;
         })
-        .map((e: Record<string, unknown>) => ({
+        .map((e: Record<string, any>) => ({
           title: String(e.title || "Jeu gratuit Epic Games"),
-          link: `https://store.epicgames.com/p/${e.productSlug || ((e.catalogNs as Record<string, unknown>)?.mappings as Record<string, unknown>[])?.[0]?.pageSlug || ''}`,
+          link: `https://store.epicgames.com/p/${e.productSlug || ((e.catalogNs as Record<string, any>)?.mappings as Record<string, any>[])?.[0]?.pageSlug || ''}`,
           pubDate: new Date().toISOString(),
           content: String(e.description || ""),
           guid: String(e.productSlug || e.id || ""),
-          thumbnail: Array.isArray(e.keyImages) ? String((e.keyImages as Record<string, unknown>[])[0]?.url || "") : "",
+          thumbnail: Array.isArray(e.keyImages) ? String((e.keyImages as Record<string, any>[])[0]?.url || "") : "",
         })) as FreeGameItem[];
 
       return items.length > 0 ? items : null;

@@ -1660,9 +1660,9 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
   ]);
 
   // Remove mutating methods to enforce immutability at runtime
-  (map as unknown as Record<string, unknown>).set = undefined;
-  (map as unknown as Record<string, unknown>).delete = undefined;
-  (map as unknown as Record<string, unknown>).clear = undefined;
+  (map as any as Record<string, any>).set = undefined;
+  (map as any as Record<string, any>).delete = undefined;
+  (map as any as Record<string, any>).clear = undefined;
 
   return Object.freeze(map);
 })();

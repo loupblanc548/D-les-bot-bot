@@ -28,7 +28,7 @@ export interface TaskJob {
   /** User ID who triggered the task. */
   userId: string;
   /** Payload parameters for the task. */
-  payload: Record<string, unknown>;
+  payload: Record<string, any>;
   /** Timestamp when the job was created. */
   createdAt: number;
   /** Timeout handle for auto-cleanup. */
@@ -103,7 +103,7 @@ export function registerTaskHandler(taskType: string, handler: TaskHandler): voi
 export function submitTask(
   interaction: ChatInputCommandInteraction,
   taskType: string,
-  payload: Record<string, unknown> = {},
+  payload: Record<string, any> = {},
 ): string {
   const jobId = `${taskType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -281,7 +281,7 @@ function handleTaskTimeout(job: TaskJob): void {
 export async function deferAndSubmit(
   interaction: ChatInputCommandInteraction,
   taskType: string,
-  payload: Record<string, unknown> = {},
+  payload: Record<string, any> = {},
 ): Promise<string> {
   // Defer immediately (within 3s limit)
   await interaction.deferReply({ ephemeral: true });

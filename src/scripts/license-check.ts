@@ -8,6 +8,7 @@
  */
 
 import { execSync } from "child_process";
+import logger from "../utils/logger.js";
 import { writeFileSync } from "fs";
 
 interface LicenseEntry {
@@ -30,7 +31,7 @@ const SAFE_LICENSES = [
 ];
 
 function run() {
-  console.log("📋 Generating license report...");
+  logger.info("📋 Generating license report...");
 
   const output = execSync("npx license-checker --json --production", {
     encoding: "utf-8",
@@ -40,7 +41,7 @@ function run() {
   const data = JSON.parse(output) as Record<string, LicenseEntry>;
   const entries = Object.entries(data).map(([key, val]) => {
     const [name, version] = key.split("@");
-    return { name, version, ...val };
+    return { ...val, name, version };
   });
 
   const problematic = entries.filter((e) =>
@@ -83,7 +84,7 @@ function run() {
   }
 
   writeFileSync("LICENSES.md", md);
-  console.log(
+  logger.info(
     `✅ License report written to LICENSES.md (${entries.length} deps, ${problematic.length} problematic)`,
   );
 }

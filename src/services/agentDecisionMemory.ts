@@ -47,9 +47,7 @@ export async function getRecentDecisions(type: string, limit = 5): Promise<Agent
       LIMIT ${limit}
     `;
     if (rows && rows.length > 0) return rows;
-  } catch {
-    // Fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return memoryStore.filter((d) => d.type === type).slice(-limit).reverse();
 }
 
@@ -62,9 +60,7 @@ export async function getFailedDecisions(type: string, limit = 3): Promise<Agent
       LIMIT ${limit}
     `;
     if (rows && rows.length > 0) return rows;
-  } catch {
-    // Fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return memoryStore.filter((d) => d.type === type && !d.success).slice(-limit).reverse();
 }
 
@@ -88,7 +84,5 @@ export async function cleanupOldDecisions(): Promise<void> {
   try {
     await prisma.$executeRaw`DELETE FROM "AgentDecision" WHERE "createdAt" < NOW() - INTERVAL '30 days'`;
     logger.info("[DecisionMemory] Vieilles décisions nettoyées");
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 }

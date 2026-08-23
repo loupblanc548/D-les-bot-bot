@@ -143,7 +143,7 @@ Fournis ta réponse au format JSON :
       const parsed = JSON.parse(content);
 
       return {
-        predictedOffers: parsed.predictedOffers?.map((p: Record<string, unknown>) => p.title) || [],
+        predictedOffers: parsed.predictedOffers?.map((p: Record<string, any>) => p.title) || [],
         confidence: parsed.confidence || 0,
         reasoning: parsed.overallReasoning || "Pas de raisonnement disponible",
         nextCheckDate: new Date(Date.now() + 86400000), // 24h

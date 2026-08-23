@@ -103,7 +103,7 @@ export async function generateSecurityReport(
   const anomalies = getAnomalies(20);
   const _analysisReport = generateAnalysisReport();
   const unhealthyScrapers = getUnhealthyScrapers();
-  const appliedPatches: unknown[] = []; // aiHotPatcher removed — dead code eliminated
+  const appliedPatches: any[] = []; // aiHotPatcher removed — dead code eliminated
 
   // Calculer les métriques
   const periodEvents = events.filter((e) => e.timestamp >= from);
@@ -170,9 +170,7 @@ export async function generateSecurityReport(
       targetId: guildId,
       details: JSON.stringify({ reportId: report.id, metrics: report.metrics }),
     });
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   logger.info(
     `[ReportScheduler] Rapport ${frequency} généré pour ${guildId}: ${periodEvents.length} événements`,

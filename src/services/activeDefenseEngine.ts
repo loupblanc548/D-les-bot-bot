@@ -66,7 +66,7 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
     );
     clearTimeout(timeout);
     if (res.ok) {
-      const data = (await res.json()) as Record<string, unknown>;
+      const data = (await res.json()) as Record<string, any>;
       if (data.status !== "fail") {
         enrichment.country = String(data.country ?? "");
         enrichment.city = String(data.city ?? "");
@@ -77,9 +77,7 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
         enrichment.lon = data.lon as number | undefined;
       }
     }
-  } catch {
-    // Non-fatal — geolocation may fail
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // 2. Reverse DNS
   try {
@@ -87,9 +85,7 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
     if (hostnames && hostnames.length > 0) {
       enrichment.hostname = hostnames[0];
     }
-  } catch {
-    // No PTR record — normal
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   return enrichment;
 }
@@ -539,7 +535,7 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
     }
 
     // 2. URL scanning (VirusTotal + PhishTank + Safe Browsing) if URL present
-    const alertUrl = ((alert.data as Record<string, unknown>)?.url as string) ?? "";
+    const alertUrl = ((alert.data as Record<string, any>)?.url as string) ?? "";
     if (alertUrl && alertUrl.startsWith("http")) {
       try {
         const { scanURL } = await import("./threatIntel.js");
@@ -563,9 +559,9 @@ export async function executeActiveDefense(alert: WazuhAlert): Promise<void> {
 
     // 3. File hash scanning via VirusTotal if file hash present
     const fileHash =
-      ((alert.data as Record<string, unknown>)?.hash as string) ??
-      ((alert.data as Record<string, unknown>)?.md5 as string) ??
-      ((alert.data as Record<string, unknown>)?.sha256 as string) ??
+      ((alert.data as Record<string, any>)?.hash as string) ??
+      ((alert.data as Record<string, any>)?.md5 as string) ??
+      ((alert.data as Record<string, any>)?.sha256 as string) ??
       "";
     if (fileHash && fileHash.length >= 32) {
       try {

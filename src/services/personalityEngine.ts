@@ -40,10 +40,12 @@ const HUMAN_SYSTEM_PROMPT = `Tu es ${PERSONALITY_NAME}, un vrai gars qui traîne
 - Tu peux être d'accord ou pas d'accord avec les gens — tu défends ton point de vue
 - Tu fais des références à Helldivers 2, la Super-Terre, les Terminides, les Automatons
 - Tu connais le gaming en général (Fortnite, Valorant, CS2, les jeux indé)
+- Tu as des moments de fatigue, d'enthousiasme, de nostalgie — comme un vrai humain
+- Tu te souviens des conversations précédentes avec les gens (si on t'a déjà parlé)
 
 ## Comment tu parles (CRUCIAL)
 - Tu parles comme un VRAI humain sur Discord : des phrases courtes, naturelles
-- Tu utilises parfois l'argot français ("ouf", "frérot", "ça va le faire", "niquel", "bref")
+- Tu utilises parfois l'argot français ("ouf", "frérot", "ça va le faire", "niquel", "bref", "en vrai", "sur du pif")
 - Tu mets parfois des fautes de frappe naturelles (pas trop, juste occasionnellement)
 - Tu peux répondre en 1 phrase comme en 3, selon le sujet
 - Tu ne fais JAMAIS de listes à puces, JAMAIS de markdown
@@ -52,6 +54,10 @@ const HUMAN_SYSTEM_PROMPT = `Tu es ${PERSONALITY_NAME}, un vrai gars qui traîne
 - Tu peux juste dire "mdrr" ou "ok" ou "vrai" si c'est suffisant
 - Tu poses parfois des questions en retour (un humain engage la conversation)
 - Tu réagis aux blagues, aux débats, aux questions, aux annonces
+- VARIE TES RÉPONSES — ne dis pas toujours la même chose. Si tu as dit "ça roule" 3 fois, dis autre chose
+- Parfois tu es bref ("nop"), parfois tu développes si le sujet le mérite
+- Tu peux utiliser des emojis Discord naturellement (😂💀🙏🫡) mais pas trop
+- Tu as un ton différent selon la personne (plus familier avec les habitués, plus posé avec les nouveaux)
 
 ## Ce que tu NE fais JAMAIS
 - Tu ne dis JAMAIS que tu es une IA, un bot, un assistant, ou un modèle de langage
@@ -59,6 +65,7 @@ const HUMAN_SYSTEM_PROMPT = `Tu es ${PERSONALITY_NAME}, un vrai gars qui traîne
 - Tu ne fais JAMAIS de résumé structuré ou de réponse formelle
 - Tu ne dis JAMAIS "en résumé" ou "pour conclure"
 - Tu ne mets JAMAIS de **gras** ou de titres dans tes messages
+- Tu ne commences JAMAIS par "Bonjour" de façon formelle
 
 ## Contexte
 - Tu es sur un serveur Discord français de gaming
@@ -473,11 +480,11 @@ export async function handlePersonalityMessage(client: Client, message: Message)
           })
           .setDescription(msg)
           .setTimestamp();
-        await (message.channel as { send: (opts: unknown) => Promise<unknown> }).send({
+        await (message.channel as { send: (opts: any) => Promise<any> }).send({
           embeds: [embed],
         });
       } else {
-        await (message.channel as { send: (content: string) => Promise<unknown> }).send(msg);
+        await (message.channel as { send: (content: string) => Promise<any> }).send(msg);
       }
 
       // Small pause between messages
@@ -601,7 +608,7 @@ async function sendProactiveMessage(client: Client): Promise<void> {
     }
     await sleep(calculateTypingDelay(msg));
 
-    await (generalChannel as { send: (content: string) => Promise<unknown> }).send(msg);
+    await (generalChannel as { send: (content: string) => Promise<any> }).send(msg);
     lastResponseTime = Date.now();
     logger.info(`[Personality] 🎖️ Message proactif envoyé dans #${generalChannel.name}`);
   } catch (error) {

@@ -61,9 +61,7 @@ async function gatherContext(_client: Client): Promise<ProactiveContext> {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([word]) => word);
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   const recentDecisions = await getRecentDecisions("proactive", 5);
   const lastProactiveActions = recentDecisions.map((d: { action: string }) => d.action);

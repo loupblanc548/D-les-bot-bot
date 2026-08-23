@@ -9,10 +9,10 @@ export interface RawgGame {
 }
 
 interface RawgLogger {
-  info?: (...args: unknown[]) => void;
-  warn?: (...args: unknown[]) => void;
-  error?: (...args: unknown[]) => void;
-  debug?: (...args: unknown[]) => void;
+  info?: (...args: any[]) => void;
+  warn?: (...args: any[]) => void;
+  error?: (...args: any[]) => void;
+  debug?: (...args: any[]) => void;
 }
 
 export interface RawgClientOptions {

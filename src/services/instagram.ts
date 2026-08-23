@@ -73,15 +73,15 @@ export async function getRecentPosts(
       unknown
     >[];
     return edges.slice(0, count).map((e) => {
-      const n = e.node as Record<string, unknown>;
+      const n = e.node as Record<string, any>;
       const captionNode = (
-        (n.edge_media_to_caption as Record<string, unknown>)?.edges as Record<string, unknown>[]
-      )?.[0]?.node as Record<string, unknown>;
+        (n.edge_media_to_caption as Record<string, any>)?.edges as Record<string, any>[]
+      )?.[0]?.node as Record<string, any>;
       return {
         id: String(n.id || ""),
         caption: String(captionNode?.text || "").slice(0, 200),
-        likes: Number((n.edge_liked_by as Record<string, unknown>)?.count || 0),
-        comments: Number((n.edge_media_to_comment as Record<string, unknown>)?.count || 0),
+        likes: Number((n.edge_liked_by as Record<string, any>)?.count || 0),
+        comments: Number((n.edge_media_to_comment as Record<string, any>)?.count || 0),
         timestamp: new Date(Number(n.taken_at_timestamp || 0) * 1000).toISOString(),
       };
     });

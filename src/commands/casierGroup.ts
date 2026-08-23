@@ -64,7 +64,7 @@ const NAME_MAP: Record<string, string> = {
   clear: "casier-clear",
 };
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client?: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client?: any) {
   const action = interaction.options.getSubcommand();
   const mappedName = NAME_MAP[action] || action;
   Object.defineProperty(interaction, "commandName", { value: mappedName, writable: true });

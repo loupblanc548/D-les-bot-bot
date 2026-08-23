@@ -86,7 +86,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 export async function storeVectorMemory(
   userId: string,
   content: string,
-  metadata?: Record<string, unknown>,
+  metadata?: Record<string, any>,
 ): Promise<void> {
   try {
     // Ensure user exists
@@ -124,7 +124,7 @@ export async function searchVectorMemories(
   query: string,
   limit = 5,
   threshold = 0.3,
-): Promise<Array<{ content: string; score: number; metadata?: Record<string, unknown> }>> {
+): Promise<Array<{ content: string; score: number; metadata?: Record<string, any> }>> {
   try {
     // Get all embeddings for this user (limited to recent 200)
     const embeddings = await prisma.memoryEmbedding.findMany({
@@ -145,7 +145,7 @@ export async function searchVectorMemories(
       return {
         content: e.content,
         score,
-        metadata: e.metadata as Record<string, unknown> | undefined,
+        metadata: e.metadata as Record<string, any> | undefined,
       };
     });
 

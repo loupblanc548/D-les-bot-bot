@@ -160,7 +160,7 @@ export async function validateChannels(client: Client): Promise<ChannelsValidati
         status: "ok",
         message: `${safeChannelName(textChannel)} (${def.id}) accessible`,
       });
-    } catch (err: unknown) {
+    } catch (err: any) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       results.push({
         label: def.label,

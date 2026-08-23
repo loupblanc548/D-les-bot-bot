@@ -250,9 +250,7 @@ async function sendDM(client: Client, userId: string, content: string): Promise<
     if (user) {
       await user.send(content).catch(() => {});
     }
-  } catch {
-    // DM peut échouer (MP fermés)
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 async function sendLog(

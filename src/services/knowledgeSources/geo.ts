@@ -207,7 +207,7 @@ export async function fetchOpenSkyFlights(query: string): Promise<string | null>
       if (!res.ok) return null;
       const data = (await res.json()) as {
         time?: number;
-        states?: Array<Array<unknown>>;
+        states?: Array<Array<any>>;
       };
       const states = data.states;
       if (!states || states.length === 0)
@@ -275,7 +275,7 @@ export async function fetchOpenSkyFlights(query: string): Promise<string | null>
     if (!res.ok) return null;
     const data = (await res.json()) as {
       time?: number;
-      states?: Array<Array<unknown>>;
+      states?: Array<Array<any>>;
     };
     const states = data.states;
     if (!states || states.length === 0)

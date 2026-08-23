@@ -358,7 +358,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     case "metadata":
     case "tech-detect": {
       const { handleShadowExtra } = await import("./stubHandlers.js");
-      return handleShadowExtra(interaction, undefined as unknown as import("discord.js").Client);
+      return handleShadowExtra(interaction, undefined as any as import("discord.js").Client);
     }
     case "audit":
       return handleAudit(interaction);
@@ -1253,9 +1253,7 @@ async function handleAudit(interaction: ChatInputCommandInteraction) {
       let details: { moderator?: string; target?: string; subcommand?: string } = {};
       try {
         details = JSON.parse(entry.details || "{}");
-      } catch {
-        // keep empty
-      }
+      } catch { logger.error("[Silent catch]"); }
       const date = entry.createdAt.toISOString().slice(0, 19).replace("T", " ");
       const mod = details.moderator || entry.moderator || entry.userId || "Unknown";
       const target = details.target || entry.targetId || "N/A";

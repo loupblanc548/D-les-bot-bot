@@ -10,14 +10,16 @@
 
 import logger from "../utils/logger.js";
 import { getRiskLevel } from "./toolRiskRegistry.js";
+import { ensureConnected } from "../utils/redisClient.js";
 
 interface CachedToolResult {
-  result: unknown;
+  result: any;
   timestamp: number;
   ttlMs: number;
 }
 
 const cache = new Map<string, CachedToolResult>();
+const REDIS_PREFIX = "tool:cache:";
 
 // ─── TTL per tool (ms) ───────────────────────────────────────────────────────
 const TOOL_TTL_MS: Record<string, number> = {
@@ -27,14 +29,19 @@ const TOOL_TTL_MS: Record<string, number> = {
   getCryptoPrice: 30 * 1000,
   // Web search: 5 minutes (results stable short-term)
   searchGoogle: 5 * 60 * 1000,
+  searchWeb: 5 * 60 * 1000,
   // Translation: 1 hour (same text = same translation)
   translateText: 60 * 60 * 1000,
   translateTextDeepL: 60 * 60 * 1000,
   auto_translate: 60 * 60 * 1000,
   // Country info: 24 hours (rarely changes)
   get_country_info: 24 * 60 * 60 * 1000,
+  getCountryInfo: 24 * 60 * 60 * 1000,
+  capital_lookup: 24 * 60 * 60 * 1000,
+  country_bordering: 24 * 60 * 60 * 1000,
   // Urban dictionary: 1 hour
   get_urban_dict: 60 * 60 * 1000,
+  getUrbanDict: 60 * 60 * 1000,
   // Dev.to articles: 30 minutes
   get_devto_articles: 30 * 60 * 1000,
   // Google trends: 30 minutes
@@ -57,8 +64,39 @@ const TOOL_TTL_MS: Record<string, number> = {
   compare_game_prices: 30 * 60 * 1000,
   // Game server status: 2 minutes (player count changes fast)
   check_game_server: 2 * 60 * 1000,
+  minecraft_server_status: 2 * 60 * 1000,
   // Game artwork: 24h (rarely changes)
   get_game_artwork: 24 * 60 * 60 * 1000,
+  // ── Additional cacheable tools ──
+  // Wikipedia: 1 hour (articles rarely change)
+  getWikipediaSummary: 60 * 60 * 1000,
+  // GitHub repo info: 10 minutes
+  getGitHubRepo: 10 * 60 * 1000,
+  // Fortnite shop: 30 minutes (rotates daily)
+  fortnite_item_shop: 30 * 60 * 1000,
+  // Epic free games: 1 hour
+  epic_games_free_games: 60 * 60 * 1000,
+  // Joke/quote/trivia: 5 minutes
+  getJoke: 5 * 60 * 1000,
+  getDadJoke: 5 * 60 * 1000,
+  getQuote: 5 * 60 * 1000,
+  getTrivia: 5 * 60 * 1000,
+  getRandomFact: 5 * 60 * 1000,
+  // NASA APOD: 24 hours (one per day)
+  getNasaApod: 24 * 60 * 60 * 1000,
+  // Pokemon: 24 hours (static data)
+  getPokemon: 24 * 60 * 60 * 1000,
+  getColorInfo: 24 * 60 * 60 * 1000,
+  // Reddit: 10 minutes
+  getRedditPosts: 10 * 60 * 1000,
+  // Exchange rates: 30 minutes
+  convertCurrency: 30 * 60 * 1000,
+  // BoardGameGeek: 1 hour
+  boardgame_geek_search: 60 * 60 * 1000,
+  // crt.sh: 30 minutes
+  crtsh_search: 30 * 60 * 1000,
+  // Wayback: 24 hours
+  wayback_machine_lookup: 24 * 60 * 60 * 1000,
 };
 
 // ─── Adaptive TTL multipliers by risk level ──────────────────────────────────
@@ -73,7 +111,7 @@ const TTL_MULTIPLIER_BY_LEVEL: Record<string, number> = {
 const MAX_CACHE_SIZE = 500;
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
-function generateCacheKey(toolName: string, args: Record<string, unknown>): string {
+function generateCacheKey(toolName: string, args: Record<string, any>): string {
   const argStr = JSON.stringify(args, Object.keys(args).sort());
   return `${toolName}:${argStr}`;
 }
@@ -99,38 +137,52 @@ export function isToolCacheable(toolName: string): boolean {
  * Get a cached tool result if available and not expired.
  * Returns null if not cached or expired.
  */
-export function getCachedToolResult(
+export async function getCachedToolResult(
   toolName: string,
-  args: Record<string, unknown>,
-): unknown | null {
+  args: Record<string, any>,
+): Promise<any | null> {
   if (!isToolCacheable(toolName)) return null;
 
   const key = generateCacheKey(toolName, args);
   const entry = cache.get(key);
 
-  if (!entry) return null;
-
-  const now = Date.now();
-  if (now - entry.timestamp > entry.ttlMs) {
-    cache.delete(key);
-    return null;
+  if (entry) {
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttlMs) {
+      cache.delete(key);
+    } else {
+      logger.debug(`[ToolCache] L1 hit: ${toolName}`);
+      return entry.result;
+    }
   }
 
-  logger.debug(
-    `[ToolCache] Hit: ${toolName} (age: ${((now - entry.timestamp) / 1000).toFixed(0)}s)`,
-  );
-  return entry.result;
+  // L2: Redis
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_PREFIX}${key}`;
+      const redisVal = (await redis.get(redisKey)) as string | null;
+      if (redisVal) {
+        const parsed = JSON.parse(redisVal) as CachedToolResult;
+        cache.set(key, parsed); // Populate L1
+        logger.debug(`[ToolCache] L2 (Redis) hit: ${toolName}`);
+        return parsed.result;
+      }
+    }
+  } catch { logger.error("[Silent catch]"); }
+
+  return null;
 }
 
 /**
  * Cache a tool result with the appropriate TTL.
  * No-op if the tool is not cacheable.
  */
-export function setCachedToolResult(
+export async function setCachedToolResult(
   toolName: string,
-  args: Record<string, unknown>,
-  result: unknown,
-): void {
+  args: Record<string, any>,
+  result: any,
+): Promise<void> {
   if (!isToolCacheable(toolName)) return;
 
   const key = generateCacheKey(toolName, args);
@@ -145,7 +197,18 @@ export function setCachedToolResult(
     if (oldestKey) cache.delete(oldestKey);
   }
 
-  cache.set(key, { result, timestamp: Date.now(), ttlMs });
+  const entry: CachedToolResult = { result, timestamp: Date.now(), ttlMs };
+  cache.set(key, entry);
+
+  // L2: Redis (fire-and-forget)
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_PREFIX}${key}`;
+      const ttlSec = Math.floor(ttlMs / 1000);
+      await redis.setEx(redisKey, ttlSec, JSON.stringify(entry));
+    }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 /**

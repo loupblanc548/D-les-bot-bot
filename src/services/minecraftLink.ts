@@ -133,9 +133,7 @@ export async function verifyCode(
     if (stats) {
       uuid = stats.uuid;
     }
-  } catch {
-    // Pas grave si l'API ne répond pas — on valide quand même
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   await prisma.minecraftProfile.update({
     where: { userId: profile.userId },

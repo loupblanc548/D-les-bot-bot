@@ -29,9 +29,7 @@ export async function runNotificationCleanup(): Promise<void> {
         where: { sentAt: { lt: notifCutoff } },
       });
       notifDeleted = result.count;
-    } catch {
-      // Table peut ne pas exister
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     // Purge logs anciens (> 30 jours)
     let logDeleted = 0;
@@ -40,9 +38,7 @@ export async function runNotificationCleanup(): Promise<void> {
         where: { createdAt: { lt: notifCutoff } },
       });
       logDeleted = result.count;
-    } catch {
-      // Table peut ne pas exister
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     logger.info(
       `[Cleanup] Purge: ${notifDeleted} notifications, ${logDeleted} logs supprimés (> ${NOTIFICATION_RETENTION_DAYS}j)`,

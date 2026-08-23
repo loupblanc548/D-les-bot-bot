@@ -177,9 +177,7 @@ async function applyConsolidation(
           data: { value: dup.mergedValue.slice(0, 200) },
         });
       }
-    } catch {
-      // Ignore individual errors
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Résoudre les contradictions
@@ -197,9 +195,7 @@ async function applyConsolidation(
           data: { value: contra.resolvedValue.slice(0, 200) },
         });
       }
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Fusionner les liens dupliqués
@@ -211,9 +207,7 @@ async function applyConsolidation(
         });
         linksRemoved += linkMerge.removeIds.length;
       }
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Mettre à jour le résumé
@@ -224,9 +218,7 @@ async function applyConsolidation(
         data: { summary: plan.updatedSummary.slice(0, 1000) },
       });
       summaryUpdated = true;
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   return { factsRemoved, linksRemoved, summaryUpdated };

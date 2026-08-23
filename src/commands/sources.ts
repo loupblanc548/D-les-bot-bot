@@ -40,7 +40,7 @@ export async function handleAddSource(interaction: ChatInputCommandInteraction) 
       await prisma.source.create({
         data: { guildId, channelId: targetChannelId, type, urlOrHandle, lastProcessedId: null },
       });
-    } catch (err: unknown) {
+    } catch (err: any) {
       if ((err as any)?.code === "P2002") {
         await interaction.editReply({
           content:
@@ -75,7 +75,7 @@ export async function handleAddSource(interaction: ChatInputCommandInteraction) 
           content: "Impossible d'ajouter cette source.",
           ephemeral: true,
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -108,7 +108,7 @@ export async function handleRemoveSource(interaction: ChatInputCommandInteractio
           content: "Impossible de supprimer cette source.",
           ephemeral: true,
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -162,7 +162,7 @@ export async function handleListSources(interaction: ChatInputCommandInteraction
           content: "Impossible de lister les sources.",
           ephemeral: true,
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }

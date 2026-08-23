@@ -19,6 +19,7 @@
  */
 
 import * as dnsPromises from "dns/promises";
+import logger from "../utils/logger.js";
 import { createHash } from "crypto";
 import { request as httpsRequest } from "https";
 import { request as httpRequest } from "http";
@@ -496,9 +497,7 @@ export async function enumerateSubdomains(
       if (ips.length > 0) {
         found.push({ subdomain: fullDomain, ips });
       }
-    } catch {
-      // Not found — normal
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   return {

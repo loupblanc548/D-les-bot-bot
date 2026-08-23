@@ -1,18 +1,17 @@
 import { getCache, setCache, deleteCache } from "../utils/redis.js";
+import logger from "../utils/logger.js";
 
 /**
  * Cache avec fallback: utilise Redis si dispo, sinon un Map en mémoire.
  */
-const memoryFallback = new Map<string, { value: unknown; expiresAt: number }>();
+const memoryFallback = new Map<string, { value: any; expiresAt: number }>();
 const MAX_MEMORY_ENTRIES = 300;
 
 export async function cachedGet<T>(key: string): Promise<T | null> {
   try {
     const result = await getCache<T>(key);
     if (result !== null) return result;
-  } catch {
-    // Redis down, fallback to memory
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   const entry = memoryFallback.get(key);
   if (entry && Date.now() < entry.expiresAt) {
@@ -22,13 +21,11 @@ export async function cachedGet<T>(key: string): Promise<T | null> {
   return null;
 }
 
-export async function cachedSet(key: string, value: unknown, ttlSeconds = 300): Promise<void> {
+export async function cachedSet(key: string, value: any, ttlSeconds = 300): Promise<void> {
   try {
     await setCache(key, value, ttlSeconds);
     return; // Redis a accepté : pas de double-storage dans le fallback mémoire.
-  } catch {
-    // Redis down, fallback to memory
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   memoryFallback.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }

@@ -4,7 +4,7 @@ interface CacheEntry<T> {
 }
 
 class InMemoryCache {
-  private cache = new Map<string, CacheEntry<unknown>>();
+  private cache = new Map<string, CacheEntry<any>>();
   private cleanupInterval: NodeJS.Timeout;
 
   constructor() {

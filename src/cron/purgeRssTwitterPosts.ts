@@ -28,9 +28,9 @@ const DEFAULT_CRON = "0 3 1 * *";
 const DEFAULT_RETENTION_DAYS = 90;
 
 export interface PurgeLogger {
-  info?: (...args: unknown[]) => void;
-  warn?: (...args: unknown[]) => void;
-  error?: (...args: unknown[]) => void;
+  info?: (...args: any[]) => void;
+  warn?: (...args: any[]) => void;
+  error?: (...args: any[]) => void;
 }
 
 export interface PurgeOptions {
@@ -95,7 +95,7 @@ export function startPurgeRssTwitterPosts(options: PurgeOptions = {}): void {
       schedule,
       () => {
         const activePool = pool; // snapshot: évite la race si stop() coupe pendant un tick en vol
-        void runPurge(retentionDays, activePool, log).catch((err: unknown) =>
+        void runPurge(retentionDays, activePool, log).catch((err: any) =>
           log.error?.(
             "[purgeRssTwitterPosts] erreur tick :",
             err instanceof Error ? err.message : err,

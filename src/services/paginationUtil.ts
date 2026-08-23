@@ -13,6 +13,7 @@ import {
   ChatInputCommandInteraction,
   Message,
 } from "discord.js";
+import logger from "../utils/logger.js";
 
 const ITEMS_PER_PAGE = 10;
 const BUTTON_TIMEOUT = 60_000;
@@ -147,9 +148,7 @@ export async function sendPaginatedEmbed(
   collector.on("end", async () => {
     try {
       await message.edit({ components: [] });
-    } catch {
-      // Message might be deleted
-    }
+    } catch { logger.error("[Silent catch]"); }
   });
 }
 

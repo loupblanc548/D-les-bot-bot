@@ -37,9 +37,7 @@ export async function autoSeedSources(): Promise<void> {
           },
         });
         inserted++;
-      } catch {
-        // Ignore duplicates
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 
@@ -67,9 +65,7 @@ export async function autoSeedSources(): Promise<void> {
           },
         });
         inserted++;
-      } catch {
-        // Ignore duplicates
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 

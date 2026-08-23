@@ -38,6 +38,7 @@ import { handleAutocomplete as handleFollowAutocomplete } from "./commands/follo
 import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
 import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
 import { handleAutocomplete as handleRetailerAutocomplete } from "./commands/trackRetailer.js";
+import { handleMcMenuButton, handleMcMenuSelect, handleMcMenuModal } from "./services/minecraftMenu.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 0. Context Menus (clic droit) ──────────────────────────────────
@@ -145,6 +146,12 @@ export function attachInteractionHandlers(client: Client): void {
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
     if (interaction.isButton()) {
       try {
+        // ── Minecraft Menu buttons (GTA 5 style) ──
+        if (interaction.customId.startsWith("mcmenu:")) {
+          const handled = await handleMcMenuButton(interaction, client);
+          if (handled) return;
+        }
+
         const handled = handleVerifButton(interaction);
         if (handled) return;
 
@@ -251,6 +258,15 @@ export function attachInteractionHandlers(client: Client): void {
     }
 
     if (!interaction.isStringSelectMenu()) return;
+    // ── Minecraft Menu select menus ──
+    if (interaction.customId.startsWith("mcmenu:")) {
+      try {
+        await handleMcMenuSelect(interaction, client);
+      } catch (error) {
+        logger.error(`[MCMenu Select] ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return;
+    }
     if (interaction.customId === "help_category_select") {
       try {
         await handleHelpSelectMenu(interaction as StringSelectMenuInteraction);
@@ -323,6 +339,24 @@ export function attachInteractionHandlers(client: Client): void {
       case "track-retailer":
         await handleRetailerAutocomplete(interaction);
         break;
+    }
+  });
+
+  // ── 4. Modal submits (Minecraft menu forms) ───────────────────────
+  client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+    if (!interaction.isModalSubmit()) return;
+    if (interaction.customId.startsWith("mcmenu:")) {
+      try {
+        await handleMcMenuModal(interaction, client);
+      } catch (error) {
+        logger.error(`[MCMenu Modal] ${error instanceof Error ? error.message : String(error)}`);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({
+            content: "❌ Une erreur est survenue.",
+            flags: [MessageFlags.Ephemeral],
+          }).catch(() => {});
+        }
+      }
     }
   });
 }

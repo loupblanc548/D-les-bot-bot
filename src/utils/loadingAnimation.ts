@@ -13,6 +13,7 @@
  */
 
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, Message } from "discord.js";
+import logger from "../utils/logger.js";
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -73,9 +74,7 @@ export class LoadingAnimation {
       } else if (this.interaction.deferred || this.interaction.replied) {
         await this.interaction.editReply({ content: text });
       }
-    } catch {
-      // Ignore edit errors (rate limited, etc.)
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   private progressBar(percent: number): string {
@@ -104,8 +103,6 @@ export class LoadingAnimation {
           await this.interaction.editReply({ content: finalContent });
         }
       }
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }

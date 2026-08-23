@@ -5,7 +5,7 @@ import logger from "./logger.js";
  * Fournit des fonctions helpers pour logger les erreurs de manière cohérente
  */
 
-export function logError(context: string, error: unknown, metadata?: Record<string, unknown>) {
+export function logError(context: string, error: any, metadata?: Record<string, any>) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
 
@@ -15,11 +15,11 @@ export function logError(context: string, error: unknown, metadata?: Record<stri
   );
 }
 
-export function logWarn(context: string, message: string, metadata?: Record<string, unknown>) {
+export function logWarn(context: string, message: string, metadata?: Record<string, any>) {
   logger.warn(`[${context}] ${message}`, metadata);
 }
 
-export function logInfo(context: string, message: string, metadata?: Record<string, unknown>) {
+export function logInfo(context: string, message: string, metadata?: Record<string, any>) {
   logger.info(`[${context}] ${message}`, metadata);
 }
 

@@ -3,6 +3,7 @@
  * À exécuter après chaque modification des commandes: npx tsx src/scripts/generate-commands-md.ts
  */
 import { CATEGORIES } from "../commands/helpCategories.js";
+import logger from "../utils/logger.js";
 import { writeFileSync } from "fs";
 
 let md = "# Commandes du Bot\n\n";
@@ -31,4 +32,4 @@ md += "---\n\n";
 md += `**Total : ${CATEGORIES.length} catégories, ${totalCmds} commandes.**\n`;
 
 writeFileSync("COMMANDS.md", md, "utf-8");
-console.log(`COMMANDS.md généré: ${CATEGORIES.length} catégories, ${totalCmds} commandes.`);
+logger.info(`COMMANDS.md généré: ${CATEGORIES.length} catégories, ${totalCmds} commandes.`);

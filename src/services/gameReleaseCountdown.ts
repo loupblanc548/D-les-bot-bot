@@ -241,7 +241,7 @@ async function fetchUpcomingReleases(): Promise<
           genres: c.genres.split(",").filter(Boolean),
         }));
       }
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
     logger.error(
       `[GameReleaseCountdown] Erreur fetch IGDB: ${err instanceof Error ? err.message : String(err)}`,
     );

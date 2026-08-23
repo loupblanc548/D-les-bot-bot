@@ -20,7 +20,7 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
   } catch (err) { logger.error(`[Notify] Telegram: ${err instanceof Error ? err.message : String(err)}`); return false; }
 }
 
-export async function sendSlackMessage(text: string, blocks?: unknown[]): Promise<boolean> {
+export async function sendSlackMessage(text: string, blocks?: any[]): Promise<boolean> {
   if (!isSlackConfigured()) return false;
   try {
     await axios.post(SLACK_WEBHOOK_URL, { text: text.slice(0, 3000), blocks }, { timeout: 10000 });
@@ -28,7 +28,7 @@ export async function sendSlackMessage(text: string, blocks?: unknown[]): Promis
   } catch (err) { logger.error(`[Notify] Slack: ${err instanceof Error ? err.message : String(err)}`); return false; }
 }
 
-export async function sendDiscordWebhook(message: { content?: string; embeds?: unknown[] }): Promise<boolean> {
+export async function sendDiscordWebhook(message: { content?: string; embeds?: any[] }): Promise<boolean> {
   if (!isDiscordWebhookConfigured()) return false;
   try {
     await axios.post(DISCORD_WEBHOOK_URL, message, { timeout: 10000 });

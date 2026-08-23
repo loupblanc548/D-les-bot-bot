@@ -66,7 +66,7 @@ export const commands = [
 const DEBUG_SUBS = ["status", "services", "database", "memory"];
 const HOTRELOAD_SUBS = ["reload", "maintenance", "auto", "hotreload-status"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
 

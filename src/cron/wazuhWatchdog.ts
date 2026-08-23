@@ -64,9 +64,7 @@ async function processAlert(alert: WazuhAlert): Promise<void> {
       },
       update: {},
     }).catch(() => {});
-  } catch {
-    // Non-fatal — DB may not have the table yet
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // ── HONEYTOKEN FIM TRIPWIRE ──
   // If Wazuh FIM logs a READ or WRITE on a honeytoken file, bypass level checks
@@ -83,9 +81,7 @@ async function processAlert(alert: WazuhAlert): Promise<void> {
         await executeActiveDefense(alert);
         return;
       }
-    } catch {
-      // Non-fatal
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Trigger active defense engine for critical threats

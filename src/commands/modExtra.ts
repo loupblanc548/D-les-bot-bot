@@ -60,9 +60,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, _c
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 

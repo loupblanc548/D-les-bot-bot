@@ -41,7 +41,7 @@ async function getCalendarClient(): Promise<calendar_v3.Calendar | null> {
     const client = await auth.getClient();
     calendarClient = google.calendar({
       version: "v3",
-      auth: client as unknown as string,
+      auth: client as any as string,
     });
     logger.info("[GoogleCalendar] Client initialized successfully");
     return calendarClient;

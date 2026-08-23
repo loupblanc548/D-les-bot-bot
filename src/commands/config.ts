@@ -112,10 +112,10 @@ async function resetConfig(interaction: ChatInputCommandInteraction): Promise<vo
   }
 }
 
-async function getGuildConfig(guildId: string): Promise<Record<string, unknown>> {
+async function getGuildConfig(guildId: string): Promise<Record<string, any>> {
   try {
     const config = await prisma.guildConfig.findUnique({ where: { guildId } });
-    return config ? (config as Record<string, unknown>) : {};
+    return config ? (config as Record<string, any>) : {};
   } catch {
     return {};
   }

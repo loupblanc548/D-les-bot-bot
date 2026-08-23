@@ -95,7 +95,7 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
     const parsed = xmlParser.parse(xml);
 
     // Support RSS 2.0 et Atom
-    let firstItem: Record<string, unknown> | null = null;
+    let firstItem: Record<string, any> | null = null;
     if (parsed.rss?.channel?.item) {
       firstItem = Array.isArray(parsed.rss.channel.item)
         ? parsed.rss.channel.item[0]
@@ -145,9 +145,7 @@ async function summarizeWithAI(rawContent: string): Promise<string> {
     const { ollamaSummarize } = await import("../utils/ollama.js");
     const summary = await ollamaSummarize(rawContent, 5);
     if (summary && summary.trim().length > 0) return summary;
-  } catch {
-    // Ollama indisponible — fallback OpenRouter
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Plan B: OpenRouter API
   try {
@@ -245,7 +243,7 @@ async function checkAllFeeds(client: Client) {
           const ogImage = await getOgImage(patchNote.url);
           if (ogImage && isValidEmbedImageUrl(ogImage)) embed.setImage(ogImage);
         }
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       try {
         const channel = await client.channels.fetch(feed.channelId);
         if (channel?.isTextBased()) {

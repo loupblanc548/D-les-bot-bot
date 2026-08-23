@@ -169,6 +169,8 @@ describe("interactionHandler", () => {
         isContextMenuCommand: () => false,
         isButton: () => true,
         isStringSelectMenu: () => false,
+        customId: "verif_btn",
+        user: { id: "123" },
       };
 
       await handler(interaction);

@@ -128,7 +128,7 @@ class ReportGeneratorService {
    * Génère des recommandations basées sur les données
    */
   private generateRecommendations(
-    graphReport: Record<string, unknown>,
+    graphReport: Record<string, any>,
     behaviorAlerts: BehaviorAlert[],
     trends: TrendData[],
   ): string[] {

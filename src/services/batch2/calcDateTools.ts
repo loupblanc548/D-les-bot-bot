@@ -3,7 +3,7 @@ import type { ToolCallResult } from "../agentTools.js";
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
 
-export async function toolGeneratePassword(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolGeneratePassword(args: Record<string, any>): Promise<ToolCallResult> {
   const len = Math.min(Number(args.length) || 16, 128);
   let chars = "";
   if (args.lowercase !== false) chars += "abcdefghijklmnopqrstuvwxyz";
@@ -17,7 +17,7 @@ export async function toolGeneratePassword(args: Record<string, unknown>): Promi
   return ok(`🔐 Mot de passe (${len}):\n\`${pwd}\``);
 }
 
-export async function toolPasswordStrength(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolPasswordStrength(args: Record<string, any>): Promise<ToolCallResult> {
   const pwd = String(args.password || "");
   if (!pwd) return err("Paramètre: password");
   let score = 0;
@@ -47,7 +47,7 @@ export async function toolPasswordStrength(args: Record<string, unknown>): Promi
   return ok(`🔐 **${labels[Math.min(score, 6)]}** (${score}/6)\n${checks.join(" | ")}`);
 }
 
-export async function toolBmiCalculator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolBmiCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const w = Number(args.weight),
     h = Number(args.height);
   if (!w || !h) return err("Paramètres: weight(kg), height(cm)");
@@ -57,7 +57,7 @@ export async function toolBmiCalculator(args: Record<string, unknown>): Promise<
 }
 
 export async function toolCalorieCalculator(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const w = Number(args.weight),
     h = Number(args.height),
@@ -82,7 +82,7 @@ export async function toolCalorieCalculator(
   );
 }
 
-export async function toolCompoundInterest(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolCompoundInterest(args: Record<string, any>): Promise<ToolCallResult> {
   const p = Number(args.principal),
     r = Number(args.rate),
     y = Number(args.years);
@@ -95,7 +95,7 @@ export async function toolCompoundInterest(args: Record<string, unknown>): Promi
 }
 
 export async function toolPercentageCalculator(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const mode = String(args.mode || "of").trim();
   const v1 = Number(args.value1),
@@ -109,7 +109,7 @@ export async function toolPercentageCalculator(
   return ok(`📊 ${r}`);
 }
 
-export async function toolTipCalculator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTipCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const amt = Number(args.amount),
     tip = Number(args.tip_percent) || 15,
     ppl = Number(args.people) || 1;
@@ -120,7 +120,7 @@ export async function toolTipCalculator(args: Record<string, unknown>): Promise<
   );
 }
 
-export async function toolDaysBetweenDates(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolDaysBetweenDates(args: Record<string, any>): Promise<ToolCallResult> {
   const d1 = String(args.date1),
     d2 = String(args.date2);
   if (!d1 || !d2) return err("Paramètres: date1, date2 (YYYY-MM-DD)");
@@ -128,7 +128,7 @@ export async function toolDaysBetweenDates(args: Record<string, unknown>): Promi
   return ok(`📅 ${days} jour(s) entre ${d1} et ${d2}`);
 }
 
-export async function toolAgeCalculator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolAgeCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const bd = String(args.birthdate);
   if (!bd) return err("Paramètre: birthdate (YYYY-MM-DD)");
   const b = new Date(bd),
@@ -147,21 +147,21 @@ export async function toolAgeCalculator(args: Record<string, unknown>): Promise<
   return ok(`🎂 **Âge:** ${y} ans, ${m} mois, ${d} jour(s)`);
 }
 
-export async function toolDayOfWeek(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolDayOfWeek(args: Record<string, any>): Promise<ToolCallResult> {
   const ds = String(args.date);
   if (!ds) return err("Paramètre: date (YYYY-MM-DD)");
   const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
   return ok(`📅 ${ds} = **${days[new Date(ds).getDay()]}**`);
 }
 
-export async function toolLeapYearCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolLeapYearCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const year = Number(args.year);
   if (!year) return err("Paramètre: year");
   const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
   return ok(`📅 ${year} ${leap ? "est" : "n'est pas"} bissextile`);
 }
 
-export async function toolWeekNumber(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolWeekNumber(args: Record<string, any>): Promise<ToolCallResult> {
   const ds = String(args.date || new Date().toISOString().slice(0, 10));
   try {
     const d = new Date(ds);
@@ -176,7 +176,7 @@ export async function toolWeekNumber(args: Record<string, unknown>): Promise<Too
   }
 }
 
-export async function toolRandomNumber(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolRandomNumber(args: Record<string, any>): Promise<ToolCallResult> {
   const min = Number(args.min) || 1,
     max = Number(args.max) || 100,
     count = Math.min(Number(args.count) || 1, 20);
@@ -187,7 +187,7 @@ export async function toolRandomNumber(args: Record<string, unknown>): Promise<T
   return ok(`🎲 **Aléatoire (${min}-${max}):** ${nums.join(", ")}`);
 }
 
-export async function toolDiceRoll(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolDiceRoll(args: Record<string, any>): Promise<ToolCallResult> {
   const sides = Number(args.sides) || 6,
     count = Math.min(Number(args.count) || 1, 20);
   if (sides < 2 || sides > 100) return err("2-100 faces");
@@ -197,14 +197,14 @@ export async function toolDiceRoll(args: Record<string, unknown>): Promise<ToolC
   );
 }
 
-export async function toolCoinFlip(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolCoinFlip(args: Record<string, any>): Promise<ToolCallResult> {
   const count = Math.min(Number(args.count) || 1, 20);
   const flips = Array.from({ length: count }, () => (Math.random() < 0.5 ? "Pile" : "Face"));
   const h = flips.filter((f) => f === "Face").length;
   return ok(`🪙 **×${count}**\n${flips.join(", ")}\nFace: ${h} | Pile: ${flips.length - h}`);
 }
 
-export async function toolUuidGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolUuidGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const count = Math.min(Number(args.count) || 1, 10);
   const crypto = await import("node:crypto");
   return ok(
@@ -212,7 +212,7 @@ export async function toolUuidGenerator(args: Record<string, unknown>): Promise<
   );
 }
 
-export async function toolNanoIdGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolNanoIdGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const size = Number(args.size) || 21;
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
   const crypto = await import("node:crypto");
@@ -221,7 +221,7 @@ export async function toolNanoIdGenerator(args: Record<string, unknown>): Promis
   );
 }
 
-export async function toolSleepCalculator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolSleepCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const mode = String(args.mode || "sleep_now").trim();
   const cycle = 90,
     fall = 15;
@@ -252,7 +252,7 @@ export async function toolSleepCalculator(args: Record<string, unknown>): Promis
 }
 
 export async function toolGradientGenerator(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const colors = (args.colors as string[]) || ["#ff0000", "#0000ff"];
   const dir = String(args.direction || "to right").trim();
@@ -262,7 +262,7 @@ export async function toolGradientGenerator(
   );
 }
 
-export async function toolCronGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolCronGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const d = String(args.description || "")
     .trim()
     .toLowerCase();
@@ -283,7 +283,7 @@ export async function toolCronGenerator(args: Record<string, unknown>): Promise<
   return ok(`⏰ **Cron pour "${d}":** \`${cron}\``);
 }
 
-export async function toolLicenseGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolLicenseGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const type = String(args.type || "mit")
     .trim()
     .toLowerCase();
@@ -302,7 +302,7 @@ export async function toolLicenseGenerator(args: Record<string, unknown>): Promi
   );
 }
 
-export async function toolHttpStatusInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolHttpStatusInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const code = Number(args.code);
   if (!code) return err("Paramètre: code");
   const s: Record<number, string> = {
@@ -329,7 +329,7 @@ export async function toolHttpStatusInfo(args: Record<string, unknown>): Promise
   return ok(`📊 **HTTP ${code}** — ${s[code] || "Inconnu"}`);
 }
 
-export async function toolMimeTypeLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolMimeTypeLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const ext = String(args.extension || "")
     .trim()
     .toLowerCase()
@@ -363,7 +363,7 @@ export async function toolMimeTypeLookup(args: Record<string, unknown>): Promise
   return ok(`📎 .${ext} → **${types[ext] || "unknown"}**`);
 }
 
-export async function toolCanIUse(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolCanIUse(args: Record<string, any>): Promise<ToolCallResult> {
   const f = String(args.feature || "")
     .trim()
     .toLowerCase();

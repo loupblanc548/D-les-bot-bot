@@ -14,6 +14,7 @@ import {
   ComponentType,
   type ApplicationCommand,
 } from "discord.js";
+import logger from "../utils/logger.js";
 
 export const data = new SlashCommandBuilder()
   .setName("help")
@@ -190,8 +191,6 @@ async function sendPaginated(
     row.components.forEach((c) => c.setDisabled(true));
     try {
       await interaction.editReply({ components: [row] });
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   });
 }

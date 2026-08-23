@@ -242,7 +242,7 @@ async function handleFreeGames(interaction: ChatInputCommandInteraction) {
       { headers: { "User-Agent": "DiscordSurveillanceBot/1.0" } },
     );
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     const elements = (data as any)?.data?.Catalog?.searchStore?.elements || [];
     const freeGames = elements.filter((e: any) => {
       const promos = e?.promotions?.promotionalOffers;

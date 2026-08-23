@@ -187,7 +187,7 @@ export async function startVoiceTranslation(
   userId: string,
   username: string,
   targetLang: TargetLang,
-  adapterCreator: unknown,
+  adapterCreator: any,
   textChannelId?: string,
 ): Promise<{ success: boolean; message: string }> {
   const voiceConfig = getVoiceAgentConfig();
@@ -392,7 +392,7 @@ export async function startVoiceTranslation(
       }
     }, 3000);
 
-    (session as unknown as { interval: NodeJS.Timeout }).interval = interval;
+    (session as any as { interval: NodeJS.Timeout }).interval = interval;
 
     activeTranslations.set(userId, session);
     logger.info(`[VoiceTrans] Started for ${username} (${userId}), target=${targetLang}`);
@@ -437,7 +437,7 @@ export async function stopVoiceTranslation(
     return { success: false, message: "Aucune traduction vocale active." };
   }
 
-  const intervalData = session as unknown as { interval?: NodeJS.Timeout };
+  const intervalData = session as any as { interval?: NodeJS.Timeout };
   if (intervalData.interval) clearInterval(intervalData.interval);
 
   session.audioStream.destroy();

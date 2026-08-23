@@ -208,7 +208,7 @@ export const commands = [
 const AI_BASIC_SUBS = ["chat", "ask-bot"];
 const AI_BASIC_STUB = ["image", "summarize"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const group = interaction.options.getSubcommandGroup();
   const action = interaction.options.getSubcommand();
   const dc = client as Client;

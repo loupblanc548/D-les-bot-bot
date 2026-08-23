@@ -380,7 +380,7 @@ export function dispatchJob(
   command: string,
   subcommand: string | undefined,
   payload: {
-    options: Record<string, unknown>;
+    options: Record<string, any>;
     userId: string;
     guildId: string;
     channelId: string;

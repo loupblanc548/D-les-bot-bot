@@ -5,8 +5,8 @@ import logger from "../utils/logger.js";
 export interface OsintReport {
   target: string;
   type: "ip" | "domain" | "email";
-  shodan: { configured: boolean; results: unknown } | null;
-  dns: { records: unknown; mx: unknown; ns: string[]; txt: string[]; a: string[] } | null;
+  shodan: { configured: boolean; results: any } | null;
+  dns: { records: any; mx: any; ns: string[]; txt: string[]; a: string[] } | null;
   whois: {
     registrar: string;
     creationDate: string;
@@ -87,7 +87,7 @@ export async function runOsintScan(target: string): Promise<OsintReport> {
 
 export async function quickShodanSearch(
   query: string,
-): Promise<{ total: number; topResults: unknown[] }> {
+): Promise<{ total: number; topResults: any[] }> {
   const result = await searchShodan(query);
   return { total: result.total, topResults: result.matches.slice(0, 5) };
 }

@@ -6548,32 +6548,53 @@ export function routeTools(
   isPublic: boolean = true,
 ): AgentToolDef[] {
   const lowerMsg = userMessage.toLowerCase();
-  const relevantToolNames = new Set<string>();
 
-  for (const cat of TOOL_CATEGORIES) {
-    for (const keyword of cat.keywords) {
-      if (lowerMsg.includes(keyword)) {
-        for (const toolName of cat.tools) {
-          relevantToolNames.add(toolName);
-        }
-        break;
-      }
-    }
+  // ─── Détection de complexité pour décider du nombre de tools ───
+  // Trivial: greetings, thanks, emoji-only, very short → 0 tools (fast path)
+  const TRIVIAL_PATTERNS = [
+    /^\s*(ok|oui|non|mdr|mdrr|lol|xd|vrai|faux|graves|ouf|bref|nice|cool|gg|wp|ez|noob|nop|yep|nope|si)\s*$/i,
+    /^\s*(salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir)\s*$/i,
+    /^\s*(merci|thanks|thx|cimer|de rien)\s*$/i,
+    /^\s*[\p{Emoji}\s]+$/u,
+    /^\s*(ça va|ca va|comment ça va)\s*[\?？]?\s*$/i,
+  ];
+
+  const isTrivial = TRIVIAL_PATTERNS.some((p) => p.test(userMessage.trim()));
+  if (isTrivial) {
+    logger.info(`[ToolRouter] ⚡ Trivial message — 0 tools (fast path)`);
+    return [];
   }
 
-  // Si on a identifié des tools pertinents, les prioriser
-  // mais garder tous les tools disponibles (l'IA peut toujours en utiliser d'autres)
-  if (relevantToolNames.size > 0) {
-    logger.info(
-      `[ToolRouter] Tools suggérés pour "${lowerMsg.slice(0, 50)}": ${[...relevantToolNames].join(", ")}`,
-    );
+  // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement
+  if (userMessage.trim().length < 15) {
+    const ALWAYS_INCLUDE = new Set([
+      "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
+      "searchUserMemory", "saveMemoryFact", "getUserInfo", "getBotStatus",
+      "getDateTime", "getWeather", "translateText", "execute_code",
+      "build_rich_embed", "send_message", "ask_user_question",
+      "think_step_by_step", "delegate_to_expert",
+    ]);
+    const essential = allTools.filter((t) => ALWAYS_INCLUDE.has(t.function.name));
+    const filtered = filterAvailableTools(essential);
+    return applyContextGuard(filtered, isPublic);
   }
 
-  // Filtrer les tools désactivés (clés manquantes)
+  // ─── Pour tous les autres messages: envoyer les tools curés ──
+  // ALL_AGENT_TOOLS est déjà filtré à ~100 tools essentiels (whitelist).
+  // Le filtrage par keyword limitait artificiellement les capacités du bot.
   const filtered = filterAvailableTools(allTools);
+  const guarded = applyContextGuard(filtered, isPublic);
 
-  // Directive 2: Context Guard — strip restricted tools in public channels
-  return applyContextGuard(filtered, isPublic);
+  // Logger les hints de catégories pour debug (sans filtrer)
+  const hintCount = TOOL_CATEGORIES.filter((cat) =>
+    cat.keywords.some((kw) => lowerMsg.includes(kw)),
+  ).length;
+
+  logger.info(
+    `[ToolRouter] 🎯 ${guarded.length} tools envoyés (${hintCount} catégories pertinentes) pour "${lowerMsg.slice(0, 50)}"`,
+  );
+
+  return guarded;
 }
 
 /**

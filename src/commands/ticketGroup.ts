@@ -280,10 +280,10 @@ async function handleClose(interaction: ChatInputCommandInteraction): Promise<vo
   const fakeInteraction = {
     channel,
     user: interaction.user,
-    reply: async (opts: { content: string; flags?: unknown[] }) => {
+    reply: async (opts: { content: string; flags?: any[] }) => {
       await interaction.editReply(opts.content);
     },
-  } as unknown as import("discord.js").ButtonInteraction;
+  } as any as import("discord.js").ButtonInteraction;
 
   const closed = await closeTicket(fakeInteraction, interaction.user.id);
   if (!closed) {

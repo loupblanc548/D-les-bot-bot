@@ -50,7 +50,7 @@ export interface BridgeJobRequest {
   command: string;
   subcommand?: string;
   payload: {
-    options: Record<string, unknown>;
+    options: Record<string, any>;
     userId: string;
     guildId: string;
     channelId: string;
@@ -67,7 +67,7 @@ export interface BridgeJobResult {
   status: "success" | "failed" | "timeout";
   data: {
     textResult?: string;
-    embedsPayload?: unknown[];
+    embedsPayload?: any[];
     content?: string;
   };
   error?: string;

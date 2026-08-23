@@ -58,7 +58,7 @@ try {
 let ffmpegPath: string | null;
 try {
   const ffmpegMod = await import("ffmpeg-static");
-  ffmpegPath = (ffmpegMod as any).default || (ffmpegMod as unknown as string) || null;
+  ffmpegPath = (ffmpegMod as any).default || (ffmpegMod as any as string) || null;
   if (ffmpegPath) {
     process.env.FFMPEG_PATH = ffmpegPath;
     logger.info(`[AudioService] ffmpeg-static configuré: ${ffmpegPath}`);
@@ -170,15 +170,11 @@ export function cleanupGuild(guildId: string): void {
 
   try {
     state.player.stop();
-  } catch {
-    // Ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   try {
     state.connection.destroy();
-  } catch {
-    // Ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   guildAudioState.delete(guildId);
   logger.info(`[AudioService] Guild ${guildId} nettoyée`);
@@ -192,9 +188,7 @@ function clearExistingState(guildId: string): void {
   if (existing) {
     try {
       existing.destroy();
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
   cleanupGuild(guildId);
 }
@@ -439,9 +433,7 @@ export function disconnect(guildId: string): boolean {
 export async function reportAudioError(channel: TextChannel, message: string): Promise<void> {
   try {
     await channel.send(`❌ **Erreur audio:** ${message}`);
-  } catch {
-    // Ignore si le salon n'est pas accessible
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 // ─── Compatibilité avec l'ancien API audioPlayer.ts ──────────────────────────
@@ -471,9 +463,7 @@ export function setVolume(guildId: string, volume: number): boolean {
   if (state.currentResource?.volume) {
     try {
       state.currentResource.volume.setVolume(clamped / 100);
-    } catch {
-      // Certaines ressources n'ont pas de volume éditable
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   logger.info(`[AudioService] Volume guild ${guildId}: ${clamped}%`);

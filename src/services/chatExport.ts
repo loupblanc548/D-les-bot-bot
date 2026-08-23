@@ -21,7 +21,7 @@ async function fetchChannelMessages(channelId: string, limit: number): Promise<u
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`Discord API ${res.status}`);
-  return (await res.json()) as unknown[];
+  return (await res.json()) as any[];
 }
 
 export async function exportChannelMessages(
@@ -30,7 +30,7 @@ export async function exportChannelMessages(
 ): Promise<ChatExportMessage[]> {
   try {
     const raw = await fetchChannelMessages(channelId, limit);
-    return (raw as Array<Record<string, unknown>>).map((m) => ({
+    return (raw as Array<Record<string, any>>).map((m) => ({
       author: (m.author as Record<string, string>)?.username ?? "unknown",
       content: String(m.content ?? ""),
       timestamp: new Date(m.timestamp as string),

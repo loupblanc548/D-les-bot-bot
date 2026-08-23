@@ -140,6 +140,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       await interaction.editReply({
         content: `❌ Erreur lors de la lecture : ${String(error).slice(0, 150)}`,
       });
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 }

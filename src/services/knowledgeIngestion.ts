@@ -39,7 +39,7 @@ export async function syncPublicApis(): Promise<number> {
       logger.warn("[PUBLIC_APIS] Could not fetch");
       return 0;
     }
-    entries = (json as unknown as { entries: PublicApiEntry[] }).entries ?? [];
+    entries = (json as any as { entries: PublicApiEntry[] }).entries ?? [];
   }
   if (!entries.length) {
     // Try direct JSON source

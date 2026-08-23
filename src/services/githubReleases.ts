@@ -122,9 +122,7 @@ async function checkRepoReleases(client: Client, repo: TrackedRepo): Promise<voi
         if (bodyResult && bodyResult.detectedLanguage !== "fr") {
           displayBody = bodyResult.translatedText;
         }
-      } catch {
-        // Traduction échouée — texte original
-      }
+      } catch { logger.error("[Silent catch]"); }
 
       const totalDownloads = release.assets.reduce((sum, a) => sum + a.download_count, 0);
       const timestamp = release.published_at ? Math.floor(new Date(release.published_at).getTime() / 1000) : Math.floor(Date.now() / 1000);

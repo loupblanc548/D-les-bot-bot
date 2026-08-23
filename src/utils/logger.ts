@@ -30,7 +30,7 @@ const consoleFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format((info) => {
     const cid = correlationStorage.getStore();
-    if (cid) (info as Record<string, unknown>).correlationId = cid;
+    if (cid) (info as Record<string, any>).correlationId = cid;
     return info;
   })(),
   winston.format.printf(({ timestamp, level, message, _service, _environment, _correlationId, ...meta }) => {
@@ -48,7 +48,7 @@ const jsonFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format((info) => {
     const cid = correlationStorage.getStore();
-    if (cid) (info as Record<string, unknown>).correlationId = cid;
+    if (cid) (info as Record<string, any>).correlationId = cid;
     return info;
   })(),
   winston.format.json(),
@@ -155,7 +155,7 @@ const fortniteLogger = winston.createLogger({
 // ─── Sentry Bridge : logger.error() → Sentry.captureException() ──
 function createSentryBridge(target: winston.Logger, moduleName?: string): void {
   const originalError = target.error.bind(target);
-  const errorProxy = function (message: string | Error, ...rest: unknown[]): winston.Logger {
+  const errorProxy = function (message: string | Error, ...rest: any[]): winston.Logger {
     const msg = typeof message === "string" ? message : String(message);
     const error =
       message instanceof Error
@@ -185,7 +185,7 @@ const WEBHOOK_MAX_BUFFER = 5;
 
 if (DISCORD_WEBHOOK_URL) {
   const originalError = logger.error.bind(logger);
-  const webhookErrorProxy = function (message: string | Error, ...rest: unknown[]): winston.Logger {
+  const webhookErrorProxy = function (message: string | Error, ...rest: any[]): winston.Logger {
     const msg = typeof message === "string" ? message : String(message);
     webhookBuffer.push(msg.slice(0, 500));
     const now = Date.now();

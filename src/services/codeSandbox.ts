@@ -109,9 +109,7 @@ async function executeWithE2B(
           .map((l: string) => l.split(/\s+/).pop()!)
           .filter(Boolean);
       }
-    } catch {
-      // No output dir
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     return {
       success: result.exitCode === 0,
@@ -214,9 +212,7 @@ async function executeLocal(
     // Cleanup
     try {
       await rm(sessionDir, { recursive: true, force: true });
-    } catch {
-      // Non-critical
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -258,9 +254,7 @@ export async function formatSandboxResult(result: SandboxResult): Promise<string
           );
           parts.push(`\n--- TS-WIZARD SUGGESTION ---\n${healingSuggestion}`);
         }
-      } catch {
-        // Auto-heal should never crash the sandbox result formatting
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 

@@ -131,9 +131,7 @@ async function checkYouTubeChannel(handle: string): Promise<{
         return result;
       }
       return { status: "none" };
-    } catch {
-      // Ignore cache errors
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
   return { status: "error" };
 }
@@ -558,9 +556,7 @@ async function checkAndNotify(client: Client) {
                 const og = await getOgImage(result.content.url);
                 if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
               }
-            } catch {
-              // Ignore image fetch errors
-            }
+            } catch { logger.error("[Silent catch]"); }
             // Générer la carte visuelle
             const cardType = source.type === "YOUTUBE" ? "youtube" : "blog";
             const cardAttachment = await generateCardAttachment(
@@ -590,8 +586,8 @@ async function checkAndNotify(client: Client) {
                 );
                 try {
                   const cleanData = { ...embed.data };
-                  delete (cleanData as Record<string, unknown>).image;
-                  delete (cleanData as Record<string, unknown>).thumbnail;
+                  delete (cleanData as Record<string, any>).image;
+                  delete (cleanData as Record<string, any>).thumbnail;
                   await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
                   logger.warn(
                     `[Monitor] Carte rejetée, envoi sans carte pour @${source.urlOrHandle}`,
@@ -611,8 +607,8 @@ async function checkAndNotify(client: Client) {
                 if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
                   try {
                     const cleanData = { ...embed.data };
-                    delete (cleanData as Record<string, unknown>).image;
-                    delete (cleanData as Record<string, unknown>).thumbnail;
+                    delete (cleanData as Record<string, any>).image;
+                    delete (cleanData as Record<string, any>).thumbnail;
                     await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
                     logger.warn(`[Monitor] Embed sans image pour @${source.urlOrHandle}`);
                   } catch (retryErr) {
@@ -672,9 +668,7 @@ async function checkAndNotify(client: Client) {
     void alertCritical("Erreur monitor globale", errMsg.slice(0, 500));
     try {
       await logError(client, "Monitor/Global", errMsg);
-    } catch {
-      // Ignore log errors
-    }
+    } catch { logger.error("[Silent catch]"); }
   } finally {
     isChecking = false;
   }
@@ -918,9 +912,7 @@ export async function runDbSourcesRetrospective(client: Client) {
               const og = await getOgImage(item.url);
               if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             }
-          } catch {
-            // Ignore image fetch errors
-          }
+          } catch { logger.error("[Silent catch]"); }
           try {
             await channel.send({ embeds: [embed] });
           } catch (sendErr) {
@@ -928,8 +920,8 @@ export async function runDbSourcesRetrospective(client: Client) {
             if (sendMsg.includes("Received one or more errors") || sendMsg.includes("embed")) {
               try {
                 const cleanData = { ...embed.data };
-                delete (cleanData as Record<string, unknown>).image;
-                delete (cleanData as Record<string, unknown>).thumbnail;
+                delete (cleanData as Record<string, any>).image;
+                delete (cleanData as Record<string, any>).thumbnail;
                 await channel.send({ embeds: [new EmbedBuilder(cleanData)] });
                 logger.warn(`[RetroDB] Embed sans image pour @${source.urlOrHandle}`);
               } catch (retryErr) {

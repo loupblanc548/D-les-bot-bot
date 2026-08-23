@@ -73,7 +73,7 @@ export const commands = [
 const ADMIN_SUBS = ["dm", "backup", "guild-config"];
 const EXTRA_SUBS = ["api-status", "bot-health", "healthz"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
 

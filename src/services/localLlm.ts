@@ -238,9 +238,9 @@ export async function chatWithLocalLlm(
  */
 export async function chatWithLocalLlmTools(
   messages: LocalLlmMessage[],
-  tools: unknown[],
+  tools: any[],
   options?: { maxTokens?: number; temperature?: number; timeoutMs?: number; model?: string },
-): Promise<{ text: string | null; toolCalls: unknown[] | null } | null> {
+): Promise<{ text: string | null; toolCalls: any[] | null } | null> {
   if (!isLocalLlmAvailable()) return null;
 
   try {

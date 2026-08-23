@@ -19,7 +19,7 @@ import logger from "../utils/logger.js";
 const GOOGLE_API_KEY = process.env.GOOGLE_SAFE_BROWSING_API_KEY ?? process.env.GOOGLE_API_KEY ?? "";
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
-const cache = new Map<string, { data: unknown; timestamp: number }>();
+const cache = new Map<string, { data: any; timestamp: number }>();
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -27,7 +27,7 @@ function getCached<T>(key: string): T | null {
   return null;
 }
 
-function setCached(key: string, data: unknown): void {
+function setCached(key: string, data: any): void {
   cache.set(key, { data, timestamp: Date.now() });
   if (cache.size > 300) {
     const oldest = cache.keys().next().value;
@@ -95,7 +95,7 @@ export async function translateText(
   }
 
   try {
-    const body: Record<string, unknown> = {
+    const body: Record<string, any> = {
       q: text.slice(0, 5000),
       target: targetLang,
       format: "text",

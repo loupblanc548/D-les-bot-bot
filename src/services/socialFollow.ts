@@ -70,7 +70,7 @@ async function checkTwitch(follows: FollowType): Promise<void> {
     return;
   }
 
-  const data = (await res.json()) as { data: Array<Record<string, unknown>> };
+  const data = (await res.json()) as { data: Array<Record<string, any>> };
   const liveStreams = new Map(
     (data.data || []).map((s) => [(s.user_login as string)?.toLowerCase(), s]),
   );
@@ -120,7 +120,7 @@ async function checkYouTube(follows: FollowType): Promise<void> {
         `part=snippet&order=date&maxResults=1&type=video`;
       const res = await fetch(searchUrl, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) continue;
-      const data = (await res.json()) as { items: Array<Record<string, unknown>> };
+      const data = (await res.json()) as { items: Array<Record<string, any>> };
       const latestVideo = data.items?.[0];
       if (!latestVideo) continue;
 
@@ -129,7 +129,7 @@ async function checkYouTube(follows: FollowType): Promise<void> {
 
       if (follow.lastVideoId && follow.lastVideoId === videoId) continue;
 
-      const snippet = latestVideo.snippet as Record<string, unknown>;
+      const snippet = latestVideo.snippet as Record<string, any>;
       await prisma.socialFollow.update({
         where: { id: follow.id },
         data: { lastVideoId: videoId },
@@ -202,9 +202,7 @@ async function checkTwitter(follows: FollowType): Promise<void> {
         }
         success = true;
         break;
-      } catch {
-        // Try next instance
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
     if (!success) {
       logger.debug(`[SocialFollow] Twitter check failed for @${follow.channelName}`);
@@ -605,9 +603,7 @@ export async function addSocialFollow(params: {
       const { getStreamerByLogin } = await import("./twitch.js");
       const streamer = await getStreamerByLogin(params.channelName);
       if (streamer) channelId = streamer.id;
-    } catch {
-      // Fallback to name as ID
-    }
+    } catch { logger.error("[Silent catch]"); }
   } else if (params.platform === "youtube") {
     // Try to resolve channel ID via search API
     if (config.youtubeApiKey) {
@@ -621,9 +617,7 @@ export async function addSocialFollow(params: {
           const data = (await res.json()) as { items: Array<{ id: { channelId: string } }> };
           if (data.items?.[0]) channelId = data.items[0].id.channelId;
         }
-      } catch {
-        // Fallback to name
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 

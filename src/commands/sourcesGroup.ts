@@ -160,7 +160,7 @@ const ADVANCED_CMDS = ["stats", "rss-test", "scraper-status"];
 const ADMIN_CMDS = ["search-notifications", "test-freegames"];
 const MAINTENANCE_CMDS = ["test-rss"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const action = interaction.options.getSubcommand();
   const mappedName = NAME_MAP[action] || action;
   Object.defineProperty(interaction, "commandName", { value: mappedName, writable: true });

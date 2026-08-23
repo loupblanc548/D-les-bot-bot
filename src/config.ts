@@ -52,7 +52,7 @@ export const config = {
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
   groqApiKey: env.GROQ_API_KEY || "",
-  groqModel: env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  groqModel: env.GROQ_MODEL || "openai/gpt-oss-120b",
   geminiApiKey: env.GEMINI_API_KEY || "",
   geminiModel: env.GEMINI_MODEL,
   nvidiaApiKey: env.NVIDIA_API_KEY || "",

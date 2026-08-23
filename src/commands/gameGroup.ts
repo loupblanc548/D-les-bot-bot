@@ -195,12 +195,12 @@ export const commands = [
     .toJSON(),
 ];
 
-export const fnbotCommands: unknown[] = [];
+export const fnbotCommands: any[] = [];
 
 const GAMING_SUBS = ["game-status", "patch_notes", "deal"];
 const _TRACKGAME_SUBS = ["track-game", "untrack-game", "list-tracked"];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client: unknown) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, client: any) {
   const dc = client as Client;
   const action = interaction.options.getSubcommand();
 
@@ -263,7 +263,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 
 export async function handleFnbotCommand(
   interaction: ChatInputCommandInteraction,
-  _client: unknown,
+  _client: any,
 ) {
   await handleFortniteParty(interaction);
 }

@@ -163,9 +163,7 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
             translatedDescription = descResult.translatedText;
           }
         }
-      } catch {
-        // Traduction échouée — on garde le texte original
-      }
+      } catch { logger.error("[Silent catch]"); }
 
       const translatedItem = { ...item, title: translatedTitle, description: translatedDescription, contentSnippet: translatedDescription };
       const embedResult = createThemedEmbed(feed.type, translatedItem);

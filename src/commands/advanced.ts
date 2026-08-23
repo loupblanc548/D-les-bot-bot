@@ -859,9 +859,7 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
                 .setTimestamp(),
             ],
           });
-        } catch {
-          // DM peut échouer si les DMs sont fermés
-        }
+        } catch { logger.error("[Silent catch]"); }
 
         await interaction.editReply({
           content: `✅ **${identifiant}** ajouté à ta wishlist. Tu recevras des DMs quand l'item sera disponible.`,

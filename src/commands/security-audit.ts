@@ -49,7 +49,7 @@ export async function handleCommand(
       where: { guildId, createdAt: { gte: since } },
       _count: { _all: true },
     });
-    rows = result as unknown as Array<{ type: string; _count: { _all: number } }>;
+    rows = result as any as Array<{ type: string; _count: { _all: number } }>;
   } catch (error) {
     logger.error("event", { cmd: "security-audit", err: error instanceof Error ? error.message : error },
       "Failed to query sanctions",

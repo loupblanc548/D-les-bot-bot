@@ -1020,14 +1020,14 @@ async function handlePurgeUser(interaction: ChatInputCommandInteraction) {
           try {
             const deleted = await chan.bulkDelete(userMessages, true);
             totalDeleted += deleted.size;
-          } catch (bulkErr: unknown) {
+          } catch (bulkErr: any) {
             logger.warn(
               "[PurgeUser] BulkDelete impossible dans #" + chan.name + " :",
               (bulkErr as Error).message,
             );
           }
         }
-      } catch (fetchErr: unknown) {
+      } catch (fetchErr: any) {
         logger.warn(
           "[PurgeUser] Fetch impossible dans #" + (channel as GuildTextBasedChannel).name + " :",
           (fetchErr as Error).message,

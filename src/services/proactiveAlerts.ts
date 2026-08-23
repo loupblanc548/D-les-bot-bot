@@ -173,9 +173,7 @@ export async function sendProactiveAlert(
 
     await owner.send({ embeds: [embed] });
     logger.info(`[ProactiveAlerts] Alerte envoyée: ${title}`);
-  } catch {
-    // DM might be closed
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 // ─── Détection mémoire ───────────────────────────────────────────────────────

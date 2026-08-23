@@ -650,9 +650,7 @@ async function checkRetailerDeals(client: Client): Promise<void> {
           await sendDealNotification(client, deal);
           await dedupCache.markAsProcessed("retailer_deals", dedupKey);
         }
-      } catch {
-        // Revendeur individuel échoué
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -702,9 +700,7 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
 
   try {
     await channel.send({ embeds: [embed] });
-  } catch {
-    // Erreur envoi
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // ── DM notification à l'owner pour les deals ──
   try {
@@ -713,9 +709,7 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
     if (user) {
       await user.send({ content: `🏷️ Deal — ${product.title}`, embeds: [embed] });
     }
-  } catch {
-    // DM impossible (DMs fermés)
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 // ─── Démarrage / arrêt ──────────────────────────────────────────────────────

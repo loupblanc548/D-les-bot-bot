@@ -861,7 +861,7 @@ export async function handleAdminExtra(
     case "channel-delete": {
       const salon = interaction.options.getChannel("salon", true);
       try {
-        await (salon as { delete: () => Promise<unknown> }).delete();
+        await (salon as { delete: () => Promise<any> }).delete();
         embed.setTitle("✅ Salon supprimé").setDescription(salon.name ?? "");
       } catch {
         embed.setTitle("❌ Erreur").setDescription("Impossible de supprimer le salon.");
@@ -1441,7 +1441,7 @@ export async function handleCommunityExtraCmd(
           `**Prix:** ${prix}\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}${endsAt ? `\nFin: <t:${Math.floor(new Date(endsAt).getTime() / 1000)}:R>` : ""}\n\nRéagis avec 🎉 pour participer!`,
         );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
-      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+      const giveaways = await readJsonSetting<Array<Record<string, any>>>(
         interaction.guildId ?? "global",
         "community_giveaways",
         [],
@@ -1465,7 +1465,7 @@ export async function handleCommunityExtraCmd(
     }
 
     case "giveaway-list": {
-      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+      const giveaways = await readJsonSetting<Array<Record<string, any>>>(
         interaction.guildId ?? "global",
         "community_giveaways",
         [],
@@ -1493,7 +1493,7 @@ export async function handleCommunityExtraCmd(
 
     case "giveaway-reroll": {
       const msgId = interaction.options.getString("message_id", true);
-      const giveaways = await readJsonSetting<Array<Record<string, unknown>>>(
+      const giveaways = await readJsonSetting<Array<Record<string, any>>>(
         interaction.guildId ?? "global",
         "community_giveaways",
         [],
@@ -1699,7 +1699,7 @@ export async function handleCommunityExtraCmd(
           `**Jeu:** ${jeu}\n**Joueurs recherchés:** ${nombre}${duree ? `\n**Durée:** ${duree}` : ""}\n\nRéagis avec ✅ pour rejoindre!`,
         );
       const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
-      const groups = await readJsonSetting<Array<Record<string, unknown>>>(
+      const groups = await readJsonSetting<Array<Record<string, any>>>(
         interaction.guildId ?? "global",
         "community_lfg",
         [],
@@ -1719,7 +1719,7 @@ export async function handleCommunityExtraCmd(
     }
 
     case "lfg-list": {
-      const groups = await readJsonSetting<Array<Record<string, unknown>>>(
+      const groups = await readJsonSetting<Array<Record<string, any>>>(
         interaction.guildId ?? "global",
         "community_lfg",
         [],

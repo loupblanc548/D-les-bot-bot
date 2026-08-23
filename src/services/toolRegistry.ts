@@ -20,7 +20,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, ToolParameter>;
-  handler: (args: Record<string, unknown>) => Promise<unknown>;
+  handler: (args: Record<string, any>) => Promise<any>;
 }
 
 type ToolRegistry = Map<string, ToolDefinition>;
@@ -56,8 +56,8 @@ export function getToolSchemas(): Array<{
 /** Exécute un outil enregistré par son nom */
 export async function executeTool(
   name: string,
-  args: Record<string, unknown>,
-): Promise<unknown> {
+  args: Record<string, any>,
+): Promise<any> {
   const tool = registry.get(name);
   if (!tool) {
     throw new Error(`Tool "${name}" not found in registry`);

@@ -52,9 +52,7 @@ export async function streamToDiscord(replyTo: Message, options: StreamOptions):
     try {
       const display = final ? accumulated : accumulated + CURSOR;
       await statusMessage.edit(display.slice(0, MAX_DISCORD_LENGTH));
-    } catch {
-      // Ignore edit failures (deleted message, rate limit)
-    } finally {
+    } catch { logger.error("[Silent catch]"); } finally {
       editing = false;
     }
   };

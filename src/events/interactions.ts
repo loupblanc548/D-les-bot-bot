@@ -202,7 +202,7 @@ export function handleAlertInteractions(client: Client): void {
             components: [], // Retirer les boutons
           });
         }
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
 
       const responseText = actionResult
         ? `${actionResult}\n\n\u2705 Alerte r\u00E9solue.`
@@ -215,7 +215,7 @@ export function handleAlertInteractions(client: Client): void {
         await interaction.editReply({
           content: "\u274C Une erreur est survenue lors du traitement de l'alerte.",
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 }
@@ -503,38 +503,187 @@ export function handleGitHealerInteractions(client: Client): void {
 }
 
 // ============================================================
-// Gestionnaire des boutons SOAR Tool Gate (Directive 2)
+// Handler unifié — remplace les 6 listeners séparés
+// Dispatch selon le prefix du customId
 // ============================================================
-export function handleSoarToolInteractions(client: Client): void {
+export function handleAllInteractions(client: Client): void {
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isButton()) return;
 
     const customId = interaction.customId;
-    if (!customId.startsWith("soar_tool_")) return;
-
-    await interaction.deferReply({ ephemeral: true });
 
     try {
-      const { handleSoarToolInteraction } = await import("../services/agentSoarGate.js");
-      const approved = customId.includes("_approve_");
-      const handled = await handleSoarToolInteraction(customId, approved);
+      if (customId.startsWith("soar_tool_")) {
+        await interaction.deferReply({ ephemeral: true });
+        const { handleSoarToolInteraction } = await import("../services/agentSoarGate.js");
+        const approved = customId.includes("_approve_");
+        const handled = await handleSoarToolInteraction(customId, approved);
+        if (handled) {
+          await interaction.editReply({
+            content: approved
+              ? "✅ Outil autorisé — exécution en cours."
+              : "❌ Outil rejeté — exécution bloquée.",
+          });
+        } else {
+          await interaction.editReply({
+            content: "⚠️ Demande de validation expirée ou déjà traitée.",
+          });
+        }
+        return;
+      }
 
-      if (handled) {
-        await interaction.editReply({
-          content: approved
-            ? "✅ Outil autorisé — exécution en cours."
-            : "❌ Outil rejeté — exécution bloquée.",
-        });
-      } else {
-        await interaction.editReply({
-          content: "⚠️ Demande de validation expirée ou déjà traitée.",
-        });
+      if (customId.startsWith("soar_")) {
+        const parts = customId.split("_");
+        if (parts.length < 3) return;
+        const action = parts[1];
+        const alertId = parts.slice(2).join("_");
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          switch (action) {
+            case "approve": {
+              await handleApproval(alertId);
+              await interaction.editReply({ content: "⚔️ RiPOSTE APPROUVÉE — Exécution en cours..." });
+              break;
+            }
+            case "reject": {
+              await handleRejection(alertId);
+              await interaction.editReply({ content: "❌ RiPOSTE REJETÉE — Incident marqué DISMISSED_BY_ADMIN." });
+              break;
+            }
+            case "undo": {
+              const incident = await prisma.securityIncident.findUnique({ where: { wazuhAlertId: alertId } }).catch((): null => null);
+              if (!incident) { await interaction.editReply({ content: "⚠️ Incident introuvable dans la base." }); return; }
+              const ipMatch = incident.agentAssessment.match(/Source:\s*([\d.]+)/);
+              const ip = ipMatch?.[1] ?? "";
+              if (ip) {
+                const undone = await undoNetworkBan(ip);
+                if (undone) {
+                  await prisma.securityIncident.update({ where: { wazuhAlertId: alertId }, data: { status: "RESOLVED" } }).catch(() => {});
+                  await interaction.editReply({ content: `🔓 Rollback exécuté — IP ${ip} débannie.` });
+                } else {
+                  await interaction.editReply({ content: `⚠️ Échec du rollback pour IP ${ip}.` });
+                }
+              } else {
+                await interaction.editReply({ content: "⚠️ Aucune IP à débannir trouvée pour cet incident." });
+              }
+              break;
+            }
+            case "investigate": {
+              const incident = await prisma.securityIncident.findUnique({ where: { wazuhAlertId: alertId } }).catch((): null => null);
+              if (!incident) { await interaction.editReply({ content: "⚠️ Incident introuvable." }); return; }
+              const ipMatch = incident.agentAssessment.match(/Source:\s*([\d.]+)/);
+              const ip = ipMatch?.[1];
+              const investigation = await investigateAlert(alertId, ip);
+              await interaction.editReply({ content: `🔍 Investigation pour ${alertId}:\n\`\`\`\n${investigation.slice(0, 1800)}\n\`\`\`` });
+              break;
+            }
+            case "falsepos": {
+              await markFalsePositive(alertId);
+              await interaction.editReply({ content: `🟢 Alert ${alertId} marquée comme FALSE POSITIVE. Signature whitelisted.` });
+              break;
+            }
+            default:
+              await interaction.editReply({ content: "Action SOAR inconnue." });
+          }
+        } catch (err) {
+          logger.error(`[SOAR-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+          await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action SOAR." });
+        }
+        return;
+      }
+
+      if (customId.startsWith("alert_")) {
+        const parts = customId.split("_");
+        if (parts.length < 3) return;
+        const action = parts[1] as AlertAction;
+        const alertId = parts.slice(2).join("_");
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          const member = interaction.member as GuildMember | null;
+          if (!member) { await interaction.editReply({ content: "❌ Impossible de vérifier vos permissions." }); return; }
+          const requiredPerms = getRequiredPermissions(action);
+          if (requiredPerms && !member.permissions.has(requiredPerms)) {
+            await interaction.editReply({ content: `❌ Permission insuffisante pour l'action **${action}**. Permission requise : \`${String(requiredPerms)}\`` });
+            return;
+          }
+          const alert = await resolveAlert(alertId, action, interaction.user.id);
+          if (!alert) { await interaction.editReply({ content: "❌ Cette alerte n'est plus en attente ou n'existe pas." }); return; }
+          const actionResult = await executeAlertAction(action, alert.userId, alert.guildId, interaction, client);
+          try {
+            const originalMessage = interaction.message;
+            if (originalMessage) {
+              const embed = EmbedBuilder.from(originalMessage.embeds[0] || {});
+              embed.setColor(action === "IGNORE" ? 0x808080 : 0x53fc18);
+              embed.setFooter({ text: `Résolu par ${interaction.user.tag} • Action: ${action}` });
+              await originalMessage.edit({ embeds: [embed], components: [] });
+            }
+          } catch { logger.error("[Silent catch]"); }
+          const responseText = actionResult ? `${actionResult}\n\n✅ Alerte résolue.` : `✅ Alerte **${action}** traitée avec succès.`;
+          await interaction.editReply({ content: responseText });
+        } catch (error) {
+          logger.error(`[AlertInteraction] Erreur traitement alerte ${alertId}:`, error);
+          try { await interaction.editReply({ content: "❌ Une erreur est survenue lors du traitement de l'alerte." }); } catch { logger.error("[Silent catch]"); }
+        }
+        return;
+      }
+
+      if (customId.startsWith("kali_")) {
+        const parts = customId.split("_");
+        if (parts.length < 3) return;
+        const action = parts[1];
+        const auditId = parts.slice(2).join("_");
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          const { handleKaliApprove, handleKaliReject } = await import("../services/agentToolsKali.js");
+          switch (action) {
+            case "approve": { await handleKaliApprove(auditId); await interaction.editReply({ content: "🟢 Audit Kali APPROUVÉ — Lancement en cours..." }); break; }
+            case "reject": { await handleKaliReject(auditId); await interaction.editReply({ content: "❌ Audit Kali ANNULÉ." }); break; }
+            default: await interaction.editReply({ content: "Action Kali inconnue." });
+          }
+        } catch (err) {
+          logger.error(`[Kali-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+          await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action Kali." });
+        }
+        return;
+      }
+
+      if (customId.startsWith("vps_")) {
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          const { purgeOldLogs, pruneDockerCache } = await import("../services/vpsMaintenance.js");
+          switch (customId) {
+            case "vps_purge_logs": { const result = await purgeOldLogs(45); await interaction.editReply({ content: result.success ? `🧹 ${result.message}` : `❌ ${result.message}` }); break; }
+            case "vps_prune_docker": { const result = await pruneDockerCache(); await interaction.editReply({ content: result.success ? `🐳 ${result.message}` : `❌ ${result.message}` }); break; }
+            default: await interaction.editReply({ content: "Action VPS inconnue." });
+          }
+        } catch (err) {
+          logger.error(`[VPS-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+          await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action VPS." });
+        }
+        return;
+      }
+
+      if (customId.startsWith("git_")) {
+        const parts = customId.split("_");
+        if (parts.length < 3) return;
+        const action = parts[1];
+        const issueNumber = parts[2];
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          const { handleGitMerge, handleGitReject } = await import("../services/gitAutoHealer.js");
+          switch (action) {
+            case "merge": { const branchName = parts.slice(3).join("_"); const result = await handleGitMerge(issueNumber, branchName); await interaction.editReply({ content: result }); break; }
+            case "reject": { const result = await handleGitReject(issueNumber); await interaction.editReply({ content: result }); break; }
+            default: await interaction.editReply({ content: "Action Git-Healer inconnue." });
+          }
+        } catch (err) {
+          logger.error(`[Git-Healer-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
+          await interaction.editReply({ content: "❌ Erreur lors du traitement de l'action Git-Healer." });
+        }
+        return;
       }
     } catch (err) {
-      logger.error(`[SOAR-Tool-Button] Error: ${err instanceof Error ? err.message : String(err)}`);
-      await interaction.editReply({
-        content: "❌ Erreur lors du traitement de la validation SOAR.",
-      });
+      logger.error(`[Interactions] Unified handler error: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
 }

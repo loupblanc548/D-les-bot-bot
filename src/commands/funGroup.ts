@@ -149,7 +149,7 @@ function rollDice(format: string): { results: number[]; modifier: number; total:
 
 export async function handleCommand(
   interaction: ChatInputCommandInteraction,
-  _client: unknown,
+  _client: any,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
 

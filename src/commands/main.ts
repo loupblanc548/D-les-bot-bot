@@ -259,7 +259,7 @@ async function handleRetro(interaction: ChatInputCommandInteraction, client: Cli
 
 // ─── Exports pour le routeur de commandes ───
 
-export const commands: unknown[] = [];
+export const commands: any[] = [];
 
 export async function handleCommand(
   interaction: ChatInputCommandInteraction,

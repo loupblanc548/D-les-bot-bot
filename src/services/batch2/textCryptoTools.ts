@@ -3,7 +3,7 @@ import type { ToolCallResult } from "../agentTools.js";
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
 
-export async function toolGrammarCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolGrammarCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   const lang = String(args.language || "fr").trim();
   if (!text) return err("Paramètre manquant: text");
@@ -36,7 +36,7 @@ export async function toolGrammarCheck(args: Record<string, unknown>): Promise<T
   }
 }
 
-export async function toolTextSummarize(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextSummarize(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   const n = Number(args.sentences) || 3;
   if (!text) return err("Paramètre: text");
@@ -87,7 +87,7 @@ export async function toolTextSummarize(args: Record<string, unknown>): Promise<
   return ok(`📄 **Résumé:**\n${top.map((t) => t.s).join(" ")}`);
 }
 
-export async function toolTextCaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextCaseConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "upper").trim();
   if (!text) return err("Paramètre: text");
@@ -113,7 +113,7 @@ export async function toolTextCaseConvert(args: Record<string, unknown>): Promis
   return ok(`📝 **${mode}:** \`${r}\``);
 }
 
-export async function toolWordCounter(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolWordCounter(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return err("Paramètre: text");
   const w = text.trim().split(/\s+/).filter(Boolean).length;
@@ -122,7 +122,7 @@ export async function toolWordCounter(args: Record<string, unknown>): Promise<To
   );
 }
 
-export async function toolTextToMorse(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextToMorse(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   const mode = String(args.mode || "encode").trim();
   if (!text) return err("Paramètre: text");
@@ -187,7 +187,7 @@ export async function toolTextToMorse(args: Record<string, unknown>): Promise<To
   );
 }
 
-export async function toolRot13(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolRot13(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return err("Paramètre: text");
   return ok(
@@ -198,7 +198,7 @@ export async function toolRot13(args: Record<string, unknown>): Promise<ToolCall
   );
 }
 
-export async function toolCaesarCipher(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolCaesarCipher(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   let shift = Number(args.shift) || 3;
   const mode = String(args.mode || "encrypt").trim();
@@ -212,7 +212,7 @@ export async function toolCaesarCipher(args: Record<string, unknown>): Promise<T
   );
 }
 
-export async function toolPalindromeCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolPalindromeCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   if (!text) return err("Paramètre: text");
   const c = text.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -220,7 +220,7 @@ export async function toolPalindromeCheck(args: Record<string, unknown>): Promis
   return ok(`${isP ? "✅" : "❌"} "${text}" ${isP ? "est" : "n'est pas"} un palindrome`);
 }
 
-export async function toolAnagramSolver(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolAnagramSolver(args: Record<string, any>): Promise<ToolCallResult> {
   const word = String(args.word || "")
     .trim()
     .toLowerCase();
@@ -239,7 +239,7 @@ export async function toolAnagramSolver(args: Record<string, unknown>): Promise<
 }
 
 export async function toolRomanNumeralConvert(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const input = String(args.input || "").trim();
   if (!input) return err("Paramètre: input");
@@ -283,7 +283,7 @@ export async function toolRomanNumeralConvert(
   return ok(`🔢 ${input} → **${r}**`);
 }
 
-export async function toolLeetSpeak(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolLeetSpeak(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return err("Paramètre: text");
   const map: Record<string, string> = {
@@ -314,13 +314,13 @@ export async function toolLeetSpeak(args: Record<string, unknown>): Promise<Tool
   );
 }
 
-export async function toolAccentRemover(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolAccentRemover(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return err("Paramètre: text");
   return ok(`📝 **Sans accents:** ${text.normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`);
 }
 
-export async function toolTextReverse(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextReverse(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "chars").trim();
   if (!text) return err("Paramètre: text");
@@ -329,7 +329,7 @@ export async function toolTextReverse(args: Record<string, unknown>): Promise<To
   );
 }
 
-export async function toolTextSimilarity(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextSimilarity(args: Record<string, any>): Promise<ToolCallResult> {
   const t1 = String(args.text1 || ""),
     t2 = String(args.text2 || "");
   if (!t1 || !t2) return err("Paramètres: text1, text2");
@@ -354,7 +354,7 @@ export async function toolTextSimilarity(args: Record<string, unknown>): Promise
   );
 }
 
-export async function toolTextDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextDiff(args: Record<string, any>): Promise<ToolCallResult> {
   const t1 = String(args.text1 || ""),
     t2 = String(args.text2 || "");
   if (!t1 || !t2) return err("Paramètres: text1, text2");
@@ -371,7 +371,7 @@ export async function toolTextDiff(args: Record<string, unknown>): Promise<ToolC
   return ok(`📝 **Diff:**\n\`\`\`diff\n${diffs.slice(0, 30).join("\n")}\n\`\`\``);
 }
 
-export async function toolMarkdownToHtml(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolMarkdownToHtml(args: Record<string, any>): Promise<ToolCallResult> {
   const md = String(args.markdown || "");
   if (!md) return err("Paramètre: markdown");
   const html = md
@@ -386,7 +386,7 @@ export async function toolMarkdownToHtml(args: Record<string, unknown>): Promise
   return ok(`📝 **HTML:**\n\`\`\`html\n${html.slice(0, 1800)}\n\`\`\``);
 }
 
-export async function toolJsonFormatter(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolJsonFormatter(args: Record<string, any>): Promise<ToolCallResult> {
   const j = String(args.json || "");
   const min = args.minify === true;
   if (!j) return err("Paramètre: json");
@@ -399,7 +399,7 @@ export async function toolJsonFormatter(args: Record<string, unknown>): Promise<
   }
 }
 
-export async function toolUrlEncodeDecode(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolUrlEncodeDecode(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "encode").trim();
   if (!text) return err("Paramètre: text");
@@ -409,7 +409,7 @@ export async function toolUrlEncodeDecode(args: Record<string, unknown>): Promis
 }
 
 export async function toolHtmlEntityEncodeDecode(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "encode").trim();
@@ -429,7 +429,7 @@ export async function toolHtmlEntityEncodeDecode(
 }
 
 export async function toolBase32EncodeDecode(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "encode").trim();
@@ -469,7 +469,7 @@ export async function toolBase32EncodeDecode(
   return ok(`🔐 **Décodé:** ${Buffer.from(bytes).toString("utf8")}`);
 }
 
-export async function toolHashIdentifier(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolHashIdentifier(args: Record<string, any>): Promise<ToolCallResult> {
   const hash = String(args.hash || "").trim();
   if (!hash) return err("Paramètre: hash");
   const types: Array<{ n: string; r: RegExp }> = [

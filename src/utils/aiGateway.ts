@@ -1,4 +1,5 @@
 import { CircuitBreaker } from "./circuitBreaker.js";
+import logger from "../utils/logger.js";
 
 const circuitBreakers = new Map<string, CircuitBreaker>();
 
@@ -98,7 +99,7 @@ export async function callAi(
       }
       return result;
     } catch (e) {
-      console.warn(
+      logger.warn(
         `[aiGateway] provider ${provider} failed: ${e instanceof Error ? e.message : String(e)}`,
       );
       metrics?.callCounter?.inc({ provider, status: "error" });

@@ -5,7 +5,7 @@
 /**
  * Validate RSS item structure
  */
-export function validateRssItem(item: Record<string, unknown>): boolean {
+export function validateRssItem(item: Record<string, any>): boolean {
   if (!item || typeof item !== "object") {
     return false;
   }

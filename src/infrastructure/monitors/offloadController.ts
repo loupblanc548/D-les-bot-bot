@@ -107,9 +107,7 @@ export function recordExecution(target: ExecutionTarget): void {
         try {
           global.gc();
           logger.info("[OffloadController] Triggered global.gc() in degraded mode");
-        } catch {
-          // gc not available
-        }
+        } catch { logger.error("[Silent catch]"); }
       }
       break;
   }

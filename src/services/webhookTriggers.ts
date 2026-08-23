@@ -146,7 +146,7 @@ export async function handleWebhookRequest(
     }
   }
 
-  let payload: Record<string, unknown>;
+  let payload: Record<string, any>;
   try {
     payload = JSON.parse(rawBody);
   } catch {
@@ -208,7 +208,7 @@ async function sendViaWebhookUrl(
 function buildEmbedForProvider(
   provider: string,
   event: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, any>,
   _headers: Record<string, string | string[] | undefined>,
 ): EmbedBuilder | null {
   switch (provider) {
@@ -225,7 +225,7 @@ function buildEmbedForProvider(
 
 // ─── GitHub ───────────────────────────────────────────────────────────
 
-function buildGitHubEmbed(event: string, payload: Record<string, unknown>): EmbedBuilder | null {
+function buildGitHubEmbed(event: string, payload: Record<string, any>): EmbedBuilder | null {
   const repo = payload.repository as { full_name?: string; html_url?: string } | undefined;
   const repoName = repo?.full_name ?? "unknown";
   const repoUrl = repo?.html_url ?? "";
@@ -448,7 +448,7 @@ function buildGitHubEmbed(event: string, payload: Record<string, unknown>): Embe
 
 // ─── GitLab ───────────────────────────────────────────────────────────
 
-function buildGitLabEmbed(event: string, payload: Record<string, unknown>): EmbedBuilder | null {
+function buildGitLabEmbed(event: string, payload: Record<string, any>): EmbedBuilder | null {
   const project = payload.project as { path_with_namespace?: string; web_url?: string } | undefined;
   const projName = project?.path_with_namespace ?? "unknown";
   const projUrl = project?.web_url ?? "";
@@ -539,7 +539,7 @@ function buildGitLabEmbed(event: string, payload: Record<string, unknown>): Embe
 
 // ─── Generic ──────────────────────────────────────────────────────────
 
-function buildGenericEmbed(event: string, payload: Record<string, unknown>): EmbedBuilder | null {
+function buildGenericEmbed(event: string, payload: Record<string, any>): EmbedBuilder | null {
   const title = String(payload.title ?? payload.name ?? payload.event ?? `Webhook: ${event}`);
   const message = String(payload.message ?? payload.description ?? payload.text ?? "");
   const color = Number(payload.color) || 0x5865f2;

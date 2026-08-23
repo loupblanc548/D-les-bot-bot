@@ -3,7 +3,7 @@
  */
 
 /** Retourne une copie sans les clés spécifiées */
-export function omit<T extends Record<string, unknown>, K extends keyof T>(
+export function omit<T extends Record<string, any>, K extends keyof T>(
   obj: T,
   keys: readonly K[],
 ): Omit<T, K> {
@@ -15,7 +15,7 @@ export function omit<T extends Record<string, unknown>, K extends keyof T>(
 }
 
 /** Retourne une copie avec uniquement les clés spécifiées */
-export function pick<T extends Record<string, unknown>, K extends keyof T>(
+export function pick<T extends Record<string, any>, K extends keyof T>(
   obj: T,
   keys: readonly K[],
 ): Pick<T, K> {
@@ -29,7 +29,7 @@ export function pick<T extends Record<string, unknown>, K extends keyof T>(
 }
 
 /** Merge profond de deux objets */
-export function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+export function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
   const result = { ...target };
   for (const key of Object.keys(source) as Array<keyof T>) {
     const srcVal = source[key];
@@ -43,8 +43,8 @@ export function deepMerge<T extends Record<string, unknown>>(target: T, source: 
       !Array.isArray(tgtVal)
     ) {
       result[key] = deepMerge(
-        tgtVal as Record<string, unknown>,
-        srcVal as Record<string, unknown>,
+        tgtVal as Record<string, any>,
+        srcVal as Record<string, any>,
       ) as T[keyof T];
     } else if (srcVal !== undefined) {
       result[key] = srcVal as T[keyof T];
@@ -54,23 +54,23 @@ export function deepMerge<T extends Record<string, unknown>>(target: T, source: 
 }
 
 /** Vérifie si un objet est vide (aucune clé propre) */
-export function isEmpty(obj: unknown): boolean {
+export function isEmpty(obj: any): boolean {
   if (obj == null) return true;
   if (typeof obj !== "object") return false;
   if (Array.isArray(obj)) return obj.length === 0;
-  return Object.keys(obj as Record<string, unknown>).length === 0;
+  return Object.keys(obj as Record<string, any>).length === 0;
 }
 
 /** Aplatit un objet imbriqué en clés dot-notation */
 export function flatten(
-  obj: Record<string, unknown>,
+  obj: Record<string, any>,
   prefix = "",
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+): Record<string, any> {
+  const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      Object.assign(result, flatten(value as Record<string, unknown>, fullKey));
+      Object.assign(result, flatten(value as Record<string, any>, fullKey));
     } else {
       result[fullKey] = value;
     }

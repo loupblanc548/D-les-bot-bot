@@ -60,9 +60,7 @@ async function detectAIMedia(
           };
         }
       }
-    } catch {
-      // Colab unavailable — continue to Sightengine/HuggingFace
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   const apiKey = process.env.SIGHTENGINE_API_KEY;
@@ -430,9 +428,7 @@ export async function checkMessageLinksForSecurity(
           await sendLinkSecurityAlert(client, message, url, result);
           break;
         }
-      } catch {
-        // Non-critique — skip cette URL
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   } catch (err) {
     logger.error(

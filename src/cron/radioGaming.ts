@@ -198,7 +198,7 @@ export async function broadcastRadioGaming(
   client: Client,
   voiceChannelId: string,
   guildId: string,
-  adapterCreator: unknown,
+  adapterCreator: any,
 ): Promise<{ success: boolean; script: string | null; error?: string }> {
   try {
     // 1. Gather data
@@ -310,7 +310,7 @@ export async function broadcastRadioGaming(
 async function resolveVoiceChannel(
   client: Client,
   guild: Guild,
-): Promise<{ channelId: string; guildId: string; adapterCreator: unknown } | null> {
+): Promise<{ channelId: string; guildId: string; adapterCreator: any } | null> {
   const envChannelId = process.env[RADIO_CHANNEL_ENV];
 
   if (envChannelId) {

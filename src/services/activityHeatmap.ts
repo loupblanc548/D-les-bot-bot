@@ -51,7 +51,7 @@ async function generateActivityHeatmap(client: Client): Promise<void> {
             dailyData[day]++;
             channelActivity.set(ch.name, (channelActivity.get(ch.name) ?? 0) + 1);
           }
-        } catch {}
+        } catch { logger.error("[Silent catch]"); }
       }
     }
   } catch (err) {

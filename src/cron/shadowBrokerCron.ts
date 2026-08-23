@@ -288,9 +288,7 @@ async function checkRealTimeAlerts(client: Client): Promise<void> {
             await owner.send({ embeds: [embed] });
           }
         }
-      } catch {
-        // Skip guild errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   } catch (err) {
     logger.error("[ShadowBrokerCron] Erreur alertes temps réel:", err);

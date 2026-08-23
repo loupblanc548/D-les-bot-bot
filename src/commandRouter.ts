@@ -115,6 +115,12 @@ import {
   data as killswitchCommandData,
   execute as killswitchExecute,
 } from "./commands/killswitch.js";
+import { showMcMenu, handleMcMenuButton, handleMcMenuSelect, handleMcMenuModal } from "./services/minecraftMenu.js";
+import { SlashCommandBuilder } from "discord.js";
+
+const mcMenuCommandData = new SlashCommandBuilder()
+  .setName("mcmenu")
+  .setDescription("Ouvre le menu Minecraft interactif (style GTA 5 mod menu)");
 import { data as privacyCommandData, execute as privacyExecute } from "./commands/privacy.js";
 import {
   commands as followCommands,
@@ -503,6 +509,7 @@ export const allCommands = [
   statsCommandData,
   configCommandData,
   helpCommandData,
+  mcMenuCommandData,
 ].filter((cmd) => {
   const name = (cmd as { name?: string }).name;
   return name ? !REMOVED_COMMANDS.has(name) : true;
@@ -613,6 +620,11 @@ export function buildCommandRouter(): void {
     if (!interaction.isChatInputCommand()) return;
     await helpExecute(interaction as ChatInputCommandInteraction);
   };
+  // ─── MC Menu (interactive Minecraft GTA 5 style) ───
+  commandRouter["mcmenu"] = async (interaction, client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await showMcMenu(interaction as ChatInputCommandInteraction, client);
+  };
   // ─── Context Menus ───
   registerGroup(
     [
@@ -627,7 +639,7 @@ export function buildCommandRouter(): void {
       "🚩 Rapporter",
       "🔍 Snipe",
     ],
-    handleContextMenu as unknown as GroupHandler,
+    handleContextMenu as any as GroupHandler,
   );
 }
 
@@ -676,7 +688,7 @@ export async function registerCommands(): Promise<void> {
     if (duplicates.length > 0) {
       logger.warn(`Doublons détectés: ${duplicates.map(([n, c]) => `${n}(${c}x)`).join(", ")}`);
       // Garder seulement la première occurrence de chaque doublon
-      const deduped = new Map<string, unknown>();
+      const deduped = new Map<string, any>();
       for (const cmd of mergedCommands) {
         const name = (cmd as { name?: string }).name;
         if (name && !deduped.has(name)) {

@@ -4,6 +4,7 @@
  */
 
 import { execSync } from "child_process";
+import logger from "../utils/logger.js";
 import dns from "dns/promises";
 import https from "https";
 
@@ -175,7 +176,7 @@ export async function gravatarLookup(email: string): Promise<string> {
     let profile: any = null;
     try {
       profile = await fetchJson(profileUrl);
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
     return JSON.stringify(
       {
         email,

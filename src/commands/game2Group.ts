@@ -101,7 +101,7 @@ const RSS_SOURCES: Record<string, string> = {
 
 export async function handleCommand(
   interaction: ChatInputCommandInteraction,
-  _client: unknown,
+  _client: any,
 ): Promise<void> {
   const action = interaction.options.getSubcommand();
 

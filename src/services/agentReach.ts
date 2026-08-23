@@ -45,7 +45,7 @@ export async function readUrlViaJina(url: string): Promise<WebContent | null> {
       title: String(d?.data?.title || d?.title || ""),
       content: String(d?.data?.content || d?.content || "").slice(0, 8000),
       links: Array.isArray(d?.data?.links)
-        ? d.data.links.map((l: Record<string, unknown>) => String(l.url || l))
+        ? d.data.links.map((l: Record<string, any>) => String(l.url || l))
         : [],
     };
   } catch (err) {
@@ -106,7 +106,7 @@ export async function exaSearch(query: string, numResults = 5): Promise<ExaSearc
       },
       { timeout: 12000 },
     );
-    return (res.data?.results || []).map((r: Record<string, unknown>) => ({
+    return (res.data?.results || []).map((r: Record<string, any>) => ({
       title: String(r.title || ""),
       url: String(r.url || ""),
       snippet: String(r.text || "").slice(0, 300),
@@ -134,7 +134,7 @@ export async function searchBilibili(keyword: string, limit = 5): Promise<Bilibi
       headers: { "User-Agent": "Mozilla/5.0" },
       timeout: 10000,
     });
-    return (res.data?.data?.result || []).slice(0, limit).map((v: Record<string, unknown>) => ({
+    return (res.data?.data?.result || []).slice(0, limit).map((v: Record<string, any>) => ({
       title: sanitizeHtml(String(v.title || "")),
       bvid: String(v.bvid || ""),
       url: `https://www.bilibili.com/video/${String(v.bvid || "")}`,

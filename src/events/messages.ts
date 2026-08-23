@@ -559,7 +559,7 @@ export function handleMessageEvents(client: Client) {
               content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
               allowedMentions: { roles: [REPORT_ROLE_ID] },
             });
-          } catch {}
+          } catch { logger.error("[Silent catch]"); }
         }
       }
 
@@ -619,9 +619,7 @@ export function handleMessageEvents(client: Client) {
           await channel.send({
             content: `🎉 ${message.author.toString()} a atteint le **niveau ${xpResult.newLevel}** !`,
           });
-        } catch {
-          // ignore send errors
-        }
+        } catch { logger.error("[Silent catch]"); }
       }
     } catch (error) {
       logger.error("[MessageEvents] Erreur messageCreate:", error);
@@ -1019,7 +1017,7 @@ async function handleVoiceCommand(
   // Réaction pour indiquer que ça travaille
   try {
     await message.react("🗣️");
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // ── Ajouter à la file d'attente TTS ──
   const guildId = message.guildId!;
@@ -1046,7 +1044,7 @@ interface TTSQueueItem {
   voiceGender: "homme" | "femme";
   voiceChannelId: string;
   guildId: string;
-  adapterCreator: unknown;
+  adapterCreator: any;
   shouldStay: boolean;
   authorTag: string;
   channelName: string;
@@ -1168,7 +1166,7 @@ async function generateVoiceTTS(
         return buf;
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 2. ElevenLabs
   try {
@@ -1181,7 +1179,7 @@ async function generateVoiceTTS(
         return Buffer.from(result.audioUrl.split(",")[1], "base64");
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 3. Microsoft Edge TTS (voix neuronales Azure gratuites)
   try {
@@ -1190,7 +1188,7 @@ async function generateVoiceTTS(
       logger.info(`[VoiceCmd] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 4. StreamElements / Amazon Polly
   try {
@@ -1250,7 +1248,7 @@ async function generateVoiceTTS(
         return seBuffer;
       }
     }
-  } catch {}
+  } catch { logger.error("[Silent catch]"); }
 
   // 5. Fallback: Google Translate TTS
   try {
@@ -1376,7 +1374,7 @@ async function generateEdgeTTS(
       resolved = true;
       try {
         ws.close();
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       resolve(result);
     };
 
@@ -1638,7 +1636,7 @@ async function handleAiChatMention(
     }
 
     // ── Cache sémantique: vérifier si on a déjà une réponse récente ──
-    const cached = getCachedResponse(enrichedContent, message.author.id, "guild");
+    const cached = await getCachedResponse(enrichedContent, message.author.id, "guild");
     if (cached) {
       logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
       void statusIndicator.cleanup();
@@ -1652,6 +1650,69 @@ async function handleAiChatMention(
           .catch(() => {});
       }
       return;
+    }
+
+    // ── FAST PATH: chat simple sans tools → streaming direct, skip agent loop ──
+    // Si le message est court et ne contient pas de keywords de tools, on répond
+    // directement sans passer par l'agent loop (économise ~2-5s de latence)
+    const lowerMsgEarly = enrichedContent.toLowerCase();
+    const toolKeywords = [
+      "cherche", "search", "recherche", "trouve", "find", "look up",
+      "analyse", "analyze", "scan", "vérifie", "check", "test",
+      "calcule", "calculate", "compute", "résous", "solve",
+      "convert", "transform", "encode", "decode", "hash",
+      "météo", "weather", "prix", "price", "crypto", "stock",
+      "github", "repo", "commit", "issue", "pull request",
+      "site", "url", "page", "lien", "link", "http",
+      "image", "screenshot", "photo", "génère", "generate", "dessine",
+      "code", "script", "exécute", "execute", "run",
+      "wikipedia", "wiki", "news", "article", "video", "youtube",
+      "meme", "blague", "joke", "citation", "quote",
+      "translate", "traduis", "langue", "language",
+      "stock", "prix", "deal", "promo", "shop", "boutique",
+      "server", "serveur", "ping", "ip", "dns", "domain",
+      "password", "mot de passe", "token", "clé", "key",
+    ];
+    const hasToolIntent = toolKeywords.some(kw => lowerMsgEarly.includes(kw));
+    const isComplexOrTool = hasToolIntent || enrichedContent.length > 200;
+
+    if (!isComplexOrTool) {
+      // Chat simple → streaming direct depuis l'API cloud (pas d'agent loop)
+      try {
+        const { getOpenAIClient: getClient } = await import("../services/ai.js");
+        const streamClient = getClient();
+        const streamMsg = await (message as Message).reply("💭 ...");
+        const stream = await streamClient.chat.completions.create({
+          model: config.openRouterModel,
+          messages: [
+            { role: "system", content: "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle." },
+            { role: "user", content: enrichedContent },
+          ],
+          max_tokens: 1000,
+          temperature: 0.7,
+          stream: true,
+        });
+        let accumulated = "";
+        let lastEdit = 0;
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content;
+          if (delta) {
+            accumulated += delta;
+            const nowMs = Date.now();
+            if (nowMs - lastEdit > 1500) {
+              lastEdit = nowMs;
+              await streamMsg.edit((accumulated + " ▌").slice(0, 2000)).catch(() => {});
+            }
+          }
+        }
+        if (accumulated) {
+          await streamMsg.edit(accumulated.slice(0, 2000)).catch(() => {});
+          logger.info(`[AIChat] ⚡ Fast-path streaming réussi (${accumulated.length} chars)`);
+          return;
+        }
+      } catch (fastErr) {
+        logger.warn(`[AIChat] Fast-path échoué, fallback agent loop: ${fastErr instanceof Error ? fastErr.message : String(fastErr)}`);
+      }
     }
 
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
@@ -1677,14 +1738,26 @@ async function handleAiChatMention(
       aiResponse = "";
     }
 
+    // ── Helper: détecter si l'IA a halluciné un message d'erreur ──
+    const isAiHallucinatedError = (text: string): boolean =>
+      text.includes("temporairement indisponibles") ||
+      text.includes("quota/cooldown") ||
+      text.includes("Tous les modèles IA") ||
+      text.includes("modèles IA sont temporairement") ||
+      text.includes("Réessaie dans 1-2 minutes");
+
+    // ── Helper: détecter si aiResponse est encore un message d'erreur (connu ou halluciné) ──
+    const isStillError = (text: string): boolean =>
+      !text ||
+      text.includes("Le serveur IA a rencontré un problème") ||
+      text.includes("Problème de communication avec le serveur IA") ||
+      text.includes("Le serveur IA est sous forte charge") ||
+      text.includes("CIRCUIT BREAKER ACTIVATED") ||
+      text.includes("Circuit breaker activated") ||
+      isAiHallucinatedError(text);
+
     // ── Si l'agent loop a retourné un message d'erreur connu, fallback avec modèle gratuit ──
-    const isErrorResponse =
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated");
+    const isErrorResponse = isStillError(aiResponse);
 
     if (isErrorResponse) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback en cours`);
@@ -1701,11 +1774,17 @@ async function handleAiChatMention(
             },
             { role: "user", content: enrichedContent },
           ]);
-          if (localReply && localReply.length > 2) {
+          if (
+            localReply &&
+            localReply.length > 2 &&
+            !isAiHallucinatedError(localReply)
+          ) {
             aiResponse = localReply;
             logger.info(
               `[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
             );
+          } else if (localReply) {
+            logger.warn(`[AIChat] LLM local a halluciné un message d'erreur — ignoré`);
           }
         } catch (localErr) {
           logger.error(
@@ -1716,12 +1795,7 @@ async function handleAiChatMention(
 
       // ── Fallback 2: Gemini (free, quota séparé) ──
       if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("Le serveur IA est sous forte charge") ||
-          aiResponse.includes("Problème de communication avec le serveur IA") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-          aiResponse.includes("Circuit breaker activated")) &&
+        isStillError(aiResponse) &&
         isGeminiAvailable()
       ) {
         logger.warn(`[AIChat] Fallback: Gemini`);
@@ -1745,12 +1819,7 @@ async function handleAiChatMention(
 
       // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
       if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("Le serveur IA est sous forte charge") ||
-          aiResponse.includes("Problème de communication avec le serveur IA") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-          aiResponse.includes("Circuit breaker activated")) &&
+        isStillError(aiResponse) &&
         isNvidiaNimAvailable()
       ) {
         logger.warn(`[AIChat] Fallback: NVIDIA NIM`);
@@ -1773,12 +1842,7 @@ async function handleAiChatMention(
       }
 
       // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
-      if (
-        !aiResponse ||
-        aiResponse.includes("Le serveur IA a rencontré un problème") ||
-        aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-        aiResponse.includes("Circuit breaker activated")
-      ) {
+      if (isStillError(aiResponse)) {
         try {
           const fallbackModel = apiKey ? getNextAvailableModel() : null;
           if (!apiKey) {
@@ -1819,14 +1883,7 @@ async function handleAiChatMention(
     }
 
     // ── Dernier recours: reset circuit breakers + appel simple sans tools ──
-    if (
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated")
-    ) {
+    if (isStillError(aiResponse)) {
       logger.warn(
         `[AIChat] Tous les fallbacks échoués — last resort: reset + appel simple sans tools`,
       );
@@ -1873,21 +1930,14 @@ async function handleAiChatMention(
     }
 
     // ── Si toujours vide ou erreur, message par défaut ──
-    if (
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated")
-    ) {
+    if (isStillError(aiResponse)) {
       aiResponse =
         "⚠️ Je n’ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
     if (aiResponse && !aiResponse.includes("⚠️")) {
-      setCachedResponse(enrichedContent, aiResponse, message.author.id);
+      void setCachedResponse(enrichedContent, aiResponse, message.author.id);
     }
 
     if (aiResponse) {
@@ -2181,7 +2231,7 @@ async function handleDMMessage(
     }
 
     // ── Cache sémantique (DM): vérifier si on a déjà une réponse récente ──
-    const dmCached = getCachedResponse(dmEnrichedContent, message.author.id, "dm");
+    const dmCached = await getCachedResponse(dmEnrichedContent, message.author.id, "dm");
     if (dmCached) {
       logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
       void dmStatusIndicator.cleanup();
@@ -2434,7 +2484,7 @@ async function handleDMMessage(
 
     // ── Stocker la réponse dans le cache sémantique ──
     if (aiResponse && !aiResponse.includes("⚠️")) {
-      setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
+      void setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
     }
 
     if (aiResponse) {
@@ -2717,7 +2767,7 @@ async function handleSecurityModules(
         if (spamMessages.size > 0) {
           try {
             await (message.channel as TextChannel).bulkDelete(spamMessages, true);
-          } catch (_) {}
+          } catch (_) { logger.error("[Silent catch]", _); }
         }
         await recordSecurityEvent(message.author.id, message.guild!.id, "ANTI_SPAM").catch(
           () => {},

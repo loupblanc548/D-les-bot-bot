@@ -104,8 +104,6 @@ export async function paginate(
   collector.on("end", async () => {
     try {
       await msg.edit({ components: [] });
-    } catch {
-      // message deleted
-    }
+    } catch { logger.error("[Silent catch]"); }
   });
 }

@@ -239,8 +239,8 @@ export async function forgetUser(userId: string): Promise<DeletionResult> {
   return result;
 }
 
-export async function exportUserData(userId: string): Promise<Record<string, unknown>> {
-  const data: Record<string, unknown> = {};
+export async function exportUserData(userId: string): Promise<Record<string, any>> {
+  const data: Record<string, any> = {};
 
   // Memory
   data.userMemory = await prisma.userMemory.findUnique({ where: { userId } });

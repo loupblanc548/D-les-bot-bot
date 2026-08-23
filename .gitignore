@@ -142,6 +142,27 @@ knip*.json
 # Common sensitive files
 motdepasse.txt
 password.txt
+mot de passe*.txt
+*.password
+credentials*.txt
+
+# Binary artifacts not needed in repo
+_rust.pyd
+*.exe
+!bedrock-server/bedrock_server.exe
+
+# Empty/artifact files
+node
+npm
+discord-surveillance-bot@*
+nul
+*unused-warnings*
+
+# One-shot test files at root
+test-models.*
+test_gemini.py
+test_ssh.sh
+check_env.js
 
 # Deepsec outputs / scan reports
 .deepsec/data/

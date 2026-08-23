@@ -159,7 +159,7 @@ export const MEMORY_TOOLS: AgentToolDef[] = [
 
 export async function executeMemoryTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: { userId: string },
 ): Promise<{ success: boolean; data: string } | null> {
   const userId = ctx.userId;

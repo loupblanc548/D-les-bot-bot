@@ -36,6 +36,7 @@ import {
   executeTool,
   generateToolListPrompt,
   type ToolContext,
+  type AgentToolDef,
 } from "./agentTools.js";
 import { delegateToExpert, DELEGATE_TOOL } from "./orchestrator.js";
 import prisma from "../prisma.js";
@@ -91,6 +92,9 @@ import {
 } from "../infrastructure/middleware/personalityMiddleware.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
+import { getTrivialResponse } from "./trivialFastPath.js";
+import { getUserPreferences, recordInteraction, formatPreferencesForPrompt, setUserLanguage } from "./userPreferences.js";
+import { detectPrefetchableTool, formatPrefetchResult } from "./toolPrefetch.js";
 import type { ChatRuntimeSignal } from "./chatRuntime.js";
 import {
   agentLoopIterations,
@@ -110,8 +114,8 @@ const MAX_ITERATIONS = 8;
 const MAX_ITERATIONS_LONG_TASK = 20;
 const MAX_HISTORY_MESSAGES = 15;
 const MAX_MEMORY_FACTS = 5;
-const AGENT_LOOP_TIMEOUT_MS = 45_000; // 45s max for the entire agent loop
-const AGENT_LOOP_TIMEOUT_LONG_MS = 120_000; // 120s for complex tasks
+const AGENT_LOOP_TIMEOUT_MS = 90_000; // 90s max for the entire agent loop
+const AGENT_LOOP_TIMEOUT_LONG_MS = 180_000; // 180s for complex tasks
 
 // Heuristics for detecting complex tasks
 const COMPLEX_TASK_KEYWORDS = [
@@ -279,7 +283,7 @@ interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
   tool_call_id?: string;
-  tool_calls?: unknown;
+  tool_calls?: any;
 }
 
 type VisionContent = Array<
@@ -289,6 +293,36 @@ type VisionContent = Array<
 type ProviderChatMessage = Omit<ChatMessage, "content"> & {
   content: string | VisionContent;
 };
+
+// ─── Compact tool definitions to reduce API payload ──────────────────────────
+// Raccourcit les descriptions des tools à 60 chars pour réduire le payload
+// envoyé à l'API. Avec 150+ tools, ça économise ~10K+ tokens.
+// Aussi limite le nombre de tools à MAX_TOOLS pour éviter les erreurs 400
+// (Groq: max 128 tools, OpenRouter: pas de limite officielle mais recommandé <200)
+const MAX_TOOLS = 120;
+
+function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
+  // Prioriser: tools essentiels d'abord, puis par ordre original
+  const ESSENTIAL = new Set([
+    "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
+    "getDateTime", "getWeather", "translateText", "execute_code",
+    "send_message", "ask_user_question", "think_step_by_step",
+    "delegate_to_expert", "analyzeImageGemini",
+  ]);
+
+  const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));
+  const rest = tools.filter((t) => !ESSENTIAL.has(t.function.name));
+  const capped = [...essential, ...rest].slice(0, MAX_TOOLS);
+
+  return capped.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.function.name,
+      description: (t.function.description || "").slice(0, 60),
+      parameters: t.function.parameters,
+    },
+  }));
+}
 
 function buildProviderConversation(
   conversation: ChatMessage[],
@@ -366,9 +400,7 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
         content: entry.content,
       });
     }
-  } catch {
-    // DB might not be available, continue with Discord history only
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // 2. Charger l'historique Discord (messages récents en mémoire)
   try {
@@ -386,14 +418,26 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
         content: role === "user" ? `${authorName}: ${msg.content}` : msg.content,
       });
     }
-  } catch {
-    // Discord fetch might fail, continue with DB history only
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Deduplicate: keep only last MAX_HISTORY_MESSAGES * 2 entries
   const maxHistory = MAX_HISTORY_MESSAGES * 2;
   if (history.length > maxHistory) {
     return history.slice(-maxHistory);
+  }
+
+  // ─── Context compression: truncate old messages to save tokens ───
+  // Les 3 messages les plus récents gardent leur contenu complet.
+  // Les plus anciens sont tronqués à 200 chars pour réduire le context window.
+  if (history.length > 6) {
+    const recentCount = 3;
+    const oldMessages = history.slice(0, -recentCount);
+    const recentMessages = history.slice(-recentCount);
+    const compressed = oldMessages.map((m) => ({
+      role: m.role,
+      content: m.content.length > 200 ? m.content.slice(0, 200) + " [...]" : m.content,
+    }));
+    return [...compressed, ...recentMessages];
   }
 
   return history;
@@ -431,6 +475,13 @@ export async function runAgentLoop(
   activeAgentLoops.add(message.author.id);
   userCooldowns.set(message.author.id, now);
   signal?.throwIfAborted();
+
+  // ─── Fast-path: réponses triviales sans API ───
+  const trivial = getTrivialResponse(userMessage, message.author.id);
+  if (trivial) {
+    activeAgentLoops.delete(message.author.id);
+    return trivial;
+  }
 
   try {
     const complex = isComplexTask(userMessage);
@@ -483,7 +534,7 @@ interface RetryableError {
   message: string;
 }
 
-function isRetryableError(err: unknown): boolean {
+function isRetryableError(err: any): boolean {
   const e = err as RetryableError;
   // 429 = rate limit (per-minute or per-day) — never retry, switch to next model
   if (e.status === 429) {
@@ -514,7 +565,7 @@ function isRetryableError(err: unknown): boolean {
 
 async function callLlmWithRetry(
   client: ReturnType<typeof getOpenAIClient>,
-  params: Record<string, unknown>,
+  params: Record<string, any>,
   options: { timeout: number },
 ): Promise<Awaited<ReturnType<typeof client.chat.completions.create>>> {
   let lastError: Error | null = null;
@@ -648,12 +699,29 @@ async function runAgentLoopInternal(
         `Ne réponds JAMAIS en français si l'utilisateur écrit dans une autre langue, sauf si l'utilisateur le demande explicitement. ` +
         `Les noms d'outils et commandes techniques restent en anglais, mais tout le texte naturel doit être en ${userLangName}.`;
 
+  // ─── Charger les préférences utilisateur (mémoire long-terme) ───
+  const userPref = await getUserPreferences(message.author.id);
+  void recordInteraction(message.author.id);
+  // Auto-save langue détectée si différente de la préférence stockée
+  if (langDetection.lang !== "fr" && userPref.language !== langDetection.lang) {
+    void setUserLanguage(message.author.id, langDetection.lang);
+  }
+
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
     `\n\n## LANGUE DE RÉPONSE (DÉTECTION AUTO)\n${langInstruction}\n` +
     "Si l'utilisateur change de langue en cours de conversation, adapte-toi immédiatement.\n" +
+    formatPreferencesForPrompt(userPref) +
     "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
-    `Tu as accès à Internet et à plus de ${ALL_AGENT_TOOLS.length} outils couvrant TOUS les domaines.\n\n` +
+    `Tu as accès à Internet et à ${availableTools.length} outils couvrant TOUS les domaines.\n` +
+    "## CAPACITÉS INTERNET\n" +
+    "- **searchWeb** : recherche web en temps réel (Brave Search)\n" +
+    "- **readUrl** : lis et résume n'importe quelle page web\n" +
+    "- **webcheck_scan** : analyse OSINT complète d'un site web (SSL, DNS, WHOIS, ports, tech-stack, menaces)\n" +
+    "- **ip_ping / ip_portscan / dns_lookup** : outils réseau OSINT\n" +
+    "- **searchYouTube / getWikipediaSummary** : recherche sur YouTube et Wikipedia\n" +
+    "- **getWeather / getCryptoPrice** : données en temps réel\n" +
+    "Tu PEUX et DOIS faire des recherches web quand l'utilisateur te demande des informations actuelles.\n\n" +
     getFeedbackHints(message.author.id) +
     (await getCustomInstructions(message.author.id)) +
     "## PROCESSUS DE RAISONNEMENT\n" +
@@ -668,7 +736,7 @@ async function runAgentLoopInternal(
     "[RESPONSE] Ta réponse directe à l'utilisateur\n" +
     "[SUGGESTION] Suggestion proactive ou prochaine action recommandée\n\n" +
     "## TOOLS DISPONIBLES\n" +
-    `Tu as accès à ${ALL_AGENT_TOOLS.length} outils couvrant TOUS les domaines: modération Discord, recherche web, OSINT, sécurité, pentest (Kali Linux), forensique, data science, conversions, gaming, crypto, météo, multimédia, et plus.\n` +
+    `Tu as accès à ${availableTools.length} outils couvrant TOUS les domaines: modération Discord, recherche web, OSINT, sécurité, pentest (Kali Linux), forensique, data science, conversions, gaming, crypto, météo, multimédia, et plus.\n` +
     "La liste complète auto-générée est fournie à la fin de ce prompt — chaque tool y est listé avec sa description.\n" +
     "Utilise le bon tool selon le contexte. Si unsure, searchKnowledge en premier pour les questions techniques.\n\n" +
     "## RÈGLES\n" +
@@ -677,6 +745,7 @@ async function runAgentLoopInternal(
     "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
     "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
     "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
+    "- N'INVENTE JAMAIS de message d'erreur sur la disponibilité des modèles IA (ex: « Tous les modèles IA sont temporairement indisponibles »). Si un tool échoue, utilise un autre tool ou réponds avec les informations dont tu disposes. Ne mentionne JAMAIS de quotas, cooldowns ou indisponibilités de modèles dans ta réponse.\n" +
     "- define_word AUTOMATIQUEMENT quand tu rencontres un mot que tu ne connais pas ou qui semble technique/inhabituel. Ne dis JAMAIS 'je ne connais pas ce mot' — utilise define_word à la place.\n" +
     "\n## ANALYSE D'IMAGES\n" +
     "- Quand le message contient [Image jointe: ...] avec une Description visuelle, UTILISE cette description pour répondre à la question de l'utilisateur.\n" +
@@ -703,155 +772,30 @@ async function runAgentLoopInternal(
     "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
     "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
     "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
-    "\n## RETAILER TRACKING — RECONNAISSANCE D'INTENTION (MULTILINGUE)\n" +
-    "Tu es capable de tracker des produits sur des boutiques revendeurs (Amazon, eBay, Fnac, Cdiscount, etc.).\n" +
-    "Quand un utilisateur te demande de suivre/tracker/pister un produit, UTILISE LES TOOLS retailer (searchSingleRetailer, searchRetailers, trackRetailerProduct, getRetailerDeals, compareProductPrices).\n" +
-    "Toutes les alertes et réponses vont dans le salon 1532189747500421152 + DM à l'utilisateur.\n\n" +
-    "### ⚠️ RÈGLE ABSOLUE — NE JAMAIS AFFICHER DE LIMITATIONS\n" +
-    "- Tu DOIS TOUJOURS appeler les tools retailer quand on te demande de tracker/rechercher un produit.\n" +
-    '- N\'affiche JAMAIS de tableau de "limitations" ou de message disant que tu ne peux pas.\n' +
-    "- Si un tool retourne 0 résultat, dis-le honnêtement mais RECOMMANDE d'essayer sur une autre boutique.\n" +
-    "- Les tools retailer FONCTIONNENT en scraping HTML même sans clé API. UTILISE-LES.\n" +
-    "- Si searchRetailers échoue, essaie searchSingleRetailer sur chaque boutique individuellement.\n" +
-    "- N'invente JAMAIS de limitations. Essaie d'abord, rapporte le résultat après.\n\n" +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (FR)\n" +
-    '- "Track-moi ça" / "Track ça" / "Track ce produit"\n' +
-    '- "Suis-moi ça" / "Suis ce produit" / "Suivre ce produit"\n' +
-    '- "Piste-moi ça" / "Piste ce produit" / "Pister ça"\n' +
-    '- "Surveille ça pour moi" / "Surveille ce produit"\n' +
-    '- "Mets une alerte sur ça" / "Mets une alerte sur ce produit"\n' +
-    '- "Préviens-moi si le prix baisse" / "Préviens-moi quand c\'est en stock"\n' +
-    '- "Ajoute ça à mes suivis" / "Ajoute ce produit"\n' +
-    '- "Je veux suivre ça" / "Je veux tracker ça"\n' +
-    '- "Check le prix de ça" / "Check si c\'est dispo"\n' +
-    '- "Trouve-moi ça sur Amazon" / "Trouve-moi ça sur eBay"\n' +
-    '- "Y\'a une promo sur ça ?" / "Y\'a une ristourne ?" / "Y\'a un deal ?"\n' +
-    '- "Compare le prix de ça" / "Compare ça partout"\n' +
-    '- "Scan mon panier" / "Scan ma capture" / "Regarde mon panier"\n' +
-    '- "Track tout ça" / "Suis tout ce qui est dans l\'image"\n' +
-    '- "Qu\'est-ce qui est dispo ?" / "Quel est le meilleur prix ?"\n\n' +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (EN)\n" +
-    '- "Track this" / "Track this for me" / "Track this product"\n' +
-    '- "Follow this" / "Follow this product" / "Keep an eye on this"\n' +
-    '- "Watch this" / "Watch the price" / "Monitor this"\n' +
-    '- "Alert me on this" / "Set an alert for this"\n' +
-    '- "Add this to my tracked" / "Add this product"\n' +
-    '- "Find this on Amazon" / "Find this on eBay"\n' +
-    '- "Any deals on this?" / "Any discount?" / "Any promotion?"\n' +
-    '- "Compare the price" / "Compare this everywhere"\n' +
-    '- "Scan my cart" / "Scan my screenshot" / "Look at my cart"\n' +
-    '- "Track everything in this image" / "Follow all of these"\n\n' +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (DE)\n" +
-    '- "Verfolge das" / "Verfolge dieses Produkt" / "Track das für mich"\n' +
-    '- "Überwache das" / "Beobachte den Preis" / "Melde mir das"\n' +
-    '- "Finde das auf Amazon" / "Gibt es Rabatt?" / "Gibt es ein Deal?"\n' +
-    '- "Scanne meinen Warenkorb" / "Sieh dir meinen Warenkorb an"\n\n' +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (ES)\n" +
-    '- "Rastrea esto" / "Sigue este producto" / "Rastrea esto para mí"\n' +
-    '- "Vigila esto" / "Avísame del precio" / "Mira mi carrito"\n' +
-    '- "Busca esto en Amazon" / "¿Hay descuento?" / "¿Hay oferta?"\n' +
-    '- "Escanea mi carrito" / "Sigue todo de la imagen"\n\n' +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (IT)\n" +
-    '- "Traccia questo" / "Segui questo prodotto" / "Monitora questo"\n' +
-    '- "Avvisami sul prezzo" / "Cerca su Amazon" / "C\'è uno sconto?"\n' +
-    '- "Scansiona il carrello" / "Guarda il mio carrello"\n\n' +
-    "### VARIANTES DE PHRASES À RECONNAÎTRE (NL)\n" +
-    '- "Volg dit" / "Houd dit in de gaten" / "Track dit voor mij"\n' +
-    '- "Zoek dit op Amazon" / "Is er korting?" / "Scan mijn winkelwagen"\n\n' +
-    "### RÈGLES DE TRACKING\n" +
-    "- Si l'utilisateur envoie une IMAGE (capture de panier, page produit): analyse-la d'abord avec analyzeImageGemini, identifie les produits, puis utilise searchSingleRetailer + trackRetailerProduct pour chaque produit.\n" +
-    "- Si l'utilisateur donne un NOM DE PRODUIT + NOM DE BOUTIQUE: utilise searchSingleRetailer(retailer, productName, country) puis trackRetailerProduct.\n" +
-    "- Si l'utilisateur donne juste un NOM DE PRODUIT sans boutique: utilise searchRetailers (toutes les boutiques) pour trouver le meilleur prix, puis trackRetailerProduct sur la boutique la moins chère.\n" +
-    "- Si l'utilisateur demande une PROMO/DEAL/RISTOURNE: utilise getRetailerDeals(retailer, country) pour vérifier les promotions en cours.\n" +
-    "- Si l'utilisateur demande une COMPARAISON: utilise compareProductPrices(productName, country) pour comparer sur toutes les boutiques.\n" +
-    "- Après chaque tracking, envoie une CONFIRMATION claire avec: nom du produit, image (si dispo), pays avec drapeau, marketplace, prix, stock, ID de tracking.\n" +
-    "- Les noms de produits restent dans leur langue d'origine (ne traduis PAS les noms de produits).\n" +
-    "- Réponds dans la langue de l'utilisateur.\n" +
-    "\n## DÉLÉGATION INTELLIGENTE (ORCHESTRATEUR)\n" +
-    "- Tu es le chef d'orchestre. Tu reçois TOUTES les demandes en premier.\n" +
-    "- Pour les tâches SIMPLES (salut, traduction, météo, question factuelle): réponds DIRECTEMENT, ne délègue pas.\n" +
-    "- Pour les tâches COMPLEXES (code, analyse technique, raisonnement long, comparaison, image+question): utilise delegateToExpert.\n" +
-    "- tier='small' pour les sous-tâches simples que tu ne peux pas faire (ex: traduction spécialisée).\n" +
-    "- tier='medium' pour le raisonnement modéré (ex: analyse de texte, résumé complexe).\n" +
-    "- tier='large' pour les tâches difficiles (ex: code complexe, analyse d'image technique, résolution de problème).\n" +
-    "- Après réception du résultat expert, SYNTHÉTISE-le dans la langue de l'utilisateur. Ne recopie pas brut.\n" +
-    "- Tu peux appeler delegateToExpert PLUSIEURS FOIS pour diviser une tâche complexe en sous-tâches.\n" +
-    "\n## COMMANDES SLASH DU BOT (CONNAISSANCE COMPLÈTE)\n" +
-    "Le bot dispose de nombreuses commandes slash que les utilisateurs peuvent utiliser directement. " +
-    "Quand un utilisateur te demande ce que le bot peut faire, ou cherche une fonctionnalité, oriente-le vers la bonne commande.\n\n" +
-    "### MODÉRATION & SÉCURITÉ\n" +
-    "- `/mod` — Modération: warn, kick, ban, mute, timeout, clear, purge, history, nuke, snipe, config\n" +
-    "- `/security` — Sécurité: osint, audit, shadow, config, antiraid, verif, blacklist\n" +
-    "- `/modadmin` — Admin modération avancée: mass-move, voice-kick, raid-shield, ban-log, behavior-timeline, alt-link\n" +
-    "- `/alert` — Alertes: rules, ack, digest, test, alertcenter, alertconfig\n" +
-    "- `/casier` — Casier judiciaire: view, clear (aussi via clic droit sur un utilisateur)\n" +
-    "- `/killswitch` — Arrêt d'urgence du bot (admin only)\n\n" +
-    "### IA & ASSISTANT\n" +
-    "- `/ai` — IA: chat, image (génération/analyse), translate, config, channel-summary, suggest, mood\n" +
-    "- Tu ES l'agent IA — les utilisateurs peuvent aussi juste te @mentionner ou t'envoyer un DM\n\n" +
-    "### GAMING\n" +
-    "- `/game` — Gaming: track, news, free-games, steam, deals, price-compare, price-track, wishlist, boutique\n" +
-    "- `/fnbot` — Fortnite Party Bot: login, status, cosmetics, shop\n" +
-    "- `/mc` — Minecraft Bedrock Bot: start, stop, status, players\n" +
-    "- `/game2` — Gaming étendu: xbox, twitch, psn, profile\n" +
-    "- `/track` — Tracking de jeux: track-game, untrack-game, list-tracked\n" +
-    "- `/releases` — Calendrier des sorties de jeux à venir\n" +
-    "- `/trending` — Jeux les plus attendus\n" +
-    "- `/gameupdates` — Mises à jour Steam news\n" +
-    "- `/stream` — Contrôle Go Live\n\n" +
-    "### RETAILER TRACKING (SUIVI DE PRODUITS)\n" +
-    "- `/track-retailer` — Suivi produits revendeurs: add, scan, remove, list, search\n" +
-    "- Revendeurs supportés: Amazon, eBay, Fnac, Cdiscount, etc.\n" +
-    "- Alertes automatiques: prix, restock, promotions\n" +
-    "- Fonctionne en DM ET sur serveur\n\n" +
-    "### COMMUNAUTÉ & FUN\n" +
-    "- `/community` — Communauté: profile, member-count, roles, birthday-config\n" +
-    "- `/fun` — Fun: poll, joke, meme, dog, trivia, quote, advice, fortune, roast, compliment\n" +
-    "- `/music` — Musique: play, stop, pause, skip, queue, volume, radio\n" +
-    "- `/tools` — Outils: recherche, mp3, tts, vocal, embed-builder, screenshot, qr-code\n\n" +
-    "### GESTION & CONFIG\n" +
-    "- `/admin` — Admin: config, database, roles, permissions, backup, maintenance, broadcast, dm\n" +
-    "- `/bot` — Bot: help, status, uptime, dashboard, restart, hotreload, debug, bot-health\n" +
-    "- `/manage` — Gestion: roles, channels, emojis, autothread, customcmd\n" +
-    "- `/config` — Configuration du bot (guild-specific)\n" +
-    "- `/sources` — Sources RSS/Reddit: add, remove, list, health, rss-test\n" +
-    "- `/ticket` — Système de tickets: setup, close, transcript\n" +
-    "- `/autothread` — Threads automatiques\n" +
-    "- `/customcmd` — Commandes personnalisées\n" +
-    "- `/follow` — Suivi réseaux sociaux (YouTube, Twitter, etc.)\n\n" +
-    "### UTILITAIRES\n" +
-    "- `/help` — Aide générale\n" +
-    "- `/commands` — Liste des commandes\n" +
-    "- `/stats` — Statistiques du bot\n" +
-    "- `/privacy` — RGPD: suppression de données\n" +
-    "- `/debug` — Debug: api-status, bot-health, healthz\n\n" +
-    "### CONTEXT MENUS (clic droit)\n" +
-    "- 👤 Voir profil — Profil complet d'un utilisateur\n" +
-    "- 📋 Voir casier — Casier judiciaire\n" +
-    "- 🤖 Analyser IA — Analyse IA d'un utilisateur\n" +
-    "- ⚠️ Risque score — Score de risque\n" +
-    "- 🚩 Signaler — Signalement\n" +
-    "- 🌐 Traduire — Traduction d'un message\n" +
-    "- 📊 Analyser sentiment — Analyse de sentiment\n" +
-    "- 📦 Extraire — Extraction de contenu\n" +
-    "- 🔍 Snipe — Messages supprimés\n\n" +
-    "### FONCTIONNALITÉS AUTOMATIQUES (sans commande)\n" +
-    "- Surveillance YouTube/Twitter/Reddit en continu\n" +
-    "- Alertes de sécurité automatiques (anti-raid, spam detection)\n" +
-    "- Scraping de flux RSS et deals gaming\n" +
-    "- Agent IA autonome (toi) qui répond aux @mentions et DMs\n" +
-    "- Voice agent (surveillance vocale)\n" +
-    "- Personality engine (John Helldiver)\n" +
-    "- Circuit breaker (protection contre les pannes)\n" +
-    "- Memory system (mémoire long terme des interactions)\n\n" +
-    "### UTILISATION EN DM\n" +
-    "- TOUTES les commandes slash fonctionnent en DM (message privé avec le bot)\n" +
-    "- Les restrictions de permissions serveur ne s'appliquent pas en DM\n" +
-    "- Les alertes retailer sont envoyées en DM en plus du salon d'alertes\n" +
-    "- Les tools restreints (SSH, Docker, Kali) sont disponibles en DM (non en public)\n" +
-    "- L'utilisateur peut te parler directement en DM sans @mention\n\n" +
-    "\n## LISTE COMPLÈTE DES TOOLS DISPONIBLES (auto-générée)\n" +
-    generateToolListPrompt(ALL_AGENT_TOOLS) +
+    "\n## RETAILER TRACKING\n" +
+    "Quand l'utilisateur demande de tracker/suivre/pister un produit, UTILISE les tools retailer (searchRetailers, trackRetailerProduct, etc.).\n" +
+    "Reconnais l'intention en FR/EN/DE/ES/IT/NL: track, suivre, pister, surveiller, alerte, promo, deal, comparer, panier.\n" +
+    "- Image (panier/produit): analyse avec analyzeImageGemini → searchSingleRetailer + trackRetailerProduct.\n" +
+    "- Produit + boutique: searchSingleRetailer(retailer, productName, country) → trackRetailerProduct.\n" +
+    "- Produit seul: searchRetailers (toutes boutiques) → trackRetailerProduct sur le moins cher.\n" +
+    "- Promo/deal: getRetailerDeals(retailer, country). Comparaison: compareProductPrices(productName, country).\n" +
+    "- JAMAIS de message de limitation. Essaie d'abord, rapporte après. Réponds dans la langue de l'utilisateur.\n" +
+    "\n## DÉLÉGATION INTELLIGENTE\n" +
+    "- Tâches SIMPLES: réponds DIRECTEMENT.\n" +
+    "- Tâches COMPLEXES (code, analyse, image+question): utilise delegateToExpert (tier='small|medium|large').\n" +
+    "- Synthétise le résultat expert dans la langue de l'utilisateur.\n" +
+    "\n## COMMANDES SLASH PRINCIPALES\n" +
+    "Modération: /mod, /security, /casier, /alert, /killswitch\n" +
+    "IA: /chat, /aichat, /smartpoll (ou @mention directe)\n" +
+    "Gaming: /game, /mc, /mcmenu, /fnbot, /track, /releases, /stream\n" +
+    "Retailer: /track-retailer (add, scan, list, search)\n" +
+    "Fun: /fun, /music, /community\n" +
+    "Admin: /admin, /bot, /manage, /config, /ticket\n" +
+    "Utils: /help, /stats, /privacy, /debug\n" +
+    "Context menus: clic droit → profil, casier, analyser IA, risque, signaler, traduire, sentiment\n" +
+    "DM: toutes les commandes fonctionnent en DM. Tools restreints (SSH, Docker, Kali) en DM seulement.\n" +
+    "\n## LISTE DES TOOLS DISPONIBLES (auto-générée)\n" +
+    generateToolListPrompt(availableTools) +
     "\n\n" +
     (longTermMemory ? longTermMemory : "") +
     memoryPrompt +
@@ -866,8 +810,28 @@ async function runAgentLoopInternal(
       return "\n## Enchaînement suggéré: " + chains.map((c) => c.join(" → ")).join(" | ") + "\n";
     })();
 
+  // ─── Tool prefetch: pré-exécuter les tools évidents (météo, crypto, NASA) ───
+  let prefetchContext = "";
+  const prefetchTarget = detectPrefetchableTool(userMessage);
+  if (prefetchTarget) {
+    try {
+      const { executeTool } = await import("./agentTools.js");
+      const prefetchResult = await executeTool(prefetchTarget.toolName, prefetchTarget.args, {
+        client: message.client,
+        guildId: message.guildId ?? "",
+        userId: message.author.id,
+        channelId: message.channelId,
+        message,
+      });
+      prefetchContext = `\n## RÉSULTAT PRÉ-EXÉCUTÉ (${prefetchTarget.toolName})\n${formatPrefetchResult(prefetchTarget.toolName, prefetchResult.data || JSON.stringify(prefetchResult))}\nTu n'as PAS besoin de rappeler ce tool — utilise directement ce résultat.\n`;
+      logger.info(`[Prefetch] ✅ ${prefetchTarget.toolName} pré-exécuté avec succès`);
+    } catch (err) {
+      logger.debug(`[Prefetch] ❌ Échec ${prefetchTarget.toolName}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   let conversation: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: systemPrompt + prefetchContext },
     ...channelHistory,
     { role: "user", content: `${message.author.username}: ${userMessage}` },
   ];
@@ -982,7 +946,7 @@ async function runAgentLoopInternal(
     ];
     let effectiveModels = modelsToTry;
     // Keep failover bounded but try enough models — we have 8+ NVIDIA models available
-    let maxModelAttempts = 6;
+    let maxModelAttempts = 4;
     // Compute skipLocalForRetailer early (needed before local LLM attempt)
     const lowerUserMsgEarly = userMessage.toLowerCase();
     const needsRetailerToolsEarly =
@@ -1045,119 +1009,69 @@ async function runAgentLoopInternal(
     // ─── Circuit breaker safety net: if all models are in cooldown, reset them ───
     ensureAtLeastOneModelAvailable();
 
-    // ─── Étape 0: LLM local (Ollama/qwen2.5:14b) — PRIORITÉ ABSOLUE ───
-    // qwen2.5:14b est le chef d'orchestre pour TOUT: texte, images, code, tools retailer, etc.
-    // 14B gère bien le function calling complexe.
-    //
-    // NOTE: Si le modèle local est qwen2.5:3b (config ancienne), les tâches retailer
-    // seront gérées par les modèles API car le 3B est trop petit.
-    // La détection se fait via LOCAL_LLM_MODEL dans .env (qwen2.5:14b par défaut).
+    // ─── Étape 0: LLM local (Ollama/qwen2.5) — chat simple uniquement ───
+    // Qwen 3B/7B: gère le chat simple en local (rapide, gratuit).
+    // Toute tâche avec tools → API cloud 70B (NVIDIA NIM / Groq) pour qualité.
     // skipLocalForRetailer already computed above
 
     const canUseLocalForImages = imageUrls.length === 0 || isLocalLlmVisionAvailable();
-    if (isLocalLlmAvailable() && !skipLocalForRetailer && canUseLocalForImages) {
+
+    // ─── Mode hybride: petits modèles (3B/7B) = chat simple uniquement ───
+    // Qwen 3B/7B gère le chat simple (salut, questions générales) en local.
+    // Toute tâche avec tools → skip direct vers API cloud (70B) pour qualité.
+    const isSmallLocalModel =
+      LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
+    const skipLocalForAnyTools = isSmallLocalModel && availableTools.length > 0;
+
+    if (isLocalLlmAvailable() && !skipLocalForRetailer && !skipLocalForAnyTools && canUseLocalForImages) {
       logger.info(
-        `[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (complexité: ${taskComplexity}, tools: ${availableTools.length})`,
+        `[AgentLoop] 🏠 Tentative LLM local: ${LOCAL_LLM_MODEL_NAME} (chat simple, sans tools)`,
       );
 
       try {
-        if (availableTools.length > 0) {
-          // Tâche avec tools — le 14B gère le function calling
-          const localResult = await chatWithLocalLlmTools(
-            buildProviderConversation(conversation, imageUrls),
-            availableTools,
-            {
-              maxTokens: getPersonalityMaxTokens(),
-              temperature: getPersonalityTemperature(),
-              timeoutMs: 20_000,
-              model: imageUrls.length > 0 ? getLocalLlmVisionModelName() || undefined : undefined,
-            },
+        // Chat simple sans tools — le local est parfait pour ça
+        const localText = await chatWithLocalLlm(
+          buildProviderConversation(conversation, imageUrls),
+          {
+            maxTokens: getPersonalityMaxTokens(),
+            temperature: getPersonalityTemperature(),
+            timeoutMs: 12_000,
+            model: imageUrls.length > 0 ? getLocalLlmVisionModelName() || undefined : undefined,
+          },
+        );
+        if (localText && localText.length > 2) {
+          response = {
+            choices: [
+              {
+                message: { role: "assistant", content: localText },
+                finish_reason: "stop",
+              },
+            ],
+          } as never;
+          logger.info(
+            `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`,
           );
-          if (localResult) {
-            if (localResult.toolCalls && localResult.toolCalls.length > 0) {
-              response = {
-                choices: [
-                  {
-                    message: {
-                      role: "assistant",
-                      content: localResult.text || "",
-                      tool_calls: localResult.toolCalls as never,
-                    },
-                    finish_reason: "tool_calls",
-                  },
-                ],
-              } as never;
-              logger.info(
-                `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (tools) — ${localResult.toolCalls.length} tool call(s)`,
-              );
-              continue; // Passer à l'exécution des tools
-            } else if (localResult.text && localResult.text.length > 5) {
-              response = {
-                choices: [
-                  {
-                    message: { role: "assistant", content: localResult.text },
-                    finish_reason: "stop",
-                  },
-                ],
-              } as never;
-              logger.info(
-                `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (texte, ${localResult.text.length} chars) — API économisée`,
-              );
-              recordLocalLlm();
-              break;
-            }
-            // Réponse vide/courte — fallback vers API
-            logger.warn(
-              `[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} réponse insuffisante — fallback API`,
-            );
-          } else {
-            logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} retour null — fallback API`);
-          }
-        } else {
-          // Pas de tools — chat simple, le local est parfait pour ça
-          const localText = await chatWithLocalLlm(
-            buildProviderConversation(conversation, imageUrls),
-            {
-              maxTokens: getPersonalityMaxTokens(),
-              temperature: getPersonalityTemperature(),
-              timeoutMs: 12_000,
-              model: imageUrls.length > 0 ? getLocalLlmVisionModelName() || undefined : undefined,
-            },
-          );
-          if (localText && localText.length > 2) {
-            response = {
-              choices: [
-                {
-                  message: { role: "assistant", content: localText },
-                  finish_reason: "stop",
-                },
-              ],
-            } as never;
-            logger.info(
-              `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`,
-            );
-            recordLocalLlm();
-            break;
-          }
-          logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
+          recordLocalLlm();
+          break;
         }
+        logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
       } catch (localErr) {
-        // Do not retry a timed-out local request with tools removed: that can
-        // produce a plausible but incorrect answer and delays API failover.
         const isTimeout = localErr instanceof Error && localErr.message.includes("timeout");
         logger.warn(
           `[AgentLoop] ❌ LLM local ${isTimeout ? "timeout" : "échec"} — fallback API immédiat: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
         );
       }
+    } else if (skipLocalForAnyTools) {
+      logger.info(
+        `[AgentLoop] 🏠⏭️ LLM local skippé (${availableTools.length} tools nécessaires) — API cloud 70B pour tools`,
+      );
     } else if (imageUrls.length > 0 && !canUseLocalForImages) {
       logger.info(`[AgentLoop] 👁️ Vision locale indisponible — passage au provider vision/API`);
     } else if (skipLocalForRetailer) {
-      // Local LLM skippé pour tâche retailer — on va directement aux API models
       logger.info(
         `[AgentLoop] 🏠⏭️ LLM local skippé (retailer tools nécessaires) — utilisation API directement`,
       );
     } else {
-      // Ollama non disponible — on log et on passe directement aux API
       logger.info(`[AgentLoop] 🏠 LLM local non disponible — utilisation API directement`);
     }
 
@@ -1187,13 +1101,13 @@ async function runAgentLoopInternal(
           {
             model: modelName,
             messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: availableTools as never,
+            tools: compactTools(availableTools) as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
             parallel_tool_calls: true,
             stream: false,
           },
-          { timeout: 8_000 },
+          { timeout: 30_000 },
         );
         markModelSuccess(modelName);
         recordModelLatency(modelName, Date.now() - modelStartedAt);
@@ -1209,7 +1123,9 @@ async function runAgentLoopInternal(
         const isInvalidModel =
           /\b(400|402|404)\b/.test(lowerError) ||
           lowerError.includes("is not a valid model") ||
-          lowerError.includes("more credits");
+          lowerError.includes("more credits") ||
+          lowerError.includes("page not found") ||
+          lowerError.includes("maximum number of items");
         if (!isInvalidModel) {
           markModelFailure(modelName, isRateLimit);
         }
@@ -1229,17 +1145,25 @@ async function runAgentLoopInternal(
           `[AgentLoop] Tous modèles OpenRouter épuisés — fallback Groq (${config.groqModel})`,
         );
         const groqClient = getGroqClient()!;
+        // Groq free tier: 8K TPM — on réduit drastiquement les tools et le contexte
+        const groqTools = compactTools(availableTools).slice(0, 40);
+        const groqConversation = buildProviderConversation(conversation, imageUrls);
+        // Garder seulement le system prompt + dernier message user pour Groq
+        const lightConversation = [
+          groqConversation[0], // system
+          ...groqConversation.slice(-2), // derniers messages
+        ];
         response = await groqClient.chat.completions.create(
           {
             model: config.groqModel,
-            messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: availableTools as never,
+            messages: lightConversation as never,
+            tools: groqTools as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
             parallel_tool_calls: true,
             stream: false,
           } as never,
-          { timeout: 15_000 } as never,
+          { timeout: 20_000 } as never,
         );
         logger.info(`[AgentLoop] ✅ Groq fallback réussi`);
       } catch (groqErr) {
@@ -1258,7 +1182,7 @@ async function runAgentLoopInternal(
           {
             model: getCerebrasModel(),
             messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: availableTools as never,
+            tools: compactTools(availableTools) as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
             parallel_tool_calls: true,
@@ -1284,7 +1208,7 @@ async function runAgentLoopInternal(
           {
             model: getSambaNovaModel(),
             messages: buildProviderConversation(conversation, imageUrls) as never,
-            tools: availableTools as never,
+            tools: compactTools(availableTools) as never,
             max_tokens: getPersonalityMaxTokens(),
             temperature: getPersonalityTemperature(),
             parallel_tool_calls: true,
@@ -1306,7 +1230,9 @@ async function runAgentLoopInternal(
         logger.warn(`[AgentLoop] Tous modèles épuisés — fallback Gemini (texte seul, sans tools)`);
         const geminiReply = await chatWithGemini(
           config.aiSystemPrompt +
-            "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
+            "\n\nTu es John Helldiver, un agent IA sur Discord. Tu as accès à Internet via des outils de recherche (searchWeb, readUrl, etc.). " +
+            "Réponds dans la langue du message reçu. Sois concis et naturel. " +
+            "Si tu ne peux pas utiliser un outil maintenant, explique ce que tu ferais avec.",
           userMessage,
           800,
         );
@@ -1323,25 +1249,46 @@ async function runAgentLoopInternal(
       }
     }
 
-    // ─── Étape 3: Tous les fallbacks ont échoué ───
+    // ─── Étape 3: Tous les fallbacks ont échoué — retry après 5s ───
     if (!response) {
+      // Retry automatique après un court délai si c'est un rate-limit ou timeout
+      const isRetryable =
+        lastErrMsg.includes("429") ||
+        lastErrMsg.includes("rate") ||
+        lastErrMsg.includes("timeout") ||
+        lastErrMsg.includes("503") ||
+        lastErrMsg.includes("overloaded");
+
+      if (isRetryable && iteration < maxIterations - 1) {
+        logger.warn(`[AgentLoop] ⏳ Retry automatique dans 5s (tous les providers ont échoué)`);
+        await new Promise((r) => setTimeout(r, 5000));
+        ensureAtLeastOneModelAvailable();
+        continue; // Continue l'agent loop au lieu de retourner une erreur
+      }
+
       completeInteraction(breakerState);
       if (lastErrMsg.includes("429") || lastErrMsg.includes("rate")) {
-        return "Le serveur IA est sous forte charge en ce moment, soldat. Réessaie dans quelques secondes.";
+        return "⏳ Les serveurs IA sont saturés en ce moment. Réessaie dans 30 secondes.";
+      }
+      if (lastErrMsg.includes("413") || lastErrMsg.includes("too large")) {
+        return "⚠️ Requête trop volumineuse pour les serveurs gratuits. Essaie une question plus courte ou reformule.";
+      }
+      if (lastErrMsg.includes("403") || lastErrMsg.includes("PERMISSION_DENIED")) {
+        return "🔑 Problème de configuration API côté serveur. Contacte l'admin.";
       }
       if (
         lastErrMsg.includes("timeout") ||
         lastErrMsg.includes("ECONNRESET") ||
         lastErrMsg.includes("fetch")
       ) {
-        return "Problème de communication avec le serveur IA. La liaison a été perdue — réessaie ta demande.";
+        return "📡 Problème de connexion au serveur IA. Réessaie ta demande.";
       }
-      return "Le serveur IA a rencontré un problème temporaire. Réessaie ta demande, soldat.";
+      return "⚠️ Problème technique temporaire. Réessaie ta demande.";
     }
 
     const choice = (
       response as {
-        choices: Array<{ message: { content: string | null; tool_calls?: unknown[] } }>;
+        choices: Array<{ message: { content: string | null; tool_calls?: any[] } }>;
       }
     ).choices[0];
     if (!choice) break;
@@ -1409,9 +1356,7 @@ async function runAgentLoopInternal(
       // First iteration — just record the thought without stasis check
       try {
         await checkCognitiveStasis(cognitiveSessionId, iteration, thoughtContent);
-      } catch {
-        // Silent — never crash the loop
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
 
     // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
@@ -1486,7 +1431,7 @@ async function runAgentLoopInternal(
       toolCalls.map(async (toolCall) => {
         const tc = toolCall;
         const toolName = tc.function.name;
-        let args: Record<string, unknown> = {};
+        let args: Record<string, any> = {};
 
         try {
           args = JSON.parse(tc.function.arguments || "{}");
@@ -1512,7 +1457,7 @@ async function runAgentLoopInternal(
           } else {
             // ─── Tool result cache: skip API call if cached result is fresh ───
             if (isToolCacheable(toolName)) {
-              const cached = getCachedToolResult(toolName, args);
+              const cached = await getCachedToolResult(toolName, args);
               if (cached !== null) {
                 logger.info(`[AgentLoop] 📦 Tool cache hit: ${toolName}`);
                 result = { success: true, data: cached };
@@ -1557,7 +1502,7 @@ async function runAgentLoopInternal(
                   agentToolCalls.labels(toolName, "success").inc();
                   agentToolCallsDaily.labels(toolName).inc();
                   if (isToolCacheable(toolName)) {
-                    setCachedToolResult(toolName, args, result.data);
+                    void setCachedToolResult(toolName, args, result.data);
                   }
                 } else {
                   recordToolFailure(toolName);

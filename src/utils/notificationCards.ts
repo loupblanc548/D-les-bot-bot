@@ -90,9 +90,7 @@ async function loadFont(): Promise<Buffer> {
         fontData = Buffer.from(await response.arrayBuffer());
         return fontData;
       }
-    } catch {
-      // Ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
     // Dernier recours : buffer vide (satori utilisera une police par défaut)
     logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
     fontData = Buffer.alloc(0);
@@ -123,7 +121,7 @@ interface SatoriNode {
   props: {
     style?: Record<string, string | number>;
     children?: SatoriNode | SatoriNode[] | string;
-    [key: string]: unknown;
+    [key: string]: any;
   };
 }
 
@@ -743,7 +741,7 @@ function fortniteCosmeticCard(data: CardData): SatoriNode {
               justifyContent: "center",
               backgroundImage: data.imageUrl
                 ? `url(${data.imageUrl})`
-                : (undefined as unknown as string),
+                : (undefined as any as string),
               backgroundSize: "contain",
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",

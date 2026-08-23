@@ -152,7 +152,7 @@ export async function getGameById(id: number): Promise<IgdbGame | null> {
 
     if (!res.ok) return null;
 
-    const data = (await res.json()) as Array<Record<string, unknown>>;
+    const data = (await res.json()) as Array<Record<string, any>>;
     if (!data.length) return null;
 
     const games = await searchGame(String(data[0].name), 1);

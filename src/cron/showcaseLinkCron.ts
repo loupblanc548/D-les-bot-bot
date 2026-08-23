@@ -38,9 +38,7 @@ async function postShowcaseLink(client: Client): Promise<void> {
         const oldMsg = await (channel as any).messages?.fetch(lastMessageId);
         if (oldMsg) await oldMsg.delete();
         logger.debug("[ShowcaseLink] Ancien message supprimé");
-      } catch {
-        // Message already deleted or not found
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
 
     const embed = new EmbedBuilder()

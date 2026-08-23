@@ -31,9 +31,7 @@ export async function removeBackground(
         return { resultUrl: dataUrl, creditsUsed: 0 };
       }
     }
-  } catch {
-    // Colab unavailable — continue to remove.bg API
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   if (!REMOVEBG_API_KEY) {
     logger.debug("[RemoveBg] API key not configured");

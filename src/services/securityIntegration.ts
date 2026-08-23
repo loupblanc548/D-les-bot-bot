@@ -408,13 +408,13 @@ export function startSecurityIntegration(_client: Client): void {
 
   // Ingest les logs globaux
   const originalLog = console.log;
-  console.log = (...args: unknown[]) => {
+  console.log = (...args: any[]) => {
     originalLog(...args);
     ingestBotLog("info", "console", args.join(" "));
   };
 
   const originalError = console.error;
-  console.error = (...args: unknown[]) => {
+  console.error = (...args: any[]) => {
     originalError(...args);
     ingestBotLog("error", "console", args.join(" "));
   };

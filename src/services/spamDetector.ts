@@ -12,7 +12,7 @@ const MAX_SCORE_ENTRIES = 5000;
 const RECENT: Map<string, MsgRecord[]> = new Map();
 const SCORES: Map<string, { score: number; lastUpdate: number }> = new Map();
 
-function evictOldest(map: Map<string, unknown>, max: number): void {
+function evictOldest(map: Map<string, any>, max: number): void {
   if (map.size >= max) {
     const firstKey = map.keys().next().value;
     if (firstKey !== undefined) map.delete(firstKey);

@@ -135,9 +135,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
             try {
               await msg.delete();
               totalDeleted++;
-            } catch {
-              // Ignore individual delete errors
-            }
+            } catch { logger.error("[Silent catch]"); }
           }
         }
       }
@@ -147,9 +145,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
         try {
           await channel.messages.delete(toDelete[0]);
           totalDeleted++;
-        } catch {
-          // Ignore
-        }
+        } catch { logger.error("[Silent catch]"); }
       } else if (toDelete.length > 1) {
         try {
           const deleted = await channel.bulkDelete(toDelete, true);
@@ -161,9 +157,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
             try {
               await channel.messages.delete(id);
               totalDeleted++;
-            } catch {
-              // Ignore
-            }
+            } catch { logger.error("[Silent catch]"); }
           }
         }
       }

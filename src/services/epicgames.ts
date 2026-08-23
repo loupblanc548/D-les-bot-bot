@@ -124,9 +124,7 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
           },
         });
         newGames.push(game);
-      } catch {
-        // Doublon (race condition) — skip silencieux
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
 
     if (newGames.length > 0) {
@@ -184,9 +182,7 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
                   match.gameUrl,
               );
             }
-          } catch (_dmErr) {
-            // Silencieux : DMs fermés ou utilisateur introuvable
-          }
+          } catch (_dmErr) { logger.error("[Silent catch]", _dmErr); }
         }
       }
     }

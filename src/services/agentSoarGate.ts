@@ -40,7 +40,7 @@ export function setSoarGateClient(client: Client): void {
 
 interface PendingToolApproval {
   toolName: string;
-  args: Record<string, unknown>;
+  args: Record<string, any>;
   resolve: (approved: boolean) => void;
   dmMessage: Message | null;
   timeoutHandle: NodeJS.Timeout;
@@ -73,7 +73,7 @@ export function isRestrictedTool(toolName: string): boolean {
  */
 export async function requestToolApproval(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<boolean> {
   if (!discordClient || !ADMIN_DISCORD_ID) {
@@ -192,9 +192,7 @@ export async function handleSoarToolInteraction(
         .setColor(isApproved ? 0x00ff00 : 0xff0000)
         .setTitle(isApproved ? "✅ [SOAR GATE — AUTORISÉ]" : "❌ [SOAR GATE — REJETÉ]");
       await pending.dmMessage.edit({ embeds: [updatedEmbed], components: [] });
-    } catch {
-      // non-fatal
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   pending.resolve(isApproved);

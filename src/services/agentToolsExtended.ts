@@ -6789,7 +6789,7 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
 
 export async function executeExtendedTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsExt] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
@@ -7382,7 +7382,7 @@ async function tGetCatImage(): Promise<ToolCallResult> {
 
 // ─── Info & Reference ────────────────────────────────────────────────────────
 
-async function tGetCountryInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetCountryInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country);
   const ck = `country:${country.toLowerCase()}`;
   const cached = getCache(ck);
@@ -7424,7 +7424,7 @@ async function tGetCountryInfo(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tGetCurrencyRate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetCurrencyRate(args: Record<string, any>): Promise<ToolCallResult> {
   const amount = Number(args.amount);
   const from = String(args.from).toUpperCase();
   const to = String(args.to).toUpperCase();
@@ -7451,7 +7451,7 @@ async function tGetCurrencyRate(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tGetDateTime(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetDateTime(args: Record<string, any>): Promise<ToolCallResult> {
   const tz = String(args.timezone);
   try {
     const res = await fetchRetry(
@@ -7471,7 +7471,7 @@ async function tGetDateTime(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tGetIpInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetIpInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   try {
     const res = await fetchRetry(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
@@ -7507,7 +7507,7 @@ async function tGetIpInfo(args: Record<string, unknown>): Promise<ToolCallResult
 
 // ─── Finance ─────────────────────────────────────────────────────────────────
 
-async function tGetStockPrice(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetStockPrice(args: Record<string, any>): Promise<ToolCallResult> {
   const symbol = String(args.symbol).toUpperCase();
   const ck = `stock:${symbol}`;
   const cached = getCache(ck);
@@ -7540,7 +7540,7 @@ async function tGetStockPrice(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Social & Content ────────────────────────────────────────────────────────
 
-async function tGetRedditPosts(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetRedditPosts(args: Record<string, any>): Promise<ToolCallResult> {
   const subreddit = String(args.subreddit).replace(/^r\//, "");
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
   const ck = `reddit:${subreddit}:${limit}`;
@@ -7585,7 +7585,7 @@ async function tGetRedditPosts(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tGetUrbanDict(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetUrbanDict(args: Record<string, any>): Promise<ToolCallResult> {
   const term = String(args.term);
   try {
     const res = await fetchRetry(
@@ -7615,7 +7615,7 @@ async function tGetUrbanDict(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── Books & Science ─────────────────────────────────────────────────────────
 
-async function tGetBookInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetBookInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   try {
     const res = await fetchRetry(
@@ -7684,7 +7684,7 @@ async function tGetNasaApod(): Promise<ToolCallResult> {
 
 // ─── Gaming ──────────────────────────────────────────────────────────────────
 
-async function tGetPokemon(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetPokemon(args: Record<string, any>): Promise<ToolCallResult> {
   const name = String(args.name).toLowerCase();
   const ck = `pokemon:${name}`;
   const cached = getCache(ck);
@@ -7721,7 +7721,7 @@ async function tGetPokemon(args: Record<string, unknown>): Promise<ToolCallResul
   }
 }
 
-async function tGetSteamGame(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetSteamGame(args: Record<string, any>): Promise<ToolCallResult> {
   const appid = Number(args.appid);
   const ck = `steam:${appid}`;
   const cached = getCache(ck);
@@ -7778,7 +7778,7 @@ async function tGetSteamDeals(): Promise<ToolCallResult> {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
     if (!res.ok) return { success: false, data: "Steam API indisponible" };
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, any>;
     const specials = data.specials as
       | {
           items: Array<{
@@ -7811,7 +7811,7 @@ async function tGetSteamDeals(): Promise<ToolCallResult> {
   }
 }
 
-async function tGetGameNews(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetGameNews(args: Record<string, any>): Promise<ToolCallResult> {
   const appid = Number(args.appid);
   const count = Math.min(Number(args.count) || 5, 20);
   try {
@@ -7846,7 +7846,7 @@ async function tGetGameNews(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tGetSpeedrunRecord(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetSpeedrunRecord(args: Record<string, any>): Promise<ToolCallResult> {
   const game = String(args.game).toLowerCase().trim();
   try {
     const res = await fetchRetry(
@@ -7904,7 +7904,7 @@ async function tGetSpeedrunRecord(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetGameReleases(args: Record<string, any>): Promise<ToolCallResult> {
   const platform = String(args.platform || "all").toLowerCase();
   const count = Math.min(Number(args.count) || 10, 20);
   const clientId = process.env.IGDB_CLIENT_ID;
@@ -7967,7 +7967,7 @@ async function tGetGameReleases(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tGetSteamPlayerCount(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetSteamPlayerCount(args: Record<string, any>): Promise<ToolCallResult> {
   const appid = Number(args.appid);
   try {
     const res = await fetchRetry(
@@ -7993,7 +7993,7 @@ async function tGetSteamPlayerCount(args: Record<string, unknown>): Promise<Tool
 
 // ─── Utilities Advanced ──────────────────────────────────────────────────────
 
-async function tGeneratePassword(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGeneratePassword(args: Record<string, any>): Promise<ToolCallResult> {
   const length = Math.min(Number(args.length) || 16, 64);
   const useSymbols = args.symbols !== false;
   const useNumbers = args.numbers !== false;
@@ -8017,7 +8017,7 @@ async function tGeneratePassword(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function tSolveMath(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSolveMath(args: Record<string, any>): Promise<ToolCallResult> {
   const expr = String(args.expression).replace(/[^0-9+\-*/().^a-z\s,]/gi, "");
   const safe = expr
     .replace(/\^/g, "**")
@@ -8045,7 +8045,7 @@ async function tSolveMath(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tDnsLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain)
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "");
@@ -8077,7 +8077,7 @@ async function tDnsLookup(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tGetHttpStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetHttpStatus(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   const ssrfCheck = await checkUrlForSsrf(url, "tGetHttpStatus");
   if (!ssrfCheck.allowed)
@@ -8111,7 +8111,7 @@ async function tGetHttpStatus(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tTestRegex(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTestRegex(args: Record<string, any>): Promise<ToolCallResult> {
   const pattern = String(args.pattern);
   const text = String(args.text);
   const flags = String(args.flags || "g");
@@ -8145,7 +8145,7 @@ async function tTestRegex(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function tConvertUnits(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tConvertUnits(args: Record<string, any>): Promise<ToolCallResult> {
   const value = Number(args.value);
   const from = String(args.from).toLowerCase();
   const to = String(args.to).toLowerCase();
@@ -8230,7 +8230,7 @@ async function tConvertUnits(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tGetColorInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetColorInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.color).trim();
   let r: number, g: number, b: number;
   if (input.startsWith("#")) {
@@ -8289,7 +8289,7 @@ async function tGetColorInfo(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tGetRandomFact(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetRandomFact(args: Record<string, any>): Promise<ToolCallResult> {
   const type = String(args.type || "trivia").toLowerCase();
   const number = args.number !== undefined ? Number(args.number) : "random";
   try {
@@ -8310,7 +8310,7 @@ async function tGetRandomFact(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tGetHoroscope(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetHoroscope(args: Record<string, any>): Promise<ToolCallResult> {
   const sign = String(args.sign).toLowerCase().trim();
   try {
     const res = await fetchRetry(
@@ -8334,7 +8334,7 @@ async function tGetHoroscope(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tGetUvIndex(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetUvIndex(args: Record<string, any>): Promise<ToolCallResult> {
   const lat = Number(args.lat);
   const lon = Number(args.lon);
   try {
@@ -8377,7 +8377,7 @@ async function tGetUvIndex(args: Record<string, unknown>): Promise<ToolCallResul
   }
 }
 
-async function tGetGithubRepoInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetGithubRepoInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const owner = String(args.owner);
   const repo = String(args.repo);
   const headers: Record<string, string> = {
@@ -8432,7 +8432,7 @@ async function tGetGithubRepoInfo(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tGetCryptoInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetCryptoInfo(args: Record<string, any>): Promise<ToolCallResult> {
   let coin = String(args.coin).toLowerCase().trim();
   const symbolMap: Record<string, string> = {
     btc: "bitcoin",
@@ -8502,7 +8502,7 @@ async function tGetCryptoInfo(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Dev Tools ───────────────────────────────────────────────────────────────
 
-async function tGetNpmPackage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetNpmPackage(args: Record<string, any>): Promise<ToolCallResult> {
   const name = String(args.name);
   try {
     const res = await fetchRetry(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
@@ -8533,7 +8533,7 @@ async function tGetNpmPackage(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tGetPypiPackage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetPypiPackage(args: Record<string, any>): Promise<ToolCallResult> {
   const name = String(args.name);
   try {
     const res = await fetchRetry(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
@@ -8569,7 +8569,7 @@ async function tGetPypiPackage(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tGetGithubUser(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetGithubUser(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username);
   const ck = `ghuser:${username}`;
   const cached = getCache(ck);
@@ -8615,7 +8615,7 @@ async function tGetGithubUser(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-async function tShortenUrl(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tShortenUrl(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url.startsWith("http")) return { success: false, data: "URL invalide" };
   try {
@@ -8634,7 +8634,7 @@ async function tShortenUrl(args: Record<string, unknown>): Promise<ToolCallResul
   }
 }
 
-async function tGetQrCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGetQrCode(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text);
   const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(text)}&size=300`;
   return { success: true, data: JSON.stringify({ qrUrl, content: text }) };
@@ -8677,7 +8677,7 @@ async function tGetRandomUser(): Promise<ToolCallResult> {
 
 // ─── Discord Native Tools ────────────────────────────────────────────────────
 
-async function tKickUser(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+async function tKickUser(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const reason = String(args.reason || "Expulsion par agent IA");
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
@@ -8693,7 +8693,7 @@ async function tKickUser(args: Record<string, unknown>, ctx: ToolContext): Promi
   return { success: true, data: `Utilisateur <@${userId}> expulsé. Raison: ${reason}` };
 }
 
-async function tBanUser(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+async function tBanUser(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const reason = String(args.reason || "Bannissement par agent IA");
   const deleteDays = Math.min(7, Number(args.deleteMessageDays) || 7);
@@ -8711,7 +8711,7 @@ async function tBanUser(args: Record<string, unknown>, ctx: ToolContext): Promis
   return { success: true, data: `Utilisateur <@${userId}> banni. Raison: ${reason}` };
 }
 
-async function tAddRole(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+async function tAddRole(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const roleId = String(args.roleId);
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
@@ -8725,7 +8725,7 @@ async function tAddRole(args: Record<string, unknown>, ctx: ToolContext): Promis
 }
 
 async function tRemoveRole(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -8741,7 +8741,7 @@ async function tRemoveRole(
 }
 
 async function tCreateChannel(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const name = String(args.name).toLowerCase().replace(/\s+/g, "-").slice(0, 100);
@@ -8756,7 +8756,7 @@ async function tCreateChannel(
 }
 
 async function tDeleteChannel(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -8771,7 +8771,7 @@ async function tDeleteChannel(
 }
 
 async function tSetChannelTopic(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -8786,7 +8786,7 @@ async function tSetChannelTopic(
 }
 
 async function tCreateInvite(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
@@ -8817,7 +8817,7 @@ async function tCreateInvite(
 }
 
 async function tGetMemberInfo(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -8861,7 +8861,7 @@ async function tGetServerRoles(ctx: ToolContext): Promise<ToolCallResult> {
 }
 
 async function tSetNickname(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -8876,7 +8876,7 @@ async function tSetNickname(
   return { success: true, data: `Surnom de <@${userId}> changé en "${nickname}"` };
 }
 
-async function tSendDM(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallResult> {
+async function tSendDM(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const message = String(args.message).slice(0, 2000);
   const user = await ctx.client.users.fetch(userId).catch(() => null);
@@ -8888,7 +8888,7 @@ async function tSendDM(args: Record<string, unknown>, ctx: ToolContext): Promise
 }
 
 async function tCreateEmbed(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const { EmbedBuilder } = await import("discord.js");
@@ -8940,7 +8940,7 @@ async function tGetVoiceChannels(ctx: ToolContext): Promise<ToolCallResult> {
 }
 
 async function tLockChannel(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -8954,7 +8954,7 @@ async function tLockChannel(
 }
 
 async function tUnlockChannel(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channelId);
@@ -8980,7 +8980,7 @@ async function tGetEmojis(ctx: ToolContext): Promise<ToolCallResult> {
 }
 
 async function tGetAuditLog(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const limit = Math.min(25, Math.max(1, Number(args.limit) || 5));
@@ -9001,7 +9001,7 @@ async function tGetAuditLog(
 
 // ─── Bot Feature Tools ───────────────────────────────────────────────────────
 
-async function tSearchGifs(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSearchGifs(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   try {
     const { searchGifs } = await import("./externalApis.js");
@@ -9016,7 +9016,7 @@ async function tSearchGifs(args: Record<string, unknown>): Promise<ToolCallResul
   }
 }
 
-async function tCheckToxicity(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCheckToxicity(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text);
   try {
     const { analyzeToxicity } = await import("./ai-moderation.js");
@@ -9028,7 +9028,7 @@ async function tCheckToxicity(args: Record<string, unknown>): Promise<ToolCallRe
 }
 
 async function tGetRiskProfile(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
@@ -9056,7 +9056,7 @@ async function tGetRiskProfile(
   }
 }
 
-async function tCheckPhishing(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCheckPhishing(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   try {
     const { checkSuspiciousLinksDetailed } = await import("../commands/security.js");
@@ -9069,7 +9069,7 @@ async function tCheckPhishing(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Agent Autonome Tools ────────────────────────────────────────────────────
 
-async function tAnalyzeImage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAnalyzeImage(args: Record<string, any>): Promise<ToolCallResult> {
   const imageUrl = String(args.image_url);
   const question = args.question ? String(args.question) : "Décris cette image en détail.";
 
@@ -9109,7 +9109,7 @@ async function tAnalyzeImage(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tAnalyzeSentiment(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAnalyzeSentiment(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 1000);
 
   try {
@@ -9214,7 +9214,7 @@ async function tTriggerGC(): Promise<ToolCallResult> {
 // ─── Agent Proactive Tools ───────────────────────────────────────────────────
 
 async function tSummarizeConversation(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const channelId = String(args.channel_id);
@@ -9276,7 +9276,7 @@ async function tSummarizeConversation(
   }
 }
 
-async function tDetectLanguage(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDetectLanguage(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text).slice(0, 500);
 
   const languagePatterns: Record<string, RegExp[]> = {
@@ -9399,7 +9399,7 @@ async function tGetServerInsights(ctx: ToolContext): Promise<ToolCallResult> {
 
 // ─── OpenRouter MCP Tools ────────────────────────────────────────────────────
 
-async function tOrListModels(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOrListModels(args: Record<string, any>): Promise<ToolCallResult> {
   const models = await mcpListModels({
     modality: args.modality as string | undefined,
     provider: args.provider as string | undefined,
@@ -9415,7 +9415,7 @@ async function tOrListModels(args: Record<string, unknown>): Promise<ToolCallRes
   return { success: true, data: `${models.length} modèles trouvés (top 20):\n${summary}` };
 }
 
-async function tOrModelInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOrModelInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const modelId = String(args.model_id || "");
   if (!modelId) return { success: false, data: "model_id requis" };
   const model = await mcpGetModel(modelId);
@@ -9433,7 +9433,7 @@ async function tOrModelInfo(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tOrBenchmarks(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOrBenchmarks(args: Record<string, any>): Promise<ToolCallResult> {
   const benchmarks = await mcpGetBenchmarks(args.category as string | undefined);
   if (benchmarks.length === 0) return { success: false, data: "Aucun benchmark disponible" };
   const summary = benchmarks
@@ -9453,7 +9453,7 @@ async function tOrRankings(): Promise<ToolCallResult> {
   return { success: true, data: `Top 10 modèles aujourd'hui:\n${summary}` };
 }
 
-async function tOrChatTest(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOrChatTest(args: Record<string, any>): Promise<ToolCallResult> {
   const model = String(args.model || "");
   const prompt = String(args.prompt || "");
   const maxTokens = (args.max_tokens as number) || 500;
@@ -9472,7 +9472,7 @@ async function tOrChatTest(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tOrDocsSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOrDocsSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   if (!query) return { success: false, data: "query requis" };
   const results = await mcpSearchDocs(query);
@@ -9493,7 +9493,7 @@ async function tOrCredits(): Promise<ToolCallResult> {
 // ─── Secure DM-Exclusive: Wi-Fi QR Generator ─────────────────────────────────
 
 async function tGenerateWifiQr(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   // ─── CHANNEL GUARD: DM-only enforcement ───
@@ -9542,7 +9542,7 @@ async function tGenerateWifiQr(
 
 // ─── New Tools (Part A) ──────────────────────────────────────────────────────
 
-async function tSolveMathAdvanced(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSolveMathAdvanced(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
   if (!query) {
     return {
@@ -9606,7 +9606,7 @@ async function tSolveMathAdvanced(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tTranslateTextDeepL(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTranslateTextDeepL(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   const targetLang = String(args.targetLang || "FR").toUpperCase() as
     "FR" | "EN" | "DE" | "ES" | "IT" | "PT" | "NL" | "PL" | "RU" | "JA" | "KO" | "ZH";
@@ -9650,7 +9650,7 @@ async function tTranslateTextDeepL(args: Record<string, unknown>): Promise<ToolC
 
 // ─── IP Toolkit Handlers ─────────────────────────────────────────────────────
 
-async function tIpPing(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpPing(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const count = typeof args.count === "number" ? args.count : 4;
   const validation = validateTargetIP(ip);
@@ -9667,7 +9667,7 @@ async function tIpPing(args: Record<string, unknown>): Promise<ToolCallResult> {
   return { success: false, data: `📡 Ping ${ip}: ❌ Inactif ou ne répond pas` };
 }
 
-async function tIpTraceroute(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpTraceroute(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const maxHops = typeof args.maxHops === "number" ? args.maxHops : 15;
   const validation = validateTargetIP(ip);
@@ -9682,7 +9682,7 @@ async function tIpTraceroute(args: Record<string, unknown>): Promise<ToolCallRes
   return { success: true, data: `📡 Traceroute ${ip} (${result.hops.length} hops):\n${hopsStr}` };
 }
 
-async function tIpPortScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpPortScan(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const ports = Array.isArray(args.ports) ? args.ports.map(Number) : undefined;
   const validation = validateTargetIP(ip);
@@ -9703,7 +9703,7 @@ async function tIpPortScan(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tIpHttpCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpHttpCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const port = typeof args.port === "number" ? args.port : 80;
   const useSSL = args.useSSL === true;
@@ -9726,7 +9726,7 @@ async function tIpHttpCheck(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tIpSslCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpSslCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const port = typeof args.port === "number" ? args.port : 443;
   const validation = validateTargetIP(ip);
@@ -9746,7 +9746,7 @@ async function tIpSslCheck(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tIpFullReport(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpFullReport(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const validation = validateTargetIP(ip);
   if (!validation.valid) {
@@ -9759,7 +9759,7 @@ async function tIpFullReport(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── Net Toolkit Handlers ────────────────────────────────────────────────────
 
-async function tDnsLookupFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsLookupFull(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain);
   const types = Array.isArray(args.types) ? args.types.map(String) : undefined;
   if (!domain) return { success: false, data: "❌ Domaine requis" };
@@ -9777,7 +9777,7 @@ async function tDnsLookupFull(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tBannerGrab(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBannerGrab(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   const port = typeof args.port === "number" ? args.port : 80;
   const validation = validateTargetIP(ip);
@@ -9797,7 +9797,7 @@ async function tBannerGrab(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tHttpMethodsCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHttpMethodsCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await checkHttpMethods(url);
@@ -9807,7 +9807,7 @@ async function tHttpMethodsCheck(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function tDirectoryCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDirectoryCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const baseUrl = String(args.baseUrl);
   const paths = Array.isArray(args.paths) ? args.paths.map(String) : undefined;
   if (!baseUrl) return { success: false, data: "❌ URL de base requise" };
@@ -9827,7 +9827,7 @@ async function tDirectoryCheck(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tTechDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTechDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await detectTech(url);
@@ -9843,7 +9843,7 @@ async function tTechDetect(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tCorsTest(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCorsTest(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await testCors(url);
@@ -9857,7 +9857,7 @@ async function tCorsTest(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tEmailValidate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEmailValidate(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email);
   if (!email) return { success: false, data: "❌ Email requis" };
   const result = await validateEmail(email);
@@ -9868,7 +9868,7 @@ async function tEmailValidate(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tJwtDecode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tJwtDecode(args: Record<string, any>): Promise<ToolCallResult> {
   const token = String(args.token);
   if (!token) return { success: false, data: "❌ Token JWT requis" };
   const result = decodeJwt(token);
@@ -9881,7 +9881,7 @@ async function tJwtDecode(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tUrlExpand(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUrlExpand(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await expandUrl(url);
@@ -9895,7 +9895,7 @@ async function tUrlExpand(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tSecurityScore(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSecurityScore(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await scoreSecurityHeaders(url);
@@ -9917,7 +9917,7 @@ async function tSecurityScore(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── Security Toolkit Handlers ───────────────────────────────────────────────
 
-async function tHashCrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHashCrack(args: Record<string, any>): Promise<ToolCallResult> {
   const hash = String(args.hash);
   if (!hash) return { success: false, data: "❌ Hash requis" };
   const algo = detectHashAlgorithm(hash);
@@ -9937,7 +9937,7 @@ async function tHashCrack(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tSqliDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSqliDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = detectSqli(input);
@@ -9950,7 +9950,7 @@ async function tSqliDetect(args: Record<string, unknown>): Promise<ToolCallResul
   return { success: true, data: "✅ Aucun pattern SQLi détecté" };
 }
 
-async function tXssDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tXssDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = detectXss(input);
@@ -9963,7 +9963,7 @@ async function tXssDetect(args: Record<string, unknown>): Promise<ToolCallResult
   return { success: true, data: "✅ Aucun pattern XSS détecté" };
 }
 
-async function tPasswordAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPasswordAnalyze(args: Record<string, any>): Promise<ToolCallResult> {
   const password = String(args.password);
   if (!password) return { success: false, data: "❌ Mot de passe requis" };
   const result = analyzePassword(password);
@@ -9981,7 +9981,7 @@ async function tPasswordAnalyze(args: Record<string, unknown>): Promise<ToolCall
   };
 }
 
-async function tSubdomainEnum(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSubdomainEnum(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain);
   if (!domain) return { success: false, data: "❌ Domaine requis" };
   const result = await enumerateSubdomains(domain);
@@ -9998,7 +9998,7 @@ async function tSubdomainEnum(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tReverseIp(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tReverseIp(args: Record<string, any>): Promise<ToolCallResult> {
   const ip = String(args.ip);
   if (!ip) return { success: false, data: "❌ IP requise" };
   const result = await reverseIpLookup(ip);
@@ -10008,7 +10008,7 @@ async function tReverseIp(args: Record<string, unknown>): Promise<ToolCallResult
   return { success: false, data: `🔄 Reverse DNS ${ip}: ❌ Aucun hostname trouvé` };
 }
 
-async function tCidrCalc(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCidrCalc(args: Record<string, any>): Promise<ToolCallResult> {
   const cidr = String(args.cidr);
   if (!cidr) return { success: false, data: "❌ CIDR requis (ex: 192.168.1.0/24)" };
   const result = calculateCidr(cidr);
@@ -10019,7 +10019,7 @@ async function tCidrCalc(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tMacVendor(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMacVendor(args: Record<string, any>): Promise<ToolCallResult> {
   const mac = String(args.mac);
   if (!mac) return { success: false, data: "❌ MAC requise" };
   const result = lookupMacVendor(mac);
@@ -10035,7 +10035,7 @@ async function tMacVendor(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tHstsCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHstsCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain);
   if (!domain) return { success: false, data: "❌ Domaine requis" };
   const result = await checkHsts(domain);
@@ -10047,7 +10047,7 @@ async function tHstsCheck(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tWafDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWafDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await detectWaf(url);
@@ -10062,7 +10062,7 @@ async function tWafDetect(args: Record<string, unknown>): Promise<ToolCallResult
   return { success: true, data: `🧱 WAF detect ${url}: Aucun WAF détecté` };
 }
 
-async function tRobotsParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRobotsParse(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await parseRobotsTxt(url);
@@ -10081,7 +10081,7 @@ async function tRobotsParse(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tSitemapParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSitemapParse(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url);
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await parseSitemap(url);
@@ -10092,7 +10092,7 @@ async function tSitemapParse(args: Record<string, unknown>): Promise<ToolCallRes
   return { success: true, data: `🗺️ sitemap.xml ${url}: ${result.count} URLs\n${urlsStr}${more}` };
 }
 
-async function tHttpStatusRef(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHttpStatusRef(args: Record<string, any>): Promise<ToolCallResult> {
   const code = typeof args.code === "number" ? args.code : parseInt(String(args.code), 10);
   const info = getHttpStatusInfo(code);
   if (!info) return { success: false, data: `❌ Code ${code} non trouvé dans la référence` };
@@ -10102,7 +10102,7 @@ async function tHttpStatusRef(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tPortRef(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPortRef(args: Record<string, any>): Promise<ToolCallResult> {
   const port = typeof args.port === "number" ? args.port : parseInt(String(args.port), 10);
   const info = getPortInfo(port);
   if (!info) return { success: false, data: `❌ Port ${port} non trouvé dans la référence` };
@@ -10114,7 +10114,7 @@ async function tPortRef(args: Record<string, unknown>): Promise<ToolCallResult> 
 
 // ─── Utility Toolkit Handlers ────────────────────────────────────────────────
 
-async function tTimestampConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTimestampConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Timestamp ou date requis" };
   const result = convertTimestamp(input);
@@ -10124,7 +10124,7 @@ async function tTimestampConvert(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function tBaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBaseConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const fromBase = typeof args.fromBase === "number" ? (args.fromBase as 2 | 8 | 10 | 16) : 10;
   if (!input) return { success: false, data: "❌ Nombre requis" };
@@ -10137,14 +10137,14 @@ async function tBaseConvert(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tUuidGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUuidGen(args: Record<string, any>): Promise<ToolCallResult> {
   const count = typeof args.count === "number" ? args.count : 1;
   const version = typeof args.version === "number" ? (args.version as 4 | 7) : 4;
   const uuids = generateUuids(count, version);
   return { success: true, data: `🆔 UUID v${version} (${count}):\n${uuids.join("\n")}` };
 }
 
-async function tRegexTest(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRegexTest(args: Record<string, any>): Promise<ToolCallResult> {
   const pattern = String(args.pattern);
   const flags = String(args.flags || "");
   const testString = String(args.testString);
@@ -10162,7 +10162,7 @@ async function tRegexTest(args: Record<string, unknown>): Promise<ToolCallResult
   return { success: true, data: `✅ ${result.matches.length} match(s):\n${matchesStr}` };
 }
 
-async function tJsonFormat(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tJsonFormat(args: Record<string, any>): Promise<ToolCallResult> {
   const json = String(args.json);
   const minify = args.minify === true;
   if (!json) return { success: false, data: "❌ JSON requis" };
@@ -10174,7 +10174,7 @@ async function tJsonFormat(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tBinaryConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBinaryConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const mode = String(args.mode || "encode");
   if (!input) return { success: false, data: "❌ Entrée requise" };
@@ -10182,7 +10182,7 @@ async function tBinaryConvert(args: Record<string, unknown>): Promise<ToolCallRe
   return { success: true, data: `🔢 Binary ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tHexConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHexConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const mode = String(args.mode || "encode");
   if (!input) return { success: false, data: "❌ Entrée requise" };
@@ -10190,7 +10190,7 @@ async function tHexConvert(args: Record<string, unknown>): Promise<ToolCallResul
   return { success: true, data: `🔢 Hex ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tMorseCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMorseCode(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const mode = String(args.mode || "encode");
   if (!input) return { success: false, data: "❌ Entrée requise" };
@@ -10198,7 +10198,7 @@ async function tMorseCode(args: Record<string, unknown>): Promise<ToolCallResult
   return { success: true, data: `📡 Morse ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tCaesarCipher(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCaesarCipher(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text);
   const shift = typeof args.shift === "number" ? args.shift : parseInt(String(args.shift), 10) || 0;
   if (!text) return { success: false, data: "❌ Texte requis" };
@@ -10209,14 +10209,14 @@ async function tCaesarCipher(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tRot13(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRot13(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text);
   if (!text) return { success: false, data: "❌ Texte requis" };
   const output = rot13(text);
   return { success: true, data: `🔐 ROT13:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tHashGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHashGen(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = generateHashes(input);
@@ -10226,7 +10226,7 @@ async function tHashGen(args: Record<string, unknown>): Promise<ToolCallResult> 
   };
 }
 
-async function tLoremGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLoremGen(args: Record<string, any>): Promise<ToolCallResult> {
   const paragraphs = typeof args.paragraphs === "number" ? args.paragraphs : 1;
   const output = generateLoremIpsum(paragraphs);
   return {
@@ -10235,7 +10235,7 @@ async function tLoremGen(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tColorConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tColorConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Couleur requise" };
   const result = convertColor(input);
@@ -10248,7 +10248,7 @@ async function tColorConvert(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── Pentest Toolkit Handlers ────────────────────────────────────────────────
 
-async function tMetasploit(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMetasploit(args: Record<string, any>): Promise<ToolCallResult> {
   const moduleType = String(args.moduleType || "auxiliary") as "auxiliary" | "exploit" | "post";
   const moduleName = String(args.moduleName || "");
   const target = String(args.target || "");
@@ -10266,7 +10266,7 @@ async function tMetasploit(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tTsharkCapture(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTsharkCapture(args: Record<string, any>): Promise<ToolCallResult> {
   const iface = String(args.interface || "eth0");
   const duration = typeof args.duration === "number" ? args.duration : 10;
   const filter = args.filter ? String(args.filter) : undefined;
@@ -10281,7 +10281,7 @@ async function tTsharkCapture(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tHydraBrute(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHydraBrute(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "");
   const service = String(args.service || "");
   const userlist = args.userlist ? String(args.userlist) : undefined;
@@ -10300,7 +10300,7 @@ async function tHydraBrute(args: Record<string, unknown>): Promise<ToolCallResul
   return { success: true, data: `🔐 Hydra ${service}://${target}: ❌ Aucun credential trouvé` };
 }
 
-async function tSqlmapScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSqlmapScan(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   if (!url) return { success: false, data: "❌ URL requise" };
   const opts: { data?: string; cookie?: string; level?: number; risk?: number } = {};
@@ -10320,7 +10320,7 @@ async function tSqlmapScan(args: Record<string, unknown>): Promise<ToolCallResul
   return { success: true, data: `💉 SQLmap ${url}: ✅ Non vulnérable` };
 }
 
-async function tSearchsploit(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSearchsploit(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   if (!query) return { success: false, data: "❌ Requête requise" };
   const result = await searchExploit(query);
@@ -10333,7 +10333,7 @@ async function tSearchsploit(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tHashcatCrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHashcatCrack(args: Record<string, any>): Promise<ToolCallResult> {
   const hash = String(args.hash || "");
   const mode = typeof args.mode === "number" ? args.mode : 0;
   const wordlist = args.wordlist ? String(args.wordlist) : undefined;
@@ -10348,7 +10348,7 @@ async function tHashcatCrack(args: Record<string, unknown>): Promise<ToolCallRes
   return { success: false, data: `🔒 Hashcat (mode ${mode}): ❌ Non cracké` };
 }
 
-async function tSnmpWalk(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSnmpWalk(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "");
   const community = args.community ? String(args.community) : "public";
   if (!target) return { success: false, data: "❌ Target IP requise" };
@@ -10363,7 +10363,7 @@ async function tSnmpWalk(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tEnum4linuxScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEnum4linuxScan(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "");
   if (!target) return { success: false, data: "❌ Target IP requise" };
   const result = await runEnum4linux(target);
@@ -10376,7 +10376,7 @@ async function tEnum4linuxScan(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tHarvesterOsint(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHarvesterOsint(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   const sources = args.sources ? String(args.sources) : "all";
   if (!domain) return { success: false, data: "❌ Domaine requis" };
@@ -10392,7 +10392,7 @@ async function tHarvesterOsint(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tCrackmapexecScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCrackmapexecScan(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "");
   const service = String(args.service || "smb") as "smb" | "winrm" | "mssql" | "ssh" | "ldap";
   const opts: { username?: string; password?: string; hash?: string } = {};
@@ -10408,7 +10408,7 @@ async function tCrackmapexecScan(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function tWhatwebScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWhatwebScan(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   if (!url) return { success: false, data: "❌ URL requise" };
   const result = await runWhatWeb(url);
@@ -10421,7 +10421,7 @@ async function tWhatwebScan(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tGobusterScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGobusterScan(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   const wordlist = args.wordlist ? String(args.wordlist) : undefined;
   const extensions = args.extensions ? String(args.extensions) : undefined;
@@ -10438,7 +10438,7 @@ async function tGobusterScan(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tNmapNseScan(args: Record<string, any>): Promise<ToolCallResult> {
   const target = String(args.target || "");
   const scriptCategory = args.scriptCategory ? String(args.scriptCategory) : "default";
   const scripts = Array.isArray(args.scripts) ? args.scripts.map(String) : undefined;
@@ -10454,7 +10454,7 @@ async function tNmapNseScan(args: Record<string, unknown>): Promise<ToolCallResu
 
 // ─── Forensics Toolkit Handlers ──────────────────────────────────────────────
 
-async function tBase64Codec(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBase64Codec(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const mode = String(args.mode || "encode");
   if (!input) return { success: false, data: "❌ Entrée requise" };
@@ -10462,7 +10462,7 @@ async function tBase64Codec(args: Record<string, unknown>): Promise<ToolCallResu
   return { success: true, data: `📝 Base64 ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tUrlCodec(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUrlCodec(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const mode = String(args.mode || "encode");
   if (!input) return { success: false, data: "❌ Entrée requise" };
@@ -10470,7 +10470,7 @@ async function tUrlCodec(args: Record<string, unknown>): Promise<ToolCallResult>
   return { success: true, data: `🔗 URL ${mode}:\n\`\`\`\n${output.slice(0, 2000)}\n\`\`\`` };
 }
 
-async function tAesCrypto(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAesCrypto(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   const password = String(args.password);
   const mode = String(args.mode || "encrypt");
@@ -10493,7 +10493,7 @@ async function tAesCrypto(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tFileHash(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tFileHash(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await hashFile(filePath);
@@ -10504,7 +10504,7 @@ async function tFileHash(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tFileMetadata(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tFileMetadata(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await getFileMetadata(filePath);
@@ -10515,7 +10515,7 @@ async function tFileMetadata(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tPiiScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPiiScan(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Texte requis" };
   const result = scanPii(input);
@@ -10524,7 +10524,7 @@ async function tPiiScan(args: Record<string, unknown>): Promise<ToolCallResult> 
   return { success: true, data: `🚨 PII détecté (${result.totalFound}):\n${findingsStr}` };
 }
 
-async function tIocParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIocParse(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Texte requis" };
   const result = parseIocs(input);
@@ -10533,7 +10533,7 @@ async function tIocParse(args: Record<string, unknown>): Promise<ToolCallResult>
   return { success: true, data: `🔬 IOC extraits (${result.count}):\n${iocsStr}` };
 }
 
-async function tEntropyAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEntropyAnalyze(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = analyzeEntropy(input);
@@ -10543,7 +10543,7 @@ async function tEntropyAnalyze(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tHexDump(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHexDump(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = hexDump(input);
@@ -10553,7 +10553,7 @@ async function tHexDump(args: Record<string, unknown>): Promise<ToolCallResult> 
   };
 }
 
-async function tStringExtract(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tStringExtract(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input);
   if (!input) return { success: false, data: "❌ Entrée requise" };
   const result = extractStrings(input);
@@ -10564,7 +10564,7 @@ async function tStringExtract(args: Record<string, unknown>): Promise<ToolCallRe
   };
 }
 
-async function tPeHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPeHeader(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await parsePeHeader(filePath);
@@ -10575,7 +10575,7 @@ async function tPeHeader(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tElfHeader(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tElfHeader(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await parseElfHeader(filePath);
@@ -10586,7 +10586,7 @@ async function tElfHeader(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tApkInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tApkInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await getApkInfo(filePath);
@@ -10598,7 +10598,7 @@ async function tApkInfo(args: Record<string, unknown>): Promise<ToolCallResult> 
   };
 }
 
-async function tDepVulnCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDepVulnCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await checkDependencyVulns(filePath);
@@ -10613,7 +10613,7 @@ async function tDepVulnCheck(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function tStegoDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tStegoDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const filePath = String(args.path);
   if (!filePath) return { success: false, data: "❌ Chemin requis" };
   const result = await detectSteganography(filePath);
@@ -10626,7 +10626,7 @@ async function tStegoDetect(args: Record<string, unknown>): Promise<ToolCallResu
 
 // ─── Data & Text Toolkit Handlers ────────────────────────────────────────────
 
-async function tUnitConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tUnitConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const value = typeof args.value === "number" ? args.value : parseFloat(String(args.value));
   const fromUnit = String(args.fromUnit || "");
   const category = String(args.category || "");
@@ -10638,7 +10638,7 @@ async function tUnitConvert(args: Record<string, unknown>): Promise<ToolCallResu
   return { success: true, data: `📏 ${result.input} → ${category}:\n${convStr}` };
 }
 
-async function tTempConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTempConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const value = typeof args.value === "number" ? args.value : parseFloat(String(args.value));
   const from = String(args.from || "C").toUpperCase() as "C" | "F" | "K";
   if (isNaN(value)) return { success: false, data: "❌ Valeur requise" };
@@ -10647,7 +10647,7 @@ async function tTempConvert(args: Record<string, unknown>): Promise<ToolCallResu
   return { success: true, data: `🌡️ ${result.input}:\n${convStr}` };
 }
 
-async function tMathEval(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMathEval(args: Record<string, any>): Promise<ToolCallResult> {
   const expression = String(args.expression || "");
   if (!expression) return { success: false, data: "❌ Expression requise" };
   const result = evalMath(expression);
@@ -10655,7 +10655,7 @@ async function tMathEval(args: Record<string, unknown>): Promise<ToolCallResult>
   return { success: true, data: `🧮 ${result.expression} = **${result.result}**` };
 }
 
-async function tStatsCalc(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tStatsCalc(args: Record<string, any>): Promise<ToolCallResult> {
   const values = Array.isArray(args.values) ? args.values.map(Number).filter((n) => !isNaN(n)) : [];
   if (values.length === 0) return { success: false, data: "❌ Liste de nombres requise" };
   const result = calculateStats(values);
@@ -10665,7 +10665,7 @@ async function tStatsCalc(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tSentimentAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSentimentAnalyze(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = analyzeSentiment(text);
@@ -10677,7 +10677,7 @@ async function tSentimentAnalyze(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function tLanguageDetect(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLanguageDetect(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = detectLanguage(text);
@@ -10687,7 +10687,7 @@ async function tLanguageDetect(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tWordFreq(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWordFreq(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = wordFrequency(text);
@@ -10698,7 +10698,7 @@ async function tWordFreq(args: Record<string, unknown>): Promise<ToolCallResult>
   };
 }
 
-async function tCaseConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCaseConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input || "");
   if (!input) return { success: false, data: "❌ Texte requis" };
   const result = convertCase(input);
@@ -10709,21 +10709,21 @@ async function tCaseConvert(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tSlugGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSlugGen(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input || "");
   if (!input) return { success: false, data: "❌ Texte requis" };
   const slug = generateSlug(input);
   return { success: true, data: `🔗 Slug: \`${slug}\`` };
 }
 
-async function tQrGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tQrGen(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   if (!text) return { success: false, data: "❌ Texte requis" };
   const result = generateQrAscii(text);
   return { success: true, data: `📱 QR Code:\n\`\`\`\n${result.qrCode}\n\`\`\`` };
 }
 
-async function tCronParse(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCronParse(args: Record<string, any>): Promise<ToolCallResult> {
   const expression = String(args.expression || "");
   if (!expression) return { success: false, data: "❌ Expression cron requise" };
   const result = parseCron(expression);
@@ -10735,7 +10735,7 @@ async function tCronParse(args: Record<string, unknown>): Promise<ToolCallResult
   };
 }
 
-async function tIpRangeGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIpRangeGen(args: Record<string, any>): Promise<ToolCallResult> {
   const cidr = String(args.cidr || "");
   if (!cidr) return { success: false, data: "❌ CIDR requis" };
   const result = generateIpRange(cidr);
@@ -10746,14 +10746,14 @@ async function tIpRangeGen(args: Record<string, unknown>): Promise<ToolCallResul
   };
 }
 
-async function tNumToWords(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tNumToWords(args: Record<string, any>): Promise<ToolCallResult> {
   const number = typeof args.number === "number" ? args.number : parseInt(String(args.number), 10);
   if (isNaN(number)) return { success: false, data: "❌ Nombre requis" };
   const words = numberToWordsFr(number);
   return { success: true, data: `🔢 ${number} → **${words}**` };
 }
 
-async function tPasswordGen(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPasswordGen(args: Record<string, any>): Promise<ToolCallResult> {
   const count = typeof args.count === "number" ? args.count : 1;
   const length = typeof args.length === "number" ? args.length : 16;
   const result = generatePasswords(count, length);
@@ -10763,7 +10763,7 @@ async function tPasswordGen(args: Record<string, unknown>): Promise<ToolCallResu
   };
 }
 
-async function tDataSizeFormat(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDataSizeFormat(args: Record<string, any>): Promise<ToolCallResult> {
   const bytes = typeof args.bytes === "number" ? args.bytes : parseInt(String(args.bytes), 10);
   if (isNaN(bytes)) return { success: false, data: "❌ Taille en bytes requise" };
   const result = formatDataSize(bytes);
@@ -10773,7 +10773,7 @@ async function tDataSizeFormat(args: Record<string, unknown>): Promise<ToolCallR
   };
 }
 
-async function tTextDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTextDiff(args: Record<string, any>): Promise<ToolCallResult> {
   const text1 = String(args.text1 || "");
   const text2 = String(args.text2 || "");
   if (!text1 || !text2) return { success: false, data: "❌ text1 et text2 requis" };
@@ -10787,7 +10787,7 @@ async function tTextDiff(args: Record<string, unknown>): Promise<ToolCallResult>
 
 // ─── NEW TOOLKIT HANDLERS (241 tools) ──────────────────────────────────────
 
-function tHashCrackDictionary(args: Record<string, unknown>): ToolCallResult {
+function tHashCrackDictionary(args: Record<string, any>): ToolCallResult {
   const hash = String(args.hash || "");
   const hashType = String(args.hashType || "");
   const wordlist = String(args.wordlist || "");
@@ -10799,7 +10799,7 @@ function tHashCrackDictionary(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tHashIdentifyAdvanced(args: Record<string, unknown>): ToolCallResult {
+function tHashIdentifyAdvanced(args: Record<string, any>): ToolCallResult {
   const hash = String(args.hash || "");
   try {
     const result = hashIdentifyAdvanced(hash);
@@ -10809,7 +10809,7 @@ function tHashIdentifyAdvanced(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tGenerateHmac(args: Record<string, unknown>): ToolCallResult {
+function tGenerateHmac(args: Record<string, any>): ToolCallResult {
   const message = String(args.message || "");
   const key = String(args.key || "");
   const algorithm = String(args.algorithm || "");
@@ -10821,7 +10821,7 @@ function tGenerateHmac(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCryptoAesDecrypt(args: Record<string, unknown>): ToolCallResult {
+function tCryptoAesDecrypt(args: Record<string, any>): ToolCallResult {
   const encryptedData = String(args.encryptedData || "");
   const key = String(args.key || "");
   const iv = String(args.iv || "");
@@ -10834,7 +10834,7 @@ function tCryptoAesDecrypt(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRsaKeypairGenerate(args: Record<string, unknown>): ToolCallResult {
+function tRsaKeypairGenerate(args: Record<string, any>): ToolCallResult {
   const bits = Number(args.bits || 0);
   try {
     const result = rsaKeypairGenerate(bits);
@@ -10844,7 +10844,7 @@ function tRsaKeypairGenerate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRsaEncrypt(args: Record<string, unknown>): ToolCallResult {
+function tRsaEncrypt(args: Record<string, any>): ToolCallResult {
   const message = String(args.message || "");
   const publicKeyPem = String(args.publicKeyPem || "");
   try {
@@ -10855,7 +10855,7 @@ function tRsaEncrypt(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRsaDecrypt(args: Record<string, unknown>): ToolCallResult {
+function tRsaDecrypt(args: Record<string, any>): ToolCallResult {
   const encryptedBase64 = String(args.encryptedBase64 || "");
   const privateKeyPem = String(args.privateKeyPem || "");
   try {
@@ -10866,7 +10866,7 @@ function tRsaDecrypt(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPgpEncrypt(args: Record<string, unknown>): ToolCallResult {
+function tPgpEncrypt(args: Record<string, any>): ToolCallResult {
   const message = String(args.message || "");
   const recipientKey = String(args.recipientKey || "");
   try {
@@ -10877,7 +10877,7 @@ function tPgpEncrypt(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPgpDecrypt(args: Record<string, unknown>): ToolCallResult {
+function tPgpDecrypt(args: Record<string, any>): ToolCallResult {
   const encryptedMessage = String(args.encryptedMessage || "");
   try {
     const result = pgpDecrypt(encryptedMessage);
@@ -10887,7 +10887,7 @@ function tPgpDecrypt(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tStegoExtractLsb(args: Record<string, unknown>): ToolCallResult {
+function tStegoExtractLsb(args: Record<string, any>): ToolCallResult {
   const imagePath = String(args.imagePath || "");
   try {
     const result = stegoExtractLsb(imagePath);
@@ -10897,7 +10897,7 @@ function tStegoExtractLsb(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tStegoHideLsb(args: Record<string, unknown>): ToolCallResult {
+function tStegoHideLsb(args: Record<string, any>): ToolCallResult {
   const imagePath = String(args.imagePath || "");
   const message = String(args.message || "");
   const outputFile = String(args.outputFile || "");
@@ -10909,7 +10909,7 @@ function tStegoHideLsb(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSteganalysisZscore(args: Record<string, unknown>): ToolCallResult {
+function tSteganalysisZscore(args: Record<string, any>): ToolCallResult {
   const imagePath = String(args.imagePath || "");
   try {
     const result = steganalysisZscore(imagePath);
@@ -10919,7 +10919,7 @@ function tSteganalysisZscore(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tXorCipher(args: Record<string, unknown>): ToolCallResult {
+function tXorCipher(args: Record<string, any>): ToolCallResult {
   const data = String(args.data || "");
   const key = String(args.key || "");
   try {
@@ -10930,7 +10930,7 @@ function tXorCipher(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tFrequencyAnalysis(args: Record<string, unknown>): ToolCallResult {
+function tFrequencyAnalysis(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = frequencyAnalysis(text);
@@ -10940,7 +10940,7 @@ function tFrequencyAnalysis(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRandomTokenGenerator(args: Record<string, unknown>): ToolCallResult {
+function tRandomTokenGenerator(args: Record<string, any>): ToolCallResult {
   const length = Number(args.length || 0);
   const encoding = String(args.encoding || "");
   try {
@@ -10951,7 +10951,7 @@ function tRandomTokenGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCertificateParse(args: Record<string, unknown>): ToolCallResult {
+function tCertificateParse(args: Record<string, any>): ToolCallResult {
   const certPem = String(args.certPem || "");
   try {
     const result = certificateParse(certPem);
@@ -10961,7 +10961,7 @@ function tCertificateParse(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSmtpRelayTest(args: Record<string, unknown>): ToolCallResult {
+function tSmtpRelayTest(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -10972,7 +10972,7 @@ function tSmtpRelayTest(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSmtpEnumVrfy(args: Record<string, unknown>): ToolCallResult {
+function tSmtpEnumVrfy(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   const usernames = String(args.usernames || "");
@@ -10984,7 +10984,7 @@ function tSmtpEnumVrfy(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tFtpAnonymousCheck(args: Record<string, unknown>): ToolCallResult {
+function tFtpAnonymousCheck(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -10995,7 +10995,7 @@ function tFtpAnonymousCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSmbEnumShares(args: Record<string, unknown>): ToolCallResult {
+function tSmbEnumShares(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   try {
     const result = smbEnumShares(host);
@@ -11005,7 +11005,7 @@ function tSmbEnumShares(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSmbVersionDetect(args: Record<string, unknown>): ToolCallResult {
+function tSmbVersionDetect(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   try {
     const result = smbVersionDetect(host);
@@ -11015,7 +11015,7 @@ function tSmbVersionDetect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tLdapEnum(args: Record<string, unknown>): ToolCallResult {
+function tLdapEnum(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -11026,7 +11026,7 @@ function tLdapEnum(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tKerberosUserEnum(args: Record<string, unknown>): ToolCallResult {
+function tKerberosUserEnum(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const realm = String(args.realm || "");
   const usernames = String(args.usernames || "");
@@ -11038,7 +11038,7 @@ function tKerberosUserEnum(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRdpCheck(args: Record<string, unknown>): ToolCallResult {
+function tRdpCheck(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -11049,7 +11049,7 @@ function tRdpCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSshVersionScan(args: Record<string, unknown>): ToolCallResult {
+function tSshVersionScan(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -11060,7 +11060,7 @@ function tSshVersionScan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTelnetBannerGrab(args: Record<string, unknown>): ToolCallResult {
+function tTelnetBannerGrab(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -11071,7 +11071,7 @@ function tTelnetBannerGrab(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNetSnmpWalk(args: Record<string, unknown>): ToolCallResult {
+function tNetSnmpWalk(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   const community = String(args.community || "");
   try {
@@ -11082,7 +11082,7 @@ function tNetSnmpWalk(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNtpMonlist(args: Record<string, unknown>): ToolCallResult {
+function tNtpMonlist(args: Record<string, any>): ToolCallResult {
   const host = String(args.host || "");
   try {
     const result = ntpMonlist(host);
@@ -11092,7 +11092,7 @@ function tNtpMonlist(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tDnsZoneTransfer(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsZoneTransfer(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await dnsZoneTransfer(domain);
@@ -11102,7 +11102,7 @@ async function tDnsZoneTransfer(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tDnsSubdomainBrute(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsSubdomainBrute(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   const wordlist = String(args.wordlist || "");
   try {
@@ -11113,7 +11113,7 @@ async function tDnsSubdomainBrute(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tDnsRebindingCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsRebindingCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await dnsRebindingCheck(domain);
@@ -11123,7 +11123,7 @@ async function tDnsRebindingCheck(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-function tIpv6Scan(args: Record<string, unknown>): ToolCallResult {
+function tIpv6Scan(args: Record<string, any>): ToolCallResult {
   const interfaceName = String(args.interfaceName || "");
   try {
     const result = ipv6Scan(interfaceName);
@@ -11133,7 +11133,7 @@ function tIpv6Scan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tVlanHopTest(args: Record<string, unknown>): ToolCallResult {
+function tVlanHopTest(args: Record<string, any>): ToolCallResult {
   const interfaceName = String(args.interfaceName || "");
   try {
     const result = vlanHopTest(interfaceName);
@@ -11143,7 +11143,7 @@ function tVlanHopTest(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tWifiDeauthDetect(args: Record<string, unknown>): ToolCallResult {
+function tWifiDeauthDetect(args: Record<string, any>): ToolCallResult {
   const interfaceName = String(args.interfaceName || "");
   const duration = Number(args.duration || 0);
   try {
@@ -11154,7 +11154,7 @@ function tWifiDeauthDetect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tArpPoisonDetect(args: Record<string, unknown>): ToolCallResult {
+function tArpPoisonDetect(args: Record<string, any>): ToolCallResult {
   const interfaceName = String(args.interfaceName || "");
   try {
     const result = arpPoisonDetect(interfaceName);
@@ -11164,7 +11164,7 @@ function tArpPoisonDetect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNetworkMapGenerate(args: Record<string, unknown>): ToolCallResult {
+function tNetworkMapGenerate(args: Record<string, any>): ToolCallResult {
   const subnet = String(args.subnet || "");
   try {
     const result = networkMapGenerate(subnet);
@@ -11174,7 +11174,7 @@ function tNetworkMapGenerate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tWaybackMachineLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWaybackMachineLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await waybackMachineLookup(url);
@@ -11184,7 +11184,7 @@ async function tWaybackMachineLookup(args: Record<string, unknown>): Promise<Too
   }
 }
 
-async function tWaybackDiff(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWaybackDiff(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   const timestamp1 = String(args.timestamp1 || "");
   const timestamp2 = String(args.timestamp2 || "");
@@ -11196,7 +11196,7 @@ async function tWaybackDiff(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tCrtshSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCrtshSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await crtshSearch(domain);
@@ -11206,7 +11206,7 @@ async function tCrtshSearch(args: Record<string, unknown>): Promise<ToolCallResu
   }
 }
 
-async function tHaveibeenpwnedCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHaveibeenpwnedCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email || "");
   try {
     const result = await haveibeenpwnedCheck(email);
@@ -11216,7 +11216,7 @@ async function tHaveibeenpwnedCheck(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tDehashedSearch(args: Record<string, unknown>): ToolCallResult {
+function tDehashedSearch(args: Record<string, any>): ToolCallResult {
   const query = String(args.query || "");
   try {
     const result = dehashedSearch(query);
@@ -11226,7 +11226,7 @@ function tDehashedSearch(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tHunterIoEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tHunterIoEmail(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await hunterIoEmail(domain);
@@ -11236,7 +11236,7 @@ async function tHunterIoEmail(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tPhoneNumberLookupFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tPhoneNumberLookupFull(args: Record<string, any>): Promise<ToolCallResult> {
   const phone = String(args.phone || "");
   try {
     const result = await phoneNumberLookupFull(phone);
@@ -11246,7 +11246,7 @@ async function tPhoneNumberLookupFull(args: Record<string, unknown>): Promise<To
   }
 }
 
-async function tSocialMediaChecker(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSocialMediaChecker(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username || "");
   try {
     const result = await socialMediaChecker(username);
@@ -11256,7 +11256,7 @@ async function tSocialMediaChecker(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tGravatarLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGravatarLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const email = String(args.email || "");
   try {
     const result = await gravatarLookup(email);
@@ -11266,7 +11266,7 @@ async function tGravatarLookup(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tGithubDorksSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGithubDorksSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   try {
     const result = await githubDorksSearch(query);
@@ -11276,7 +11276,7 @@ async function tGithubDorksSearch(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tGithubCommitHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGithubCommitHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const owner = String(args.owner || "");
   const repo = String(args.repo || "");
   try {
@@ -11287,7 +11287,7 @@ async function tGithubCommitHistory(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tGoogleDorksGenerator(args: Record<string, unknown>): ToolCallResult {
+function tGoogleDorksGenerator(args: Record<string, any>): ToolCallResult {
   const domain = String(args.domain || "");
   try {
     const result = googleDorksGenerator(domain);
@@ -11297,7 +11297,7 @@ function tGoogleDorksGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tGoogleCacheLookup(args: Record<string, unknown>): ToolCallResult {
+function tGoogleCacheLookup(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = googleCacheLookup(url);
@@ -11307,7 +11307,7 @@ function tGoogleCacheLookup(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tReverseImageSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tReverseImageSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const imageUrl = String(args.imageUrl || "");
   try {
     const result = await reverseImageSearch(imageUrl);
@@ -11317,7 +11317,7 @@ async function tReverseImageSearch(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-function tExifExtractFull(args: Record<string, unknown>): ToolCallResult {
+function tExifExtractFull(args: Record<string, any>): ToolCallResult {
   const imagePath = String(args.imagePath || "");
   try {
     const result = exifExtractFull(imagePath);
@@ -11327,7 +11327,7 @@ function tExifExtractFull(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMetadataStrip(args: Record<string, unknown>): ToolCallResult {
+function tMetadataStrip(args: Record<string, any>): ToolCallResult {
   const filePath = String(args.filePath || "");
   try {
     const result = metadataStrip(filePath);
@@ -11337,7 +11337,7 @@ function tMetadataStrip(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDarkwebMonitor(args: Record<string, unknown>): ToolCallResult {
+function tDarkwebMonitor(args: Record<string, any>): ToolCallResult {
   const email = String(args.email || "");
   try {
     const result = darkwebMonitor(email);
@@ -11347,7 +11347,7 @@ function tDarkwebMonitor(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tLeakedSourceSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLeakedSourceSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   try {
     const result = await leakedSourceSearch(query);
@@ -11357,7 +11357,7 @@ async function tLeakedSourceSearch(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tBitcoinAddressAnalysis(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBitcoinAddressAnalysis(args: Record<string, any>): Promise<ToolCallResult> {
   const address = String(args.address || "");
   try {
     const result = await bitcoinAddressAnalysis(address);
@@ -11367,7 +11367,7 @@ async function tBitcoinAddressAnalysis(args: Record<string, unknown>): Promise<T
   }
 }
 
-async function tEthereumContractVerify(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEthereumContractVerify(args: Record<string, any>): Promise<ToolCallResult> {
   const address = String(args.address || "");
   try {
     const result = await ethereumContractVerify(address);
@@ -11377,7 +11377,7 @@ async function tEthereumContractVerify(args: Record<string, unknown>): Promise<T
   }
 }
 
-async function tDomainWhoisHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDomainWhoisHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await domainWhoisHistory(domain);
@@ -11387,7 +11387,7 @@ async function tDomainWhoisHistory(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-function tReverseWhois(args: Record<string, unknown>): ToolCallResult {
+function tReverseWhois(args: Record<string, any>): ToolCallResult {
   const email = String(args.email || "");
   try {
     const result = reverseWhois(email);
@@ -11397,7 +11397,7 @@ function tReverseWhois(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tDnsHistoryPassive(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsHistoryPassive(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await dnsHistoryPassive(domain);
@@ -11407,7 +11407,7 @@ async function tDnsHistoryPassive(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-function tBreachParse(args: Record<string, unknown>): ToolCallResult {
+function tBreachParse(args: Record<string, any>): ToolCallResult {
   const filePath = String(args.filePath || "");
   const format = String(args.format || "");
   try {
@@ -11418,7 +11418,7 @@ function tBreachParse(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tMalwareSampleLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMalwareSampleLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const hash = String(args.hash || "");
   try {
     const result = await malwareSampleLookup(hash);
@@ -11428,7 +11428,7 @@ async function tMalwareSampleLookup(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tOwaspZapScan(args: Record<string, unknown>): ToolCallResult {
+function tOwaspZapScan(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = owaspZapScan(url);
@@ -11438,7 +11438,7 @@ function tOwaspZapScan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNucleiScan(args: Record<string, unknown>): ToolCallResult {
+function tNucleiScan(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const templates = String(args.templates || "");
   try {
@@ -11449,7 +11449,7 @@ function tNucleiScan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tFfufFuzz(args: Record<string, unknown>): ToolCallResult {
+function tFfufFuzz(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const wordlist = String(args.wordlist || "");
   const mode = String(args.mode || "");
@@ -11461,7 +11461,7 @@ function tFfufFuzz(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tWfuzzScan(args: Record<string, unknown>): ToolCallResult {
+function tWfuzzScan(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const wordlist = String(args.wordlist || "");
   try {
@@ -11472,7 +11472,7 @@ function tWfuzzScan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tWpscanFull(args: Record<string, unknown>): ToolCallResult {
+function tWpscanFull(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = wpscanFull(url);
@@ -11482,7 +11482,7 @@ function tWpscanFull(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tJoomscan(args: Record<string, unknown>): ToolCallResult {
+function tJoomscan(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = joomscan(url);
@@ -11492,7 +11492,7 @@ function tJoomscan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDroopescan(args: Record<string, unknown>): ToolCallResult {
+function tDroopescan(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = droopescan(url);
@@ -11502,7 +11502,7 @@ function tDroopescan(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tSslLabsGrade(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSslLabsGrade(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   try {
     const result = await sslLabsGrade(domain);
@@ -11512,7 +11512,7 @@ async function tSslLabsGrade(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tSecurityHeadersFull(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSecurityHeadersFull(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await securityHeadersFull(url);
@@ -11522,7 +11522,7 @@ async function tSecurityHeadersFull(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-async function tCorsMisconfigCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCorsMisconfigCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await corsMisconfigCheck(url);
@@ -11532,7 +11532,7 @@ async function tCorsMisconfigCheck(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tOpenRedirectCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOpenRedirectCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await openRedirectCheck(url);
@@ -11542,7 +11542,7 @@ async function tOpenRedirectCheck(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-function tXssPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
+function tXssPayloadGenerator(args: Record<string, any>): ToolCallResult {
   const context = String(args.context || "");
   try {
     const result = xssPayloadGenerator(context);
@@ -11552,7 +11552,7 @@ function tXssPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSqliPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
+function tSqliPayloadGenerator(args: Record<string, any>): ToolCallResult {
   const dbType = String(args.dbType || "");
   try {
     const result = sqliPayloadGenerator(dbType);
@@ -11562,7 +11562,7 @@ function tSqliPayloadGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCommandInjectionTest(args: Record<string, unknown>): ToolCallResult {
+function tCommandInjectionTest(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const param = String(args.param || "");
   try {
@@ -11573,7 +11573,7 @@ function tCommandInjectionTest(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tXxeVulnCheck(args: Record<string, unknown>): ToolCallResult {
+function tXxeVulnCheck(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   try {
     const result = xxeVulnCheck(url);
@@ -11583,7 +11583,7 @@ function tXxeVulnCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSsrfCheck(args: Record<string, unknown>): ToolCallResult {
+function tSsrfCheck(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const param = String(args.param || "");
   try {
@@ -11594,7 +11594,7 @@ function tSsrfCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tLfiRfiCheck(args: Record<string, unknown>): ToolCallResult {
+function tLfiRfiCheck(args: Record<string, any>): ToolCallResult {
   const url = String(args.url || "");
   const param = String(args.param || "");
   try {
@@ -11605,7 +11605,7 @@ function tLfiRfiCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tCsrfTokenCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCsrfTokenCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await csrfTokenCheck(url);
@@ -11615,7 +11615,7 @@ async function tCsrfTokenCheck(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tRateLimitCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRateLimitCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await rateLimitCheck(url);
@@ -11625,7 +11625,7 @@ async function tRateLimitCheck(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-function tDependencyAudit(args: Record<string, unknown>): ToolCallResult {
+function tDependencyAudit(args: Record<string, any>): ToolCallResult {
   const projectPath = String(args.projectPath || "");
   const ecosystem = String(args.ecosystem || "");
   try {
@@ -11636,7 +11636,7 @@ function tDependencyAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCsvAnalyzer(args: Record<string, unknown>): ToolCallResult {
+function tCsvAnalyzer(args: Record<string, any>): ToolCallResult {
   const csvData = String(args.csvData || "");
   try {
     const result = csvAnalyzer(csvData);
@@ -11646,7 +11646,7 @@ function tCsvAnalyzer(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tJsonPathQuery(args: Record<string, unknown>): ToolCallResult {
+function tJsonPathQuery(args: Record<string, any>): ToolCallResult {
   const jsonStr = String(args.jsonStr || "");
   const path = String(args.path || "");
   try {
@@ -11657,7 +11657,7 @@ function tJsonPathQuery(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSqlQueryExplainer(args: Record<string, unknown>): ToolCallResult {
+function tSqlQueryExplainer(args: Record<string, any>): ToolCallResult {
   const query = String(args.query || "");
   try {
     const result = sqlQueryExplainer(query);
@@ -11667,7 +11667,7 @@ function tSqlQueryExplainer(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDataAnonymizer(args: Record<string, unknown>): ToolCallResult {
+function tDataAnonymizer(args: Record<string, any>): ToolCallResult {
   const data = String(args.data || "");
   const columnsToAnonymize = String(args.columnsToAnonymize || "");
   try {
@@ -11678,7 +11678,7 @@ function tDataAnonymizer(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tOutlierDetector(args: Record<string, unknown>): ToolCallResult {
+function tOutlierDetector(args: Record<string, any>): ToolCallResult {
   const numbers = String(args.numbers || "");
   const method = String(args.method || "");
   try {
@@ -11689,7 +11689,7 @@ function tOutlierDetector(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCorrelationMatrix(args: Record<string, unknown>): ToolCallResult {
+function tCorrelationMatrix(args: Record<string, any>): ToolCallResult {
   const data = String(args.data || "");
   try {
     const result = correlationMatrix(data);
@@ -11699,7 +11699,7 @@ function tCorrelationMatrix(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tHistogramGenerator(args: Record<string, unknown>): ToolCallResult {
+function tHistogramGenerator(args: Record<string, any>): ToolCallResult {
   const numbers = String(args.numbers || "");
   const bins = Number(args.bins || 0);
   try {
@@ -11710,7 +11710,7 @@ function tHistogramGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tScatterPlotGenerator(args: Record<string, unknown>): ToolCallResult {
+function tScatterPlotGenerator(args: Record<string, any>): ToolCallResult {
   const xValues = String(args.xValues || "");
   const yValues = String(args.yValues || "");
   try {
@@ -11721,7 +11721,7 @@ function tScatterPlotGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTimeSeriesDecompose(args: Record<string, unknown>): ToolCallResult {
+function tTimeSeriesDecompose(args: Record<string, any>): ToolCallResult {
   const values = String(args.values || "");
   const period = Number(args.period || 0);
   try {
@@ -11732,7 +11732,7 @@ function tTimeSeriesDecompose(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMovingAverageCalc(args: Record<string, unknown>): ToolCallResult {
+function tMovingAverageCalc(args: Record<string, any>): ToolCallResult {
   const values = String(args.values || "");
   const window = Number(args.window || 0);
   const type = String(args.type || "");
@@ -11744,7 +11744,7 @@ function tMovingAverageCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tLinearRegression(args: Record<string, unknown>): ToolCallResult {
+function tLinearRegression(args: Record<string, any>): ToolCallResult {
   const xValues = String(args.xValues || "");
   const yValues = String(args.yValues || "");
   try {
@@ -11755,7 +11755,7 @@ function tLinearRegression(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tHypothesisTest(args: Record<string, unknown>): ToolCallResult {
+function tHypothesisTest(args: Record<string, any>): ToolCallResult {
   const sample1 = String(args.sample1 || "");
   const sample2 = String(args.sample2 || "");
   const testType = String(args.testType || "");
@@ -11767,7 +11767,7 @@ function tHypothesisTest(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tConfidenceInterval(args: Record<string, unknown>): ToolCallResult {
+function tConfidenceInterval(args: Record<string, any>): ToolCallResult {
   const values = String(args.values || "");
   const confidence = Number(args.confidence || 0);
   try {
@@ -11778,7 +11778,7 @@ function tConfidenceInterval(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPermutationGenerator(args: Record<string, unknown>): ToolCallResult {
+function tPermutationGenerator(args: Record<string, any>): ToolCallResult {
   const items = String(args.items || "");
   const maxResults = Number(args.maxResults || 0);
   try {
@@ -11789,7 +11789,7 @@ function tPermutationGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCombinatoricsCalc(args: Record<string, unknown>): ToolCallResult {
+function tCombinatoricsCalc(args: Record<string, any>): ToolCallResult {
   const n = Number(args.n || 0);
   const k = Number(args.k || 0);
   const type = String(args.type || "");
@@ -11801,7 +11801,7 @@ function tCombinatoricsCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMatrixOperations(args: Record<string, unknown>): ToolCallResult {
+function tMatrixOperations(args: Record<string, any>): ToolCallResult {
   const matrixA = String(args.matrixA || "");
   const matrixB = String(args.matrixB || "");
   const operation = String(args.operation || "");
@@ -11813,7 +11813,7 @@ function tMatrixOperations(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tVectorCalculus(args: Record<string, unknown>): ToolCallResult {
+function tVectorCalculus(args: Record<string, any>): ToolCallResult {
   const vectorA = String(args.vectorA || "");
   const vectorB = String(args.vectorB || "");
   const operation = String(args.operation || "");
@@ -11825,7 +11825,7 @@ function tVectorCalculus(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDerivativeCalculator(args: Record<string, unknown>): ToolCallResult {
+function tDerivativeCalculator(args: Record<string, any>): ToolCallResult {
   const expression = String(args.expression || "");
   const variable = String(args.variable || "");
   try {
@@ -11836,7 +11836,7 @@ function tDerivativeCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tIntegralCalculator(args: Record<string, unknown>): ToolCallResult {
+function tIntegralCalculator(args: Record<string, any>): ToolCallResult {
   const expression = String(args.expression || "");
   const variable = String(args.variable || "");
   const lower = Number(args.lower || 0);
@@ -11849,7 +11849,7 @@ function tIntegralCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tLimitCalculator(args: Record<string, unknown>): ToolCallResult {
+function tLimitCalculator(args: Record<string, any>): ToolCallResult {
   const expression = String(args.expression || "");
   const variable = String(args.variable || "");
   const point = Number(args.point || 0);
@@ -11861,7 +11861,7 @@ function tLimitCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSeriesSumCalculator(args: Record<string, unknown>): ToolCallResult {
+function tSeriesSumCalculator(args: Record<string, any>): ToolCallResult {
   const seriesType = String(args.seriesType || "");
   const params = String(args.params || "");
   try {
@@ -11872,7 +11872,7 @@ function tSeriesSumCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPrimeFactorization(args: Record<string, unknown>): ToolCallResult {
+function tPrimeFactorization(args: Record<string, any>): ToolCallResult {
   const n = Number(args.n || 0);
   try {
     const result = primeFactorization(n);
@@ -11882,7 +11882,7 @@ function tPrimeFactorization(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tGcdLcmCalculator(args: Record<string, unknown>): ToolCallResult {
+function tGcdLcmCalculator(args: Record<string, any>): ToolCallResult {
   const numbers = String(args.numbers || "");
   const operation = String(args.operation || "");
   try {
@@ -11893,7 +11893,7 @@ function tGcdLcmCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tModularArithmetic(args: Record<string, unknown>): ToolCallResult {
+function tModularArithmetic(args: Record<string, any>): ToolCallResult {
   const base = Number(args.base || 0);
   const exponent = Number(args.exponent || 0);
   const modulus = Number(args.modulus || 0);
@@ -11906,7 +11906,7 @@ function tModularArithmetic(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tProbabilityDistribution(args: Record<string, unknown>): ToolCallResult {
+function tProbabilityDistribution(args: Record<string, any>): ToolCallResult {
   const distribution = String(args.distribution || "");
   const params = String(args.params || "");
   const x = Number(args.x || 0);
@@ -11918,7 +11918,7 @@ function tProbabilityDistribution(args: Record<string, unknown>): ToolCallResult
   }
 }
 
-function tBayesTheorem(args: Record<string, unknown>): ToolCallResult {
+function tBayesTheorem(args: Record<string, any>): ToolCallResult {
   const prior = Number(args.prior || 0);
   const likelihood = Number(args.likelihood || 0);
   const evidence = Number(args.evidence || 0);
@@ -11930,7 +11930,7 @@ function tBayesTheorem(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTrigonometrySolver(args: Record<string, unknown>): ToolCallResult {
+function tTrigonometrySolver(args: Record<string, any>): ToolCallResult {
   const operation = String(args.operation || "");
   const angle = Number(args.angle || 0);
   const unit = String(args.unit || "");
@@ -11942,7 +11942,7 @@ function tTrigonometrySolver(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tComplexNumberOps(args: Record<string, unknown>): ToolCallResult {
+function tComplexNumberOps(args: Record<string, any>): ToolCallResult {
   const aReal = Number(args.aReal || 0);
   const aImag = Number(args.aImag || 0);
   const bReal = Number(args.bReal || 0);
@@ -11956,7 +11956,7 @@ function tComplexNumberOps(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPolynomialSolver(args: Record<string, unknown>): ToolCallResult {
+function tPolynomialSolver(args: Record<string, any>): ToolCallResult {
   const coefficients = String(args.coefficients || "");
   try {
     const result = polynomialSolver(coefficients);
@@ -11966,7 +11966,7 @@ function tPolynomialSolver(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNumberBaseConvertAdvanced(args: Record<string, unknown>): ToolCallResult {
+function tNumberBaseConvertAdvanced(args: Record<string, any>): ToolCallResult {
   const value = String(args.value || "");
   const fromBase = Number(args.fromBase || 0);
   const toBase = Number(args.toBase || 0);
@@ -11978,7 +11978,7 @@ function tNumberBaseConvertAdvanced(args: Record<string, unknown>): ToolCallResu
   }
 }
 
-function tTextExtractEntities(args: Record<string, unknown>): ToolCallResult {
+function tTextExtractEntities(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textExtractEntities(text);
@@ -11988,7 +11988,7 @@ function tTextExtractEntities(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextSummarizeAdvanced(args: Record<string, unknown>): ToolCallResult {
+function tTextSummarizeAdvanced(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const sentences = Number(args.sentences || 0);
   try {
@@ -11999,7 +11999,7 @@ function tTextSummarizeAdvanced(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextKeywordExtract(args: Record<string, unknown>): ToolCallResult {
+function tTextKeywordExtract(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const numKeywords = Number(args.numKeywords || 0);
   try {
@@ -12010,7 +12010,7 @@ function tTextKeywordExtract(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextReadabilityScore(args: Record<string, unknown>): ToolCallResult {
+function tTextReadabilityScore(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textReadabilityScore(text);
@@ -12020,7 +12020,7 @@ function tTextReadabilityScore(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextLanguageDetectAdvanced(args: Record<string, unknown>): ToolCallResult {
+function tTextLanguageDetectAdvanced(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textLanguageDetectAdvanced(text);
@@ -12030,7 +12030,7 @@ function tTextLanguageDetectAdvanced(args: Record<string, unknown>): ToolCallRes
   }
 }
 
-function tTextTransliterate(args: Record<string, unknown>): ToolCallResult {
+function tTextTransliterate(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const fromScript = String(args.fromScript || "");
   const toScript = String(args.toScript || "");
@@ -12042,7 +12042,7 @@ function tTextTransliterate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextPhoneticMatch(args: Record<string, unknown>): ToolCallResult {
+function tTextPhoneticMatch(args: Record<string, any>): ToolCallResult {
   const word1 = String(args.word1 || "");
   const word2 = String(args.word2 || "");
   try {
@@ -12053,7 +12053,7 @@ function tTextPhoneticMatch(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextStemLemmatize(args: Record<string, unknown>): ToolCallResult {
+function tTextStemLemmatize(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const operation = String(args.operation || "");
   try {
@@ -12064,7 +12064,7 @@ function tTextStemLemmatize(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextNgramGenerator(args: Record<string, unknown>): ToolCallResult {
+function tTextNgramGenerator(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const n = Number(args.n || 0);
   try {
@@ -12075,7 +12075,7 @@ function tTextNgramGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextRegexTester(args: Record<string, unknown>): ToolCallResult {
+function tTextRegexTester(args: Record<string, any>): ToolCallResult {
   const pattern = String(args.pattern || "");
   const flags = String(args.flags || "");
   const testString = String(args.testString || "");
@@ -12087,7 +12087,7 @@ function tTextRegexTester(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextFuzzyMatch(args: Record<string, unknown>): ToolCallResult {
+function tTextFuzzyMatch(args: Record<string, any>): ToolCallResult {
   const s1 = String(args.s1 || "");
   const s2 = String(args.s2 || "");
   try {
@@ -12098,7 +12098,7 @@ function tTextFuzzyMatch(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextExtractEmails(args: Record<string, unknown>): ToolCallResult {
+function tTextExtractEmails(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textExtractEmails(text);
@@ -12108,7 +12108,7 @@ function tTextExtractEmails(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextExtractUrls(args: Record<string, unknown>): ToolCallResult {
+function tTextExtractUrls(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textExtractUrls(text);
@@ -12118,7 +12118,7 @@ function tTextExtractUrls(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextExtractIps(args: Record<string, unknown>): ToolCallResult {
+function tTextExtractIps(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textExtractIps(text);
@@ -12128,7 +12128,7 @@ function tTextExtractIps(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tTextExtractPhoneNumbers(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTextExtractPhoneNumbers(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   try {
     const result = await textExtractPhoneNumbers(text);
@@ -12138,7 +12138,7 @@ async function tTextExtractPhoneNumbers(args: Record<string, unknown>): Promise<
   }
 }
 
-function tTextRedactPii(args: Record<string, unknown>): ToolCallResult {
+function tTextRedactPii(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   try {
     const result = textRedactPii(text);
@@ -12148,7 +12148,7 @@ function tTextRedactPii(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextMarkdownToPlain(args: Record<string, unknown>): ToolCallResult {
+function tTextMarkdownToPlain(args: Record<string, any>): ToolCallResult {
   const markdown = String(args.markdown || "");
   try {
     const result = textMarkdownToPlain(markdown);
@@ -12158,7 +12158,7 @@ function tTextMarkdownToPlain(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextHtmlToMarkdown(args: Record<string, unknown>): ToolCallResult {
+function tTextHtmlToMarkdown(args: Record<string, any>): ToolCallResult {
   const html = String(args.html || "");
   try {
     const result = textHtmlToMarkdown(html);
@@ -12168,7 +12168,7 @@ function tTextHtmlToMarkdown(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextCsvToJson(args: Record<string, unknown>): ToolCallResult {
+function tTextCsvToJson(args: Record<string, any>): ToolCallResult {
   const csv = String(args.csv || "");
   try {
     const result = textCsvToJson(csv);
@@ -12178,7 +12178,7 @@ function tTextCsvToJson(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextJsonToCsv(args: Record<string, unknown>): ToolCallResult {
+function tTextJsonToCsv(args: Record<string, any>): ToolCallResult {
   const jsonStr = String(args.jsonStr || "");
   try {
     const result = textJsonToCsv(jsonStr);
@@ -12188,7 +12188,7 @@ function tTextJsonToCsv(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tProcessMonitor(args: Record<string, unknown>): ToolCallResult {
+function tProcessMonitor(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = processMonitor();
@@ -12198,7 +12198,7 @@ function tProcessMonitor(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDiskUsageAnalyzer(args: Record<string, unknown>): ToolCallResult {
+function tDiskUsageAnalyzer(args: Record<string, any>): ToolCallResult {
   const path = String(args.path || "");
   try {
     const result = diskUsageAnalyzer(path);
@@ -12208,7 +12208,7 @@ function tDiskUsageAnalyzer(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNetworkConnectionsList(args: Record<string, unknown>): ToolCallResult {
+function tNetworkConnectionsList(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = networkConnectionsList();
@@ -12218,7 +12218,7 @@ function tNetworkConnectionsList(args: Record<string, unknown>): ToolCallResult 
   }
 }
 
-function tFirewallRulesAudit(args: Record<string, unknown>): ToolCallResult {
+function tFirewallRulesAudit(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = firewallRulesAudit();
@@ -12228,7 +12228,7 @@ function tFirewallRulesAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCronJobsList(args: Record<string, unknown>): ToolCallResult {
+function tCronJobsList(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = cronJobsList();
@@ -12238,7 +12238,7 @@ function tCronJobsList(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tEnvVarsInspect(args: Record<string, unknown>): ToolCallResult {
+function tEnvVarsInspect(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = envVarsInspect();
@@ -12248,7 +12248,7 @@ function tEnvVarsInspect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tLogTail(args: Record<string, unknown>): ToolCallResult {
+function tLogTail(args: Record<string, any>): ToolCallResult {
   const logPath = String(args.logPath || "");
   const lines = Number(args.lines || 0);
   try {
@@ -12259,7 +12259,7 @@ function tLogTail(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tServiceStatusCheck(args: Record<string, unknown>): ToolCallResult {
+function tServiceStatusCheck(args: Record<string, any>): ToolCallResult {
   const serviceName = String(args.serviceName || "");
   try {
     const result = serviceStatusCheck(serviceName);
@@ -12269,7 +12269,7 @@ function tServiceStatusCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDockerPsAudit(args: Record<string, unknown>): ToolCallResult {
+function tDockerPsAudit(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = dockerPsAudit();
@@ -12279,7 +12279,7 @@ function tDockerPsAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tDockerImageVulnScan(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDockerImageVulnScan(args: Record<string, any>): Promise<ToolCallResult> {
   const image = String(args.image || "");
   try {
     const result = await dockerImageVulnScan(image);
@@ -12289,7 +12289,7 @@ async function tDockerImageVulnScan(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tK8sPodInspect(args: Record<string, unknown>): ToolCallResult {
+function tK8sPodInspect(args: Record<string, any>): ToolCallResult {
   const namespace = String(args.namespace || "");
   try {
     const result = k8sPodInspect(namespace);
@@ -12299,7 +12299,7 @@ function tK8sPodInspect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tNginxConfigCheck(args: Record<string, unknown>): ToolCallResult {
+function tNginxConfigCheck(args: Record<string, any>): ToolCallResult {
   const configPath = String(args.configPath || "");
   try {
     const result = nginxConfigCheck(configPath);
@@ -12309,7 +12309,7 @@ function tNginxConfigCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tApacheConfigCheck(args: Record<string, unknown>): ToolCallResult {
+function tApacheConfigCheck(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = apacheConfigCheck();
@@ -12319,7 +12319,7 @@ function tApacheConfigCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tSslCertExpiryCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSslCertExpiryCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const domains = String(args.domains || "");
   try {
     const result = await sslCertExpiryCheck(domains);
@@ -12329,7 +12329,7 @@ async function tSslCertExpiryCheck(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tDnsPropagationCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tDnsPropagationCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "");
   const recordType = String(args.recordType || "");
   try {
@@ -12340,7 +12340,7 @@ async function tDnsPropagationCheck(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tLoadAverageMonitor(args: Record<string, unknown>): ToolCallResult {
+function tLoadAverageMonitor(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = loadAverageMonitor();
@@ -12350,7 +12350,7 @@ function tLoadAverageMonitor(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMemoryLeakDetect(args: Record<string, unknown>): ToolCallResult {
+function tMemoryLeakDetect(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = memoryLeakDetect();
@@ -12360,7 +12360,7 @@ function tMemoryLeakDetect(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPortKill(args: Record<string, unknown>): ToolCallResult {
+function tPortKill(args: Record<string, any>): ToolCallResult {
   const port = Number(args.port || 0);
   try {
     const result = portKill(port);
@@ -12370,7 +12370,7 @@ function tPortKill(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tFilePermissionAudit(args: Record<string, unknown>): ToolCallResult {
+function tFilePermissionAudit(args: Record<string, any>): ToolCallResult {
   const dirPath = String(args.dirPath || "");
   try {
     const result = filePermissionAudit(dirPath);
@@ -12380,7 +12380,7 @@ function tFilePermissionAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSshKeyAudit(args: Record<string, unknown>): ToolCallResult {
+function tSshKeyAudit(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = sshKeyAudit();
@@ -12390,7 +12390,7 @@ function tSshKeyAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tAwsS3BucketCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAwsS3BucketCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const bucketName = String(args.bucketName || "");
   try {
     const result = await awsS3BucketCheck(bucketName);
@@ -12400,7 +12400,7 @@ async function tAwsS3BucketCheck(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-function tAwsIamAudit(args: Record<string, unknown>): ToolCallResult {
+function tAwsIamAudit(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = awsIamAudit();
@@ -12410,7 +12410,7 @@ function tAwsIamAudit(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tAwsSecurityGroupsAudit(args: Record<string, unknown>): ToolCallResult {
+function tAwsSecurityGroupsAudit(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = awsSecurityGroupsAudit();
@@ -12420,7 +12420,7 @@ function tAwsSecurityGroupsAudit(args: Record<string, unknown>): ToolCallResult 
   }
 }
 
-function tAzureAdEnum(args: Record<string, unknown>): ToolCallResult {
+function tAzureAdEnum(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = azureAdEnum();
@@ -12430,7 +12430,7 @@ function tAzureAdEnum(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tGcpProjectEnum(args: Record<string, unknown>): ToolCallResult {
+function tGcpProjectEnum(args: Record<string, any>): ToolCallResult {
   // No parameters
   try {
     const result = gcpProjectEnum();
@@ -12440,7 +12440,7 @@ function tGcpProjectEnum(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tCloudMetadataCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCloudMetadataCheck(args: Record<string, any>): Promise<ToolCallResult> {
   // No parameters
   try {
     const result = await cloudMetadataCheck();
@@ -12450,7 +12450,7 @@ async function tCloudMetadataCheck(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-function tTerraformValidate(args: Record<string, unknown>): ToolCallResult {
+function tTerraformValidate(args: Record<string, any>): ToolCallResult {
   const dirPath = String(args.dirPath || "");
   try {
     const result = terraformValidate(dirPath);
@@ -12460,7 +12460,7 @@ function tTerraformValidate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTerraformPlanDiff(args: Record<string, unknown>): ToolCallResult {
+function tTerraformPlanDiff(args: Record<string, any>): ToolCallResult {
   const dirPath = String(args.dirPath || "");
   try {
     const result = terraformPlanDiff(dirPath);
@@ -12470,7 +12470,7 @@ function tTerraformPlanDiff(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tKubernetesManifestValidate(args: Record<string, unknown>): ToolCallResult {
+function tKubernetesManifestValidate(args: Record<string, any>): ToolCallResult {
   const filePath = String(args.filePath || "");
   try {
     const result = kubernetesManifestValidate(filePath);
@@ -12480,7 +12480,7 @@ function tKubernetesManifestValidate(args: Record<string, unknown>): ToolCallRes
   }
 }
 
-function tDockerComposeValidate(args: Record<string, unknown>): ToolCallResult {
+function tDockerComposeValidate(args: Record<string, any>): ToolCallResult {
   const filePath = String(args.filePath || "");
   try {
     const result = dockerComposeValidate(filePath);
@@ -12490,7 +12490,7 @@ function tDockerComposeValidate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tApiSchemaDiff(args: Record<string, unknown>): ToolCallResult {
+function tApiSchemaDiff(args: Record<string, any>): ToolCallResult {
   const schema1 = String(args.schema1 || "");
   const schema2 = String(args.schema2 || "");
   try {
@@ -12501,7 +12501,7 @@ function tApiSchemaDiff(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tGraphqlIntrospectionCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGraphqlIntrospectionCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await graphqlIntrospectionCheck(url);
@@ -12511,7 +12511,7 @@ async function tGraphqlIntrospectionCheck(args: Record<string, unknown>): Promis
   }
 }
 
-async function tApiRateLimitDiscover(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tApiRateLimitDiscover(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   try {
     const result = await apiRateLimitDiscover(url);
@@ -12521,7 +12521,7 @@ async function tApiRateLimitDiscover(args: Record<string, unknown>): Promise<Too
   }
 }
 
-async function tWebhookSignatureVerify(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tWebhookSignatureVerify(args: Record<string, any>): Promise<ToolCallResult> {
   const payload = String(args.payload || "");
   const signature = String(args.signature || "");
   const secret = String(args.secret || "");
@@ -12534,7 +12534,7 @@ async function tWebhookSignatureVerify(args: Record<string, unknown>): Promise<T
   }
 }
 
-function tOauthFlowTest(args: Record<string, unknown>): ToolCallResult {
+function tOauthFlowTest(args: Record<string, any>): ToolCallResult {
   const authorizationUrl = String(args.authorizationUrl || "");
   const tokenUrl = String(args.tokenUrl || "");
   const clientId = String(args.clientId || "");
@@ -12547,7 +12547,7 @@ function tOauthFlowTest(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tRiotAccountLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRiotAccountLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const gameName = String(args.gameName || "");
   const tagLine = String(args.tagLine || "");
   try {
@@ -12558,7 +12558,7 @@ async function tRiotAccountLookup(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tLolMatchHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLolMatchHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const summonerName = String(args.summonerName || "");
   try {
     const result = await lolMatchHistory(summonerName);
@@ -12568,7 +12568,7 @@ async function tLolMatchHistory(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tLolRankCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLolRankCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const summonerName = String(args.summonerName || "");
   const region = String(args.region || "");
   try {
@@ -12579,7 +12579,7 @@ async function tLolRankCheck(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tCsgoStatsFetch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCsgoStatsFetch(args: Record<string, any>): Promise<ToolCallResult> {
   const steamId = String(args.steamId || "");
   try {
     const result = await csgoStatsFetch(steamId);
@@ -12589,7 +12589,7 @@ async function tCsgoStatsFetch(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tApexLegendsStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tApexLegendsStats(args: Record<string, any>): Promise<ToolCallResult> {
   const playerName = String(args.playerName || "");
   const platform = String(args.platform || "");
   try {
@@ -12600,7 +12600,7 @@ async function tApexLegendsStats(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tRocketLeagueStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tRocketLeagueStats(args: Record<string, any>): Promise<ToolCallResult> {
   const playerName = String(args.playerName || "");
   const platform = String(args.platform || "");
   try {
@@ -12611,7 +12611,7 @@ async function tRocketLeagueStats(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tOsuUserStats(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tOsuUserStats(args: Record<string, any>): Promise<ToolCallResult> {
   const username = String(args.username || "");
   try {
     const result = await osuUserStats(username);
@@ -12621,7 +12621,7 @@ async function tOsuUserStats(args: Record<string, unknown>): Promise<ToolCallRes
   }
 }
 
-async function tMinecraftServerStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tMinecraftServerStatus(args: Record<string, any>): Promise<ToolCallResult> {
   const host = String(args.host || "");
   const port = Number(args.port || 0);
   try {
@@ -12632,7 +12632,7 @@ async function tMinecraftServerStatus(args: Record<string, unknown>): Promise<To
   }
 }
 
-async function tFortniteItemShop(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tFortniteItemShop(args: Record<string, any>): Promise<ToolCallResult> {
   // No parameters
   try {
     const result = await fortniteItemShop();
@@ -12642,7 +12642,7 @@ async function tFortniteItemShop(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tEpicGamesFreeGames(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tEpicGamesFreeGames(args: Record<string, any>): Promise<ToolCallResult> {
   // No parameters
   try {
     const result = await epicGamesFreeGames();
@@ -12652,7 +12652,7 @@ async function tEpicGamesFreeGames(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tTwitchStreamCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTwitchStreamCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const streamerName = String(args.streamerName || "");
   try {
     const result = await twitchStreamCheck(streamerName);
@@ -12662,7 +12662,7 @@ async function tTwitchStreamCheck(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tTwitchClipCreate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tTwitchClipCreate(args: Record<string, any>): Promise<ToolCallResult> {
   const broadcasterId = String(args.broadcasterId || "");
   try {
     const result = await twitchClipCreate(broadcasterId);
@@ -12672,7 +12672,7 @@ async function tTwitchClipCreate(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tSpotifyTrackSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSpotifyTrackSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   try {
     const result = await spotifyTrackSearch(query);
@@ -12682,7 +12682,7 @@ async function tSpotifyTrackSearch(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tSpotifyPlaylistAnalyze(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSpotifyPlaylistAnalyze(args: Record<string, any>): Promise<ToolCallResult> {
   const playlistId = String(args.playlistId || "");
   try {
     const result = await spotifyPlaylistAnalyze(playlistId);
@@ -12692,7 +12692,7 @@ async function tSpotifyPlaylistAnalyze(args: Record<string, unknown>): Promise<T
   }
 }
 
-async function tBoardgameGeekSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tBoardgameGeekSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "");
   try {
     const result = await boardgameGeekSearch(query);
@@ -12702,7 +12702,7 @@ async function tBoardgameGeekSearch(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-function tPhysicsCalculator(args: Record<string, unknown>): ToolCallResult {
+function tPhysicsCalculator(args: Record<string, any>): ToolCallResult {
   const formula = String(args.formula || "");
   const values = String(args.values || "");
   try {
@@ -12713,7 +12713,7 @@ function tPhysicsCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tOhmsLawCalc(args: Record<string, unknown>): ToolCallResult {
+function tOhmsLawCalc(args: Record<string, any>): ToolCallResult {
   const voltage = Number(args.voltage || 0);
   const current = Number(args.current || 0);
   const resistance = Number(args.resistance || 0);
@@ -12726,7 +12726,7 @@ function tOhmsLawCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tWavelengthFrequency(args: Record<string, unknown>): ToolCallResult {
+function tWavelengthFrequency(args: Record<string, any>): ToolCallResult {
   const value = Number(args.value || 0);
   const type = String(args.type || "");
   try {
@@ -12737,7 +12737,7 @@ function tWavelengthFrequency(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRadioactiveDecayCalc(args: Record<string, unknown>): ToolCallResult {
+function tRadioactiveDecayCalc(args: Record<string, any>): ToolCallResult {
   const initialAmount = Number(args.initialAmount || 0);
   const halfLife = Number(args.halfLife || 0);
   const time = Number(args.time || 0);
@@ -12749,7 +12749,7 @@ function tRadioactiveDecayCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tUnitConvertScientific(args: Record<string, unknown>): ToolCallResult {
+function tUnitConvertScientific(args: Record<string, any>): ToolCallResult {
   const value = Number(args.value || 0);
   const fromUnit = String(args.fromUnit || "");
   const toUnit = String(args.toUnit || "");
@@ -12761,7 +12761,7 @@ function tUnitConvertScientific(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMolarMassCalc(args: Record<string, unknown>): ToolCallResult {
+function tMolarMassCalc(args: Record<string, any>): ToolCallResult {
   const formula = String(args.formula || "");
   try {
     const result = molarMassCalc(formula);
@@ -12771,7 +12771,7 @@ function tMolarMassCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tChemicalEquationBalancer(args: Record<string, unknown>): ToolCallResult {
+function tChemicalEquationBalancer(args: Record<string, any>): ToolCallResult {
   const equation = String(args.equation || "");
   try {
     const result = chemicalEquationBalancer(equation);
@@ -12781,7 +12781,7 @@ function tChemicalEquationBalancer(args: Record<string, unknown>): ToolCallResul
   }
 }
 
-function tPhCalculator(args: Record<string, unknown>): ToolCallResult {
+function tPhCalculator(args: Record<string, any>): ToolCallResult {
   const concentration = Number(args.concentration || 0);
   const type = String(args.type || "");
   try {
@@ -12792,7 +12792,7 @@ function tPhCalculator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tIdealGasLaw(args: Record<string, unknown>): ToolCallResult {
+function tIdealGasLaw(args: Record<string, any>): ToolCallResult {
   const pressure = Number(args.pressure || 0);
   const volume = Number(args.volume || 0);
   const moles = Number(args.moles || 0);
@@ -12806,7 +12806,7 @@ function tIdealGasLaw(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tKinematicsCalc(args: Record<string, unknown>): ToolCallResult {
+function tKinematicsCalc(args: Record<string, any>): ToolCallResult {
   const v0 = Number(args.v0 || 0);
   const a = Number(args.a || 0);
   const t = Number(args.t || 0);
@@ -12818,7 +12818,7 @@ function tKinematicsCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tOpticsCalc(args: Record<string, unknown>): ToolCallResult {
+function tOpticsCalc(args: Record<string, any>): ToolCallResult {
   const focalLength = Number(args.focalLength || 0);
   const objectDistance = Number(args.objectDistance || 0);
   try {
@@ -12829,7 +12829,7 @@ function tOpticsCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tElectricFieldCalc(args: Record<string, unknown>): ToolCallResult {
+function tElectricFieldCalc(args: Record<string, any>): ToolCallResult {
   const charge = Number(args.charge || 0);
   const distance = Number(args.distance || 0);
   try {
@@ -12840,7 +12840,7 @@ function tElectricFieldCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tThermalExpansionCalc(args: Record<string, unknown>): ToolCallResult {
+function tThermalExpansionCalc(args: Record<string, any>): ToolCallResult {
   const initialLength = Number(args.initialLength || 0);
   const coefficient = Number(args.coefficient || 0);
   const tempChange = Number(args.tempChange || 0);
@@ -12852,7 +12852,7 @@ function tThermalExpansionCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tAstronomicalDistance(args: Record<string, unknown>): ToolCallResult {
+function tAstronomicalDistance(args: Record<string, any>): ToolCallResult {
   const value = Number(args.value || 0);
   const fromUnit = String(args.fromUnit || "");
   const toUnit = String(args.toUnit || "");
@@ -12864,7 +12864,7 @@ function tAstronomicalDistance(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRadioactiveDecayCalc2(args: Record<string, unknown>): ToolCallResult {
+function tRadioactiveDecayCalc2(args: Record<string, any>): ToolCallResult {
   const initialAmount = Number(args.initialAmount || 0);
   const halfLife = Number(args.halfLife || 0);
   const time = Number(args.time || 0);
@@ -12876,7 +12876,7 @@ function tRadioactiveDecayCalc2(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tGeocodeReverse(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tGeocodeReverse(args: Record<string, any>): Promise<ToolCallResult> {
   const lat = Number(args.lat || 0);
   const lon = Number(args.lon || 0);
   try {
@@ -12887,7 +12887,7 @@ async function tGeocodeReverse(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-function tTimezoneConvertAdvanced(args: Record<string, unknown>): ToolCallResult {
+function tTimezoneConvertAdvanced(args: Record<string, any>): ToolCallResult {
   const datetime = String(args.datetime || "");
   const fromTz = String(args.fromTz || "");
   const toTz = String(args.toTz || "");
@@ -12899,7 +12899,7 @@ function tTimezoneConvertAdvanced(args: Record<string, unknown>): ToolCallResult
   }
 }
 
-function tDistanceMatrix(args: Record<string, unknown>): ToolCallResult {
+function tDistanceMatrix(args: Record<string, any>): ToolCallResult {
   const origins = String(args.origins || "");
   const destinations = String(args.destinations || "");
   try {
@@ -12910,7 +12910,7 @@ function tDistanceMatrix(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tElevationLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tElevationLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const lat = Number(args.lat || 0);
   const lon = Number(args.lon || 0);
   try {
@@ -12921,7 +12921,7 @@ async function tElevationLookup(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tCountryBordering(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCountryBordering(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country || "");
   try {
     const result = await countryBordering(country);
@@ -12931,7 +12931,7 @@ async function tCountryBordering(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tCurrencyByCountry(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCurrencyByCountry(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country || "");
   try {
     const result = await currencyByCountry(country);
@@ -12941,7 +12941,7 @@ async function tCurrencyByCountry(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tLanguageByCountry(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tLanguageByCountry(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country || "");
   try {
     const result = await languageByCountry(country);
@@ -12951,7 +12951,7 @@ async function tLanguageByCountry(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tCapitalLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tCapitalLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country || "");
   try {
     const result = await capitalLookup(country);
@@ -12961,7 +12961,7 @@ async function tCapitalLookup(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function tIsoCountryCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tIsoCountryCode(args: Record<string, any>): Promise<ToolCallResult> {
   const country = String(args.country || "");
   try {
     const result = await isoCountryCode(country);
@@ -12971,7 +12971,7 @@ async function tIsoCountryCode(args: Record<string, unknown>): Promise<ToolCallR
   }
 }
 
-async function tSunriseSunsetAnywhere(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tSunriseSunsetAnywhere(args: Record<string, any>): Promise<ToolCallResult> {
   const lat = Number(args.lat || 0);
   const lon = Number(args.lon || 0);
   const date = String(args.date || "");
@@ -12983,7 +12983,7 @@ async function tSunriseSunsetAnywhere(args: Record<string, unknown>): Promise<To
   }
 }
 
-function tWaterIntakeCalc(args: Record<string, unknown>): ToolCallResult {
+function tWaterIntakeCalc(args: Record<string, any>): ToolCallResult {
   const weightKg = Number(args.weightKg || 0);
   const activityMinutes = Number(args.activityMinutes || 0);
   try {
@@ -12994,7 +12994,7 @@ function tWaterIntakeCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tHeartRateZone(args: Record<string, unknown>): ToolCallResult {
+function tHeartRateZone(args: Record<string, any>): ToolCallResult {
   const age = Number(args.age || 0);
   const restingHr = Number(args.restingHr || 0);
   try {
@@ -13005,7 +13005,7 @@ function tHeartRateZone(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tBodyFatPercentageCalc(args: Record<string, unknown>): ToolCallResult {
+function tBodyFatPercentageCalc(args: Record<string, any>): ToolCallResult {
   const gender = String(args.gender || "");
   const heightCm = Number(args.heightCm || 0);
   const neckCm = Number(args.neckCm || 0);
@@ -13019,7 +13019,7 @@ function tBodyFatPercentageCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tIdealWeightCalc(args: Record<string, unknown>): ToolCallResult {
+function tIdealWeightCalc(args: Record<string, any>): ToolCallResult {
   const gender = String(args.gender || "");
   const heightCm = Number(args.heightCm || 0);
   try {
@@ -13030,7 +13030,7 @@ function tIdealWeightCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tPregnancyDueDate(args: Record<string, unknown>): ToolCallResult {
+function tPregnancyDueDate(args: Record<string, any>): ToolCallResult {
   const lastPeriod = String(args.lastPeriod || "");
   try {
     const result = pregnancyDueDate(lastPeriod);
@@ -13040,7 +13040,7 @@ function tPregnancyDueDate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tOvulationCalc(args: Record<string, unknown>): ToolCallResult {
+function tOvulationCalc(args: Record<string, any>): ToolCallResult {
   const lastPeriod = String(args.lastPeriod || "");
   const cycleLength = Number(args.cycleLength || 0);
   try {
@@ -13051,7 +13051,7 @@ function tOvulationCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tMacroNutrientCalc(args: Record<string, unknown>): ToolCallResult {
+function tMacroNutrientCalc(args: Record<string, any>): ToolCallResult {
   const weightKg = Number(args.weightKg || 0);
   const goal = String(args.goal || "");
   const activityLevel = String(args.activityLevel || "");
@@ -13063,7 +13063,7 @@ function tMacroNutrientCalc(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSleepQualityScore(args: Record<string, unknown>): ToolCallResult {
+function tSleepQualityScore(args: Record<string, any>): ToolCallResult {
   const bedtime = String(args.bedtime || "");
   const wakeTime = String(args.wakeTime || "");
   const awakenings = Number(args.awakenings || 0);
@@ -13076,7 +13076,7 @@ function tSleepQualityScore(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tStepToCalorie(args: Record<string, unknown>): ToolCallResult {
+function tStepToCalorie(args: Record<string, any>): ToolCallResult {
   const steps = Number(args.steps || 0);
   const weightKg = Number(args.weightKg || 0);
   try {
@@ -13087,7 +13087,7 @@ function tStepToCalorie(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tHydrationTracker(args: Record<string, unknown>): ToolCallResult {
+function tHydrationTracker(args: Record<string, any>): ToolCallResult {
   const glassesToday = Number(args.glassesToday || 0);
   const weightKg = Number(args.weightKg || 0);
   try {
@@ -13098,7 +13098,7 @@ function tHydrationTracker(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCodeComplexityAnalyzer(args: Record<string, unknown>): ToolCallResult {
+function tCodeComplexityAnalyzer(args: Record<string, any>): ToolCallResult {
   const code = String(args.code || "");
   const language = String(args.language || "");
   try {
@@ -13109,7 +13109,7 @@ function tCodeComplexityAnalyzer(args: Record<string, unknown>): ToolCallResult 
   }
 }
 
-function tCodeFormatBeautifier(args: Record<string, unknown>): ToolCallResult {
+function tCodeFormatBeautifier(args: Record<string, any>): ToolCallResult {
   const code = String(args.code || "");
   const language = String(args.language || "");
   try {
@@ -13120,7 +13120,7 @@ function tCodeFormatBeautifier(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCodeMinifier(args: Record<string, unknown>): ToolCallResult {
+function tCodeMinifier(args: Record<string, any>): ToolCallResult {
   const code = String(args.code || "");
   const language = String(args.language || "");
   try {
@@ -13131,7 +13131,7 @@ function tCodeMinifier(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCodeDiffUnified(args: Record<string, unknown>): ToolCallResult {
+function tCodeDiffUnified(args: Record<string, any>): ToolCallResult {
   const code1 = String(args.code1 || "");
   const code2 = String(args.code2 || "");
   try {
@@ -13142,7 +13142,7 @@ function tCodeDiffUnified(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tCodeLinterCheck(args: Record<string, unknown>): ToolCallResult {
+function tCodeLinterCheck(args: Record<string, any>): ToolCallResult {
   const filePath = String(args.filePath || "");
   const linter = String(args.linter || "");
   try {
@@ -13153,7 +13153,7 @@ function tCodeLinterCheck(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tRegexDebugger(args: Record<string, unknown>): ToolCallResult {
+function tRegexDebugger(args: Record<string, any>): ToolCallResult {
   const pattern = String(args.pattern || "");
   const testString = String(args.testString || "");
   try {
@@ -13164,7 +13164,7 @@ function tRegexDebugger(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tApiEndpointTester(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tApiEndpointTester(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "");
   const method = String(args.method || "");
   const headers = String(args.headers || "");
@@ -13177,7 +13177,7 @@ async function tApiEndpointTester(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-function tJsonSchemaValidate(args: Record<string, unknown>): ToolCallResult {
+function tJsonSchemaValidate(args: Record<string, any>): ToolCallResult {
   const jsonStr = String(args.jsonStr || "");
   const schemaStr = String(args.schemaStr || "");
   try {
@@ -13188,7 +13188,7 @@ function tJsonSchemaValidate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tYamlValidate(args: Record<string, unknown>): ToolCallResult {
+function tYamlValidate(args: Record<string, any>): ToolCallResult {
   const yamlStr = String(args.yamlStr || "");
   try {
     const result = yamlValidate(yamlStr);
@@ -13198,7 +13198,7 @@ function tYamlValidate(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tXmlToJson(args: Record<string, unknown>): ToolCallResult {
+function tXmlToJson(args: Record<string, any>): ToolCallResult {
   const xmlStr = String(args.xmlStr || "");
   try {
     const result = xmlToJson(xmlStr);
@@ -13208,7 +13208,7 @@ function tXmlToJson(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSqlFormatBeautify(args: Record<string, unknown>): ToolCallResult {
+function tSqlFormatBeautify(args: Record<string, any>): ToolCallResult {
   const sql = String(args.sql || "");
   try {
     const result = sqlFormatBeautify(sql);
@@ -13218,7 +13218,7 @@ function tSqlFormatBeautify(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDockerfileLint(args: Record<string, unknown>): ToolCallResult {
+function tDockerfileLint(args: Record<string, any>): ToolCallResult {
   const dockerfile = String(args.dockerfile || "");
   try {
     const result = dockerfileLint(dockerfile);
@@ -13228,7 +13228,7 @@ function tDockerfileLint(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tChangelogGenerator(args: Record<string, unknown>): ToolCallResult {
+function tChangelogGenerator(args: Record<string, any>): ToolCallResult {
   const commits = String(args.commits || "");
   const version = String(args.version || "");
   try {
@@ -13239,7 +13239,7 @@ function tChangelogGenerator(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tSqlFormatBeautify2(args: Record<string, unknown>): ToolCallResult {
+function tSqlFormatBeautify2(args: Record<string, any>): ToolCallResult {
   const sql = String(args.sql || "");
   try {
     const result = sqlFormatBeautify2(sql);
@@ -13249,7 +13249,7 @@ function tSqlFormatBeautify2(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tDockerfileLint2(args: Record<string, unknown>): ToolCallResult {
+function tDockerfileLint2(args: Record<string, any>): ToolCallResult {
   const dockerfile = String(args.dockerfile || "");
   try {
     const result = dockerfileLint2(dockerfile);
@@ -13259,7 +13259,7 @@ function tDockerfileLint2(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tImageResizeCrop(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tImageResizeCrop(args: Record<string, any>): Promise<ToolCallResult> {
   const imagePath = String(args.imagePath || "");
   const width = Number(args.width || 0);
   const height = Number(args.height || 0);
@@ -13272,7 +13272,7 @@ async function tImageResizeCrop(args: Record<string, unknown>): Promise<ToolCall
   }
 }
 
-async function tImageFormatConvert(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tImageFormatConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const imagePath = String(args.imagePath || "");
   const targetFormat = String(args.targetFormat || "");
   try {
@@ -13283,7 +13283,7 @@ async function tImageFormatConvert(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tImageMetadataStrip(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tImageMetadataStrip(args: Record<string, any>): Promise<ToolCallResult> {
   const imagePath = String(args.imagePath || "");
   try {
     const result = await imageMetadataStrip(imagePath);
@@ -13293,7 +13293,7 @@ async function tImageMetadataStrip(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tImageCollageCreate(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tImageCollageCreate(args: Record<string, any>): Promise<ToolCallResult> {
   const imagePaths = String(args.imagePaths || "");
   const cols = Number(args.cols || 0);
   const rows = Number(args.rows || 0);
@@ -13305,7 +13305,7 @@ async function tImageCollageCreate(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-function tAudioConvert(args: Record<string, unknown>): ToolCallResult {
+function tAudioConvert(args: Record<string, any>): ToolCallResult {
   const inputPath = String(args.inputPath || "");
   const targetFormat = String(args.targetFormat || "");
   const bitrate = String(args.bitrate || "");
@@ -13317,7 +13317,7 @@ function tAudioConvert(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tAudioExtractFromVideo(args: Record<string, unknown>): ToolCallResult {
+function tAudioExtractFromVideo(args: Record<string, any>): ToolCallResult {
   const videoPath = String(args.videoPath || "");
   const targetFormat = String(args.targetFormat || "");
   try {
@@ -13328,7 +13328,7 @@ function tAudioExtractFromVideo(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tVideoCompress(args: Record<string, unknown>): ToolCallResult {
+function tVideoCompress(args: Record<string, any>): ToolCallResult {
   const videoPath = String(args.videoPath || "");
   const crf = Number(args.crf || 0);
   try {
@@ -13339,7 +13339,7 @@ function tVideoCompress(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tVideoGifConvert(args: Record<string, unknown>): ToolCallResult {
+function tVideoGifConvert(args: Record<string, any>): ToolCallResult {
   const inputPath = String(args.inputPath || "");
   const outputFormat = String(args.outputFormat || "");
   const fps = Number(args.fps || 0);
@@ -13352,7 +13352,7 @@ function tVideoGifConvert(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-function tTextToSpeechMulti(args: Record<string, unknown>): ToolCallResult {
+function tTextToSpeechMulti(args: Record<string, any>): ToolCallResult {
   const text = String(args.text || "");
   const voice = String(args.voice || "");
   const language = String(args.language || "");
@@ -13364,7 +13364,7 @@ function tTextToSpeechMulti(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tImageWatermarkAdd(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tImageWatermarkAdd(args: Record<string, any>): Promise<ToolCallResult> {
   const imagePath = String(args.imagePath || "");
   const watermarkText = String(args.watermarkText || "");
   const opacity = Number(args.opacity || 0);
@@ -13378,7 +13378,7 @@ async function tImageWatermarkAdd(args: Record<string, unknown>): Promise<ToolCa
 
 // ─── Amazon Toolkit Handlers ──────────────────────────────────────────────────
 
-async function tAmazonWishlistScrape(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonWishlistScrape(args: Record<string, any>): Promise<ToolCallResult> {
   const wishlistUrl = String(args.wishlistUrl || "");
   const domain = String(args.domain || "com");
   if (!wishlistUrl) return { success: false, data: "❌ wishlistUrl requis" };
@@ -13390,7 +13390,7 @@ async function tAmazonWishlistScrape(args: Record<string, unknown>): Promise<Too
   }
 }
 
-async function tAmazonPriceTrack(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonPriceTrack(args: Record<string, any>): Promise<ToolCallResult> {
   const asin = String(args.asin || "");
   const domain = String(args.domain || "com");
   if (!asin) return { success: false, data: "❌ asin requis" };
@@ -13402,7 +13402,7 @@ async function tAmazonPriceTrack(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tAmazonPriceHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonPriceHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const asin = String(args.asin || "");
   const domain = String(args.domain || "com");
   const days = Number(args.days || 30);
@@ -13415,7 +13415,7 @@ async function tAmazonPriceHistory(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tAmazonProductLookup(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonProductLookup(args: Record<string, any>): Promise<ToolCallResult> {
   const asin = String(args.asin || "");
   const domain = String(args.domain || "com");
   if (!asin) return { success: false, data: "❌ asin requis" };
@@ -13427,7 +13427,7 @@ async function tAmazonProductLookup(args: Record<string, unknown>): Promise<Tool
   }
 }
 
-async function tAmazonCartMonitor(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonCartMonitor(args: Record<string, any>): Promise<ToolCallResult> {
   const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
   try {
     const result = await amazonCartMonitor(sessionDir);
@@ -13437,7 +13437,7 @@ async function tAmazonCartMonitor(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-function tAmazonPriceAlertCreate(args: Record<string, unknown>): ToolCallResult {
+function tAmazonPriceAlertCreate(args: Record<string, any>): ToolCallResult {
   const asin = String(args.asin || "");
   const targetPrice = Number(args.targetPrice || 0);
   const channelId = args.channelId ? String(args.channelId) : undefined;
@@ -13459,7 +13459,7 @@ async function tAmazonPriceAlertCheck(): Promise<ToolCallResult> {
   }
 }
 
-function tAmazonPriceAlertDelete(args: Record<string, unknown>): ToolCallResult {
+function tAmazonPriceAlertDelete(args: Record<string, any>): ToolCallResult {
   const alertId = String(args.alertId || "");
   if (!alertId) return { success: false, data: "❌ alertId requis" };
   try {
@@ -13470,7 +13470,7 @@ function tAmazonPriceAlertDelete(args: Record<string, unknown>): ToolCallResult 
   }
 }
 
-function tAmazonWishlistDiff(args: Record<string, unknown>): ToolCallResult {
+function tAmazonWishlistDiff(args: Record<string, any>): ToolCallResult {
   const wishlistUrl = String(args.wishlistUrl || "");
   if (!wishlistUrl) return { success: false, data: "❌ wishlistUrl requis" };
   try {
@@ -13481,7 +13481,7 @@ function tAmazonWishlistDiff(args: Record<string, unknown>): ToolCallResult {
   }
 }
 
-async function tAmazonDealSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonDealSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "com");
   const category = args.category ? String(args.category) : "";
   try {
@@ -13492,7 +13492,7 @@ async function tAmazonDealSearch(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function tAmazonBestSellers(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonBestSellers(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "com");
   const category = String(args.category || "electronics");
   try {
@@ -13503,7 +13503,7 @@ async function tAmazonBestSellers(args: Record<string, unknown>): Promise<ToolCa
   }
 }
 
-async function tAmazonCouponSearch(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonCouponSearch(args: Record<string, any>): Promise<ToolCallResult> {
   const domain = String(args.domain || "com");
   const keyword = String(args.keyword || "");
   if (!keyword) return { success: false, data: "❌ keyword requis" };
@@ -13515,7 +13515,7 @@ async function tAmazonCouponSearch(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tAmazonSubscribeSaveCheck(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonSubscribeSaveCheck(args: Record<string, any>): Promise<ToolCallResult> {
   const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
   try {
     const result = await amazonSubscribeSaveCheck(sessionDir);
@@ -13525,7 +13525,7 @@ async function tAmazonSubscribeSaveCheck(args: Record<string, unknown>): Promise
   }
 }
 
-async function tAmazonOrderHistory(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonOrderHistory(args: Record<string, any>): Promise<ToolCallResult> {
   const sessionDir = String(args.sessionDir || "/tmp/amazon-session");
   const year = String(args.year || "2026");
   try {
@@ -13536,7 +13536,7 @@ async function tAmazonOrderHistory(args: Record<string, unknown>): Promise<ToolC
   }
 }
 
-async function tAmazonReviewSummary(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function tAmazonReviewSummary(args: Record<string, any>): Promise<ToolCallResult> {
   const asin = String(args.asin || "");
   const domain = String(args.domain || "com");
   if (!asin) return { success: false, data: "❌ asin requis" };

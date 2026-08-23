@@ -434,7 +434,7 @@ export const KALI_TOOLS: AgentToolDef[] = [
 
 export async function executeKaliTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx?: { userId: string },
 ): Promise<ToolCallResult | null> {
   const invokedBy = ctx?.userId ?? "unknown";
@@ -465,7 +465,7 @@ export async function executeKaliTool(
 // ─── Port Audit ──────────────────────────────────────────────────────────────
 
 async function tRunKaliPortAudit(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const target = String(args.target || "").trim();
@@ -526,7 +526,7 @@ async function tRunKaliPortAudit(
 // ─── Web Audit ───────────────────────────────────────────────────────────────
 
 async function tRunKaliWebAudit(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const targetUrl = String(args.targetUrl || "").trim();
@@ -636,7 +636,7 @@ function parseNiktoOutput(output: string, targetUrl: string): string {
 // ─── 2.1 WiFi Security Audit (aircrack-ng) ───────────────────────────────────
 
 async function tRunWifiSecurityAudit(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const ssid = String(args.ssid || "").trim();
@@ -708,7 +708,7 @@ async function tRunWifiSecurityAudit(
 // ─── 2.1 WiFi Config Scan (wifite) ───────────────────────────────────────────
 
 async function tRunWifiConfigScan(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const ssid = String(args.ssid || "").trim();
@@ -787,7 +787,7 @@ async function tRunWifiConfigScan(
 // ─── 2.1 Rogue AP Detection (kismet) ─────────────────────────────────────────
 
 async function tRunRogueApDetection(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const ssid = String(args.ssid || "").trim();
@@ -873,7 +873,7 @@ async function tRunRogueApDetection(
 // ─── 2.2 ARP Scan ────────────────────────────────────────────────────────────
 
 async function tRunArpScan(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const cidr = String(args.cidr || "").trim();
@@ -948,7 +948,7 @@ async function tRunArpScan(
 const arpWatchState = new Map<string, { knownMacs: Set<string>; interval: NodeJS.Timeout }>();
 
 async function tRunArpWatch(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const cidr = String(args.cidr || "").trim();
@@ -1058,7 +1058,7 @@ async function tRunArpWatch(
 // ─── 2.3 IDS Snapshot (suricata/zeek log reader) ─────────────────────────────
 
 async function tRunNetworkIdsSnapshot(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const target = String(args.target || "").trim();
@@ -1147,7 +1147,7 @@ async function tRunNetworkIdsSnapshot(
 // ─── 2.4 System Hardening Audit (lynis) ──────────────────────────────────────
 
 async function tRunSystemHardeningAudit(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   invokedBy: string,
 ): Promise<ToolCallResult> {
   const target = String(args.target || "").trim();

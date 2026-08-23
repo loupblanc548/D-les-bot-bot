@@ -712,9 +712,7 @@ async function dispatchReport(
             reasoning: report.aiDecision.reasoning,
           }),
         });
-      } catch {
-        // Non-critique
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   } else if (report.aiDecision && config.autonomousAgentMode === "autonomous") {
     logger.info(
@@ -738,9 +736,7 @@ async function dispatchReport(
         summary: report.summary,
       }),
     });
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -766,19 +762,19 @@ function extractEmailFromResults(results: OSINTResult[]): string | null {
   return null;
 }
 
-function summarizeOsintData(type: string, data: unknown): string {
+function summarizeOsintData(type: string, data: any): string {
   try {
     if (Array.isArray(data)) {
       const found = data.filter((item: any) => item.found || item.registered);
       return `${data.length} résultats, ${found.length} positifs`;
     }
     if (typeof data === "object" && data !== null) {
-      const obj = data as Record<string, unknown>;
+      const obj = data as Record<string, any>;
       if ("totalFound" in obj) return `${obj.totalFound} trouvés`;
       if ("totalRegistered" in obj) return `${obj.totalRegistered} inscrits`;
       if ("totalBreaches" in obj) return `${obj.totalBreaches} breaches`;
       if ("subdomains" in obj && Array.isArray(obj.subdomains))
-        return `${(obj.subdomains as unknown[]).length} sous-domaines`;
+        return `${(obj.subdomains as any[]).length} sous-domaines`;
       return "Données récupérées";
     }
     return String(data).slice(0, 200);

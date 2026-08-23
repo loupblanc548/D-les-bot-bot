@@ -13,7 +13,7 @@ interface ViralContent {
   predictedReach: number;
   engagementRate: number;
   timestamp: number;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any>;
 }
 
 class ViralDetectionService {

@@ -65,7 +65,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min cache for read-only operations
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
 
-const mcpCache = new Map<string, { data: unknown; ts: number }>();
+const mcpCache = new Map<string, { data: any; ts: number }>();
 
 function getCached<T>(key: string): T | null {
   const entry = mcpCache.get(key);
@@ -75,7 +75,7 @@ function getCached<T>(key: string): T | null {
   return null;
 }
 
-function setCached(key: string, data: unknown): void {
+function setCached(key: string, data: any): void {
   // Enforce cache size limit
   if (mcpCache.size > 50) {
     const oldestKey = mcpCache.keys().next().value;
@@ -92,7 +92,7 @@ let requestId = 0;
  * Call a tool on the OpenRouter MCP server.
  * Uses JSON-RPC 2.0 over HTTP POST.
  */
-async function callMcpTool(toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
+async function callMcpTool(toolName: string, args: Record<string, any> = {}): Promise<any> {
   const id = ++requestId;
 
   const body = {
@@ -169,7 +169,7 @@ export async function listModels(filters?: {
   if (cached) return cached;
 
   try {
-    const args: Record<string, unknown> = {};
+    const args: Record<string, any> = {};
     if (filters?.modality) args.modality = filters.modality;
     if (filters?.provider) args.provider = filters.provider;
     if (filters?.min_context) args.min_context = filters.min_context;
@@ -222,7 +222,7 @@ export async function getBenchmarks(category?: string): Promise<McpBenchmark[]> 
   if (cached) return cached;
 
   try {
-    const args: Record<string, unknown> = {};
+    const args: Record<string, any> = {};
     if (category) args.category = category;
 
     const result = await callMcpTool("benchmarks", args);

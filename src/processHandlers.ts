@@ -11,7 +11,7 @@ import { sendCrashAlert } from "./utils/crash-webhook.js";
 export function attachProcessHandlers(): void {
   // Suppress ECONNREFUSED spam from node-redis/BullMQ socket layer (printed to stderr before handlers)
   const origStderrWrite = process.stderr.write.bind(process.stderr);
-  process.stderr.write = ((chunk: Buffer | string, ...args: unknown[]) => {
+  process.stderr.write = ((chunk: Buffer | string, ...args: any[]) => {
     const text = typeof chunk === "string" ? chunk : chunk.toString();
     if (text.includes("ECONNREFUSED") && text.includes("6379")) {
       return true; // Pretend we wrote it — silently swallow
@@ -20,7 +20,7 @@ export function attachProcessHandlers(): void {
   }) as typeof process.stderr.write;
 
   const origConsoleError = console.error;
-  console.error = (...args: unknown[]) => {
+  console.error = (...args: any[]) => {
     const combined = args.map(String).join(" ");
     if (
       combined.includes("ECONNREFUSED") &&
@@ -78,7 +78,7 @@ export function attachProcessHandlers(): void {
     );
   }
 
-  process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
+  process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     // Erreurs Redis non-fatals — ne pas crasher le bot
     if (isRedisError(err)) {

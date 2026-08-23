@@ -67,9 +67,7 @@ export async function connectRedis(): Promise<void> {
     try {
       await redis.config("SET", "maxmemory-policy", "noeviction");
       logger.info("[Redis] Eviction policy set to noeviction");
-    } catch {
-      // Some Redis providers (e.g. Upstash) don't allow CONFIG SET — safe to ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   } catch (err) {
     redisConnected = false;
     logger.warn("[Redis] Connection failed — cache disabled: " + String(err));
@@ -83,7 +81,7 @@ export async function connectRedis(): Promise<void> {
  * où `cachedSet` continuait d'écrire dans le fallback mémoire même quand
  * Redis avait accepté l'écriture (double-storage).
  */
-export async function setCache(key: string, value: unknown, ttlInSeconds: number): Promise<void> {
+export async function setCache(key: string, value: any, ttlInSeconds: number): Promise<void> {
   const serialized = JSON.stringify(value);
   try {
     if (redis && redisConnected) {
@@ -157,9 +155,7 @@ export async function deleteCachePattern(pattern: string): Promise<void> {
 export async function incrementCache(key: string): Promise<number> {
   try {
     if (redis) return await redis.incr(key);
-  } catch {
-    // fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return 0;
 }
 
@@ -169,9 +165,7 @@ export async function incrementCache(key: string): Promise<number> {
 export async function decrementCache(key: string): Promise<number> {
   try {
     if (redis) return await redis.decr(key);
-  } catch {
-    // fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return 0;
 }
 
@@ -184,9 +178,7 @@ export async function cacheExists(key: string): Promise<boolean> {
       const result = await redis.exists(key);
       return result === 1;
     }
-  } catch {
-    // fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return localCache.has(key);
 }
 
@@ -199,9 +191,7 @@ export async function setCacheExpire(key: string, ttlInSeconds: number): Promise
       await redis.expire(key, ttlInSeconds);
       return true;
     }
-  } catch {
-    // fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return false;
 }
 
@@ -211,9 +201,7 @@ export async function setCacheExpire(key: string, ttlInSeconds: number): Promise
 export async function getCacheTTL(key: string): Promise<number> {
   try {
     if (redis) return await redis.ttl(key);
-  } catch {
-    // fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
   return -1;
 }
 
@@ -224,9 +212,7 @@ export async function disconnectRedis(): Promise<void> {
   try {
     if (redis) await redis.quit();
     logger.info("[Redis] Disconnected");
-  } catch {
-    // Ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 export default redis;

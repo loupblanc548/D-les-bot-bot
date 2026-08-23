@@ -447,7 +447,7 @@ export async function startDashboardServer(port: number): Promise<number> {
       "levelingEnabled",
       "musicEnabled",
     ];
-    const safeSettings: Record<string, unknown> = {};
+    const safeSettings: Record<string, any> = {};
     for (const key of ALLOWED_FIELDS) {
       if (key in settings) safeSettings[key] = settings[key];
     }
@@ -538,9 +538,9 @@ const isDirectRun =
 if (isDirectRun) {
   const port = parseInt(process.env.PORT || process.env.DASHBOARD_PORT || "3721");
   void startDashboardServer(port).then((p) => {
-    console.log(`\n  ╔══════════════════════════════════════════╗`);
-    console.log(`  ║  🕵️  SHADOW BROKER DASHBOARD              ║`);
-    console.log(`  ║  → http://localhost:${p}                 ║`);
-    console.log(`  ╚══════════════════════════════════════════╝\n`);
+    logger.info(`\n  ╔══════════════════════════════════════════╗`);
+    logger.info(`  ║  🕵️  SHADOW BROKER DASHBOARD              ║`);
+    logger.info(`  ║  → http://localhost:${p}                 ║`);
+    logger.info(`  ╚══════════════════════════════════════════╝\n`);
   });
 }

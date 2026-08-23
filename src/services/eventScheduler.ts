@@ -238,9 +238,7 @@ function buildEventEmbed(
       timeStyle: "short",
     });
     when = fmt.format(e.scheduledAt);
-  } catch {
-    // Locale/tz invalide → on retombe sur ISO.
-  }
+  } catch { logger.error("[Silent catch]"); }
   return new EmbedBuilder()
     .setTitle(`📅 ${e.name}`)
     .setDescription(e.description || "_(pas de description)_")

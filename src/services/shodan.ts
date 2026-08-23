@@ -27,11 +27,11 @@ export async function searchShodan(query: string, page = 1): Promise<{ total: nu
     const res = await axios.get(`${BASE_URL}/shodan/host/search`, { params: { key: SHODAN_API_KEY, query, page }, timeout: 10000 });
     return {
       total: res.data.total || 0,
-      matches: (res.data.matches || []).map((m: Record<string, unknown>) => ({
+      matches: (res.data.matches || []).map((m: Record<string, any>) => ({
         ip: String(m.ip_str || m.ip || ""),
         port: Number(m.port || 0),
         protocol: String(m.transport || ""),
-        service: String((m._shodan as Record<string, unknown>)?.module || String(m.data || "").slice(0, 50) || ""),
+        service: String((m._shodan as Record<string, any>)?.module || String(m.data || "").slice(0, 50) || ""),
         product: String(m.product || ""),
         version: String(m.version || ""),
         os: String(m.os || ""),

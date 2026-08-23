@@ -120,7 +120,7 @@ async function handleAiJob(job: BridgeJobRequest): Promise<{
  */
 async function handleAdminJob(job: BridgeJobRequest): Promise<{
   content?: string;
-  embedsPayload?: unknown[];
+  embedsPayload?: any[];
 }> {
   const subcommand = job.subcommand || "";
 
@@ -143,7 +143,7 @@ async function handleAdminJob(job: BridgeJobRequest): Promise<{
  */
 async function handleScanJob(job: BridgeJobRequest): Promise<{
   content?: string;
-  embedsPayload?: unknown[];
+  embedsPayload?: any[];
 }> {
   // Security scanning is CPU-intensive — perfect for offloading
   await import("../services/securityIntegration.js");
@@ -159,7 +159,7 @@ async function handleScanJob(job: BridgeJobRequest): Promise<{
  */
 async function handleAnalyzeJob(job: BridgeJobRequest): Promise<{
   content?: string;
-  embedsPayload?: unknown[];
+  embedsPayload?: any[];
 }> {
   const analysisType = String(job.payload.options.type || "general");
   return {
@@ -172,7 +172,7 @@ async function handleAnalyzeJob(job: BridgeJobRequest): Promise<{
  */
 async function handleInvestigateJob(job: BridgeJobRequest): Promise<{
   content?: string;
-  embedsPayload?: unknown[];
+  embedsPayload?: any[];
 }> {
   await import("../services/autonomousInvestigator.js");
 
@@ -236,9 +236,7 @@ async function shutdown(): Promise<void> {
 
   try {
     await prisma.$disconnect();
-  } catch {
-    // Ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   logger.info("[Worker] Stopped");
   process.exit(0);

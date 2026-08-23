@@ -186,7 +186,7 @@ export async function checkInstantGamingGiveaway(client: Client): Promise<void> 
       });
       inserted = true;
       logger.info("[InstantGaming] Nouveau concours detecte : " + data.title);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error(`[InstantGaming] Erreur DB: ${err.message}`, { stack: err.stack });
       await sendErrorLog("InstantGaming DB", err, client);

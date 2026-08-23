@@ -4,7 +4,7 @@
 type FetchOpts = {
   method?: string;
   headers?: Record<string, string>;
-  body?: unknown;
+  body?: any;
   timeoutMs?: number;
   retries?: number;
   retryOn?: (status: number) => boolean;
@@ -12,8 +12,8 @@ type FetchOpts = {
   backoffMaxMs?: number;
   signal?: AbortSignal;
   parseJson?: boolean;
-  onRetry?: (attempt: number, err: unknown) => void;
-  fallback?: unknown;
+  onRetry?: (attempt: number, err: any) => void;
+  fallback?: any;
 };
 
 function sleep(ms: number) {

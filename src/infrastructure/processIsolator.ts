@@ -37,7 +37,7 @@ const RESTART_WINDOW_MS = 10 * 60 * 1000;
 
 interface MediaWorkerMessage {
   type: "heartbeat" | "ready" | "error" | "log";
-  data?: unknown;
+  data?: any;
   message?: string;
   level?: "info" | "warn" | "error";
 }
@@ -172,9 +172,7 @@ function killAndRestart(): void {
   if (mediaWorker) {
     try {
       mediaWorker.kill("SIGKILL");
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
     mediaWorker = null;
   }
   if (heartbeatTimer) {
@@ -208,9 +206,7 @@ export function stopMediaWorker(): void {
     } catch {
       try {
         mediaWorker.kill("SIGTERM");
-      } catch {
-        // ignore
-      }
+      } catch { logger.error("[Silent catch]"); }
       mediaWorker = null;
     }
   }
@@ -226,7 +222,7 @@ export function isMediaWorkerAlive(): boolean {
 /**
  * Send a message to the media worker (e.g., play music, stop stream).
  */
-export function sendToMediaWorker(msg: Record<string, unknown>): boolean {
+export function sendToMediaWorker(msg: Record<string, any>): boolean {
   if (!mediaWorker) {
     logger.warn(
       `${CYAN}[ProcessIsolator]${RESET} ${YELLOW}Media worker not running — message dropped${RESET}`,
@@ -234,7 +230,7 @@ export function sendToMediaWorker(msg: Record<string, unknown>): boolean {
     return false;
   }
   try {
-    mediaWorker.send(msg as unknown as import("child_process").Serializable);
+    mediaWorker.send(msg as any as import("child_process").Serializable);
     return true;
   } catch (err) {
     logger.error(

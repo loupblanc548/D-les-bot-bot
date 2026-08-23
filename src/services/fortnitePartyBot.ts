@@ -17,7 +17,7 @@ import logger from "../utils/logger.js";
 // Type minimal pour fnbr Client (le package n'a pas de types TS officiels complets)
 interface FnbrClient {
   login: (authCode?: string) => Promise<void>;
-  on: (event: string, listener: (...args: unknown[]) => void) => void;
+  on: (event: string, listener: (...args: any[]) => void) => void;
   party: {
     me: {
       setOutfit: (path: string) => Promise<void>;
@@ -50,7 +50,7 @@ function setupClientEvents(client: FnbrClient): void {
   });
 
   // Accepter automatiquement les demandes d'amis
-  client.on("friend:request", (request: unknown) => {
+  client.on("friend:request", (request: any) => {
     const r = request as { accept?: () => Promise<void>; id?: string };
     logger.info(`[FortniteBot] Demande d'ami reçue de ${r.id || "?"}`);
     if (r.accept) {
@@ -61,7 +61,7 @@ function setupClientEvents(client: FnbrClient): void {
   });
 
   // Accepter automatiquement les invitations de party
-  client.on("party:invite", (invitation: unknown) => {
+  client.on("party:invite", (invitation: any) => {
     const inv = invitation as { accept?: () => Promise<void>; sender?: { displayName?: string } };
     const senderName = inv.sender?.displayName || "?";
     logger.info(`[FortniteBot] Invitation de party reçue de ${senderName}`);
@@ -107,7 +107,7 @@ export async function connectFortniteBot(authCode: string): Promise<boolean> {
 
   try {
     const { Client } = await import("fnbr");
-    fnbrClient = new Client() as unknown as FnbrClient;
+    fnbrClient = new Client() as any as FnbrClient;
     setupClientEvents(fnbrClient);
     await fnbrClient.login(authCode.trim());
     logger.info("[FortniteBot] Connexion en cours...");

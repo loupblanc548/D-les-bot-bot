@@ -11,8 +11,8 @@ import type { ChatInputCommandInteraction } from "discord.js";
  */
 export function createCommandValidator<T extends z.ZodType>(
   schema: T,
-): (options: Record<string, unknown>) => z.infer<T> {
-  return (options: Record<string, unknown>) => {
+): (options: Record<string, any>) => z.infer<T> {
+  return (options: Record<string, any>) => {
     return schema.parse(options);
   };
 }
@@ -60,12 +60,12 @@ export async function validateCommandOptions<T extends z.ZodType>(
   interaction: ChatInputCommandInteraction,
   schema: T,
 ): Promise<z.infer<T>> {
-  const options: Record<string, unknown> = {};
+  const options: Record<string, any> = {};
 
   // Get all options from the interaction
   const optionData = interaction.options.data;
   if (optionData && Array.isArray(optionData)) {
-    optionData.forEach((option: { name: string; value: unknown }) => {
+    optionData.forEach((option: { name: string; value: any }) => {
       options[option.name] = option.value;
     });
   }

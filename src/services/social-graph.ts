@@ -6,7 +6,7 @@ interface GraphNode {
   name: string;
   type: "user" | "channel" | "role";
   connections: string[];
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any>;
 }
 
 interface GraphEdge {
@@ -86,7 +86,7 @@ class SocialGraphService {
     id: string,
     name: string,
     type: "user" | "channel" | "role",
-    metadata: Record<string, unknown> = {},
+    metadata: Record<string, any> = {},
   ): void {
     this.graph.nodes.set(id, {
       id,

@@ -233,9 +233,7 @@ export async function stopDictation(userId: string): Promise<{
   if (!session.finished) {
     try {
       await finished(session.decoder, { cleanup: true });
-    } catch {
-      // Le decoder peut \u00e9mettre une erreur si d\u00e9truit avant 'end'
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Assembler le buffer PCM

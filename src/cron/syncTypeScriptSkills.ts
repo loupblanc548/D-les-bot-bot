@@ -227,7 +227,7 @@ export async function syncTypeScriptSkills(): Promise<void> {
               explanation: s.explanation,
               rawUrl: s.rawUrl,
             },
-          }).catch((err: unknown) => {
+          }).catch((err: any) => {
             logger.debug(`[TS-WIZARD] Upsert failed for ${s.slug}: ${err instanceof Error ? err.message : String(err)}`);
           }),
         ),

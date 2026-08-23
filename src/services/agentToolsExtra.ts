@@ -2290,7 +2290,7 @@ export const EXTRA_TOOLS: AgentToolDef[] = [
 
 export async function executeExtraTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   try {
@@ -2578,7 +2578,7 @@ export async function executeExtraTool(
 
 // ─── Implementations ─────────────────────────────────────────────────────────
 
-async function toolHackerNews(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolHackerNews(args: Record<string, any>): Promise<ToolCallResult> {
   const count = Math.min(10, Math.max(1, Number(args.count) || 5));
   const res = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json", {
     signal: AbortSignal.timeout(10_000),
@@ -2601,7 +2601,7 @@ async function toolHackerNews(args: Record<string, unknown>): Promise<ToolCallRe
   return { success: true, data: formatted };
 }
 
-async function toolGithubTrending(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGithubTrending(args: Record<string, any>): Promise<ToolCallResult> {
   const since = (args.since as string) || "daily";
   const language = (args.language as string) || "";
   const url = `https://github.com/trending/${language}?since=${since}`;
@@ -2623,7 +2623,7 @@ async function toolGithubTrending(args: Record<string, unknown>): Promise<ToolCa
   return { success: true, data: `Top repos GitHub (${since}):\n${formatted}` };
 }
 
-async function toolWeatherForecast(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolWeatherForecast(args: Record<string, any>): Promise<ToolCallResult> {
   const city = args.city as string;
   const geoRes = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`,
@@ -2665,7 +2665,7 @@ async function toolCryptoTop(): Promise<ToolCallResult> {
   return { success: true, data: `Top 10 cryptos:\n${formatted}` };
 }
 
-async function toolSteamRequirements(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSteamRequirements(args: Record<string, any>): Promise<ToolCallResult> {
   const appid = Number(args.appid);
   const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appid}&l=fr`, {
     signal: AbortSignal.timeout(10_000),
@@ -2705,7 +2705,7 @@ async function toolDiscordEvents(ctx: ToolContext): Promise<ToolCallResult> {
   return { success: true, data: `Événements programmés (${events.size}):\n${formatted}` };
 }
 
-async function toolSearchIgdb(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchIgdb(args: Record<string, any>): Promise<ToolCallResult> {
   const query = args.query as string;
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
   const clientId = process.env.IGDB_CLIENT_ID;
@@ -2752,7 +2752,7 @@ async function toolSearchIgdb(args: Record<string, unknown>): Promise<ToolCallRe
   }
 }
 
-async function toolSearchWikipedia(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchWikipedia(args: Record<string, any>): Promise<ToolCallResult> {
   const query = args.query as string;
   const limit = Math.min(5, Math.max(1, Number(args.limit) || 3));
   const res = await fetch(
@@ -2774,7 +2774,7 @@ async function toolSearchWikipedia(args: Record<string, unknown>): Promise<ToolC
   return { success: true, data: `Articles Wikipedia pour "${query}":\n${formatted}` };
 }
 
-async function toolSpaceLaunches(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSpaceLaunches(args: Record<string, any>): Promise<ToolCallResult> {
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
   const res = await fetch(
     `https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=${limit}&format=json`,
@@ -2801,7 +2801,7 @@ async function toolSpaceLaunches(args: Record<string, unknown>): Promise<ToolCal
   return { success: true, data: `Prochains lancements spatiaux:\n${formatted}` };
 }
 
-async function toolValidateEmail(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolValidateEmail(args: Record<string, any>): Promise<ToolCallResult> {
   const email = args.email as string;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return { success: true, data: `❌ Format invalide: ${email}` };
@@ -2827,7 +2827,7 @@ async function toolValidateEmail(args: Record<string, unknown>): Promise<ToolCal
   };
 }
 
-async function toolGenerateHash(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGenerateHash(args: Record<string, any>): Promise<ToolCallResult> {
   const text = args.text as string;
   const algorithm = ((args.algorithm as string) || "sha256").toLowerCase();
   const crypto = await import("crypto");
@@ -2844,7 +2844,7 @@ async function toolGenerateUuid(): Promise<ToolCallResult> {
   return { success: true, data: `UUID v4: ${uuid}` };
 }
 
-async function toolBase64(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolBase64(args: Record<string, any>): Promise<ToolCallResult> {
   const text = args.text as string;
   const action = ((args.action as string) || "encode").toLowerCase();
   try {
@@ -2860,7 +2860,7 @@ async function toolBase64(args: Record<string, unknown>): Promise<ToolCallResult
   }
 }
 
-async function toolExplainCron(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolExplainCron(args: Record<string, any>): Promise<ToolCallResult> {
   const expr = args.expression as string;
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5)
@@ -2887,7 +2887,7 @@ async function toolExplainCron(args: Record<string, unknown>): Promise<ToolCallR
   return { success: true, data: `Expression cron: \`${expr}\`\n${explanations.join("\n")}` };
 }
 
-async function toolGeneratePalette(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGeneratePalette(args: Record<string, any>): Promise<ToolCallResult> {
   const baseColor = (args.baseColor as string).replace("#", "");
   const r = parseInt(baseColor.substring(0, 2), 16) || 0;
   const g = parseInt(baseColor.substring(2, 4), 16) || 0;
@@ -2909,7 +2909,7 @@ async function toolGeneratePalette(args: Record<string, unknown>): Promise<ToolC
   };
 }
 
-async function toolEmojiInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolEmojiInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const emoji = args.emoji as string;
   const codePoints = [...emoji]
     .map((c) => `U+${c.codePointAt(0)?.toString(16).toUpperCase()}`)
@@ -2920,7 +2920,7 @@ async function toolEmojiInfo(args: Record<string, unknown>): Promise<ToolCallRes
   };
 }
 
-async function toolMinecraftStatus(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolMinecraftStatus(args: Record<string, any>): Promise<ToolCallResult> {
   const address = args.address as string;
   const res = await fetch(`https://api.mcsrvstat.us/3/${encodeURIComponent(address)}`, {
     signal: AbortSignal.timeout(10_000),
@@ -2956,7 +2956,7 @@ async function toolValorantAgents(): Promise<ToolCallResult> {
   return { success: true, data: `Agents Valorant (${agents.length}):\n${formatted}` };
 }
 
-async function toolLoremIpsum(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolLoremIpsum(args: Record<string, any>): Promise<ToolCallResult> {
   const paragraphs = Math.min(10, Math.max(1, Number(args.paragraphs) || 2));
   const words =
     "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum".split(
@@ -2980,7 +2980,7 @@ async function toolLoremIpsum(args: Record<string, unknown>): Promise<ToolCallRe
   return { success: true, data: text };
 }
 
-async function toolTwitchClips(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolTwitchClips(args: Record<string, any>): Promise<ToolCallResult> {
   const channel = args.channel as string;
   const limit = Math.min(10, Math.max(1, Number(args.limit) || 5));
   const res = await fetch(
@@ -3016,7 +3016,7 @@ async function toolProductHunt(): Promise<ToolCallResult> {
   };
 }
 
-async function toolGithubGists(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGithubGists(args: Record<string, any>): Promise<ToolCallResult> {
   const username = args.username as string;
   const res = await fetch(`https://api.github.com/users/${username}/gists?per_page=5`, {
     headers: {
@@ -3039,7 +3039,7 @@ async function toolGithubGists(args: Record<string, unknown>): Promise<ToolCallR
 
 // ─── New Tools (Part A) ──────────────────────────────────────────────────────
 
-async function toolGetAirQuality(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetAirQuality(args: Record<string, any>): Promise<ToolCallResult> {
   const city = String(args.city || "").trim();
   const lat = args.lat as number | undefined;
   const lon = args.lon as number | undefined;
@@ -3116,7 +3116,7 @@ async function toolGetAirQuality(args: Record<string, unknown>): Promise<ToolCal
   }
 }
 
-async function toolSearchRawgGames(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchRawgGames(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
 
   if (!query) {
@@ -3131,10 +3131,10 @@ async function toolSearchRawgGames(args: Record<string, unknown>): Promise<ToolC
       return { success: true, data: `Aucun jeu trouvé pour "${query}" sur RAWG.` };
     }
 
-    const rating = (game as unknown as Record<string, unknown>).rating ?? "N/A";
-    const released = (game as unknown as Record<string, unknown>).released ?? "N/A";
-    const name = (game as unknown as Record<string, unknown>).name ?? "Unknown";
-    const bgImage = (game as unknown as Record<string, unknown>).background_image as string | null;
+    const rating = (game as any as Record<string, any>).rating ?? "N/A";
+    const released = (game as any as Record<string, any>).released ?? "N/A";
+    const name = (game as any as Record<string, any>).name ?? "Unknown";
+    const bgImage = (game as any as Record<string, any>).background_image as string | null;
 
     let report = `🎮 **${name}**\n`;
     report += `⭐ Note: ${rating} | 📅 Sortie: ${released}\n`;
@@ -3154,7 +3154,7 @@ async function toolSearchRawgGames(args: Record<string, unknown>): Promise<ToolC
 // ─── Social Follow Tools ─────────────────────────────────────────────────────
 
 async function toolFollowSocial(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const platform = args.platform as string;
@@ -3229,7 +3229,7 @@ async function toolFollowSocial(
 }
 
 async function toolUnfollowSocial(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const platform = args.platform as string;
@@ -3293,7 +3293,7 @@ async function toolListSocialFollows(ctx: ToolContext): Promise<ToolCallResult> 
 
 // ─── Dictionary Tool (Wiktionary — free, all languages) ─────────────────────
 
-async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult> {
   const word = String(args.word || "").trim();
   const lang = String(args.lang || "fr")
     .trim()
@@ -3334,9 +3334,7 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
         }
       }
     }
-  } catch {
-    // Continue to fallback
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // 2. Fallback: English Wiktionary if the lang-specific one failed
   if (results.length === 0 && lang !== "en") {
@@ -3367,9 +3365,7 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
           }
         }
       }
-    } catch {
-      // Continue
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // 3. Fallback: French Wiktionary if still nothing
@@ -3401,9 +3397,7 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
           }
         }
       }
-    } catch {
-      // Continue
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // 4. Final fallback: Wikipedia summary
@@ -3428,9 +3422,7 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
           }
         }
       }
-    } catch {
-      // Continue
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   if (results.length === 0) {
@@ -3445,7 +3437,7 @@ async function toolDefineWord(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── TMDB Movie/TV Search ────────────────────────────────────────────────────
 
-async function toolSearchMovies(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchMovies(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
   const type = String(args.type || "movie").trim();
   if (!query) return { success: false, data: "Paramètre manquant: query" };
@@ -3486,7 +3478,7 @@ async function toolSearchMovies(args: Record<string, unknown>): Promise<ToolCall
 
 // ─── MusicBrainz Search ──────────────────────────────────────────────────────
 
-async function toolSearchMusic(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchMusic(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
   const type = String(args.type || "recording").trim();
   if (!query) return { success: false, data: "Paramètre manquant: query" };
@@ -3541,7 +3533,7 @@ async function toolSearchMusic(args: Record<string, unknown>): Promise<ToolCallR
 
 // ─── Stack Overflow Search ───────────────────────────────────────────────────
 
-async function toolSearchStackOverflow(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchStackOverflow(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
   if (!query) return { success: false, data: "Paramètre manquant: query" };
 
@@ -3577,7 +3569,7 @@ async function toolSearchStackOverflow(args: Record<string, unknown>): Promise<T
 
 // ─── Code Execution Sandbox ──────────────────────────────────────────────────
 
-async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolExecuteCode(args: Record<string, any>): Promise<ToolCallResult> {
   const code = String(args.code || "");
   if (!code) return { success: false, data: "Paramètre manquant: code" };
   if (code.length > 5000) return { success: false, data: "Code trop long (max 5000 caractères)" };
@@ -3587,9 +3579,9 @@ async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallR
     const logs: string[] = [];
     const sandbox = {
       console: {
-        log: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
-        error: (...args: unknown[]) => logs.push(`[ERROR] ${args.map(String).join(" ")}`),
-        warn: (...args: unknown[]) => logs.push(`[WARN] ${args.map(String).join(" ")}`),
+        log: (...args: any[]) => logs.push(args.map(String).join(" ")),
+        error: (...args: any[]) => logs.push(`[ERROR] ${args.map(String).join(" ")}`),
+        warn: (...args: any[]) => logs.push(`[WARN] ${args.map(String).join(" ")}`),
       },
       Math,
       Date,
@@ -3631,7 +3623,7 @@ async function toolExecuteCode(args: Record<string, unknown>): Promise<ToolCallR
 
 // ─── Unit Converter ──────────────────────────────────────────────────────────
 
-async function toolConvertUnits(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertUnits(args: Record<string, any>): Promise<ToolCallResult> {
   const value = Number(args.value);
   const from = String(args.from || "").trim();
   const to = String(args.to || "").trim();
@@ -3691,7 +3683,7 @@ async function toolConvertUnits(args: Record<string, unknown>): Promise<ToolCall
 
 // ─── Timezone Converter ──────────────────────────────────────────────────────
 
-async function toolConvertTimezone(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertTimezone(args: Record<string, any>): Promise<ToolCallResult> {
   const time = String(args.time || "").trim();
   const fromTz = String(args.from_tz || "").trim();
   const toTz = String(args.to_tz || "").trim();
@@ -3760,7 +3752,7 @@ function getTimezoneOffsetMs(tz: string): number {
 
 // ─── Regex Tester ────────────────────────────────────────────────────────────
 
-async function toolTestRegex(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolTestRegex(args: Record<string, any>): Promise<ToolCallResult> {
   const pattern = String(args.pattern || "");
   const text = String(args.text || "");
   const flags = String(args.flags || "g");
@@ -3795,7 +3787,7 @@ async function toolTestRegex(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── JWT Decoder ─────────────────────────────────────────────────────────────
 
-async function toolDecodeJwt(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolDecodeJwt(args: Record<string, any>): Promise<ToolCallResult> {
   const token = String(args.token || "").trim();
   if (!token) return { success: false, data: "Paramètre manquant: token" };
 
@@ -3821,7 +3813,7 @@ async function toolDecodeJwt(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── Sports Scores ───────────────────────────────────────────────────────────
 
-async function toolGetSportsScores(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetSportsScores(args: Record<string, any>): Promise<ToolCallResult> {
   const league = String(args.league || "")
     .trim()
     .toLowerCase();
@@ -3871,7 +3863,7 @@ async function toolGetSportsScores(args: Record<string, unknown>): Promise<ToolC
 
 // ─── Recipe Search ───────────────────────────────────────────────────────────
 
-async function toolSearchRecipe(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSearchRecipe(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query || "").trim();
   if (!query) return { success: false, data: "Paramètre manquant: query" };
 
@@ -3923,7 +3915,7 @@ async function toolSearchRecipe(args: Record<string, unknown>): Promise<ToolCall
 
 // ─── Color Converter ─────────────────────────────────────────────────────────
 
-async function toolConvertColor(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertColor(args: Record<string, any>): Promise<ToolCallResult> {
   const color = String(args.color || "").trim();
   if (!color) return { success: false, data: "Paramètre manquant: color" };
 
@@ -3993,7 +3985,7 @@ async function toolConvertColor(args: Record<string, unknown>): Promise<ToolCall
 
 // ─── Number Base Converter ───────────────────────────────────────────────────
 
-async function toolConvertNumberBase(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertNumberBase(args: Record<string, any>): Promise<ToolCallResult> {
   const value = String(args.value || "").trim();
   const fromBase = String(args.from_base || "").trim();
   const toBase = String(args.to_base || "").trim();
@@ -4020,7 +4012,7 @@ async function toolConvertNumberBase(args: Record<string, unknown>): Promise<Too
 
 // ─── Timestamp Converter ─────────────────────────────────────────────────────
 
-async function toolConvertTimestamp(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertTimestamp(args: Record<string, any>): Promise<ToolCallResult> {
   const value = String(args.value || "").trim();
   const direction = String(args.direction || "").trim();
   if (!value || !direction) return { success: false, data: "Paramètres manquants" };
@@ -4049,7 +4041,7 @@ async function toolConvertTimestamp(args: Record<string, unknown>): Promise<Tool
 
 // ─── Sun/Moon Info ───────────────────────────────────────────────────────────
 
-async function toolGetSunMoonInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetSunMoonInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const city = String(args.city || "").trim();
   if (!city) return { success: false, data: "Paramètre manquant: city" };
 
@@ -4088,7 +4080,7 @@ async function toolGetSunMoonInfo(args: Record<string, unknown>): Promise<ToolCa
 
 // ─── ASCII Art Generator ─────────────────────────────────────────────────────
 
-async function toolGenerateAsciiArt(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGenerateAsciiArt(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   if (!text) return { success: false, data: "Paramètre manquant: text" };
   if (text.length > 20)
@@ -4148,7 +4140,7 @@ async function toolGenerateAsciiArt(args: Record<string, unknown>): Promise<Tool
 
 // ─── PDF Analysis ────────────────────────────────────────────────────────────
 
-async function toolAnalyzePdf(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolAnalyzePdf(args: Record<string, any>): Promise<ToolCallResult> {
   const url = String(args.url || "").trim();
   const maxPages = Number(args.max_pages) || 10;
   if (!url) return { success: false, data: "Paramètre manquant: url" };
@@ -4166,7 +4158,7 @@ async function toolAnalyzePdf(args: Record<string, unknown>): Promise<ToolCallRe
     const require = createRequire(import.meta.url);
     const pdfParse = require("pdf-parse") as (
       buf: Buffer,
-      opts?: Record<string, unknown>,
+      opts?: Record<string, any>,
     ) => Promise<{ text: string; numpages: number; info?: Record<string, string> }>;
     const data = await pdfParse(buffer, { max: maxPages });
 
@@ -4190,7 +4182,7 @@ async function toolAnalyzePdf(args: Record<string, unknown>): Promise<ToolCallRe
 
 // ─── QR Code Generator ───────────────────────────────────────────────────────
 
-async function toolGenerateQrCode(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGenerateQrCode(args: Record<string, any>): Promise<ToolCallResult> {
   const data = String(args.data || "").trim();
   const size = Number(args.size) || 300;
   if (!data) return { success: false, data: "Paramètre manquant: data" };
@@ -4201,7 +4193,7 @@ async function toolGenerateQrCode(args: Record<string, unknown>): Promise<ToolCa
 
 // ─── Sentiment Analysis ──────────────────────────────────────────────────────
 
-async function toolAnalyzeSentiment(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolAnalyzeSentiment(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "").trim();
   if (!text) return { success: false, data: "Paramètre manquant: text" };
 
@@ -4326,7 +4318,7 @@ async function toolAnalyzeSentiment(args: Record<string, unknown>): Promise<Tool
 // ─── Set Reminder ────────────────────────────────────────────────────────────
 
 async function toolSetReminder(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const message = String(args.message || "").trim();
@@ -4342,12 +4334,10 @@ async function toolSetReminder(
   setTimeout(
     async () => {
       try {
-        await (channel as { send: (s: string) => Promise<unknown> }).send(
+        await (channel as { send: (s: string) => Promise<any> }).send(
           `⏰ <@${userId}> **Rappel:** ${message}`,
         );
-      } catch {
-        // Channel may be unavailable
-      }
+      } catch { logger.error("[Silent catch]"); }
     },
     minutes * 60 * 1000,
   );
@@ -4361,7 +4351,7 @@ async function toolSetReminder(
 // ─── Create Poll ─────────────────────────────────────────────────────────────
 
 async function toolCreatePoll(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const question = String(args.question || "").trim();
@@ -4378,7 +4368,7 @@ async function toolCreatePoll(
 
   try {
     const pollMsg = await (
-      channel as { send: (s: string) => Promise<{ react: (e: string) => Promise<unknown> }> }
+      channel as { send: (s: string) => Promise<{ react: (e: string) => Promise<any> }> }
     ).send(pollText);
     for (let i = 0; i < options.length; i++) {
       await pollMsg.react(emojis[i]);
@@ -4391,7 +4381,7 @@ async function toolCreatePoll(
 
 // ─── Math Solver ─────────────────────────────────────────────────────────────
 
-async function toolSolveMath(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolSolveMath(args: Record<string, any>): Promise<ToolCallResult> {
   const expr = String(args.expression || "").trim();
   if (!expr) return { success: false, data: "Paramètre manquant: expression" };
 
@@ -4491,7 +4481,7 @@ async function toolSolveMath(args: Record<string, unknown>): Promise<ToolCallRes
 
 // ─── Advanced Image Generation ───────────────────────────────────────────────
 
-async function toolGenerateImageAdvanced(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGenerateImageAdvanced(args: Record<string, any>): Promise<ToolCallResult> {
   const prompt = String(args.prompt || "").trim();
   const model = String(args.model || "flux").trim();
   const width = Number(args.width) || 1024;
@@ -4515,7 +4505,7 @@ async function toolGenerateImageAdvanced(args: Record<string, unknown>): Promise
 
 // ─── Currency Converter ──────────────────────────────────────────────────────
 
-async function toolConvertCurrency(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolConvertCurrency(args: Record<string, any>): Promise<ToolCallResult> {
   const amount = Number(args.amount);
   const from = String(args.from || "")
     .trim()
@@ -4549,7 +4539,7 @@ async function toolConvertCurrency(args: Record<string, unknown>): Promise<ToolC
 
 // ─── Stock Price ─────────────────────────────────────────────────────────────
 
-async function toolGetStockPrice(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetStockPrice(args: Record<string, any>): Promise<ToolCallResult> {
   const symbol = String(args.symbol || "")
     .trim()
     .toUpperCase();
@@ -4593,7 +4583,7 @@ async function toolGetStockPrice(args: Record<string, unknown>): Promise<ToolCal
 
 // ─── Horoscope ───────────────────────────────────────────────────────────────
 
-async function toolGetHoroscope(args: Record<string, unknown>): Promise<ToolCallResult> {
+async function toolGetHoroscope(args: Record<string, any>): Promise<ToolCallResult> {
   const sign = String(args.sign || "")
     .trim()
     .toLowerCase();

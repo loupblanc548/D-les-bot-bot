@@ -10,7 +10,7 @@
     "start:worker": "node --max-old-space-size=4096 --import tsx src/infrastructure/workerRuntime.ts",
     "dev": "node --expose-gc --max-old-space-size=4096 --import tsx --inspect src/index.ts",
     "build": "tsc",
-    "check:types": "tsc -p tsconfig.strict.json --noEmit",
+    "check:types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",

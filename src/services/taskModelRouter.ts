@@ -108,69 +108,38 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
 const MODEL_TIERS: Record<TaskComplexity, string[]> = {
   // Ultra-léger: 1-8B — réponses triviales, pas de tools
   trivial: [
-    "meta-llama/llama-3.2-3b-instruct:free",
-    "microsoft/phi-3.5-mini-128k-instruct:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
-    "google/gemma-2-9b-it:free",
-    "liquid/lfm-7b:free",
-    "qwen/qwen-2.5-7b-instruct:free",
-    "huggingfaceh4/zephyr-7b-beta:free",
-    "openchat/openchat-3.5-1210:free",
-    // NVIDIA NIM (si clé configurée)
+    // NVIDIA NIM (modèles rapides d'abord)
     ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.trivial : []),
+    "nvidia/nemotron-mini-4b-instruct",
+    "nvidia/nvidia-nemotron-nano-9b-v2",
   ],
 
-  // Léger: 8-14B — tâches simples avec tools
+  // Léger: 8-30B — tâches simples avec tools
   simple: [
-    "mistralai/mistral-8b-instruct:free",
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
-    "microsoft/phi-3-medium-4k-instruct:free",
-    "thudm/glm-4-9b-chat:free",
-    "01-ai/yi-1.5-9b-chat:free",
-    "google/gemini-2.0-flash-lite-preview-02-05:free",
-    "google/gemini-flash-1.5-8b",
-    "anthracite-org/magmell-8b:free",
-    "thedrummer/rocinante-12b:free",
-    "cohere/north-mini-code:free",
-    // NVIDIA NIM (si clé configurée)
+    // NVIDIA NIM (modèles rapides d'abord)
     ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.simple : []),
+    "nvidia/nemotron-3-nano-30b-a3b",
+    "openai/gpt-oss-20b",
   ],
 
-  // Moyen: 24-72B — tâches modérées avec tools + raisonnement
+  // Moyen: 30-120B — tâches modérées avec tools + raisonnement
   moderate: [
-    "z-ai/glm-4.5-air:free",
-    "google/gemma-3-27b-it:free",
-    "qwen/qwen-2.5-72b-instruct:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
-    "qwen/qwen-2.5-coder-32b-instruct:free",
-    "openai/gpt-oss-20b:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "01-ai/yi-1.5-34b-chat:free",
-    "sao10k/l3.1-euryale-70b:free",
-    "gryphe/corvus-72b:free",
-    "neversleep/llama-3-lumimaid-70b:free",
-    // NVIDIA NIM (si clé configurée)
-    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.moderate : []),
+    // NVIDIA NIM — Nemotron 49B d'abord (répond en ~12s, fiable)
+    "nvidia/llama-3.3-nemotron-super-49b-v1",
+    "nvidia/nemotron-3-nano-30b-a3b",
+    "meta/llama-3.3-70b-instruct",
+    "meta/llama-3.1-70b-instruct",
+    "nvidia/nemotron-3-super-120b-a12b",
   ],
 
-  // Lourd: 70B+ / MoE — tâches complexes nécessitant un raisonnement profond
+  // Lourd: 70B+ — tâches complexes nécessitant un raisonnement profond
   complex: [
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "openai/gpt-oss-120b:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "moonshotai/kimi-k2.6:free",
-    "z-ai/glm-4.5-air:free",
-    "qwen/qwen-2.5-72b-instruct:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "sophosympatheia/rogue-rose-103b-v0.2:free",
-    "raifle/sorcererlm-8x22b:free",
-    "sao10k/l3-euryale-70b:free",
-    "anthracite-org/magmell-72b:free",
-    "perplexity/llama-3.1-sonar-large-128k-online:free",
-    // NVIDIA NIM (si clé configurée)
-    ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.complex : []),
+    // NVIDIA NIM — Nemotron 49B d'abord (répond en ~12s, fiable)
+    "nvidia/llama-3.3-nemotron-super-49b-v1",
+    "nvidia/nemotron-3-nano-30b-a3b",
+    "meta/llama-3.3-70b-instruct",
+    "meta/llama-3.1-70b-instruct",
+    "nvidia/nemotron-3-super-120b-a12b",
   ],
 };
 

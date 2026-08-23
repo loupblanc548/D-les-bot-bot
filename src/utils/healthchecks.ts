@@ -34,7 +34,7 @@ export async function pingCronSuccess(cronName: string): Promise<void> {
  * Envoie un ping d'echec a Healthchecks.io pour un cron donne.
  * Le body contient le message d'erreur.
  */
-export async function pingCronFailure(cronName: string, error: unknown): Promise<void> {
+export async function pingCronFailure(cronName: string, error: any): Promise<void> {
   if (!BASE_URL) return;
   try {
     const url = `${BASE_URL}/${cronName}/fail`;

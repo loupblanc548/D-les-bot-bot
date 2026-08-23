@@ -11,7 +11,7 @@ import { getPlayerSummaries, resolveVanityUrl, isValidSteamId } from "../service
 import { config } from "../config.js";
 
 // Cache TTL pour handleNowPlaying (evite de fetch tous les membres a chaque appel)
-const nowPlayingCache = new Map<string, { data: Record<string, unknown>; expiry: number }>();
+const nowPlayingCache = new Map<string, { data: Record<string, any>; expiry: number }>();
 const CACHE_TTL_MS = 60_000; // 1 minute
 
 const FOOTER = { text: "Surveillance System • Steam" };

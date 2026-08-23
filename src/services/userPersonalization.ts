@@ -340,7 +340,7 @@ class UserPersonalizationService {
   /**
    * Obtient les utilisateurs avec des préférences spécifiques
    */
-  async getUsersWithPreference(key: string, value: unknown): Promise<UserPreferences[]> {
+  async getUsersWithPreference(key: string, value: any): Promise<UserPreferences[]> {
     return Array.from(this.preferencesCache.values()).filter((p) => {
       if (key.includes(".")) {
         const keys = key.split(".");

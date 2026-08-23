@@ -77,7 +77,7 @@ function extractImageFromHtml(html: string): string | null {
 /**
  * Vérifie si une URL d'image est valide (non vide, commence par http/https).
  */
-function isValidImageUrl(url: unknown): url is string {
+function isValidImageUrl(url: any): url is string {
   return typeof url === "string" && /^https?:\/\//i.test(url);
 }
 
@@ -343,7 +343,7 @@ export async function checkInstantGamingNews(client: Client): Promise<void> {
 
         newCount++;
         logger.info("[IG News] Nouvel article : " + article.title);
-      } catch (error: unknown) {
+      } catch (error: any) {
         // Autre erreur : on laisse passer pour ne pas bloquer le flux
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error(`[IG News] Erreur article: ${article.url} ${err.message}`, {

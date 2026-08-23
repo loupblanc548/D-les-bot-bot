@@ -305,7 +305,7 @@ export const RETAILER_TOOL_DEFS: AgentToolDef[] = [
 
 export async function handleRetailerTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   try {

@@ -80,7 +80,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     const channel = interaction.options.getChannel("salon", true);
     try {
       await prisma.$executeRaw`DELETE FROM auto_thread_config WHERE guildId = ${interaction.guildId} AND channelId = ${channel.id}`;
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
     logger.info(`[AutoThread] Désactivé sur #${channel.name}`);
     await interaction.reply({
       content: `✅ Auto-thread désactivé sur <#${channel.id}>`,
@@ -93,9 +93,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     try {
       channels =
         (await prisma.$queryRaw`SELECT channelId, format FROM auto_thread_config WHERE guildId = ${interaction.guildId}`) as any;
-    } catch {
-      // Table doesn't exist yet
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     if (channels.length === 0) {
       await interaction.reply({

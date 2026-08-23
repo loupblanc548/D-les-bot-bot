@@ -217,9 +217,7 @@ export async function handleCommand(
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch {
-      // silencieux
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 

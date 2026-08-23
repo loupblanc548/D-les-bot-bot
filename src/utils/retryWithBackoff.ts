@@ -11,11 +11,11 @@ interface RetryOptions {
   maxDelayMs?: number;
   factor?: number;
   jitter?: boolean;
-  shouldRetry?: (error: unknown) => boolean;
-  onRetry?: (error: unknown, attempt: number) => void;
+  shouldRetry?: (error: any) => boolean;
+  onRetry?: (error: any, attempt: number) => void;
 }
 
-const defaultShouldRetry = (_error: unknown): boolean => true;
+const defaultShouldRetry = (_error: any): boolean => true;
 
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -31,7 +31,7 @@ export async function retryWithBackoff<T>(
     onRetry,
   } = options;
 
-  let lastError: unknown;
+  let lastError: any;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -59,7 +59,7 @@ export async function retryWithBackoff<T>(
   throw lastError;
 }
 
-export function isRetryableError(error: unknown): boolean {
+export function isRetryableError(error: any): boolean {
   if (error && typeof error === "object") {
     const code = (error as { code?: string }).code;
     if (!code) return true;

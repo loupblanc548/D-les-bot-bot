@@ -272,9 +272,7 @@ async function searchDecathlon(query: string, country: CountryCode, limit = 10):
             lastSeen: new Date(),
           });
         }
-      } catch {
-        // JSON parse échoué
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   } catch (err) {
     logger.debug(`[Decathlon] Error: ${err instanceof Error ? err.message : String(err)}`);

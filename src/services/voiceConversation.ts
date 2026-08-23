@@ -145,7 +145,7 @@ export async function startConversation(
   voiceChannelId: string,
   userId: string,
   username: string,
-  adapterCreator: unknown,
+  adapterCreator: any,
   textChannelId?: string,
 ): Promise<{ success: boolean; message: string }> {
   // Guard 1: voice agent must be enabled
@@ -309,7 +309,7 @@ export async function startConversation(
     }, 3000);
 
     // Store interval for cleanup
-    (session as unknown as { interval: NodeJS.Timeout }).interval = interval;
+    (session as any as { interval: NodeJS.Timeout }).interval = interval;
 
     activeConversations.set(userId, session);
     logger.info(`[VoiceConv] Started conversation for ${username} (${userId}) in guild ${guildId}`);
@@ -342,7 +342,7 @@ export async function stopConversation(
     return { success: false, message: "Aucune conversation vocale active." };
   }
 
-  const intervalData = session as unknown as { interval?: NodeJS.Timeout };
+  const intervalData = session as any as { interval?: NodeJS.Timeout };
   if (intervalData.interval) clearInterval(intervalData.interval);
 
   session.audioStream.destroy();

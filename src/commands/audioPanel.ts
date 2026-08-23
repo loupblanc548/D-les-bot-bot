@@ -121,7 +121,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -297,7 +297,7 @@ async function handleVolume(interaction: ChatInputCommandInteraction): Promise<v
     if (reason === "time") {
       try {
         await interaction.editReply({ components: [] });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 }
@@ -425,7 +425,7 @@ async function handleSeek(interaction: ChatInputCommandInteraction): Promise<voi
     if (reason === "time") {
       try {
         await interaction.editReply({ components: [] });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 }
@@ -588,7 +588,7 @@ async function handleAudioEffects(interaction: ChatInputCommandInteraction): Pro
     if (reason === "time") {
       try {
         await interaction.editReply({ components: [] });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 }
@@ -671,7 +671,7 @@ async function handleRadioStop(interaction: ChatInputCommandInteraction): Promis
     if (reason === "time") {
       try {
         await interaction.editReply({ components: [] });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 }

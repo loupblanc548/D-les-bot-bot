@@ -69,9 +69,7 @@ export async function takeScreenshot(
         return { success: true, data: `Screenshot de ${url} capturé via Colab GPU` };
       }
     }
-  } catch {
-    // Colab unavailable — continue to VPS Playwright
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   let browser: Browser | null = null;
   try {
@@ -147,9 +145,7 @@ export async function takeScreenshot(
     if (browser) {
       try {
         await browser.close();
-      } catch {
-        // Ignore — already closing
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -187,7 +183,7 @@ export const SCREENSHOT_TOOL_DEF = {
  * Handler for the take_screenshot tool — called from the agent tool dispatcher.
  */
 export async function handleScreenshotTool(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const url = String(args.url || "");

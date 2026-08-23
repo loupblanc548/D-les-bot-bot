@@ -38,7 +38,7 @@ export function markCronSuccess(cronName: string): void {
 /**
  * Marque un cron comme ayant échoué. Si 3 échecs consécutifs, log une alerte.
  */
-export function markCronFailure(cronName: string, error: unknown): void {
+export function markCronFailure(cronName: string, error: any): void {
   const errorMsg = error instanceof Error ? error.message : String(error);
   const health = cronHealth.get(cronName) ?? {
     consecutiveFailures: 0,

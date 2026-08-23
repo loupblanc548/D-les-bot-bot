@@ -32,7 +32,7 @@ export async function getPlayerRank(name: string, tag: string, region = "eu"): P
   } catch (err) { logger.error(`[Valorant] getPlayerRank error: ${err instanceof Error ? err.message : String(err)}`); return null; }
 }
 
-export async function getMatchHistory(name: string, tag: string, region = "eu", count = 5): Promise<Record<string, unknown>[]> {
+export async function getMatchHistory(name: string, tag: string, region = "eu", count = 5): Promise<Record<string, any>[]> {
   try {
     const res = await axios.get(`${BASE_URL}/v3/matches/${region}/${name}/${tag}`, {
       headers: VALORANT_API_KEY ? { Authorization: VALORANT_API_KEY } : {}, params: { size: count }, timeout: 15000,
@@ -41,7 +41,7 @@ export async function getMatchHistory(name: string, tag: string, region = "eu", 
   } catch (err) { logger.error(`[Valorant] getMatchHistory error: ${err instanceof Error ? err.message : String(err)}`); return []; }
 }
 
-export async function getServerStatus(region = "eu"): Promise<{ name: string; incidents: unknown[]; maintenances: unknown[] }> {
+export async function getServerStatus(region = "eu"): Promise<{ name: string; incidents: any[]; maintenances: any[] }> {
   try {
     const res = await axios.get(`${BASE_URL}/v1/status/${region}`, { timeout: 10000 });
     return { name: String(res.data?.data?.name || region), incidents: res.data?.data?.incidents || [], maintenances: res.data?.data?.maintenances || [] };

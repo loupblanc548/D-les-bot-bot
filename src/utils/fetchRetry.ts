@@ -20,7 +20,7 @@ const RETRYABLE_ERRORS = [
   "network error",
 ];
 
-function isRetryableError(error: unknown): boolean {
+function isRetryableError(error: any): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return RETRYABLE_ERRORS.some((e) => msg.toLowerCase().includes(e.toLowerCase()));
 }
@@ -51,7 +51,7 @@ export async function fetchRetry(
     ...fetchOptions
   } = options;
 
-  let lastError: unknown;
+  let lastError: any;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

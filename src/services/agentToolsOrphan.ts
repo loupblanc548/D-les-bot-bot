@@ -271,7 +271,7 @@ function parseNaturalDate(input: string): Date | null {
 
 export async function executeOrphanTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[OrphanTools] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
@@ -461,7 +461,7 @@ export async function executeOrphanTool(
         const daysBack = Math.min(Number(args.daysBack ?? 7), 90);
         const since = new Date(Date.now() - daysBack * 86400_000);
 
-        const where: Record<string, unknown> = {
+        const where: Record<string, any> = {
           content: { contains: query, mode: "insensitive" },
           createdAt: { gte: since },
         };

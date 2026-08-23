@@ -21,18 +21,18 @@ import { config } from "../config.js";
 // Le modèle OpenRouter configuré est le seul candidat OpenRouter garanti valide.
 // Les modèles NVIDIA/OmniRoute ne sont ajoutés que si leur provider est configuré;
 // sinon ils seraient envoyés au mauvais endpoint et échoueraient en boucle (404).
+// NOTE: OPENROUTER_BASE_URL pointe vers NVIDIA NIM (integrate.api.nvidia.com/v1)
+// avec une clé NVIDIA (nvapi-...). Les modèles doivent donc être des noms NVIDIA NIM.
 const OPENROUTER_FREE_MODELS = [
-  // Toujours essayer d'abord le modèle choisi par l'installation.
+  // Le modèle configuré (NVIDIA NIM)
   config.openRouterModel,
-  // Fallbacks OpenRouter uniquement — aucun modèle NVIDIA/OmniRoute implicite.
-  "openai/gpt-oss-120b:free",
-  "z-ai/glm-4.5-air:free",
-  "google/gemma-3-27b-it:free",
-  "openai/gpt-oss-20b:free",
-  "qwen/qwen-2.5-72b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
+  // Fallbacks NVIDIA NIM (valides pour cette API)
+  "meta/llama-3.3-70b-instruct",
+  "meta/llama-3.1-70b-instruct",
+  "nvidia/nemotron-3-super-120b-a12b",
+  "nvidia/nemotron-3-ultra-550b-a55b",
+  "nvidia/llama-3.3-nemotron-super-49b-v1",
+  "nvidia/nemotron-3-nano-30b-a3b",
 ];
 
 function getCandidateModels(): string[] {
@@ -81,8 +81,8 @@ const MODEL_CLAIM_TTL_MS = 30_000;
 
 // Un cooldown évite de marteler un provider défaillant, mais ne doit jamais
 // bloquer la réponse : les autres providers sont essayés immédiatement.
-const RATE_LIMIT_COOLDOWN_MS = 15 * 1000;
-const ERROR_COOLDOWN_MS = 1_500;
+const RATE_LIMIT_COOLDOWN_MS = 5 * 1000;
+const ERROR_COOLDOWN_MS = 30_000; // 30s — évite de réessayer un modèle qui timeout dans la même requête
 // Reset du compteur d'échecs après 30 minutes sans erreur
 const HEALTH_RESET_MS = 30 * 60 * 1000;
 // Max échecs avant de blacklister un modèle pour plus longtemps

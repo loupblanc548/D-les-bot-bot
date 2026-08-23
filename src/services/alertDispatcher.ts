@@ -28,7 +28,7 @@ export interface AlertPayload {
   guildId: string;
   source: string;
   timestamp: Date;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any>;
 }
 
 export interface ChannelConfig {
@@ -114,9 +114,7 @@ export async function dispatchAlert(client: Client, payload: AlertPayload): Prom
       targetId: payload.guildId,
       details: JSON.stringify({ id: payload.id, channels: promises.length }),
     });
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 // ─── 1. Discord ──────────────────────────────────────────────────────────────
@@ -159,9 +157,7 @@ async function sendDiscordAlert(client: Client, payload: AlertPayload): Promise<
       try {
         const user = await client.users.fetch(userId);
         await user.send({ embeds: [embed] });
-      } catch {
-        // Non-critique
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -328,7 +324,7 @@ export function createAlertPayload(
   severity: AlertPayload["severity"],
   guildId: string,
   source: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Record<string, any> = {},
 ): AlertPayload {
   return {
     id: `alert_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

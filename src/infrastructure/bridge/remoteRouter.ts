@@ -112,8 +112,8 @@ export async function tryRemoteExecution(
  */
 function extractInteractionOptions(
   interaction: ChatInputCommandInteraction,
-): Record<string, unknown> {
-  const options: Record<string, unknown> = {};
+): Record<string, any> {
+  const options: Record<string, any> = {};
 
   // Get all options from the interaction
   const rawOptions = interaction.options.data;

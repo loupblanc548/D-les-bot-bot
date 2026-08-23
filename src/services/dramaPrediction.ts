@@ -266,7 +266,7 @@ async function sendDramaAlert(
     .setTimestamp();
 
   const logChannelId = process.env.LOG_CHANNEL_ID || config.twitterChannel;
-  const tasks: Promise<unknown>[] = [];
+  const tasks: Promise<any>[] = [];
 
   // 1. DM to owner
   tasks.push(

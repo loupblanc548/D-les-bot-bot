@@ -29,7 +29,7 @@ export interface PromptTestResult {
   score: number; // 0-100
   timeMs: number;
   costTokens: number;
-  parsed: unknown;
+  parsed: any;
 }
 
 export interface ABTestResult {
@@ -52,7 +52,7 @@ export interface ABTestResult {
 
 // ─── Évaluation ───────────────────────────────────────────────────────
 
-function evaluateResponse(response: string, parsed: unknown, testCase: PromptTestCase): number {
+function evaluateResponse(response: string, parsed: any, testCase: PromptTestCase): number {
   let score = 0;
   let checks = 0;
 
@@ -77,7 +77,7 @@ function evaluateResponse(response: string, parsed: unknown, testCase: PromptTes
   // Check 3: expected JSON field value
   if (testCase.expectedJsonField && testCase.expectedJsonValue !== undefined) {
     checks++;
-    const parsedObj = parsed as Record<string, unknown>;
+    const parsedObj = parsed as Record<string, any>;
     if (parsedObj && parsedObj[testCase.expectedJsonField] === testCase.expectedJsonValue) {
       score += 100;
     }
@@ -146,7 +146,7 @@ export async function testPrompts(
       // Run A
       const startA = Date.now();
       let responseA = "";
-      let parsedA: unknown = null;
+      let parsedA: any = null;
       try {
         const completionA = await client.chat.completions.create(
           {
@@ -179,7 +179,7 @@ export async function testPrompts(
       // Run B
       const startB = Date.now();
       let responseB = "";
-      let parsedB: unknown = null;
+      let parsedB: any = null;
       try {
         const completionB = await client.chat.completions.create(
           {
@@ -346,7 +346,7 @@ export interface QualityReport {
   issues: string[];
 }
 
-function calculateAccuracy(response: string, expected: unknown): number {
+function calculateAccuracy(response: string, expected: any): number {
   if (!expected) return 50;
   let score = 0;
   let checks = 0;
@@ -368,7 +368,7 @@ function calculateAccuracy(response: string, expected: unknown): number {
     (expected as PromptTestCase).expectedJsonValue !== undefined
   ) {
     checks++;
-    const parsed = parseJsonResponse<Record<string, unknown>>(response);
+    const parsed = parseJsonResponse<Record<string, any>>(response);
     if (
       parsed &&
       parsed[(expected as PromptTestCase).expectedJsonField!] ===
@@ -460,7 +460,7 @@ function calculateConcision(response: string): number {
 
 function calculateConsistency(response: string): number {
   let score = 100;
-  const parsed = parseJsonResponse<Record<string, unknown>>(response);
+  const parsed = parseJsonResponse<Record<string, any>>(response);
 
   if (parsed) {
     // Check for contradictory fields in JSON
@@ -508,7 +508,7 @@ function calculateConsistency(response: string): number {
 export function evaluatePromptQuality(
   prompt: string,
   response: string,
-  expected?: unknown,
+  expected?: any,
 ): QualityReport {
   const breakdown: QualityBreakdown = {
     accuracy: calculateAccuracy(response, expected),

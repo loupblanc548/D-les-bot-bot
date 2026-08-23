@@ -78,8 +78,8 @@ class SimpleCache<T> {
 
 // Singleton instances for different cache types
 export const dbCache = new SimpleCache<boolean>(60000, 200); // 1 min TTL, 200 max entries
-export const rssCache = new SimpleCache<unknown>(300000, 100); // 5 min TTL, 100 max entries
-export const apiCache = new SimpleCache<unknown>(120000, 150); // 2 min TTL, 150 max entries
+export const rssCache = new SimpleCache<any>(300000, 100); // 5 min TTL, 100 max entries
+export const apiCache = new SimpleCache<any>(120000, 150); // 2 min TTL, 150 max entries
 
 // Cleanup expired entries every 5 minutes
 const _cacheCleanup = setInterval(() => {

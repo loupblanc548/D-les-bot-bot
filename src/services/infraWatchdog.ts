@@ -225,9 +225,7 @@ async function handleShutdownThreshold(heapGB: number, rssGB: number): Promise<v
 
         await (channel as TextChannel).send({ embeds: [embed] });
       }
-    } catch {
-      // Ignore — we're shutting down anyway
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   // Stop the watchdog

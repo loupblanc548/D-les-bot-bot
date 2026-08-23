@@ -143,7 +143,7 @@ class SourceReputationService {
     const reputations = await prisma.sourceReputation.findMany();
     
     for (const reputation of reputations) {
-      this.reputationCache.set(reputation.sourceId, reputation as unknown as SourceReputation);
+      this.reputationCache.set(reputation.sourceId, reputation as any as SourceReputation);
     }
 
     logger.info(`[SourceReputation] ${reputations.length} réputation(s) chargée(s) depuis Prisma`);

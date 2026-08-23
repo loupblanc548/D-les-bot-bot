@@ -25,7 +25,7 @@ export interface ReflectionResult {
   action: ReflectionAction;
   reasoning: string;
   confidence: number;
-  corrected_args?: Record<string, unknown>;
+  corrected_args?: Record<string, any>;
   alternative_tool?: string;
   /** Set when STRATEGY_STEREOTYPY_DETECTED is injected — forces radical strategy mutation */
   stereotypyDetected?: boolean;
@@ -35,7 +35,7 @@ export interface ToolExecutionResult {
   toolName: string;
   success: boolean;
   data: string;
-  args: Record<string, unknown>;
+  args: Record<string, any>;
 }
 
 // ─── Configuration ───────────────────────────────────────────────────────────

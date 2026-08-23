@@ -29,7 +29,7 @@ export interface WhoisResult {
   registrantEmail: string;
   registrantOrg: string;
   registrantCountry: string;
-  raw: Record<string, unknown>;
+  raw: Record<string, any>;
 }
 export interface FullDnsLookup {
   domain: string;

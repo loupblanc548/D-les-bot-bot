@@ -41,7 +41,7 @@ export interface ThreatNode {
   id: string;
   type: "user" | "honeypot" | "raid" | "bot";
   label: string;
-  data: Record<string, unknown>;
+  data: Record<string, any>;
 }
 
 export interface ThreatEdge {
@@ -194,9 +194,7 @@ export async function triggerHoneypot(
         details: `L'utilisateur a interagi avec un élément piège. Compteur: ${hp.triggeredCount}`,
       });
     }
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Vérifier si on doit déclencher une défense automatique
   const recentTriggers = triggerHistory.filter(
@@ -352,9 +350,7 @@ export async function generateThreatGraph(client: Client, guildId: string): Prom
         },
       });
     }
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // 3. Raid logs récents
   try {
@@ -372,9 +368,7 @@ export async function generateThreatGraph(client: Client, guildId: string): Prom
         data: { status: raid.status, detectedAt: raid.detectedAt },
       });
     }
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // 4. Arêtes depuis l'historique des déclenchements
   for (const trigger of triggerHistory) {
@@ -411,9 +405,7 @@ export async function generateThreatGraph(client: Client, guildId: string): Prom
         }
       }
     }
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   const graph: ThreatGraph = {
     nodes,
@@ -448,9 +440,7 @@ export function initHoneypotMonitoring(client: Client): void {
 
       try {
         await message.delete();
-      } catch {
-        // Non-critique
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   });
 

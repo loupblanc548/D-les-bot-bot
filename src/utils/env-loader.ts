@@ -114,7 +114,7 @@ const envSchema = z.object({
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
   GROQ_API_KEY: z.string().optional(),
-  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
   NVIDIA_API_KEY: z.string().optional(),

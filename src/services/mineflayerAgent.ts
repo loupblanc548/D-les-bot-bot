@@ -73,9 +73,7 @@ export function subscribeAgentLog(callback: (line: string) => void): () => void 
             lastSeenLogContent = currentContent;
           }
         }
-      } catch {
-        // Silent fail — don't spam logs
-      }
+      } catch { logger.error("[Silent catch]"); }
     }, 2000);
     if (logPoller.unref) logPoller.unref();
   }
@@ -94,9 +92,7 @@ function readUrl(): string | null {
   try {
     const content = fs.readFileSync(URL_FILE, "utf-8").trim();
     if (content && content.startsWith("http")) return content;
-  } catch {
-    // File doesn't exist yet
-  }
+  } catch { logger.error("[Silent catch]"); }
   return null;
 }
 
@@ -322,7 +318,7 @@ export async function sendAgentChat(
 /** Send a single action directly (bypass LLM). */
 export async function sendDirectAction(action: {
   type: string;
-  params: Record<string, unknown>;
+  params: Record<string, any>;
 }): Promise<{ success: boolean; message: string } | null> {
   const url = getUrl();
   if (!url) return null;
@@ -467,7 +463,7 @@ export async function setAgentGoalLive(
         await statusMsg?.edit({
           content: `🎯 **${goal}** — ✅ Terminé (timeout de suivi atteint)\nUtilise \`/mc agentlog\` pour voir l'historique complet.`,
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       return;
     }
 
@@ -481,7 +477,7 @@ export async function setAgentGoalLive(
         await statusMsg?.edit({
           content: `🎯 **${goal}** — ✅ Terminé\n\`\`\`${(finalLog || "").slice(-1500)}\`\`\``,
         });
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       return;
     }
 
@@ -509,11 +505,9 @@ export async function setAgentGoalLive(
           await statusMsg?.edit({
             content: `🎯 **${goal}** — ${hp} ${pos}\n\`\`\`\n${lastDisplayedLog.slice(-1200)}\n\`\`\``,
           });
-        } catch {}
+        } catch { logger.error("[Silent catch]"); }
       }
-    } catch {
-      // Silent fail
-    }
+    } catch { logger.error("[Silent catch]"); }
   }, 2000);
 
   if (pollInterval.unref) pollInterval.unref();
@@ -524,7 +518,7 @@ export async function setAgentGoalLive(
 
 /** Send multiple actions in rapid succession (batch mode). */
 export async function sendActionBatch(
-  actions: Array<{ type: string; params: Record<string, unknown> }>,
+  actions: Array<{ type: string; params: Record<string, any> }>,
 ): Promise<Array<{ success: boolean; message: string }>> {
   const url = getUrl();
   if (!url) return actions.map(() => ({ success: false, message: "Agent non disponible" }));

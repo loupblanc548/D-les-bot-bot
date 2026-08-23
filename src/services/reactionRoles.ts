@@ -50,7 +50,7 @@ export function startReactionRoles(client: Client): void {
               create: { userId: user.id, guildId: guild.id, platform: "all" as any, notify: true },
               update: { notify: true },
             });
-          } catch {}
+          } catch { logger.error("[Silent catch]"); }
         }
       } catch (err) {
         logger.error(

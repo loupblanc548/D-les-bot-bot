@@ -30,7 +30,7 @@ export interface ThreatResult {
   details: string;
   categories: string[];
   detectedAt: Date;
-  raw?: Record<string, unknown>;
+  raw?: Record<string, any>;
 }
 
 export interface URLScanResult {
@@ -70,7 +70,7 @@ function getApiKey(name: string): string {
 }
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
-const cache = new Map<string, { data: unknown; timestamp: number }>();
+const cache = new Map<string, { data: any; timestamp: number }>();
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -80,7 +80,7 @@ function getCached<T>(key: string): T | null {
   return null;
 }
 
-function setCached(key: string, data: unknown): void {
+function setCached(key: string, data: any): void {
   cache.set(key, { data, timestamp: Date.now() });
   if (cache.size > 500) {
     const oldest = cache.keys().next().value;
@@ -525,9 +525,7 @@ export async function checkIPReputation(ip: string): Promise<IPReputationResult>
         raw: geoData,
       });
     }
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   const isMalicious = results.some((r) => r.malicious);
   const abuseScore = abuseResult.confidence;

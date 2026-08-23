@@ -96,9 +96,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
       } else {
         await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
       }
-    } catch {
-      // silencieux
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -157,9 +155,7 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction, _cl
         content: "Erreur lors de la création de l'embed.",
         flags: [MessageFlags.Ephemeral],
       });
-    } catch {
-      // silencieux
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -176,9 +172,7 @@ async function handleCapabilities(interaction: ChatInputCommandInteraction) {
         content: "Erreur lors de la génération des capacités.",
         flags: [MessageFlags.Ephemeral],
       });
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 
@@ -289,9 +283,7 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
     for (let idx = 0; idx < optionsList.length; idx++) {
       try {
         await (message as Message).react(emojis[idx]);
-      } catch (_) {
-        // Reaction impossible, on continue
-      }
+      } catch (_) { logger.error("[Silent catch]", _); }
     }
   } catch (error) {
     logger.error("[CRASH COMMANDE POLL]:", error);
@@ -303,9 +295,7 @@ async function handlePoll(interaction: ChatInputCommandInteraction) {
           content: "❌ Erreur lors de la création du sondage.",
           ephemeral: true,
         });
-      } catch {
-        // Ignore follow-up errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }
@@ -359,9 +349,7 @@ async function handleSay(interaction: ChatInputCommandInteraction, client: Clien
           content: "❌ Erreur lors de l'envoi du message.",
           ephemeral: true,
         });
-      } catch {
-        // Ignore follow-up errors
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 }

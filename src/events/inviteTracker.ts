@@ -58,9 +58,7 @@ export function handleInviteTracker(client: Client): void {
             userId: inviterId,
             targetId: member.id,
           });
-        } catch {
-          // Fallback silencieux
-        }
+        } catch { logger.error("[Silent catch]"); }
 
         // Tracker pour détection de raid
         const now = Date.now();

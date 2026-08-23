@@ -60,12 +60,7 @@ import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
 import {
-  handleSoarInteractions,
-  handleAlertInteractions,
-  handleKaliInteractions,
-  handleGitHealerInteractions,
-  handleVpsMaintenanceInteractions,
-  handleSoarToolInteractions,
+  handleAllInteractions,
 } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
@@ -226,9 +221,7 @@ export function attachStartupLogic(
           if (piperOk)
             logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
         });
-      } catch {
-        // localTts.ts non disponible — ignorer
-      }
+      } catch { logger.error("[Silent catch]"); }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
       // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
@@ -238,9 +231,7 @@ export function attachStartupLogic(
       // } catch {
       //   // healthEndpoint.ts non disponible — ignorer
       // }
-    } catch {
-      // localLlm.ts non disponible — ignorer
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     // ─── DM owner de démarrage SUPPRIMÉ ──────────────────────────────────
     // Un seul embed consolidé est envoyé depuis bot.ts via sendConsolidatedStartupReport
@@ -291,9 +282,7 @@ export function attachStartupLogic(
           `[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`,
         );
       }
-    } catch {
-      // File doesn't exist — first boot or after deploy, run retrospective
-    }
+    } catch { logger.error("[Silent catch]"); }
 
     if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
       logger.info("[Startup] Rattrapage ignoré");
@@ -443,12 +432,7 @@ export function attachStartupLogic(
             return startWazuhWatchdog();
           },
           () => {
-            handleSoarInteractions(client);
-            handleAlertInteractions(client);
-            handleKaliInteractions(client);
-            handleGitHealerInteractions(client);
-            handleVpsMaintenanceInteractions(client);
-            handleSoarToolInteractions(client);
+            handleAllInteractions(client);
           },
           () => {
             generateHoneytokens();
@@ -481,9 +465,7 @@ export function attachStartupLogic(
             return startWazuhWatchdog();
           },
           () => {
-            handleSoarInteractions(client);
-            handleAlertInteractions(client);
-            handleSoarToolInteractions(client);
+            handleAllInteractions(client);
           },
         ];
     for (const start of services) {

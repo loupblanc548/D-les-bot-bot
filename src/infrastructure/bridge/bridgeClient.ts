@@ -32,7 +32,7 @@ const HEARTBEAT_INTERVAL_MS = 10_000;
 
 export type JobHandler = (
   job: BridgeJobRequest,
-) => Promise<{ content?: string; embedsPayload?: unknown[]; textResult?: string }>;
+) => Promise<{ content?: string; embedsPayload?: any[]; textResult?: string }>;
 
 // ─── State ───────────────────────────────────────────────────────────────────
 

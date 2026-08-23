@@ -26,7 +26,7 @@ export interface CachedConfig {
   alertChannelId: string | null;
   autoModEnabled: boolean;
   aiChannel: string | null;
-  raw: unknown; // Full Prisma record for edge-case access
+  raw: any; // Full Prisma record for edge-case access
   cachedAt: number;
   expiresAt: number;
 }
@@ -129,7 +129,7 @@ export function invalidateAll(): void {
  */
 export async function updateGuildConfigCached(
   guildId: string,
-  data: Record<string, unknown>,
+  data: Record<string, any>,
 ): Promise<CachedConfig | null> {
   try {
     const updated = await prisma.guildConfig.upsert({
@@ -185,8 +185,8 @@ export async function getCooldownCached(guildId: string): Promise<number> {
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
-function cacheConfig(guildId: string, dbRecord: unknown): CachedConfig {
-  const record = dbRecord as Record<string, unknown>;
+function cacheConfig(guildId: string, dbRecord: any): CachedConfig {
+  const record = dbRecord as Record<string, any>;
 
   // Enforce max cache size — evict oldest entry
   if (cache.size >= MAX_CACHE_ENTRIES) {

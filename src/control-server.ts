@@ -43,14 +43,14 @@ const originalLog = console.log;
 const originalError = console.error;
 const originalWarn = console.warn;
 
-function pushLog(level: string, args: unknown[]) {
+function pushLog(level: string, args: any[]) {
   const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
   logBuffer.push({ timestamp: Date.now(), level, message });
   if (logBuffer.length > MAX_LOGS) logBuffer.shift();
   broadcastWs({ type: "log", timestamp: Date.now(), level, message });
 }
 
-function broadcastWs(data: unknown) {
+function broadcastWs(data: any) {
   const payload = JSON.stringify(data);
   for (const ws of wsClients) {
     if (ws.readyState === WebSocket.OPEN) {
@@ -59,15 +59,15 @@ function broadcastWs(data: unknown) {
   }
 }
 
-console.log = (...args: unknown[]) => {
+console.log = (...args: any[]) => {
   pushLog("info", args);
   originalLog(...args);
 };
-console.error = (...args: unknown[]) => {
+console.error = (...args: any[]) => {
   pushLog("error", args);
   originalError(...args);
 };
-console.warn = (...args: unknown[]) => {
+console.warn = (...args: any[]) => {
   pushLog("warn", args);
   originalWarn(...args);
 };
@@ -117,7 +117,7 @@ function getAllowedOrigin(): string {
   return "*";
 }
 
-function sendJson(res: http.ServerResponse, code: number, data: unknown) {
+function sendJson(res: http.ServerResponse, code: number, data: any) {
   const allowedOrigin = getAllowedOrigin();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -136,7 +136,7 @@ function sendJson(res: http.ServerResponse, code: number, data: unknown) {
   res.end(JSON.stringify(data));
 }
 
-async function readBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
+async function readBody(req: http.IncomingMessage): Promise<Record<string, any>> {
   return new Promise((resolve) => {
     let body = "";
     let tooLarge = false;
@@ -153,7 +153,7 @@ async function readBody(req: http.IncomingMessage): Promise<Record<string, unkno
         return;
       }
       try {
-        resolve(JSON.parse(body) as Record<string, unknown>);
+        resolve(JSON.parse(body) as Record<string, any>);
       } catch {
         resolve({});
       }
@@ -417,7 +417,7 @@ export async function startControlServer(port: number, client: Client): Promise<
         if (platformId && platformId !== "all") {
           try {
             await prisma.source.delete({ where: { id: Number(platformId) } });
-          } catch {}
+          } catch { logger.error("[Silent catch]"); }
         }
         sendJson(res, 200, { success: true });
         return;
@@ -816,7 +816,7 @@ export async function startControlServer(port: number, client: Client): Promise<
           const client = (globalThis as any).__client as any;
           const guilds: { id: string; name: string }[] =
             client?.guilds?.cache?.map((g: any) => ({ id: g.id, name: g.name })) || [];
-          const queues: unknown[] = [];
+          const queues: any[] = [];
           let voiceCount = 0;
           let nowPlaying: { title: string; url: string; duration: string; guild: string } | null =
             null;
@@ -849,7 +849,7 @@ export async function startControlServer(port: number, client: Client): Promise<
             }
           }
           const totalQueue = queues.reduce(
-            (acc: number, q: unknown) => acc + ((q as { songs?: unknown[] }).songs?.length || 0),
+            (acc: number, q: any) => acc + ((q as { songs?: any[] }).songs?.length || 0),
             0,
           );
           sendJson(res, 200, {
@@ -944,7 +944,7 @@ export async function startControlServer(port: number, client: Client): Promise<
                   fetch: async () => new Map(),
                 },
                 isTextBased: () => true,
-                send: async (opts: unknown) => ({ content: typeof opts === "string" ? opts : "" }),
+                send: async (opts: any) => ({ content: typeof opts === "string" ? opts : "" }),
               },
               channelId: `api_${sessionId}`,
               guildId: "",
@@ -1010,7 +1010,7 @@ export async function startControlServer(port: number, client: Client): Promise<
         try {
           const body = await readBody(req);
           const toolName = (body.tool as string)?.trim();
-          const args = (body.args as Record<string, unknown>) || {};
+          const args = (body.args as Record<string, any>) || {};
 
           if (!toolName) {
             sendJson(res, 400, { error: "Paramètre 'tool' requis" });

@@ -413,7 +413,7 @@ const dynamicCrons = new Map<string, ScheduledTask>();
 
 export async function executeExternalTool(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, any>,
   _ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsExt] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
@@ -434,7 +434,7 @@ export async function executeExternalTool(
 
         const headers: Record<string, string> = {};
         if (args.headers && typeof args.headers === "object") {
-          for (const [k, v] of Object.entries(args.headers as Record<string, unknown>)) {
+          for (const [k, v] of Object.entries(args.headers as Record<string, any>)) {
             headers[k] = String(v);
           }
         }
@@ -479,7 +479,7 @@ export async function executeExternalTool(
 
         let loadAvg = "N/A";
         try {
-          const la = (process as unknown as { loadavg?: () => number[] }).loadavg?.();
+          const la = (process as any as { loadavg?: () => number[] }).loadavg?.();
           if (la) loadAvg = la.join(", ");
         } catch {
           /* non-critique */

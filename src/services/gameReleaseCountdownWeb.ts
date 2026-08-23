@@ -7,6 +7,7 @@
  */
 
 import { getTrackedReleases } from "./gameReleaseCountdown.js";
+import logger from "../utils/logger.js";
 
 // ─── HTTP response cache (5 min TTL) ────────────────────────────────────────
 let cachedHtml: string | null = null;
@@ -240,7 +241,7 @@ function buildReleasesPage(): string {
       releases = all;
       render();
     } catch (e) {
-      console.error('Fetch error:', e);
+      logger.error('Fetch error:', e);
     }
   }
 
@@ -1110,7 +1111,7 @@ async function fetchAndRender() {
 
     updateCountdowns();
   } catch (err) {
-    console.error('fetch error:', err);
+    logger.error('fetch error:', err);
   }
 }
 

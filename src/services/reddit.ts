@@ -15,8 +15,8 @@ export async function getSubredditPosts(subreddit: string, sort: "hot" | "new" |
       headers: { "User-Agent": "DiscordBot/1.0" },
       timeout: 10000,
     });
-    return (res.data?.data?.children || []).map((c: Record<string, unknown>) => {
-      const d = c.data as Record<string, unknown>;
+    return (res.data?.data?.children || []).map((c: Record<string, any>) => {
+      const d = c.data as Record<string, any>;
       return {
         id: String(d.id || ""), title: String(d.title || ""), author: String(d.author || ""),
         subreddit: String(d.subreddit || subreddit), score: Number(d.score || 0),
@@ -36,8 +36,8 @@ export async function searchReddit(query: string, limit = 5, sort: "relevance" |
       headers: { "User-Agent": "DiscordBot/1.0" },
       timeout: 10000,
     });
-    return (res.data?.data?.children || []).map((c: Record<string, unknown>) => {
-      const d = c.data as Record<string, unknown>;
+    return (res.data?.data?.children || []).map((c: Record<string, any>) => {
+      const d = c.data as Record<string, any>;
       return {
         id: String(d.id || ""), title: String(d.title || ""), author: String(d.author || ""),
         subreddit: String(d.subreddit || ""), score: Number(d.score || 0),
@@ -57,8 +57,8 @@ export async function getTrendingSubreddits(): Promise<{ name: string; subscribe
       headers: { "User-Agent": "DiscordBot/1.0" },
       timeout: 10000,
     });
-    return (res.data?.data?.children || []).map((c: Record<string, unknown>) => {
-      const d = c.data as Record<string, unknown>;
+    return (res.data?.data?.children || []).map((c: Record<string, any>) => {
+      const d = c.data as Record<string, any>;
       return { name: String(d.display_name || ""), subscribers: Number(d.subscribers || 0), description: String(d.public_description || "").slice(0, 300) };
     });
   } catch { return []; }

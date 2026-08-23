@@ -34,7 +34,7 @@ export interface Anomaly {
   source: string;
   description: string;
   detectedAt: Date;
-  data: Record<string, unknown>;
+  data: Record<string, any>;
 }
 
 export interface LogPattern {
@@ -282,7 +282,7 @@ function detectAnomaly(
   source: string,
   description: string,
   severity: Anomaly["severity"],
-  data: Record<string, unknown>,
+  data: Record<string, any>,
 ): Anomaly {
   const anomaly: Anomaly = {
     id: `anomaly_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

@@ -88,7 +88,7 @@ export async function getPsnProfile(username: string): Promise<PsnProfile | null
   try {
     const accessToken = await authenticatePsn();
     const result = await psnApi.getProfileFromUserName({ accessToken }, username);
-    const p = result.profile as unknown as RawPsnData;
+    const p = result.profile as any as RawPsnData;
     const accountId = p.accountId;
 
     let trophySummary: PsnTrophySummary = {

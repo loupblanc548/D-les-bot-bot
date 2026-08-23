@@ -265,7 +265,7 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
       try {
         const el = await page.$(sel.title);
         if (el) title = (await el.textContent())?.trim() || "";
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
     if (!title) {
       try {
@@ -273,7 +273,7 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
           'meta[property="og:title"]',
           (el: any) => el.getAttribute("content") || "",
         );
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
     title = title.replace(/\n\n/g, " ").replace(/\n/g, " ").trim();
     let content = "";
@@ -282,7 +282,7 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
         content = await page.$$eval(sel.content, (els: any[]) =>
           els.map((el: any) => el.textContent?.trim() || "").join(" "),
         );
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
     content = content.replace(/\n\n/g, " ").replace(/\n/g, " ").trim().slice(0, 5000);
     let pubDate = "";
@@ -296,7 +296,7 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
             el.textContent?.trim() ||
             "",
         );
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
     pubDate = pubDate.trim();
     let image = "";
@@ -306,7 +306,7 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
           sel.image,
           (el: any) => el.getAttribute("src") || el.getAttribute("content") || "",
         );
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
     }
     image = image.trim();
     return { success: true, title, content, pubDate, link: url, image };
@@ -347,9 +347,9 @@ export async function isNewItem(
   const config = getContentTypeConfig(type);
 
   try {
-    const prismaAny = prisma as unknown as Record<
+    const prismaAny = prisma as any as Record<
       string,
-      { findUnique: (args: Record<string, unknown>) => Promise<unknown> }
+      { findUnique: (args: Record<string, any>) => Promise<any> }
     >;
 
     const model = prismaAny[config.tableName];
@@ -394,9 +394,9 @@ export async function markAsProcessed(
   const config = getContentTypeConfig(type);
 
   try {
-    const prismaAny = prisma as unknown as Record<
+    const prismaAny = prisma as any as Record<
       string,
-      { create: (args: Record<string, unknown>) => Promise<unknown> }
+      { create: (args: Record<string, any>) => Promise<any> }
     >;
 
     const model = prismaAny[config.tableName];

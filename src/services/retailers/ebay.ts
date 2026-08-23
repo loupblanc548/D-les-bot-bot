@@ -159,9 +159,7 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
             lastSeen: new Date(),
           });
         }
-      } catch {
-        // Item échoué
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   } catch (err) {
     logger.debug(`[eBay] Scraping error: ${err instanceof Error ? err.message : String(err)}`);

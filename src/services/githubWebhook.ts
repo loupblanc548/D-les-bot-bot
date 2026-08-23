@@ -26,7 +26,7 @@ export function initGithubWebhook(client: Client, channelId: string, secret: str
 
 async function handleGithubWebhook(
   event: string,
-  payload: unknown,
+  payload: any,
   _headers: Record<string, string>,
 ): Promise<void> {
   if (!discordClient || !notificationChannelId) {

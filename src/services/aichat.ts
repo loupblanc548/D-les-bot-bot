@@ -332,7 +332,7 @@ export async function chatWithHistory(
     pruneOldMessages(channelId);
 
     return reply;
-  } catch (err: unknown) {
+  } catch (err: any) {
     if ((err as Error)?.name === "AbortError" || (err as any)?.code === "ETIMEDOUT") {
       return "⏰ L'IA met trop de temps a repondre. Reessaye.";
     }
@@ -379,7 +379,7 @@ export async function generatePollOptions(question: string): Promise<string[]> {
       return [parsed.question, ...options.slice(0, 5)];
     }
     return [question, ...options.slice(0, 5)];
-  } catch (err: unknown) {
+  } catch (err: any) {
     if ((err as Error)?.name === "AbortError") return [];
     logger.error("[SmartPoll] Erreur generation:", err);
     return [];

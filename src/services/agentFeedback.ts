@@ -59,9 +59,7 @@ export class AgentStatusIndicator {
       } else {
         await this.statusMessage.edit({ content: `${emoji} ${label} *(outil: ${toolName})*` });
       }
-    } catch {
-      // Non-critique — si on ne peut pas éditer, on continue
-    }
+    } catch { logger.error("[Silent catch]"); }
   }
 
   async cleanup(): Promise<void> {
@@ -69,7 +67,7 @@ export class AgentStatusIndicator {
     if (this.statusMessage) {
       try {
         await this.statusMessage.delete();
-      } catch {}
+      } catch { logger.error("[Silent catch]"); }
       this.statusMessage = null;
     }
   }

@@ -159,9 +159,7 @@ export async function handleAgentMessageScan(client: Client, message: Message): 
   // Enregistrer l'événement de sécurité
   try {
     await recordSecurityEvent(message.author.id, message.guild.id, "AI_MODERATION");
-  } catch {
-    // Non-critique
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // En mode autonomous avec confiance suffisante → exécuter l'action
   if (
@@ -208,9 +206,7 @@ async function executeAgentAction(
         // DM l'utilisateur
         try {
           await message.author.send(`⚠️ **Avertissement automatique** — ${analysis.reasoning}`);
-        } catch {
-          // DMs fermés
-        }
+        } catch { logger.error("[Silent catch]"); }
         await prisma.sanction.create({
           data: {
             guildId: guild.id,

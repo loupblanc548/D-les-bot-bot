@@ -141,7 +141,7 @@ function extractImageFromHtml(html: string): string | null {
   return match?.[1] ?? null;
 }
 
-function isValidUrl(url: unknown): url is string {
+function isValidUrl(url: any): url is string {
   return typeof url === "string" && /^https?:\/\//i.test(url);
 }
 

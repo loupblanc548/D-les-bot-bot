@@ -78,12 +78,12 @@ if (connection) {
   logger.info("[Queues] REDIS_URL/REDIS_HOST non défini — queues BullMQ désactivées");
 }
 
-export async function addDealJob(type: string, data: unknown = {}): Promise<void> {
+export async function addDealJob(type: string, data: any = {}): Promise<void> {
   if (!dealQueue) return;
   await dealQueue.add(type, data);
 }
 
-export async function addReminderJob(data: unknown): Promise<void> {
+export async function addReminderJob(data: any): Promise<void> {
   if (!reminderQueue) return;
   await reminderQueue.add("send_reminder", data);
 }

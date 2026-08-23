@@ -153,7 +153,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch {}
+    } catch { logger.error("[Silent catch]"); }
   }
 }
 

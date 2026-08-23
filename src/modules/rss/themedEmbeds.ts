@@ -1,4 +1,5 @@
 import { EmbedBuilder, AttachmentBuilder } from "discord.js";
+import logger from "../../utils/logger.js";
 import { getBlogImage, resolveImageUrl, createImageAttachment, isValidEmbedImageUrl } from "../../utils/image-helpers.js";
 import { stripHtml } from "../../utils/stripHtml.js";
 
@@ -62,9 +63,7 @@ export async function createPlayStationEmbed(item: RSSItem): Promise<{ embed: Em
   let imageUrl: string | null = null;
   try {
     imageUrl = await getBlogImage(item.link);
-  } catch {
-    // Image fetch is optional
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   if (imageUrl) {
     // Resolve relative URLs against PlayStation blog base
@@ -83,9 +82,7 @@ export async function createPlayStationEmbed(item: RSSItem): Promise<{ embed: Em
           embed.setImage(`attachment://${attachmentResult.filename}`);
           return { embed, files: [attachmentResult.attachment] };
         }
-      } catch {
-        // If download fails, keep the remote URL — Discord may still be able to fetch it
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 

@@ -32,9 +32,7 @@ function readColabUrl(): string | null {
   try {
     const content = fs.readFileSync(URL_FILE, "utf-8").trim();
     if (content && content.startsWith("http")) return content;
-  } catch {
-    // File doesn't exist yet — Colab not started
-  }
+  } catch { logger.error("[Silent catch]"); }
   return null;
 }
 
@@ -43,9 +41,7 @@ function readColabModel(): string {
   try {
     const content = fs.readFileSync(MODEL_FILE, "utf-8").trim();
     if (content) return content;
-  } catch {
-    // File doesn't exist — use default
-  }
+  } catch { logger.error("[Silent catch]"); }
   return DEFAULT_MODEL;
 }
 
@@ -197,9 +193,9 @@ export async function chatWithColabLlm(
 /** Chat with tools (function calling). */
 export async function chatWithColabLlmTools(
   messages: Array<{ role: string; content: string }>,
-  tools: unknown[],
+  tools: any[],
   options?: { maxTokens?: number; temperature?: number },
-): Promise<{ text: string | null; toolCalls: unknown[] | null } | null> {
+): Promise<{ text: string | null; toolCalls: any[] | null } | null> {
   if (!isColabLlmAvailable() || !colabClient) return null;
 
   try {

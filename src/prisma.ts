@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import logger from "./utils/logger.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import dotenv from "dotenv";
 dotenv.config();
@@ -15,7 +16,7 @@ dotenv.config();
  *    when modules are re-imported.
  */
 
-const globalForPrisma = globalThis as unknown as {
+const globalForPrisma = globalThis as any as {
   prisma: PrismaClient | undefined;
 };
 
@@ -38,9 +39,7 @@ if (!globalForPrisma.prisma) {
 process.on("beforeExit", async () => {
   try {
     await prisma.$disconnect();
-  } catch {
-    // ignore
-  }
+  } catch { logger.error("[Silent catch]"); }
 });
 
 export default prisma;

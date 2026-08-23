@@ -186,9 +186,7 @@ export async function startTrivia(
 
     try {
       await interaction.editReply({ embeds: [resultEmbed], components: [] });
-    } catch {
-      // message may be deleted
-    }
+    } catch { logger.error("[Silent catch]"); }
     activeGames.delete(channelId);
   }, 30_000);
 }
@@ -240,9 +238,7 @@ export async function handleTriviaButton(interaction: ButtonInteraction): Promis
 
     try {
       await interaction.message.edit({ embeds: [embed], components: [] });
-    } catch {
-      // ignore
-    }
+    } catch { logger.error("[Silent catch]"); }
     activeGames.delete(interaction.channelId);
   } else {
     await interaction.reply({
@@ -273,9 +269,7 @@ async function saveTriviaScore(
         balance: { increment: points },
       },
     });
-  } catch {
-    // ignore DB errors
-  }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 /**

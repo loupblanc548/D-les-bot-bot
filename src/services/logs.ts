@@ -224,7 +224,7 @@ export async function getAuditLogs(filters: {
   try {
     const { type, userId, targetId, moderator, limit = 100, offset = 0 } = filters;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, any> = {};
     if (type) where.type = type;
     if (userId) where.userId = userId;
     if (targetId) where.targetId = targetId;

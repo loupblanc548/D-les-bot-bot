@@ -44,7 +44,7 @@ export async function getRecentTweets(userId: string, max = 5): Promise<TwitterT
       params: { max_results: Math.min(max, 100), "tweet.fields": "public_metrics,created_at" },
       timeout: 10000,
     });
-    return (res.data?.data || []).map((t: Record<string, unknown>) => {
+    return (res.data?.data || []).map((t: Record<string, any>) => {
       const m = (t.public_metrics || {}) as Record<string, number>;
       return {
         id: String(t.id || ""), text: String(t.text || "").slice(0, 500), authorId: userId,
@@ -63,7 +63,7 @@ export async function searchTweets(query: string, max = 5): Promise<TwitterTweet
       params: { query, max_results: Math.min(max, 100), "tweet.fields": "public_metrics,created_at,author_id" },
       timeout: 10000,
     });
-    return (res.data?.data || []).map((t: Record<string, unknown>) => {
+    return (res.data?.data || []).map((t: Record<string, any>) => {
       const m = (t.public_metrics || {}) as Record<string, number>;
       return {
         id: String(t.id || ""), text: String(t.text || "").slice(0, 500), authorId: String(t.author_id || ""),

@@ -29,7 +29,7 @@ export async function sendTelegramMessage(
       }),
     });
 
-    const data = (await response.json()) as Record<string, unknown>;
+    const data = (await response.json()) as Record<string, any>;
 
     if (data.ok) {
       logger.info(`[Telegram] Message envoyé à ${chatId}`);
@@ -49,7 +49,7 @@ export async function sendTelegramMessage(
  */
 export async function sendCriticalAlert(
   message: string,
-  data?: Record<string, unknown>,
+  data?: Record<string, any>,
 ): Promise<void> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;

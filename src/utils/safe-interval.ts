@@ -23,7 +23,7 @@ export interface SafeIntervalOptions {
  */
 export function safeInterval(
   name: string,
-  fn: () => unknown | Promise<unknown>,
+  fn: () => any | Promise<any>,
   intervalMs: number,
   options: SafeIntervalOptions = {},
 ): NodeJS.Timeout {

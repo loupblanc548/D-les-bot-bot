@@ -332,7 +332,7 @@ export function sanitizeForEmbedFooter(text: string): string {
 /**
  * Escape complet HTML pour affichage sécurisé dans le dashboard.
  */
-export function escapeHtml(str: unknown): string {
+export function escapeHtml(str: any): string {
   if (!str) return "";
   return String(str)
     .replace(/&/g, "&amp;")

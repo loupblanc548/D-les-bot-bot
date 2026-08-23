@@ -290,7 +290,7 @@ async function handleUserContextMenu(
     }
 
     case "🔨 Ban rapide": {
-      if (!(await requireMod(interaction as unknown as import("discord.js").CommandInteraction)))
+      if (!(await requireMod(interaction as any as import("discord.js").CommandInteraction)))
         return;
       await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
       try {
@@ -317,7 +317,7 @@ async function handleUserContextMenu(
     }
 
     case "⏱️ Timeout rapide": {
-      if (!(await requireMod(interaction as unknown as import("discord.js").CommandInteraction)))
+      if (!(await requireMod(interaction as any as import("discord.js").CommandInteraction)))
         return;
       await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
       try {

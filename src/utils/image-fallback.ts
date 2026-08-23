@@ -75,7 +75,7 @@ export function getImageFallbackConfig(): ImageFallbackConfig {
  * Extract image with multi-tier fallback system
  */
 export async function extractImageWithFallback(
-  item: Record<string, unknown>,
+  item: Record<string, any>,
   context: ImageExtractionContext = {},
 ): Promise<string | null> {
   if (!currentConfig.enabled || !item) {
@@ -113,7 +113,7 @@ export async function extractImageWithFallback(
  * Try each fallback tier in sequence
  */
 async function tryFallbackTiers(
-  item: Record<string, unknown>,
+  item: Record<string, any>,
   context: ImageExtractionContext,
 ): Promise<string | null> {
   const tiers: Array<() => string | null | Promise<string | null>> = [];
@@ -165,7 +165,7 @@ async function tryFallbackTiers(
 /**
  * Try enclosure URL
  */
-function tryEnclosure(item: Record<string, unknown>): string | null {
+function tryEnclosure(item: Record<string, any>): string | null {
   const enclosure = item.enclosure as { url?: string } | undefined;
   const url = enclosure?.url;
   return url && isValidImageUrl(url) ? url : null;
@@ -174,7 +174,7 @@ function tryEnclosure(item: Record<string, unknown>): string | null {
 /**
  * Try media:content URL
  */
-function tryMediaContent(item: Record<string, unknown>): string | null {
+function tryMediaContent(item: Record<string, any>): string | null {
   const mediaKeys = ["media:content", "media_content", "media:thumbnail", "media_thumbnail"];
 
   for (const key of mediaKeys) {
@@ -186,8 +186,8 @@ function tryMediaContent(item: Record<string, unknown>): string | null {
     }
 
     if (typeof media === "object" && media !== null) {
-      const mediaObj = media as Record<string, unknown>;
-      const dollar = mediaObj.$ as Record<string, unknown> | undefined;
+      const mediaObj = media as Record<string, any>;
+      const dollar = mediaObj.$ as Record<string, any> | undefined;
 
       if (dollar && typeof dollar.url === "string" && isValidImageUrl(dollar.url)) {
         return dollar.url;
@@ -201,8 +201,8 @@ function tryMediaContent(item: Record<string, unknown>): string | null {
     if (Array.isArray(media) && media.length > 0) {
       const first = media[0];
       if (typeof first === "object" && first !== null) {
-        const firstObj = first as Record<string, unknown>;
-        const dollar = firstObj.$ as Record<string, unknown> | undefined;
+        const firstObj = first as Record<string, any>;
+        const dollar = firstObj.$ as Record<string, any> | undefined;
 
         if (dollar && typeof dollar.url === "string" && isValidImageUrl(dollar.url)) {
           return dollar.url;
@@ -221,7 +221,7 @@ function tryMediaContent(item: Record<string, unknown>): string | null {
 /**
  * Try HTML <img> tags
  */
-function tryHtmlImages(item: Record<string, unknown>): string | null {
+function tryHtmlImages(item: Record<string, any>): string | null {
   const htmlKeys = ["content:encoded", "content", "contentSnippet", "summary"];
   const imgRegex = /<img[^>]+src=["']([^"']+)["']/i;
 
@@ -241,7 +241,7 @@ function tryHtmlImages(item: Record<string, unknown>): string | null {
 /**
  * Try Steam banner from AppID
  */
-function trySteamBanner(item: Record<string, unknown>): string | null {
+function trySteamBanner(item: Record<string, any>): string | null {
   const steamRegex = /store\.steampowered\.com\/app\/(\d+)/i;
   const haystack = [item.link, item.title, item["content:encoded"], item.content]
     .filter((v): v is string => typeof v === "string")
@@ -259,7 +259,7 @@ function trySteamBanner(item: Record<string, unknown>): string | null {
  * Try RAWG search
  */
 async function tryRawgSearch(
-  item: Record<string, unknown>,
+  item: Record<string, any>,
   context: ImageExtractionContext,
 ): Promise<string | null> {
   if (!context.rawgClient || !context.rawgClient.isEnabled?.()) {
@@ -290,7 +290,7 @@ async function tryRawgSearch(
 /**
  * Try Discord CDN placeholder
  */
-function tryDiscordCdn(item: Record<string, unknown>): string | null {
+function tryDiscordCdn(item: Record<string, any>): string | null {
   // Generate a deterministic placeholder based on item content
   const seed = generateSeed(item);
   return `https://cdn.discordapp.com/embed/avatars/${seed}.png`;
@@ -315,7 +315,7 @@ function isValidImageUrl(url: string): boolean {
 /**
  * Generate cache key from item and context
  */
-function generateCacheKey(item: Record<string, unknown>, context: ImageExtractionContext): string {
+function generateCacheKey(item: Record<string, any>, context: ImageExtractionContext): string {
   const keyParts = [
     item.link,
     item.title,
@@ -330,7 +330,7 @@ function generateCacheKey(item: Record<string, unknown>, context: ImageExtractio
 /**
  * Generate deterministic seed for Discord CDN
  */
-function generateSeed(item: Record<string, unknown>): number {
+function generateSeed(item: Record<string, any>): number {
   const str = [item.link, item.title, item.guid]
     .filter((v): v is string => typeof v === "string")
     .join("");

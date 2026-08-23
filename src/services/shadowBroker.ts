@@ -308,9 +308,7 @@ export async function detectLinkedAccounts(member: GuildMember): Promise<LinkedA
         }
       }
     }
-  } catch {
-    // Fetch might fail
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Résoudre les tags
   for (const link of linked) {
@@ -318,9 +316,7 @@ export async function detectLinkedAccounts(member: GuildMember): Promise<LinkedA
       try {
         const user = await member.guild.client.users.fetch(link.userId);
         link.tag = user.tag;
-      } catch {
-        // Keep ID
-      }
+      } catch { logger.error("[Silent catch]"); }
     }
   }
 
@@ -411,9 +407,7 @@ export async function getMemberNetwork(member: GuildMember): Promise<MemberNetwo
         connectionsMap.set(otherId, existing);
       }
     }
-  } catch {
-    // Fetch might fail
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   // Convertir en array
   const connections: NetworkConnection[] = [];
@@ -422,9 +416,7 @@ export async function getMemberNetwork(member: GuildMember): Promise<MemberNetwo
     try {
       const user = await member.guild.client.users.fetch(targetId);
       targetTag = user.tag;
-    } catch {
-      // Keep ID
-    }
+    } catch { logger.error("[Silent catch]"); }
     connections.push({
       targetId,
       targetTag,
@@ -503,9 +495,7 @@ export async function detectSuspiciousPatterns(
       try {
         const user = await client.users.fetch(userId);
         tag = user.tag;
-      } catch {
-        // Keep ID
-      }
+      } catch { logger.error("[Silent catch]"); }
       patterns.push({
         type: "mass_name_change",
         severity: count >= 5 ? "high" : "medium",
@@ -534,9 +524,7 @@ export async function detectSuspiciousPatterns(
         });
       }
     }
-  } catch {
-    // Fetch might fail
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   return patterns.sort((a, b) => {
     const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -551,7 +539,7 @@ export type ShadowBrokerQueryType = "intel" | "network" | "patterns" | "report";
 export interface ShadowBrokerResult {
   success: boolean;
   type: ShadowBrokerQueryType;
-  data: unknown;
+  data: any;
   durationMs: number;
   error?: string;
 }
@@ -698,9 +686,7 @@ export async function generateIntelReport(
   try {
     const guild = await client.guilds.fetch(guildId);
     totalMembers = guild.memberCount;
-  } catch {
-    // Keep 0
-  }
+  } catch { logger.error("[Silent catch]"); }
 
   return {
     totalMembers,

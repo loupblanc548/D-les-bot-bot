@@ -7,6 +7,7 @@
  */
 
 import { WebSocket } from "ws";
+import logger from "../utils/logger.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -47,9 +48,7 @@ function rawBroadcast(data: object): void {
         client.send(payload);
       }
     }
-  } catch {
-    // silently ignore broadcast errors
-  } finally {
+  } catch { logger.error("[Silent catch]"); } finally {
     broadcasting = false;
   }
 }

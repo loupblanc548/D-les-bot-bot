@@ -1,13 +1,14 @@
 /**
- * aiResponseCache.ts — Lightweight semantic cache for AI responses
+ * aiResponseCache.ts — Two-tier semantic cache for AI responses
  *
- * Caches recent AI responses keyed by normalized user message.
+ * L1: In-memory (fast, 5 min TTL, 200 entries)
+ * L2: Redis (persistent across restarts, 1h TTL, shared)
  * Hits return cached response instantly, saving API calls.
- * TTL-based expiry + max entries to bound memory.
  */
 
 import logger from "./logger.js";
 import { aiCacheHits, aiCacheMisses } from "../services/prometheusExporter.js";
+import { ensureConnected } from "./redisClient.js";
 
 interface CacheEntry {
   response: string;
@@ -15,9 +16,11 @@ interface CacheEntry {
   userId: string;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (L1)
+const REDIS_TTL_S = 60 * 60; // 1 hour (L2)
 const MAX_ENTRIES = 200;
 const SIMILARITY_THRESHOLD = 0.92;
+const REDIS_PREFIX = "ai:cache:";
 
 const cache = new Map<string, CacheEntry>();
 
@@ -66,14 +69,15 @@ function cleanupExpired(): void {
   }
 }
 
-export function getCachedResponse(
+export async function getCachedResponse(
   message: string,
   userId: string,
   channelType: "guild" | "dm" = "guild",
-): string | null {
+): Promise<string | null> {
   cleanupExpired();
   const normalized = normalize(message);
 
+  // L1: In-memory cache
   for (const [, entry] of cache) {
     if (Date.now() - entry.timestamp > CACHE_TTL_MS) continue;
     if (entry.userId !== userId) continue;
@@ -81,29 +85,55 @@ export function getCachedResponse(
     const cachedNorm = normalize(entry.response.slice(0, 500));
     const sim = cosineSimilarity(normalized, cachedNorm);
     if (sim >= SIMILARITY_THRESHOLD) {
-      logger.info(`[AICache] Cache hit (similarity: ${sim.toFixed(2)})`);
+      logger.info(`[AICache] L1 hit (similarity: ${sim.toFixed(2)})`);
       aiCacheHits.labels(channelType).inc();
       return entry.response;
     }
   }
 
+  // L2: Redis cache (persistent across restarts)
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_PREFIX}${userId}:${normalized.slice(0, 100)}`;
+      const redisVal = (await redis.get(redisKey)) as string | null;
+      if (redisVal) {
+        const entry = JSON.parse(redisVal) as CacheEntry;
+        // Populate L1 for future fast access
+        cache.set(`${userId}:${normalized.slice(0, 100)}`, entry);
+        logger.info(`[AICache] L2 (Redis) hit`);
+        aiCacheHits.labels(channelType).inc();
+        return entry.response;
+      }
+    }
+  } catch { logger.error("[Silent catch]"); }
+
   aiCacheMisses.labels(channelType).inc();
   return null;
 }
 
-export function setCachedResponse(message: string, response: string, userId: string): void {
+export async function setCachedResponse(message: string, response: string, userId: string): Promise<void> {
   const normalized = normalize(message);
-  cache.set(`${userId}:${normalized.slice(0, 100)}`, {
-    response,
-    timestamp: Date.now(),
-    userId,
-  });
+  const entry: CacheEntry = { response, timestamp: Date.now(), userId };
+  const key = `${userId}:${normalized.slice(0, 100)}`;
+
+  // L1: In-memory
+  cache.set(key, entry);
   cleanupExpired();
+
+  // L2: Redis (fire-and-forget, non-blocking)
+  try {
+    const redis = await ensureConnected();
+    if (redis) {
+      const redisKey = `${REDIS_PREFIX}${key}`;
+      await redis.setEx(redisKey, REDIS_TTL_S, JSON.stringify(entry));
+    }
+  } catch { logger.error("[Silent catch]"); }
 }
 
 export function clearCache(): void {
   cache.clear();
-  logger.info("[AICache] Cache cleared");
+  logger.info("[AICache] L1 cache cleared");
 }
 
 export function getCacheSize(): number {

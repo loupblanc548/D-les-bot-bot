@@ -3,7 +3,7 @@ import type { ToolCallResult } from "../agentTools.js";
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
 
-export async function toolWorkoutGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolWorkoutGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const goal = String(args.goal || "strength").trim();
   const level = String(args.level || "beginner").trim();
   const dur = Number(args.duration) || 30;
@@ -56,7 +56,7 @@ export async function toolWorkoutGenerator(args: Record<string, unknown>): Promi
   );
 }
 
-export async function toolNameGenerator(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolNameGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const type = String(args.type || "fantasy").trim();
   const count = Math.min(Number(args.count) || 3, 10);
   const names: Record<string, string[]> = {
@@ -149,7 +149,7 @@ export async function toolNameGenerator(args: Record<string, unknown>): Promise<
 }
 
 export async function toolZodiacCompatibility(
-  args: Record<string, unknown>,
+  args: Record<string, any>,
 ): Promise<ToolCallResult> {
   const s1 = String(args.sign1 || "")
       .trim()
@@ -179,13 +179,13 @@ export async function toolZodiacCompatibility(
   );
 }
 
-export async function toolTextToSpeechInfo(_a: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTextToSpeechInfo(_a: Record<string, any>): Promise<ToolCallResult> {
   return ok(
     `🗣️ **Voix TTS:**\n\n**Edge TTS (neural, gratuit):**\nFR: Denise/Henri | EN: Jenny/Guy | ES: Elvira | DE: Katja | IT: Elsa | PT: Francisca | JP: Nanami | CN: Xiaoxiao | AR: Zariyah | +40 langues\n\n**StreamElements (Polly):**\nFR: Celine/Mathieu | EN: Joanna/Matthew\n\n**ElevenLabs (premium):**\nConfigure ELEVENLABS_API_KEY\n\nLe bot répond en vocal automatiquement!`,
   );
 }
 
-export async function toolTeraTermInfo(args: Record<string, unknown>): Promise<ToolCallResult> {
+export async function toolTeraTermInfo(args: Record<string, any>): Promise<ToolCallResult> {
   const queryType = String(args.query_type || "info")
     .trim()
     .toLowerCase();

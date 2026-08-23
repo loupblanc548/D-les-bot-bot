@@ -91,7 +91,7 @@ export async function startSubtitles(
   guildId: string,
   voiceChannelId: string,
   textChannelId: string,
-  adapterCreator: unknown,
+  adapterCreator: any,
 ): Promise<{ success: boolean; message: string }> {
   // Guard: voice agent must be enabled
   const config = getVoiceAgentConfig();
@@ -212,7 +212,7 @@ export async function startSubtitles(
         }, CHUNK_WINDOW_MS);
 
         // Store interval for cleanup
-        (userData as unknown as { interval: NodeJS.Timeout }).interval = interval;
+        (userData as any as { interval: NodeJS.Timeout }).interval = interval;
       }
     });
 
@@ -251,7 +251,7 @@ export async function stopSubtitles(
 
   // Cleanup all user streams
   for (const [, userData] of session.userStreams) {
-    const intervalData = userData as unknown as { interval?: NodeJS.Timeout };
+    const intervalData = userData as any as { interval?: NodeJS.Timeout };
     if (intervalData.interval) clearInterval(intervalData.interval);
   }
   session.userStreams.clear();

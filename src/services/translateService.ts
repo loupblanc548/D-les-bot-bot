@@ -40,7 +40,7 @@ function rememberInCache(key: string, value: string): void {
 interface LibreTranslateResponse {
   translatedText?: string;
   detectedLanguage?: { language?: string; confidence?: number };
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface LibreTranslateDetectItem {
@@ -136,7 +136,7 @@ export async function detectLanguage(text: string): Promise<string> {
       return "";
     }
 
-    const payload = (await response.json()) as unknown;
+    const payload = (await response.json()) as any;
     const candidates: LibreTranslateDetectItem[] = Array.isArray(payload)
       ? (payload as LibreTranslateDetectItem[])
       : payload && typeof payload === "object"
