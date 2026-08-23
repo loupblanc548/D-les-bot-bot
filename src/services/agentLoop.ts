@@ -574,7 +574,7 @@ async function runAgentLoopInternal(
   const cacheCtx = message.guildId || "dm";
   const loopStartTime = Date.now();
   const cached = getCachedResponse(userMessage, cacheCtx);
-  if (cached) {
+  if (cached && !isErrorResponse(cached)) {
     logger.info(`[AgentLoop] 🎯 Cache hit — skipping API call`);
     agentCacheHits.inc();
     agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);

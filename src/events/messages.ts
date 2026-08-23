@@ -1649,7 +1649,7 @@ async function handleAiChatMention(
 
     // ── Cache sémantique: vérifier si on a déjà une réponse récente ──
     const cached = await getCachedResponse(enrichedContent, message.author.id, "guild");
-    if (cached) {
+    if (cached && !isErrorResponse(cached)) {
       logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
       void statusIndicator.cleanup();
       if (cached.length <= 1900) {
@@ -2165,7 +2165,7 @@ async function handleDMMessage(
 
     // ── Cache sémantique (DM): vérifier si on a déjà une réponse récente ──
     const dmCached = await getCachedResponse(dmEnrichedContent, message.author.id, "dm");
-    if (dmCached) {
+    if (dmCached && !isErrorResponse(dmCached)) {
       logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
       void dmStatusIndicator.cleanup();
       if (dmCached.length <= 1900) {
