@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.22",
-    "@bull-board/api": "^8.1.2",
+    "@bull-board/api": "^9.3.2",
     "@bull-board/express": "^8.1.2",
     "@dank074/discord-video-stream": "^5.0.2",
     "@discordjs/voice": "^0.19.2",
