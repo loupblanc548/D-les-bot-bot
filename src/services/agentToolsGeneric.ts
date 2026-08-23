@@ -546,7 +546,7 @@ function handleMath(toolName: string, args: Args): ToolCallResult | null {
 
 // ─── Text utilities ──────────────────────────────────────────────────────────
 
-function handleText(toolName: string, args: Args): ToolCallResult | null {
+async function handleText(toolName: string, args: Args): Promise<ToolCallResult | null> {
   try {
     const text = arg(args, "text");
     switch (toolName) {
@@ -667,7 +667,19 @@ function handleText(toolName: string, args: Args): ToolCallResult | null {
         return ok(`Conversion XML→JSON. Utilisez execute_code avec xml2js pour convertir.`);
       }
       case "yaml_validate": {
-        try { require("yaml").parse(text); return ok("YAML valide ✓"); } catch { try { require("js-yaml").load(text); return ok("YAML valide ✓"); } catch (e) { return fail(`YAML invalide: ${e}`); } }
+        try {
+          const yaml = await import("yaml");
+          yaml.parse(text);
+          return ok("YAML valide ✓");
+        } catch {
+          try {
+            const jsYaml = await import("js-yaml");
+            jsYaml.load(text);
+            return ok("YAML valide ✓");
+          } catch (e) {
+            return fail(`YAML invalide: ${e}`);
+          }
+        }
       }
       case "regex_debugger": {
         const pattern = arg(args, "pattern");
