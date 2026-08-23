@@ -38,9 +38,9 @@ import {
   trackConversation,
   suggestThread,
 } from "../services/agentFeedback.js";
-import { analyzeImageWithGemini, chatWithGemini, isGeminiAvailable } from "../services/gemini.js";
-import { isLocalLlmAvailable, chatWithLocalLlm } from "../services/localLlm.js";
-import { isNvidiaNimAvailable, chatWithNvidiaNim } from "../services/nvidiaNim.js";
+import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
+import { callLlm } from "../services/aiGateway.js";
+import { isErrorResponse } from "../services/responseClassifier.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
@@ -74,10 +74,6 @@ import {
   analyzeToxicity as analyzePerspectiveToxicity,
   isPerspectiveConfigured,
 } from "../services/perspectiveApi.js";
-import {
-  getNextAvailableModel,
-  ensureAtLeastOneModelAvailable,
-} from "../services/modelRotation.js";
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -1806,213 +1802,50 @@ async function handleAiChatMention(
         imageUrls,
       );
     } catch (loopError) {
-      // Fallback : si l'agent loop échoue (ex: modèle sans function calling),
-      // on retombe sur le simple fetch OpenRouter
       logger.warn(
-        `[AIChat] AgentLoop échoué, fallback simple: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+        `[AIChat] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
       );
       aiResponse = "";
     }
 
-    // ── Helper: détecter si l'IA a halluciné un message d'erreur ──
-    const isAiHallucinatedError = (text: string): boolean =>
-      text.includes("temporairement indisponibles") ||
-      text.includes("quota/cooldown") ||
-      text.includes("Tous les modèles IA") ||
-      text.includes("modèles IA sont temporairement") ||
-      text.includes("Réessaie dans 1-2 minutes");
-
-    // ── Helper: détecter si aiResponse est encore un message d'erreur (connu ou halluciné) ──
-    const isStillError = (text: string): boolean =>
-      !text ||
-      text.includes("Le serveur IA a rencontré un problème") ||
-      text.includes("Problème de communication avec le serveur IA") ||
-      text.includes("Le serveur IA est sous forte charge") ||
-      text.includes("CIRCUIT BREAKER ACTIVATED") ||
-      text.includes("Circuit breaker activated") ||
-      isAiHallucinatedError(text);
-
-    // ── Si l'agent loop a retourné un message d'erreur connu, fallback avec modèle gratuit ──
-    const isErrorResponse = isStillError(aiResponse);
-
-    if (isErrorResponse) {
-      logger.warn(`[AIChat] AgentLoop a retourné une erreur, fallback en cours`);
-
-      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
-      if (isLocalLlmAvailable()) {
-        try {
-          const localReply = await chatWithLocalLlm([
+    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
+    if (!aiResponse || isErrorResponse(aiResponse)) {
+      logger.warn(
+        `[AIChat] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`,
+      );
+      try {
+        const fallbackResult = await callLlm({
+          messages: [
             {
               role: "system",
               content:
                 config.aiSystemPrompt +
                 "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
             },
-            { role: "user", content: enrichedContent },
-          ]);
-          if (localReply && localReply.length > 2 && !isAiHallucinatedError(localReply)) {
-            aiResponse = localReply;
-            logger.info(
-              `[AIChat] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
-            );
-          } else if (localReply) {
-            logger.warn(`[AIChat] LLM local a halluciné un message d'erreur — ignoré`);
-          }
-        } catch (localErr) {
-          logger.error(
-            `[AIChat] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 2: Gemini (free, quota séparé) ──
-      if (isStillError(aiResponse) && isGeminiAvailable()) {
-        logger.warn(`[AIChat] Fallback: Gemini`);
-        try {
-          const geminiReply = await chatWithGemini(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            enrichedContent,
-            800,
-          );
-          if (geminiReply) {
-            aiResponse = geminiReply;
-            logger.info(`[AIChat] Fallback Gemini réussi`);
-          }
-        } catch (geminiErr) {
-          logger.error(
-            `[AIChat] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
-      if (isStillError(aiResponse) && isNvidiaNimAvailable()) {
-        logger.warn(`[AIChat] Fallback: NVIDIA NIM`);
-        try {
-          const nvidiaReply = await chatWithNvidiaNim(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            enrichedContent,
-            800,
-          );
-          if (nvidiaReply) {
-            aiResponse = nvidiaReply;
-            logger.info(`[AIChat] Fallback NVIDIA NIM réussi`);
-          }
-        } catch (nvidiaErr) {
-          logger.error(
-            `[AIChat] NVIDIA NIM fallback échoué: ${nvidiaErr instanceof Error ? nvidiaErr.message : String(nvidiaErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
-      if (isStillError(aiResponse)) {
-        try {
-          const fallbackModel = apiKey ? getNextAvailableModel() : null;
-          if (!apiKey) {
-            logger.info(`[AIChat] OpenRouter ignoré: aucune clé configurée`);
-          } else if (!fallbackModel) {
-            logger.warn(
-              `[AIChat] Aucun modèle OpenRouter disponible — providers indépendants déjà tentés`,
-            );
-          } else {
-            const fallbackResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: fallbackModel,
-                messages,
-                max_tokens: 500,
-                temperature: 0.7,
-              }),
-              signal: AbortSignal.timeout(15000),
-            });
-            if (fallbackResponse.ok) {
-              const fallbackData = (await fallbackResponse.json()) as {
-                choices: Array<{ message: { content: string } }>;
-              };
-              aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-              logger.info(`[AIChat] Fallback réussi avec ${fallbackModel}`);
-            }
-          }
-        } catch (fallbackErr) {
-          logger.error(
-            `[AIChat] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
-          );
-        }
-      }
-    }
-
-    // ── Dernier recours: reset circuit breakers + appel simple sans tools ──
-    if (isStillError(aiResponse)) {
-      logger.warn(
-        `[AIChat] Tous les fallbacks échoués — last resort: reset + appel simple sans tools`,
-      );
-      ensureAtLeastOneModelAvailable();
-      try {
-        const lastResortModel = getNextAvailableModel() || config.openRouterModel;
-        const lastResortResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: lastResortModel,
-            messages: [
-              {
-                role: "system",
-                content:
-                  config.aiSystemPrompt +
-                  "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
-              },
-              { role: "user", content: enrichedContent.slice(0, 1000) },
-            ],
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(10_000),
+            { role: "user", content: enrichedContent.slice(0, 4000) },
+          ],
+          maxTokens: 500,
+          timeoutMs: 15_000,
+          deadlineMs: 20_000,
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          commandName: "chat-fallback",
         });
-        if (lastResortResponse.ok) {
-          const data = (await lastResortResponse.json()) as {
-            choices?: Array<{ message?: { content?: string } }>;
-          };
-          const text = data.choices?.[0]?.message?.content?.trim();
-          if (text && text.length > 2) {
-            aiResponse = text;
-            logger.info(`[AIChat] ✅ Last resort réussi avec ${lastResortModel}`);
-          }
+        if (fallbackResult.content && !isErrorResponse(fallbackResult.content)) {
+          aiResponse = fallbackResult.content;
+          logger.info(`[AIChat] Fallback aiGateway réussi via ${fallbackResult.provider}`);
         }
-      } catch (lastResortErr) {
+      } catch (fallbackErr) {
         logger.error(
-          `[AIChat] Last resort échoué: ${lastResortErr instanceof Error ? lastResortErr.message : String(lastResortErr)}`,
+          `[AIChat] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
         );
       }
     }
 
-    // ── Si toujours vide ou erreur, dernier recours via le responder garanti ──
-    if (isStillError(aiResponse)) {
-      try {
-        const { respondChat } = await import("../services/chatResponder.js");
-        const rescue = await respondChat(enrichedContent, [], {
-          systemPrompt:
-            config.aiSystemPrompt +
-            "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-          userId: message.author.id,
-          guildId: message.guildId ?? undefined,
-          maxTokens: 500,
-          deadlineMs: 15_000,
-        });
-        aiResponse = rescue.content;
-      } catch {
-        aiResponse =
-          "Hmm, laisse-moi reformuler ça une seconde… Repose ta question, je te réponds tout de suite, soldat.";
-      }
+    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
+    if (!aiResponse || isErrorResponse(aiResponse)) {
+      aiResponse =
+        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
@@ -2362,224 +2195,47 @@ async function handleDMMessage(
       );
     } catch (loopError) {
       logger.warn(
-        `[DM] AgentLoop échoué, fallback: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+        `[DM] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
       );
       aiResponse = "";
     }
 
-    // ── Si l'agent loop a retourné une erreur, fallback avec modèle gratuit ──
-    const dmIsErrorResponse =
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated");
-
-    if (dmIsErrorResponse) {
-      logger.warn(`[DM] AgentLoop a retourné une erreur, fallback en cours`);
-
-      // ── Fallback 1 (priorité absolue): LLM local (Ollama sur VPS) — gratuit, pas de quota ──
-      if (isLocalLlmAvailable()) {
-        try {
-          const localReply = await chatWithLocalLlm([
+    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
+    if (!aiResponse || isErrorResponse(aiResponse)) {
+      logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`);
+      try {
+        const dmFallbackResult = await callLlm({
+          messages: [
             {
               role: "system",
               content:
                 config.aiSystemPrompt +
                 "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
             },
-            { role: "user", content: dmEnrichedContent },
-          ]);
-          if (localReply && localReply.length > 2) {
-            aiResponse = localReply;
-            logger.info(
-              `[DM] Fallback LLM local réussi (${localReply.length} chars) — API économisée`,
-            );
-          }
-        } catch (localErr) {
-          logger.error(
-            `[DM] LLM local fallback échoué: ${localErr instanceof Error ? localErr.message : String(localErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 2: Gemini (free, quota séparé) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("Le serveur IA est sous forte charge") ||
-          aiResponse.includes("Problème de communication avec le serveur IA") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-          aiResponse.includes("Circuit breaker activated")) &&
-        isGeminiAvailable()
-      ) {
-        logger.warn(`[DM] Fallback: Gemini`);
-        try {
-          const geminiReply = await chatWithGemini(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            dmEnrichedContent,
-            800,
-          );
-          if (geminiReply) {
-            aiResponse = geminiReply;
-            logger.info(`[DM] Fallback Gemini réussi`);
-          }
-        } catch (geminiErr) {
-          logger.error(
-            `[DM] Gemini fallback échoué: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 3: NVIDIA NIM (free, modèles puissants) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("Le serveur IA est sous forte charge") ||
-          aiResponse.includes("Problème de communication avec le serveur IA") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-          aiResponse.includes("Circuit breaker activated")) &&
-        isNvidiaNimAvailable()
-      ) {
-        logger.warn(`[DM] Fallback: NVIDIA NIM`);
-        try {
-          const nvidiaReply = await chatWithNvidiaNim(
-            config.aiSystemPrompt +
-              "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            dmEnrichedContent,
-            800,
-          );
-          if (nvidiaReply) {
-            aiResponse = nvidiaReply;
-            logger.info(`[DM] Fallback NVIDIA NIM réussi`);
-          }
-        } catch (nvidiaErr) {
-          logger.error(
-            `[DM] NVIDIA NIM fallback échoué: ${nvidiaErr instanceof Error ? nvidiaErr.message : String(nvidiaErr)}`,
-          );
-        }
-      }
-
-      // ── Fallback 4 (dernier recours): OpenRouter (API payante) ──
-      if (
-        (!aiResponse ||
-          aiResponse.includes("Le serveur IA a rencontré un problème") ||
-          aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-          aiResponse.includes("Circuit breaker activated")) &&
-        apiKey
-      ) {
-        try {
-          const dmFallbackModel = getNextAvailableModel();
-          if (!dmFallbackModel) {
-            logger.warn(
-              `[DM] Aucun modèle OpenRouter disponible — providers indépendants déjà tentés`,
-            );
-          } else {
-            const fallbackResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: dmFallbackModel,
-                messages: [
-                  {
-                    role: "system",
-                    content:
-                      config.aiSystemPrompt +
-                      "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
-                      "Adapte-toi à n'importe quelle langue du monde. " +
-                      "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-                  },
-                  { role: "user", content: `${message.author.username}: ${content}` },
-                ],
-                max_tokens: 500,
-                temperature: 0.7,
-              }),
-              signal: AbortSignal.timeout(15000),
-            });
-            if (fallbackResponse.ok) {
-              const fallbackData = (await fallbackResponse.json()) as {
-                choices: Array<{ message: { content: string } }>;
-              };
-              aiResponse = fallbackData.choices?.[0]?.message?.content || "*(silence)*";
-              logger.info(`[DM] Fallback réussi avec ${dmFallbackModel}`);
-            }
-          }
-        } catch (fallbackErr) {
-          logger.error(
-            `[DM] Fallback aussi échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
-          );
-        }
-      }
-    }
-
-    // ── Dernier recours: reset circuit breakers + appel simple sans tools ──
-    if (
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated")
-    ) {
-      logger.warn(`[DM] Tous les fallbacks échoués — last resort: reset + appel simple sans tools`);
-      ensureAtLeastOneModelAvailable();
-      try {
-        const lastResortModel = getNextAvailableModel() || config.openRouterModel;
-        const lastResortResponse = await fetch(`${config.openRouterBaseUrl}/chat/completions`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: lastResortModel,
-            messages: [
-              {
-                role: "system",
-                content:
-                  config.aiSystemPrompt +
-                  "\n\nTu es John Helldiver. Réponds dans la langue du message reçu. Sois concis et naturel.",
-              },
-              { role: "user", content: dmEnrichedContent.slice(0, 1000) },
-            ],
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(10_000),
+            { role: "user", content: dmEnrichedContent.slice(0, 4000) },
+          ],
+          maxTokens: 500,
+          timeoutMs: 15_000,
+          deadlineMs: 20_000,
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          commandName: "dm-fallback",
         });
-        if (lastResortResponse.ok) {
-          const data = (await lastResortResponse.json()) as {
-            choices?: Array<{ message?: { content?: string } }>;
-          };
-          const text = data.choices?.[0]?.message?.content?.trim();
-          if (text && text.length > 2) {
-            aiResponse = text;
-            logger.info(`[DM] ✅ Last resort réussi avec ${lastResortModel}`);
-          }
+        if (dmFallbackResult.content && !isErrorResponse(dmFallbackResult.content)) {
+          aiResponse = dmFallbackResult.content;
+          logger.info(`[DM] Fallback aiGateway réussi via ${dmFallbackResult.provider}`);
         }
-      } catch (lastResortErr) {
+      } catch (fallbackErr) {
         logger.error(
-          `[DM] Last resort échoué: ${lastResortErr instanceof Error ? lastResortErr.message : String(lastResortErr)}`,
+          `[DM] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
         );
       }
     }
 
-    // ── Si toujours vide ou erreur, message par défaut ──
-    if (
-      !aiResponse ||
-      aiResponse.includes("Le serveur IA a rencontré un problème") ||
-      aiResponse.includes("Le serveur IA est sous forte charge") ||
-      aiResponse.includes("Problème de communication avec le serveur IA") ||
-      aiResponse.includes("CIRCUIT BREAKER ACTIVATED") ||
-      aiResponse.includes("Circuit breaker activated")
-    ) {
+    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
+    if (!aiResponse || isErrorResponse(aiResponse)) {
       aiResponse =
-        "⚠️ Je n'ai pas obtenu de réponse cette fois. Les providers ont été basculés automatiquement ; réessaie dans quelques secondes, soldat.";
+        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
