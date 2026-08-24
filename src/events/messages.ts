@@ -73,6 +73,27 @@ import {
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
+// ─── Détecteur de réponses génériques du LLM local (qwen2.5:3b) ──────────────
+// Le 3B donne parfois des réponses passe-partout qu'il ne faut pas cacher
+const GENERIC_LOCAL_PATTERNS = [
+  "je peux fournir des informations",
+  "je peux vous aider",
+  "qu'est-ce que tu veux savoir",
+  "je suis là pour t'aider",
+  "n'hésite pas à demander",
+  "que puis-je faire pour toi",
+  "i can provide information",
+  "how can i help you",
+  "what would you like to know",
+];
+function isGenericLocalResponse(response: string): boolean {
+  const lower = response.toLowerCase().trim();
+  if (lower.length < 200) {
+    return GENERIC_LOCAL_PATTERNS.some((p) => lower.includes(p));
+  }
+  return false;
+}
+
 const SPAM_THRESHOLD = 5;
 const SPAM_WINDOW_MS = 3_000;
 const SPAM_MUTE_MS = 5 * 60 * 1000;
@@ -1835,7 +1856,8 @@ async function handleAiChatMention(
     }
 
     // ── Stocker la réponse dans le cache sémantique ──
-    if (aiResponse && !aiResponse.includes("⚠️")) {
+    // Ne pas cacher les réponses génériques du LLM local (qwen2.5:3b)
+    if (aiResponse && !aiResponse.includes("⚠️") && !isGenericLocalResponse(aiResponse)) {
       void setCachedResponse(enrichedContent, aiResponse, message.author.id);
     }
 
