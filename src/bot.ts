@@ -303,7 +303,9 @@ async function main(): Promise<void> {
   try {
     const { sendRestartAlert } = await import("./utils/crash-webhook.js");
     void sendRestartAlert();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Nettoyage initial + automatique
   pruneOldData().catch((err) =>
@@ -577,6 +579,16 @@ async function main(): Promise<void> {
 
   // Initialiser le système d'alertes proactive (DM owner)
   initProactiveAlerts(client);
+
+  // Auto-apprentissage: génère des Q&A via Wikipédia/Wiktionnaire → Obsidian
+  try {
+    const { startSelfLearner } = await import("./services/selfLearner.js");
+    startSelfLearner();
+  } catch (err) {
+    logger.warn(
+      `[SelfLearner] Échec d'initialisation: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   // Purge auto des messages de statut en DM et log channel (>7 jours)
   startDmCleanup(client);
