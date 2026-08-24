@@ -10,12 +10,55 @@
  */
 
 import logger from "../utils/logger.js";
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { saveQA, searchQA } from "./obsidianMemory.js";
 
 const LEARN_INTERVAL_MS = 5 * 60 * 1000; // 5 min entre chaque batch
 const BATCH_SIZE = 5; // 5 Q&A par batch = ~1440 Q&A/jour
 let isLearning = false;
 let learnTimer: ReturnType<typeof setInterval> | null = null;
+
+// ─── Dedup persistant: fichier sur disque qui survit aux redémarrages ────────
+const DEDUP_FILE = process.env.OBSIDIAN_VAULT_PATH
+  ? path.join(process.env.OBSIDIAN_VAULT_PATH, "qa", ".learned-subjects.json")
+  : "/tmp/bot-learned-subjects.json";
+
+function loadLearnedSet(): Set<string> {
+  try {
+    if (fs.existsSync(DEDUP_FILE)) {
+      const data = JSON.parse(fs.readFileSync(DEDUP_FILE, "utf-8")) as string[];
+      return new Set(data);
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveLearnedSet(set: Set<string>): void {
+  try {
+    const dir = path.dirname(DEDUP_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DEDUP_FILE, JSON.stringify([...set]), "utf-8");
+  } catch {
+    // non-critical
+  }
+}
+
+function normalizeSubject(subject: string): string {
+  return subject
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function subjectHash(subject: string): string {
+  return crypto.createHash("md5").update(normalizeSubject(subject)).digest("hex").slice(0, 12);
+}
 
 // ─── Sujets prédéfinis pour l'apprentissage ──────────────────────────────────
 // Liste massive couvrant tous les domaines possibles et imaginables
@@ -1414,8 +1457,8 @@ const LEARN_TOPICS: { category: string; subjects: string[] }[] = [
   },
 ];
 
-// ─── Tracker pour éviter de répéter les mêmes sujets ─────────────────────────
-const learnedSubjects = new Set<string>();
+// ─── Tracker persistant pour éviter de répéter les mêmes sujets ──────────────
+const learnedSubjects = loadLearnedSet();
 let topicIndex = 0;
 let subjectIndex = 0;
 
@@ -1435,9 +1478,10 @@ function getNextSubject(): { category: string; subject: string } | null {
     subjectIndex++;
     attempts++;
 
-    const key = `${topic.category}:${subject}`;
-    if (!learnedSubjects.has(key)) {
-      learnedSubjects.add(key);
+    const hash = subjectHash(subject);
+    if (!learnedSubjects.has(hash)) {
+      learnedSubjects.add(hash);
+      saveLearnedSet(learnedSubjects);
       return { category: topic.category, subject };
     }
   }
@@ -1445,6 +1489,7 @@ function getNextSubject(): { category: string; subject: string } | null {
   // Tous les sujets ont été traités — reset
   logger.info("[SelfLearner] 🔄 Tous les sujets ont été traités — reset du cycle");
   learnedSubjects.clear();
+  saveLearnedSet(learnedSubjects);
   return null;
 }
 
