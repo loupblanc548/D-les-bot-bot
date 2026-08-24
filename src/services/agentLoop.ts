@@ -1030,11 +1030,34 @@ async function runAgentLoopInternal(
     const canUseLocalForImages = imageUrls.length === 0 || isLocalLlmVisionAvailable();
 
     // ─── Mode hybride: petits modèles (3B/7B) = chat simple uniquement ───
-    // Qwen 3B/7B gère le chat simple (salut, questions générales) en local.
-    // Toute tâche avec tools → skip direct vers API cloud (70B) pour qualité.
+    // Qwen 3B/7B gère le chat simple (salut, questions générales, capacités) en local.
+    // Toute tâche avec tools → skip direct vers API cloud 70B (NVIDIA NIM / Groq) pour qualité.
     const isSmallLocalModel =
       LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
-    const skipLocalForAnyTools = isSmallLocalModel && availableTools.length > 0;
+
+    // ─── Détection d'intent: la question nécessite-t-elle des tools ? ───
+    // Si la question est conversationnelle (capacités, salutations, opinions, infos générales),
+    // le LLM local peut répondre SANS tools → beaucoup plus rapide.
+    const lowerUserMsg = userMessage.toLowerCase();
+    const SIMPLE_INTENT_PATTERNS = [
+      // Questions de capacité
+      /\b(?:tu peux|tu sais|t['e]?s capable|peux.tu|sais.tu|can you|could you|do you know|are you able|what can you|qué puedes|cosa sai|was kannst)\b/i,
+      // Salutations / social
+      /^\s*(?:salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir|ça va|ca va|comment ça va|how are you)\s*[\?？]?\s*$/i,
+      // Questions sur le bot lui-même
+      /\b(?:qui es.tu|t['e]?s qui|présente.toi|que peux.tu|quelles sont tes|tes capacités|tes fonctions|what are you|who are you)\b/i,
+      // Opinion / conversation
+      /\b(?:tu penses|qu['e]?en penses|ton avis|à ton avis|what do you think|your opinion|was denkst)\b/i,
+      // Blagues / fun
+      /\b(?:raconte.*blague|dis.*blague|fais.moi rire|tell.*joke|make me laugh)\b/i,
+      // "Fais rien, dis-moi juste"
+      /\b(?:fais rien|dis.moi juste|juste pour savoir|c['e]?tait pour savoir|just wondering|just curious|don.t do anything|just tell me)\b/i,
+      // Remerciements / ack
+      /^\s*(?:merci|thanks|thx|cimer|ok|okay|compris|noted|vu|entendu|d.accord)\s*$/i,
+    ];
+    const isSimpleIntent = SIMPLE_INTENT_PATTERNS.some((p) => p.test(lowerUserMsg));
+    // Si la question est simple ET ne mentionne pas d'action concrète → LLM local sans tools
+    const skipLocalForAnyTools = isSmallLocalModel && availableTools.length > 0 && !isSimpleIntent;
 
     if (
       isLocalLlmAvailable() &&
@@ -1081,7 +1104,16 @@ async function runAgentLoopInternal(
       }
     } else if (skipLocalForAnyTools) {
       logger.info(
-        `[AgentLoop] 🏠⏭️ LLM local skippé (${availableTools.length} tools nécessaires) — API cloud 70B pour tools`,
+        `[AgentLoop] 🏠⏭️ LLM local skippé (${availableTools.length} tools nécessaires, intent complexe) — API cloud 70B pour tools`,
+      );
+    } else if (
+      isSimpleIntent &&
+      isLocalLlmAvailable() &&
+      !skipLocalForRetailer &&
+      canUseLocalForImages
+    ) {
+      logger.info(
+        `[AgentLoop] 🏠✅ Intent simple détecté — LLM local ${LOCAL_LLM_MODEL_NAME} utilisé sans tools (rapide)`,
       );
     } else if (imageUrls.length > 0 && !canUseLocalForImages) {
       logger.info(`[AgentLoop] 👁️ Vision locale indisponible — passage au provider vision/API`);
