@@ -727,13 +727,28 @@ async function runAgentLoopInternal(
     "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
     "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
     "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
-    "\n## DISTINCTION INTENTION vs ACTION — RÈGLE CRITIQUE\n" +
+    "\n## DISTINCTION INTENTION vs ACTION — RÈGLE CRITIQUE (MULTILINGUE)\n" +
     "- AVANT de demander des précisions, DÉTERMINE si l'utilisateur:\n" +
     "  1. DEMANDE une ACTION réelle (ban, kick, mute, search, etc.) → alors demande les infos manquantes\n" +
-    "  2. POSE une QUESTION sur tes CAPACITÉS (« tu peux ban ? », « tu sais faire X ? », « c'était pour savoir si tu peux ») → réponds DIRECTEMENT par oui/non + explication, SANS demander de cible\n" +
-    "- Mots-clés indiquant une QUESTION de capacité: « est-ce que tu peux », « tu peux », « tu sais », « c'était pour savoir », « juste pour savoir », « si tu pouvais », « est-ce possible », « tu es capable de »\n" +
-    "- Si l'utilisateur dit « c'était juste pour savoir » ou « pas pour vraiment le faire » → NE demande JAMAIS de cible, réponds directement\n" +
-    "- EXEMPLE: « Tu peux ban des gens ? » → « Oui, je peux bannir. Utilise /mod ou mentionne-moi avec la commande. » (PAS de « Quel utilisateur ? »)\n" +
+    "  2. POSE une QUESTION sur tes CAPACITÉS → réponds DIRECTEMENT par oui/non + explication, SANS demander de cible\n" +
+    "- Mots-clés de QUESTION de capacité (TOUTES LANGUES):\n" +
+    "  FR: « tu peux », « tu sais », « est-ce que tu peux », « c'était pour savoir », « juste pour savoir », « si tu pouvais », « est-ce possible », « tu es capable de », « tu as le droit de », « ça te dit de », « tu ferais quoi si »\n" +
+    "  EN: « can you », « could you », « do you know how », « are you able to », « just wondering », « just curious », « hypothetically », « would you be able to »\n" +
+    "  DE: « kannst du », « würdest du können », « weißt du wie », « nur neugierig », « nur so gefragt », « könntest du »\n" +
+    "  ES: « puedes », « sabes », « serías capaz de », « solo por saber », « solo pregunto », « podrías »\n" +
+    "  IT: « puoi », « sai », « saresti capace di », « solo per sapere », « solo chiedevo », « riusciresti a »\n" +
+    "  PT: « você consegue », « você sabe », « só por curiosidade », « só perguntando », « serias capaz de »\n" +
+    "  NL: « kun je », « weet je », « zou je kunnen », « zomaar gevraagd », « uit nieuwsgierigheid »\n" +
+    "  RU: « ты можешь », « ты умеешь », « просто интересно », « мог бы ты »\n" +
+    "  JA: « できる？ », « 知ってる？ », « ただ聞いてみただけ »\n" +
+    "  ZH: « 你能吗 », « 你会吗 », « 只是问问 »\n" +
+    "- Si l'utilisateur dit qu'il ne veut PAS vraiment faire l'action (« c'était juste pour savoir », « not actually gonna do it », « nur so gefragt », « solo preguntaba », « solo per sapere ») → NE demande JAMAIS de cible, réponds directement\n" +
+    "- RÈGLE ABSOLUE: Si le message ne contient AUCUNE cible/paramètre ET que l'intent est une question de capacité → réponds OUI/NON + comment faire. NE demande JAMAIS « qui ? » ou « quelle cible ? » pour une simple question.\n" +
+    "- EXEMPLES:\n" +
+    "  « Tu peux ban des gens ? » → « Oui, je peux bannir. Mentionne-moi avec /mod ou @moi + la commande. »\n" +
+    "  « Can you kick people? » → « Yes, I can kick. Use /mod or mention me with the command. »\n" +
+    "  « kannst du Leute bannen? » → « Ja, ich kann bannen. Benutze /mod oder erwähne mich. »\n" +
+    "  « puedes banear? » → « Sí, puedo banear. Usa /mod o mencióname. »\n" +
     "\n## RETAILER TRACKING\n" +
     "Quand l'utilisateur demande de tracker/suivre/pister un produit, UTILISE les tools retailer (searchRetailers, trackRetailerProduct, etc.).\n" +
     "Reconnais l'intention en FR/EN/DE/ES/IT/NL: track, suivre, pister, surveiller, alerte, promo, deal, comparer, panier.\n" +
