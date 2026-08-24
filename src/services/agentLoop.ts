@@ -85,7 +85,14 @@ import {
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
 import { getTrivialResponse } from "./trivialFastPath.js";
-import { loadUserFacts, loadUserNotes, searchKnowledge, appendUserFact } from "./obsidianMemory.js";
+import {
+  loadUserFacts,
+  loadUserNotes,
+  searchKnowledge,
+  appendUserFact,
+  searchQA,
+  saveQA,
+} from "./obsidianMemory.js";
 import {
   getUserPreferences,
   recordInteraction,
@@ -625,13 +632,14 @@ async function runAgentLoopInternal(
   );
 
   // 1. Construire le contexte (mémoire + historique + Obsidian) — en parallèle pour la perf
-  const [longTermMemory, channelHistory, obsidianFacts, obsidianNotes, obsidianKnowledge] =
+  const [longTermMemory, channelHistory, obsidianFacts, obsidianNotes, obsidianKnowledge, savedQA] =
     await Promise.all([
       loadLongTermMemory(message.author.id),
       loadChannelHistory(message),
       loadUserFacts(message.author.id),
       loadUserNotes(message.author.id),
       searchKnowledge(userMessage),
+      searchQA(userMessage),
     ]);
 
   // Detect user language for multilingual response
@@ -753,6 +761,14 @@ async function runAgentLoopInternal(
     (obsidianNotes ? "\n## Obsidian — Notes sur cet utilisateur\n" + obsidianNotes + "\n" : "") +
     (obsidianKnowledge.length > 0
       ? "\n## Obsidian — Base de connaissances\n" + obsidianKnowledge.join("\n\n") + "\n"
+      : "") +
+    (savedQA
+      ? "\n## Obsidian — Question déjà répondue précédemment\n" +
+        `**Question similaire déjà posée** (catégorie: ${savedQA.category}):\n` +
+        `Q: ${savedQA.question}\n` +
+        `R: ${savedQA.answer}\n` +
+        "Tu peux réutiliser/adapter cette réponse si elle est toujours pertinente. " +
+        "Si l'info est obsolète, vérifie avec tes tools et mets à jour.\n"
       : "") +
     memoryPrompt +
     planPrompt +

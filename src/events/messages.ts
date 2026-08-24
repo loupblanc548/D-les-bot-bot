@@ -22,6 +22,7 @@ import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
+import { saveQA } from "../services/obsidianMemory.js";
 import {
   checkMessageMediaForAI,
   checkMessageLinksForSecurity,
@@ -1917,6 +1918,9 @@ async function handleAiChatMention(
         message.author.username,
       ).catch(() => {});
 
+      // ── Sauvegarder la Q&A dans Obsidian (mémoire long-terme par tiroirs) ──
+      void saveQA(effectiveContent, aiResponse).catch(() => {});
+
       // ── Nettoyer l'indicateur de statut ──
       void statusIndicator.cleanup();
 
@@ -2305,6 +2309,9 @@ async function handleDMMessage(
         aiResponse,
         message.author.username,
       ).catch(() => {});
+
+      // ── Sauvegarder la Q&A dans Obsidian (mémoire long-terme par tiroirs) ──
+      void saveQA(effectiveDmContent, aiResponse).catch(() => {});
 
       // ── Nettoyer l'indicateur de statut ──
       void dmStatusIndicator.cleanup();

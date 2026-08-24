@@ -6,9 +6,12 @@
  *
  * Structure:
  *   vault/
+ *     qa/                     — Q&A pairs (question + answer) organized by category
+ *       <category>/
+ *         <slug>.md           — One file per Q&A, slugified from the question
  *     users/<userId>.md       — facts about each user
- *     knowledge/               — user-written notes (read-only for bot)
- *     conversations/           — conversation summaries (written by bot)
+ *     knowledge/              — user-written notes (read-only for bot)
+ *     conversations/          — conversation summaries (written by bot)
  */
 
 import fs from "node:fs";
@@ -36,8 +39,514 @@ function conversationsDir(): string {
   return path.join(vaultDir(), "conversations");
 }
 
+function qaDir(): string {
+  return path.join(vaultDir(), "qa");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// User notes (facts about each user)
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Slugify a string into a safe filename (max 60 chars). */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+}
+
+/** Normalize text for comparison (lowercase, no accents, no punctuation). */
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Extract significant words from a query (stop words filtered, length > 2). */
+function extractKeywords(text: string): string[] {
+  const stopWords = new Set([
+    "the",
+    "le",
+    "la",
+    "les",
+    "un",
+    "une",
+    "des",
+    "de",
+    "du",
+    "et",
+    "or",
+    "a",
+    "an",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "que",
+    "qui",
+    "dans",
+    "pour",
+    "sur",
+    "avec",
+    "sans",
+    "par",
+    "ce",
+    "cette",
+    "ces",
+    "mon",
+    "ma",
+    "mes",
+    "ton",
+    "ta",
+    "tes",
+    "son",
+    "sa",
+    "ses",
+    "notre",
+    "votre",
+    "leur",
+    "leurs",
+    "comment",
+    "quoi",
+    "quel",
+    "quelle",
+    "quand",
+    "où",
+    "where",
+    "when",
+    "what",
+    "which",
+    "why",
+    "how",
+    "est",
+    "sont",
+    "pas",
+    "ne",
+    "ni",
+    "mais",
+    "donc",
+    "car",
+    "then",
+    "than",
+    "this",
+    "that",
+    "these",
+    "those",
+    "you",
+    "your",
+    "je",
+    "tu",
+    "il",
+    "elle",
+    "on",
+    "nous",
+    "vous",
+    "ils",
+    "elles",
+    "it",
+    "they",
+    "we",
+    "i",
+    "to",
+    "of",
+    "in",
+    "on",
+    "at",
+    "by",
+    "for",
+    "from",
+    "with",
+    "about",
+    "as",
+    "into",
+    "like",
+    "through",
+    "after",
+    "over",
+    "between",
+    "out",
+    "against",
+    "during",
+    "without",
+    "before",
+    "under",
+    "around",
+    "among",
+    "est",
+    "ce",
+    "ca",
+    "ça",
+    "oui",
+    "non",
+    "yes",
+    "no",
+    "not",
+  ]);
+  return normalizeText(text)
+    .split(" ")
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+}
+
+/** Calculate a simple relevance score between a query and a stored question. */
+function relevanceScore(queryKeywords: string[], storedText: string): number {
+  const storedLower = normalizeText(storedText);
+  let score = 0;
+  for (const kw of queryKeywords) {
+    if (storedLower.includes(kw)) score++;
+  }
+  return score;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Q&A persistence — "tiroirs" organized by category
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SavedQA {
+  question: string;
+  answer: string;
+  category: string;
+  filePath: string;
+}
+
+/**
+ * Determine the category ("tiroir") for a Q&A pair based on the question content.
+ */
+function categorizeQuestion(question: string): string {
+  const q = normalizeText(question);
+  const categories: Array<{ name: string; keywords: string[] }> = [
+    {
+      name: "gaming",
+      keywords: [
+        "jeu",
+        "game",
+        "play",
+        "steam",
+        "ps5",
+        "xbox",
+        "nintendo",
+        "minecraft",
+        "fortnite",
+        "helldivers",
+        "valorant",
+        "league",
+        "lol",
+        "gaming",
+        "jeux",
+      ],
+    },
+    {
+      name: "tech",
+      keywords: [
+        "code",
+        "programmation",
+        "typescript",
+        "javascript",
+        "python",
+        "node",
+        "react",
+        "bug",
+        "erreur",
+        "error",
+        "compile",
+        "docker",
+        "linux",
+        "server",
+        "api",
+        "database",
+        "sql",
+      ],
+    },
+    {
+      name: "web",
+      keywords: [
+        "site",
+        "web",
+        "internet",
+        "url",
+        "lien",
+        "google",
+        "search",
+        "recherche",
+        "navigateur",
+        "browser",
+      ],
+    },
+    {
+      name: "osint",
+      keywords: [
+        "osint",
+        "ip",
+        "scan",
+        "port",
+        "dns",
+        "whois",
+        "security",
+        "securite",
+        "pentest",
+        "hack",
+        "vulnerability",
+      ],
+    },
+    {
+      name: "crypto",
+      keywords: [
+        "crypto",
+        "bitcoin",
+        "btc",
+        "eth",
+        "ethereum",
+        "price",
+        "prix",
+        "trading",
+        "blockchain",
+        "token",
+      ],
+    },
+    {
+      name: "meteo",
+      keywords: [
+        "meteo",
+        "weather",
+        "temperature",
+        "pluie",
+        "rain",
+        "neige",
+        "snow",
+        "vent",
+        "wind",
+      ],
+    },
+    {
+      name: "discord",
+      keywords: [
+        "discord",
+        "serveur",
+        "server",
+        "channel",
+        "salon",
+        "role",
+        "rôle",
+        "ban",
+        "kick",
+        "moderation",
+      ],
+    },
+    {
+      name: "culture",
+      keywords: [
+        "film",
+        "movie",
+        "serie",
+        "series",
+        "music",
+        "musique",
+        "book",
+        "livre",
+        "art",
+        "history",
+        "histoire",
+      ],
+    },
+    {
+      name: "science",
+      keywords: [
+        "science",
+        "physics",
+        "physique",
+        "chimie",
+        "chemistry",
+        "biologie",
+        "biology",
+        "math",
+        "maths",
+        "mathematiques",
+      ],
+    },
+    {
+      name: "quotidien",
+      keywords: [
+        "recette",
+        "recipe",
+        "cooking",
+        "cuisine",
+        "food",
+        "nourriture",
+        "sante",
+        "health",
+        "sport",
+        "exercise",
+      ],
+    },
+  ];
+
+  let bestCategory = "divers";
+  let bestScore = 0;
+
+  for (const cat of categories) {
+    const score = cat.keywords.filter((kw) => q.includes(kw)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = cat.name;
+    }
+  }
+
+  return bestCategory;
+}
+
+/**
+ * Search for a previously answered question that matches the current query.
+ * Returns the best matching Q&A if the relevance score is high enough.
+ */
+export async function searchQA(query: string): Promise<SavedQA | null> {
+  if (!config.obsidianEnabled) return null;
+  try {
+    const baseDir = qaDir();
+    if (!fs.existsSync(baseDir)) return null;
+
+    const queryKeywords = extractKeywords(query);
+    if (queryKeywords.length === 0) return null;
+
+    let bestMatch: SavedQA | null = null;
+    let bestScore = 0;
+
+    // Scan all category subdirectories
+    const categories = fs
+      .readdirSync(baseDir)
+      .filter((f) => fs.statSync(path.join(baseDir, f)).isDirectory());
+
+    for (const category of categories) {
+      const catDir = path.join(baseDir, category);
+      const files = fs.readdirSync(catDir).filter((f) => f.endsWith(".md"));
+
+      for (const file of files) {
+        const filePath = path.join(catDir, file);
+        const content = fs.readFileSync(filePath, "utf-8");
+
+        // Extract the question from the "## Question" section
+        const qMatch = content.match(/## Question\n([\s\S]*?)(?=\n## )/);
+        if (!qMatch) continue;
+
+        const storedQuestion = qMatch[1].trim();
+        const score = relevanceScore(queryKeywords, storedQuestion);
+
+        // Require at least 60% keyword overlap to be considered a match
+        const threshold = Math.ceil(queryKeywords.length * 0.6);
+        if (score >= threshold && score > bestScore) {
+          bestScore = score;
+          const aMatch = content.match(/## Réponse\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+          bestMatch = {
+            question: storedQuestion,
+            answer: aMatch?.[1]?.trim() || "",
+            category,
+            filePath,
+          };
+        }
+      }
+    }
+
+    if (bestMatch) {
+      logger.info(`[Obsidian] Q&A trouvé dans "${bestMatch.category}" (score: ${bestScore})`);
+    }
+    return bestMatch;
+  } catch (err) {
+    logger.debug(`[Obsidian] searchQA error: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Save a Q&A pair to the vault, organized by category ("tiroir").
+ * Skips if the same question already exists.
+ */
+export async function saveQA(question: string, answer: string, category?: string): Promise<void> {
+  if (!config.obsidianEnabled) return;
+  try {
+    const cat = category || categorizeQuestion(question);
+    const dir = path.join(qaDir(), cat);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const slug = slugify(question);
+    const filePath = path.join(dir, `${slug}.md`);
+
+    // Don't overwrite if already exists
+    if (fs.existsSync(filePath)) {
+      // Update the answer if it's different (append new answer version)
+      const existing = fs.readFileSync(filePath, "utf-8");
+      const aMatch = existing.match(/## Réponse\n([\s\S]*?)(?=\n## )/);
+      if (aMatch && aMatch[1].trim() === answer.trim()) {
+        return; // Same answer, skip
+      }
+      // Append as a new answer version
+      const date = new Date().toISOString().split("T")[0];
+      const updateBlock = `\n\n---\n\n## Réponse (mise à jour ${date})\n${answer}\n`;
+      fs.appendFileSync(filePath, updateBlock, "utf-8");
+      logger.debug(`[Obsidian] Q&A updated: ${cat}/${slug}`);
+      return;
+    }
+
+    const date = new Date().toISOString().split("T")[0];
+    const content = `---
+category: "${cat}"
+created: ${date}
+---
+
+# ${question.slice(0, 80)}
+
+## Question
+
+${question}
+
+## Réponse
+
+${answer}
+
+## Métadonnées
+
+- Catégorie: **${cat}**
+- Date: ${date}
+- Source: conversation Discord
+`;
+
+    fs.writeFileSync(filePath, content, "utf-8");
+    logger.info(`[Obsidian] Q&A sauvegardé dans "${cat}/${slug}.md"`);
+  } catch (err) {
+    logger.debug(`[Obsidian] saveQA error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * List all Q&A categories with counts (for debugging / display).
+ */
+export async function listQACategories(): Promise<Array<{ category: string; count: number }>> {
+  if (!config.obsidianEnabled) return [];
+  try {
+    const baseDir = qaDir();
+    if (!fs.existsSync(baseDir)) return [];
+    const categories = fs
+      .readdirSync(baseDir)
+      .filter((f) => fs.statSync(path.join(baseDir, f)).isDirectory());
+    return categories.map((cat) => ({
+      category: cat,
+      count: fs.readdirSync(path.join(baseDir, cat)).filter((f) => f.endsWith(".md")).length,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User notes (facts about each user) — kept for backward compat
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -151,11 +660,10 @@ export async function searchKnowledge(query: string): Promise<string[]> {
       const lower = content.toLowerCase();
       const score = queryWords.filter((w) => lower.includes(w)).length;
       if (score > 0) {
-        // Return first 500 chars of matching notes
         results.push(`[${file}]\n${content.slice(0, 500)}`);
       }
     }
-    return results.slice(0, 5); // Max 5 notes
+    return results.slice(0, 5);
   } catch {
     return [];
   }
@@ -206,7 +714,7 @@ export async function syncVault(): Promise<void> {
     });
     logger.debug("[Obsidian] Vault synced");
   } catch {
-    // Non-critical — vault may not have remote changes
+    // Non-critical
   }
 }
 
@@ -223,6 +731,6 @@ export async function pushVault(): Promise<void> {
     execSync("git push origin main", opts);
     logger.debug("[Obsidian] Vault pushed");
   } catch {
-    // Non-critical — nothing to commit or push failed
+    // Non-critical
   }
 }
