@@ -261,6 +261,7 @@ const envSchema = z.object({
   RETAILER_TRACKING_INTERVAL_MS: z.string().default("600000"),
   RETAILER_DEALS_INTERVAL_MS: z.string().default("900000"),
   RETAILER_CHANNEL_ID: z.string().optional(),
+  OBSIDIAN_VAULT_PATH: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

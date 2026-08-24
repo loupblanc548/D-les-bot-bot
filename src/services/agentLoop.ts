@@ -85,6 +85,7 @@ import {
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
 import { getTrivialResponse } from "./trivialFastPath.js";
+import { loadUserFacts, loadUserNotes, searchKnowledge, appendUserFact } from "./obsidianMemory.js";
 import {
   getUserPreferences,
   recordInteraction,
@@ -623,11 +624,15 @@ async function runAgentLoopInternal(
     message.guildId || undefined,
   );
 
-  // 1. Construire le contexte (mémoire + historique) — en parallèle pour la perf
-  const [longTermMemory, channelHistory] = await Promise.all([
-    loadLongTermMemory(message.author.id),
-    loadChannelHistory(message),
-  ]);
+  // 1. Construire le contexte (mémoire + historique + Obsidian) — en parallèle pour la perf
+  const [longTermMemory, channelHistory, obsidianFacts, obsidianNotes, obsidianKnowledge] =
+    await Promise.all([
+      loadLongTermMemory(message.author.id),
+      loadChannelHistory(message),
+      loadUserFacts(message.author.id),
+      loadUserNotes(message.author.id),
+      searchKnowledge(userMessage),
+    ]);
 
   // Detect user language for multilingual response
   const langDetection = detectLanguage(userMessage);
@@ -740,6 +745,15 @@ async function runAgentLoopInternal(
     generateToolListPrompt(availableTools) +
     "\n\n" +
     (longTermMemory ? longTermMemory : "") +
+    (obsidianFacts.length > 0
+      ? "\n## Obsidian — Faits sur cet utilisateur\n" +
+        obsidianFacts.map((f) => `- ${f.key}: ${f.value} #${f.category}`).join("\n") +
+        "\n"
+      : "") +
+    (obsidianNotes ? "\n## Obsidian — Notes sur cet utilisateur\n" + obsidianNotes + "\n" : "") +
+    (obsidianKnowledge.length > 0
+      ? "\n## Obsidian — Base de connaissances\n" + obsidianKnowledge.join("\n\n") + "\n"
+      : "") +
     memoryPrompt +
     planPrompt +
     getApiKeyStatusLine() +
@@ -1520,6 +1534,7 @@ export async function extractAndSaveMemory(
   userId: string,
   userMessage: string,
   aiResponse: string,
+  username?: string,
 ): Promise<void> {
   try {
     const llmResult = await callLlm({
@@ -1574,6 +1589,14 @@ export async function extractAndSaveMemory(
           updatedAt: new Date(),
         },
       });
+      // Aussi écrire dans Obsidian (fire-and-forget)
+      void appendUserFact(
+        userId,
+        username || "unknown",
+        fact.key,
+        fact.value,
+        fact.category || "auto",
+      ).catch(() => {});
     }
 
     logger.info(`[AgentLoop] 💾 ${parsed.facts.length} faits sauvegardés pour ${userId}`);

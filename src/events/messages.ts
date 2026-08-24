@@ -17,7 +17,6 @@ import { sendSecurityAlert, checkMessageSpam } from "../services/reportChannel.j
 import prisma from "../prisma.js";
 import { withCache } from "../utils/redis-enhance.js";
 import { translateAutoToFrench } from "../utils/translator.js";
-import { simulateHumanTyping } from "../utils/humanTyping.js";
 import { sendMultiMessage } from "../utils/humanBehavior.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
@@ -48,11 +47,7 @@ import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
 import { isCapabilityQuery, generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
 import { sendArtifacts } from "../services/artifacts.js";
-import {
-  touchConversation,
-  checkExpiredConversations,
-  buildConversationContext,
-} from "../services/aiConversation.js";
+import { touchConversation, checkExpiredConversations } from "../services/aiConversation.js";
 import {
   checkMessage as checkWordFilter,
   enforceFilter as enforceWordFilter,
@@ -1559,12 +1554,6 @@ async function handleAiChatMention(
     (message.channel as TextChannel).sendTyping().catch(() => {});
 
     // ── Pré-traitement en arrière-plan (non-bloquant) ──
-    void checkExpiredConversations().catch(() => {});
-    void buildConversationContext(
-      message.author.id,
-      effectiveContent,
-      message.author.username,
-    ).catch(() => {});
     touchConversation(message.author.id);
     void addMessageToConversation(
       message.author.id,
@@ -1749,7 +1738,7 @@ async function handleAiChatMention(
       "key",
     ];
     const hasToolIntent = toolKeywords.some((kw) => lowerMsgEarly.includes(kw));
-    const isComplexOrTool = hasToolIntent || enrichedContent.length > 200;
+    const isComplexOrTool = hasToolIntent || effectiveContent.length > 200;
 
     if (!isComplexOrTool) {
       // Chat simple → réponse rapide via le gateway (multi-providers, pas de message d'erreur)
@@ -1921,7 +1910,12 @@ async function handleAiChatMention(
       touchConversation(message.author.id);
 
       // ── Extraire et sauvegarder les faits importants en mémoire long-terme ──
-      void extractAndSaveMemory(message.author.id, effectiveContent, aiResponse).catch(() => {});
+      void extractAndSaveMemory(
+        message.author.id,
+        effectiveContent,
+        aiResponse,
+        message.author.username,
+      ).catch(() => {});
 
       // ── Nettoyer l'indicateur de statut ──
       void statusIndicator.cleanup();
@@ -2305,7 +2299,12 @@ async function handleDMMessage(
       }
 
       // Sauvegarder en mémoire conversation + extraire faits long-terme
-      void extractAndSaveMemory(message.author.id, effectiveDmContent, aiResponse).catch(() => {});
+      void extractAndSaveMemory(
+        message.author.id,
+        effectiveDmContent,
+        aiResponse,
+        message.author.username,
+      ).catch(() => {});
 
       // ── Nettoyer l'indicateur de statut ──
       void dmStatusIndicator.cleanup();

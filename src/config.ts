@@ -256,6 +256,10 @@ export const config = {
   retailerAlertsEnabled: env.RETAILER_ALERTS_ENABLED !== "false",
   retailerTrackingIntervalMs: parseInt(env.RETAILER_TRACKING_INTERVAL_MS || "600000", 10),
   retailerChannel: env.RETAILER_CHANNEL_ID || "1532189747500421152",
+
+  // ─── Obsidian Vault (mémoire long-terme lisible) ─────────────────────────
+  obsidianVaultPath: env.OBSIDIAN_VAULT_PATH || "",
+  obsidianEnabled: env.OBSIDIAN_VAULT_PATH !== undefined && env.OBSIDIAN_VAULT_PATH !== "",
 };
 
 export function validateConfig(): { errors: string[]; warnings: string[] } {
