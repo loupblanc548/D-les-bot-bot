@@ -134,12 +134,12 @@ const MODEL_TIERS: Record<TaskComplexity, string[]> = {
 
   // Lourd: 70B+ — tâches complexes nécessitant un raisonnement profond
   complex: [
-    // NVIDIA NIM — Nemotron 49B d'abord (répond en ~12s, fiable)
-    "nvidia/llama-3.3-nemotron-super-49b-v1",
-    "nvidia/nemotron-3-nano-30b-a3b",
+    // 70B d'abord — gère mieux les 110 tools sans timeout
     "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
+    "nvidia/llama-3.3-nemotron-super-49b-v1",
     "nvidia/nemotron-3-super-120b-a12b",
+    "nvidia/nemotron-3-nano-30b-a3b",
   ],
 };
 

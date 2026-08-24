@@ -879,14 +879,14 @@ export async function callLlm(request: LlmCallRequest): Promise<LlmCallResult> {
   }
 
   const order = request.providerOrder ?? [
-    "local-llm",
+    "nvidia-nim",
     "groq",
     "cerebras",
     "sambanova",
-    "nvidia-nim",
     "openrouter",
     "gemini",
     "huggingface",
+    "local-llm",
   ];
   const candidates = order.filter((provider) => getProviderAvailability(provider));
   if (candidates.length === 0) throw new Error("No AI provider available");

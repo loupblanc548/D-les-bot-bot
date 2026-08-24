@@ -40,6 +40,7 @@ import { removeBackground } from "./removeBg.js";
 import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
 import { RETAILER_TOOL_DEFS, handleRetailerTool } from "./agentToolsRetailers.js";
 import { searchDocumentation, isContext7Available } from "./context7.js";
+import { execFileSync } from "child_process";
 import {
   getGodlyInspiration,
   getAceternityComponents,
@@ -2230,6 +2231,40 @@ ${summary.thumbnail?.source ? `- Image: ${summary.thumbnail.source}` : ""}
 }
 
 // ── Wiktionary: dictionnaire libre, gratuit, pas de clé API ──────────────────
+// DB SQLite locale (dump Wiktionnaire FR indexé offline, accès via Python3)
+const WIKT_DB_PATH = "/opt/wiktionary/wiktionary.db";
+let wiktDbAvailable: boolean | null = null;
+
+function isWiktDbAvailable(): boolean {
+  if (wiktDbAvailable !== null) return wiktDbAvailable;
+  try {
+    const result = execFileSync(
+      "python3",
+      ["-c", `import sqlite3,os; print("1" if os.path.exists("${WIKT_DB_PATH}") else "0")`],
+      { timeout: 3000, encoding: "utf-8" },
+    ).trim();
+    wiktDbAvailable = result === "1";
+    if (wiktDbAvailable) logger.info("[Wiktionary] DB locale détectée (offline)");
+  } catch {
+    wiktDbAvailable = false;
+  }
+  return wiktDbAvailable;
+}
+
+function queryWiktDb(word: string): string | null {
+  try {
+    const script = `import sqlite3,json; c=sqlite3.connect("${WIKT_DB_PATH}"); r=c.execute("SELECT definitions FROM entries WHERE word = ? COLLATE NOCASE",(r"${word.replace(/"/g, '\\"')}",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result = execFileSync("python3", ["-c", script], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result && result !== "null") return JSON.parse(result);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<ToolCallResult> {
   const word = String(args.word).trim();
   const lang = String(args.lang || "fr");
@@ -2237,6 +2272,22 @@ async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<T
   const cached = getCached(cacheKey);
   if (cached) return { success: true, data: cached };
 
+  // 1. DB locale SQLite (offline, instantané)
+  if (lang === "fr" && isWiktDbAvailable()) {
+    const defs = queryWiktDb(word);
+    if (defs) {
+      const result = JSON.stringify({
+        word,
+        language: "fr",
+        definitions: defs.split("\n").slice(0, 5),
+        source: "local-db",
+      });
+      setCached(cacheKey, result);
+      return { success: true, data: result };
+    }
+  }
+
+  // 2. Fallback: API Wiktionary en ligne
   try {
     // API Wiktionary — récupère les définitions
     const url = `https://${lang}.wiktionary.org/w/api.php?action=parse&page=${encodeURIComponent(word)}&format=json&prop=wikitext&redirects=1`;
