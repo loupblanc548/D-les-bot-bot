@@ -126,12 +126,18 @@ export function detectAmbiguity(userMessage: string): string[] | null {
   }
 
   // ─── Modération ───
+  // Ne PAS demander de cible si c'est une QUESTION DE CAPACITÉ (pas une demande d'action)
+  const isCapabilityQuestion =
+    /\b(?:tu peux|tu sais|t['e]?s capable|peux.tu|sais.tu|est.ce que tu peux|c['e]?tait pour savoir|juste pour savoir|si tu pouvais|est.ce possible|tu as le droit|ça te dit|tu ferais quoi|fais rien|dis.moi juste|que peux.tu|quelles sont tes|tes capacités|can you|could you|do you know|are you able|what can you|just wondering|just curious|kannst du|was kannst|puedes|sabes|puoi|sai|kun je|weet je)\b/i.test(
+      lower,
+    );
   if (
     (lower.includes("ban") ||
       lower.includes("kick") ||
       lower.includes("timeout") ||
       lower.includes("warn")) &&
-    !hasMention
+    !hasMention &&
+    !isCapabilityQuestion
   ) {
     questions.push("Quel utilisateur veux-tu sanctionner ? (mentionne-le avec @)");
   }

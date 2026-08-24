@@ -1028,6 +1028,7 @@ async function runAgentLoopInternal(
     // skipLocalForRetailer already computed above
 
     const canUseLocalForImages = imageUrls.length === 0 || isLocalLlmVisionAvailable();
+    let usedLocalLlm = false;
 
     // ─── Mode hybride: petits modèles (3B/7B) = chat simple uniquement ───
     // Qwen 3B/7B gère le chat simple (salut, questions générales, capacités) en local.
@@ -1093,6 +1094,7 @@ async function runAgentLoopInternal(
             `[AgentLoop] ✅ ${LOCAL_LLM_MODEL_NAME} réussi (chat simple, ${localText.length} chars) — API économisée`,
           );
           recordLocalLlm();
+          usedLocalLlm = true;
           break;
         }
         logger.warn(`[AgentLoop] ⚠️ ${LOCAL_LLM_MODEL_NAME} échec chat simple — fallback API`);
@@ -1342,8 +1344,11 @@ async function runAgentLoopInternal(
         return "";
       }
 
-      // ─── MODULE B2: Mettre en cache sémantique (only valid responses) ───
-      cacheResponse(userMessage, finalReply, cacheCtx);
+      // ─── MODULE B2: Mettre en cache sémantique (only valid API responses) ───
+      // Ne pas cacher les réponses du LLM local (souvent génériques)
+      if (!usedLocalLlm) {
+        cacheResponse(userMessage, finalReply, cacheCtx);
+      }
 
       return finalReply;
     }
