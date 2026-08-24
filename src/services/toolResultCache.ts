@@ -70,6 +70,8 @@ const TOOL_TTL_MS: Record<string, number> = {
   // ── Additional cacheable tools ──
   // Wikipedia: 1 hour (articles rarely change)
   getWikipediaSummary: 60 * 60 * 1000,
+  // Wiktionary: 24 hours (definitions rarely change)
+  getWiktionaryDefinition: 24 * 60 * 60 * 1000,
   // GitHub repo info: 10 minutes
   getGitHubRepo: 10 * 60 * 1000,
   // Fortnite shop: 30 minutes (rotates daily)
@@ -169,7 +171,9 @@ export async function getCachedToolResult(
         return parsed.result;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   return null;
 }
@@ -208,7 +212,9 @@ export async function setCachedToolResult(
       const ttlSec = Math.floor(ttlMs / 1000);
       await redis.setEx(redisKey, ttlSec, JSON.stringify(entry));
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 /**

@@ -674,7 +674,7 @@ async function runAgentLoopInternal(
     "- **readUrl** : lis et résume n'importe quelle page web\n" +
     "- **webcheck_scan** : analyse OSINT complète d'un site web (SSL, DNS, WHOIS, ports, tech-stack, menaces)\n" +
     "- **ip_ping / ip_portscan / dns_lookup** : outils réseau OSINT\n" +
-    "- **searchYouTube / getWikipediaSummary** : recherche sur YouTube et Wikipedia\n" +
+    "- **searchYouTube / getWikipediaSummary / getWiktionaryDefinition** : YouTube, Wikipedia (encyclopédie) et Wiktionnaire (définitions, synonymes, conjugaison)\n" +
     "- **getWeather / getCryptoPrice** : données en temps réel\n" +
     "Tu PEUX et DOIS faire des recherches web quand l'utilisateur te demande des informations actuelles.\n\n" +
     getFeedbackHints(message.author.id) +

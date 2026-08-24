@@ -514,7 +514,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getWikipediaSummary",
       description:
-        "Récupère un résumé encyclopédique sur un sujet depuis Wikipedia. Gratuit, pas de clé API. Préfère à searchWeb pour les sujets encyclopédiques.",
+        "Récupère un résumé encyclopédique sur un sujet depuis Wikipedia. Gratuit, pas de clé API. Préfère à searchWeb pour les sujets encyclopédiques. L'article est automatiquement cached dans Obsidian pour réutilisation.",
       parameters: {
         type: "object",
         properties: {
@@ -522,6 +522,25 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           lang: { type: "string", description: "Code langue (fr, en). Défaut: fr" },
         },
         required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getWiktionaryDefinition",
+      description:
+        "Récupère la définition d'un mot depuis le Wiktionnaire (dictionnaire libre). Gratuit, pas de clé API. Utilise-le pour les définitions, synonymes, étymologie, conjugaison. Multilingue (FR/EN/DE/ES/IT...).",
+      parameters: {
+        type: "object",
+        properties: {
+          word: { type: "string", description: "Le mot à définir" },
+          lang: {
+            type: "string",
+            description: "Code langue du dictionnaire (fr, en, de, es, it). Défaut: fr",
+          },
+        },
+        required: ["word"],
       },
     },
   },
@@ -1127,66 +1146,149 @@ export function generateToolListPrompt(tools: AgentToolDef[]): string {
 // via executeTool() mais ne sont pas envoyés dans le prompt pour économiser des tokens.
 const TOOL_NAME_WHITELIST = new Set([
   // ── Recherche & Web ──
-  "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
-  "searchDocs", "ingestDocumentation", "searchYouTube", "getWikipediaSummary",
-  "search_stackoverflow", "search_recipe", "search_movies", "search_music",
+  "searchWeb",
+  "readUrl",
+  "fetchAndSummarize",
+  "searchKnowledge",
+  "searchDocs",
+  "ingestDocumentation",
+  "searchYouTube",
+  "getWikipediaSummary",
+  "getWiktionaryDefinition",
+  "search_stackoverflow",
+  "search_recipe",
+  "search_movies",
+  "search_music",
   "webcheck_scan",
   // ── OSINT & Sécurité ──
-  "ip_ping", "ip_traceroute", "ip_portscan", "ip_ssl_check", "ip_full_report",
-  "dns_lookup", "subdomain_enum", "reverse_ip", "whois_lookup",
-  "email_validate", "jwt_decode", "url_expand", "security_score",
-  "hash_gen", "hash_crack", "password_analyze", "waf_detect",
-  "banner_grab", "tech_detect", "cors_test", "hsts_check",
-  "robots_parse", "sitemap_parse", "directory_check",
+  "ip_ping",
+  "ip_traceroute",
+  "ip_portscan",
+  "ip_ssl_check",
+  "ip_full_report",
+  "dns_lookup",
+  "subdomain_enum",
+  "reverse_ip",
+  "whois_lookup",
+  "email_validate",
+  "jwt_decode",
+  "url_expand",
+  "security_score",
+  "hash_gen",
+  "hash_crack",
+  "password_analyze",
+  "waf_detect",
+  "banner_grab",
+  "tech_detect",
+  "cors_test",
+  "hsts_check",
+  "robots_parse",
+  "sitemap_parse",
+  "directory_check",
   // ── Réseaux sociaux ──
-  "get_hackernews_top", "get_github_trending", "get_reddit_posts",
-  "search_reddit", "get_trending_subreddits",
-  "get_twitter_user", "search_tweets",
-  "get_twitch_clips", "get_producthunt_products",
+  "get_hackernews_top",
+  "get_github_trending",
+  "get_reddit_posts",
+  "search_reddit",
+  "get_trending_subreddits",
+  "get_twitter_user",
+  "search_tweets",
+  "get_twitch_clips",
+  "get_producthunt_products",
   // ── Gaming ──
-  "search_igdb_games", "searchRawgGames", "get_steam_requirements",
-  "get_minecraft_status", "get_valorant_agents", "get_space_launches",
+  "search_igdb_games",
+  "searchRawgGames",
+  "get_steam_requirements",
+  "get_minecraft_status",
+  "get_valorant_agents",
+  "get_space_launches",
   // ── Crypto & Finance ──
-  "get_crypto_top", "getCryptoPrice",
+  "get_crypto_top",
+  "getCryptoPrice",
   // ── Météo & Nature ──
-  "getWeather", "get_weather_forecast", "getAirQuality", "get_sun_moon_info",
+  "getWeather",
+  "get_weather_forecast",
+  "getAirQuality",
+  "get_sun_moon_info",
   // ── Code & Dev ──
-  "execute_code", "code_complexity_analyzer", "code_format_beautifier",
-  "regex_test", "json_format", "yaml_validate", "sql_format_beautify",
-  "dockerfile_lint", "api_endpoint_tester",
+  "execute_code",
+  "code_complexity_analyzer",
+  "code_format_beautifier",
+  "regex_test",
+  "json_format",
+  "yaml_validate",
+  "sql_format_beautify",
+  "dockerfile_lint",
+  "api_endpoint_tester",
   // ── Texte & Utilitaires ──
-  "translateText", "detect_language", "define_word",
-  "generate_password", "generate_uuid", "generate_qr_code",
-  "base64_encode_decode", "convert_units", "convert_timezone",
-  "convert_color", "convert_number_base", "convert_timestamp",
-  "text_to_speech_multi", "generate_image", "generate_image_advanced",
-  "analyze_pdf", "analyze_sentiment", "set_reminder", "create_poll",
-  "solve_math", "generate_ascii_art", "get_lorem_ipsum",
+  "translateText",
+  "detect_language",
+  "define_word",
+  "generate_password",
+  "generate_uuid",
+  "generate_qr_code",
+  "base64_encode_decode",
+  "convert_units",
+  "convert_timezone",
+  "convert_color",
+  "convert_number_base",
+  "convert_timestamp",
+  "text_to_speech_multi",
+  "generate_image",
+  "generate_image_advanced",
+  "analyze_pdf",
+  "analyze_sentiment",
+  "set_reminder",
+  "create_poll",
+  "solve_math",
+  "generate_ascii_art",
+  "get_lorem_ipsum",
   // ── Discord & Modération ──
-  "deleteMessages", "getBotStatus", "timeoutUser", "warnUser",
-  "getUserInfo", "getChannelInfo", "pinMessage", "getServerStats",
-  "get_user_moderation_history", "evaluate_channel_velocity",
+  "deleteMessages",
+  "getBotStatus",
+  "timeoutUser",
+  "warnUser",
+  "getUserInfo",
+  "getChannelInfo",
+  "pinMessage",
+  "getServerStats",
+  "get_user_moderation_history",
+  "evaluate_channel_velocity",
   // ── Mémoire & Cognition ──
-  "searchUserMemory", "saveMemoryFact",
-  "start_conversation_session", "end_conversation_session",
+  "searchUserMemory",
+  "saveMemoryFact",
+  "start_conversation_session",
+  "end_conversation_session",
   // ── Système & Infrastructure ──
-  "system_stats", "http_request", "rss_monitor", "website_diff",
+  "system_stats",
+  "http_request",
+  "rss_monitor",
+  "website_diff",
   // ── Retailers ──
-  "amazon_price_track", "amazon_product_lookup", "amazon_deal_search",
+  "amazon_price_track",
+  "amazon_product_lookup",
+  "amazon_deal_search",
   // ── Design ──
-  "getDesignInspiration", "getUiComponents", "auditDesign",
+  "getDesignInspiration",
+  "getUiComponents",
+  "auditDesign",
   // ── Notifications ──
-  "sendAlertEmail", "createCalendarEvent",
+  "sendAlertEmail",
+  "createCalendarEvent",
   // ── Minecraft ──
-  "mc_connect", "mc_disconnect", "mc_status",
+  "mc_connect",
+  "mc_disconnect",
+  "mc_status",
   // ── Kali (DM only) ──
-  "runKaliPortAudit", "runKaliWebAudit",
+  "runKaliPortAudit",
+  "runKaliWebAudit",
   // ── Data breach ──
   "checkDataBreach",
   // ── Screenshot ──
   "screenshot_url",
   // ── Multi-expert ──
-  "delegate_to_expert", "think_step_by_step",
+  "delegate_to_expert",
+  "think_step_by_step",
 ]);
 
 export const ALL_AGENT_TOOLS: AgentToolDef[] = [
@@ -1277,6 +1379,8 @@ export async function executeTool(
         return await toolGetCryptoPrice(args);
       case "getWikipediaSummary":
         return await toolGetWikipediaSummary(args);
+      case "getWiktionaryDefinition":
+        return await toolGetWiktionaryDefinition(args);
       case "getGitHubRepo":
         return await toolGetGitHubRepo(args);
       case "translateText":
@@ -1523,10 +1627,7 @@ async function toolTimeoutUser(
   };
 }
 
-async function toolWarnUser(
-  args: Record<string, any>,
-  ctx: ToolContext,
-): Promise<ToolCallResult> {
+async function toolWarnUser(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
   const userId = String(args.userId);
   const reason = String(args.reason || "Avertissement par agent IA");
 
@@ -1808,7 +1909,9 @@ async function extractTextFromHtml(res: Response): Promise<string> {
       const text = article.textContent.replace(/\s+/g, " ").trim().slice(0, 3000);
       return text || "(page vide ou contenu non-texte)";
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   const text = stripAllHtml(html).replace(/\s+/g, " ").trim().slice(0, 3000);
   return text || "(page vide ou contenu non-texte)";
 }
@@ -2062,11 +2165,154 @@ async function toolGetWikipediaSummary(args: Record<string, any>): Promise<ToolC
       image: summary.thumbnail?.source || null,
     });
     setCached(cacheKey, output);
+
+    // ── Cache dans l'Obsidian vault pour réutilisation hors-line ──
+    void cacheWikipediaToObsidian(lang, summary).catch(() => {});
+
     return { success: true, data: output };
   } catch (error) {
     return {
       success: false,
       data: `Erreur Wikipedia: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+// ── Cache Wikipédia → Obsidian vault/knowledge/ ──────────────────────────────
+async function cacheWikipediaToObsidian(
+  lang: string,
+  summary: {
+    title: string;
+    extract: string;
+    content_urls?: { desktop?: { page: string } };
+    thumbnail?: { source: string };
+  },
+): Promise<void> {
+  const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
+  if (!vaultPath) return;
+
+  const slug = summary.title
+    .toLowerCase()
+    .replace(/[àâä]/g, "a")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[îï]/g, "i")
+    .replace(/[ôö]/g, "o")
+    .replace(/[ùûü]/g, "u")
+    .replace(/[ç]/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+
+  const filePath = `${vaultPath}/knowledge/wiki-${lang}-${slug}.md`;
+  const { writeFile, mkdir } = await import("fs/promises");
+  await mkdir(`${vaultPath}/knowledge`, { recursive: true });
+
+  const content = `---
+source: "wikipedia"
+lang: "${lang}"
+title: "${summary.title.replace(/"/g, '\\"')}"
+cached: ${new Date().toISOString().split("T")[0]}
+url: "${summary.content_urls?.desktop?.page || ""}"
+---
+
+# ${summary.title}
+
+${summary.extract || "Pas de résumé disponible"}
+
+## Source
+
+- [Article Wikipédia](${summary.content_urls?.desktop?.page || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(summary.title)}`})
+${summary.thumbnail?.source ? `- Image: ${summary.thumbnail.source}` : ""}
+`;
+
+  await writeFile(filePath, content, "utf-8");
+  logger.info(`[Wikipedia] 📝 Article cached: ${filePath}`);
+}
+
+// ── Wiktionary: dictionnaire libre, gratuit, pas de clé API ──────────────────
+async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<ToolCallResult> {
+  const word = String(args.word).trim();
+  const lang = String(args.lang || "fr");
+  const cacheKey = `wiktionary:${lang}:${word.toLowerCase()}`;
+  const cached = getCached(cacheKey);
+  if (cached) return { success: true, data: cached };
+
+  try {
+    // API Wiktionary — récupère les définitions
+    const url = `https://${lang}.wiktionary.org/w/api.php?action=parse&page=${encodeURIComponent(word)}&format=json&prop=wikitext&redirects=1`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return { success: false, data: "Wiktionnaire indisponible" };
+    const data = (await res.json()) as {
+      parse?: { wikitext?: { "*": string }; title: string };
+      error?: { info: string };
+    };
+
+    if (data.error) {
+      // Essayer en anglais si le mot n'existe pas en FR
+      if (lang === "fr") {
+        return await toolGetWiktionaryDefinition({ ...args, lang: "en" });
+      }
+      return { success: false, data: `Aucune définition pour "${word}"` };
+    }
+
+    const rawWikitext = data.parse?.wikitext?.["*"] || "";
+    // Extraire les définitions du wikitext (lignes commençant par #)
+    const definitions: string[] = [];
+    const lines = rawWikitext.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("# ")) {
+        // Nettoyer le wikitext: retirer les [[...]], {{...}}, '''...'''
+        const cleaned = trimmed
+          .replace(/^#+\s*/, "")
+          .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, "$2")
+          .replace(/\{\{[^}]+\}\}/g, "")
+          .replace(/'''/g, "")
+          .replace(/''/g, "")
+          .trim();
+        if (cleaned.length > 5) definitions.push(cleaned);
+      }
+      if (definitions.length >= 5) break;
+    }
+
+    if (definitions.length === 0) {
+      // Essayer l'API REST pour un résumé plus simple
+      const restUrl = `https://${lang}.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+      const restRes = await fetch(restUrl, { signal: AbortSignal.timeout(8000) });
+      if (restRes.ok) {
+        const restData = (await restRes.json()) as {
+          language?: string;
+          definitions?: Array<{ partOfSpeech?: string; definition: string }>;
+        };
+        if (restData.definitions && restData.definitions.length > 0) {
+          const output = JSON.stringify({
+            word: data.parse?.title || word,
+            language: restData.language || lang,
+            definitions: restData.definitions.slice(0, 5).map((d) => ({
+              type: d.partOfSpeech || "",
+              definition: d.definition.replace(/<[^>]+>/g, "").trim(),
+            })),
+            url: `https://${lang}.wiktionary.org/wiki/${encodeURIComponent(word)}`,
+          });
+          setCached(cacheKey, output);
+          return { success: true, data: output };
+        }
+      }
+      return { success: false, data: `Aucune définition trouvée pour "${word}"` };
+    }
+
+    const output = JSON.stringify({
+      word: data.parse?.title || word,
+      language: lang,
+      definitions: definitions.map((d) => ({ type: "", definition: d })),
+      url: `https://${lang}.wiktionary.org/wiki/${encodeURIComponent(word)}`,
+    });
+    setCached(cacheKey, output);
+    return { success: true, data: output };
+  } catch (error) {
+    return {
+      success: false,
+      data: `Erreur Wiktionnaire: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
