@@ -578,17 +578,9 @@ async function runAgentLoopInternal(
   const cognitiveSessionId = breakerState.interactionId;
   initCognitiveSession(cognitiveSessionId);
 
-  // ─── MODULE 0a: Semantic cache check — skip API if we already answered this ───
+  // ─── MODULE 0a: Cache sémantique DÉSACTIVÉ — le bot doit réfléchir à chaque message ───
   const cacheCtx = message.guildId || "dm";
   const loopStartTime = Date.now();
-  const cached = getCachedResponse(userMessage, cacheCtx);
-  if (cached && !isErrorResponse(cached)) {
-    logger.info(`[AgentLoop] 🎯 Cache hit — skipping API call`);
-    agentCacheHits.inc();
-    agentLoopDuration.observe((Date.now() - loopStartTime) / 1000);
-    completeInteraction(breakerState);
-    return cached;
-  }
   agentCacheMisses.inc();
 
   // ─── MODULE 0b: Ambiguity detection — ask clarifying questions before executing ───
@@ -1036,29 +1028,22 @@ async function runAgentLoopInternal(
     const isSmallLocalModel =
       LOCAL_LLM_MODEL_NAME.includes(":3b") || LOCAL_LLM_MODEL_NAME.includes(":7b");
 
-    // ─── Détection d'intent: la question nécessite-t-elle des tools ? ───
-    // Si la question est conversationnelle (capacités, salutations, opinions, infos générales),
-    // le LLM local peut répondre SANS tools → beaucoup plus rapide.
+    // ─── Détection d'intent: la question nécessite-t-elle des tools ou une vraie réflexion ? ───
+    // Le LLM local (3B) ne peut gérer que les messages triviaux (salut, merci, ça va).
+    // Toute vraie question → API cloud pour une vraie réflexion.
     const lowerUserMsg = userMessage.toLowerCase();
-    const SIMPLE_INTENT_PATTERNS = [
-      // Questions de capacité
-      /\b(?:tu peux|tu sais|t['e]?s capable|peux.tu|sais.tu|can you|could you|do you know|are you able|what can you|qué puedes|cosa sai|was kannst)\b/i,
-      // Salutations / social
-      /^\s*(?:salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir|ça va|ca va|comment ça va|how are you)\s*[\?？]?\s*$/i,
-      // Questions sur le bot lui-même
-      /\b(?:qui es.tu|t['e]?s qui|présente.toi|que peux.tu|quelles sont tes|tes capacités|tes fonctions|what are you|who are you)\b/i,
-      // Opinion / conversation
-      /\b(?:tu penses|qu['e]?en penses|ton avis|à ton avis|what do you think|your opinion|was denkst)\b/i,
-      // Blagues / fun
-      /\b(?:raconte.*blague|dis.*blague|fais.moi rire|tell.*joke|make me laugh)\b/i,
-      // "Fais rien, dis-moi juste"
-      /\b(?:fais rien|dis.moi juste|juste pour savoir|c['e]?tait pour savoir|just wondering|just curious|don.t do anything|just tell me)\b/i,
-      // Remerciements / ack
-      /^\s*(?:merci|thanks|thx|cimer|ok|okay|compris|noted|vu|entendu|d.accord)\s*$/i,
+    const TRIVIAL_LOCAL_PATTERNS = [
+      /^\s*(?:salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir)\s*[\?？]?\s*$/i,
+      /^\s*(?:merci|thanks|thx|cimer|merci beaucoup)\s*$/i,
+      /^\s*(?:ok|okay|d.accord|compris|noted|vu|entendu)\s*$/i,
+      /^\s*(?:ça va|ca va|comment ça va|how are you)\s*[\?？]?\s*$/i,
+      /^\s*(?:qui es.tu|t['e]?s qui|who are you)\s*[\?？]?\s*$/i,
+      /^\s*(?:mdr|lol|xd|haha|ptdr)\s*$/i,
+      /^\s*[\p{Emoji}\s]+$/u,
     ];
-    const isSimpleIntent = SIMPLE_INTENT_PATTERNS.some((p) => p.test(lowerUserMsg));
-    // Si la question est simple ET ne mentionne pas d'action concrète → LLM local sans tools
-    const skipLocalForAnyTools = isSmallLocalModel && availableTools.length > 0 && !isSimpleIntent;
+    const isTrivialLocal = TRIVIAL_LOCAL_PATTERNS.some((p) => p.test(lowerUserMsg));
+    // Le LLM local ne gère QUE les triviaux. Tout le reste → API cloud.
+    const skipLocalForAnyTools = isSmallLocalModel && !isTrivialLocal;
 
     if (
       isLocalLlmAvailable() &&
@@ -1109,14 +1094,12 @@ async function runAgentLoopInternal(
         `[AgentLoop] 🏠⏭️ LLM local skippé (${availableTools.length} tools nécessaires, intent complexe) — API cloud 70B pour tools`,
       );
     } else if (
-      isSimpleIntent &&
+      isTrivialLocal &&
       isLocalLlmAvailable() &&
       !skipLocalForRetailer &&
       canUseLocalForImages
     ) {
-      logger.info(
-        `[AgentLoop] 🏠✅ Intent simple détecté — LLM local ${LOCAL_LLM_MODEL_NAME} utilisé sans tools (rapide)`,
-      );
+      logger.info(`[AgentLoop] 🏠✅ Trivial détecté — LLM local ${LOCAL_LLM_MODEL_NAME} (rapide)`);
     } else if (imageUrls.length > 0 && !canUseLocalForImages) {
       logger.info(`[AgentLoop] 👁️ Vision locale indisponible — passage au provider vision/API`);
     } else if (skipLocalForRetailer) {
@@ -1344,11 +1327,7 @@ async function runAgentLoopInternal(
         return "";
       }
 
-      // ─── MODULE B2: Mettre en cache sémantique (only valid API responses) ───
-      // Ne pas cacher les réponses du LLM local (souvent génériques)
-      if (!usedLocalLlm) {
-        cacheResponse(userMessage, finalReply, cacheCtx);
-      }
+      // ─── MODULE B2: Cache sémantique DÉSACTIVÉ — le bot réfléchit à chaque fois ───
 
       return finalReply;
     }

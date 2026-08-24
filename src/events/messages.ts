@@ -1542,23 +1542,7 @@ async function handleAiChatMention(
       if (embed.thumbnail?.url) embedImageUrls.push(embed.thumbnail.url);
     }
 
-    // ── CACHE CHECK IMMÉDIAT (avant tout pré-traitement coûteux) ──
-    if (imageAttachments.length === 0 && embedImageUrls.length === 0) {
-      const cached = await getCachedResponse(enrichedContent, message.author.id, "guild");
-      if (cached && !isErrorResponse(cached)) {
-        logger.info(`[AIChat] Cache hit — réponse instantanée (skip API)`);
-        if (cached.length <= 1900) {
-          await message
-            .reply({ content: cached, allowedMentions: { repliedUser: false } })
-            .catch(() => {});
-        } else {
-          await message
-            .reply({ content: cached.slice(0, 1900), allowedMentions: { repliedUser: false } })
-            .catch(() => {});
-        }
-        return;
-      }
-    }
+    // ── CACHE DÉSACTIVÉ — le bot doit réfléchir à chaque message, pas rejouer des réponses pré-construites ──
 
     // ── Trivial fast path (réponses instantanées sans API) ──
     if (imageAttachments.length === 0 && embedImageUrls.length === 0) {
@@ -2100,23 +2084,7 @@ async function handleDMMessage(
       if (embed.thumbnail?.url) dmEmbedImageUrls.push(embed.thumbnail.url);
     }
 
-    // ── CACHE CHECK IMMÉDIAT (avant tout pré-traitement coûteux) ──
-    if (dmImageAttachments.length === 0 && dmEmbedImageUrls.length === 0) {
-      const dmCached = await getCachedResponse(dmEnrichedContent, message.author.id, "dm");
-      if (dmCached && !isErrorResponse(dmCached)) {
-        logger.info(`[DM] Cache hit — réponse instantanée (skip API)`);
-        if (dmCached.length <= 1900) {
-          await message
-            .reply({ content: dmCached, allowedMentions: { repliedUser: false } })
-            .catch(() => {});
-        } else {
-          await message
-            .reply({ content: dmCached.slice(0, 1900), allowedMentions: { repliedUser: false } })
-            .catch(() => {});
-        }
-        return;
-      }
-    }
+    // ── CACHE DÉSACTIVÉ — le bot doit réfléchir à chaque message ──
 
     // ── Trivial fast path (DM) ──
     if (dmImageAttachments.length === 0 && dmEmbedImageUrls.length === 0) {
