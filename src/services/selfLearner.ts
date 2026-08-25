@@ -14,9 +14,8 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
-import { config } from "../config.js";
 import { saveQA, searchQA } from "./obsidianMemory.js";
-import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
+import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { sendProactiveAlert } from "./proactiveAlerts.js";
 
 const LEARN_INTERVAL_MS = 1 * 60 * 1000; // 1 min entre chaque batch
@@ -1515,9 +1514,6 @@ const ALL_LEARN_TOPICS = [...LEARN_TOPICS, ...EN_TOPICS];
 
 // ─── Tracker persistant pour éviter de répéter les mêmes sujets ──────────────
 const learnedSubjects = loadLearnedSet();
-const topicIndex = 0;
-const subjectIndex = 0;
-
 function getNextSubject(): { category: string; subject: string } | null {
   if (ALL_LEARN_TOPICS.length === 0) return null;
 
@@ -1944,12 +1940,12 @@ export function startSelfLearner(): void {
     void learnBatch();
   }, 30_000);
 
-  // Puis toutes les 5 minutes
+  // Puis toutes les 1 minute
   learnTimer = setInterval(() => {
     void learnBatch();
   }, LEARN_INTERVAL_MS);
 
-  // ─── Scan web d'actualité: premier scan après 60s, puis toutes les 30min ───
+  // ─── Scan web d'actualité: premier scan après 60s, puis toutes les 1min ───
   setTimeout(() => {
     void learnFromWeb();
   }, 60_000);
