@@ -119,6 +119,7 @@ bedrock-server/
 !scripts/server_audit.sh
 !scripts/ip_investigate.sh
 !scripts/migrate_hardware.sh
+!scripts/backup_obsidian.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md

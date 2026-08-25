@@ -445,12 +445,26 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
   }
 
   // ─── Context compression: truncate old messages to save tokens ───
-  // Les 3 messages les plus récents gardent leur contenu complet.
-  // Les plus anciens sont tronqués à 200 chars pour réduire le context window.
+  // Les 6 messages les plus récents gardent leur contenu complet.
+  // Les messages 7-20 sont tronqués à 200 chars.
+  // Au-delà de 20 messages, on remplace par un résumé une-ligne.
   if (history.length > 6) {
-    const recentCount = 3;
-    const oldMessages = history.slice(0, -recentCount);
+    const recentCount = 6;
     const recentMessages = history.slice(-recentCount);
+    const oldMessages = history.slice(0, -recentCount);
+
+    if (oldMessages.length > 14) {
+      // Trop de vieux messages — résumer en une ligne
+      const summaryLine: ChatMessage = {
+        role: "system",
+        content: `[Résumé de ${oldMessages.length} messages précédents — sujets abordés: ${oldMessages
+          .slice(-5)
+          .map((m) => m.content.slice(0, 40))
+          .join(" | ")}]`,
+      };
+      return [summaryLine, ...recentMessages];
+    }
+
     const compressed = oldMessages.map((m) => ({
       role: m.role,
       content: m.content.length > 200 ? m.content.slice(0, 200) + " [...]" : m.content,

@@ -13,6 +13,7 @@ import logger from "../utils/logger.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { execFileSync } from "child_process";
 import { saveQA, searchQA } from "./obsidianMemory.js";
 import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
 
@@ -1458,18 +1459,70 @@ const LEARN_TOPICS: { category: string; subjects: string[] }[] = [
   },
 ];
 
+// ─── Sujets en anglais pour couvrir plus de domaines ─────────────────────────
+const EN_TOPICS: { category: string; subjects: string[] }[] = [
+  {
+    category: "tech_en",
+    subjects: [
+      "quantum computing",
+      "large language model",
+      "neural network architecture",
+      "edge computing",
+      "distributed systems",
+      "microservices",
+      "container orchestration",
+      "WebAssembly",
+      "GraphQL",
+      "WebRTC",
+      "CRDT",
+      "zero-knowledge proof",
+      "homomorphic encryption",
+      "post-quantum cryptography",
+      "federated learning",
+      "reinforcement learning",
+      "transfer learning",
+      "generative adversarial network",
+      "diffusion model",
+      "retrieval augmented generation",
+    ],
+  },
+  {
+    category: "science_en",
+    subjects: [
+      "CRISPR gene editing",
+      "fusion energy",
+      "dark matter",
+      "exoplanet detection",
+      "James Webb Space Telescope",
+      "gravitational waves",
+      "quantum entanglement",
+      "protein folding",
+      "stem cell therapy",
+      "mRNA vaccine technology",
+      "carbon capture technology",
+      "perovskite solar cell",
+      "superconductor",
+      "topological insulator",
+      "metamaterial",
+    ],
+  },
+];
+
+// Combiner les topics FR et EN
+const ALL_LEARN_TOPICS = [...LEARN_TOPICS, ...EN_TOPICS];
+
 // ─── Tracker persistant pour éviter de répéter les mêmes sujets ──────────────
 const learnedSubjects = loadLearnedSet();
 const topicIndex = 0;
 const subjectIndex = 0;
 
 function getNextSubject(): { category: string; subject: string } | null {
-  if (LEARN_TOPICS.length === 0) return null;
+  if (ALL_LEARN_TOPICS.length === 0) return null;
 
   let attempts = 0;
   while (attempts < 100) {
     // Pick a random category each time to balance learning
-    const topic = LEARN_TOPICS[Math.floor(Math.random() * LEARN_TOPICS.length)];
+    const topic = ALL_LEARN_TOPICS[Math.floor(Math.random() * ALL_LEARN_TOPICS.length)];
     const subject = topic.subjects[Math.floor(Math.random() * topic.subjects.length)];
     attempts++;
 
@@ -1488,8 +1541,59 @@ function getNextSubject(): { category: string; subject: string } | null {
   return null;
 }
 
+// ─── DB Wikipedia locale (offline, instantané) ───────────────────────────────
+const WIKI_DB_PATH = "/opt/wikipedia/wikipedia.db";
+let wikiDbAvailable: boolean | null = null;
+
+function isWikiDbAvailable(): boolean {
+  if (wikiDbAvailable !== null) return wikiDbAvailable;
+  try {
+    const result = execFileSync(
+      "python3",
+      ["-c", `import os; print("1" if os.path.exists("${WIKI_DB_PATH}") else "0")`],
+      { timeout: 3000, encoding: "utf-8" },
+    ).trim();
+    wikiDbAvailable = result === "1";
+    if (wikiDbAvailable) logger.info("[SelfLearner] DB Wikipedia locale détectée (offline)");
+  } catch {
+    wikiDbAvailable = false;
+  }
+  return wikiDbAvailable;
+}
+
+function queryWikiDb(query: string): string | null {
+  try {
+    const script = `import sqlite3,json; c=sqlite3.connect("${WIKI_DB_PATH}"); r=c.execute("SELECT extract FROM articles WHERE title = ? COLLATE NOCASE",(r"${query.replace(/"/g, '\\"')}",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result = execFileSync("python3", ["-c", script], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result && result !== "null") return JSON.parse(result);
+    // Fuzzy match
+    const prefix = query.slice(0, Math.max(3, Math.floor(query.length * 0.7)));
+    const script2 = `import sqlite3,json; c=sqlite3.connect("${WIKI_DB_PATH}"); r=c.execute("SELECT extract FROM articles WHERE title LIKE ? COLLATE NOCASE LIMIT 1",(r"${prefix.replace(/"/g, '\\"')}%",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result2 = execFileSync("python3", ["-c", script2], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result2 && result2 !== "null") return JSON.parse(result2);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 // ─── Récupérer un résumé Wikipédia (gratuit, pas d'API payante) ──────────────
 async function fetchWikipediaSummary(subject: string, lang = "fr"): Promise<string | null> {
+  // 1. DB locale SQLite (offline, instantané) — seulement pour le français
+  if (lang === "fr" && isWikiDbAvailable()) {
+    const extract = queryWikiDb(subject);
+    if (extract && extract.length > 20) {
+      return `**${subject}**\n\n${extract}\n\nSource: https://fr.wikipedia.org/wiki/${encodeURIComponent(subject)}`;
+    }
+  }
+
+  // 2. Fallback: API Wikipedia en ligne
   try {
     // Search
     const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(subject)}&format=json&srlimit=1`;
@@ -1615,7 +1719,7 @@ async function learnBatch(): Promise<void> {
 }
 
 // ─── Scan Web en continu: actualités et sujets tendance ──────────────────────
-const WEB_SCAN_INTERVAL_MS = 30 * 60 * 1000; // 30 min entre chaque scan web
+const WEB_SCAN_INTERVAL_MS = 60 * 60 * 1000; // 1h entre chaque scan web (Brave free tier: 2000/month)
 const WEB_SCAN_BATCH = 3; // 3 sujets d'actualité par scan
 let webScanTimer: ReturnType<typeof setInterval> | null = null;
 let isWebScanning = false;
@@ -1654,12 +1758,10 @@ async function learnFromWeb(): Promise<void> {
   isWebScanning = true;
 
   try {
-    // Prendre 2 requêtes différentes à chaque cycle
-    const queries: string[] = [];
-    for (let i = 0; i < 2; i++) {
-      queries.push(WEB_SCAN_QUERIES[webQueryIndex % WEB_SCAN_QUERIES.length]);
-      webQueryIndex++;
-    }
+    // 1 requête par cycle pour rester dans le quota Brave (2000/month = ~66/day)
+    const query = WEB_SCAN_QUERIES[webQueryIndex % WEB_SCAN_QUERIES.length];
+    webQueryIndex++;
+    const queries = [query];
 
     let learned = 0;
     for (const query of queries) {
@@ -1684,11 +1786,22 @@ async function learnFromWeb(): Promise<void> {
           continue;
         }
 
-        // Construire la Q&A depuis le résultat web
-        const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
-        const answer = `**${subject}**\n\n${result.description || result.snippet || ""}\n\nSource: ${result.url}`;
+        // Construire la Q&A depuis le résultat web (nettoyé et tronqué)
+        const cleanDesc = (result.description || result.snippet || "")
+          .replace(/<[^>]+>/g, "") // strip HTML tags
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 500); // max 500 chars
 
-        if (answer.length > 50) {
+        const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
+        const answer = `**${subject}**\n\n${cleanDesc}\n\nSource: ${result.url}`;
+
+        if (answer.length > 50 && cleanDesc.length > 20) {
           await saveQA(question, answer, "actualite");
           learnedSubjects.add(hash);
           saveLearnedSet(learnedSubjects);
