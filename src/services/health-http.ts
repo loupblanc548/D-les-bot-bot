@@ -6,6 +6,10 @@ import { handleWebhookRequest } from "./webhookTriggers.js";
 import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
 import { getModelRotationStatus } from "./modelRotation.js";
 import { getCacheStats } from "./aiCache.js";
+import { getSelfLearnerStatus } from "./selfLearner.js";
+import fs from "fs";
+import path from "path";
+import { config } from "../config.js";
 import {
   getReleasesPage,
   getReleasesJson,
@@ -181,6 +185,15 @@ export function startHealthServer(port = 3000): void {
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
         res.end(getModelRotationStatus());
         return;
+      } else if (path === "/learn") {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(buildLearnStatsPage());
+        return;
+      } else if (path === "/learn/data") {
+        const data = collectLearnStats();
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(data));
+        return;
       } else {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Not Found" }));
@@ -201,6 +214,7 @@ export function startHealthServer(port = 3000): void {
     logger.info(`  - GET /health/models - Model rotation status`);
     logger.info(`  - GET /health/cache - AI cache stats`);
     logger.info(`  - GET /metrics - Prometheus metrics`);
+    logger.info(`  - GET /learn - Self-learner live dashboard`);
     logger.info(`  - POST /webhook/<secret> - External webhook triggers`);
     logger.info(`  - GET /releases - Game release countdown (partage d'écran)`);
     logger.info(`  - GET /releases/data - Game release JSON data`);
@@ -375,4 +389,218 @@ export function stopHealthServer(): void {
     server.close();
     server = null;
   }
+}
+
+// ─── Self-Learner Live Dashboard ─────────────────────────────────────────────
+
+function collectLearnStats(): Record<string, any> {
+  const vaultPath = config.obsidianVaultPath || process.env.OBSIDIAN_VAULT_PATH;
+  const categories: Record<string, number> = {};
+  let totalQA = 0;
+  let dedupCount = 0;
+  const recentSubjects: { name: string; mtime: number }[] = [];
+
+  if (vaultPath) {
+    const qaDir = path.join(vaultPath, "qa");
+    if (fs.existsSync(qaDir)) {
+      for (const dir of fs.readdirSync(qaDir, { withFileTypes: true })) {
+        if (dir.isDirectory()) {
+          const dirPath = path.join(qaDir, dir.name);
+          const files = fs.readdirSync(dirPath).filter((f) => f.endsWith(".md"));
+          categories[dir.name] = files.length;
+          totalQA += files.length;
+
+          // Collect recent subjects (only if < 2000 total for perf)
+          if (totalQA < 2000) {
+            for (const file of files) {
+              try {
+                const stat = fs.statSync(path.join(dirPath, file));
+                recentSubjects.push({
+                  name: `${dir.name}/${file.replace(/\.md$/, "")}`,
+                  mtime: stat.mtimeMs,
+                });
+              } catch {
+                // skip
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const dedupFile = path.join(qaDir, ".learned-subjects.json");
+    if (fs.existsSync(dedupFile)) {
+      try {
+        const data = fs.readFileSync(dedupFile, "utf-8");
+        const parsed = JSON.parse(data);
+        dedupCount = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  recentSubjects.sort((a, b) => b.mtime - a.mtime);
+
+  const status = getSelfLearnerStatus();
+
+  return {
+    totalQA,
+    dedupCount,
+    categories: Object.entries(categories).sort((a, b) => b[1] - a[1]),
+    recentSubjects: recentSubjects.slice(0, 10).map((s) => ({
+      name: s.name,
+      time: new Date(s.mtime).toISOString(),
+    })),
+    status,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function buildLearnStatsPage(): string {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Self-Learner Dashboard</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --accent: #00d4aa;
+  --accent2: #58a6ff;
+  --warn: #f0883e;
+  --dim: #8b949e;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  padding: 20px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+h1 {
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+}
+.subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--accent); }
+.card .label { color: var(--dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.card .value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.card .unit { font-size: 0.9rem; color: var(--dim); margin-left: 4px; }
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+}
+.status-active { background: rgba(0,212,170,0.15); color: var(--accent); }
+.status-inactive { background: rgba(240,136,62,0.15); color: var(--warn); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-active .status-dot { background: var(--accent); animation: pulse 2s infinite; }
+.status-inactive .status-dot { background: var(--warn); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: flex; align-items: center; gap: 12px; }
+.bar-label { width: 120px; font-size: 0.85rem; color: var(--dim); text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; height: 24px; background: var(--bg); border-radius: 6px; overflow: hidden; position: relative; }
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 6px;
+  transition: width 0.8s ease;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 8px; font-size: 0.75rem; font-weight: 600; color: #fff;
+}
+.recent-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.recent-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: var(--bg); border-radius: 8px; font-size: 0.85rem;
+  border-left: 3px solid var(--accent);
+}
+.recent-time { color: var(--dim); font-size: 0.75rem; }
+.footer { text-align: center; color: var(--dim); font-size: 0.8rem; margin-top: 24px; }
+.refresh-info { color: var(--dim); font-size: 0.8rem; }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🧠 Self-Learner Dashboard</h1>
+  <p class="subtitle"><span class="live-dot"></span>Auto-apprentissage en temps réel — <span id="lastUpdate">chargement...</span></p>
+
+  <div class="grid" id="statsGrid"></div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;" id="twoCol">
+    <div class="card">
+      <div class="section-title">📂 Répartition par catégorie</div>
+      <div class="bars" id="categoryBars"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">🕐 Derniers sujets appris</div>
+      <ul class="recent-list" id="recentList"></ul>
+    </div>
+  </div>
+
+  <div class="footer">Auto-refresh toutes les 10 secondes — <a href="/learn/data" style="color:var(--accent2)">API JSON</a></div>
+</div>
+
+<script>
+async function refresh() {
+  try {
+    const res = await fetch('/learn/data');
+    const data = await res.json();
+
+    document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleTimeString('fr-FR');
+
+    const status = data.status;
+    const statusBadge = status.active
+      ? '<span class="status-badge status-active"><span class="status-dot"></span>Actif</span>'
+      : '<span class="status-badge status-inactive"><span class="status-dot"></span>Inactif</span>';
+    const webBadge = status.webScanActive
+      ? '<span class="status-badge status-active"><span class="status-dot"></span>Scan Web</span>'
+      : '<span class="status-badge status-inactive"><span class="status-dot"></span>Web Off</span>';
+
+    document.getElementById('statsGrid').innerHTML = \`
+      <div class="card"><div class="label">📚 Total Q&A</div><div class="value">\${data.totalQA}</div></div>
+      <div class="card"><div class="label">🔒 Sujets dédupliqués</div><div class="value">\${data.dedupCount}</div></div>
+      <div class="card"><div class="label">⚡ Cadence</div><div class="value">\${status.batchSize}<span class="unit">/\${status.intervalMs/60000}min</span></div></div>
+      <div class="card"><div class="label">🔄 Statut</div><div style="margin-top:8px">\${statusBadge}<br><span style="display:block;margin-top:8px">\${webBadge}</span></div></div>
+    \`;
+
+    const maxCount = Math.max(...data.categories.map(c => c[1]), 1);
+    document.getElementById('categoryBars').innerHTML = data.categories.map(([cat, count]) => {
+      const pct = (count / maxCount * 100).toFixed(1);
+      return \`<div class="bar-row"><div class="bar-label">\${cat}</div><div class="bar-track"><div class="bar-fill" style="width:\${pct}%">\${count}</div></div></div>\`;
+    }).join('');
+
+    document.getElementById('recentList').innerHTML = data.recentSubjects.map(s => {
+      const time = new Date(s.time).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+      return \`<li class="recent-item"><span>\${s.name}</span><span class="recent-time">\${time}</span></li>\`;
+    }).join('') || '<li class="recent-item">Aucun sujet récent</li>';
+
+  } catch (e) {
+    document.getElementById('lastUpdate').textContent = 'Erreur de chargement';
+  }
+}
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>`;
 }

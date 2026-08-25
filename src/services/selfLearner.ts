@@ -1871,10 +1871,22 @@ export function getSelfLearnerStatus(): {
   active: boolean;
   subjectsLearned: number;
   nextBatchInMs: number | null;
+  batchSize: number;
+  intervalMs: number;
+  webScanActive: boolean;
+  webScanIntervalMs: number;
+  isLearning: boolean;
+  isWebScanning: boolean;
 } {
   return {
     active: learnTimer !== null,
     subjectsLearned: learnedSubjects.size,
     nextBatchInMs: learnTimer ? LEARN_INTERVAL_MS : null,
+    batchSize: BATCH_SIZE,
+    intervalMs: LEARN_INTERVAL_MS,
+    webScanActive: webScanTimer !== null,
+    webScanIntervalMs: WEB_SCAN_INTERVAL_MS,
+    isLearning,
+    isWebScanning,
   };
 }
