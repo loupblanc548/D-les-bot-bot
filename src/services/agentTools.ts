@@ -1142,151 +1142,65 @@ export function generateToolListPrompt(tools: AgentToolDef[]): string {
   return lines.join("\n");
 }
 
-// ─── Liste curée des tools envoyés à l'API (max ~100 pour éviter 400/timeout) ──
+// ─── Liste curée des tools envoyés à l'API (max ~40 pour éviter timeout) ──
 // On garde seulement les tools les plus utiles. Les autres restent exécutables
 // via executeTool() mais ne sont pas envoyés dans le prompt pour économiser des tokens.
 const TOOL_NAME_WHITELIST = new Set([
-  // ── Recherche & Web ──
+  // ── Recherche & Web (essentiel) ──
   "searchWeb",
   "readUrl",
   "fetchAndSummarize",
   "searchKnowledge",
   "searchDocs",
-  "ingestDocumentation",
-  "searchYouTube",
   "getWikipediaSummary",
   "getWiktionaryDefinition",
-  "search_stackoverflow",
-  "search_recipe",
-  "search_movies",
-  "search_music",
-  "webcheck_scan",
-  // ── OSINT & Sécurité ──
+  "searchYouTube",
+  // ── OSINT de base ──
   "ip_ping",
-  "ip_traceroute",
-  "ip_portscan",
-  "ip_ssl_check",
-  "ip_full_report",
   "dns_lookup",
-  "subdomain_enum",
-  "reverse_ip",
   "whois_lookup",
-  "email_validate",
-  "jwt_decode",
   "url_expand",
-  "security_score",
+  "jwt_decode",
   "hash_gen",
-  "hash_crack",
   "password_analyze",
-  "waf_detect",
-  "banner_grab",
-  "tech_detect",
-  "cors_test",
-  "hsts_check",
-  "robots_parse",
-  "sitemap_parse",
-  "directory_check",
   // ── Réseaux sociaux ──
   "get_hackernews_top",
   "get_github_trending",
-  "get_reddit_posts",
   "search_reddit",
-  "get_trending_subreddits",
-  "get_twitter_user",
-  "search_tweets",
   "get_twitch_clips",
-  "get_producthunt_products",
   // ── Gaming ──
   "search_igdb_games",
   "searchRawgGames",
   "get_steam_requirements",
-  "get_minecraft_status",
-  "get_valorant_agents",
-  "get_space_launches",
   // ── Crypto & Finance ──
-  "get_crypto_top",
   "getCryptoPrice",
-  // ── Météo & Nature ──
+  "get_crypto_top",
+  // ── Météo ──
   "getWeather",
-  "get_weather_forecast",
   "getAirQuality",
-  "get_sun_moon_info",
   // ── Code & Dev ──
   "execute_code",
-  "code_complexity_analyzer",
-  "code_format_beautifier",
   "regex_test",
   "json_format",
-  "yaml_validate",
-  "sql_format_beautify",
-  "dockerfile_lint",
-  "api_endpoint_tester",
   // ── Texte & Utilitaires ──
   "translateText",
-  "detect_language",
-  "define_word",
   "generate_password",
-  "generate_uuid",
   "generate_qr_code",
-  "base64_encode_decode",
   "convert_units",
   "convert_timezone",
-  "convert_color",
-  "convert_number_base",
-  "convert_timestamp",
-  "text_to_speech_multi",
   "generate_image",
-  "generate_image_advanced",
-  "analyze_pdf",
-  "analyze_sentiment",
-  "set_reminder",
-  "create_poll",
   "solve_math",
-  "generate_ascii_art",
-  "get_lorem_ipsum",
   // ── Discord & Modération ──
   "deleteMessages",
   "getBotStatus",
   "timeoutUser",
-  "warnUser",
   "getUserInfo",
-  "getChannelInfo",
-  "pinMessage",
   "getServerStats",
-  "get_user_moderation_history",
-  "evaluate_channel_velocity",
-  // ── Mémoire & Cognition ──
+  // ── Mémoire ──
   "searchUserMemory",
   "saveMemoryFact",
-  "start_conversation_session",
-  "end_conversation_session",
-  // ── Système & Infrastructure ──
+  // ── Système ──
   "system_stats",
-  "http_request",
-  "rss_monitor",
-  "website_diff",
-  // ── Retailers ──
-  "amazon_price_track",
-  "amazon_product_lookup",
-  "amazon_deal_search",
-  // ── Design ──
-  "getDesignInspiration",
-  "getUiComponents",
-  "auditDesign",
-  // ── Notifications ──
-  "sendAlertEmail",
-  "createCalendarEvent",
-  // ── Minecraft ──
-  "mc_connect",
-  "mc_disconnect",
-  "mc_status",
-  // ── Kali (DM only) ──
-  "runKaliPortAudit",
-  "runKaliWebAudit",
-  // ── Data breach ──
-  "checkDataBreach",
-  // ── Screenshot ──
-  "screenshot_url",
   // ── Multi-expert ──
   "delegate_to_expert",
   "think_step_by_step",

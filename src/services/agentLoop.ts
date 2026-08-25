@@ -119,7 +119,7 @@ const MAX_ITERATIONS = 8;
 const MAX_ITERATIONS_LONG_TASK = 20;
 const MAX_HISTORY_MESSAGES = 15;
 const MAX_MEMORY_FACTS = 5;
-const AGENT_LOOP_TIMEOUT_MS = 90_000; // 90s max for the entire agent loop
+const AGENT_LOOP_TIMEOUT_MS = 120_000; // 120s max for the entire agent loop (70B needs ~30-50s per iteration with 110 tools)
 const AGENT_LOOP_TIMEOUT_LONG_MS = 180_000; // 180s for complex tasks
 
 // Heuristics for detecting complex tasks
@@ -1139,7 +1139,7 @@ async function runAgentLoopInternal(
           requireVision: imageUrls.length > 0,
           maxTokens: getPersonalityMaxTokens(),
           temperature: getPersonalityTemperature(),
-          timeoutMs: 30_000,
+          timeoutMs: 45_000,
           maxRetries: 1,
           deadlineMs: Math.max(
             5_000,
@@ -1345,13 +1345,31 @@ async function runAgentLoopInternal(
       function: { name: string; arguments: string };
     }>;
 
-    // Filter out malformed tool calls (missing function or name)
+    // Filter out malformed tool calls (missing function, name, or id)
     const toolCalls = rawToolCalls.filter(
-      (tc) => tc && tc.function && typeof tc.function.name === "string",
+      (tc) =>
+        tc &&
+        tc.function &&
+        typeof tc.function.name === "string" &&
+        tc.function.name.length > 0 &&
+        tc.id,
     );
     if (rawToolCalls.length > toolCalls.length) {
+      const rejected = rawToolCalls
+        .filter(
+          (tc) =>
+            !(
+              tc &&
+              tc.function &&
+              typeof tc.function.name === "string" &&
+              tc.function.name.length > 0 &&
+              tc.id
+            ),
+        )
+        .map((tc) => tc?.function?.name || "unknown")
+        .join(", ");
       logger.warn(
-        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s)`,
+        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s): ${rejected}`,
       );
     }
 
