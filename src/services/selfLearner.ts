@@ -17,6 +17,7 @@ import { execFileSync } from "child_process";
 import { config } from "../config.js";
 import { saveQA, searchQA } from "./obsidianMemory.js";
 import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
+import { sendProactiveAlert } from "./proactiveAlerts.js";
 
 const LEARN_INTERVAL_MS = 1 * 60 * 1000; // 1 min entre chaque batch
 const BATCH_SIZE = 8; // 8 Q&A par batch = ~11520 Q&A/jour
@@ -1691,49 +1692,25 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
 
 // ─── Cycle d'apprentissage ────────────────────────────────────────────────────
 let allExhaustedNotified = false;
-let lastNotificationTime = 0;
-let discordClient: any = null;
-
-export function setDiscordClientForLearner(client: any): void {
-  discordClient = client;
-}
 
 async function notifyLearningComplete(): Promise<void> {
-  const now = Date.now();
-  if (now - lastNotificationTime < 60 * 60 * 1000) return;
-  lastNotificationTime = now;
-
   const totalQA = countTotalQA();
   const dedupCount = learnedSubjects.size;
   logger.info(
     `[SelfLearner] 🎉 Tous les sujets sont épuisés! ${totalQA} Q&A apprises, ${dedupCount} sujets uniques.`,
   );
 
-  if (config.logChannel && discordClient) {
-    try {
-      const { EmbedBuilder } = await import("discord.js");
-      const channel = await discordClient.channels.fetch(config.logChannel).catch(() => null);
-      if (channel?.isTextBased()) {
-        const embed = new EmbedBuilder()
-          .setTitle("🎉 Auto-apprentissage terminé!")
-          .setColor(0x00d4aa)
-          .setDescription(
-            `Tous les sujets prédéfinis ont été appris!\n\n` +
-              `📊 **Total Q&A**: ${totalQA}\n` +
-              `🔒 **Sujets uniques**: ${dedupCount}\n` +
-              `⏱️ **Cadence**: ${BATCH_SIZE} Q&A / ${LEARN_INTERVAL_MS / 1000}s\n\n` +
-              `Le bot continue le scan web d'actualité toutes les minutes.`,
-          )
-          .setTimestamp();
-        await channel.send({ embeds: [embed] });
-        logger.info("[SelfLearner] 📨 Notification envoyée dans le salon de logs");
-      }
-    } catch (err) {
-      logger.warn(
-        `[SelfLearner] Erreur notification: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
+  await sendProactiveAlert(
+    "learning_complete",
+    "🎉 Auto-apprentissage terminé!",
+    `Tous les sujets prédéfinis ont été appris!\n\n` +
+      `📊 **Total Q&A**: ${totalQA}\n` +
+      `🔒 **Sujets uniques**: ${dedupCount}\n` +
+      `⏱️ **Cadence**: ${BATCH_SIZE} Q&A / ${LEARN_INTERVAL_MS / 1000}s\n\n` +
+      `Le bot continue le scan web d'actualité toutes les minutes.`,
+    0x00d4aa,
+    60 * 60 * 1000, // 1h cooldown
+  );
 }
 
 function countTotalQA(): number {

@@ -582,9 +582,7 @@ async function main(): Promise<void> {
 
   // Auto-apprentissage: génère des Q&A via Wikipédia/Wiktionnaire → Obsidian
   try {
-    const { startSelfLearner, setDiscordClientForLearner } =
-      await import("./services/selfLearner.js");
-    setDiscordClientForLearner(client);
+    const { startSelfLearner } = await import("./services/selfLearner.js");
     startSelfLearner();
   } catch (err) {
     logger.warn(
