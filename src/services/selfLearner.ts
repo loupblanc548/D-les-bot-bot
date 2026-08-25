@@ -1459,23 +1459,17 @@ const LEARN_TOPICS: { category: string; subjects: string[] }[] = [
 
 // ─── Tracker persistant pour éviter de répéter les mêmes sujets ──────────────
 const learnedSubjects = loadLearnedSet();
-let topicIndex = 0;
-let subjectIndex = 0;
+const topicIndex = 0;
+const subjectIndex = 0;
 
 function getNextSubject(): { category: string; subject: string } | null {
   if (LEARN_TOPICS.length === 0) return null;
 
   let attempts = 0;
   while (attempts < 100) {
-    const topic = LEARN_TOPICS[topicIndex];
-    if (subjectIndex >= topic.subjects.length) {
-      topicIndex = (topicIndex + 1) % LEARN_TOPICS.length;
-      subjectIndex = 0;
-      continue;
-    }
-
-    const subject = topic.subjects[subjectIndex];
-    subjectIndex++;
+    // Pick a random category each time to balance learning
+    const topic = LEARN_TOPICS[Math.floor(Math.random() * LEARN_TOPICS.length)];
+    const subject = topic.subjects[Math.floor(Math.random() * topic.subjects.length)];
     attempts++;
 
     const hash = subjectHash(subject);
@@ -1555,8 +1549,15 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
     return false;
   }
 
-  // Construire la question
-  const question = `Qu'est-ce que ${subject} ?`;
+  // Construire la question — varier les formulations
+  const questionTemplates = [
+    `Qu'est-ce que ${subject} ?`,
+    `Comment fonctionne ${subject} ?`,
+    `Peux-tu m'expliquer ${subject} ?`,
+    `Parle-moi de ${subject}.`,
+    `Donne-moi un résumé de ${subject}.`,
+  ];
+  const question = questionTemplates[Math.floor(Math.random() * questionTemplates.length)];
 
   // Essayer Wikipédia d'abord
   let answer = await fetchWikipediaSummary(subject);
