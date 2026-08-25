@@ -17,8 +17,8 @@ import { execFileSync } from "child_process";
 import { saveQA, searchQA } from "./obsidianMemory.js";
 import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
 
-const LEARN_INTERVAL_MS = 5 * 60 * 1000; // 5 min entre chaque batch
-const BATCH_SIZE = 5; // 5 Q&A par batch = ~1440 Q&A/jour
+const LEARN_INTERVAL_MS = 1 * 60 * 1000; // 1 min entre chaque batch
+const BATCH_SIZE = 8; // 8 Q&A par batch = ~11520 Q&A/jour
 let isLearning = false;
 let learnTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -1719,7 +1719,7 @@ async function learnBatch(): Promise<void> {
 }
 
 // ─── Scan Web en continu: actualités et sujets tendance ──────────────────────
-const WEB_SCAN_INTERVAL_MS = 60 * 60 * 1000; // 1h entre chaque scan web (Brave free tier: 2000/month)
+const WEB_SCAN_INTERVAL_MS = 1 * 60 * 1000; // 1 min — scan web en continu
 const WEB_SCAN_BATCH = 3; // 3 sujets d'actualité par scan
 let webScanTimer: ReturnType<typeof setInterval> | null = null;
 let isWebScanning = false;
@@ -1748,69 +1748,124 @@ const WEB_SCAN_QUERIES = [
   "actualités cybersécurité 2026",
 ];
 let webQueryIndex = 0;
+const queryLastRun = new Map<string, number>();
+const QUERY_COOLDOWN_MS = 30 * 60 * 1000; // 30min entre 2 requêtes identiques
+
+async function duckDuckGoSearch(
+  query: string,
+  count = 5,
+): Promise<{ title: string; url: string; description: string; snippet?: string }[]> {
+  try {
+    const htmlUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=fr-fr`;
+    const res = await fetch(htmlUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "text/html",
+        "Accept-Language": "fr",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const results: { title: string; url: string; description: string; snippet?: string }[] = [];
+    // Parse DuckDuckGo HTML results
+    const matches = html.matchAll(
+      /<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>(.*?)<\/a>/g,
+    );
+    for (const m of matches) {
+      if (results.length >= count) break;
+      const url = m[1]
+        .replace(/\/\/duckduckgo\.com\/l\/\?uddg=/, "")
+        .replace(/&rut=.*/, decodeURIComponent);
+      const title = m[2].replace(/<[^>]+>/g, "").trim();
+      const desc = m[3].replace(/<[^>]+>/g, "").trim();
+      if (title && url && desc) results.push({ title, url, description: desc, snippet: desc });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
 
 async function learnFromWeb(): Promise<void> {
   if (isWebScanning) return;
-  if (!isBraveSearchAvailable()) {
-    logger.debug("[SelfLearner] 🌐 Scan web désactivé — pas de clé Brave Search");
-    return;
-  }
   isWebScanning = true;
 
   try {
-    // 1 requête par cycle pour rester dans le quota Brave (2000/month = ~66/day)
-    const query = WEB_SCAN_QUERIES[webQueryIndex % WEB_SCAN_QUERIES.length];
-    webQueryIndex++;
-    const queries = [query];
+    // Trouver une requête qui n'a pas été lancée récemment (cooldown 30min)
+    let query: string | null = null;
+    const now = Date.now();
+    for (let i = 0; i < WEB_SCAN_QUERIES.length; i++) {
+      const candidate = WEB_SCAN_QUERIES[webQueryIndex % WEB_SCAN_QUERIES.length];
+      webQueryIndex++;
+      const lastRun = queryLastRun.get(candidate) || 0;
+      if (now - lastRun > QUERY_COOLDOWN_MS) {
+        query = candidate;
+        queryLastRun.set(candidate, now);
+        break;
+      }
+    }
+
+    if (!query) {
+      return;
+    }
 
     let learned = 0;
-    for (const query of queries) {
-      const results = await braveWebSearch(query, 5);
-      if (results.length === 0) continue;
+    // Utiliser Brave en priorité, DuckDuckGo en fallback
+    let results: { title: string; url: string; description: string; snippet?: string }[] = [];
+    if (isBraveSearchAvailable()) {
+      results = await braveWebSearch(query, 5);
+    }
+    if (results.length === 0) {
+      results = await duckDuckGoSearch(query, 5);
+    }
+    if (results.length === 0) {
+      isWebScanning = false;
+      return;
+    }
 
-      for (const result of results.slice(0, WEB_SCAN_BATCH)) {
-        const subject = result.title
-          .replace(/\s*[-|]\s*.*/, "")
-          .trim()
-          .slice(0, 80);
-        if (subject.length < 10) continue;
+    for (const result of results.slice(0, WEB_SCAN_BATCH)) {
+      const subject = result.title
+        .replace(/\s*[-|]\s*.*/, "")
+        .trim()
+        .slice(0, 80);
+      if (subject.length < 10) continue;
 
-        const hash = subjectHash(subject);
-        if (learnedSubjects.has(hash)) continue;
+      const hash = subjectHash(subject);
+      if (learnedSubjects.has(hash)) continue;
 
-        // Vérifier si déjà appris via Obsidian
-        const existing = await searchQA(subject);
-        if (existing) {
-          learnedSubjects.add(hash);
-          saveLearnedSet(learnedSubjects);
-          continue;
-        }
-
-        // Construire la Q&A depuis le résultat web (nettoyé et tronqué)
-        const cleanDesc = (result.description || result.snippet || "")
-          .replace(/<[^>]+>/g, "") // strip HTML tags
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 500); // max 500 chars
-
-        const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
-        const answer = `**${subject}**\n\n${cleanDesc}\n\nSource: ${result.url}`;
-
-        if (answer.length > 50 && cleanDesc.length > 20) {
-          await saveQA(question, answer, "actualite");
-          learnedSubjects.add(hash);
-          saveLearnedSet(learnedSubjects);
-          learned++;
-          logger.info(`[SelfLearner] 🌐 Appris (web): ${subject} → Obsidian (actualite)`);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Vérifier si déjà appris via Obsidian
+      const existing = await searchQA(subject);
+      if (existing) {
+        learnedSubjects.add(hash);
+        saveLearnedSet(learnedSubjects);
+        continue;
       }
+
+      // Construire la Q&A depuis le résultat web (nettoyé et tronqué)
+      const cleanDesc = (result.description || result.snippet || "")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 500);
+
+      const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
+      const answer = `**${subject}**\n\n${cleanDesc}\n\nSource: ${result.url}`;
+
+      if (answer.length > 50 && cleanDesc.length > 20) {
+        await saveQA(question, answer, "actualite");
+        learnedSubjects.add(hash);
+        saveLearnedSet(learnedSubjects);
+        learned++;
+        logger.info(`[SelfLearner] 🌐 Appris (web): ${subject} → Obsidian (actualite)`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
 
     if (learned > 0) {
@@ -1851,7 +1906,7 @@ export function startSelfLearner(): void {
   if (learnTimer.unref) learnTimer.unref();
   if (webScanTimer?.unref) webScanTimer.unref();
   logger.info(
-    `[SelfLearner] 🧠 Auto-apprentissage démarré (${BATCH_SIZE} Q&A toutes les ${LEARN_INTERVAL_MS / 60000}min + scan web toutes les ${WEB_SCAN_INTERVAL_MS / 60000}min)`,
+    `[SelfLearner] 🧠 Auto-apprentissage démarré (${BATCH_SIZE} Q&A toutes les ${LEARN_INTERVAL_MS / 1000}s + scan web toutes les ${WEB_SCAN_INTERVAL_MS / 60000}min)`,
   );
 }
 
