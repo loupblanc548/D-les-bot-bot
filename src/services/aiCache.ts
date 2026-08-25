@@ -18,7 +18,7 @@ interface CachedResponse {
 // Cache en mémoire (pourrait être remplacé par Redis pour la persistance distribuée)
 const responseCache = new Map<string, CachedResponse>();
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min de TTL (plus frais)
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min de TTL (frais, mais évite les répétitions sur questions identiques)
 const MAX_CACHE_SIZE = 200; // Augmenté pour plus de hits
 
 /**

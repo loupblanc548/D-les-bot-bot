@@ -2167,12 +2167,22 @@ function isWiktDbAvailable(): boolean {
 
 function queryWiktDb(word: string): string | null {
   try {
+    // 1. Exact match (case-insensitive)
     const script = `import sqlite3,json; c=sqlite3.connect("${WIKT_DB_PATH}"); r=c.execute("SELECT definitions FROM entries WHERE word = ? COLLATE NOCASE",(r"${word.replace(/"/g, '\\"')}",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
     const result = execFileSync("python3", ["-c", script], {
       timeout: 3000,
       encoding: "utf-8",
     }).trim();
     if (result && result !== "null") return JSON.parse(result);
+
+    // 2. Fuzzy match (LIKE) for typos
+    const prefix = word.slice(0, Math.max(3, Math.floor(word.length * 0.7)));
+    const script2 = `import sqlite3,json; c=sqlite3.connect("${WIKT_DB_PATH}"); r=c.execute("SELECT definitions FROM entries WHERE word LIKE ? COLLATE NOCASE LIMIT 1",(r"${prefix.replace(/"/g, '\\"')}%",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result2 = execFileSync("python3", ["-c", script2], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result2 && result2 !== "null") return JSON.parse(result2);
   } catch {
     // ignore
   }

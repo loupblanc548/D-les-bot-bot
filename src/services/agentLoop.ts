@@ -578,9 +578,15 @@ async function runAgentLoopInternal(
   const cognitiveSessionId = breakerState.interactionId;
   initCognitiveSession(cognitiveSessionId);
 
-  // ─── MODULE 0a: Cache sémantique DÉSACTIVÉ — le bot doit réfléchir à chaque message ───
+  // ─── MODULE 0a: Cache sémantique — réactivé pour réponses API (TTL court 5min) ───
   const cacheCtx = message.guildId || "dm";
   const loopStartTime = Date.now();
+  const cached = getCachedResponse(userMessage, cacheCtx);
+  if (cached) {
+    logger.info(`[AgentLoop] 📦 Cache hit — réponse réutilisée`);
+    agentCacheHits.inc();
+    return cached;
+  }
   agentCacheMisses.inc();
 
   // ─── MODULE 0b: Ambiguity detection — ask clarifying questions before executing ───
@@ -1327,7 +1333,10 @@ async function runAgentLoopInternal(
         return "";
       }
 
-      // ─── MODULE B2: Cache sémantique DÉSACTIVÉ — le bot réfléchit à chaque fois ───
+      // ─── MODULE B2: Cache sémantique — seulement pour réponses API (pas local 3B) ───
+      if (!usedLocalLlm && finalReply.length > 50) {
+        cacheResponse(userMessage, finalReply, cacheCtx);
+      }
 
       return finalReply;
     }
