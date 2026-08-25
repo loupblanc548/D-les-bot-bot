@@ -14,6 +14,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
+import { config } from "../config.js";
 import { saveQA, searchQA } from "./obsidianMemory.js";
 import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
 
@@ -1689,21 +1690,98 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
 }
 
 // ─── Cycle d'apprentissage ────────────────────────────────────────────────────
+let allExhaustedNotified = false;
+let lastNotificationTime = 0;
+let discordClient: any = null;
+
+export function setDiscordClientForLearner(client: any): void {
+  discordClient = client;
+}
+
+async function notifyLearningComplete(): Promise<void> {
+  const now = Date.now();
+  if (now - lastNotificationTime < 60 * 60 * 1000) return;
+  lastNotificationTime = now;
+
+  const totalQA = countTotalQA();
+  const dedupCount = learnedSubjects.size;
+  logger.info(
+    `[SelfLearner] 🎉 Tous les sujets sont épuisés! ${totalQA} Q&A apprises, ${dedupCount} sujets uniques.`,
+  );
+
+  if (config.logChannel && discordClient) {
+    try {
+      const { EmbedBuilder } = await import("discord.js");
+      const channel = await discordClient.channels.fetch(config.logChannel).catch(() => null);
+      if (channel?.isTextBased()) {
+        const embed = new EmbedBuilder()
+          .setTitle("🎉 Auto-apprentissage terminé!")
+          .setColor(0x00d4aa)
+          .setDescription(
+            `Tous les sujets prédéfinis ont été appris!\n\n` +
+              `📊 **Total Q&A**: ${totalQA}\n` +
+              `🔒 **Sujets uniques**: ${dedupCount}\n` +
+              `⏱️ **Cadence**: ${BATCH_SIZE} Q&A / ${LEARN_INTERVAL_MS / 1000}s\n\n` +
+              `Le bot continue le scan web d'actualité toutes les minutes.`,
+          )
+          .setTimestamp();
+        await channel.send({ embeds: [embed] });
+        logger.info("[SelfLearner] 📨 Notification envoyée dans le salon de logs");
+      }
+    } catch (err) {
+      logger.warn(
+        `[SelfLearner] Erreur notification: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+}
+
+function countTotalQA(): number {
+  try {
+    const qaDir = process.env.OBSIDIAN_VAULT_PATH
+      ? path.join(process.env.OBSIDIAN_VAULT_PATH, "qa")
+      : null;
+    if (!qaDir || !fs.existsSync(qaDir)) return 0;
+    let count = 0;
+    for (const dir of fs.readdirSync(qaDir, { withFileTypes: true })) {
+      if (dir.isDirectory()) {
+        count += fs.readdirSync(path.join(qaDir, dir.name)).filter((f) => f.endsWith(".md")).length;
+      }
+    }
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
 async function learnBatch(): Promise<void> {
   if (isLearning) return;
   isLearning = true;
 
   try {
     let learned = 0;
+    let noNewSubjects = true;
+
     for (let i = 0; i < BATCH_SIZE; i++) {
       const next = getNextSubject();
-      if (!next) break;
+      if (!next) {
+        if (!allExhaustedNotified && learned === 0 && i === 0) {
+          allExhaustedNotified = true;
+          await notifyLearningComplete();
+        }
+        break;
+      }
+      noNewSubjects = false;
 
       const success = await learnSubject(next.category, next.subject);
       if (success) learned++;
 
-      // Petite pause entre chaque requête pour ne pas spammer Wikipédia
       await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    // Reset notification flag si de nouveaux sujets ont été trouvés
+    if (!noNewSubjects) {
+      allExhaustedNotified = false;
     }
 
     if (learned > 0) {
