@@ -2042,6 +2042,48 @@ async function toolGetCryptoPrice(args: Record<string, any>): Promise<ToolCallRe
 }
 
 // Wikipedia: free, no key needed
+// DB SQLite locale (dump Wikipedia FR indexé offline)
+const WIKI_DB_PATH = "/opt/wikipedia/wikipedia.db";
+let wikiDbAvailable: boolean | null = null;
+
+function isWikiDbAvailable(): boolean {
+  if (wikiDbAvailable !== null) return wikiDbAvailable;
+  try {
+    const result = execFileSync(
+      "python3",
+      ["-c", `import os; print("1" if os.path.exists("${WIKI_DB_PATH}") else "0")`],
+      { timeout: 3000, encoding: "utf-8" },
+    ).trim();
+    wikiDbAvailable = result === "1";
+    if (wikiDbAvailable) logger.info("[Wikipedia] DB locale détectée (offline)");
+  } catch {
+    wikiDbAvailable = false;
+  }
+  return wikiDbAvailable;
+}
+
+function queryWikiDb(query: string): string | null {
+  try {
+    const script = `import sqlite3,json; c=sqlite3.connect("${WIKI_DB_PATH}"); r=c.execute("SELECT extract FROM articles WHERE title = ? COLLATE NOCASE",(r"${query.replace(/"/g, '\\"')}",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result = execFileSync("python3", ["-c", script], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result && result !== "null") return JSON.parse(result);
+    // Fuzzy match
+    const prefix = query.slice(0, Math.max(3, Math.floor(query.length * 0.7)));
+    const script2 = `import sqlite3,json; c=sqlite3.connect("${WIKI_DB_PATH}"); r=c.execute("SELECT extract FROM articles WHERE title LIKE ? COLLATE NOCASE LIMIT 1",(r"${prefix.replace(/"/g, '\\"')}%",)).fetchone(); print(json.dumps(r[0]) if r else "null")`;
+    const result2 = execFileSync("python3", ["-c", script2], {
+      timeout: 3000,
+      encoding: "utf-8",
+    }).trim();
+    if (result2 && result2 !== "null") return JSON.parse(result2);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 async function toolGetWikipediaSummary(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query);
   const lang = String(args.lang || "fr");
@@ -2049,6 +2091,24 @@ async function toolGetWikipediaSummary(args: Record<string, any>): Promise<ToolC
   const cached = getCached(cacheKey);
   if (cached) return { success: true, data: cached };
 
+  // 1. DB locale SQLite (offline, instantané)
+  if (lang === "fr" && isWikiDbAvailable()) {
+    const extract = queryWikiDb(query);
+    if (extract) {
+      const result = JSON.stringify({
+        title: query,
+        extract,
+        content_urls: {
+          desktop: { page: `https://fr.wikipedia.org/wiki/${encodeURIComponent(query)}` },
+        },
+        source: "local-db",
+      });
+      setCached(cacheKey, result);
+      return { success: true, data: result };
+    }
+  }
+
+  // 2. Fallback: API Wikipedia en ligne
   try {
     // Search for the best matching article
     const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=1`;

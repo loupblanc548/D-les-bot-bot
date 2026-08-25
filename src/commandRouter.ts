@@ -101,6 +101,10 @@ import {
 } from "./commands/trackGroup.js";
 import { commands as helpCommands, handleCommand as handleHelp } from "./commands/helpSystem.js";
 import { data as statsCommandData, execute as statsExecute } from "./commands/stats.js";
+import {
+  data as learnStatsCommandData,
+  execute as learnStatsExecute,
+} from "./commands/learnStats.js";
 import { data as configCommandData, execute as configExecute } from "./commands/config.js";
 import { data as helpCommandData, execute as helpExecute } from "./commands/help.js";
 import { contextMenuCommands, handleContextMenu } from "./commands/contextMenus.js";
@@ -115,7 +119,12 @@ import {
   data as killswitchCommandData,
   execute as killswitchExecute,
 } from "./commands/killswitch.js";
-import { showMcMenu, handleMcMenuButton, handleMcMenuSelect, handleMcMenuModal } from "./services/minecraftMenu.js";
+import {
+  showMcMenu,
+  handleMcMenuButton,
+  handleMcMenuSelect,
+  handleMcMenuModal,
+} from "./services/minecraftMenu.js";
 import { SlashCommandBuilder } from "discord.js";
 
 const mcMenuCommandData = new SlashCommandBuilder()
@@ -507,6 +516,7 @@ export const allCommands = [
   ...retailerCommands,
   // ── Nouvelles commandes standalone ──
   statsCommandData,
+  learnStatsCommandData,
   configCommandData,
   helpCommandData,
   mcMenuCommandData,
@@ -609,6 +619,11 @@ export function buildCommandRouter(): void {
   commandRouter["stats"] = async (interaction, _client) => {
     if (!interaction.isChatInputCommand()) return;
     await statsExecute(interaction as ChatInputCommandInteraction);
+  };
+  // ─── Learn Stats command ───
+  commandRouter["learn-stats"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await learnStatsExecute(interaction as ChatInputCommandInteraction);
   };
   // ─── Config command ───
   commandRouter["config"] = async (interaction, _client) => {
