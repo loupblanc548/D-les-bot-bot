@@ -14,6 +14,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { saveQA, searchQA } from "./obsidianMemory.js";
+import { braveWebSearch, isBraveSearchAvailable, formatSearchResults } from "./braveSearch.js";
 
 const LEARN_INTERVAL_MS = 5 * 60 * 1000; // 5 min entre chaque batch
 const BATCH_SIZE = 5; // 5 Q&A par batch = ~1440 Q&A/jour
@@ -1613,6 +1614,104 @@ async function learnBatch(): Promise<void> {
   }
 }
 
+// ─── Scan Web en continu: actualités et sujets tendance ──────────────────────
+const WEB_SCAN_INTERVAL_MS = 30 * 60 * 1000; // 30 min entre chaque scan web
+const WEB_SCAN_BATCH = 3; // 3 sujets d'actualité par scan
+let webScanTimer: ReturnType<typeof setInterval> | null = null;
+let isWebScanning = false;
+
+// Requêtes rotatives pour découvrir des sujets d'actualité frais
+const WEB_SCAN_QUERIES = [
+  "actualités technologie 2026",
+  "nouveautés hardware 2026",
+  "sorties jeux vidéo 2026",
+  "actualités science 2026",
+  "découvertes scientifiques récentes",
+  "actualités intelligence artificielle 2026",
+  "nouveaux processeurs 2026",
+  "actualités space exploration 2026",
+  "nouveautés smartphone 2026",
+  "actualités cryptomonnaie 2026",
+  "découvertes archéologie 2026",
+  "actualités médecine 2026",
+  "nouveautés logiciel libre 2026",
+  "actualités environnement 2026",
+  "nouveautés robotique 2026",
+  "actualités quantique 2026",
+  "sorties films 2026",
+  "actualités sport 2026",
+  "nouveautés electric vehicles 2026",
+  "actualités cybersécurité 2026",
+];
+let webQueryIndex = 0;
+
+async function learnFromWeb(): Promise<void> {
+  if (isWebScanning) return;
+  if (!isBraveSearchAvailable()) {
+    logger.debug("[SelfLearner] 🌐 Scan web désactivé — pas de clé Brave Search");
+    return;
+  }
+  isWebScanning = true;
+
+  try {
+    // Prendre 2 requêtes différentes à chaque cycle
+    const queries: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      queries.push(WEB_SCAN_QUERIES[webQueryIndex % WEB_SCAN_QUERIES.length]);
+      webQueryIndex++;
+    }
+
+    let learned = 0;
+    for (const query of queries) {
+      const results = await braveWebSearch(query, 5);
+      if (results.length === 0) continue;
+
+      for (const result of results.slice(0, WEB_SCAN_BATCH)) {
+        const subject = result.title
+          .replace(/\s*[-|]\s*.*/, "")
+          .trim()
+          .slice(0, 80);
+        if (subject.length < 10) continue;
+
+        const hash = subjectHash(subject);
+        if (learnedSubjects.has(hash)) continue;
+
+        // Vérifier si déjà appris via Obsidian
+        const existing = await searchQA(subject);
+        if (existing) {
+          learnedSubjects.add(hash);
+          saveLearnedSet(learnedSubjects);
+          continue;
+        }
+
+        // Construire la Q&A depuis le résultat web
+        const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
+        const answer = `**${subject}**\n\n${result.description || result.snippet || ""}\n\nSource: ${result.url}`;
+
+        if (answer.length > 50) {
+          await saveQA(question, answer, "actualite");
+          learnedSubjects.add(hash);
+          saveLearnedSet(learnedSubjects);
+          learned++;
+          logger.info(`[SelfLearner] 🌐 Appris (web): ${subject} → Obsidian (actualite)`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    if (learned > 0) {
+      logger.info(`[SelfLearner] 🌐 Scan web terminé: ${learned} Q&A d'actualité apprises`);
+    }
+  } catch (error) {
+    logger.warn(
+      `[SelfLearner] 🌐 Erreur scan web: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    isWebScanning = false;
+  }
+}
+
 // ─── Démarrage / arrêt ────────────────────────────────────────────────────────
 export function startSelfLearner(): void {
   if (learnTimer) return;
@@ -1622,14 +1721,24 @@ export function startSelfLearner(): void {
     void learnBatch();
   }, 30_000);
 
-  // Puis toutes les 10 minutes
+  // Puis toutes les 5 minutes
   learnTimer = setInterval(() => {
     void learnBatch();
   }, LEARN_INTERVAL_MS);
 
+  // ─── Scan web d'actualité: premier scan après 60s, puis toutes les 30min ───
+  setTimeout(() => {
+    void learnFromWeb();
+  }, 60_000);
+
+  webScanTimer = setInterval(() => {
+    void learnFromWeb();
+  }, WEB_SCAN_INTERVAL_MS);
+
   if (learnTimer.unref) learnTimer.unref();
+  if (webScanTimer?.unref) webScanTimer.unref();
   logger.info(
-    `[SelfLearner] 🧠 Auto-apprentissage démarré (${BATCH_SIZE} Q&A toutes les ${LEARN_INTERVAL_MS / 60000}min)`,
+    `[SelfLearner] 🧠 Auto-apprentissage démarré (${BATCH_SIZE} Q&A toutes les ${LEARN_INTERVAL_MS / 60000}min + scan web toutes les ${WEB_SCAN_INTERVAL_MS / 60000}min)`,
   );
 }
 
@@ -1637,8 +1746,12 @@ export function stopSelfLearner(): void {
   if (learnTimer) {
     clearInterval(learnTimer);
     learnTimer = null;
-    logger.info("[SelfLearner] 🛑 Auto-apprentissage arrêté");
   }
+  if (webScanTimer) {
+    clearInterval(webScanTimer);
+    webScanTimer = null;
+  }
+  logger.info("[SelfLearner] 🛑 Auto-apprentissage arrêté");
 }
 
 export function getSelfLearnerStatus(): {

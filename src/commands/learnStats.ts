@@ -12,8 +12,6 @@ export const data = new SlashCommandBuilder()
   .setDescription("Affiche les statistiques d'auto-apprentissage du bot");
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply();
-
   try {
     const vaultPath = config.obsidianVaultPath || process.env.OBSIDIAN_VAULT_PATH;
     if (!vaultPath) {
@@ -23,17 +21,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const qaDir = path.join(vaultPath, "qa");
 
-    // Count Q&A files per category
+    // Count Q&A files per category (fast — no statSync)
     const categories: Record<string, number> = {};
     let totalQA = 0;
 
     if (fs.existsSync(qaDir)) {
-      const dirs = fs.readdirSync(qaDir, { withFileTypes: true });
-      for (const dir of dirs) {
+      for (const dir of fs.readdirSync(qaDir, { withFileTypes: true })) {
         if (dir.isDirectory()) {
-          const files = fs.readdirSync(path.join(qaDir, dir.name)).filter((f) => f.endsWith(".md"));
-          categories[dir.name] = files.length;
-          totalQA += files.length;
+          const count = fs
+            .readdirSync(path.join(qaDir, dir.name))
+            .filter((f) => f.endsWith(".md")).length;
+          categories[dir.name] = count;
+          totalQA += count;
         }
       }
     }
@@ -51,16 +50,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       }
     }
 
-    // Get last 5 learned subjects (most recent files)
+    // Get last 5 learned subjects — only scan if total < 500 (performance)
     const recentSubjects: string[] = [];
-    if (fs.existsSync(qaDir)) {
+    if (fs.existsSync(qaDir) && totalQA < 2000) {
       const allFiles: { name: string; mtime: number }[] = [];
       for (const dir of Object.keys(categories)) {
         const dirPath = path.join(qaDir, dir);
-        const files = fs.readdirSync(dirPath).filter((f) => f.endsWith(".md"));
-        for (const file of files) {
-          const stat = fs.statSync(path.join(dirPath, file));
-          allFiles.push({ name: `${dir}/${file.replace(/\.md$/, "")}`, mtime: stat.mtimeMs });
+        for (const file of fs.readdirSync(dirPath).filter((f) => f.endsWith(".md"))) {
+          try {
+            const stat = fs.statSync(path.join(dirPath, file));
+            allFiles.push({ name: `${dir}/${file.replace(/\.md$/, "")}`, mtime: stat.mtimeMs });
+          } catch {
+            // skip
+          }
         }
       }
       allFiles.sort((a, b) => b.mtime - a.mtime);
@@ -77,7 +79,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const recentList: string =
       recentSubjects.length > 0
         ? recentSubjects.map((s, i) => `${i + 1}. ${s}`).join("\n")
-        : "Aucun sujet récent";
+        : totalQA >= 2000
+          ? "Trop de fichiers (>2000) — récents masqués pour performance"
+          : "Aucun sujet récent";
 
     const embed = new EmbedBuilder()
       .setTitle("🧠 Statistiques d'auto-apprentissage")

@@ -674,7 +674,12 @@ async function runAgentLoopInternal(
     "- **ip_ping / ip_portscan / dns_lookup** : outils réseau OSINT\n" +
     "- **searchYouTube / getWikipediaSummary / getWiktionaryDefinition** : YouTube, Wikipedia (encyclopédie) et Wiktionnaire (définitions, synonymes, conjugaison)\n" +
     "- **getWeather / getCryptoPrice** : données en temps réel\n" +
-    "Tu PEUX et DOIS faire des recherches web quand l'utilisateur te demande des informations actuelles.\n\n" +
+    "Tu PEUX et DOIS faire des recherches web quand l'utilisateur te demande des informations actuelles.\n" +
+    "## OBLIGATION DE RECHERCHE WEB\n" +
+    "- Si la question porte sur un sujet RÉCENT (sortie produit, actualité, version, release, news, technologie, politique, sport): UTILISE searchWeb AVANT de répondre.\n" +
+    "- Tes connaissances ont une date de coupure. Ne fais JAMAIS confiance à tes connaissances pour des informations qui peuvent avoir changé récemment.\n" +
+    "- Exemples: 'quel est le dernier processeur' → searchWeb; 'qui a gagné la dernière élection' → searchWeb; 'quelle est la dernière version de X' → searchWeb\n" +
+    "- Si tu n'es pas CERTAIN que l'info est à jour: recherche sur le web. C'est TOUJOURS mieux que de répondre avec des infos potentiellement obsolètes.\n\n" +
     getFeedbackHints(message.author.id) +
     (await getCustomInstructions(message.author.id)) +
     "## PROCESSUS DE RAISONNEMENT\n" +
