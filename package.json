@@ -113,12 +113,12 @@
     "@types/node": "^26.1.0",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.10",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
     "@vitest/coverage-v8": "^4.1.10",
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
-    "eslint": "^10.8.0",
+    "eslint": "^10.9.1",
     "eslint-plugin-security": "^4.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
@@ -126,7 +126,7 @@
     "prisma": "^7.9.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^4.1.10"
   }
 }
