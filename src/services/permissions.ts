@@ -103,6 +103,11 @@ export function invalidatePermissionCache(guildId: string, memberId: string): vo
 }
 
 async function computePermissionLevel(member: GuildMember): Promise<PermissionLevel> {
+  // Le propriétaire du bot a toujours le niveau admin, même sans rôle Discord.
+  if (config.ownerId && member.id === config.ownerId) {
+    return PermissionLevel.ADMIN;
+  }
+
   // Admin Discord = accès total
   if (member.permissions.has(PermissionFlagsBits.Administrator)) {
     return PermissionLevel.ADMIN;
@@ -155,6 +160,8 @@ async function computePermissionLevel(member: GuildMember): Promise<PermissionLe
 }
 
 export async function requireAdmin(interaction: CommandInteraction): Promise<boolean> {
+  if (config.ownerId && interaction.user.id === config.ownerId) return true;
+
   // ── DM: owner only, others get error ──
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;
@@ -188,6 +195,8 @@ export async function requireAdmin(interaction: CommandInteraction): Promise<boo
 }
 
 export async function requireMod(interaction: CommandInteraction): Promise<boolean> {
+  if (config.ownerId && interaction.user.id === config.ownerId) return true;
+
   // ── DM: owner only, others get error ──
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;

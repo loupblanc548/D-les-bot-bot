@@ -15,6 +15,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
   ApplicationCommandOptionType,
+  MessageFlags,
   type ChatInputCommandInteraction,
   type Client,
   type SlashCommandBuilder,
@@ -211,8 +212,10 @@ async function loadSubcommand(
         subcommandModuleCache.set(cacheKey, def);
         return def;
       }
-    } catch {
-      logger.error("[Silent catch]");
+    } catch (err) {
+      logger.error(
+        `[Router] Failed to load ${p}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -266,6 +269,12 @@ export async function dispatchInteraction(
     logger.warn(
       `No handler found for /${commandName} ${subcommandGroup ? subcommandGroup + " " : ""}${subcommand}`,
     );
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `❌ Sous-commande \`/${commandName} ${subcommand}\` introuvable.`,
+        flags: [MessageFlags.Ephemeral],
+      });
+    }
     return;
   }
 

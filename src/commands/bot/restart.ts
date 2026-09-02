@@ -1,11 +1,11 @@
-﻿import { delegateSub } from "../router/delegate.js";
+﻿import type { ChatInputCommandInteraction, Client } from "discord.js";
+import type { SubcommandDef } from "../router/types.js";
 
-export default delegateSub(
-  "restart",
-  "Redémarre le bot (admin)",
-  "restart",
-  async (interaction, client) => {
-    const { handleCommand: handleMain } = await import("../main.js");
-    await handleMain(interaction, client);
+export default {
+  name: "restart",
+  build: (sc) => sc.setDescription("Redémarre le bot (admin / owner)"),
+  execute: async (interaction: ChatInputCommandInteraction, client: Client) => {
+    const { handleRestart } = await import("../main.js");
+    await handleRestart(interaction, client);
   },
-);
+} as SubcommandDef;
