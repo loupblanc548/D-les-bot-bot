@@ -558,6 +558,38 @@ export async function executeExternalTool(
             };
           }
         }
+
+        // "SELECT seulement" ne suffit pas: en PostgreSQL un SELECT peut lire
+        // des fichiers de l'hôte, ouvrir des connexions sortantes, ou dormir.
+        // Ces primitives-là ne sont jamais légitimes pour cet outil.
+        const FORBIDDEN_FUNCTIONS = [
+          "pg_read_file",
+          "pg_read_binary_file",
+          "pg_stat_file",
+          "pg_ls_dir",
+          "pg_ls_logdir",
+          "pg_ls_waldir",
+          "lo_import",
+          "lo_export",
+          "dblink",
+          "pg_sleep",
+          "pg_authid",
+          "pg_shadow",
+          "pg_read_all_settings",
+          "pg_terminate_backend",
+          "pg_cancel_backend",
+          "query_to_xml",
+        ];
+        const forbiddenFn = FORBIDDEN_FUNCTIONS.find((fn) =>
+          new RegExp(`\\b${fn}\\b`, "i").test(query),
+        );
+        if (forbiddenFn) {
+          return {
+            success: false,
+            data: `Fonction '${forbiddenFn}' interdite (accès fichier/réseau/DoS depuis la base)`,
+          };
+        }
+
         const rows = await prisma.$queryRawUnsafe(query);
         return { success: true, data: truncate(JSON.stringify(rows, null, 2)) };
       }
