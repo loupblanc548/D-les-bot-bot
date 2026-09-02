@@ -48,6 +48,7 @@ import {
   markProviderUnavailable,
   recordProviderCall,
   getProviderStatus,
+  PROVIDER_UNAVAILABLE_TTL_MS,
   type TokenUsage,
   type LlmCallRequest,
 } from "./aiGateway.js";
@@ -144,6 +145,33 @@ describe("aiGateway", () => {
       const status = getProviderStatus("groq");
       expect(status?.available).toBe(false);
       expect(status?.lastError).toBe("API key missing");
+    });
+
+    it("retries a provider after the unavailable cooldown", async () => {
+      vi.useFakeTimers();
+      try {
+        markProviderUnavailable("groq", "410 Gone");
+        await expect(
+          callLlm({
+            messages: [{ role: "user", content: "hello" }],
+            providerOrder: ["groq"],
+            userId: "cooldown-blocked-user",
+            commandName: "cooldown-blocked",
+          }),
+        ).rejects.toThrow(/No AI provider available/);
+
+        vi.advanceTimersByTime(PROVIDER_UNAVAILABLE_TTL_MS);
+        const result = await callLlm({
+          messages: [{ role: "user", content: "hello" }],
+          providerOrder: ["groq"],
+          userId: "cooldown-retry-user",
+          commandName: "cooldown-retry",
+        });
+        expect(result.content).toBe("gateway response");
+        expect(result.provider).toBe("groq");
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("should track call success/failure", () => {

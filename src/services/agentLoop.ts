@@ -14,6 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm } from "./aiGateway.js";
+import { NVIDIA_TOOLS_MODEL, nvidiaModelSupportsTools } from "./nvidiaNim.js";
 import { isErrorResponse, sanitizeResponse } from "./responseClassifier.js";
 import {
   markModelSuccess,
@@ -305,24 +306,22 @@ type ProviderChatMessage = Omit<ChatMessage, "content"> & {
 // envoyé à l'API. Avec 150+ tools, ça économise ~10K+ tokens.
 // Aussi limite le nombre de tools à MAX_TOOLS pour éviter les erreurs 400
 // (Groq: max 128 tools, OpenRouter: pas de limite officielle mais recommandé <200)
-const MAX_TOOLS = 120;
+const MAX_TOOLS = 12;
 
 function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
-  // Prioriser: tools essentiels d'abord, puis par ordre original
   const ESSENTIAL = new Set([
+    "searchObsidianQA",
+    "searchKnowledge",
     "searchWeb",
     "readUrl",
-    "fetchAndSummarize",
-    "searchKnowledge",
-    "getDateTime",
+    "getWikipediaSummary",
+    "getGitHubRepo",
+    "get_github_trending",
+    "searchDocs",
     "getWeather",
+    "convert_units",
     "translateText",
     "execute_code",
-    "send_message",
-    "ask_user_question",
-    "think_step_by_step",
-    "delegate_to_expert",
-    "analyzeImageGemini",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));
@@ -799,7 +798,7 @@ async function runAgentLoopInternal(
     let lastErrMsg = "";
 
     // ─── Étape 1: Routeur intelligent — sélection du modèle selon la complexité ───
-    const taskComplexity = classifyTaskComplexity(userMessage, availableTools.length);
+    const taskComplexity = classifyTaskComplexity(userMessage);
     const modelChain = getModelChainForTask(taskComplexity);
     const preferredModel = getPersonalityModel(config.openRouterModel);
 
@@ -833,6 +832,11 @@ async function runAgentLoopInternal(
     // Ajouter les autres modèles disponibles non déjà inclus
     for (const m of allModels) {
       if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+    if (availableTools.length > 0) {
+      const idx = modelsToTry.indexOf(NVIDIA_TOOLS_MODEL);
+      if (idx >= 0) modelsToTry.splice(idx, 1);
+      modelsToTry.unshift(NVIDIA_TOOLS_MODEL);
     }
 
     // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
@@ -1033,7 +1037,7 @@ async function runAgentLoopInternal(
           })),
           model: preferredModelName,
           tools:
-            availableTools.length > 0
+            availableTools.length > 0 && nvidiaModelSupportsTools(preferredModelName)
               ? compactTools(availableTools).map((t) => ({
                   type: "function" as const,
                   function: {
@@ -1043,7 +1047,7 @@ async function runAgentLoopInternal(
                   },
                 }))
               : undefined,
-          requireToolCalling: availableTools.length > 0,
+          requireToolCalling: false,
           requireVision: imageUrls.length > 0,
           maxTokens: getPersonalityMaxTokens(),
           temperature: getPersonalityTemperature(),
@@ -1187,8 +1191,33 @@ async function runAgentLoopInternal(
       }
     }
 
-    // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+    // Si l'IA n'a pas demandé d'outil valide → c'est la réponse finale
+    // callLlm flatten tool calls to {id,name,arguments}; OpenAI-native uses {id,function:{name,arguments}}
+    const rawToolCalls = (assistantMessage.tool_calls ?? []) as Array<Record<string, any>>;
+    const toolCalls = rawToolCalls
+      .map((tc, index) => {
+        const name = tc?.function?.name || tc?.name;
+        const args = tc?.function?.arguments ?? tc?.arguments ?? "{}";
+        const id = tc?.id || `tool-call-${index}`;
+        if (typeof name !== "string" || name.length === 0 || name === "unknown") return null;
+        return {
+          id,
+          function: {
+            name,
+            arguments: typeof args === "string" ? args : JSON.stringify(args),
+          },
+        };
+      })
+      .filter(
+        (tc): tc is { id: string; function: { name: string; arguments: string } } => tc !== null,
+      );
+    if (rawToolCalls.length > toolCalls.length) {
+      logger.warn(
+        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s)`,
+      );
+    }
+
+    if (toolCalls.length === 0) {
       const finalReply = assistantMessage.content || "";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
       logStatsSummary();
@@ -1254,42 +1283,8 @@ async function runAgentLoopInternal(
     conversation.push({
       role: "assistant",
       content: assistantMessage.content || "",
-      tool_calls: assistantMessage.tool_calls,
+      tool_calls: toolCalls,
     });
-
-    // Exécuter tous les tools en parallèle pour la performance
-    const rawToolCalls = (assistantMessage.tool_calls ?? []) as Array<{
-      id: string;
-      function: { name: string; arguments: string };
-    }>;
-
-    // Filter out malformed tool calls (missing function, name, or id)
-    const toolCalls = rawToolCalls.filter(
-      (tc) =>
-        tc &&
-        tc.function &&
-        typeof tc.function.name === "string" &&
-        tc.function.name.length > 0 &&
-        tc.id,
-    );
-    if (rawToolCalls.length > toolCalls.length) {
-      const rejected = rawToolCalls
-        .filter(
-          (tc) =>
-            !(
-              tc &&
-              tc.function &&
-              typeof tc.function.name === "string" &&
-              tc.function.name.length > 0 &&
-              tc.id
-            ),
-        )
-        .map((tc) => tc?.function?.name || "unknown")
-        .join(", ");
-      logger.warn(
-        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s): ${rejected}`,
-      );
-    }
 
     // Notify status indicator (if provided) about tool calls
     if (statusCallback && toolCalls.length > 0) {

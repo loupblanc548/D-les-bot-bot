@@ -41,6 +41,10 @@ vi.mock("./nvidiaNim.js", () => ({
   getNvidiaNimClient: vi.fn(() => ({})),
   isNvidiaNimAvailable: () => false,
   isNvidiaModel: () => false,
+  resolveNvidiaModel: (requested?: string) => requested || "test-model",
+  nvidiaModelSupportsTools: () => true,
+  NVIDIA_DEFAULT_MODEL: "test-model",
+  NVIDIA_TOOLS_MODEL: "test-model",
 }));
 vi.mock("./omniroute.js", () => ({
   getOmnirouteClient: vi.fn(() => ({})),

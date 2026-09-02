@@ -13,7 +13,7 @@
 
 import logger from "../utils/logger.js";
 import { getAvailableFreeModels } from "./modelRotation.js";
-import { NVIDIA_MODEL_TIERS, isNvidiaNimAvailable } from "./nvidiaNim.js";
+import { NVIDIA_DEFAULT_MODEL, NVIDIA_MODEL_TIERS, isNvidiaNimAvailable } from "./nvidiaNim.js";
 
 // ─── Niveaux de complexité ───────────────────────────────────────────────────
 
@@ -106,25 +106,22 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
 // ─── Catégories de modèles gratuits par complexité ───────────────────────────
 
 const MODEL_TIERS: Record<TaskComplexity, string[]> = {
-  // Ultra-léger: 1-8B — réponses triviales, pas de tools
   trivial: [
-    // NVIDIA NIM (modèles rapides d'abord)
+    NVIDIA_DEFAULT_MODEL,
     ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.trivial : []),
     "nvidia/nemotron-mini-4b-instruct",
     "nvidia/nvidia-nemotron-nano-9b-v2",
   ],
 
-  // Léger: 8-30B — tâches simples avec tools
   simple: [
-    // NVIDIA NIM (modèles rapides d'abord)
+    NVIDIA_DEFAULT_MODEL,
     ...(isNvidiaNimAvailable() ? NVIDIA_MODEL_TIERS.simple : []),
     "nvidia/nemotron-3-nano-30b-a3b",
     "openai/gpt-oss-20b",
   ],
 
-  // Moyen: 30-120B — tâches modérées avec tools + raisonnement
   moderate: [
-    // NVIDIA NIM — Nemotron 49B d'abord (répond en ~12s, fiable)
+    NVIDIA_DEFAULT_MODEL,
     "nvidia/llama-3.3-nemotron-super-49b-v1",
     "nvidia/nemotron-3-nano-30b-a3b",
     "meta/llama-3.3-70b-instruct",
@@ -132,9 +129,8 @@ const MODEL_TIERS: Record<TaskComplexity, string[]> = {
     "nvidia/nemotron-3-super-120b-a12b",
   ],
 
-  // Lourd: 70B+ — tâches complexes nécessitant un raisonnement profond
   complex: [
-    // 70B d'abord — gère mieux les 110 tools sans timeout
+    NVIDIA_DEFAULT_MODEL,
     "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
     "nvidia/llama-3.3-nemotron-super-49b-v1",

@@ -21,7 +21,7 @@ import { chatWithGemini, isGeminiAvailable } from "./gemini.js";
 import { getActiveGroqModel, getGroqClient, isGroqAvailable } from "./groq.js";
 import { getCerebrasClient, getCerebrasModel, isCerebrasAvailable } from "./cerebras.js";
 import { getSambaNovaClient, getSambaNovaModel, isSambaNovaAvailable } from "./sambanova.js";
-import { getNvidiaNimClient, isNvidiaNimAvailable } from "./nvidiaNim.js";
+import { getNvidiaNimClient, isNvidiaNimAvailable, resolveNvidiaModel } from "./nvidiaNim.js";
 import { chatWithColabLlm, isColabLlmAvailable } from "./colabLlm.js";
 import { chatWithLocalLlm, isLocalLlmAvailable, LOCAL_LLM_MODEL_NAME } from "./localLlm.js";
 import { chatWithHF } from "../utils/huggingFace.js";
@@ -72,10 +72,14 @@ export interface ProviderStatus {
   healthy: boolean;
   lastError: string | null;
   lastSuccess: number;
+  lastUnavailableAt?: number;
   avgLatencyMs: number;
   totalCalls: number;
   totalFailures: number;
 }
+
+/** After a provider fails, retry it again once this cooldown elapses (was: forever). */
+export const PROVIDER_UNAVAILABLE_TTL_MS = 30_000;
 
 export interface TokenUsage {
   promptTokens: number;
@@ -125,10 +129,10 @@ export interface LlmCallRequest {
 
 export const MODEL_REGISTRY: ModelDescriptor[] = [
   {
-    id: "meta/llama-3.3-70b-instruct",
+    id: "meta/llama-3.2-11b-vision-instruct",
     provider: "nvidia-nim",
-    displayName: "Llama 3.3 70B (NVIDIA NIM)",
-    capabilities: ["tool-calling", "streaming", "json-mode"],
+    displayName: "Llama 3.2 11B Vision (NVIDIA NIM)",
+    capabilities: ["tool-calling", "vision", "streaming", "json-mode"],
     maxTokens: 131072,
     costPer1kInput: 0.0007,
     costPer1kOutput: 0.0008,
@@ -136,9 +140,9 @@ export const MODEL_REGISTRY: ModelDescriptor[] = [
     maxRetries: 2,
   },
   {
-    id: "meta/llama-3.1-70b-instruct",
+    id: "nvidia/nvidia-nemotron-nano-9b-v2",
     provider: "nvidia-nim",
-    displayName: "Llama 3.1 70B (NVIDIA NIM)",
+    displayName: "Nemotron Nano 9B (NVIDIA NIM)",
     capabilities: ["tool-calling", "streaming"],
     maxTokens: 131072,
     costPer1kInput: 0.0007,
@@ -359,6 +363,7 @@ export function markProviderAvailable(name: ProviderName): void {
   status.available = true;
   status.healthy = true;
   status.lastError = null;
+  status.lastUnavailableAt = undefined;
 }
 
 export function markProviderUnavailable(name: ProviderName, reason: string): void {
@@ -366,6 +371,7 @@ export function markProviderUnavailable(name: ProviderName, reason: string): voi
   status.available = false;
   status.healthy = false;
   status.lastError = reason;
+  status.lastUnavailableAt = Date.now();
 }
 
 export function recordProviderCall(name: ProviderName, success: boolean, latencyMs: number): void {
@@ -616,7 +622,18 @@ function normalizeCompletion(response: unknown): NormalizedCompletion {
   };
 }
 
+function isNvidiaOpenRouterEndpoint(): boolean {
+  return (config.openRouterBaseUrl || "").includes("nvidia.com");
+}
+
 function getConfiguredProviderModel(provider: ProviderName, requested?: string): string {
+  if (provider === "nvidia-nim") {
+    return resolveNvidiaModel(requested ?? process.env.NVIDIA_MODEL);
+  }
+  if (provider === "openrouter" && isNvidiaOpenRouterEndpoint()) {
+    return resolveNvidiaModel(requested ?? config.openRouterModel);
+  }
+
   const requestedDescriptor = requested ? getModelDescriptor(requested) : null;
   if (requested && requestedDescriptor?.provider === provider) return requested;
   if (requested && provider === "openrouter" && !requestedDescriptor) return requested;
@@ -628,11 +645,6 @@ function getConfiguredProviderModel(provider: ProviderName, requested?: string):
       return getCerebrasModel();
     case "sambanova":
       return getSambaNovaModel();
-    case "nvidia-nim":
-      return (
-        MODEL_REGISTRY.find((model) => model.provider === provider)?.id ??
-        "meta/llama-3.3-70b-instruct"
-      );
     case "local-llm":
       return LOCAL_LLM_MODEL_NAME;
     case "colab":
@@ -651,11 +663,14 @@ function getConfiguredProviderModel(provider: ProviderName, requested?: string):
 }
 
 function getProviderAvailability(provider: ProviderName): boolean {
-  // Check runtime status first (set by markProviderUnavailable on failures)
   const status = providerStatuses.get(provider);
-  if (status && !status.available) return false;
+  if (status && !status.available) {
+    const downFor = Date.now() - (status.lastUnavailableAt ?? 0);
+    if (downFor < PROVIDER_UNAVAILABLE_TTL_MS) return false;
+    status.available = true;
+    status.healthy = true;
+  }
 
-  // Then check API key / config presence
   switch (provider) {
     case "groq":
       return isGroqAvailable();
@@ -828,6 +843,14 @@ function classifyFailure(error: unknown): string {
     error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   if (message.includes("429") || message.includes("rate limit") || message.includes("quota"))
     return "rate_limit";
+  if (message.includes("410") || message.includes("gone")) return "gone";
+  if (
+    message.includes("401") ||
+    message.includes("403") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden")
+  )
+    return "auth";
   if (message.includes("timeout") || message.includes("timed out") || message.includes("aborted"))
     return "timeout";
   if (message.includes("empty response")) return "empty_response";

@@ -25,15 +25,9 @@ import { findModelsByCapability, type ModelCapability } from "./aiGateway.js";
 // NOTE: OPENROUTER_BASE_URL pointe vers NVIDIA NIM (integrate.api.nvidia.com/v1)
 // avec une clé NVIDIA (nvapi-...). Les modèles doivent donc être des noms NVIDIA NIM.
 const OPENROUTER_FREE_MODELS = [
-  // Le modèle configuré (NVIDIA NIM)
   config.openRouterModel,
-  // Fallbacks NVIDIA NIM (valides pour cette API)
-  "meta/llama-3.3-70b-instruct",
-  "meta/llama-3.1-70b-instruct",
-  "nvidia/nemotron-3-super-120b-a12b",
-  "nvidia/nemotron-3-ultra-550b-a55b",
-  "nvidia/llama-3.3-nemotron-super-49b-v1",
-  "nvidia/nemotron-3-nano-30b-a3b",
+  "meta/llama-3.2-11b-vision-instruct",
+  "openai/gpt-oss-20b",
 ];
 
 function getCandidateModels(): string[] {

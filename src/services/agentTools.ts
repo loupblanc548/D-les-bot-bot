@@ -1170,6 +1170,8 @@ const TOOL_NAME_WHITELIST = new Set([
   "searchKnowledge",
   "searchObsidianQA",
   "searchDocs",
+  "getGitHubRepo",
+  "ingestDocumentation",
   "getWikipediaSummary",
   "getWiktionaryDefinition",
   "searchYouTube",
@@ -2380,7 +2382,35 @@ async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<T
   }
 }
 
-// GitHub API: free for public repos, no key needed (60 req/hour)
+async function scrapeGitHubRepoPage(owner: string, repo: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+      {
+        headers: { "User-Agent": "DiscordBot/1.0" },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!res.ok) return null;
+    const html = await res.text();
+    const starsMatch =
+      html.match(/([\d.,\s]+)\s+users starred this repository/i) ||
+      html.match(/id="repo-stars-counter-star"[^>]*>([^<]+)/i);
+    const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    const stars = starsMatch?.[1]?.replace(/[^\d]/g, "") || "n/a";
+    return JSON.stringify({
+      name: `${owner}/${repo}`,
+      description: descMatch?.[1] || "Pas de description",
+      stars: Number(stars) || stars,
+      url: `https://github.com/${owner}/${repo}`,
+      source: "github-html",
+    });
+  } catch {
+    return null;
+  }
+}
+
+// GitHub API: token optional — unauthenticated datacenter IPs often hit the 60/hour cap
 async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallResult> {
   const owner = String(args.owner);
   const repo = String(args.repo);
@@ -2390,14 +2420,24 @@ async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallRes
 
   try {
     const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "DiscordBot/1.0",
+    };
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "DiscordBot/1.0",
-      },
+      headers,
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return { success: false, data: `Dépôt ${owner}/${repo} introuvable` };
+    if (!res.ok) {
+      const scraped = await scrapeGitHubRepoPage(owner, repo);
+      if (scraped) return { success: true, data: scraped };
+      return {
+        success: false,
+        data: `Dépôt ${owner}/${repo} inaccessible (GitHub ${res.status}). Réessaie plus tard ou ajoute GITHUB_TOKEN.`,
+      };
+    }
     const data = (await res.json()) as {
       full_name: string;
       description: string | null;

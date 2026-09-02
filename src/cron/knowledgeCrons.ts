@@ -1,5 +1,5 @@
 /**
- * knowledgeCrons.ts — Scheduled cron jobs for 5 GitHub knowledge syncers
+ * knowledgeCrons.ts — Scheduled cron jobs for GitHub knowledge syncers
  */
 import { schedule, ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
@@ -9,6 +9,7 @@ import {
   syncFreeBooks,
   syncSystemDesign,
   syncAwesomeLists,
+  syncExtraGithubRepos,
 } from "../services/knowledgeIngestion.js";
 
 const crons: ScheduledTask[] = [];
@@ -70,9 +71,18 @@ export function startKnowledgeCrons(): void {
   setTimeout(() => void syncFreeBooks().catch(() => {}), 120_000);
   setTimeout(() => void syncSystemDesign().catch(() => {}), 150_000);
   setTimeout(() => void syncAwesomeLists().catch(() => {}), 180_000);
+  setTimeout(() => void syncExtraGithubRepos().catch(() => {}), 200_000);
+
+  crons.push(
+    schedule("0 7 1 * *", () => {
+      void syncExtraGithubRepos().catch((e) =>
+        logger.error(`[EXTRA_REPOS] Cron: ${e instanceof Error ? e.message : String(e)}`),
+      );
+    }),
+  );
 
   for (const c of crons) if (c.unref) c.unref();
-  logger.info("[KnowledgeCrons] 5 knowledge sync crons started (monthly/bi-weekly)");
+  logger.info("[KnowledgeCrons] Knowledge sync crons started (monthly/bi-weekly)");
 }
 
 export function stopKnowledgeCrons(): void {

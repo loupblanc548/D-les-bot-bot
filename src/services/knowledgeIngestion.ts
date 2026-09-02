@@ -1,5 +1,5 @@
 /**
- * knowledgeIngestion.ts — 5 GitHub repo syncers for knowledge pipeline
+ * knowledgeIngestion.ts — GitHub repo syncers for the knowledge pipeline
  */
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
@@ -242,7 +242,25 @@ export async function syncSystemDesign(): Promise<number> {
 }
 
 // ─── 5. Awesome Lists (whitelisted only) ─────────────────────────
-const AWESOME_WHITELIST = ["security", "nodejs", "typescript", "docker", "devops", "cybersecurity"];
+const AWESOME_WHITELIST = [
+  "security",
+  "nodejs",
+  "typescript",
+  "docker",
+  "devops",
+  "cybersecurity",
+  "python",
+  "golang",
+  "rust",
+  "linux",
+  "databases",
+  "front-end",
+  "javascript",
+  "machine learning",
+  "artificial intelligence",
+  "self-hosted",
+  "kubernetes",
+];
 
 export async function syncAwesomeLists(): Promise<number> {
   logger.info("[KnowledgeIngestion] [AWESOME_LISTS] Starting sync...");
@@ -299,4 +317,57 @@ export async function syncAwesomeLists(): Promise<number> {
     `[AWESOME_LISTS] Synced ${count} items (whitelisted: ${AWESOME_WHITELIST.join(", ")})`,
   );
   return count;
+}
+
+const EXTRA_KNOWLEDGE_REPOS = [
+  {
+    owner: "awesome-selfhosted",
+    repo: "awesome-selfhosted",
+    description: "Liste de logiciels self-hosted open source.",
+  },
+  {
+    owner: "vinta",
+    repo: "awesome-python",
+    description: "Curated list of Python frameworks, libraries, and resources.",
+  },
+  {
+    owner: "avelino",
+    repo: "awesome-go",
+    description: "Curated list of Go frameworks, libraries, and software.",
+  },
+  {
+    owner: "rust-unofficial",
+    repo: "awesome-rust",
+    description: "Curated list of Rust code and resources.",
+  },
+  {
+    owner: "trimstray",
+    repo: "the-book-of-secret-knowledge",
+    description: "Collection of inspiring lists, manuals, cheatsheets, and tools.",
+  },
+  {
+    owner: "ripienaar",
+    repo: "free-for-dev",
+    description: "SaaS, PaaS and IaaS offerings with free tiers for developers.",
+  },
+];
+
+/** Index extra GitHub knowledge repos so searchKnowledge / getGitHubRepo can find them. */
+export async function syncExtraGithubRepos(): Promise<number> {
+  logger.info("[KnowledgeIngestion] [EXTRA_REPOS] Starting sync...");
+  await prisma.freeResource
+    .createMany({
+      data: EXTRA_KNOWLEDGE_REPOS.map((r) => ({
+        category: "GITHUB_REPO",
+        name: `${r.owner}/${r.repo}`,
+        url: `https://github.com/${r.owner}/${r.repo}`,
+        description: r.description,
+        tags: "github,repo,awesome",
+        sourceRepo: `${r.owner}/${r.repo}`,
+      })),
+      skipDuplicates: true,
+    })
+    .catch(() => {});
+  logger.info(`[EXTRA_REPOS] Indexed ${EXTRA_KNOWLEDGE_REPOS.length} GitHub repos`);
+  return EXTRA_KNOWLEDGE_REPOS.length;
 }

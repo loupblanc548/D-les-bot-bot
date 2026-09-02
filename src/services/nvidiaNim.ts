@@ -54,16 +54,39 @@ export function getNvidiaNimClient(): OpenAI | null {
 
 // ─── Modèles NVIDIA NIM gratuits (OpenAI-compatible, function calling) ───────
 // Priorité: Llama (gratuit, cloud) → Nemotron (NVIDIA) → légers (fallback)
-export const NVIDIA_FREE_MODELS = [
-  "meta/llama-3.3-70b-instruct", // 70B Llama 3.3 — priorité 1
-  "meta/llama-3.1-70b-instruct", // 70B Llama 3.1 — backup
-  "nvidia/nemotron-3-ultra-550b-a55b", // 550B MoE
-  "nvidia/nemotron-3-super-120b-a12b", // 120B MoE
-  "nvidia/llama-3.3-nemotron-super-49b-v1", // 49B
-  "nvidia/nemotron-3-nano-30b-a3b", // 30B MoE
-  "nvidia/nvidia-nemotron-nano-9b-v2", // 9B
-  "nvidia/nemotron-mini-4b-instruct", // 4B — ultra léger
-];
+/** Default chat model — Llama 3.3/3.1 70B NIM endpoints returned HTTP 410 after 2026-08-26. */
+export const NVIDIA_DEFAULT_MODEL = "meta/llama-3.2-11b-vision-instruct";
+
+/** Second live NIM endpoint with function calling (probed 2026-09-03). */
+export const NVIDIA_TOOLS_MODEL = "openai/gpt-oss-20b";
+
+export const NVIDIA_RETIRED_MODELS = new Set([
+  "meta/llama-3.3-70b-instruct",
+  "meta/llama-3.1-70b-instruct",
+  "meta/llama-3.1-8b-instruct",
+  "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+  "nvidia/llama-3.3-nemotron-super-49b-v1",
+  "nvidia/nvidia-nemotron-nano-9b-v2",
+  "nvidia/llama-3.1-nemotron-nano-8b-v1",
+  "nvidia/nemotron-mini-4b-instruct",
+  "nvidia/nemotron-3-nano-30b-a3b",
+  "deepseek-ai/deepseek-v4-flash",
+]);
+
+export const NVIDIA_FREE_MODELS = [NVIDIA_DEFAULT_MODEL, NVIDIA_TOOLS_MODEL];
+
+/** Only proven-live NIM ids. Anything else (including retired 70B / nano-30b) maps to the default. */
+export function resolveNvidiaModel(requested?: string): string {
+  const trimmed = requested?.trim();
+  if (trimmed && NVIDIA_FREE_MODELS.includes(trimmed) && !NVIDIA_RETIRED_MODELS.has(trimmed)) {
+    return trimmed;
+  }
+  return NVIDIA_DEFAULT_MODEL;
+}
+
+export function nvidiaModelSupportsTools(model: string): boolean {
+  return NVIDIA_FREE_MODELS.includes(resolveNvidiaModel(model));
+}
 
 // ─── Catégories par complexité (pour taskModelRouter) ────────────────────────
 export const NVIDIA_MODEL_TIERS = {
@@ -104,7 +127,11 @@ export function getNvidiaFreeModels(): string[] {
 export function isNvidiaModel(modelName: string): boolean {
   // Use exact identifiers only. Broad prefix checks can misroute an
   // OpenRouter model such as `openai/gpt-oss-*:free` to NVIDIA NIM.
-  return NVIDIA_FREE_MODELS.includes(modelName);
+  if (NVIDIA_FREE_MODELS.includes(modelName) || NVIDIA_RETIRED_MODELS.has(modelName)) return true;
+  if (modelName.startsWith("nvidia/")) return true;
+  // NIM-style `meta/llama-…` (OpenRouter uses `meta-llama/…`).
+  if (modelName.startsWith("meta/") && !modelName.includes(":")) return true;
+  return false;
 }
 
 /**

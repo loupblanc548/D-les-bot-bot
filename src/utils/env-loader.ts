@@ -7,6 +7,20 @@ import { z } from "zod";
 
 import logger from "./logger.js";
 
+/** Strip comments, quotes, and unicode dashes glued onto API keys in .env files. */
+export function sanitizeSecret(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+  if (!trimmed) return undefined;
+  const token = trimmed.split(/[\s#\u2014\u2013]+/)[0]?.trim();
+  return token || undefined;
+}
+
+const optionalSecret = z.preprocess(sanitizeSecret, z.string().optional());
+
 // Environment variable schema with validation
 const envSchema = z.object({
   // Discord (required)
@@ -16,7 +30,7 @@ const envSchema = z.object({
   OWNER_ID: z.string().min(1, "OWNER_ID is required"),
 
   // OpenRouter AI (optional — local Ollama can run the chatbot without external keys)
-  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: optionalSecret,
   OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v3:free"),
   AI_SYSTEM_PROMPT: z
     .string()
@@ -25,7 +39,7 @@ const envSchema = z.object({
     ),
 
   // OpenAI (optional — premium tier, used first if available)
-  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: optionalSecret,
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
 
   // Twitch (optional)
@@ -117,11 +131,11 @@ const envSchema = z.object({
   UPTIMEROBOT_API_KEY: z.string().optional(),
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
-  GROQ_API_KEY: z.string().optional(),
+  GROQ_API_KEY: optionalSecret,
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
-  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: optionalSecret,
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
-  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_API_KEY: optionalSecret,
   CEREBRAS_API_KEY: z.string().optional(),
   CEREBRAS_MODEL: z.string().default("llama3.1-70b"),
   SAMBANOVA_API_KEY: z.string().optional(),
