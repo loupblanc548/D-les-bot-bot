@@ -17,6 +17,7 @@ import { Client, GatewayIntentBits, Options } from "discord.js";
 import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
 import logger from "./utils/logger.js";
+import { MEMORY_CONFIG } from "./utils/memoryConfig.js";
 import { startHealthServer, setDiscordClient } from "./services/health-http.js";
 import { setupAllWebhooks } from "./services/webhookSetup.js";
 import { startMetricsServer } from "./services/metrics.js";
@@ -441,7 +442,9 @@ async function main(): Promise<void> {
   // ─── MODULE 5: Infrastructure Watchdog — memory monitor ───
   // Aligned with --max-old-space-size=4096 (4GB)
   startInfraWatchdog(client, process.env.ALERT_CHANNEL_ID);
-  logger.info("✓ Infrastructure watchdog initialise (3.2/3.8/4.0GB thresholds)");
+  logger.info(
+    `✓ Infrastructure watchdog (${MEMORY_CONFIG.PROFILE}: GC@${MEMORY_CONFIG.WATCHDOG_GC_MB}MB, critical@${MEMORY_CONFIG.WATCHDOG_CRITICAL_MB}MB, shutdown@${MEMORY_CONFIG.WATCHDOG_SHUTDOWN_MB}MB)`,
+  );
 
   // ─── MODULE 2: Config Cache — start background cleanup + pre-warm ───
   startConfigCacheCleanup();

@@ -1,28 +1,22 @@
 /**
  * infraWatchdog.ts — MODULE 5: Scaled Systemd/PM2 Monitor & Infrastructure Watchdog
  *
- * Background memory monitor aligned with 4GB V8 allocation (--max-old-space-size=4096).
- * Checks process.memoryUsage().heapUsed every 60 seconds.
- *
- * Thresholds:
- *   3.2GB → Automated global.gc() call + warning log
- *   3.8GB → Critical channel alert
- *   4.0GB → Graceful shutdown (process.exit(1)) so PM2/systemd restarts cleanly
+ * Background memory monitor. Thresholds come from MEMORY_CONFIG
+ * (VPS 8 Go ≈ 1.1 / 1.3 / 1.48 GB heap — not the old 3.2 / 3.8 / 4.0).
  *
  * Memory-safe: interval is unref'd, all timers cleaned on shutdown.
  */
 
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import logger from "../utils/logger.js";
+import { MEMORY_CONFIG } from "../utils/memoryConfig.js";
 
-// ─── Configuration ───────────────────────────────────────────────────────────
-
-const CHECK_INTERVAL_MS = 60_000; // 60 seconds
-const THRESHOLD_GC_GB = 3.2; // Trigger gc()
-const THRESHOLD_CRITICAL_GB = 3.8; // Critical alert
-const THRESHOLD_SHUTDOWN_GB = 4.0; // Graceful shutdown
-
+const CHECK_INTERVAL_MS = 60_000;
 const BYTES_PER_GB = 1024 * 1024 * 1024;
+
+const THRESHOLD_GC_GB = MEMORY_CONFIG.WATCHDOG_GC_MB / 1024;
+const THRESHOLD_CRITICAL_GB = MEMORY_CONFIG.WATCHDOG_CRITICAL_MB / 1024;
+const THRESHOLD_SHUTDOWN_GB = MEMORY_CONFIG.WATCHDOG_SHUTDOWN_MB / 1024;
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -165,7 +159,7 @@ async function handleCriticalThreshold(heapGB: number, rssGB: number): Promise<v
           .setColor(0xe74c3c)
           .setDescription(
             "```\n" +
-              `HEAP USAGE: ${heapGB.toFixed(2)} GB / 4.00 GB\n` +
+              `HEAP USAGE: ${heapGB.toFixed(2)} GB / ${(MEMORY_CONFIG.V8_HEAP_LIMIT_MB / 1024).toFixed(2)} GB\n` +
               `RSS USAGE:  ${rssGB.toFixed(2)} GB\n` +
               `STATUS:     CRITICAL — APPROACHING OOM\n` +
               "```",
@@ -173,8 +167,7 @@ async function handleCriticalThreshold(heapGB: number, rssGB: number): Promise<v
           .addFields(
             {
               name: "Action",
-              value:
-                "Garbage collection triggered. PM2/systemd will restart if threshold reaches 4.0GB.",
+              value: `Garbage collection triggered. Restart if heap reaches ${THRESHOLD_SHUTDOWN_GB.toFixed(2)}GB.`,
               inline: false,
             },
             { name: "Timestamp", value: new Date().toISOString(), inline: false },
@@ -215,7 +208,7 @@ async function handleShutdownThreshold(heapGB: number, rssGB: number): Promise<v
           .setColor(0x2f3136)
           .setDescription(
             "```\n" +
-              `HEAP USAGE: ${heapGB.toFixed(2)} GB / 4.00 GB\n` +
+              `HEAP USAGE: ${heapGB.toFixed(2)} GB / ${(MEMORY_CONFIG.V8_HEAP_LIMIT_MB / 1024).toFixed(2)} GB\n` +
               `RSS USAGE:  ${rssGB.toFixed(2)} GB\n` +
               `STATUS:     SHUTDOWN — PM2 RESTART IMMINENT\n` +
               "```",

@@ -2,7 +2,10 @@
 # Configuration LLM Local — Mini PC (Standby)
 # =============================================================================
 #
-# Status: STANDBY — En attente de la fin de l'abonnement VPS (décembre 2026)
+# Status: STANDBY — VPS 8 Go jusqu'à décembre–janvier, puis mini PC 24/7
+#
+# Transfert: depuis le VPS, `bash scripts/pack-minipc.sh` → dist/minipc-bundle.tar.gz
+# (le .env avec les tokens se copie à part, pas dans l'archive).
 #
 # Hardware: Lenovo ThinkCentre M910q Tiny
 #   - CPU: Intel Core i7-6700T (4 cores / 8 threads @ 2.5-3.4 GHz)

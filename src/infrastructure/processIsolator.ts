@@ -19,6 +19,7 @@
 import { fork, ChildProcess } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { MEMORY_CONFIG } from "../utils/memoryConfig.js";
 import logger from "../utils/logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -53,6 +54,13 @@ let isShuttingDown = false;
  */
 export function startMediaWorker(): void {
   if (isShuttingDown) return;
+
+  if (MEMORY_CONFIG.SKIP_MEDIA_WORKER) {
+    logger.info(
+      `${CYAN}${BOLD}[ProcessIsolator]${RESET} ${YELLOW}Media worker skipped (VPS RAM budget). Set ENABLE_MEDIA_WORKER=1 to force.${RESET}`,
+    );
+    return;
+  }
 
   const workerPath = join(__dirname, "mediaWorker.js");
 

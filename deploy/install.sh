@@ -44,6 +44,20 @@ apt install -y curl wget git build-essential ufw fail2ban htop jq unzip
 
 log "Système à jour"
 
+# Swap disque (filet 8 Go RAM → disque, jusqu'au mini PC)
+if [[ -f "$(dirname "$0")/../scripts/setup-swap.sh" ]]; then
+  bash "$(dirname "$0")/../scripts/setup-swap.sh" || warn "Swap: voir scripts/setup-swap.sh"
+else
+  if [[ ! -f /swapfile ]]; then
+    fallocate -l 8G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=8192
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  fi
+  sysctl -w vm.swappiness=25 >/dev/null
+fi
+
 # ── 2. Pare-feu (UFW) ─────────────────────────────────────────
 
 echo ""
@@ -109,6 +123,14 @@ else
   systemctl enable redis-server
   systemctl restart redis-server
   log "Redis installé et configuré"
+fi
+
+# Postgres: limiter la RAM sur VPS 8 Go
+if [[ -f /etc/postgresql/16/main/postgresql.conf ]]; then
+  sed -i "s/^#*shared_buffers.*/shared_buffers = 256MB/" /etc/postgresql/16/main/postgresql.conf
+  sed -i "s/^#*work_mem =.*/work_mem = 8MB/" /etc/postgresql/16/main/postgresql.conf
+  systemctl reload postgresql || systemctl restart postgresql || true
+  log "PostgreSQL: shared_buffers=256MB"
 fi
 
 # ── 6. Cloner le bot ──────────────────────────────────────────
@@ -210,7 +232,9 @@ echo -e "${BOLD}Création service systemd${NC}"
 
 # Détecter le heap selon la RAM
 TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
-if [[ ${TOTAL_RAM} -le 4096 ]]; then
+if [[ ${TOTAL_RAM} -le 5120 ]]; then
+  HEAP_SIZE=1024
+elif [[ ${TOTAL_RAM} -lt 14336 ]]; then
   HEAP_SIZE=1536
 else
   HEAP_SIZE=4096

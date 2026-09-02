@@ -141,3 +141,15 @@ pm2 logs john-helldiver --lines 100
 # Les fichiers de log sont dans ./logs/
 tail -f logs/pm2-error.log
 ```
+
+## 13. RAM 8 Go + swap disque (jusqu'au mini PC)
+
+Le VPS 8 Go n'a **pas** le droit à un heap Node de 4 Go. Heap = 1.5 Go, Postgres ~256 Mo, Redis 128 Mo. Le disque sert de RAM de secours :
+
+```bash
+sudo bash scripts/setup-swap.sh
+pm2 restart bot --update-env
+free -h
+```
+
+Ne **pas** lancer Ollama 7B sur ce VPS. Le LLM local va sur le mini PC (déc/jan) : `bash scripts/pack-minipc.sh` puis `docs/LOCAL_LLM_SETUP.md`.

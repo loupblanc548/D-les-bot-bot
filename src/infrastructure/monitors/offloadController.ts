@@ -5,18 +5,17 @@
  * or offload to the Local PC Worker.
  *
  * Routing Logic:
- *   < 3.5GB heap → local execution
- *   > 3.5GB heap + worker online → remote offload
- *   > 3.5GB heap + worker offline → local degraded (gc + reduced agent steps)
+ *   < OFFLOAD_HEAP (1.1 GB on 8 Go VPS, 3.5 GB on mini PC) → local
+ *   ≥ threshold + worker online → remote
+ *   ≥ threshold + worker offline → local degraded
  */
 
 import logger from "../../utils/logger.js";
 import { isWorkerOnline } from "../bridge/bridgeServer.js";
 import type { OffloadDecision, ExecutionTarget } from "../bridge/bridgeTypes.js";
+import { MEMORY_CONFIG } from "../../utils/memoryConfig.js";
 
-// ─── Configuration ───────────────────────────────────────────────────────────
-
-const OFFLOAD_THRESHOLD_GB = 3.5;
+const OFFLOAD_THRESHOLD_GB = MEMORY_CONFIG.OFFLOAD_HEAP_MB / 1024;
 const DEGRADED_AGENT_STEPS = 3;
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 

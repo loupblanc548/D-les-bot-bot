@@ -120,6 +120,8 @@ bedrock-server/
 !scripts/ip_investigate.sh
 !scripts/migrate_hardware.sh
 !scripts/backup_obsidian.sh
+!scripts/setup-swap.sh
+!scripts/pack-minipc.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md

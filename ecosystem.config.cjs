@@ -1,27 +1,41 @@
 /**
- * ecosystem.config.js — Configuration PM2 pour le bot Discord
+ * ecosystem.config.cjs — PM2
  *
- * Usage:
- *   pm2 start ecosystem.config.js
- *   pm2 restart bot
- *   pm2 logs bot
+ * Heap et max_memory_restart suivent la RAM réelle :
+ *   ≤5 Go  → 1024 Mo
+ *   <14 Go → 1536 Mo  (VPS 8 Go)
+ *   ≥14 Go → 4096 Mo  (mini PC)
  */
+const os = require("os");
+
+const totalMb = Math.floor(os.totalmem() / (1024 * 1024));
+const forced = parseInt(process.env.NODE_MAX_OLD_SPACE_MB || "", 10);
+
+function heapMb(ram) {
+  if (Number.isFinite(forced) && forced > 256) return forced;
+  if (process.env.WORKER_MODE === "1" || process.env.FORCE_LOCAL_MEMORY === "1") return 4096;
+  if (ram <= 5120) return 1024;
+  if (ram < 14336) return 1536;
+  return 4096;
+}
+
+const heap = heapMb(totalMb);
+const restartMb = Math.round(heap * 1.2);
+
 module.exports = {
   apps: [
     {
       name: "bot",
       script: "dist/index.js",
-      cwd: "/opt/discord-bot",
+      cwd: __dirname,
       instances: 1,
       exec_mode: "fork",
-      max_memory_restart: "4G",
+      max_memory_restart: `${restartMb}M`,
+      node_args: `--expose-gc --max-old-space-size=${heap}`,
       env: {
         NODE_ENV: "production",
-        NODE_OPTIONS: "--max-old-space-size=4096",
+        NODE_OPTIONS: `--max-old-space-size=${heap}`,
       },
-      error_file: "/root/.pm2/logs/bot-error.log",
-      out_file: "/root/.pm2/logs/bot-out.log",
-      log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
       autorestart: true,
       max_restarts: 10,

@@ -7,6 +7,7 @@
 
 import { Client, Events } from "discord.js";
 import logger from "./utils/logger.js";
+import { MEMORY_CONFIG } from "./utils/memoryConfig.js";
 import { config } from "./config.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
@@ -205,7 +206,13 @@ export function attachStartupLogic(
       void checkLocalLlmAvailability().then((ok) => {
         if (ok) {
           logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
-          void preWarmLocalModel(); // Load model into RAM for fast first response
+          if (MEMORY_CONFIG.SKIP_LLM_PREWARM) {
+            logger.info(
+              "[Startup] Pre-warm Ollama sauté (VPS 8 Go) — le modèle se charge au 1er message",
+            );
+          } else {
+            void preWarmLocalModel();
+          }
         } else {
           logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
         }
