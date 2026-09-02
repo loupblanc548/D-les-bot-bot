@@ -1142,6 +1142,45 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "whois_lookup",
+      description: "WHOIS d'un nom de domaine (registrar, dates, nameservers). Pas un scan réseau.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: {
+            type: "string",
+            description: "Domaine (ex: example.com)",
+          },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "think_step_by_step",
+      description:
+        "Note un raisonnement intermédiaire avant de répondre. N'appelle pas d'API externe.",
+      parameters: {
+        type: "object",
+        properties: {
+          thought: {
+            type: "string",
+            description: "Étapes de raisonnement",
+          },
+          question: {
+            type: "string",
+            description: "Question en cours (optionnel)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -1175,6 +1214,14 @@ const TOOL_NAME_WHITELIST = new Set([
   "getWikipediaSummary",
   "getWiktionaryDefinition",
   "searchYouTube",
+  "search_public_apis",
+  "get_dev_snippet",
+  "search_programming_books",
+  "search_system_design",
+  "search_arxiv",
+  "get_google_trends",
+  "getTechNews",
+  "search_stackoverflow",
   // ── OSINT de base ──
   "ip_ping",
   "dns_lookup",
@@ -1186,12 +1233,23 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Réseaux sociaux ──
   "get_hackernews_top",
   "get_github_trending",
-  "search_reddit",
+  "reddit_search",
   "get_twitch_clips",
   // ── Gaming ──
   "search_igdb_games",
   "searchRawgGames",
   "get_steam_requirements",
+  "getSteamGame",
+  "getSteamDeals",
+  "getGameReleases",
+  "compare_game_prices",
+  "searchRetailers",
+  "get_minecraft_status",
+  "get_lyrics",
+  "search_movies",
+  "search_music",
+  "analyzeImageGemini",
+  "extract_text_from_image",
   // ── Crypto & Finance ──
   "getCryptoPrice",
   "get_crypto_top",
@@ -1222,8 +1280,6 @@ const TOOL_NAME_WHITELIST = new Set([
   "memory_search",
   // ── Système ──
   "system_stats",
-  // ── Multi-expert ──
-  "delegate_to_expert",
   "think_step_by_step",
 ]);
 
@@ -1270,6 +1326,13 @@ export async function executeTool(
 
   try {
     switch (toolName) {
+      case "whois_lookup":
+        return await toolWhoisLookup(args);
+      case "think_step_by_step":
+        return {
+          success: true,
+          data: String(args.thought || args.question || "ok").slice(0, 1500),
+        };
       case "webcheck_scan":
         return await toolWebcheckScan(args);
       case "searchDocs":
@@ -3190,6 +3253,22 @@ async function toolMcAgentLog(args: Record<string, any>): Promise<ToolCallResult
   const log = await getAgentLog(lines);
   if (!log) return { success: false, data: "❌ Aucun log disponible" };
   return { success: true, data: `\`\`\`\n${log.slice(0, 1800)}\n\`\`\`` };
+}
+
+async function toolWhoisLookup(args: Record<string, any>): Promise<ToolCallResult> {
+  const domain = String(args.domain || args.query || "").trim();
+  if (!domain) return { success: false, data: "Domaine manquant" };
+  const { whoisLookup } = await import("./dnsResolver.js");
+  const info = await whoisLookup(domain);
+  if (!info) return { success: false, data: `WHOIS introuvable pour ${domain}` };
+  const lines = [
+    `Domaine: ${info.domainName || domain}`,
+    info.registrar ? `Registrar: ${info.registrar}` : "",
+    info.creationDate ? `Créé: ${info.creationDate}` : "",
+    info.expirationDate ? `Expire: ${info.expirationDate}` : "",
+    info.nameServers?.length ? `NS: ${info.nameServers.slice(0, 6).join(", ")}` : "",
+  ].filter(Boolean);
+  return { success: true, data: lines.join("\n") };
 }
 
 // ─── Web-Check OSINT ────────────────────────────────────────────────────────

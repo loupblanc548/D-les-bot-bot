@@ -91,7 +91,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         { name: "🔒 Sujets hashés (dédup)", value: `${dedupCount}`, inline: true },
         {
           name: "⚡ Cadence",
-          value: "8 Q&A / min (file déterministe, pas de reset)",
+          value: "~80 Q&A / 5s (wiki filtré + vault push si dépôt séparé)",
           inline: true,
         },
         { name: "📂 Répartition par catégorie", value: categoryList, inline: false },

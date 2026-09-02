@@ -401,6 +401,8 @@ function categorizeQuestion(question: string): string {
 type QaIndexEntry = { rel: string; question: string; keywords: string[] };
 
 let qaIndexCache: QaIndexEntry[] | null = null;
+let qaIndexDeferPersist = false;
+let qaIndexDirty = false;
 
 function qaIndexPath(): string {
   return path.join(qaDir(), ".qa-index.json");
@@ -408,13 +410,28 @@ function qaIndexPath(): string {
 
 function persistQaIndex(entries: QaIndexEntry[]): void {
   qaIndexCache = entries;
+  if (qaIndexDeferPersist) {
+    qaIndexDirty = true;
+    return;
+  }
   try {
     const dir = qaDir();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(qaIndexPath(), JSON.stringify(entries), "utf-8");
+    qaIndexDirty = false;
   } catch {
     // non-critical
   }
+}
+
+/** Group many saveQA writes: flush .qa-index.json once instead of per file. */
+export function beginQaIndexBatch(): void {
+  qaIndexDeferPersist = true;
+}
+
+export function endQaIndexBatch(): void {
+  qaIndexDeferPersist = false;
+  if (qaIndexDirty && qaIndexCache) persistQaIndex(qaIndexCache);
 }
 
 function rebuildQaIndex(): QaIndexEntry[] {
@@ -778,8 +795,23 @@ export async function saveConversationSummary(
 /**
  * Pull latest changes from the vault repo.
  */
+function isStandaloneVaultRepo(): boolean {
+  const dir = vaultDir();
+  if (!dir || !fs.existsSync(path.join(dir, ".git"))) return false;
+  try {
+    const gitFile = path.join(dir, ".git");
+    const st = fs.statSync(gitFile);
+    // Nested folder of the bot repo often has no own .git; require a real repo root.
+    return (
+      st.isDirectory() || (st.isFile() && fs.readFileSync(gitFile, "utf-8").includes("gitdir:"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function syncVault(): Promise<void> {
-  if (!isVaultEnabled()) return;
+  if (!isVaultEnabled() || !isStandaloneVaultRepo()) return;
   try {
     const { execSync } = await import("node:child_process");
     execSync("git pull origin main", {
@@ -795,17 +827,22 @@ export async function syncVault(): Promise<void> {
 
 /**
  * Commit and push bot-written notes to the vault repo.
+ * No-op if the vault is just a folder inside the bot git repo (avoids pushing 2k notes to the bot remote).
  */
 export async function pushVault(): Promise<void> {
   if (!isVaultEnabled()) return;
+  if (!isStandaloneVaultRepo()) {
+    logger.debug("[Obsidian] pushVault ignoré — le vault n'est pas un dépôt git séparé");
+    return;
+  }
   try {
     const { execSync } = await import("node:child_process");
     const opts = { cwd: vaultDir(), stdio: "pipe" as const, timeout: 15000 };
     execSync("git add -A", opts);
     execSync('git commit -m "bot: update memory"', opts);
-    execSync("git push origin main", opts);
-    logger.debug("[Obsidian] Vault pushed");
+    execSync("git push origin HEAD", opts);
+    logger.info("[Obsidian] Vault poussé");
   } catch {
-    // Non-critical
+    // Non-critical (nothing to commit, no remote, etc.)
   }
 }

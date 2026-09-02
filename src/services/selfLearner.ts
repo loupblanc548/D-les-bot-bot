@@ -14,14 +14,23 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
-import { saveQA, searchQA } from "./obsidianMemory.js";
+import {
+  beginQaIndexBatch,
+  endQaIndexBatch,
+  pushVault,
+  saveQA,
+  searchQA,
+} from "./obsidianMemory.js";
 import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { sendProactiveAlert } from "./proactiveAlerts.js";
 
-const LEARN_INTERVAL_MS = 1 * 60 * 1000; // 1 min entre chaque batch
-const BATCH_SIZE = 8; // 8 Q&A par batch
-// Pause entre sujets: assez court pour Wikipedia, assez long pour ne pas bloquer le VPS 8 Go
-const LEARN_SUBJECT_DELAY_MS = 200;
+const LEARN_INTERVAL_MS = 5 * 1000; // 5s entre chaque batch
+const BATCH_SIZE = 80; // ~20 pages × 4 langues
+const LEARN_CONCURRENCY = 4;
+const WIKI_TIMEOUT_MS = 6_000;
+const WIKI_LANGS = ["fr", "en", "es", "de"] as const;
+const WIKI_PAGES_PER_LANG = 20;
+type WikiLang = (typeof WIKI_LANGS)[number];
 let isLearning = false;
 let learnTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -1621,7 +1630,7 @@ async function fetchWikipediaSummary(subject: string, lang = "fr"): Promise<stri
   try {
     // Search
     const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(subject)}&format=json&srlimit=1`;
-    const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(8000) });
+    const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(WIKI_TIMEOUT_MS) });
     if (!searchRes.ok) return null;
     const searchData = (await searchRes.json()) as {
       query?: { search?: Array<{ title: string }> };
@@ -1631,7 +1640,7 @@ async function fetchWikipediaSummary(subject: string, lang = "fr"): Promise<stri
 
     // Summary
     const summaryUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-    const summaryRes = await fetch(summaryUrl, { signal: AbortSignal.timeout(8000) });
+    const summaryRes = await fetch(summaryUrl, { signal: AbortSignal.timeout(WIKI_TIMEOUT_MS) });
     if (!summaryRes.ok) return null;
     const summary = (await summaryRes.json()) as {
       title: string;
@@ -1651,7 +1660,7 @@ async function fetchWikipediaSummary(subject: string, lang = "fr"): Promise<stri
 async function fetchWiktionaryDefinition(word: string, lang = "fr"): Promise<string | null> {
   try {
     const restUrl = `https://${lang}.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
-    const res = await fetch(restUrl, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(restUrl, { signal: AbortSignal.timeout(WIKI_TIMEOUT_MS) });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       definitions?: Array<{ partOfSpeech?: string; definition: string }>;
@@ -1706,6 +1715,131 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
   return true;
 }
 
+const WIKI_QUESTION: Record<WikiLang, (title: string) => string> = {
+  fr: (title) => `Qu'est-ce que ${title} ?`,
+  en: (title) => `What is ${title}?`,
+  es: (title) => `¿Qué es ${title}?`,
+  de: (title) => `Was ist ${title}?`,
+};
+const WIKI_CATEGORY: Record<WikiLang, string> = {
+  fr: "culture",
+  en: "science_en",
+  es: "culture",
+  de: "culture",
+};
+
+const SKIP_WIKI_TITLE =
+  /\b(airport|aéroport|aeropuerto|flugplatz|airfield|\biata\b)\b|championnat|championship|\bliga\b|\bligue\b|bundesliga|premier league|\bnfl\b|\bnba\b|\bnhl\b|\bmlb\b|\bfifa\b|\buefa\b|world cup|coupe du monde|play[- ]?offs?|discograph|filmograph|episode list|^lists? of |^liste[s]? (des|de|der|di|of) |\bbotschafter\b|ambassador|\bcanton de\b|commune de |arrondissement|municipality|census-designated|autoroute|route départementale|interstate |state route|county road|\bgenus\b|species of|famille des |sous-espèce|subspecies|\btaxon\b|\d{4}[-–/]\d{2,4}|football club|\sFC$|\sCF$|schwimmer|leichtathlet|footballer|joueur de football/i;
+
+function isUsefulWikiPage(title: string, extract: string): boolean {
+  if (extract.length < 80) return false;
+  if (SKIP_WIKI_TITLE.test(title)) return false;
+  if (/(may refer to|peut désigner|désambig|disambiguation)/i.test(extract)) return false;
+  return true;
+}
+
+function wikiCategoryFor(title: string, extract: string, lang: WikiLang): string {
+  const blob = `${title} ${extract}`.toLowerCase();
+  if (
+    /linux|python|javascript|typescript|docker|kubernetes|algorithm|processeur|software|program|réseau|server|api\b/.test(
+      blob,
+    )
+  ) {
+    return lang === "en" ? "tech_en" : "tech";
+  }
+  if (/physique|chimie|biologie|mathémat|astronomy|planet|virus|cellule|quantum/.test(blob)) {
+    return lang === "en" ? "science_en" : "science";
+  }
+  if (/guerre|empire|révolution|siècle|century|roi |reine /.test(blob)) return "histoire";
+  return WIKI_CATEGORY[lang];
+}
+
+async function persistWikiPage(
+  title: string,
+  extract: string,
+  pageUrl: string,
+  lang: WikiLang,
+): Promise<boolean> {
+  const hash = subjectHash(title);
+  if (learnedSubjects.has(hash)) return false;
+  if (!isUsefulWikiPage(title, extract)) return false;
+
+  const question = WIKI_QUESTION[lang](title);
+  const answer = `**${title}**\n\n${extract}\n\nSource: ${pageUrl}`;
+  const category = wikiCategoryFor(title, extract, lang);
+  await saveQA(question, answer, category);
+  learnedSubjects.add(hash);
+  logger.debug(`[SelfLearner] 📚 Appris (wiki random): ${title} → Obsidian (${category})`);
+  return true;
+}
+
+async function learnRandomWikipediaBatch(lang: WikiLang, limit: number): Promise<number> {
+  try {
+    const url =
+      `https://${lang}.wikipedia.org/w/api.php?action=query&generator=random` +
+      `&grnnamespace=0&grnlimit=${limit}&prop=extracts|info&inprop=url` +
+      `&exintro=1&explaintext=1&format=json`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "JohnBot/1.0 (self-learner; contact: discord-bot)" },
+      signal: AbortSignal.timeout(WIKI_TIMEOUT_MS * 2),
+    });
+    if (!res.ok) return 0;
+    const data = (await res.json()) as {
+      query?: {
+        pages?: Record<string, { title?: string; extract?: string; fullurl?: string }>;
+      };
+    };
+    const pages = Object.values(data.query?.pages || {});
+    let learned = 0;
+    for (const page of pages) {
+      const title = page.title?.trim();
+      const extract = page.extract?.replace(/\s+/g, " ").trim();
+      if (!title || !extract) continue;
+      const pageUrl =
+        page.fullurl || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+      if (await persistWikiPage(title, extract, pageUrl, lang)) learned++;
+    }
+    return learned;
+  } catch {
+    return 0;
+  }
+}
+
+async function learnRandomWikipedia(lang: WikiLang = "fr"): Promise<boolean> {
+  return (await learnRandomWikipediaBatch(lang, 1)) > 0;
+}
+
+async function learnWikiBurst(): Promise<number> {
+  beginQaIndexBatch();
+  try {
+    const wave = async () => {
+      const counts = await Promise.all(
+        WIKI_LANGS.map((lang) => learnRandomWikipediaBatch(lang, WIKI_PAGES_PER_LANG)),
+      );
+      return counts.reduce((sum, n) => sum + n, 0);
+    };
+    let learned = await wave();
+    if (learned < 40) learned += await wave();
+    return learned;
+  } finally {
+    saveLearnedSet(learnedSubjects);
+    endQaIndexBatch();
+  }
+}
+
+async function runPool(count: number, worker: () => Promise<boolean>): Promise<number> {
+  let learned = 0;
+  let started = 0;
+  async function runOne(): Promise<void> {
+    while (started < count) {
+      started++;
+      if (await worker()) learned++;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(LEARN_CONCURRENCY, count) }, () => runOne()));
+  return learned;
+}
+
 // ─── Cycle d'apprentissage ────────────────────────────────────────────────────
 let allExhaustedNotified = false;
 
@@ -1727,6 +1861,16 @@ async function notifyLearningComplete(): Promise<void> {
     0x00d4aa,
     60 * 60 * 1000, // 1h cooldown
   );
+}
+
+let lastVaultPushAt = 0;
+const VAULT_PUSH_EVERY_MS = 2 * 60 * 1000;
+
+function maybePushVault(): void {
+  const now = Date.now();
+  if (now - lastVaultPushAt < VAULT_PUSH_EVERY_MS) return;
+  lastVaultPushAt = now;
+  void pushVault();
 }
 
 function countTotalQA(): number {
@@ -1752,33 +1896,34 @@ async function learnBatch(): Promise<void> {
   isLearning = true;
 
   try {
+    let queued = 0;
     let learned = 0;
-    let noNewSubjects = true;
-
-    for (let i = 0; i < BATCH_SIZE; i++) {
-      const next = getNextSubject();
-      if (!next) {
-        if (!allExhaustedNotified && learned === 0 && i === 0) {
-          allExhaustedNotified = true;
-          await notifyLearningComplete();
-        }
-        break;
-      }
-      noNewSubjects = false;
-
-      const success = await learnSubject(next.category, next.subject);
-      if (success) learned++;
-
-      await new Promise((resolve) => setTimeout(resolve, LEARN_SUBJECT_DELAY_MS));
+    const first = getNextSubject();
+    if (first) {
+      queued = 1;
+      if (await learnSubject(first.category, first.subject)) learned++;
+      learned += await runPool(BATCH_SIZE - 1, async () => {
+        const next = getNextSubject();
+        if (!next) return false;
+        queued++;
+        return learnSubject(next.category, next.subject);
+      });
+    }
+    if (queued < BATCH_SIZE) {
+      learned += await learnWikiBurst();
     }
 
-    // Reset notification flag si de nouveaux sujets ont été trouvés
-    if (!noNewSubjects) {
-      allExhaustedNotified = false;
+    if (queued === 0 && !allExhaustedNotified) {
+      allExhaustedNotified = true;
+      logger.info(
+        `[SelfLearner] Liste prédéfinie épuisée — poursuite via Wikipédia (${WIKI_LANGS.join("/")} × ${WIKI_PAGES_PER_LANG} / ${LEARN_INTERVAL_MS / 1000}s)`,
+      );
     }
+    if (queued > 0) allExhaustedNotified = false;
 
     if (learned > 0) {
       logger.info(`[SelfLearner] ✅ Batch terminé: ${learned} Q&A apprises`);
+      maybePushVault();
     }
   } catch (error) {
     logger.warn(
@@ -1790,7 +1935,7 @@ async function learnBatch(): Promise<void> {
 }
 
 // ─── Scan Web en continu: actualités et sujets tendance ──────────────────────
-const WEB_SCAN_INTERVAL_MS = 1 * 60 * 1000; // 1 min — scan web en continu
+const WEB_SCAN_INTERVAL_MS = 30 * 1000; // 30s — scan web en continu
 const WEB_SCAN_BATCH = 3; // 3 sujets d'actualité par scan
 let webScanTimer: ReturnType<typeof setInterval> | null = null;
 let isWebScanning = false;
@@ -1891,7 +2036,10 @@ async function learnFromWeb(): Promise<void> {
       results = await duckDuckGoSearch(query, 5);
     }
     if (results.length === 0) {
-      isWebScanning = false;
+      const extras = await learnRandomWikipediaBatch("fr", WEB_SCAN_BATCH);
+      if (extras > 0) {
+        logger.info(`[SelfLearner] 🌐 Scan web vide — ${extras} pages wiki aléatoires apprises`);
+      }
       return;
     }
 
@@ -1936,7 +2084,7 @@ async function learnFromWeb(): Promise<void> {
         logger.info(`[SelfLearner] 🌐 Appris (web): ${subject} → Obsidian (actualite)`);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     if (learned > 0) {
@@ -1955,20 +2103,17 @@ async function learnFromWeb(): Promise<void> {
 export function startSelfLearner(): void {
   if (learnTimer) return;
 
-  // Premier batch après 30s (laisser le bot démarrer)
   setTimeout(() => {
     void learnBatch();
-  }, 30_000);
+  }, 2_000);
 
-  // Puis toutes les 1 minute
   learnTimer = setInterval(() => {
     void learnBatch();
   }, LEARN_INTERVAL_MS);
 
-  // ─── Scan web d'actualité: premier scan après 60s, puis toutes les 1min ───
   setTimeout(() => {
     void learnFromWeb();
-  }, 60_000);
+  }, 15_000);
 
   webScanTimer = setInterval(() => {
     void learnFromWeb();

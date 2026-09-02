@@ -260,6 +260,11 @@ const AWESOME_WHITELIST = [
   "artificial intelligence",
   "self-hosted",
   "kubernetes",
+  "interview",
+  "algorithms",
+  "career",
+  "cloud",
+  "networking",
 ];
 
 export async function syncAwesomeLists(): Promise<number> {
@@ -319,7 +324,12 @@ export async function syncAwesomeLists(): Promise<number> {
   return count;
 }
 
-const EXTRA_KNOWLEDGE_REPOS = [
+const EXTRA_KNOWLEDGE_REPOS: Array<{
+  owner: string;
+  repo: string;
+  description: string;
+  files?: string[];
+}> = [
   {
     owner: "awesome-selfhosted",
     repo: "awesome-selfhosted",
@@ -350,7 +360,63 @@ const EXTRA_KNOWLEDGE_REPOS = [
     repo: "free-for-dev",
     description: "SaaS, PaaS and IaaS offerings with free tiers for developers.",
   },
+  {
+    owner: "kamranahmedse",
+    repo: "developer-roadmap",
+    description: "Roadmaps interactives pour apprendre le dev.",
+  },
+  {
+    owner: "jwasham",
+    repo: "coding-interview-university",
+    description: "Cursus complet pour les entretiens d'ingénieur.",
+  },
+  {
+    owner: "practical-tutorials",
+    repo: "project-based-learning",
+    description: "Tutoriels par projets, langage par langage.",
+  },
+  {
+    owner: "ossu",
+    repo: "computer-science",
+    description: "Cursus informatique gratuit de niveau licence.",
+  },
+  {
+    owner: "papers-we-love",
+    repo: "papers-we-love",
+    description: "Papers informatiques commentés.",
+  },
+  {
+    owner: "microsoft",
+    repo: "generative-ai-for-beginners",
+    description: "Cours IA générative pour débutants.",
+  },
+  {
+    owner: "TheAlgorithms",
+    repo: "Python",
+    description: "Algorithmes en Python.",
+  },
+  {
+    owner: "TheAlgorithms",
+    repo: "JavaScript",
+    description: "Algorithmes en JavaScript.",
+  },
+  {
+    owner: "tldr-pages",
+    repo: "tldr",
+    description: "Pages man simplifiées (tldr).",
+  },
 ];
+
+async function fetchGithubRaw(owner: string, repo: string, file: string): Promise<string | null> {
+  for (const branch of ["master", "main"]) {
+    const md = await fetchTextRetry(
+      `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${file}`,
+      { timeoutMs: TIMEOUT },
+    );
+    if (md && md.length > 120) return md;
+  }
+  return null;
+}
 
 /** Index extra GitHub knowledge repos so searchKnowledge / getGitHubRepo can find them. */
 export async function syncExtraGithubRepos(): Promise<number> {
@@ -370,4 +436,49 @@ export async function syncExtraGithubRepos(): Promise<number> {
     .catch(() => {});
   logger.info(`[EXTRA_REPOS] Indexed ${EXTRA_KNOWLEDGE_REPOS.length} GitHub repos`);
   return EXTRA_KNOWLEDGE_REPOS.length;
+}
+
+/** Ingest README (and optional files) into agentKnowledge so searchKnowledge can use them. */
+export async function syncDeepGithubRepos(): Promise<number> {
+  logger.info("[KnowledgeIngestion] [DEEP_REPOS] Starting README sync...");
+  let count = 0;
+  for (const r of EXTRA_KNOWLEDGE_REPOS) {
+    const files = r.files?.length ? r.files : ["README.md"];
+    for (const file of files) {
+      const md = await fetchGithubRaw(r.owner, r.repo, file);
+      if (!md) continue;
+      const url = `https://github.com/${r.owner}/${r.repo}/blob/HEAD/${file}`;
+      const title = `${r.owner}/${r.repo}: ${file.replace(/\.md$/i, "")}`;
+      const summary = (md.slice(0, 400).replace(/[#*`]/g, "").trim() || r.description).slice(
+        0,
+        500,
+      );
+      await prisma.agentKnowledge
+        .upsert({
+          where: { url },
+          create: {
+            url,
+            title,
+            content: md.slice(0, 12000),
+            summary,
+            wordCount: md.split(/\s+/).length,
+            source: "github_readme",
+            category: "GITHUB_DOC",
+            tags: `${r.owner},${r.repo}`,
+          } as never,
+          update: {
+            title,
+            content: md.slice(0, 12000),
+            summary,
+            wordCount: md.split(/\s+/).length,
+            category: "GITHUB_DOC",
+            tags: `${r.owner},${r.repo}`,
+          } as never,
+        })
+        .catch(() => {});
+      count++;
+    }
+  }
+  logger.info(`[DEEP_REPOS] Synced ${count} README/docs`);
+  return count;
 }
