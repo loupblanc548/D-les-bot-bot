@@ -113,8 +113,13 @@ export function attachInteractionHandlers(client: Client): void {
           }
         }, 15_000);
 
-        await handler(interaction, client);
-        clearTimeout(timeout);
+        try {
+          await handler(interaction, client);
+        } finally {
+          // Sans le finally, un handler qui throw laissait le timer armé: 15s
+          // plus tard il écrasait le message d'erreur par "prend plus de temps".
+          clearTimeout(timeout);
+        }
       } catch (error) {
         logger.error(
           `Erreur commande /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`,
