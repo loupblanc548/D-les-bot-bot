@@ -118,6 +118,8 @@ bedrock-server/
 !scripts/db-backup.sh
 !scripts/server_audit.sh
 !scripts/ip_investigate.sh
+!.cursor/install.sh
+!.cursor/start.sh
 !scripts/migrate_hardware.sh
 !scripts/backup_obsidian.sh
 
