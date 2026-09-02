@@ -6,6 +6,7 @@ import type { ToolCallResult } from "./agentTools.js";
 import type { ToolContext } from "./agentTools.js";
 import * as crypto from "node:crypto";
 import logger from "../utils/logger.js";
+import { tryEvaluateMathExpression } from "../utils/safeMathEval.js";
 
 type Args = Record<string, any>;
 
@@ -68,12 +69,7 @@ function symbolicDerivative(expr: string, variable: string): string {
 
 /** Numerical integration using Simpson's rule */
 function numericalIntegral(expr: string, a: number, b: number): number {
-  // Simple expression parser for common cases
-  const fn = (x: number): number => {
-    const cleaned = expr.replace(/\^/g, "**").replace(/\bx\b/g, String(x));
-
-    return eval(cleaned);
-  };
+  const fn = (x: number): number => tryEvaluateMathExpression(expr, { x }, 0);
   const n = 1000; // Number of intervals
   const h = (b - a) / n;
   let sum = fn(a) + fn(b);

@@ -3,6 +3,8 @@
  * Called by Quant (the AI brain) via tool handlers in agentToolsExtended.ts
  */
 
+import { tryEvaluateMathExpression } from "./safeMathEval.js";
+
 // ─── Matrix operations ──────────────────────────────────────────────────────
 export function matrixOperations(matrixA: string, matrixB: string, operation: string): string {
   try {
@@ -134,14 +136,7 @@ export function integralCalculator(
     const hi = upper ?? 1;
     const n = 1000;
     const h = (hi - lo) / n;
-    const f = (x: number) => {
-      try {
-        const expr = expression.replace(new RegExp(v, "g"), String(x));
-        return eval(expr);
-      } catch {
-        return 0;
-      }
-    };
+    const f = (x: number) => tryEvaluateMathExpression(expression, { [v]: x }, 0);
 
     let sum = f(lo) + f(hi);
     for (let i = 1; i < n; i += 2) sum += 4 * f(lo + i * h);
@@ -167,14 +162,7 @@ export function limitCalculator(expression: string, variable: string, point: num
     const v = variable || "x";
     const p = point ?? 0;
     const epsilon = 1e-7;
-    const f = (x: number) => {
-      try {
-        const expr = expression.replace(new RegExp(v, "g"), String(x));
-        return eval(expr);
-      } catch {
-        return NaN;
-      }
-    };
+    const f = (x: number) => tryEvaluateMathExpression(expression, { [v]: x }, NaN);
 
     const leftLimit = f(p - epsilon);
     const rightLimit = f(p + epsilon);
