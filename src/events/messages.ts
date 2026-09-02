@@ -23,6 +23,7 @@ import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import { saveQA } from "../services/obsidianMemory.js";
+import { isTesterBot } from "../utils/testerBots.js";
 import {
   checkMessageMediaForAI,
   checkMessageLinksForSecurity,
@@ -370,13 +371,11 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (message.author.bot) {
-        // ── Exception: le bot peut se mentionner lui-même dans le salon
-        //    d'alertes revendeurs pour déclencher Quent (via /track-retailer) ──
+        const isSelfMention = message.mentions.has(client.user!);
         const isRetailerChannel =
           Boolean(config.retailerChannel) && message.channelId === config.retailerChannel;
-        const isSelfMention = message.mentions.has(client.user!);
-        if (isRetailerChannel && isSelfMention) {
-          // Traiter comme une mention normale → handleAiChatMention
+        // Tester bot (« encore un test ») may @John so we can drive live checks.
+        if (isSelfMention && (isTesterBot(message.author.id) || isRetailerChannel)) {
           await handleAiChatMention(message, client);
           return;
         }

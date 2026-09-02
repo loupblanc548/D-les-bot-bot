@@ -408,6 +408,24 @@ describe("messageCreate — AI Chat @mention", () => {
     expect(msg.reply).not.toHaveBeenCalled();
   });
 
+  it("laisse le bot testeur @mentionner John", async () => {
+    const msg = createMockMessage({
+      author: {
+        id: "1321693294933180538",
+        tag: "encore un test#7462",
+        username: "encore un test",
+        bot: true,
+        displayAvatarURL: () => "https://avatar.url",
+      },
+      content: `<@bot-123>`,
+      mentions: { has: vi.fn().mockReturnValue(true), users: new Collection() },
+    });
+
+    await client._listeners.messageCreate?.[0](msg);
+
+    expect(msg.reply).toHaveBeenCalled();
+  });
+
   it("ignore les messages hors guild (DM)", async () => {
     const msg = createMockMessage({ guild: null, guildId: null });
     await client._listeners.messageCreate?.[0](msg);
