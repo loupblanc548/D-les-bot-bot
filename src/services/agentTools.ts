@@ -448,6 +448,23 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   {
     type: "function",
     function: {
+      name: "searchObsidianQA",
+      description:
+        "Cherche une Q&A déjà apprise dans le vault Obsidian (tiroirs qa/). " +
+        "À utiliser quand l'utilisateur pose une question de culture générale déjà vue, " +
+        "ou demande ce que le bot a appris.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Sujet ou question à chercher dans Obsidian" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "searchYouTube",
       description:
         "Recherche des vidéos YouTube. Retourne titre, chaîne, URL et miniature. Utile pour trouver des tutoriels, gameplay, ou contenu vidéo.",
@@ -1151,6 +1168,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "readUrl",
   "fetchAndSummarize",
   "searchKnowledge",
+  "searchObsidianQA",
   "searchDocs",
   "getWikipediaSummary",
   "getWiktionaryDefinition",
@@ -1199,6 +1217,7 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Mémoire ──
   "searchUserMemory",
   "saveMemoryFact",
+  "memory_search",
   // ── Système ──
   "system_stats",
   // ── Multi-expert ──
@@ -1284,6 +1303,8 @@ export async function executeTool(
         return await toolIngestDocumentation(args);
       case "searchKnowledge":
         return await toolSearchKnowledge(args);
+      case "searchObsidianQA":
+        return await toolSearchObsidianQA(args);
       case "searchYouTube":
         return await toolSearchYouTube(args);
       case "getServerStats":
@@ -2629,6 +2650,20 @@ async function toolIngestDocumentation(args: Record<string, any>): Promise<ToolC
       results: result.results,
       message: `${result.success}/${urls.length} pages ingérées avec succès`,
     }),
+  };
+}
+
+async function toolSearchObsidianQA(args: Record<string, any>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "query vide" };
+  const { searchQA } = await import("./obsidianMemory.js");
+  const hit = await searchQA(query);
+  if (!hit) {
+    return { success: false, data: "Rien dans le vault Obsidian pour cette question." };
+  }
+  return {
+    success: true,
+    data: `Catégorie: ${hit.category}\nQ: ${hit.question}\nR: ${hit.answer.slice(0, 2500)}`,
   };
 }
 

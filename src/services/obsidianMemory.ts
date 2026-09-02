@@ -24,7 +24,11 @@ import logger from "../utils/logger.js";
 // ─────────────────────────────────────────────────────────────────────────────
 
 function vaultDir(): string {
-  return config.obsidianVaultPath;
+  return (process.env.OBSIDIAN_VAULT_PATH || config.obsidianVaultPath || "").trim();
+}
+
+function isVaultEnabled(): boolean {
+  return vaultDir().length > 0;
 }
 
 function usersDir(): string {
@@ -196,16 +200,6 @@ function extractKeywords(text: string): string[] {
   return normalizeText(text)
     .split(" ")
     .filter((w) => w.length > 2 && !stopWords.has(w));
-}
-
-/** Calculate a simple relevance score between a query and a stored question. */
-function relevanceScore(queryKeywords: string[], storedText: string): number {
-  const storedLower = normalizeText(storedText);
-  let score = 0;
-  for (const kw of queryKeywords) {
-    if (storedLower.includes(kw)) score++;
-  }
-  return score;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -404,61 +398,140 @@ function categorizeQuestion(question: string): string {
   return bestCategory;
 }
 
+type QaIndexEntry = { rel: string; question: string; keywords: string[] };
+
+let qaIndexCache: QaIndexEntry[] | null = null;
+
+function qaIndexPath(): string {
+  return path.join(qaDir(), ".qa-index.json");
+}
+
+function persistQaIndex(entries: QaIndexEntry[]): void {
+  qaIndexCache = entries;
+  try {
+    const dir = qaDir();
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(qaIndexPath(), JSON.stringify(entries), "utf-8");
+  } catch {
+    // non-critical
+  }
+}
+
+function rebuildQaIndex(): QaIndexEntry[] {
+  const baseDir = qaDir();
+  const entries: QaIndexEntry[] = [];
+  if (!fs.existsSync(baseDir)) return entries;
+  let categories: fs.Dirent[];
+  try {
+    categories = fs.readdirSync(baseDir, { withFileTypes: true });
+  } catch {
+    return entries;
+  }
+  for (const dir of categories) {
+    if (!dir.isDirectory()) continue;
+    const catDir = path.join(baseDir, dir.name);
+    let files: string[];
+    try {
+      files = fs.readdirSync(catDir).filter((f) => f.endsWith(".md"));
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      const filePath = path.join(catDir, file);
+      try {
+        const fd = fs.openSync(filePath, "r");
+        const buf = Buffer.alloc(2048);
+        const n = fs.readSync(fd, buf, 0, 2048, 0);
+        fs.closeSync(fd);
+        const head = buf.toString("utf-8", 0, n);
+        const qMatch = head.match(/## Question\n([\s\S]*?)(?=\n## )/);
+        const question = (qMatch?.[1] || file.replace(/\.md$/, "")).trim();
+        entries.push({
+          rel: `${dir.name}/${file}`,
+          question,
+          keywords: extractKeywords(question),
+        });
+      } catch {
+        // skip unreadable
+      }
+    }
+  }
+  persistQaIndex(entries);
+  return entries;
+}
+
+function loadQaIndex(): QaIndexEntry[] {
+  if (qaIndexCache) return qaIndexCache;
+  try {
+    if (fs.existsSync(qaIndexPath())) {
+      const parsed = JSON.parse(fs.readFileSync(qaIndexPath(), "utf-8")) as QaIndexEntry[];
+      if (Array.isArray(parsed)) {
+        qaIndexCache = parsed;
+        return parsed;
+      }
+    }
+  } catch {
+    // rebuild
+  }
+  return rebuildQaIndex();
+}
+
+function upsertQaIndex(category: string, slug: string, question: string): void {
+  const rel = `${category}/${slug}.md`;
+  const entries = loadQaIndex().filter((e) => e.rel !== rel);
+  entries.push({ rel, question, keywords: extractKeywords(question) });
+  persistQaIndex(entries);
+}
+
+/** Drop cached index (tests). */
+export function resetQaIndexCache(): void {
+  qaIndexCache = null;
+}
+
 /**
  * Search for a previously answered question that matches the current query.
- * Returns the best matching Q&A if the relevance score is high enough.
+ * Uses `.qa-index.json` so we do not read every markdown file into RAM (8 Go VPS).
  */
 export async function searchQA(query: string): Promise<SavedQA | null> {
-  if (!config.obsidianEnabled) return null;
+  if (!isVaultEnabled()) return null;
   try {
-    const baseDir = qaDir();
-    if (!fs.existsSync(baseDir)) return null;
-
     const queryKeywords = extractKeywords(query);
     if (queryKeywords.length === 0) return null;
 
-    let bestMatch: SavedQA | null = null;
+    const index = loadQaIndex();
+    const threshold = Math.ceil(queryKeywords.length * 0.6);
+    let best: QaIndexEntry | null = null;
     let bestScore = 0;
 
-    // Scan all category subdirectories
-    const categories = fs
-      .readdirSync(baseDir)
-      .filter((f) => fs.statSync(path.join(baseDir, f)).isDirectory());
-
-    for (const category of categories) {
-      const catDir = path.join(baseDir, category);
-      const files = fs.readdirSync(catDir).filter((f) => f.endsWith(".md"));
-
-      for (const file of files) {
-        const filePath = path.join(catDir, file);
-        const content = fs.readFileSync(filePath, "utf-8");
-
-        // Extract the question from the "## Question" section
-        const qMatch = content.match(/## Question\n([\s\S]*?)(?=\n## )/);
-        if (!qMatch) continue;
-
-        const storedQuestion = qMatch[1].trim();
-        const score = relevanceScore(queryKeywords, storedQuestion);
-
-        // Require at least 60% keyword overlap to be considered a match
-        const threshold = Math.ceil(queryKeywords.length * 0.6);
-        if (score >= threshold && score > bestScore) {
-          bestScore = score;
-          const aMatch = content.match(/## Réponse\n([\s\S]*?)(?=\n## |\n---|\Z)/);
-          bestMatch = {
-            question: storedQuestion,
-            answer: aMatch?.[1]?.trim() || "",
-            category,
-            filePath,
-          };
-        }
+    for (const entry of index) {
+      let score = 0;
+      const hay = normalizeText(entry.question);
+      for (const kw of queryKeywords) {
+        if (hay.includes(kw)) score++;
+      }
+      if (score >= threshold && score > bestScore) {
+        bestScore = score;
+        best = entry;
       }
     }
 
-    if (bestMatch) {
-      logger.info(`[Obsidian] Q&A trouvé dans "${bestMatch.category}" (score: ${bestScore})`);
+    if (!best) return null;
+
+    const filePath = path.join(qaDir(), best.rel);
+    if (!fs.existsSync(filePath)) {
+      qaIndexCache = null;
+      return null;
     }
-    return bestMatch;
+    const content = fs.readFileSync(filePath, "utf-8");
+    const aMatch = content.match(/## Réponse\n([\s\S]*?)(?=\n## |\n---|$)/);
+    const category = best.rel.split("/")[0] || "divers";
+    logger.info(`[Obsidian] Q&A trouvé dans "${category}" (score: ${bestScore})`);
+    return {
+      question: best.question,
+      answer: aMatch?.[1]?.trim() || "",
+      category,
+      filePath,
+    };
   } catch (err) {
     logger.debug(`[Obsidian] searchQA error: ${err instanceof Error ? err.message : String(err)}`);
     return null;
@@ -470,7 +543,7 @@ export async function searchQA(query: string): Promise<SavedQA | null> {
  * Skips if the same question already exists.
  */
 export async function saveQA(question: string, answer: string, category?: string): Promise<void> {
-  if (!config.obsidianEnabled) return;
+  if (!isVaultEnabled()) return;
   try {
     const cat = category || categorizeQuestion(question);
     const dir = path.join(qaDir(), cat);
@@ -491,6 +564,7 @@ export async function saveQA(question: string, answer: string, category?: string
       const date = new Date().toISOString().split("T")[0];
       const updateBlock = `\n\n---\n\n## Réponse (mise à jour ${date})\n${answer}\n`;
       fs.appendFileSync(filePath, updateBlock, "utf-8");
+      upsertQaIndex(cat, slug, question);
       logger.debug(`[Obsidian] Q&A updated: ${cat}/${slug}`);
       return;
     }
@@ -519,6 +593,7 @@ ${answer}
 `;
 
     fs.writeFileSync(filePath, content, "utf-8");
+    upsertQaIndex(cat, slug, question);
     logger.info(`[Obsidian] Q&A sauvegardé dans "${cat}/${slug}.md"`);
   } catch (err) {
     logger.debug(`[Obsidian] saveQA error: ${err instanceof Error ? err.message : String(err)}`);
@@ -529,7 +604,7 @@ ${answer}
  * List all Q&A categories with counts (for debugging / display).
  */
 export async function listQACategories(): Promise<Array<{ category: string; count: number }>> {
-  if (!config.obsidianEnabled) return [];
+  if (!isVaultEnabled()) return [];
   try {
     const baseDir = qaDir();
     if (!fs.existsSync(baseDir)) return [];
@@ -573,7 +648,7 @@ function parseUserFacts(content: string): Array<{ key: string; value: string; ca
 export async function loadUserFacts(
   userId: string,
 ): Promise<Array<{ key: string; value: string; category: string }>> {
-  if (!config.obsidianEnabled) return [];
+  if (!isVaultEnabled()) return [];
   try {
     const filePath = path.join(usersDir(), `${userId}.md`);
     if (!fs.existsSync(filePath)) return [];
@@ -598,7 +673,7 @@ export async function appendUserFact(
   value: string,
   category: string = "info",
 ): Promise<void> {
-  if (!config.obsidianEnabled) return;
+  if (!isVaultEnabled()) return;
   try {
     const dir = usersDir();
     fs.mkdirSync(dir, { recursive: true });
@@ -623,7 +698,7 @@ export async function appendUserFact(
  * Load free-form notes about a user (everything after "## Notes").
  */
 export async function loadUserNotes(userId: string): Promise<string> {
-  if (!config.obsidianEnabled) return "";
+  if (!isVaultEnabled()) return "";
   try {
     const filePath = path.join(usersDir(), `${userId}.md`);
     if (!fs.existsSync(filePath)) return "";
@@ -644,7 +719,7 @@ export async function loadUserNotes(userId: string): Promise<string> {
  * Simple keyword matching across all .md files.
  */
 export async function searchKnowledge(query: string): Promise<string[]> {
-  if (!config.obsidianEnabled) return [];
+  if (!isVaultEnabled()) return [];
   try {
     const dir = knowledgeDir();
     if (!fs.existsSync(dir)) return [];
@@ -681,7 +756,7 @@ export async function saveConversationSummary(
   username: string,
   summary: string,
 ): Promise<void> {
-  if (!config.obsidianEnabled) return;
+  if (!isVaultEnabled()) return;
   try {
     const dir = conversationsDir();
     fs.mkdirSync(dir, { recursive: true });
@@ -704,7 +779,7 @@ export async function saveConversationSummary(
  * Pull latest changes from the vault repo.
  */
 export async function syncVault(): Promise<void> {
-  if (!config.obsidianEnabled) return;
+  if (!isVaultEnabled()) return;
   try {
     const { execSync } = await import("node:child_process");
     execSync("git pull origin main", {
@@ -722,7 +797,7 @@ export async function syncVault(): Promise<void> {
  * Commit and push bot-written notes to the vault repo.
  */
 export async function pushVault(): Promise<void> {
-  if (!config.obsidianEnabled) return;
+  if (!isVaultEnabled()) return;
   try {
     const { execSync } = await import("node:child_process");
     const opts = { cwd: vaultDir(), stdio: "pipe" as const, timeout: 15000 };

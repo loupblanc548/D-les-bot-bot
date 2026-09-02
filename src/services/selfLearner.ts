@@ -19,19 +19,24 @@ import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { sendProactiveAlert } from "./proactiveAlerts.js";
 
 const LEARN_INTERVAL_MS = 1 * 60 * 1000; // 1 min entre chaque batch
-const BATCH_SIZE = 8; // 8 Q&A par batch = ~11520 Q&A/jour
+const BATCH_SIZE = 8; // 8 Q&A par batch
+// Pause entre sujets: assez court pour Wikipedia, assez long pour ne pas bloquer le VPS 8 Go
+const LEARN_SUBJECT_DELAY_MS = 200;
 let isLearning = false;
 let learnTimer: ReturnType<typeof setInterval> | null = null;
 
 // ─── Dedup persistant: fichier sur disque qui survit aux redémarrages ────────
-const DEDUP_FILE = process.env.OBSIDIAN_VAULT_PATH
-  ? path.join(process.env.OBSIDIAN_VAULT_PATH, "qa", ".learned-subjects.json")
-  : "/tmp/bot-learned-subjects.json";
+function dedupFilePath(): string {
+  return process.env.OBSIDIAN_VAULT_PATH
+    ? path.join(process.env.OBSIDIAN_VAULT_PATH, "qa", ".learned-subjects.json")
+    : "/tmp/bot-learned-subjects.json";
+}
 
 function loadLearnedSet(): Set<string> {
   try {
-    if (fs.existsSync(DEDUP_FILE)) {
-      const data = JSON.parse(fs.readFileSync(DEDUP_FILE, "utf-8")) as string[];
+    const file = dedupFilePath();
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, "utf-8")) as string[];
       return new Set(data);
     }
   } catch {
@@ -42,9 +47,10 @@ function loadLearnedSet(): Set<string> {
 
 function saveLearnedSet(set: Set<string>): void {
   try {
-    const dir = path.dirname(DEDUP_FILE);
+    const file = dedupFilePath();
+    const dir = path.dirname(file);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DEDUP_FILE, JSON.stringify([...set]), "utf-8");
+    fs.writeFileSync(file, JSON.stringify([...set]), "utf-8");
   } catch {
     // non-critical
   }
@@ -59,7 +65,7 @@ function normalizeSubject(subject: string): string {
     .trim();
 }
 
-function subjectHash(subject: string): string {
+export function subjectHash(subject: string): string {
   return crypto.createHash("md5").update(normalizeSubject(subject)).digest("hex").slice(0, 12);
 }
 
@@ -1513,30 +1519,55 @@ const EN_TOPICS: { category: string; subjects: string[] }[] = [
 const ALL_LEARN_TOPICS = [...LEARN_TOPICS, ...EN_TOPICS];
 
 // ─── Tracker persistant pour éviter de répéter les mêmes sujets ──────────────
-const learnedSubjects = loadLearnedSet();
-function getNextSubject(): { category: string; subject: string } | null {
-  if (ALL_LEARN_TOPICS.length === 0) return null;
+let learnedSubjects = loadLearnedSet();
+let subjectQueue: { category: string; subject: string }[] = [];
+let queueIndex = 0;
 
-  let attempts = 0;
-  while (attempts < 100) {
-    // Pick a random category each time to balance learning
-    const topic = ALL_LEARN_TOPICS[Math.floor(Math.random() * ALL_LEARN_TOPICS.length)];
-    const subject = topic.subjects[Math.floor(Math.random() * topic.subjects.length)];
-    attempts++;
+function shuffleInPlace<T>(items: T[]): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
 
-    const hash = subjectHash(subject);
-    if (!learnedSubjects.has(hash)) {
-      learnedSubjects.add(hash);
-      saveLearnedSet(learnedSubjects);
-      return { category: topic.category, subject };
+/** Remaining predefined subjects that are not in the hash set. Never resets hashes. */
+export function listUnlearnedSubjects(
+  topics: { category: string; subjects: string[] }[] = ALL_LEARN_TOPICS,
+  learned: Set<string> = learnedSubjects,
+): { category: string; subject: string }[] {
+  const items: { category: string; subject: string }[] = [];
+  const seen = new Set<string>();
+  for (const topic of topics) {
+    for (const subject of topic.subjects) {
+      const hash = subjectHash(subject);
+      if (learned.has(hash) || seen.has(hash)) continue;
+      seen.add(hash);
+      items.push({ category: topic.category, subject });
     }
   }
+  return items;
+}
 
-  // Tous les sujets ont été traités — reset
-  logger.info("[SelfLearner] 🔄 Tous les sujets ont été traités — reset du cycle");
-  learnedSubjects.clear();
-  saveLearnedSet(learnedSubjects);
-  return null;
+export function buildUnlearnedQueue(
+  topics: { category: string; subjects: string[] }[] = ALL_LEARN_TOPICS,
+  learned: Set<string> = learnedSubjects,
+): { category: string; subject: string }[] {
+  return shuffleInPlace(listUnlearnedSubjects(topics, learned));
+}
+
+function refillQueue(): void {
+  subjectQueue = buildUnlearnedQueue();
+  queueIndex = 0;
+}
+
+function getNextSubject(): { category: string; subject: string } | null {
+  if (ALL_LEARN_TOPICS.length === 0) return null;
+  if (queueIndex >= subjectQueue.length) {
+    refillQueue();
+  }
+  if (subjectQueue.length === 0) return null;
+  return subjectQueue[queueIndex++];
 }
 
 // ─── DB Wikipedia locale (offline, instantané) ───────────────────────────────
@@ -1546,12 +1577,7 @@ let wikiDbAvailable: boolean | null = null;
 function isWikiDbAvailable(): boolean {
   if (wikiDbAvailable !== null) return wikiDbAvailable;
   try {
-    const result = execFileSync(
-      "python3",
-      ["-c", `import os; print("1" if os.path.exists("${WIKI_DB_PATH}") else "0")`],
-      { timeout: 3000, encoding: "utf-8" },
-    ).trim();
-    wikiDbAvailable = result === "1";
+    wikiDbAvailable = fs.existsSync(WIKI_DB_PATH);
     if (wikiDbAvailable) logger.info("[SelfLearner] DB Wikipedia locale détectée (offline)");
   } catch {
     wikiDbAvailable = false;
@@ -1645,14 +1671,12 @@ async function fetchWiktionaryDefinition(word: string, lang = "fr"): Promise<str
 
 // ─── Générer une Q&A et la sauvegarder dans Obsidian ──────────────────────────
 async function learnSubject(category: string, subject: string): Promise<boolean> {
-  // Vérifier si on a déjà une Q&A pour ce sujet
-  const existing = await searchQA(subject);
-  if (existing) {
-    logger.debug(`[SelfLearner] ⏭️ Déjà appris: ${subject} (catégorie: ${existing.category})`);
+  const hash = subjectHash(subject);
+  if (learnedSubjects.has(hash)) {
+    logger.debug(`[SelfLearner] ⏭️ Déjà hashé: ${subject}`);
     return false;
   }
 
-  // Construire la question — varier les formulations
   const questionTemplates = [
     `Qu'est-ce que ${subject} ?`,
     `Comment fonctionne ${subject} ?`,
@@ -1662,15 +1686,10 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
   ];
   const question = questionTemplates[Math.floor(Math.random() * questionTemplates.length)];
 
-  // Essayer Wikipédia d'abord
   let answer = await fetchWikipediaSummary(subject);
-
-  // Si pas de résultat Wikipédia, essayer le Wiktionnaire
   if (!answer) {
     answer = await fetchWiktionaryDefinition(subject);
   }
-
-  // Si toujours rien, essayer en anglais
   if (!answer) {
     answer = await fetchWikipediaSummary(subject, "en");
   }
@@ -1680,8 +1699,9 @@ async function learnSubject(category: string, subject: string): Promise<boolean>
     return false;
   }
 
-  // Sauvegarder dans Obsidian
   await saveQA(question, answer, category);
+  learnedSubjects.add(hash);
+  saveLearnedSet(learnedSubjects);
   logger.info(`[SelfLearner] 📚 Appris: ${subject} (catégorie: ${category}) → Obsidian`);
   return true;
 }
@@ -1749,7 +1769,7 @@ async function learnBatch(): Promise<void> {
       const success = await learnSubject(next.category, next.subject);
       if (success) learned++;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, LEARN_SUBJECT_DELAY_MS));
     }
 
     // Reset notification flag si de nouveaux sujets ont été trouvés
@@ -1976,6 +1996,7 @@ export function stopSelfLearner(): void {
 export function getSelfLearnerStatus(): {
   active: boolean;
   subjectsLearned: number;
+  subjectsRemaining: number;
   nextBatchInMs: number | null;
   batchSize: number;
   intervalMs: number;
@@ -1987,6 +2008,7 @@ export function getSelfLearnerStatus(): {
   return {
     active: learnTimer !== null,
     subjectsLearned: learnedSubjects.size,
+    subjectsRemaining: listUnlearnedSubjects().length,
     nextBatchInMs: learnTimer ? LEARN_INTERVAL_MS : null,
     batchSize: BATCH_SIZE,
     intervalMs: LEARN_INTERVAL_MS,
@@ -1995,4 +2017,10 @@ export function getSelfLearnerStatus(): {
     isLearning,
     isWebScanning,
   };
+}
+
+/** Test-only: rebuild in-memory queue from the current hash set. */
+export function reloadSelfLearnerStateForTests(): void {
+  learnedSubjects = loadLearnedSet();
+  refillQueue();
 }
