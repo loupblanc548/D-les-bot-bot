@@ -56,7 +56,6 @@ import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
-import { isCapabilityQuery, generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
 import { sendArtifacts } from "../services/artifacts.js";
 import { touchConversation, checkExpiredConversations } from "../services/aiConversation.js";
 import {
@@ -1471,20 +1470,35 @@ async function handleAiChatMention(
     }
     const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
 
-    // « tu es là » / « tu est la » → réponse locale, sans LLM (évite le petit blanc).
+    // « tu es là » → une vraie phrase via le chat, pas un embed / une commande.
     if (isPresencePing(cleanedContent) && !hasAttachments) {
-      const langDetection = detectLanguage(cleanedContent || message.content || "");
+      try {
+        const { respondChat } = await import("../services/chatResponder.js");
+        const result = await respondChat(cleanedContent || "tu es là ?", [], {
+          systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+          temperature: getPersonalityTemperature(),
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          maxTokens: 200,
+          deadlineMs: 12_000,
+        });
+        const text = result.content?.trim() ?? "";
+        if (
+          text &&
+          result.provider !== "fallback" &&
+          !isErrorResponse(text) &&
+          !isCannedFallback(text)
+        ) {
+          await message.reply({ content: text, allowedMentions: { repliedUser: false } });
+          return;
+        }
+      } catch {
+        // fallback local
+      }
       await message.reply({
-        content: getRandomHelldiverReply(langDetection.lang),
+        content: "Oui, je suis là.",
         allowedMentions: { repliedUser: false },
       });
-      return;
-    }
-
-    // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
-    if (isCapabilityQuery(cleanedContent)) {
-      const embed = generateCapabilitiesEmbed();
-      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
       return;
     }
 

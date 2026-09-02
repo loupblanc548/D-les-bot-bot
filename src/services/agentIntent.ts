@@ -10,7 +10,7 @@ const TOOL_OR_TASK_RE =
   /\b(cherche|search|recherche|trouve|find|look up|analyse|analyze|scan|v[ée]rifie|check|test|calcule|calculate|compute|r[ée]sous|solve|convert|transform|encode|decode|hash|m[ée]t[ée]o|weather|prix|price|crypto|stock|github|repo|commit|issue|pull request|site|url|page|lien|link|https?:\/\/|image|screenshot|photo|g[ée]n[èe]re|generate|dessine|code|script|ex[ée]cute|execute|\brun\b|wikipedia|wiki|news|article|vid[ée]o|youtube|meme|blague|joke|citation|quote|translate|traduis|langue|language|deal|promo|shop|boutique|serveur|server|ping|dns|domain|\bip\b|password|mot de passe|token|cl[ée]|\bkey\b)\b/i;
 
 const QUESTION_STARTER_RE =
-  /^(comment|pourquoi|explique|expliques|c['’ ]?est quoi|cest quoi|qu['’]?est[- ]ce|quest-ce|quel(?:le|s|les)?\b|combien|o[uù]\b|how |why |what |who |when |where |write |[ée]cris|aide[- ]moi|help |fais |peux[- ]tu|peut[- ]on|can you|could you|please |dis[- ]moi|raconte|r[ée]sume|r[ée]sume|compare|diff[ée]rence)/i;
+  /^(comment|pourquoi|explique|expliques|c['’ ]?est quoi|cest quoi|qu['’]?est[- ]ce|quest-ce|quel(?:le|s|les)?\b|combien|o[uù]\b|how |why |what |who |when |where |write |[ée]cris|aide[- ]moi|help |fais |peux[- ]tu|peut[- ]on|can you|could you|please |dis[- ]moi|raconte|parle[- ]moi|ton avis|tu penses|t['’]en penses|r[ée]sume|compare|diff[ée]rence)/i;
 
 /** « tu es là ? » / « tu est la » — présence, pas une vraie question. */
 const PRESENCE_PING_RE =
@@ -32,7 +32,7 @@ export function needsAgentLoop(content: string): boolean {
   const text = content.trim();
   if (!text) return false;
   if (isPresencePing(text)) return false;
-  if (text.length > 80) return true;
+  if (text.length > 25) return true;
   if (/[?？]/.test(text)) return true;
   if (/https?:\/\//i.test(text)) return true;
   if (/\[Image jointe:/i.test(text)) return true;

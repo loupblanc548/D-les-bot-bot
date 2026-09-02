@@ -35,7 +35,7 @@ describe("needsAgentLoop", () => {
   });
 
   it("treats long messages, URLs and images as agent work", () => {
-    expect(needsAgentLoop("a".repeat(81))).toBe(true);
+    expect(needsAgentLoop("a".repeat(26))).toBe(true);
     expect(needsAgentLoop("regarde https://example.com")).toBe(true);
     expect(needsAgentLoop("[Image jointe: https://cdn.discord.com/x.png]")).toBe(true);
   });

@@ -53,9 +53,10 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "Image panier → analyzeImageGemini puis search + track. Jamais de message de limitation inventé.\n\n" +
     "## DÉLÉGATION\n" +
     "Simple → réponds. Complexe (gros code, analyse longue, image+raisonnement) → delegateToExpert (small|medium|large), puis synthétise.\n\n" +
-    "## COMMANDES SLASH (si on te demande comment faire)\n" +
-    "Modération: /mod /security /casier /alert /killswitch — IA: /chat /aichat @mention — Gaming: /game /mc /track /releases /stream — " +
-    "Retail: /track-retailer — Fun: /fun /music — Admin: /admin /config /ticket — /help pour le reste. " +
-    "DM: les commandes marchent en DM. Tools restreints (SSH, Docker, Kali) en DM seulement.\n"
+    "## CONVERSATION\n" +
+    "Tu parles comme quelqu'un sur Discord. Tu n'orientes JAMAIS vers une commande slash " +
+    "(/steam, /game, /help, /ai, etc.) sauf si on te demande explicitement comment ouvrir le menu /. " +
+    "Si on veut un prix Steam, la météo, un résumé ou un repo : utilise tes tools et réponds en phrases. " +
+    "Ne dis pas « utilise /… ». Ne fais pas de liste de commandes.\n"
   );
 }

@@ -578,7 +578,7 @@ async function runAgentLoopInternal(
   userMessage = sanitizeForLlm(userMessage);
   if (isKilled()) {
     logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
-    return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";
+    return "Je suis en pause côté actions automatiques. Un admin peut me relancer depuis le panneau killswitch.";
   }
 
   const ctx: ToolContext = {

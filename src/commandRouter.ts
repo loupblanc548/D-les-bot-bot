@@ -721,6 +721,30 @@ export async function registerCommands(): Promise<void> {
       `Déploiement: ${dynamicCommands.length} dynamiques + ${legacyFiltered.length} legacy = ${mergedCommands.length} total`,
     );
 
+    // Menu / réduit : le chat @John remplace Steam/game/fun/IA slash.
+    // Les handlers restent en mémoire (owner / anciens invocations).
+    const CHAT_FIRST_SLASH = new Set([
+      "help",
+      "learn-stats",
+      "admin",
+      "config",
+      "killswitch",
+      "privacy",
+      "ticket",
+      "mod",
+      "security",
+    ]);
+    const hidden = mergedCommands.length;
+    const publicCommands = mergedCommands.filter((cmd) => {
+      const name = (cmd as { name?: string }).name;
+      return name ? CHAT_FIRST_SLASH.has(name) : false;
+    });
+    logger.info(
+      `[Register] Menu slash limité: ${publicCommands.length}/${hidden} visibles (le reste = parler à John)`,
+    );
+    mergedCommands.length = 0;
+    mergedCommands.push(...publicCommands);
+
     // ── Déploiement en un seul PUT (bulk overwrite) ──
     // Le PUT vers applicationGuildCommands/applicationCommands remplace
     // TOUTES les commandes en une seule opération atomique.

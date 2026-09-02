@@ -269,10 +269,16 @@ const AWESOME_WHITELIST = [
 
 export async function syncAwesomeLists(): Promise<number> {
   logger.info("[KnowledgeIngestion] [AWESOME_LISTS] Starting sync...");
-  const md = await fetchTextRetry(
-    "https://raw.githubusercontent.com/sindresorhus/awesome/main/README.md",
-    { timeoutMs: TIMEOUT },
-  );
+  const ua = { headers: { "User-Agent": "JohnBot/1.0 (knowledge-sync)" } };
+  const md =
+    (await fetchTextRetry("https://raw.githubusercontent.com/sindresorhus/awesome/main/README.md", {
+      timeoutMs: TIMEOUT,
+      ...ua,
+    })) ||
+    (await fetchTextRetry("https://cdn.jsdelivr.net/gh/sindresorhus/awesome@main/readme.md", {
+      timeoutMs: TIMEOUT,
+      ...ua,
+    }));
   if (!md) {
     logger.warn("[AWESOME_LISTS] Fetch failed");
     return 0;
