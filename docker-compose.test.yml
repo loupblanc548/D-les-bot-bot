@@ -1,32 +1,33 @@
-# Docker Compose for integration testing
-# Usage: docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from bot-test
+# Sandbox tests. Host networking is used so the suite still runs in nested VMs
+# where Docker bridge/iptables cannot forward packets between containers.
+# Usage: docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from bot-test
 
 services:
   postgres-test:
     image: postgres:16-alpine
+    network_mode: host
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: bot_test
-    ports:
-      - "5433:5432"
+      PGPORT: "5433"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test -d bot_test"]
+      test: ["CMD-SHELL", "pg_isready -U test -d bot_test -p 5433"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
     tmpfs:
       - /var/lib/postgresql/data
 
   redis-test:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
+    network_mode: host
+    command: ["redis-server", "--port", "6380", "--save", ""]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
     tmpfs:
       - /data
 
@@ -34,14 +35,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+    network_mode: host
     depends_on:
       postgres-test:
         condition: service_healthy
       redis-test:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://test:test@postgres-test:5432/bot_test?schema=public"
-      REDIS_URL: "redis://redis-test:6379"
-      NODE_ENV: "test"
-    command: >
-      sh -c "npx prisma migrate deploy && npx vitest run --reporter=verbose"
+      NODE_ENV: test
+      DATABASE_URL: "postgresql://test:test@127.0.0.1:5433/bot_test?schema=public"
+      REDIS_URL: "redis://127.0.0.1:6380"
+      DISCORD_TOKEN: "test-discord-token"
+      DISCORD_CLIENT_ID: "123456789012345678"
+      DISCORD_GUILD_ID: "123456789012345678"
+      OWNER_ID: "123456789012345678"
+    command:
+      - sh
+      - -c
+      - |
+        echo "Syncing Prisma schema (db push — sandbox, not production migrate)..."
+        npx prisma db push --accept-data-loss
+        npx vitest run --reporter=verbose

@@ -46,7 +46,7 @@ import {
   clearPendingQuestion,
 } from "../services/chatResponder.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
-import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
+import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";

@@ -37,7 +37,6 @@ import {
   extractLink,
 } from "../utils/rss-parser.js";
 import { ensureConnected } from "../utils/redisClient.js";
-import {} from "../modules/guild/guildConfig.js";
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
 let intervalId: NodeJS.Timeout | null = null;
@@ -131,7 +130,9 @@ async function checkYouTubeChannel(handle: string): Promise<{
         return result;
       }
       return { status: "none" };
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
   return { status: "error" };
 }
@@ -556,7 +557,9 @@ async function checkAndNotify(client: Client) {
                 const og = await getOgImage(result.content.url);
                 if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
               }
-            } catch { logger.error("[Silent catch]"); }
+            } catch {
+              logger.error("[Silent catch]");
+            }
             // Générer la carte visuelle
             const cardType = source.type === "YOUTUBE" ? "youtube" : "blog";
             const cardAttachment = await generateCardAttachment(
@@ -668,7 +671,9 @@ async function checkAndNotify(client: Client) {
     void alertCritical("Erreur monitor globale", errMsg.slice(0, 500));
     try {
       await logError(client, "Monitor/Global", errMsg);
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   } finally {
     isChecking = false;
   }
@@ -912,7 +917,9 @@ export async function runDbSourcesRetrospective(client: Client) {
               const og = await getOgImage(item.url);
               if (og && isValidEmbedImageUrl(og)) embed.setImage(og);
             }
-          } catch { logger.error("[Silent catch]"); }
+          } catch {
+            logger.error("[Silent catch]");
+          }
           try {
             await channel.send({ embeds: [embed] });
           } catch (sendErr) {

@@ -288,7 +288,7 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
     process.env.OPENROUTER_API_KEY = "test-key";
 
     try {
-      const result = await translateText("Hello world", "fr");
+      const result = await translateText("Hello world unique-429-fallback", "fr");
 
       // Le Circuit Breaker MyMemory ne doit pas être déclenché (c'est OpenRouter qui 429)
       expect(getCircuitBreakerState().banned).toBe(false);

@@ -29,12 +29,11 @@ import { startWishlistCron } from "./cron/wishlistCron.js";
 import { startHourlyMaintenance } from "./cron/hourlyMaintenance.js";
 import { startBoutiqueCron } from "./cron/boutiqueCron.js";
 import { checkTrackedGames } from "./cron/steamNewsCron.js";
-import { checkFreeGames } from "./cron/freeGamesCron.js";
+import { checkFreeGames, startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron.js";
 import { checkDeals } from "./cron/dealsCron.js";
 import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron.js";
 import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
-import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startDigestScheduler } from "./services/communityDigest.js";
 import { startPersonalDigestScheduler } from "./services/proactiveAgent.js";
 import { registerInterval } from "./shutdown.js";
@@ -59,9 +58,7 @@ import { setKaliClient, ensureKaliContainer } from "./services/agentToolsKali.js
 import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
-import {
-  handleAllInteractions,
-} from "./events/interactions.js";
+import { handleAllInteractions } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -84,6 +81,7 @@ import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startMediaWorker } from "./infrastructure/processIsolator.js";
 import { initLogQueue } from "./queues/logQueue.js";
 import { waitForRedisWritable } from "./utils/redisClient.js";
+import { initializeModules } from "./modules/index.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -221,7 +219,9 @@ export function attachStartupLogic(
           if (piperOk)
             logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
       // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
@@ -231,7 +231,9 @@ export function attachStartupLogic(
       // } catch {
       //   // healthEndpoint.ts non disponible — ignorer
       // }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // ─── DM owner de démarrage SUPPRIMÉ ──────────────────────────────────
     // Un seul embed consolidé est envoyé depuis bot.ts via sendConsolidatedStartupReport
@@ -282,7 +284,9 @@ export function attachStartupLogic(
           `[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`,
         );
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
       logger.info("[Startup] Rattrapage ignoré");
@@ -359,16 +363,12 @@ export function attachStartupLogic(
     const services: (() => void)[] = isPrimary
       ? [
           () => startMonitoring(client),
+          () => initializeModules(client),
           () => startInactivityCheck(client),
           () => startTwitchMonitoring(client),
           () => startSocialFollowMonitoring(client),
           () => startPatchNotesService(client),
           () => startBackupService(client),
-          // () => startInstantGamingCheck(client), // DÉSACTIVÉ — inutilisé
-          // () => startSteamNewsMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startDealsMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startMonthlyMaintenance(client), // DÉSACTIVÉ — inutilisé
-          // () => startGlobalPatchNotesMonitoring(client), // DÉSACTIVÉ — inutilisé
           () => startLogChannelCleanup(client),
           () => startBotHealthCheck(client),
           () => startNotificationCleanup(client),
@@ -378,50 +378,20 @@ export function attachStartupLogic(
           () => handleInviteTracker(client),
           () => handleServerCloneDetect(client),
           () => handleAutoEvents(client),
-          // () => startShowcaseLinkCron(client), // DÉSACTIVÉ — inutilisé
           () => startMiscCrons(client),
           () => startCommandAutomation(client),
           () => startMemoryGrooming(client),
-          // () => startRadioGamingCron(client), // DÉSACTIVÉ — inutilisé
-          // () => attachDramaPrediction(client), // DÉSACTIVÉ — inutilisé
-          // () => startToxicityScanCron(client), // DÉSACTIVÉ — inutilisé
           () => startLogRetention(),
           () => startSecurityIntegration(client),
           () => initHoneypotMonitoring(client),
           () => startPriceAlertsMonitoring(client),
           () => startGameUpdatesMonitoring(client),
           () => initRetailerCron(client),
-          // () => startReportScheduler(client), // DÉSACTIVÉ — inutilisé
-          // () => enableSmartAlerts(client), // DÉSACTIVÉ — channel logs non disponible, erreurs en boucle
-          // () => startTikTokMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startKickMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startVodMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startClipForwarding(client), // DÉSACTIVÉ — inutilisé
-          // () => startScheduledMessages(client), // DÉSACTIVÉ — inutilisé
-          // () => startOnboardingFlow(client), // DÉSACTIVÉ — inutilisé
-          // () => startReactionRoles(client), // DÉSACTIVÉ — inutilisé
-          // () => startTicketSystem(client), // DÉSACTIVÉ — inutilisé
-          // () => startFaqAutoResponder(client), // DÉSACTIVÉ — inutilisé
-          // () => startCreatorRoleSync(client), // DÉSACTIVÉ — inutilisé
-          // () => startRateLimitDashboard(client), // DÉSACTIVÉ — inutilisé
-          // () => startCommandAnalytics(client), // DÉSACTIVÉ — inutilisé
-          // () => startReleaseCalendar(client), // DÉSACTIVÉ — inutilisé
-          // () => startHotTopicsDetector(client), // DÉSACTIVÉ — inutilisé
-          // () => startConversationSummarizer(client), // DÉSACTIVÉ — inutilisé
-          // () => startChurnPrediction(client), // DÉSACTIVÉ — inutilisé
-          // () => startLFGMatchmaker(client), // DÉSACTIVÉ — inutilisé
-          // () => startActivityHeatmap(client), // DÉSACTIVÉ — inutilisé
-          // () => startPinRotation(client), // DÉSACTIVÉ — inutilisé
-          // () => startPresenceTracker(client), // DÉSACTIVÉ — inutilisé
           () => startDealFusion(client),
           () => startGitHubReleasesMonitor(client),
           () => startMultiSiteDealsMonitor(client),
-          // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
           () => startGameReleaseCountdown(client),
           () => startSteamWishlistMonitor(client),
-          // () => startAutoTranslate(client), // DÉSACTIVÉ — inutilisé
-          // () => startAiSpamDetector(client), // DÉSACTIVÉ — inutilisé
-          // ── Directive 1: Media/gaming offloaded to isolated child process ──
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),

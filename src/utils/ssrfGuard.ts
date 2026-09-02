@@ -33,8 +33,8 @@ function isPrivateIPv4(ip: string): boolean {
 }
 
 function isPrivateIPv6(ip: string): boolean {
-  const lower = ip.toLowerCase();
-  if (lower === "::1") return true; // loopback
+  const lower = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  if (lower === "::1" || lower === "0:0:0:0:0:0:0:1") return true; // loopback
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // fc00::/7 unique local
   if (lower.startsWith("fe80")) return true; // link-local
   if (lower.startsWith("::ffff:")) {
@@ -82,7 +82,7 @@ export interface SsrfCheckResult {
 export async function checkUrlForSsrf(url: string, context?: string): Promise<SsrfCheckResult> {
   try {
     const parsed = new URL(url);
-    const hostname = parsed.hostname;
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
 
     // Vérifier si le hostname est directement une IP (avec notations alternatives)
     const normalizedIp = normalizeIPInput(hostname);
@@ -115,8 +115,7 @@ export async function checkUrlForSsrf(url: string, context?: string): Promise<Ss
       const result = await lookup(hostname, { all: true });
       addresses = result.map((r) => r.address);
     } catch {
-      // Si la résolution échoue, on laisse passer — le fetch échouera naturellement
-      return { allowed: true, reason: "DNS lookup failed, allowing fetch to fail naturally" };
+      return { allowed: false, reason: "DNS lookup failed (fail-closed)" };
     }
 
     if (addresses.length === 0) {
