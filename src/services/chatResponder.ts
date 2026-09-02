@@ -24,6 +24,7 @@ import {
   FALLBACK_MESSAGE,
 } from "./responseClassifier.js";
 import { hallucinationDetected } from "./prometheusExporter.js";
+import { isPresencePing } from "./agentIntent.js";
 
 // ─── Sanitization des réponses (délégué au classifieur unique) ───────────────
 
@@ -307,6 +308,11 @@ export async function recoverChatReply(
   if (isUsableModelReply(cleaned)) {
     if (options.userId) clearPendingQuestion(options.userId);
     return cleaned;
+  }
+
+  if (isPresencePing(stripPromptDecorations(userMessage))) {
+    if (options.userId) clearPendingQuestion(options.userId);
+    return "Ouais, je suis là. Pose ta question.";
   }
 
   const tryProviders = async (): Promise<string | null> => {

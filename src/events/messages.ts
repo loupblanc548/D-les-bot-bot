@@ -46,7 +46,7 @@ import {
   resolveIncomingQuestion,
   clearPendingQuestion,
 } from "../services/chatResponder.js";
-import { needsAgentLoop } from "../services/agentIntent.js";
+import { isPresencePing, needsAgentLoop } from "../services/agentIntent.js";
 import {
   buildPersonalitySystemPrompt,
   getPersonalityTemperature,
@@ -1470,6 +1470,16 @@ async function handleAiChatMention(
       }
     }
     const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
+
+    // « tu es là » / « tu est la » → réponse locale, sans LLM (évite le petit blanc).
+    if (isPresencePing(cleanedContent) && !hasAttachments) {
+      const langDetection = detectLanguage(cleanedContent || message.content || "");
+      await message.reply({
+        content: getRandomHelldiverReply(langDetection.lang),
+        allowedMentions: { repliedUser: false },
+      });
+      return;
+    }
 
     // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
     if (isCapabilityQuery(cleanedContent)) {

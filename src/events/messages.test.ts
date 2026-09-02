@@ -381,6 +381,23 @@ describe("messageCreate — AI Chat @mention", () => {
     handleMessageEvents(client as unknown as Client);
   });
 
+  it("répond localement à « tu est la » sans appeler l'IA", async () => {
+    const msg = createMockMessage({
+      content: `<@bot-123> tu est la`,
+      mentions: { has: vi.fn().mockReturnValue(true), users: new Collection() },
+    });
+
+    await client._listeners.messageCreate?.[0](msg);
+
+    expect(msg.reply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringMatching(/John|écoute|Quoi de neuf|Dis-moi|Présent|là/),
+        allowedMentions: { repliedUser: false },
+      }),
+    );
+    expect(mockChatWithHistory).not.toHaveBeenCalled();
+  });
+
   it("répond avec une relance humoristique si @mention sans message", async () => {
     const msg = createMockMessage({
       content: `<@bot-123>`,

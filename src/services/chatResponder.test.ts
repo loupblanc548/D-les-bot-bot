@@ -190,6 +190,12 @@ describe("chatResponder", () => {
       expect(recovered).toBe("Réponse après retry");
     });
 
+    it("answers a presence ping locally instead of the canned fallback", async () => {
+      const recovered = await recoverChatReply("", "tu est la", { retryDelayMs: 0, userId: "u1" });
+      expect(recovered).toMatch(/je suis là/i);
+      expect(mockCallLlm).not.toHaveBeenCalled();
+    });
+
     it("returns canned fallback only after providers fail — does not ask to retype", async () => {
       mockCallLlm.mockRejectedValue(new Error("All AI providers failed"));
 
