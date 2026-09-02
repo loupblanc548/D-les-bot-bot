@@ -41,6 +41,13 @@ import type {} from "discord.js";
 
 export type ClientDestroyFn = () => void;
 
+/**
+ * Délai maximum accordé aux fermetures asynchrones. Passé ce délai on sort
+ * quand même, pour qu'un connecteur bloqué n'empêche pas l'arrêt (et ne
+ * finisse pas tué par SIGKILL sans le moindre log).
+ */
+const SHUTDOWN_TIMEOUT_MS = 15_000;
+
 // Stocke la référence au client.destroy pour le shutdown
 let destroyClient: ClientDestroyFn | null = null;
 const intervalsToClear: (NodeJS.Timeout | null)[] = [];
@@ -60,7 +67,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   try {
     const { writeFile } = await import("node:fs/promises");
     await writeFile("/opt/bot/.last_shutdown", String(Date.now()), { mode: 0o600 });
-  } catch { logger.error("[Silent catch]"); }
+  } catch (err) {
+    logger.warn(`[Shutdown] Impossible d'écrire .last_shutdown: ${err}`);
+  }
 
   // Arrêter tous les services monitoring
   const stopFns = [
@@ -85,18 +94,6 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopInfraWatchdog,
     stopConfigCache,
     stopDmCleanup,
-    () => {
-      void stopControlServer();
-    },
-    () => {
-      void stopBridgeServer();
-    },
-    () => {
-      void shutdownLogQueue();
-    },
-    () => {
-      void shutdownOpenTelemetry();
-    },
   ];
 
   for (const fn of stopFns) {
@@ -112,38 +109,82 @@ async function gracefulShutdown(signal: string): Promise<void> {
     if (interval) clearInterval(interval);
   }
 
-  // Déconnexions
-  try {
-    await prisma.$disconnect();
-  } catch {
-    /* silent */
-  }
-  try {
-    await disconnectRedis();
-  } catch {
-    /* silent */
-  }
+  // Couper la réception d'évènements Discord avant de fermer les dépendances,
+  // pour ne pas traiter une commande dont la DB vient d'être déconnectée.
   try {
     if (destroyClient) destroyClient();
-  } catch {
-    /* silent */
+  } catch (err) {
+    logger.error(`[Shutdown] Erreur destroy client: ${err}`);
   }
-  try {
-    await closeBrowser();
-  } catch {
-    /* silent */
-  }
-  try {
-    await Sentry.close(2000);
-  } catch {
-    /* silent */
-  }
+
+  // Fermetures asynchrones — attendues, pour que les batchs en vol
+  // (log queue, spans OTel, réponses HTTP) soient réellement vidés avant exit.
+  await withTimeout("serveurs et files", [
+    ["control-server", stopControlServer],
+    ["bridge-server", stopBridgeServer],
+    ["log-queue", shutdownLogQueue],
+    ["opentelemetry", shutdownOpenTelemetry],
+    ["scraper-browser", closeBrowser],
+  ]);
+
+  await withTimeout("connexions", [
+    ["prisma", () => prisma.$disconnect()],
+    ["redis", disconnectRedis],
+  ]);
+
+  // Sentry en dernier, pour qu'il ait pu recevoir les erreurs ci-dessus.
+  await withTimeout("sentry", [["sentry", () => Sentry.close(2000)]]);
 
   logger.info("[Shutdown] Bot arrêté.");
   process.exit(0);
 }
 
+type AsyncCloser = [name: string, close: () => unknown];
+
+/**
+ * Exécute un groupe de fermetures en parallèle, en journalisant les échecs et
+ * sans jamais dépasser SHUTDOWN_TIMEOUT_MS.
+ */
+async function withTimeout(label: string, closers: AsyncCloser[]): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+
+  const all = Promise.allSettled(
+    closers.map(async ([name, close]) => {
+      try {
+        await close();
+      } catch (err) {
+        logger.error(`[Shutdown] Échec fermeture ${name}: ${err}`);
+      }
+    }),
+  );
+
+  const guard = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      logger.error(`[Shutdown] Timeout (${SHUTDOWN_TIMEOUT_MS}ms) sur: ${label}`);
+      resolve();
+    }, SHUTDOWN_TIMEOUT_MS);
+  });
+
+  try {
+    await Promise.race([all, guard]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function attachShutdownHandlers(): void {
-  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  // Un second signal pendant l'arrêt ne doit pas lancer un shutdown concurrent.
+  let shuttingDown = false;
+
+  const onSignal = (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      logger.warn(`[Shutdown] ${signal} ignoré: arrêt déjà en cours.`);
+      return Promise.resolve();
+    }
+    shuttingDown = true;
+    return gracefulShutdown(signal);
+  };
+
+  process.on("SIGINT", () => onSignal("SIGINT"));
+  process.on("SIGTERM", () => onSignal("SIGTERM"));
 }
