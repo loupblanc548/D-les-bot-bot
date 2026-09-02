@@ -43,6 +43,41 @@ describe("ssrfGuard", () => {
       expect(result.allowed).toBe(false);
     });
 
+    it("blocks IPv6 loopback in uncompressed form", async () => {
+      const result = await checkUrlForSsrf("http://[0:0:0:0:0:0:0:1]:8080", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv6 unspecified ::", async () => {
+      const result = await checkUrlForSsrf("http://[::]:8080", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv4-mapped IPv6 loopback ::ffff:127.0.0.1", async () => {
+      const result = await checkUrlForSsrf("http://[::ffff:127.0.0.1]:8080", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv4-mapped IPv6 AWS metadata ::ffff:169.254.169.254", async () => {
+      const result = await checkUrlForSsrf("http://[::ffff:169.254.169.254]/latest/", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv6 unique-local fc00::/7", async () => {
+      const result = await checkUrlForSsrf("http://[fd00::1]:8080", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv6 link-local fe80::/10", async () => {
+      const result = await checkUrlForSsrf("http://[fe80::1]:8080", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("allows public IPv6", async () => {
+      const result = await checkUrlForSsrf("https://[2606:4700:4700::1111]", "test");
+      expect(result.allowed).toBe(true);
+    });
+
     it("blocks decimal IP notation (2130706433 = 127.0.0.1)", async () => {
       const result = await checkUrlForSsrf("http://2130706433:8080", "test");
       expect(result.allowed).toBe(false);

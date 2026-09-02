@@ -32,16 +32,71 @@ function isPrivateIPv4(ip: string): boolean {
   return PRIVATE_RANGES_IPV4.some((r) => int >= r.start && int <= r.end);
 }
 
-function isPrivateIPv6(ip: string): boolean {
-  const lower = ip.toLowerCase();
-  if (lower === "::1") return true; // loopback
-  if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // fc00::/7 unique local
-  if (lower.startsWith("fe80")) return true; // link-local
-  if (lower.startsWith("::ffff:")) {
-    // IPv4-mapped IPv6 — extract the IPv4 part and check
-    const v4 = lower.slice(7);
-    if (isIP(v4) === 4) return isPrivateIPv4(v4);
+/**
+ * Développe une adresse IPv6 en 8 groupes de 16 bits.
+ * Gère la compression "::", l'index de zone "%eth0" et les formes
+ * mixtes IPv4 (::ffff:127.0.0.1). Retourne null si non parsable.
+ */
+function expandIPv6(ip: string): number[] | null {
+  let s = ip.toLowerCase();
+
+  const zone = s.indexOf("%");
+  if (zone !== -1) s = s.slice(0, zone);
+
+  // Convertit un quad pointé final (IPv4-mapped/compatible) en deux groupes hex
+  const dot = s.indexOf(".");
+  if (dot !== -1) {
+    const lastColon = s.lastIndexOf(":", dot);
+    if (lastColon === -1) return null;
+    const v4 = s.slice(lastColon + 1);
+    if (isIP(v4) !== 4) return null;
+    const o = v4.split(".").map(Number);
+    const hi = ((o[0] << 8) | o[1]).toString(16);
+    const lo = ((o[2] << 8) | o[3]).toString(16);
+    s = `${s.slice(0, lastColon + 1)}${hi}:${lo}`;
   }
+
+  const halves = s.split("::");
+  if (halves.length > 2) return null;
+
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  let groups: string[];
+
+  if (halves.length === 1) {
+    groups = head;
+  } else {
+    const fill = 8 - head.length - tail.length;
+    if (fill < 0) return null;
+    groups = [...head, ...Array<string>(fill).fill("0"), ...tail];
+  }
+
+  if (groups.length !== 8) return null;
+
+  const out: number[] = [];
+  for (const g of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(g)) return null;
+    out.push(parseInt(g, 16));
+  }
+  return out;
+}
+
+function isPrivateIPv6(ip: string): boolean {
+  const g = expandIPv6(ip);
+  if (!g) return true; // non parsable → on refuse par défaut
+
+  const firstFiveZero = g[0] === 0 && g[1] === 0 && g[2] === 0 && g[3] === 0 && g[4] === 0;
+
+  // ::/128 (unspecified), ::1/128 (loopback), ::ffff:0:0/96 (IPv4-mapped),
+  // ::/96 (IPv4-compatible) — tous délèguent au contrôle IPv4 sous-jacent.
+  if (firstFiveZero && (g[5] === 0 || g[5] === 0xffff)) {
+    const v4 = `${g[6] >> 8}.${g[6] & 0xff}.${g[7] >> 8}.${g[7] & 0xff}`;
+    return isPrivateIPv4(v4);
+  }
+
+  if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
+  if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+
   return false;
 }
 
@@ -52,12 +107,16 @@ function isPrivateIPv6(ip: string): boolean {
  * - Hexadécimal: 0x7f.0.0.1 → 127.0.0.1
  */
 function normalizeIPInput(input: string): string | null {
+  // URL.hostname conserve les crochets autour d'une IPv6 littérale ("[::1]")
+  const unbracketed =
+    input.startsWith("[") && input.endsWith("]") ? input.slice(1, -1) : input;
+
   // Si c'est déjà une IP valide
-  const family = isIP(input);
-  if (family === 4 || family === 6) return input;
+  const family = isIP(unbracketed);
+  if (family === 4 || family === 6) return unbracketed;
 
   // Tentative de parsing décimal/hex (notation alternative d'IPv4)
-  const asNum = Number(input);
+  const asNum = Number(unbracketed);
   if (!isNaN(asNum) && asNum >= 0 && asNum <= 0xffffffff) {
     const a = (asNum >>> 24) & 0xff;
     const b = (asNum >>> 16) & 0xff;
