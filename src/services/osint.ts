@@ -872,8 +872,24 @@ export async function runDnsLookup(domain: string): Promise<DnsResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import dns.resolver; import json; r=dns.resolver.Resolver(); results={}; [results.setdefault('A',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','A',lifetime=5)] if True else None; [results.setdefault('MX',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','MX',lifetime=5)] if True else None; [results.setdefault('TXT',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','TXT',lifetime=5)] if True else None; [results.setdefault('NS',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','NS',lifetime=5)] if True else None; print(json.dumps(results))`],
-      { timeout: 20000, maxBuffer: 1024 * 1024 },
+      [
+        "-c",
+        `import os, json, dns.resolver
+d = os.environ['OSINT_INPUT']
+r = dns.resolver.Resolver()
+results = {}
+for rt in ('A', 'MX', 'TXT', 'NS'):
+    try:
+        results[rt] = [str(a) for a in r.resolve(d, rt, lifetime=5)]
+    except Exception:
+        pass
+print(json.dumps(results))`,
+      ],
+      {
+        timeout: 20000,
+        maxBuffer: 1024 * 1024,
+        env: { ...process.env, OSINT_INPUT: domain },
+      },
     );
 
     try {
@@ -1160,8 +1176,24 @@ export async function runOsintgram(username: string): Promise<OsintgramResult> {
     // Utiliser instaloader pour des données plus profondes
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))`],
-      { timeout: 45000, maxBuffer: 5 * 1024 * 1024 },
+      [
+        "-c",
+        `import os, json, instaloader
+L = instaloader.Instaloader()
+p = instaloader.Profile.from_username(L.context, os.environ['OSINT_INPUT'])
+d = {'username': p.username, 'found': True, 'followers': str(p.followers),
+     'following': str(p.followees), 'posts': str(p.mediacount), 'bio': p.biography,
+     'fullname': p.full_name, 'private': p.is_private, 'verified': p.is_verified,
+     'pic': p.profile_pic_url, 'email': p.external_url or '', 'phone': '',
+     'external_urls': [p.external_url] if p.external_url else [],
+     'tags': [t.name for t in p.get_tags()][:20] if hasattr(p, 'get_tags') else []}
+print(json.dumps(d))`,
+      ],
+      {
+        timeout: 45000,
+        maxBuffer: 5 * 1024 * 1024,
+        env: { ...process.env, OSINT_INPUT: username },
+      },
     );
 
     try {
