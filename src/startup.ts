@@ -7,6 +7,7 @@
 
 import { Client, Events } from "discord.js";
 import logger from "./utils/logger.js";
+import { config } from "./config.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
 import { startSocialFollowMonitoring } from "./services/socialFollow.js";
@@ -59,9 +60,7 @@ import { setKaliClient, ensureKaliContainer } from "./services/agentToolsKali.js
 import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
-import {
-  handleAllInteractions,
-} from "./events/interactions.js";
+import { handleAllInteractions } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -221,7 +220,9 @@ export function attachStartupLogic(
           if (piperOk)
             logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
       // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
@@ -231,7 +232,9 @@ export function attachStartupLogic(
       // } catch {
       //   // healthEndpoint.ts non disponible — ignorer
       // }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // ─── DM owner de démarrage SUPPRIMÉ ──────────────────────────────────
     // Un seul embed consolidé est envoyé depuis bot.ts via sendConsolidatedStartupReport
@@ -282,7 +285,9 @@ export function attachStartupLogic(
           `[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`,
         );
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
       logger.info("[Startup] Rattrapage ignoré");
@@ -309,7 +314,9 @@ export function attachStartupLogic(
 
     // ─── Topic du salon d'alertes revendeurs ─────────────────────────────
     try {
-      const retailerChannel = await client.channels.fetch("1532189747500421152").catch(() => null);
+      const retailerChannel = config.retailerChannel
+        ? await client.channels.fetch(config.retailerChannel).catch(() => null)
+        : null;
       if (retailerChannel?.isTextBased()) {
         const topic =
           "**Suivi de Produits Revendeurs**\n" +

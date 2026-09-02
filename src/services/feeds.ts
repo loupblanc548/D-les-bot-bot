@@ -86,7 +86,7 @@ const FEEDS: ChannelFeed[] = [
     ],
   },
   {
-    channelId: "1524219631047540826",
+    channelId: config.creatorsChannel,
     channelName: "Créateurs",
     sources: [
       { platform: "youtube", handle: "LaupokBazar" },

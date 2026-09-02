@@ -214,6 +214,12 @@ const envSchema = z.object({
   PRICE_TRACK_CHANNEL_ID: z.string().optional(),
   TRENDS_CHANNEL_ID: z.string().optional(),
   VIRAL_CHANNEL_ID: z.string().optional(),
+  REPORT_CHANNEL_ID: z.string().optional(),
+  REPORT_ROLE_ID: z.string().optional(),
+  BOOST_CHANNEL_ID: z.string().optional(),
+  MANUAL_REPORT_CHANNEL_ID: z.string().optional(),
+  CREATORS_CHANNEL_ID: z.string().optional(),
+  GENERAL_CHANNEL_ID: z.string().optional(),
 
   // Crash webhook & Bull Board
   CRASH_WEBHOOK_URL: z.string().optional(),

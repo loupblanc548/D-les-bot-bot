@@ -1,7 +1,7 @@
 /**
  * trackRetailer.ts — Commandes slash pour tracker des produits revendeurs
  *
- * Toutes les réponses et alertes vont dans le salon 1532189747500421152.
+ * Toutes les réponses et alertes vont dans le salon configuré (`RETAILER_CHANNEL_ID`).
  * La commande add délègue à Quent (agent IA) via une auto-mention dans le salon.
  * Quent utilise les tools retailer pour rechercher, tracker et répondre intelligemment.
  *
@@ -23,6 +23,7 @@ import {
   AttachmentBuilder,
 } from "discord.js";
 import logger from "../utils/logger.js";
+import { config } from "../config.js";
 import {
   untrackProduct,
   getTrackedProducts,
@@ -30,8 +31,6 @@ import {
 } from "../services/retailerAlerts.js";
 import { RETAILER_NAMES, RETAILER_EMOJIS } from "../services/retailers/types.js";
 import type { RetailerId, CountryCode } from "../services/retailers/types.js";
-
-const RETAILER_ALERT_CHANNEL = "1532189747500421152";
 
 const isDM = (interaction: ChatInputCommandInteraction) => !interaction.guild;
 
@@ -302,10 +301,10 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
   // En DM (owner): envoyer le prompt directement dans le DM au lieu du salon d'alertes
   const targetChannel = dm
     ? (interaction.channel as TextChannel)
-    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+    : (interaction.client.channels.cache.get(config.retailerChannel) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
-      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`} Le bot ne peut pas déléguer à Quent.`,
+      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${config.retailerChannel}> introuvable.`} Le bot ne peut pas déléguer à Quent.`,
     });
     return;
   }
@@ -330,7 +329,7 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply({
       content: dm
         ? `✅ Demande envoyée à Quent en DM !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront en DM et dans le salon d'alertes.`
-        : `✅ Demande envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront dans ce salon.`,
+        : `✅ Demande envoyée à Quent dans <#${config.retailerChannel}> !\nQuent va rechercher "${productName}" sur ${RETAILER_NAMES[retailerId]} (${country}) et configurer le suivi.\nLes alertes arriveront dans ce salon.`,
     });
     logger.info(
       `[TrackRetailer] ${interaction.user.tag} a délégué à Quent: track ${productName} sur ${retailerId} (${country})${attachment ? " + capture" : ""}${dm ? " [DM]" : ""}`,
@@ -340,7 +339,7 @@ async function handleTrackAdd(interaction: ChatInputCommandInteraction): Promise
       `[TrackRetailer] Erreur envoi prompt à Quent: ${err instanceof Error ? err.message : "[REDACTED]"}`,
     );
     await interaction.editReply({
-      content: `❌ Erreur lors de l'envoi de la demande à Quent${dm ? " en DM" : ` dans <#${RETAILER_ALERT_CHANNEL}>`}.`,
+      content: `❌ Erreur lors de l'envoi de la demande à Quent${dm ? " en DM" : ` dans <#${config.retailerChannel}>`}.`,
     });
   }
 }
@@ -369,10 +368,10 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
 
   const targetChannel = dm
     ? (interaction.channel as TextChannel)
-    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+    : (interaction.client.channels.cache.get(config.retailerChannel) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
-      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`}`,
+      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${config.retailerChannel}> introuvable.`}`,
     });
     return;
   }
@@ -402,7 +401,7 @@ async function handleTrackScan(interaction: ChatInputCommandInteraction): Promis
     await interaction.editReply({
       content: dm
         ? `✅ Capture envoyée à Quent en DM !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation ici.`
-        : `✅ Capture envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation dans le salon.`,
+        : `✅ Capture envoyée à Quent dans <#${config.retailerChannel}> !\nQuent va analyser l'image, identifier les produits et les tracker automatiquement.\nTu recevras une confirmation dans le salon.`,
     });
     logger.info(
       `[TrackRetailer] ${interaction.user.tag} a envoyé une capture pour scan (${attachment.name}, ${attachment.size}o)${dm ? " [DM]" : ""}`,
@@ -455,7 +454,7 @@ async function handleTrackRemove(interaction: ChatInputCommandInteraction): Prom
 
   // Envoyer dans le salon d'alertes (ou en DM si owner en DM)
   if (!dm) {
-    const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+    const channel = interaction.client.channels.cache.get(config.retailerChannel) as TextChannel;
     if (channel?.isTextBased()) {
       try {
         await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
@@ -468,7 +467,7 @@ async function handleTrackRemove(interaction: ChatInputCommandInteraction): Prom
   await interaction.editReply({
     content: dm
       ? `✅ Suivi arrêté.`
-      : `✅ Suivi arrêté. Confirmation envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
+      : `✅ Suivi arrêté. Confirmation envoyée dans <#${config.retailerChannel}>.`,
     embeds: [embed],
   });
   logger.info(`[TrackRetailer] ${interaction.user.tag} a retiré le tracking ${trackId}`);
@@ -503,7 +502,7 @@ async function handleTrackList(interaction: ChatInputCommandInteraction): Promis
     .setDescription(description.length > 4096 ? description.slice(0, 4093) + "..." : description)
     .addFields({
       name: "Salon d'alertes",
-      value: `<#${RETAILER_ALERT_CHANNEL}>`,
+      value: `<#${config.retailerChannel}>`,
       inline: false,
     })
     .setFooter(FOOTER)
@@ -513,7 +512,7 @@ async function handleTrackList(interaction: ChatInputCommandInteraction): Promis
 
   // Envoyer dans le salon d'alertes (ou répondre en DM)
   if (!dm) {
-    const channel = interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel;
+    const channel = interaction.client.channels.cache.get(config.retailerChannel) as TextChannel;
     if (channel?.isTextBased()) {
       try {
         await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
@@ -524,7 +523,7 @@ async function handleTrackList(interaction: ChatInputCommandInteraction): Promis
   }
 
   await interaction.editReply({
-    content: dm ? undefined : `📋 Liste envoyée dans <#${RETAILER_ALERT_CHANNEL}>.`,
+    content: dm ? undefined : `📋 Liste envoyée dans <#${config.retailerChannel}>.`,
     embeds: [embed],
   });
 }
@@ -543,10 +542,10 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
   // ── Déléguer à Quent : envoyer un message dans le salon d'alertes (ou en DM si owner) ──
   const targetChannel = dm
     ? (interaction.channel as TextChannel)
-    : (interaction.client.channels.cache.get(RETAILER_ALERT_CHANNEL) as TextChannel);
+    : (interaction.client.channels.cache.get(config.retailerChannel) as TextChannel);
   if (!targetChannel?.isTextBased()) {
     await interaction.editReply({
-      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${RETAILER_ALERT_CHANNEL}> introuvable.`}`,
+      content: `❌ ${dm ? "Impossible d'envoyer dans ce DM." : `Salon d'alertes <#${config.retailerChannel}> introuvable.`}`,
     });
     return;
   }
@@ -566,7 +565,7 @@ async function handleTrackSearch(interaction: ChatInputCommandInteraction): Prom
     await interaction.editReply({
       content: dm
         ? `✅ Recherche envoyée à Quent en DM !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre ici.`
-        : `✅ Recherche envoyée à Quent dans <#${RETAILER_ALERT_CHANNEL}> !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre dans le salon.`,
+        : `✅ Recherche envoyée à Quent dans <#${config.retailerChannel}> !\nQuent va rechercher "${productName}" ${retailerInfo} en ${country} et répondre dans le salon.`,
     });
     logger.info(
       `[TrackRetailer] ${interaction.user.tag} a délégué à Quent: search ${productName} ${retailerInfo} (${country})${dm ? " [DM]" : ""}`,
