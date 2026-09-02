@@ -120,4 +120,205 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
     const deltaMb = (rssAfter - rssBefore) / (1024 * 1024);
     expect(deltaMb).toBeLessThan(200);
   }, 30_000);
+
+  it("keeps Qwen/Ollama in standby so 8GB RAM is not eaten by weights", async () => {
+    const { shouldUseLocalOllama, isOllamaStandby } = await import("../utils/localLlmGate.js");
+    const { isLocalLlmAvailable, checkLocalLlmAvailability } = await import("./localLlm.js");
+    expect(isOllamaStandby({})).toBe(true);
+    expect(shouldUseLocalOllama({})).toBe(false);
+    expect(isLocalLlmAvailable()).toBe(false);
+    const pinged = await checkLocalLlmAvailability();
+    expect(pinged).toBe(false);
+  });
+
+  it("routes questions through the agent, not the trivial fast-path", async () => {
+    const { needsAgentLoop } = await import("./agentIntent.js");
+    const { getTrivialResponse } = await import("./trivialFastPath.js");
+    expect(getTrivialResponse("ok", "u1")).not.toBeNull();
+    expect(getTrivialResponse("C'est quoi Docker ?", "u1")).toBeNull();
+    expect(needsAgentLoop("C'est quoi Docker ?")).toBe(true);
+    expect(needsAgentLoop("cherche la météo à Paris et hash bonjour")).toBe(true);
+    expect(needsAgentLoop("ok")).toBe(false);
+  });
+
+  it("indexes hundreds of Obsidian Q&A without rereading every file", async () => {
+    for (let i = 0; i < 120; i++) {
+      await saveQA(`Qu'est-ce que Sujet${i} ?`, `Réponse numéro ${i} sur Sujet${i}.`, "tech");
+    }
+    await saveQA("Qu'est-ce que Kubernetes ?", "Orchestrateur de conteneurs.", "tech");
+    const rssBefore = process.memoryUsage().rss;
+    const t0 = Date.now();
+    const { searchQA } = await import("./obsidianMemory.js");
+    const hit = await searchQA("Kubernetes");
+    const ms = Date.now() - t0;
+    expect(hit?.answer).toContain("Orchestrateur");
+    expect(ms).toBeLessThan(500);
+    const rssDeltaMb = (process.memoryUsage().rss - rssBefore) / (1024 * 1024);
+    expect(rssDeltaMb).toBeLessThan(80);
+  }, 20_000);
+
+  it("never wipes hashes when the last predefined subjects remain", async () => {
+    const { listUnlearnedSubjects, subjectHash } = await import("./selfLearner.js");
+    const topics = [
+      { category: "tech", subjects: Array.from({ length: 50 }, (_, i) => `sujet-${i}`) },
+    ];
+    const learned = new Set(topics[0].subjects.slice(0, 49).map((s) => subjectHash(s)));
+    const rest = listUnlearnedSubjects(topics, learned);
+    expect(rest).toHaveLength(1);
+    expect(rest[0].subject).toBe("sujet-49");
+  });
+
+  it("executes every local whitelist tool and probes the network ones", async () => {
+    await saveQA("Qu'est-ce que Docker ?", "Runtime de conteneurs.", "tech");
+    const ctx = mockCtx();
+
+    const fixtures: Record<string, Record<string, unknown>> = {
+      json_format: { json: '{"ok":true}' },
+      regex_test: { pattern: "ab+", testString: "abbb" },
+      hash_gen: { input: "fond-en-comble" },
+      generate_password: { length: 12 },
+      jwt_decode: {
+        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwibmFtZSI6IkpvaG4ifQ.x",
+      },
+      password_analyze: { password: "Test123!aa" },
+      convert_units: { value: 10, from: "km", to: "mi" },
+      convert_timezone: { time: "14:00", from_tz: "Europe/Paris", to_tz: "UTC" },
+      solve_math: { expression: "2 + 2" },
+      searchObsidianQA: { query: "Docker" },
+      system_stats: {},
+      generate_qr_code: { data: "https://example.com" },
+      getWikipediaSummary: { query: "France", lang: "fr" },
+      getWiktionaryDefinition: { word: "bonjour", lang: "fr" },
+      getWeather: { city: "Paris" },
+      getAirQuality: { city: "Paris" },
+      getCryptoPrice: { coin: "bitcoin" },
+      get_crypto_top: {},
+      get_hackernews_top: { count: 3 },
+      get_github_trending: {},
+      dns_lookup: { domain: "example.com" },
+      url_expand: { url: "https://example.com" },
+      ip_ping: { ip: "127.0.0.1", count: 1 },
+      whois_lookup: { domain: "example.com" },
+      searchYouTube: { query: "linux", maxResults: 1 },
+      get_steam_requirements: { appid: "730" },
+      search_reddit: { query: "linux" },
+      searchRawgGames: { query: "portal" },
+      search_igdb_games: { query: "zelda" },
+      get_twitch_clips: { game: "Fortnite" },
+      generate_image: { prompt: "a cat" },
+      translateText: { text: "hello", target: "fr" },
+      searchWeb: { query: "docker" },
+      readUrl: { url: "https://example.com" },
+      fetchAndSummarize: { url: "https://example.com" },
+      searchKnowledge: { query: "docker" },
+      searchDocs: { library: "react", question: "hooks" },
+      execute_code: { language: "javascript", code: "1+1" },
+      getBotStatus: {},
+      getServerStats: {},
+      getUserInfo: { userId: "user-1" },
+      deleteMessages: { count: 1 },
+      timeoutUser: { userId: "user-1", duration: 60 },
+      searchUserMemory: { query: "test" },
+      saveMemoryFact: { key: "test", value: "ok" },
+      memory_search: { query: "test" },
+      delegate_to_expert: { task: "hello", tier: "small" },
+      think_step_by_step: { question: "2+2" },
+    };
+
+    const mustWork = new Set([
+      "json_format",
+      "regex_test",
+      "hash_gen",
+      "generate_password",
+      "jwt_decode",
+      "password_analyze",
+      "convert_units",
+      "convert_timezone",
+      "solve_math",
+      "searchObsidianQA",
+      "system_stats",
+    ]);
+
+    const discordOnly = new Set([
+      "deleteMessages",
+      "timeoutUser",
+      "getUserInfo",
+      "getServerStats",
+      "getBotStatus",
+    ]);
+
+    const results: { name: string; ok: boolean; snippet: string }[] = [];
+    const rssBefore = process.memoryUsage().rss;
+
+    for (const tool of ALL_AGENT_TOOLS) {
+      const name = tool.function.name;
+      const args = fixtures[name] ?? {};
+      try {
+        const result = await Promise.race([
+          executeTool(name, args, ctx),
+          new Promise<{ success: false; data: string }>((resolve) =>
+            setTimeout(() => resolve({ success: false, data: "timeout 12s" }), 12_000),
+          ),
+        ]);
+        results.push({
+          name,
+          ok: result.success,
+          snippet: String(result.data).slice(0, 120),
+        });
+        if (mustWork.has(name)) {
+          expect(result.success, `${name} should succeed locally: ${result.data}`).toBe(true);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        results.push({ name, ok: false, snippet: msg.slice(0, 120) });
+        if (mustWork.has(name)) {
+          throw err;
+        }
+        if (!discordOnly.has(name)) {
+          // Network/API tools may throw; they must not crash the process.
+          expect(msg.length).toBeGreaterThan(0);
+        }
+      }
+    }
+
+    const localOk = new Set(results.filter((r) => mustWork.has(r.name) && r.ok).map((r) => r.name));
+    expect(localOk.size).toBe(mustWork.size);
+
+    const uniqueNames = new Set(results.map((r) => r.name));
+    expect(uniqueNames.size).toBe(ALL_AGENT_TOOLS.length);
+    expect(ALL_AGENT_TOOLS.length).toBeGreaterThanOrEqual(40);
+
+    const rssDeltaMb = (process.memoryUsage().rss - rssBefore) / (1024 * 1024);
+    expect(rssDeltaMb).toBeLessThan(250);
+
+    const report = results
+      .map((r) => `${r.ok ? "OK" : "NO"} ${r.name} — ${r.snippet.replace(/\s+/g, " ")}`)
+      .join("\n");
+    expect(report.length).toBeGreaterThan(100);
+  }, 120_000);
+
+  it("plays a full conversation: miss in Obsidian, Wikipedia, then hit on retry", async () => {
+    const ctx = mockCtx();
+    const { needsAgentLoop } = await import("./agentIntent.js");
+    const question = "C'est quoi Linux ?";
+    expect(needsAgentLoop(question)).toBe(true);
+
+    const miss = await executeTool("searchObsidianQA", { query: "Linux" }, ctx);
+    expect(miss.success).toBe(false);
+
+    const wiki = await executeTool("getWikipediaSummary", { query: "Linux", lang: "fr" }, ctx);
+    const answer = wiki.success
+      ? wiki.data
+      : "Linux est un noyau et un système d'exploitation libre.";
+    const { saveQA: persist } = await import("./obsidianMemory.js");
+    await persist(
+      question,
+      typeof answer === "string" ? answer.slice(0, 800) : String(answer),
+      "tech",
+    );
+
+    const hit = await executeTool("searchObsidianQA", { query: "Linux" }, ctx);
+    expect(hit.success).toBe(true);
+    expect(hit.data.toLowerCase()).toMatch(/linux/);
+  }, 30_000);
 });

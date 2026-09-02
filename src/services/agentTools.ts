@@ -1225,18 +1225,25 @@ const TOOL_NAME_WHITELIST = new Set([
   "think_step_by_step",
 ]);
 
-export const ALL_AGENT_TOOLS: AgentToolDef[] = [
-  ...AGENT_TOOLS,
-  ...EXTENDED_TOOLS,
-  ...AUTONOMOUS_TOOLS,
-  ...FREE_TOOLS,
-  ...EXTERNAL_TOOLS,
-  ...EXTRA_TOOLS,
-  ...MEMORY_TOOLS,
-  ...RETAILER_TOOL_DEFS,
-  ...ORPHAN_TOOLS,
-  ...KALI_TOOLS,
-].filter((t) => TOOL_NAME_WHITELIST.has(t.function.name));
+export const ALL_AGENT_TOOLS: AgentToolDef[] = (() => {
+  const seen = new Set<string>();
+  return [
+    ...AGENT_TOOLS,
+    ...EXTENDED_TOOLS,
+    ...AUTONOMOUS_TOOLS,
+    ...FREE_TOOLS,
+    ...EXTERNAL_TOOLS,
+    ...EXTRA_TOOLS,
+    ...MEMORY_TOOLS,
+    ...RETAILER_TOOL_DEFS,
+    ...ORPHAN_TOOLS,
+    ...KALI_TOOLS,
+  ].filter((t) => {
+    if (!TOOL_NAME_WHITELIST.has(t.function.name) || seen.has(t.function.name)) return false;
+    seen.add(t.function.name);
+    return true;
+  });
+})();
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
 
