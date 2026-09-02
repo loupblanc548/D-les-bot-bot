@@ -37,7 +37,8 @@ export async function checkBirthdays(client: Client): Promise<void> {
       const member = await guild.members.fetch(userId).catch((): null => null);
       if (!member) continue;
 
-      const generalChannelId = "1134242473334554774";
+      const generalChannelId = config.generalChannel;
+      if (!generalChannelId) continue;
       const channel = await client.channels.fetch(generalChannelId).catch((): null => null);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
