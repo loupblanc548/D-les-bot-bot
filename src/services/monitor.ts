@@ -40,6 +40,15 @@ import { ensureConnected } from "../utils/redisClient.js";
 import {} from "../modules/guild/guildConfig.js";
 
 const CHECK_INTERVAL_MS = config.monitoringIntervalMs;
+
+/**
+ * Toutes les sources surveillées ici sont des endpoints publics tiers (RSS
+ * YouTube, miroirs Nitter, Bluesky, Twitch, Reddit, Instagram). Sans deadline,
+ * un seul hôte qui accepte la connexion sans jamais répondre bloque la boucle
+ * de monitoring indéfiniment — checkTwitterUser enchaîne 6 miroirs.
+ */
+const FETCH_TIMEOUT_MS = 10_000;
+
 let intervalId: NodeJS.Timeout | null = null;
 let isChecking = false;
 
@@ -115,7 +124,7 @@ async function checkYouTubeChannel(handle: string): Promise<{
 
   for (const url of urls) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!response.ok) continue;
       const text = await response.text();
       const parsed = xmlParser.parse(text);
@@ -152,7 +161,10 @@ async function checkTwitterUser(handle: string): Promise<{
   for (const instance of NITTER_INSTANCES) {
     const url = `${instance}/${handle}/rss`;
     try {
-      const response = await fetch(url, { headers: RSS_HEADERS });
+      const response = await fetch(url, {
+        headers: RSS_HEADERS,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!response.ok) continue;
       const text = await response.text();
 
@@ -189,7 +201,7 @@ async function checkBlueskyUser(handle: string): Promise<{
   const url = `https://bsky.app/profile/${handle}/rss`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!response.ok) return { status: "error" };
     const text = await response.text();
     const parsed = xmlParser.parse(text);
@@ -219,7 +231,7 @@ async function checkYouTubeChannelMulti(
   ];
   for (const url of urls) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!response.ok) continue;
       const text = await response.text();
       const parsed = xmlParser.parse(text);
@@ -246,7 +258,10 @@ async function checkTwitterUserMulti(handle: string, limit: number = 3): Promise
   for (const instance of NITTER_INSTANCES) {
     const url = `${instance}/${handle}/rss`;
     try {
-      const response = await fetch(url, { headers: RSS_HEADERS });
+      const response = await fetch(url, {
+        headers: RSS_HEADERS,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!response.ok) continue;
       const text = await response.text();
       if (text.includes("RSS reader not yet whitelisted")) continue;
@@ -274,7 +289,7 @@ async function checkBlueskyUserMulti(
 ): Promise<BlueskyRSSContent[]> {
   const url = `https://bsky.app/profile/${handle}/rss`;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!response.ok) return [];
     const text = await response.text();
     const parsed = xmlParser.parse(text);
@@ -300,7 +315,10 @@ async function checkTwitchChannelMulti(
 ): Promise<YouTubeRSSContent[]> {
   const url = `https://www.twitch.tv/${handle}`;
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    const response = await fetch(url, {
+      headers: { "User-Agent": "JohnHelldiver/1.0" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) return [];
     const text = await response.text();
     const videoMatch = text.match(/"video_id":"(\w+)"/g);
@@ -329,7 +347,10 @@ async function checkRedditSubredditMulti(
 ): Promise<YouTubeRSSContent[]> {
   const url = `https://www.reddit.com/r/${subreddit}/hot/.rss`;
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    const response = await fetch(url, {
+      headers: { "User-Agent": "JohnHelldiver/1.0" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) return [];
     const text = await response.text();
     const parsed = xmlParser.parse(text);
@@ -355,7 +376,10 @@ async function checkInstagramUserMulti(
 ): Promise<YouTubeRSSContent[]> {
   const url = `https://www.instagram.com/${handle}/`;
   try {
-    const response = await fetch(url, { headers: { "User-Agent": "JohnHelldiver/1.0" } });
+    const response = await fetch(url, {
+      headers: { "User-Agent": "JohnHelldiver/1.0" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) return [];
     const text = await response.text();
     const imageMatch = text.match(/https:\/\/instagram\.f[\w-]+\.fbcdn\.net\/[^"]+\.(jpg|png)/g);
