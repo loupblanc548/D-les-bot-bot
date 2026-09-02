@@ -33,7 +33,8 @@
     "dashboard:build": "tsc && electron-builder --config dashboard-builder.yml",
     "changeset": "changeset",
     "version": "changeset version",
-    "graph": "tsx scripts/codebase-graph.ts"
+    "graph": "tsx scripts/codebase-graph.ts",
+    "test:discord-live": "tsx scripts/discord-tester-probe.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.22",
