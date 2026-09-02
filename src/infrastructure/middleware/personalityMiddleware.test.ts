@@ -32,7 +32,7 @@ describe("personalityMiddleware", () => {
   });
 
   it("does not stack two full John identities", () => {
-    const custom = "Tu es John, un bot custom très long ".repeat(20);
+    const custom = "Tu es John, un bot custom très long. ".repeat(20).trim();
     expect(buildPersonalitySystemPrompt(custom)).toBe(custom);
   });
 });
