@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
 import logger from "../utils/logger.js";
+import { recordQASaved, recordVaultHit, recordVaultMiss } from "./selfLearnerMetrics.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Vault paths
@@ -457,6 +458,9 @@ export async function searchQA(query: string): Promise<SavedQA | null> {
 
     if (bestMatch) {
       logger.info(`[Obsidian] Q&A trouvé dans "${bestMatch.category}" (score: ${bestScore})`);
+      recordVaultHit();
+    } else {
+      recordVaultMiss();
     }
     return bestMatch;
   } catch (err) {
@@ -519,6 +523,7 @@ ${answer}
 `;
 
     fs.writeFileSync(filePath, content, "utf-8");
+    recordQASaved();
     logger.info(`[Obsidian] Q&A sauvegardé dans "${cat}/${slug}.md"`);
   } catch (err) {
     logger.debug(`[Obsidian] saveQA error: ${err instanceof Error ? err.message : String(err)}`);

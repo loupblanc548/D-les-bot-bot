@@ -6,10 +6,7 @@ import { handleWebhookRequest } from "./webhookTriggers.js";
 import { getMetrics as getPrometheusMetrics, updateDiscordMetrics } from "./prometheusExporter.js";
 import { getModelRotationStatus } from "./modelRotation.js";
 import { getCacheStats } from "./aiCache.js";
-import { getSelfLearnerStatus } from "./selfLearner.js";
-import fs from "fs";
-import path from "path";
-import { config } from "../config.js";
+import { collectLearnStats, formatBytes } from "./learnStatsCollector.js";
 import {
   getReleasesPage,
   getReleasesJson,
@@ -393,70 +390,6 @@ export function stopHealthServer(): void {
 
 // ─── Self-Learner Live Dashboard ─────────────────────────────────────────────
 
-function collectLearnStats(): Record<string, any> {
-  const vaultPath = config.obsidianVaultPath || process.env.OBSIDIAN_VAULT_PATH;
-  const categories: Record<string, number> = {};
-  let totalQA = 0;
-  let dedupCount = 0;
-  const recentSubjects: { name: string; mtime: number }[] = [];
-
-  if (vaultPath) {
-    const qaDir = path.join(vaultPath, "qa");
-    if (fs.existsSync(qaDir)) {
-      for (const dir of fs.readdirSync(qaDir, { withFileTypes: true })) {
-        if (dir.isDirectory()) {
-          const dirPath = path.join(qaDir, dir.name);
-          const files = fs.readdirSync(dirPath).filter((f) => f.endsWith(".md"));
-          categories[dir.name] = files.length;
-          totalQA += files.length;
-
-          // Collect recent subjects (only if < 2000 total for perf)
-          if (totalQA < 2000) {
-            for (const file of files) {
-              try {
-                const stat = fs.statSync(path.join(dirPath, file));
-                recentSubjects.push({
-                  name: `${dir.name}/${file.replace(/\.md$/, "")}`,
-                  mtime: stat.mtimeMs,
-                });
-              } catch {
-                // skip
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const dedupFile = path.join(qaDir, ".learned-subjects.json");
-    if (fs.existsSync(dedupFile)) {
-      try {
-        const data = fs.readFileSync(dedupFile, "utf-8");
-        const parsed = JSON.parse(data);
-        dedupCount = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length;
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  recentSubjects.sort((a, b) => b.mtime - a.mtime);
-
-  const status = getSelfLearnerStatus();
-
-  return {
-    totalQA,
-    dedupCount,
-    categories: Object.entries(categories).sort((a, b) => b[1] - a[1]),
-    recentSubjects: recentSubjects.slice(0, 10).map((s) => ({
-      name: s.name,
-      time: new Date(s.mtime).toISOString(),
-    })),
-    status,
-    timestamp: new Date().toISOString(),
-  };
-}
-
 function buildLearnStatsPage(): string {
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -569,6 +502,10 @@ async function refresh() {
     document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleTimeString('fr-FR');
 
     const status = data.status;
+    const metrics = data.metrics;
+    const hitPct = (metrics.hitRate * 100).toFixed(1);
+    const costSaved = metrics.estimatedCostSavedUsd.toFixed(4);
+    const vaultSize = formatBytes(data.vaultSizeBytes);
     const statusBadge = status.active
       ? '<span class="status-badge status-active"><span class="status-dot"></span>Actif</span>'
       : '<span class="status-badge status-inactive"><span class="status-dot"></span>Inactif</span>';
@@ -578,8 +515,11 @@ async function refresh() {
 
     document.getElementById('statsGrid').innerHTML = \`
       <div class="card"><div class="label">📚 Total Q&A</div><div class="value">\${data.totalQA}</div></div>
+      <div class="card"><div class="label">💾 Taille vault</div><div class="value">\${vaultSize}</div></div>
+      <div class="card"><div class="label">🎯 Hit rate</div><div class="value">\${hitPct}<span class="unit">%</span></div></div>
+      <div class="card"><div class="label">💰 API évitée</div><div class="value">$\${costSaved}</div></div>
       <div class="card"><div class="label">🔒 Sujets dédupliqués</div><div class="value">\${data.dedupCount}</div></div>
-      <div class="card"><div class="label">⚡ Cadence</div><div class="value">\${status.batchSize}<span class="unit">/\${status.intervalMs/60000}min</span></div></div>
+      <div class="card"><div class="label">⚡ Cadence</div><div class="value">\${data.cadence.batchSize}<span class="unit">/\${data.cadence.intervalSeconds}s</span></div></div>
       <div class="card"><div class="label">🔄 Statut</div><div style="margin-top:8px">\${statusBadge}<br><span style="display:block;margin-top:8px">\${webBadge}</span></div></div>
     \`;
 

@@ -191,9 +191,53 @@ interface ExtractedLink {
   relation: string;
 }
 
-interface ExtractionResult {
+export interface ExtractionResult {
   facts: ExtractedFact[];
   links: ExtractedLink[];
+}
+
+const VALID_CATEGORIES = new Set<ExtractedFact["category"]>([
+  "preference",
+  "personal",
+  "game",
+  "opinion",
+  "other",
+]);
+
+/**
+ * Parse la réponse JSON du LLM extracteur (tolérant au texte autour du JSON).
+ * Exporté pour les tests unitaires.
+ */
+export function parseExtractionJson(content: string): ExtractionResult {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return { facts: [], links: [] };
+
+  const parsed = JSON.parse(jsonMatch[0]) as {
+    facts?: Array<{ key: string; value: string; category?: string }>;
+    links?: Array<{ source: string; target: string; relation: string }>;
+  };
+
+  if (!parsed.facts) return { facts: [], links: [] };
+
+  const facts = parsed.facts.slice(0, 5).map((f) => ({
+    key: f.key.slice(0, 50),
+    value: f.value.slice(0, 200),
+    category: VALID_CATEGORIES.has(f.category as ExtractedFact["category"])
+      ? (f.category as ExtractedFact["category"])
+      : "other",
+  }));
+
+  const validKeys = new Set(facts.map((f) => f.key));
+  const links = (parsed.links || [])
+    .filter((l) => validKeys.has(l.source) && validKeys.has(l.target))
+    .slice(0, 8)
+    .map((l) => ({
+      source: l.source.slice(0, 50),
+      target: l.target.slice(0, 50),
+      relation: l.relation.slice(0, 30),
+    }));
+
+  return { facts, links };
 }
 
 /**
@@ -253,34 +297,7 @@ Règles :
     const content = data.choices?.[0]?.message?.content;
     if (!content) return { facts: [], links: [] };
 
-    // Parser le JSON (tolérant : extraire le JSON même s'il y a du texte autour)
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { facts: [], links: [] };
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      facts?: Array<{ key: string; value: string; category?: string }>;
-      links?: Array<{ source: string; target: string; relation: string }>;
-    };
-
-    if (!parsed.facts) return { facts: [], links: [] };
-
-    const facts = parsed.facts.slice(0, 5).map((f) => ({
-      key: f.key.slice(0, 50),
-      value: f.value.slice(0, 200),
-      category: (f.category as ExtractedFact["category"]) || "other",
-    }));
-
-    const validKeys = new Set(facts.map((f) => f.key));
-    const links = (parsed.links || [])
-      .filter((l) => validKeys.has(l.source) && validKeys.has(l.target))
-      .slice(0, 8)
-      .map((l) => ({
-        source: l.source.slice(0, 50),
-        target: l.target.slice(0, 50),
-        relation: l.relation.slice(0, 30),
-      }));
-
-    return { facts, links };
+    return parseExtractionJson(content);
   } catch (error) {
     logger.warn("[AIConversation] Extraction de faits échouée:", error);
     return { facts: [], links: [] };
