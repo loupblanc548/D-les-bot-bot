@@ -10,6 +10,7 @@ import {
   isEmptyResponse,
   sanitizeResponse,
   FALLBACK_MESSAGE,
+  isCannedFallback,
 } from "./responseClassifier.js";
 
 describe("responseClassifier", () => {
@@ -45,6 +46,17 @@ describe("responseClassifier", () => {
       expect(classifyResponse("Réessaie dans 1-2 minutes").category).toBe("hallucinated_error");
       expect(classifyResponse("Aucun modèle n'est disponible").category).toBe("hallucinated_error");
       expect(classifyResponse("quota/cooldown actif").category).toBe("hallucinated_error");
+    });
+
+    it("classifies canned blank-stare fallbacks", () => {
+      expect(
+        classifyResponse("Petit blanc de mon côté — redis-moi ce que tu voulais savoir ?").category,
+      ).toBe("canned_fallback");
+      expect(
+        classifyResponse(
+          "Je suis en pleine réflexion là. Repose ta question, je te réponds tout de suite.",
+        ).category,
+      ).toBe("canned_fallback");
     });
 
     it("classifies 'circuit breaker activated' as technical error (case-insensitive)", () => {
@@ -115,6 +127,12 @@ describe("responseClassifier", () => {
       expect(FALLBACK_MESSAGE).not.toContain("erreur");
       expect(FALLBACK_MESSAGE).not.toContain("indisponible");
       expect(FALLBACK_MESSAGE.length).toBeGreaterThan(20);
+    });
+
+    it("is classified as canned fallback, not a valid model answer", () => {
+      expect(classifyResponse(FALLBACK_MESSAGE).category).toBe("canned_fallback");
+      expect(isErrorResponse(FALLBACK_MESSAGE)).toBe(true);
+      expect(isCannedFallback(FALLBACK_MESSAGE)).toBe(true);
     });
   });
 });

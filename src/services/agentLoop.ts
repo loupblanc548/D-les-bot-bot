@@ -14,7 +14,7 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm } from "./aiGateway.js";
-import { isErrorResponse } from "./responseClassifier.js";
+import { isErrorResponse, sanitizeResponse } from "./responseClassifier.js";
 import {
   markModelSuccess,
   recordModelLatency,
@@ -1346,8 +1346,15 @@ async function runAgentLoopInternal(
       // ─── Cognitive Loop Engine: purge on success ───
       purgeCognitiveSession(cognitiveSessionId);
 
-      // ─── Filter hallucinated error responses ──
+      // ─── Filter hallucinated error responses (keep useful content if any) ──
       if (isErrorResponse(finalReply)) {
+        const cleaned = sanitizeResponse(finalReply);
+        if (cleaned.length > 20 && !isErrorResponse(cleaned)) {
+          logger.warn(
+            `[AgentLoop] ⚠️ LLM mixed error phrasing into the reply — kept ${cleaned.length} sanitized chars`,
+          );
+          return cleaned;
+        }
         logger.warn(`[AgentLoop] ⚠️ LLM returned a hallucinated error response — filtering`);
         return "";
       }

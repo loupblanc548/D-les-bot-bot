@@ -4,13 +4,15 @@
  * Catégories explicites:
  *  - technical_error: message d'erreur technique hardcodé
  *  - hallucinated_error: l'IA a inventé un message d'erreur sur la disponibilité
+ *  - canned_fallback: « petit blanc / repose ta question » (pas une vraie réponse)
  *  - empty: réponse vide ou trop courte
  *  - valid: réponse normale et utilisable
  *
  * Remplace les patterns éparpillés dans aiFallbackHelpers.ts et chatResponder.ts.
  */
 
-export type ResponseCategory = "technical_error" | "hallucinated_error" | "empty" | "valid";
+export type ResponseCategory =
+  "technical_error" | "hallucinated_error" | "canned_fallback" | "empty" | "valid";
 
 // ─── Patterns d'erreurs techniques (hardcodés, non générés par l'IA) ─────────
 
@@ -43,6 +45,16 @@ const HALLUCINATED_ERROR_PATTERNS = [
 
 const EMPTY_THRESHOLD = 2; // Moins de 2 caractères = vide
 
+// Replis canned (« petit blanc », « repose ta question ») — pas de vraies réponses.
+const CANNED_FALLBACK_PATTERNS = [
+  /petit blanc/i,
+  /repose[- ]moi ta question/i,
+  /repose ta question/i,
+  /redis[- ]moi ce que tu voulais/i,
+  /laisse[- ]moi reformuler ça dans ma tête/i,
+  /je suis en pleine r[ée]flexion l[àa]/i,
+];
+
 // ─── API publique ────────────────────────────────────────────────────────────
 
 /**
@@ -55,6 +67,10 @@ export function classifyResponse(text: string): {
 } {
   if (!text || text.trim().length < EMPTY_THRESHOLD) {
     return { category: "empty", isValid: false };
+  }
+
+  if (CANNED_FALLBACK_PATTERNS.some((p) => p.test(text))) {
+    return { category: "canned_fallback", isValid: false };
   }
 
   if (TECHNICAL_ERROR_PATTERNS.some((p) => p.test(text))) {
@@ -74,8 +90,16 @@ export function classifyResponse(text: string): {
 export function isErrorResponse(text: string): boolean {
   const { category } = classifyResponse(text);
   return (
-    category === "technical_error" || category === "hallucinated_error" || category === "empty"
+    category === "technical_error" ||
+    category === "hallucinated_error" ||
+    category === "canned_fallback" ||
+    category === "empty"
   );
+}
+
+/** Vrai si c'est le message « petit blanc / repose ta question », pas une vraie réponse. */
+export function isCannedFallback(text: string): boolean {
+  return classifyResponse(text).category === "canned_fallback";
 }
 
 /**
@@ -101,7 +125,8 @@ export function sanitizeResponse(text: string): string {
   const kept = lines.filter(
     (line) =>
       !HALLUCINATED_ERROR_PATTERNS.some((p) => p.test(line)) &&
-      !TECHNICAL_ERROR_PATTERNS.some((p) => p.test(line)),
+      !TECHNICAL_ERROR_PATTERNS.some((p) => p.test(line)) &&
+      !CANNED_FALLBACK_PATTERNS.some((p) => p.test(line)),
   );
   return kept.join("\n").trim();
 }

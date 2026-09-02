@@ -13,7 +13,12 @@
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm, getProviderStatus, type LlmCallRequest, type ProviderName } from "./aiGateway.js";
-import { isHallucinatedError, sanitizeResponse as classifySanitize } from "./responseClassifier.js";
+import {
+  isHallucinatedError,
+  isErrorResponse,
+  sanitizeResponse as classifySanitize,
+  FALLBACK_MESSAGE,
+} from "./responseClassifier.js";
 import { hallucinationDetected } from "./prometheusExporter.js";
 
 // ─── Sanitization des réponses (délégué au classifieur unique) ───────────────
@@ -93,6 +98,8 @@ export interface ChatRespondOptions {
   temperature?: number;
   /** Deadline globale en ms — on abandonne les providers lents au-delà */
   deadlineMs?: number;
+  /** Délai avant le retry silencieux de recoverChatReply (0 en tests) */
+  retryDelayMs?: number;
 }
 
 export interface ChatRespondResult {
@@ -193,4 +200,60 @@ export async function respondChat(
   }
 }
 
-export default { respondChat, orderProvidersBySpeed, containsHallucinatedError, sanitizeResponse };
+function isUsableModelReply(text: string): boolean {
+  return text.trim().length > 10 && !isErrorResponse(text);
+}
+
+/**
+ * After an empty / error agent-loop result: keep sanitized content if usable,
+ * otherwise retry the full provider chain (twice). The canned « petit blanc »
+ * is only returned when every model failed.
+ */
+export async function recoverChatReply(
+  current: string,
+  userMessage: string,
+  options: ChatRespondOptions = {},
+): Promise<string> {
+  const cleaned = classifySanitize(current || "").trim();
+  if (isUsableModelReply(cleaned)) {
+    return cleaned;
+  }
+
+  const tryProviders = async (): Promise<string | null> => {
+    const result = await respondChat(userMessage.slice(0, 4000), [], {
+      ...options,
+      maxTokens: options.maxTokens ?? 800,
+      deadlineMs: options.deadlineMs ?? 20_000,
+    });
+    if (result.fromFallback || result.provider === "fallback") return null;
+    const text = classifySanitize(result.content || "").trim();
+    return isUsableModelReply(text) ? text : null;
+  };
+
+  try {
+    const first = await tryProviders();
+    if (first) return first;
+
+    logger.warn("[ChatResponder] Recovery: first provider pass failed — silent retry");
+    const delay = options.retryDelayMs ?? (process.env.NODE_ENV === "test" ? 0 : 1200);
+    if (delay > 0) {
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    const second = await tryProviders();
+    if (second) return second;
+  } catch (err) {
+    logger.warn(
+      `[ChatResponder] recoverChatReply failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  return FALLBACK_MESSAGE;
+}
+
+export default {
+  respondChat,
+  recoverChatReply,
+  orderProvidersBySpeed,
+  containsHallucinatedError,
+  sanitizeResponse,
+};

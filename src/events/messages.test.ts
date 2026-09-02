@@ -128,6 +128,7 @@ vi.mock("../services/chatResponder", () => ({
     latencyMs: 1,
     fromFallback: true,
   }),
+  recoverChatReply: vi.fn().mockResolvedValue("Réponse de recovery"),
   orderProvidersBySpeed: vi.fn().mockReturnValue([]),
   containsHallucinatedError: vi.fn().mockReturnValue(false),
   sanitizeResponse: vi.fn((t: string) => t),

@@ -9,7 +9,7 @@
 import logger from "./logger.js";
 import { aiCacheHits, aiCacheMisses } from "../services/prometheusExporter.js";
 import { ensureConnected } from "./redisClient.js";
-import { isErrorResponse } from "../services/responseClassifier.js";
+import { isErrorResponse, isCannedFallback } from "../services/responseClassifier.js";
 
 interface CacheEntry {
   response: string;
@@ -86,8 +86,8 @@ export async function getCachedResponse(
     const cachedNorm = normalize(entry.response.slice(0, 500));
     const sim = cosineSimilarity(normalized, cachedNorm);
     if (sim >= SIMILARITY_THRESHOLD) {
-      if (isErrorResponse(entry.response)) {
-        logger.warn(`[AICache] L1 hit but response is error/hallucination — skipping`);
+      if (isErrorResponse(entry.response) || isCannedFallback(entry.response)) {
+        logger.warn(`[AICache] L1 hit but response is error/fallback — skipping`);
         cache.delete(key);
         continue;
       }
@@ -105,8 +105,8 @@ export async function getCachedResponse(
       const redisVal = (await redis.get(redisKey)) as string | null;
       if (redisVal) {
         const entry = JSON.parse(redisVal) as CacheEntry;
-        if (isErrorResponse(entry.response)) {
-          logger.warn(`[AICache] L2 (Redis) hit but response is error/hallucination — deleting`);
+        if (isErrorResponse(entry.response) || isCannedFallback(entry.response)) {
+          logger.warn(`[AICache] L2 (Redis) hit but response is error/fallback — deleting`);
           await redis.del(redisKey).catch(() => {});
           aiCacheMisses.labels(channelType).inc();
           return null;
@@ -131,9 +131,9 @@ export async function setCachedResponse(
   response: string,
   userId: string,
 ): Promise<void> {
-  // Never cache error/hallucinated responses
-  if (isErrorResponse(response)) {
-    logger.warn(`[AICache] Refusing to cache error/hallucination response`);
+  // Never cache error / hallucination / canned « petit blanc » replies
+  if (isErrorResponse(response) || isCannedFallback(response)) {
+    logger.warn(`[AICache] Refusing to cache error/hallucination/fallback response`);
     return;
   }
   const normalized = normalize(message);

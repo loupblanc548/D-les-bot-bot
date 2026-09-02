@@ -17,6 +17,7 @@ vi.mock("../config.js", () => ({
 import { callLlm } from "./aiGateway.js";
 import {
   respondChat,
+  recoverChatReply,
   containsHallucinatedError,
   sanitizeResponse,
   orderProvidersBySpeed,
@@ -155,6 +156,42 @@ describe("chatResponder", () => {
 
       const result = await respondChat("Test");
       expect(result.provider).toBe("fallback");
+    });
+  });
+
+  describe("recoverChatReply", () => {
+    it("keeps sanitized usable content without calling providers", async () => {
+      const recovered = await recoverChatReply(
+        "Voici la réponse utile.\nTous les modèles IA sont temporairement indisponibles.",
+        "Question ?",
+        { retryDelayMs: 0 },
+      );
+      expect(recovered).toContain("réponse utile");
+      expect(recovered).not.toContain("temporairement indisponibles");
+      expect(mockCallLlm).not.toHaveBeenCalled();
+    });
+
+    it("retries providers and returns a real answer", async () => {
+      mockCallLlm.mockResolvedValueOnce({
+        content: "Réponse après retry",
+        provider: "groq",
+        model: "llama",
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        costEur: 0,
+        latencyMs: 200,
+        finishReason: "stop",
+        fallbackCount: 0,
+      } as never);
+
+      const recovered = await recoverChatReply("", "Quelle heure est-il ?", { retryDelayMs: 0 });
+      expect(recovered).toBe("Réponse après retry");
+    });
+
+    it("returns canned fallback only after providers fail", async () => {
+      mockCallLlm.mockRejectedValue(new Error("All AI providers failed"));
+
+      const recovered = await recoverChatReply("", "Bonjour", { retryDelayMs: 0 });
+      expect(recovered).toMatch(/petit blanc|repose/i);
     });
   });
 });

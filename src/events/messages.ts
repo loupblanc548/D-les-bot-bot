@@ -39,8 +39,8 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
-import { callLlm } from "../services/aiGateway.js";
-import { isErrorResponse } from "../services/responseClassifier.js";
+import { isErrorResponse, isCannedFallback } from "../services/responseClassifier.js";
+import { recoverChatReply } from "../services/chatResponder.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
@@ -1750,8 +1750,6 @@ async function handleAiChatMention(
       // Chat simple → réponse rapide via le gateway (multi-providers, pas de message d'erreur)
       try {
         const { respondChat } = await import("../services/chatResponder.js");
-        const { isAiHallucinatedError: isHalluc } =
-          await import("../services/aiFallbackHelpers.js");
         const streamMsg = await (message as Message).reply("💭 ...");
         const result = await respondChat(enrichedContent, [], {
           systemPrompt:
@@ -1762,7 +1760,13 @@ async function handleAiChatMention(
           deadlineMs: 15_000,
         });
         const fastText = result.content?.trim() ?? "";
-        if (fastText && !isHalluc(fastText)) {
+        if (
+          fastText &&
+          !result.fromFallback &&
+          result.provider !== "fallback" &&
+          !isErrorResponse(fastText) &&
+          !isCannedFallback(fastText)
+        ) {
           await simulateStreamEdit(streamMsg, fastText);
           logger.info(
             `[AIChat] ⚡ Fast-path réussi via ${result.provider} (${fastText.length} chars, ${result.latencyMs}ms)`,
@@ -1799,49 +1803,29 @@ async function handleAiChatMention(
       aiResponse = "";
     }
 
-    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
+    // ── Si l'agent loop a échoué ou retourné une erreur, retry multi-provider ──
     if (!aiResponse || isErrorResponse(aiResponse)) {
-      logger.warn(
-        `[AIChat] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`,
-      );
-      try {
-        const fallbackResult = await callLlm({
-          messages: [
-            {
-              role: "system",
-              content:
-                config.aiSystemPrompt +
-                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            },
-            { role: "user", content: enrichedContent.slice(0, 4000) },
-          ],
-          maxTokens: 500,
-          timeoutMs: 15_000,
-          deadlineMs: 20_000,
-          userId: message.author.id,
-          guildId: message.guildId ?? undefined,
-          commandName: "chat-fallback",
-        });
-        if (fallbackResult.content && !isErrorResponse(fallbackResult.content)) {
-          aiResponse = fallbackResult.content;
-          logger.info(`[AIChat] Fallback aiGateway réussi via ${fallbackResult.provider}`);
-        }
-      } catch (fallbackErr) {
-        logger.error(
-          `[AIChat] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
-        );
-      }
+      logger.warn(`[AIChat] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
+      aiResponse = await recoverChatReply(aiResponse, enrichedContent, {
+        systemPrompt:
+          config.aiSystemPrompt +
+          "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+        userId: message.author.id,
+        guildId: message.guildId ?? undefined,
+        maxTokens: 800,
+        deadlineMs: 20_000,
+      });
     }
 
-    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
-    if (!aiResponse || isErrorResponse(aiResponse)) {
-      aiResponse =
-        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
-    }
-
-    // ── Stocker la réponse dans le cache sémantique ──
+    // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──
     // Ne pas cacher les réponses génériques du LLM local (qwen2.5:3b)
-    if (aiResponse && !aiResponse.includes("⚠️") && !isGenericLocalResponse(aiResponse)) {
+    if (
+      aiResponse &&
+      !aiResponse.includes("⚠️") &&
+      !isGenericLocalResponse(aiResponse) &&
+      !isErrorResponse(aiResponse) &&
+      !isCannedFallback(aiResponse)
+    ) {
       void setCachedResponse(enrichedContent, aiResponse, message.author.id);
     }
 
@@ -2192,46 +2176,27 @@ async function handleDMMessage(
       aiResponse = "";
     }
 
-    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
+    // ── Si l'agent loop a échoué ou retourné une erreur, retry multi-provider ──
     if (!aiResponse || isErrorResponse(aiResponse)) {
-      logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`);
-      try {
-        const dmFallbackResult = await callLlm({
-          messages: [
-            {
-              role: "system",
-              content:
-                config.aiSystemPrompt +
-                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            },
-            { role: "user", content: dmEnrichedContent.slice(0, 4000) },
-          ],
-          maxTokens: 500,
-          timeoutMs: 15_000,
-          deadlineMs: 20_000,
-          userId: message.author.id,
-          guildId: message.guildId ?? undefined,
-          commandName: "dm-fallback",
-        });
-        if (dmFallbackResult.content && !isErrorResponse(dmFallbackResult.content)) {
-          aiResponse = dmFallbackResult.content;
-          logger.info(`[DM] Fallback aiGateway réussi via ${dmFallbackResult.provider}`);
-        }
-      } catch (fallbackErr) {
-        logger.error(
-          `[DM] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
-        );
-      }
+      logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
+      aiResponse = await recoverChatReply(aiResponse, dmEnrichedContent, {
+        systemPrompt:
+          config.aiSystemPrompt +
+          "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+        userId: message.author.id,
+        guildId: message.guildId ?? undefined,
+        maxTokens: 800,
+        deadlineMs: 20_000,
+      });
     }
 
-    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
-    if (!aiResponse || isErrorResponse(aiResponse)) {
-      aiResponse =
-        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
-    }
-
-    // ── Stocker la réponse dans le cache sémantique ──
-    if (aiResponse && !aiResponse.includes("⚠️")) {
+    // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──
+    if (
+      aiResponse &&
+      !aiResponse.includes("⚠️") &&
+      !isErrorResponse(aiResponse) &&
+      !isCannedFallback(aiResponse)
+    ) {
       void setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
     }
 
