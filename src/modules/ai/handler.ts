@@ -41,25 +41,31 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
     const systemPrompt =
       process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
 
-    const { respondChat } = await import("../../services/chatResponder.js");
+    const { respondChat, recoverChatReply } = await import("../../services/chatResponder.js");
+    const { isErrorResponse } = await import("../../services/responseClassifier.js");
     const chatHistory = context
       .slice(0, -1)
       .filter((m): m is MessageContext & { role: "user" | "assistant" } => m.role !== "system")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    const result = await respondChat(
-      context[context.length - 1]?.content ?? message.content,
-      chatHistory,
-      {
+    const userMessage = context[context.length - 1]?.content ?? message.content;
+    const result = await respondChat(userMessage, chatHistory, {
+      systemPrompt,
+      userId,
+      guildId: message.guildId ?? undefined,
+      maxTokens: 1000,
+      deadlineMs: 20_000,
+    });
+    let response = result.content;
+    if (!response || result.provider === "fallback" || isErrorResponse(response)) {
+      response = await recoverChatReply(response || "", userMessage, {
         systemPrompt,
         userId,
         guildId: message.guildId ?? undefined,
         maxTokens: 1000,
         deadlineMs: 20_000,
-      },
-    );
-    const response = result.content;
-
+      });
+    }
     if (response) {
       context.push({ role: "assistant", content: response });
 
@@ -80,9 +86,17 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
     }
   } catch (error) {
     logger.error("[AIChat] Error:", error);
-    await message.reply({
-      content: "Hmm, j'ai eu un petit blanc… Repose-moi ta question ?",
-    });
+    try {
+      const { noteUnansweredQuestion } = await import("../../services/chatResponder.js");
+      const { FALLBACK_MESSAGE } = await import("../../services/responseClassifier.js");
+      noteUnansweredQuestion(message.author.id, message.content);
+      await message.reply({ content: FALLBACK_MESSAGE });
+    } catch {
+      await message.reply({
+        content:
+          "Les canaux IA sont saturés là, soldat. Envoie **go** et je relance, sans que tu aies à retaper.",
+      });
+    }
   }
 }
 

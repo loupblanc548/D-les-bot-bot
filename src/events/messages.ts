@@ -40,7 +40,11 @@ import {
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
 import { isErrorResponse, isCannedFallback } from "../services/responseClassifier.js";
-import { recoverChatReply } from "../services/chatResponder.js";
+import {
+  recoverChatReply,
+  resolveIncomingQuestion,
+  clearPendingQuestion,
+} from "../services/chatResponder.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
@@ -1473,7 +1477,7 @@ async function handleAiChatMention(
   let userLang: SupportedLang = "fr";
   try {
     // Nettoyer le message : retirer la mention du bot
-    const cleanedContent = message.content
+    let cleanedContent = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
 
@@ -1486,14 +1490,26 @@ async function handleAiChatMention(
       );
     }
     if (!cleanedContent && !hasAttachments) {
-      const langDetection = detectLanguage(message.content || "");
-      await message.reply({
-        content: getRandomHelldiverReply(langDetection.lang),
-        allowedMentions: { repliedUser: false },
-      });
-      return;
+      const pendingRetry = resolveIncomingQuestion(message.author.id, "", false);
+      if (!pendingRetry) {
+        const langDetection = detectLanguage(message.content || "");
+        await message.reply({
+          content: getRandomHelldiverReply(langDetection.lang),
+          allowedMentions: { repliedUser: false },
+        });
+        return;
+      }
+      logger.info(
+        `[AIChat] Empty mention — retrying last unanswered question for ${message.author.id}`,
+      );
+      cleanedContent = pendingRetry;
+    } else {
+      const original = cleanedContent;
+      cleanedContent = resolveIncomingQuestion(message.author.id, cleanedContent, hasAttachments);
+      if (cleanedContent && cleanedContent !== original) {
+        logger.info(`[AIChat] Retry cue — replaying last unanswered question`);
+      }
     }
-    // Si on a des attachments mais pas de texte, utiliser un prompt par défaut
     const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
 
     // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
@@ -1745,6 +1761,7 @@ async function handleAiChatMention(
     ];
     const hasToolIntent = toolKeywords.some((kw) => lowerMsgEarly.includes(kw));
     const isComplexOrTool = hasToolIntent || effectiveContent.length > 200;
+    let skipAgentDueToOutage = false;
 
     if (!isComplexOrTool) {
       // Chat simple → réponse rapide via le gateway (multi-providers, pas de message d'erreur)
@@ -1760,18 +1777,22 @@ async function handleAiChatMention(
           deadlineMs: 15_000,
         });
         const fastText = result.content?.trim() ?? "";
-        if (
-          fastText &&
-          !result.fromFallback &&
+        const fastUsable =
+          Boolean(fastText) &&
           result.provider !== "fallback" &&
           !isErrorResponse(fastText) &&
-          !isCannedFallback(fastText)
-        ) {
+          !isCannedFallback(fastText);
+        if (fastUsable) {
+          clearPendingQuestion(message.author.id);
           await simulateStreamEdit(streamMsg, fastText);
           logger.info(
             `[AIChat] ⚡ Fast-path réussi via ${result.provider} (${fastText.length} chars, ${result.latencyMs}ms)`,
           );
           return;
+        }
+        // Total outage: skip the agent loop so recover can give local-llm a fresh budget.
+        if (result.provider === "fallback") {
+          skipAgentDueToOutage = true;
         }
         // Hallucination ou vide: supprimer le placeholder et continuer vers l'agent loop
         await streamMsg.delete().catch(() => {});
@@ -1785,22 +1806,26 @@ async function handleAiChatMention(
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
     // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
     // puis synthétise sa réponse finale.
-    let aiResponse: string;
-    try {
-      aiResponse = await runAgentLoop(
-        message as Message,
-        enrichedContent,
-        (toolName, iter) => {
-          void statusIndicator.onToolCall(toolName, iter);
-        },
-        undefined,
-        imageUrls,
-      );
-    } catch (loopError) {
-      logger.warn(
-        `[AIChat] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
-      );
-      aiResponse = "";
+    let aiResponse = "";
+    if (!skipAgentDueToOutage) {
+      try {
+        aiResponse = await runAgentLoop(
+          message as Message,
+          enrichedContent,
+          (toolName, iter) => {
+            void statusIndicator.onToolCall(toolName, iter);
+          },
+          undefined,
+          imageUrls,
+        );
+      } catch (loopError) {
+        logger.warn(
+          `[AIChat] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+        );
+        aiResponse = "";
+      }
+    } else {
+      logger.warn("[AIChat] Providers down on fast-path — skip agent loop, recover immediately");
     }
 
     // ── Si l'agent loop a échoué ou retourné une erreur, retry multi-provider ──
@@ -1815,6 +1840,8 @@ async function handleAiChatMention(
         maxTokens: 800,
         deadlineMs: 20_000,
       });
+    } else {
+      clearPendingQuestion(message.author.id);
     }
 
     // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──
@@ -2046,8 +2073,12 @@ async function handleDMMessage(
 ): Promise<void> {
   const dmStatusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
-    const content = message.content.trim();
+    const contentRaw = message.content.trim();
     const hasDmAttachments = [...message.attachments.values()].some(isMediaAttachment);
+    const content = resolveIncomingQuestion(message.author.id, contentRaw, hasDmAttachments);
+    if (content && content !== contentRaw) {
+      logger.info(`[DM] Retry cue — replaying last unanswered question`);
+    }
     if (!content && !hasDmAttachments) return;
     const effectiveDmContent = content || "Analyse cette image et dis-moi ce que tu vois.";
 
@@ -2188,6 +2219,8 @@ async function handleDMMessage(
         maxTokens: 800,
         deadlineMs: 20_000,
       });
+    } else {
+      clearPendingQuestion(message.author.id);
     }
 
     // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──

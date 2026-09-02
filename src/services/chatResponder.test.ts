@@ -21,13 +21,19 @@ import {
   containsHallucinatedError,
   sanitizeResponse,
   orderProvidersBySpeed,
+  noteUnansweredQuestion,
+  takePendingQuestion,
+  resolveIncomingQuestion,
+  __resetPendingQuestionsForTests,
 } from "./chatResponder.js";
+import { FALLBACK_MESSAGE } from "./responseClassifier.js";
 
 const mockCallLlm = vi.mocked(callLlm);
 
 describe("chatResponder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetPendingQuestionsForTests();
   });
 
   describe("containsHallucinatedError", () => {
@@ -119,16 +125,13 @@ describe("chatResponder", () => {
       expect(result.provider).toBe("gemini");
     });
 
-    it("returns conversational fallback when everything fails — never a technical error", async () => {
+    it("returns empty fallback when everything fails — recoverChatReply answers or remembers", async () => {
       mockCallLlm.mockRejectedValue(new Error("All AI providers failed"));
 
       const result = await respondChat("Bonjour");
       expect(result.provider).toBe("fallback");
       expect(result.fromFallback).toBe(true);
-      expect(result.content.length).toBeGreaterThan(10);
-      expect(containsHallucinatedError(result.content)).toBe(false);
-      expect(result.content).not.toContain("indisponible");
-      expect(result.content).not.toContain("erreur");
+      expect(result.content).toBe("");
     });
 
     it("returns fallback when retry also hallucinates", async () => {
@@ -187,11 +190,51 @@ describe("chatResponder", () => {
       expect(recovered).toBe("Réponse après retry");
     });
 
-    it("returns canned fallback only after providers fail", async () => {
+    it("returns canned fallback only after providers fail — does not ask to retype", async () => {
       mockCallLlm.mockRejectedValue(new Error("All AI providers failed"));
 
-      const recovered = await recoverChatReply("", "Bonjour", { retryDelayMs: 0 });
-      expect(recovered).toMatch(/petit blanc|repose/i);
+      const recovered = await recoverChatReply("", "Quelle heure est-il ?", {
+        retryDelayMs: 0,
+        userId: "u1",
+      });
+      expect(recovered).toBe(FALLBACK_MESSAGE);
+      expect(takePendingQuestion("u1", "go")).toBe("Quelle heure est-il ?");
+    });
+
+    it("last-ditch local-llm succeeds after the cascade fails", async () => {
+      mockCallLlm
+        .mockRejectedValueOnce(new Error("All AI providers failed"))
+        .mockResolvedValueOnce({
+          content: "Réponse locale Ollama",
+          provider: "local-llm",
+          model: "qwen",
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          costEur: 0,
+          latencyMs: 400,
+          finishReason: "stop",
+          fallbackCount: 0,
+        } as never);
+
+      const recovered = await recoverChatReply("", "C'est quoi la démocratie ?", {
+        retryDelayMs: 0,
+      });
+      expect(recovered).toBe("Réponse locale Ollama");
+      expect(mockCallLlm).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("pending unanswered question", () => {
+    it("replays the last question on « go » and forgets it after a new question", () => {
+      noteUnansweredQuestion("u1", "Quelle est la capitale du Brésil ?");
+      expect(takePendingQuestion("u1", "go")).toBe("Quelle est la capitale du Brésil ?");
+      expect(takePendingQuestion("u1", "go")).toBeNull();
+
+      noteUnansweredQuestion("u1", "Et du Portugal ?");
+      expect(resolveIncomingQuestion("u1", "relance")).toBe("Et du Portugal ?");
+
+      noteUnansweredQuestion("u1", "Question A");
+      expect(resolveIncomingQuestion("u1", "Question B")).toBe("Question B");
+      expect(takePendingQuestion("u1", "go")).toBeNull();
     });
   });
 });

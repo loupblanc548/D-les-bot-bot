@@ -132,6 +132,10 @@ vi.mock("../services/chatResponder", () => ({
   orderProvidersBySpeed: vi.fn().mockReturnValue([]),
   containsHallucinatedError: vi.fn().mockReturnValue(false),
   sanitizeResponse: vi.fn((t: string) => t),
+  takePendingQuestion: vi.fn().mockReturnValue(null),
+  noteUnansweredQuestion: vi.fn(),
+  clearPendingQuestion: vi.fn(),
+  resolveIncomingQuestion: vi.fn((_id: string, incoming: string) => incoming),
 }));
 
 vi.mock("../services/aiConversation", () => ({

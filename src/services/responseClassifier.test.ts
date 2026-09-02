@@ -57,6 +57,7 @@ describe("responseClassifier", () => {
           "Je suis en pleine réflexion là. Repose ta question, je te réponds tout de suite.",
         ).category,
       ).toBe("canned_fallback");
+      expect(classifyResponse(FALLBACK_MESSAGE).category).toBe("canned_fallback");
     });
 
     it("classifies 'circuit breaker activated' as technical error (case-insensitive)", () => {
@@ -127,6 +128,7 @@ describe("responseClassifier", () => {
       expect(FALLBACK_MESSAGE).not.toContain("erreur");
       expect(FALLBACK_MESSAGE).not.toContain("indisponible");
       expect(FALLBACK_MESSAGE.length).toBeGreaterThan(20);
+      expect(FALLBACK_MESSAGE.toLowerCase()).toContain("go");
     });
 
     it("is classified as canned fallback, not a valid model answer", () => {

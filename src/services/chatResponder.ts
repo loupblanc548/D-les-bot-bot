@@ -76,16 +76,68 @@ export function orderProvidersBySpeed(preferred?: ProviderName[]): ProviderName[
   });
 }
 
-// ─── Réponses de repli conversationnelles ────────────────────────────────────
+// ─── Last unanswered question (retry with « go » without retyping) ───────────
 
-const FALLBACK_REPLIES = [
-  "Hmm, laisse-moi reformuler ça dans ma tête une seconde… Peux-tu me redonner ta question ?",
-  "Je suis en pleine réflexion là. Repose ta question, je te réponds tout de suite.",
-  "Petit blanc de mon côté — redis-moi ce que tu voulais savoir ?",
-];
+const PENDING_TTL_MS = 10 * 60 * 1000;
+const pendingQuestions = new Map<string, { question: string; at: number }>();
+const RETRY_CUE =
+  /^(go|retry|reessaye|réessaie|réessaye|encore|relance|stp|s['']il te pla[iî]t|ok|oui|yes|\?+|…|\.{2,})!*$/i;
 
-function pickFallbackReply(): string {
-  return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
+function stripPromptDecorations(text: string): string {
+  return text.replace(/\[LANGUAGE INSTRUCTION\][\s\S]*?\n\n/i, "").trim();
+}
+
+export function noteUnansweredQuestion(userId: string, question: string): void {
+  if (!userId) return;
+  const stripped = stripPromptDecorations(question);
+  if (stripped.length < 2 || isRetryCue(stripped)) return;
+  pendingQuestions.set(userId, { question: stripped, at: Date.now() });
+}
+
+export function clearPendingQuestion(userId: string): void {
+  if (userId) pendingQuestions.delete(userId);
+}
+
+function isRetryCue(text: string): boolean {
+  const t = text.trim();
+  return !t || RETRY_CUE.test(t);
+}
+
+export function takePendingQuestion(userId: string, incoming: string): string | null {
+  if (!userId) return null;
+  const pending = pendingQuestions.get(userId);
+  if (!pending || Date.now() - pending.at > PENDING_TTL_MS) {
+    pendingQuestions.delete(userId);
+    return null;
+  }
+  if (isRetryCue(incoming)) {
+    pendingQuestions.delete(userId);
+    return pending.question;
+  }
+  // New question: drop the stale pending so a later « go » cannot resurrect it.
+  pendingQuestions.delete(userId);
+  return null;
+}
+
+/**
+ * Empty ping / « go » / « retry » replays the last unanswered question.
+ * A real new question forgets the old pending. Attachments are left as-is.
+ */
+export function resolveIncomingQuestion(
+  userId: string,
+  incoming: string,
+  hasAttachments = false,
+): string {
+  const t = incoming.trim();
+  if (hasAttachments) {
+    if (t && !isRetryCue(t)) clearPendingQuestion(userId);
+    return t;
+  }
+  return takePendingQuestion(userId, t) ?? t;
+}
+
+export function __resetPendingQuestionsForTests(): void {
+  pendingQuestions.clear();
 }
 
 // ─── API principale ──────────────────────────────────────────────────────────
@@ -173,7 +225,7 @@ export async function respondChat(
         // continue vers le fallback final
       }
       return {
-        content: pickFallbackReply(),
+        content: "",
         provider: "fallback",
         latencyMs: Date.now() - startedAt,
         fromFallback: true,
@@ -192,7 +244,7 @@ export async function respondChat(
       `[ChatResponder] Tous les providers ont échoué: ${err instanceof Error ? err.message : String(err)}`,
     );
     return {
-      content: pickFallbackReply(),
+      content: "",
       provider: "fallback",
       latencyMs: Date.now() - startedAt,
       fromFallback: true,
@@ -204,10 +256,45 @@ function isUsableModelReply(text: string): boolean {
   return text.trim().length > 10 && !isErrorResponse(text);
 }
 
+async function tryForcedProviders(
+  userMessage: string,
+  options: ChatRespondOptions,
+  providerOrder: ProviderName[],
+): Promise<string | null> {
+  const systemPrompt =
+    options.systemPrompt ??
+    config.aiSystemPrompt ??
+    "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.";
+  try {
+    const result = await callLlm({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage.slice(0, 4000) },
+      ],
+      maxTokens: options.maxTokens ?? 600,
+      temperature: options.temperature ?? 0.7,
+      timeoutMs: 25_000,
+      deadlineMs: 30_000,
+      maxRetries: 0,
+      userId: options.userId,
+      guildId: options.guildId,
+      providerOrder,
+    });
+    const text = classifySanitize(result.content || "").trim();
+    return isUsableModelReply(text) ? text : null;
+  } catch (err) {
+    logger.warn(
+      `[ChatResponder] Forced providers (${providerOrder.join(",")}) failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
 /**
  * After an empty / error agent-loop result: keep sanitized content if usable,
- * otherwise retry the full provider chain (twice). The canned « petit blanc »
- * is only returned when every model failed.
+ * otherwise retry the full provider chain, then force local LLM with its own
+ * timeout budget. Never asks the user to retype: last resort remembers the
+ * question so a later « go » retries it.
  */
 export async function recoverChatReply(
   current: string,
@@ -216,6 +303,7 @@ export async function recoverChatReply(
 ): Promise<string> {
   const cleaned = classifySanitize(current || "").trim();
   if (isUsableModelReply(cleaned)) {
+    if (options.userId) clearPendingQuestion(options.userId);
     return cleaned;
   }
 
@@ -225,28 +313,41 @@ export async function recoverChatReply(
       maxTokens: options.maxTokens ?? 800,
       deadlineMs: options.deadlineMs ?? 20_000,
     });
-    if (result.fromFallback || result.provider === "fallback") return null;
+    if (result.provider === "fallback") return null;
     const text = classifySanitize(result.content || "").trim();
     return isUsableModelReply(text) ? text : null;
   };
 
   try {
     const first = await tryProviders();
-    if (first) return first;
+    if (first) {
+      if (options.userId) clearPendingQuestion(options.userId);
+      return first;
+    }
 
-    logger.warn("[ChatResponder] Recovery: first provider pass failed — silent retry");
-    const delay = options.retryDelayMs ?? (process.env.NODE_ENV === "test" ? 0 : 1200);
+    // Skip a second identical cascade: it eats the budget before Ollama can run.
+    logger.warn("[ChatResponder] Recovery: cascade failed — forcing local-llm then groq/gemini");
+    const delay = options.retryDelayMs ?? (process.env.NODE_ENV === "test" ? 0 : 800);
     if (delay > 0) {
       await new Promise((r) => setTimeout(r, delay));
     }
-    const second = await tryProviders();
-    if (second) return second;
+    const local = await tryForcedProviders(userMessage, options, [
+      "local-llm",
+      "groq",
+      "gemini",
+      "openrouter",
+    ]);
+    if (local) {
+      if (options.userId) clearPendingQuestion(options.userId);
+      return local;
+    }
   } catch (err) {
     logger.warn(
       `[ChatResponder] recoverChatReply failed: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
+  if (options.userId) noteUnansweredQuestion(options.userId, userMessage);
   return FALLBACK_MESSAGE;
 }
 
@@ -256,4 +357,8 @@ export default {
   orderProvidersBySpeed,
   containsHallucinatedError,
   sanitizeResponse,
+  takePendingQuestion,
+  noteUnansweredQuestion,
+  clearPendingQuestion,
+  resolveIncomingQuestion,
 };

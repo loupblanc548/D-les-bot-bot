@@ -53,6 +53,9 @@ const CANNED_FALLBACK_PATTERNS = [
   /redis[- ]moi ce que tu voulais/i,
   /laisse[- ]moi reformuler ça dans ma tête/i,
   /je suis en pleine r[ée]flexion l[àa]/i,
+  /canaux IA sont satur/i,
+  /j'ai ta question en m[ée]moire/i,
+  /envoie \*\*go\*\*/i,
 ];
 
 // ─── API publique ────────────────────────────────────────────────────────────
@@ -135,4 +138,4 @@ export function sanitizeResponse(text: string): string {
  * Message de repli conversationnel quand tout échoue.
  */
 export const FALLBACK_MESSAGE =
-  "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
+  "Les canaux IA sont saturés là, soldat. J'ai ta question en mémoire — envoie **go** et je relance, sans que tu aies à la retaper.";
