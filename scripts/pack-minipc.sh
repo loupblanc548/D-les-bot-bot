@@ -19,6 +19,7 @@ tar -czf "${ARCHIVE}" \
   docs/DEPLOY-CONTABO.md \
   scripts/migrate_hardware.sh \
   scripts/setup-swap.sh \
+  scripts/ollama-standby.sh \
   docker-compose.yml \
   docker-compose-vps.yml \
   ecosystem.config.cjs \
@@ -32,7 +33,7 @@ echo "Copie:   ${OUT_DIR}/minipc-bundle.tar.gz"
 echo ""
 echo "Sur le mini PC:"
 echo "  1. Copier le .env du VPS (tokens) — ne pas le mettre dans le tar."
-echo "  2. Lire docs/LOCAL_LLM_SETUP.md (Ollama qwen2.5:7b, Tailscale)."
+echo "  2. Lire docs/LOCAL_LLM_SETUP.md. Qwen en standby: bash scripts/ollama-standby.sh"
 echo "  3. docker compose -f deploy/docker-compose.yml up -d"
 echo "     ou: npm ci && npx prisma migrate deploy && pm2 start ecosystem.config.cjs"
 echo "  4. FORCE_LOCAL_MEMORY=1 si tu veux le profil 4 Go heap / media worker."

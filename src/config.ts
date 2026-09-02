@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { loadEnv } from "./utils/env-loader.js";
+import { shouldUseLocalOllama } from "./utils/localLlmGate.js";
 
 dotenv.config();
 
@@ -275,9 +276,11 @@ export function validateConfig(): { errors: string[]; warnings: string[] } {
   // Discord (fatal)
   if (!config.token) errors.push("DISCORD_TOKEN manquant dans .env");
   if (!config.clientId) errors.push("DISCORD_CLIENT_ID manquant dans .env");
-  // AI: local Ollama is a valid standalone mode; external providers are optional.
-  if (!config.openRouterApiKey && process.env.LOCAL_LLM_ENABLED === "false") {
-    warnings.push("Aucun provider IA externe configuré et LLM local désactivé");
+  // AI: Ollama/Qwen is standby by default — cloud keys are required until Llama.
+  if (!config.openRouterApiKey && !shouldUseLocalOllama()) {
+    warnings.push(
+      "Aucun provider IA cloud configuré — Ollama/Qwen est en standby (poids sur disque, pas en RAM)",
+    );
   }
   // Channels (warning - le bot fonctionne sans)
   if (!config.logChannel)

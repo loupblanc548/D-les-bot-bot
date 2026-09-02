@@ -10,6 +10,7 @@
  */
 
 import logger from "./logger.js";
+import { shouldUseLocalOllama } from "./localLlmGate.js";
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
@@ -20,6 +21,10 @@ let lastCheckTime = 0;
 const CHECK_INTERVAL = 60_000; // Check availability every 60s
 
 async function isOllamaAvailable(): Promise<boolean> {
+  if (!shouldUseLocalOllama()) {
+    ollamaAvailable = false;
+    return false;
+  }
   if (!ollamaAvailable && Date.now() - lastCheckTime < CHECK_INTERVAL) {
     return false;
   }

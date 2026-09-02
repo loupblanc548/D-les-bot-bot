@@ -214,9 +214,10 @@ export function attachStartupLogic(
             void preWarmLocalModel();
           }
         } else {
-          logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
+          logger.info(
+            "[Startup] LLM local en standby (Qwen non chargé) — APIs cloud. Llama plus tard: LOCAL_LLM_ENABLED=true OLLAMA_STANDBY=false",
+          );
         }
-        // Démarrer le health check périodique (auto-recovery si Ollama redémarre)
         startLocalLlmHealthCheck();
       });
 

@@ -152,4 +152,11 @@ pm2 restart bot --update-env
 free -h
 ```
 
-Ne **pas** lancer Ollama 7B sur ce VPS. Le LLM local va sur le mini PC (déc/jan) : `bash scripts/pack-minipc.sh` puis `docs/LOCAL_LLM_SETUP.md`.
+Ne **pas** lancer Ollama 7B/14B (Qwen) sur ce VPS. Les poids restent sur disque :
+
+```bash
+bash scripts/ollama-standby.sh
+```
+
+Le bot ignore Ollama tant que `LOCAL_LLM_ENABLED=false` / `OLLAMA_STANDBY=true`.
+Llama ira sur le mini PC (déc/jan) : `bash scripts/pack-minipc.sh` puis `docs/LOCAL_LLM_SETUP.md`.

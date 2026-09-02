@@ -1,5 +1,8 @@
 # Guide LLM Local (Ollama)
 
+**Standby actuel:** Qwen n'est **pas** chargé. `bash scripts/ollama-standby.sh` décharge la RAM
+sans supprimer les fichiers. Ne pas mettre `OLLAMA_KEEP_ALIVE=-1` tant que Llama n'est pas installé.
+
 ## Installation d'Ollama
 
 ### Linux (VPS)

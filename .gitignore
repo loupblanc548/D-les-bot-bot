@@ -122,6 +122,7 @@ bedrock-server/
 !scripts/backup_obsidian.sh
 !scripts/setup-swap.sh
 !scripts/pack-minipc.sh
+!scripts/ollama-standby.sh
 
 # Security: never commit VPS audit reports with IPs/credentials
 VPS_AUDIT_REPORT.md

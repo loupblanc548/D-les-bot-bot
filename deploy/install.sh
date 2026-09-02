@@ -173,8 +173,10 @@ REDIS_URL=redis://localhost:6379
 # OpenRouter (traductions/résumés — fallback si pas d'Ollama)
 OPENROUTER_API_KEY=REMPLACER_PAR_TA_CLE_OPENROUTER
 
-# Ollama (désactivé sur VPS — pas de GPU)
-OLLAMA_BASE_URL=http://localhost:99999
+# Ollama (standby — Qwen on disk, not in RAM; Llama later)
+LOCAL_LLM_ENABLED=false
+OLLAMA_STANDBY=true
+OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2:3b
 
 # Intervals VPS (plus conservateur que local)
