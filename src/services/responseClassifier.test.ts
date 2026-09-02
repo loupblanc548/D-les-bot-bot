@@ -121,6 +121,16 @@ describe("responseClassifier", () => {
     it("returns clean text unchanged", () => {
       expect(sanitizeResponse("Bonjour tout le monde!")).toBe("Bonjour tout le monde!");
     });
+
+    it("unwraps leftover [ANALYSIS]/[RESPONSE]/[SUGGESTION] blocks", () => {
+      const input =
+        "[ANALYSIS] Le tool a trouvé 12C à Lyon.\n[RESPONSE] Il fait 12 degrés à Lyon.\n[SUGGESTION] Tu veux la météo demain ?";
+      const result = sanitizeResponse(input);
+      expect(result).toContain("Il fait 12 degrés à Lyon.");
+      expect(result).toContain("Tu veux la météo demain");
+      expect(result).not.toContain("[ANALYSIS]");
+      expect(result).not.toContain("[RESPONSE]");
+    });
   });
 
   describe("FALLBACK_MESSAGE", () => {

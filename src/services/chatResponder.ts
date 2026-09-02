@@ -12,6 +12,10 @@
 
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import {
+  buildPersonalitySystemPrompt,
+  DEFAULT_OPERATING_PROMPT,
+} from "../infrastructure/middleware/personalityMiddleware.js";
 import { callLlm, getProviderStatus, type LlmCallRequest, type ProviderName } from "./aiGateway.js";
 import {
   isHallucinatedError,
@@ -179,8 +183,7 @@ export async function respondChat(
   const startedAt = Date.now();
   const systemPrompt =
     options.systemPrompt ??
-    config.aiSystemPrompt ??
-    "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.";
+    buildPersonalitySystemPrompt(config.aiSystemPrompt || DEFAULT_OPERATING_PROMPT);
 
   const request: LlmCallRequest = {
     messages: [
@@ -263,8 +266,7 @@ async function tryForcedProviders(
 ): Promise<string | null> {
   const systemPrompt =
     options.systemPrompt ??
-    config.aiSystemPrompt ??
-    "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.";
+    buildPersonalitySystemPrompt(config.aiSystemPrompt || DEFAULT_OPERATING_PROMPT);
   try {
     const result = await callLlm({
       messages: [

@@ -391,7 +391,7 @@ describe("messageCreate — AI Chat @mention", () => {
 
     expect(msg.reply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringMatching(/John Helldiver|Soldat|Super-Terre|camarade/),
+        content: expect.stringMatching(/John|écoute|Quoi de neuf|Dis-moi|Présent/),
         allowedMentions: { repliedUser: false },
       }),
     );

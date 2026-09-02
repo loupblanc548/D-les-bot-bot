@@ -45,6 +45,11 @@ import {
   resolveIncomingQuestion,
   clearPendingQuestion,
 } from "../services/chatResponder.js";
+import { needsAgentLoop } from "../services/agentIntent.js";
+import {
+  buildPersonalitySystemPrompt,
+  getPersonalityTemperature,
+} from "../infrastructure/middleware/personalityMiddleware.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
@@ -121,107 +126,53 @@ setInterval(
 
 const HELPDIVER_EMPTY_MENTION_REPLIES: Record<string, string[]> = {
   fr: [
-    "🫡 **John Helldiver** à l'écoute, soldat ! Ta mission ? Pose ta question, je suis prêt à déployer la puissance de la Super-Terre pour toi !",
-    "🎖️ Soldat ! Tu m'as appelé ? La démocratie a besoin de savoir ce que tu veux — balance ta question !",
-    "🦅 **Présent pour la Super-Terre !** Dis-moi tout, camarade. Traduction, info gaming, soutien tactique… je gère !",
-    "💪 **John Helldiver en renfort !** Pas de question = pas de victoire, soldat. Qu'est-ce que je peux faire pour toi ?",
+    "Ouais, je t'écoute — cuisine, code, devoirs, actus, Discord, ce que tu veux.",
+    "John ici. Pose ta question, je gère.",
+    "Présent. Dis-moi ce dont tu as besoin.",
+    "Je suis là. Quoi de neuf ?",
   ],
   en: [
-    "🫡 **John Helldiver** reporting in, soldier! What's your mission? Ask your question, I'm ready to deploy Super Earth's firepower for you!",
-    "🎖️ Soldier! You called? Democracy needs to know what you want — drop your question!",
-    "🦅 **Present for Super Earth!** Tell me everything, comrade. Translation, gaming intel, tactical support… I've got it!",
-    "💪 **John Helldiver reinforcements!** No question = no victory, soldier. What can I do for you?",
+    "Yeah, I'm here — cooking, code, homework, news, Discord, whatever you need.",
+    "John here. Ask away.",
+    "Present. What do you need?",
+    "I'm listening. What's up?",
   ],
   de: [
-    "🫡 **John Helldiver** hört zu, Soldat! Was ist deine Mission? Stell deine Frage, ich bin bereit, die Macht von Super-Erde für dich einzusetzen!",
-    "🎖️ Soldat! Du hast gerufen? Die Demokratie muss wissen, was du willst — stell deine Frage!",
-    "🦅 **Für Super-Erde bereit!** Sag mir alles, Kamerad. Übersetzung, Gaming-Infos, taktische Unterstützung… ich mach das!",
-    "💪 **John Helldiver als Verstärkung!** Keine Frage = kein Sieg, Soldat. Was kann ich für dich tun?",
+    "Ja, ich höre zu — Kochen, Code, Hausaufgaben, News, Discord, was du willst.",
+    "John hier. Frag einfach.",
   ],
   es: [
-    "🫡 **John Helldiver** al habla, ¡soldado! ¿Cuál es tu misión? Haz tu pregunta, ¡estoy listo para desplegar el poder de la Super-Tierra para ti!",
-    "🎖️ ¡Soldado! ¿Me llamaste? La democracia necesita saber qué quieres — ¡suelta tu pregunta!",
-    "🦅 **¡Presente para la Super-Tierra!** Dímelo todo, camarada. Traducción, info de gaming, apoyo táctico… ¡yo lo manejo!",
-    "💪 **¡John Helldiver de refuerzo!** Sin pregunta = sin victoria, soldado. ¿Qué puedo hacer por ti?",
+    "Sí, te escucho — cocina, código, deberes, noticias, Discord, lo que sea.",
+    "John aquí. Pregunta lo que quieras.",
   ],
   pt: [
-    "🫡 **John Helldiver** à escuta, soldado! Qual é a sua missão? Faça sua pergunta, estou pronto para implantar o poder da Super-Terra para você!",
-    "🎖️ Soldado! Você me chamou? A democracia precisa saber o que você quer — faça sua pergunta!",
-    "🦅 **Presente para a Super-Terra!** Diga tudo, camarada. Tradução, info de gaming, suporte tático… eu cuido disso!",
-    "💪 **John Helldiver como reforço!** Sem pergunta = sem vitória, soldado. O que posso fazer por você?",
+    "Sim, estou aqui — cozinha, código, deveres, notícias, Discord, o que você quiser.",
+    "John aqui. Manda a pergunta.",
   ],
   it: [
-    "🫡 **John Helldiver** in ascolto, soldato! Qual è la tua missione? Fai la tua domanda, sono pronto a schierare la potenza della Super-Terra per te!",
-    "🎖️ Soldato! Mi hai chiamato? La democrazia ha bisogno di sapere cosa vuoi — fai la tua domanda!",
-    "🦅 **Presente per la Super-Terra!** Dimmi tutto, compagno. Traduzione, info gaming, supporto tattico… ci penso io!",
-    "💪 **John Helldiver come rinforzo!** Nessuna domanda = nessuna vittoria, soldato. Cosa posso fare per te?",
+    "Sì, ti ascolto — cucina, codice, compiti, news, Discord, quello che vuoi.",
+    "John qui. Chiedi pure.",
   ],
   nl: [
-    "🫡 **John Helldiver** luistert, soldaat! Wat is je missie? Stel je vraag, ik ben klaar om de kracht van Super-Earde voor je in te zetten!",
-    "🎖️ Soldaat! Je riep me? De democratie moet weten wat je wilt — stel je vraag!",
-    "🦅 **Present voor Super-Earde!** Vertel me alles, kameraad. Vertaling, gaming-info, tactische steun… ik regel het!",
-    "💪 **John Helldiver als versterking!** Geen vraag = geen overwinning, soldaat. Wat kan ik voor je doen?",
+    "Ja, ik luister — koken, code, huiswerk, nieuws, Discord, whatever.",
+    "John hier. Stel je vraag.",
   ],
   sv: [
-    "🫡 **John Helldiver** lyssnar, soldat! Vad är ditt uppdrag? Ställ din fråga, jag är redo att utplacera Super-Jordens kraft för dig!",
-    "🎖️ Soldat! Kallade du på mig? Demokratin behöver veta vad du vill — ställ din fråga!",
-    "🦅 **Redo för Super-Jorden!** Berätta allt, kamrat. Översättning, gaming-info, taktiskt stöd… jag fixar det!",
-    "💪 **John Helldiver som förstärkning!** Ingen fråga = ingen seger, soldat. Vad kan jag göra för dig?",
+    "Ja, jag lyssnar — matlagning, kod, läxor, nyheter, Discord, vad du vill.",
+    "John här. Fråga på.",
   ],
-  no: [
-    "🫡 **John Helldiver** lytter, soldat! Hva er ditt oppdrag? Still ditt spørsmål, jeg er klar til å distribuere Super-Jordens kraft for deg!",
-    "🎖️ Soldat! Kalte du meg? Demokratiet trenger å vite hva du vil — still ditt spørsmål!",
-    "🦅 **Til stede for Super-Jorden!** Fortell meg alt, kamerat. Oversettelse, gaming-info, taktisk støtte… jeg fikser det!",
-    "💪 **John Helldiver som forsterkning!** Ingen spørsmål = ingen seier, soldat. Hva kan jeg gjøre for deg?",
-  ],
-  cs: [
-    "🫡 **John Helldiver** naslouchá, vojáku! Jaká je tvá mise? Polož svou otázku, jsem připraven nasadit sílu Super-Země pro tebe!",
-    "🎖️ Vojáku! Volal jsi mě? Demokracie potřebuje vědět, co chceš — polož svou otázku!",
-    "🦅 **Přítomen pro Super-Zemi!** Řekni mi všechno, soudruhu. Překlad, herní info, taktická podpora… to zvládnu!",
-    "💪 **John Helldiver jako posila!** Žádná otázka = žádné vítězství, vojáku. Co mohu pro tebe udělat?",
-  ],
-  pl: [
-    "🫡 **John Helldiver** słucha, żołnierzu! Jaka jest twoja misja? Zadaj pytanie, jestem gotów do rozmieszczenia sił Super-Ziemi dla ciebie!",
-    "🎖️ Żołnierzu! Wzywałeś mnie? Demokracja musi wiedzieć, czego chcesz — zadaj pytanie!",
-    "🦅 **Gotów dla Super-Ziemi!** Powiedz mi wszystko, towarzyszu. Tłumaczenie, info gamingowe, wsparcie taktyczne… zajmę się tym!",
-    "💪 **John Helldiver jako wsparcie!** Brak pytania = brak zwycięstwa, żołnierzu. Co mogę dla ciebie zrobić?",
-  ],
+  no: ["Ja, jeg hører — mat, kode, lekser, nyheter, Discord, hva du vil.", "John her. Spør i vei."],
+  cs: ["Jo, poslouchám — vaření, kód, úkoly, zprávy, Discord, cokoliv.", "John tady. Ptej se."],
+  pl: ["Tak, słucham — gotowanie, kod, zadania, newsy, Discord, cokolwiek.", "John tutaj. Pytaj."],
   tr: [
-    "🫡 **John Helldiver** dinliyor, asker! Görevin ne? Sorunu sor, Süper Dünya'nın gücünü senin için kullanmaya hazırım!",
-    "🎖️ Asker! Beni mi çağırdın? Demokrasi ne istediğini bilmeli — sorunu sor!",
-    "🦅 **Süper Dünya için hazırım!** Bana her şeyi anlat, yoldaş. Çeviri, oyun bilgisi, taktik destek… ben hallederim!",
-    "💪 **John Helldiver takviye olarak!** Soru yok = zafer yok, asker. Senin için ne yapabilirim?",
+    "Evet, dinliyorum — yemek, kod, ödev, haber, Discord, ne istersen.",
+    "John burada. Sorunu sor.",
   ],
-  ru: [
-    "🫡 **Джон Хеллдайвер** на связи, солдат! Какова твоя миссия? Задавай вопрос, я готов применить мощь Супер-Земли для тебя!",
-    "🎖️ Солдат! Ты звал меня? Демократии нужно знать, чего ты хочешь — задавай вопрос!",
-    "🦅 **Готов служить Супер-Земле!** Расскажи мне всё, товарищ. Перевод, игровая информация, тактическая поддержка… я всё улажу!",
-    "💪 **Джон Хеллдайвер в качестве подкрепления!** Нет вопроса = нет победы, солдат. Что я могу для тебя сделать?",
-  ],
-  ja: [
-    "🫡 **ジョン・ヘルダイバー**が聞いています、兵士！ミッションは何ですか？質問してください、スーパーアースの力をあなたのために展開する準備ができています！",
-    "🎖️ 兵士！呼びましたか？民主主義はあなたが何を望んでいるかを知る必要があります — 質問してください！",
-    "🦅 **スーパーアースのために！** 全部教えてください、同志。翻訳、ゲーム情報、戦術サポート…私がやります！",
-    "💪 **ジョン・ヘルダイバーが増援として！** 質問なし＝勝利なし、兵士。何ができますか？",
-  ],
-  zh: [
-    "🫡 **约翰·地狱潜者**在听，士兵！你的任务是什么？提问吧，我准备为你部署超级地球的力量！",
-    "🎖️ 士兵！你叫我？民主需要知道你想要什么 — 提问吧！",
-    "🦅 **为超级地球效劳！** 告诉我一切，同志。翻译、游戏信息、战术支援…我来处理！",
-    "💪 **约翰·地狱潜者作为增援！** 没问题 = 没胜利，士兵。我能为你做什么？",
-  ],
-  ar: [
-    "🫡 **جون هيلدايفر** يستمع، أيها الجندي! ما مهمتك؟ اطرح سؤالك، أنا مستعد لنشر قوة الأرض العظمى من أجلك!",
-    "🎖️ أيها الجندي! هل ناديتني؟ الديمقراطية بحاجة لمعرفة ما تريد — اطرح سؤالك!",
-    "🦅 **حاضر من أجل الأرض العظمى!** أخبرني بكل شيء، يا رفيق. ترجمة، معلومات الألعاب، دعم تكتيكي… أنا أتولى الأمر!",
-    "💪 **جون هيلدايفر كتعزيزات!** لا سؤال = لا نصر، أيها الجندي. ماذا يمكنني أن أفعل لك؟",
-  ],
-  ko: [
-    "🫡 **존 헬다이버**가 듣고 있습니다, 병사! 임무가 무엇입니까? 질문하세요, 슈퍼어스의 힘을 당신을 위해 배치할 준비가 되어 있습니다!",
-    "🎖️ 병사! 나를 불렀나요? 민주주의는 당신이 원하는 것을 알아야 합니다 — 질문하세요!",
-    "🦅 **슈퍼어스를 위해!** 모든 것을 말해주세요, 동지. 번역, 게임 정보, 전술 지원… 제가 처리합니다!",
-    "💪 **존 헬다이버가 증원으로!** 질문 없음 = 승리 없음, 병사. 무엇을 도와드릴까요?",
-  ],
+  ru: ["Да, я здесь — готовка, код, учёба, новости, Discord, что угодно.", "Это Джон. Спрашивай."],
+  ja: ["いるよ。料理でもコードでも宿題でも、何でも聞いて。", "ジョンだ。どうぞ。"],
+  zh: ["在的。做饭、代码、作业、新闻、Discord，随便问。", "我是 John。说吧。"],
+  ar: ["نعم، أسمعك — طبخ، برمجة، واجبات، أخبار، ديسكورد، أي شيء.", "جون هنا. اسأل."],
+  ko: ["응, 듣고 있어 — 요리, 코드, 숙제, 뉴스, 디스코드, 뭐든.", "존이야. 물어봐."],
 };
 
 function getRandomHelldiverReply(lang: SupportedLang = "fr"): string {
@@ -1680,96 +1631,9 @@ async function handleAiChatMention(
       // Si le deep research échoue, on continue vers l'agent loop
     }
 
-    // ── FAST PATH: chat simple sans tools → streaming direct, skip agent loop ──
-    // Si le message est court et ne contient pas de keywords de tools, on répond
-    // directement sans passer par l'agent loop (économise ~2-5s de latence)
-    const lowerMsgEarly = enrichedContent.toLowerCase();
-    const toolKeywords = [
-      "cherche",
-      "search",
-      "recherche",
-      "trouve",
-      "find",
-      "look up",
-      "analyse",
-      "analyze",
-      "scan",
-      "vérifie",
-      "check",
-      "test",
-      "calcule",
-      "calculate",
-      "compute",
-      "résous",
-      "solve",
-      "convert",
-      "transform",
-      "encode",
-      "decode",
-      "hash",
-      "météo",
-      "weather",
-      "prix",
-      "price",
-      "crypto",
-      "stock",
-      "github",
-      "repo",
-      "commit",
-      "issue",
-      "pull request",
-      "site",
-      "url",
-      "page",
-      "lien",
-      "link",
-      "http",
-      "image",
-      "screenshot",
-      "photo",
-      "génère",
-      "generate",
-      "dessine",
-      "code",
-      "script",
-      "exécute",
-      "execute",
-      "run",
-      "wikipedia",
-      "wiki",
-      "news",
-      "article",
-      "video",
-      "youtube",
-      "meme",
-      "blague",
-      "joke",
-      "citation",
-      "quote",
-      "translate",
-      "traduis",
-      "langue",
-      "language",
-      "stock",
-      "prix",
-      "deal",
-      "promo",
-      "shop",
-      "boutique",
-      "server",
-      "serveur",
-      "ping",
-      "ip",
-      "dns",
-      "domain",
-      "password",
-      "mot de passe",
-      "token",
-      "clé",
-      "key",
-    ];
-    const hasToolIntent = toolKeywords.some((kw) => lowerMsgEarly.includes(kw));
-    const isComplexOrTool = hasToolIntent || effectiveContent.length > 200;
+    // ── FAST PATH: bavardage court sans vraie question → skip agent loop ──
+    // Les questions / tâches (code, cuisine, devoirs, recherche…) passent par l'agent.
+    const isComplexOrTool = needsAgentLoop(enrichedContent) || imageUrls.length > 0;
     let skipAgentDueToOutage = false;
 
     if (!isComplexOrTool) {
@@ -1778,11 +1642,11 @@ async function handleAiChatMention(
         const { respondChat } = await import("../services/chatResponder.js");
         const streamMsg = await (message as Message).reply("💭 ...");
         const result = await respondChat(enrichedContent, [], {
-          systemPrompt:
-            "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.",
+          systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+          temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
-          maxTokens: 1000,
+          maxTokens: 1500,
           deadlineMs: 15_000,
         });
         const fastText = result.content?.trim() ?? "";
@@ -1841,12 +1705,10 @@ async function handleAiChatMention(
     if (!aiResponse || isErrorResponse(aiResponse)) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
       aiResponse = await recoverChatReply(aiResponse, enrichedContent, {
-        systemPrompt:
-          config.aiSystemPrompt +
-          "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+        systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
         userId: message.author.id,
         guildId: message.guildId ?? undefined,
-        maxTokens: 800,
+        maxTokens: 1500,
         deadlineMs: 20_000,
       });
     } else {
@@ -1985,13 +1847,12 @@ async function handleAiChatMention(
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const errorFallbackMsgs: Record<string, { overload: string; error: string }> = {
         fr: {
-          overload:
-            "🦅 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat.",
-          error: "🦅 *Static* — Problème de transmission. Le QG est notifié. Réessaie.",
+          overload: "Les canaux sont saturés. Réessaie dans quelques secondes.",
+          error: "Petit souci de transmission. Réessaie dans un instant.",
         },
         en: {
-          overload: "🦅 *Static* — Orbital relay saturated. Try again in a few seconds, soldier.",
-          error: "🦅 *Static* — Transmission problem. HQ has been notified. Try again.",
+          overload: "Channels are saturated. Try again in a few seconds.",
+          error: "Transmission glitch. Try again in a moment.",
         },
         de: {
           overload:
@@ -2220,12 +2081,10 @@ async function handleDMMessage(
     if (!aiResponse || isErrorResponse(aiResponse)) {
       logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
       aiResponse = await recoverChatReply(aiResponse, dmEnrichedContent, {
-        systemPrompt:
-          config.aiSystemPrompt +
-          "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
+        systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
         userId: message.author.id,
         guildId: message.guildId ?? undefined,
-        maxTokens: 800,
+        maxTokens: 1500,
         deadlineMs: 20_000,
       });
     } else {
@@ -2344,8 +2203,8 @@ async function handleDMMessage(
       const errMsg = error instanceof Error ? error.message : String(error);
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const userMsg = isOverload
-        ? "🦉 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat."
-        : "🦉 *Static* — Problème de transmission. Le QG est notifié. Réessaie.";
+        ? "Les canaux sont saturés. Réessaie dans quelques secondes."
+        : "Petit souci de transmission. Réessaie dans un instant.";
       await message.reply({
         content: userMsg,
         allowedMentions: { repliedUser: false },

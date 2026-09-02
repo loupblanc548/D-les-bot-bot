@@ -18,7 +18,11 @@ const envSchema = z.object({
   // OpenRouter AI (optional — local Ollama can run the chatbot without external keys)
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v3:free"),
-  AI_SYSTEM_PROMPT: z.string().default("Tu es un assistant utile et concis. Reponds en francais."),
+  AI_SYSTEM_PROMPT: z
+    .string()
+    .default(
+      "Tu aides sur Discord. Reponds dans la langue de l'utilisateur. Sois utile, precis, et naturel.",
+    ),
 
   // OpenAI (optional — premium tier, used first if available)
   OPENAI_API_KEY: z.string().optional(),

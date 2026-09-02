@@ -35,11 +35,11 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
   },
   {
     patterns: [/^\s*(salut|bonjour|hey|coucou|yo|hello|hi|cc)\s*$/i],
-    complexity: "trivial",
+    complexity: "simple",
   },
   {
     patterns: [/^\s*(merci|thanks|thx|cimer)\s*$/i],
-    complexity: "trivial",
+    complexity: "simple",
   },
   {
     patterns: [/^\s*[\p{Emoji}\s]+$/u],

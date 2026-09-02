@@ -120,11 +120,30 @@ export function isEmptyResponse(text: string): boolean {
 }
 
 /**
+ * Si un modèle ressort encore l'ancien gabarit [ANALYSIS]/[RESPONSE]/[SUGGESTION],
+ * on ne montre que la partie destinée à l'utilisateur.
+ */
+export function unwrapStructuredReply(text: string): string {
+  if (!text) return text;
+  const responseMatch = text.match(/\[RESPONSE\]\s*([\s\S]*?)(?=\[SUGGESTION\]|$)/i);
+  if (responseMatch) {
+    const body = responseMatch[1].trim();
+    const suggestion = text.match(/\[SUGGESTION\]\s*([\s\S]*?)$/i)?.[1]?.trim();
+    if (suggestion && suggestion.length > 0 && suggestion.length < 400) {
+      return `${body}\n\n${suggestion}`.trim();
+    }
+    return body;
+  }
+  return text.replace(/\[(?:ANALYSIS|RESPONSE|SUGGESTION)\]\s*/gi, "").trim();
+}
+
+/**
  * Nettoie une réponse: supprime les lignes qui hallucinent des erreurs
  * tout en conservant le reste du contenu utile.
  */
 export function sanitizeResponse(text: string): string {
-  const lines = text.split("\n");
+  const unwrapped = unwrapStructuredReply(text);
+  const lines = unwrapped.split("\n");
   const kept = lines.filter(
     (line) =>
       !HALLUCINATED_ERROR_PATTERNS.some((p) => p.test(line)) &&
@@ -138,4 +157,4 @@ export function sanitizeResponse(text: string): string {
  * Message de repli conversationnel quand tout échoue.
  */
 export const FALLBACK_MESSAGE =
-  "Les canaux IA sont saturés là, soldat. J'ai ta question en mémoire — envoie **go** et je relance, sans que tu aies à la retaper.";
+  "Les canaux IA sont saturés là. J'ai ta question en mémoire — envoie **go** et je relance, sans que tu aies à la retaper.";

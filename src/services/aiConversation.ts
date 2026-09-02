@@ -12,6 +12,7 @@
 
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { buildPersonalitySystemPrompt } from "../infrastructure/middleware/personalityMiddleware.js";
 import prisma from "../prisma.js";
 import { recall, remember, clearConversation, type UserMemorySnapshot } from "./aiMemory.js";
 
@@ -119,7 +120,7 @@ export async function buildConversationContext(
 
   // ── System prompt de base ──
   let systemPrompt =
-    config.aiSystemPrompt +
+    buildPersonalitySystemPrompt(config.aiSystemPrompt) +
     "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
     "Si on te parle en anglais, réponds en anglais. Si en espagnol, réponds en espagnol. " +
     "Si en français, réponds en français. Adapte-toi à n'importe quelle langue. " +

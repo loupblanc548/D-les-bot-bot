@@ -1,6 +1,10 @@
 import { Client, Message, EmbedBuilder, TextChannel, DMChannel } from "discord.js";
 import logger from "../../utils/logger.js";
 import { ensureConnected } from "../../utils/redisClient.js";
+import {
+  buildPersonalitySystemPrompt,
+  DEFAULT_OPERATING_PROMPT,
+} from "../../infrastructure/middleware/personalityMiddleware.js";
 
 const CONTEXT_KEY_PREFIX = "ai:context:";
 const CONTEXT_TTL = 15 * 60; // 15 minutes
@@ -38,8 +42,9 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
       }
     }
 
-    const systemPrompt =
-      process.env.AI_SYSTEM_PROMPT || "Tu es un assistant utile et concis. Réponds en français.";
+    const systemPrompt = buildPersonalitySystemPrompt(
+      process.env.AI_SYSTEM_PROMPT || DEFAULT_OPERATING_PROMPT,
+    );
 
     const { respondChat, recoverChatReply } = await import("../../services/chatResponder.js");
     const { isErrorResponse } = await import("../../services/responseClassifier.js");
@@ -76,10 +81,10 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
       await saveContext(contextKey, context);
 
       const embed = new EmbedBuilder()
-        .setTitle("🤖 JOHN HELLDIVER AI")
+        .setTitle("John")
         .setDescription(response)
         .setColor(0xffd700)
-        .setFooter({ text: "Super Earth Command • AI System" })
+        .setFooter({ text: "IA généraliste" })
         .setTimestamp();
 
       await message.reply({ embeds: [embed] });
@@ -94,7 +99,7 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
     } catch {
       await message.reply({
         content:
-          "Les canaux IA sont saturés là, soldat. Envoie **go** et je relance, sans que tu aies à retaper.",
+          "Les canaux IA sont saturés là. Envoie **go** et je relance, sans que tu aies à retaper.",
       });
     }
   }
