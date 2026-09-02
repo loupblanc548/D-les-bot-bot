@@ -114,7 +114,9 @@ export async function dispatchAlert(client: Client, payload: AlertPayload): Prom
       targetId: payload.guildId,
       details: JSON.stringify({ id: payload.id, channels: promises.length }),
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 // ─── 1. Discord ──────────────────────────────────────────────────────────────
@@ -157,7 +159,9 @@ async function sendDiscordAlert(client: Client, payload: AlertPayload): Promise<
       try {
         const user = await client.users.fetch(userId);
         await user.send({ embeds: [embed] });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }

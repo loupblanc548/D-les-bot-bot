@@ -33,50 +33,30 @@ export const commands = [
       sub
         .setName("profile")
         .setDescription("Voir le profil PSN d'un joueur")
-        .addStringOption((o) =>
-          o
-            .setName("pseudo")
-            .setDescription("Pseudo PSN")
-            .setRequired(true)
-        )
+        .addStringOption((o) => o.setName("pseudo").setDescription("Pseudo PSN").setRequired(true)),
     )
     .addSubcommand((sub) =>
       sub
         .setName("trophies")
         .setDescription("Voir les trophées d'un joueur PSN")
-        .addStringOption((o) =>
-          o
-            .setName("pseudo")
-            .setDescription("Pseudo PSN")
-            .setRequired(true)
-        )
+        .addStringOption((o) => o.setName("pseudo").setDescription("Pseudo PSN").setRequired(true)),
     )
     .addSubcommand((sub) =>
       sub
         .setName("games")
         .setDescription("Voir les derniers jeux joués sur PSN")
-        .addStringOption((o) =>
-          o
-            .setName("pseudo")
-            .setDescription("Pseudo PSN")
-            .setRequired(true)
-        )
+        .addStringOption((o) => o.setName("pseudo").setDescription("Pseudo PSN").setRequired(true)),
     )
     .addSubcommand((sub) =>
-      sub
-        .setName("deals")
-        .setDescription("Voir les promos PlayStation Store")
+      sub.setName("deals").setDescription("Voir les promos PlayStation Store"),
     )
     .addSubcommand((sub) =>
       sub
         .setName("connect")
         .setDescription("Lier ton compte Discord à un pseudo PSN")
         .addStringOption((o) =>
-          o
-            .setName("pseudo")
-            .setDescription("Ton pseudo PSN")
-            .setRequired(true)
-        )
+          o.setName("pseudo").setDescription("Ton pseudo PSN").setRequired(true),
+        ),
     )
     .toJSON(),
 ];
@@ -127,7 +107,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -171,11 +153,7 @@ async function handleTrophies(interaction: ChatInputCommandInteraction) {
 
   if (!isValidPsnId(username)) {
     await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffaa00)
-          .setDescription("⚠️ Pseudo PSN invalide."),
-      ],
+      embeds: [new EmbedBuilder().setColor(0xffaa00).setDescription("⚠️ Pseudo PSN invalide.")],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -206,7 +184,7 @@ async function handleTrophies(interaction: ChatInputCommandInteraction) {
         `🥇 **Or:** ${ts.gold}\n` +
         `🥈 **Argent:** ${ts.silver}\n` +
         `🥉 **Bronze:** ${ts.bronze}\n` +
-        `📊 **Total:** ${ts.total}`
+        `📊 **Total:** ${ts.total}`,
     )
     .setFooter(FOOTER)
     .setTimestamp();
@@ -220,11 +198,7 @@ async function handleGames(interaction: ChatInputCommandInteraction) {
 
   if (!isValidPsnId(username)) {
     await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffaa00)
-          .setDescription("⚠️ Pseudo PSN invalide."),
-      ],
+      embeds: [new EmbedBuilder().setColor(0xffaa00).setDescription("⚠️ Pseudo PSN invalide.")],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -254,11 +228,7 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
 
   if (!isValidPsnId(username)) {
     await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffaa00)
-          .setDescription("⚠️ Pseudo PSN invalide."),
-      ],
+      embeds: [new EmbedBuilder().setColor(0xffaa00).setDescription("⚠️ Pseudo PSN invalide.")],
       flags: [MessageFlags.Ephemeral],
     });
     return;
@@ -297,7 +267,7 @@ async function handleConnect(interaction: ChatInputCommandInteraction) {
         .setTitle("✅ Compte PSN lié")
         .setDescription(
           `Ton compte Discord est lié au PSN **${profile.onlineId}**.\n` +
-            `Niveau trophées: **${profile.trophySummary.level}** • ${profile.trophySummary.total} trophées`
+            `Niveau trophées: **${profile.trophySummary.level}** • ${profile.trophySummary.total} trophées`,
         )
         .setThumbnail(profile.avatarUrl)
         .setFooter(FOOTER),
@@ -326,7 +296,7 @@ async function handleDeals(interaction: ChatInputCommandInteraction) {
       (d: any, i: number) =>
         `**${i + 1}. ${d.title}**\n` +
         ` ~~${d.originalPrice}~~ → **${d.discountedPrice}** (-${d.discountPercent}%)\n` +
-        ` 📅 Fin: ${d.endDate}\n`
+        ` 📅 Fin: ${d.endDate}\n`,
     )
     .join("\n");
 
@@ -357,25 +327,24 @@ function buildProfileEmbed(profile: PsnProfile): EmbedBuilder {
         name: "🪙 Platine / 🥇 Or / 🥈 Argent / 🥉 Bronze",
         value: `${profile.trophySummary.platinum} / ${profile.trophySummary.gold} / ${profile.trophySummary.silver} / ${profile.trophySummary.bronze}`,
         inline: false,
-      }
+      },
     )
     .setFooter(FOOTER)
     .setTimestamp();
 }
 
-function buildGamesEmbed(
-  username: string,
-  games: PsnGameTitle[]
-): EmbedBuilder {
+function buildGamesEmbed(username: string, games: PsnGameTitle[]): EmbedBuilder {
   const top5 = games.slice(0, 5);
   const description = top5
     .map((g, i) => {
       const trophyStr =
         `🪙${g.trophyCount.platinum} 🥇${g.trophyCount.gold} ` +
         `🥈${g.trophyCount.silver} 🥉${g.trophyCount.bronze}`;
-      return `**${i + 1}. ${g.titleName}**\n` +
+      return (
+        `**${i + 1}. ${g.titleName}**\n` +
         ` 📱 ${g.platform} | ${trophyStr}\n` +
-        ` 📊 Progression: ${g.progress}%\n`;
+        ` 📊 Progression: ${g.progress}%\n`
+      );
     })
     .join("\n");
 

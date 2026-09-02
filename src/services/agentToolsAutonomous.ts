@@ -2665,13 +2665,9 @@ async function tDetectAnomalies(args: Record<string, any>): Promise<ToolCallResu
 
 async function tBuildComparisonEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
-  const columns = Array.isArray(args.columns)
-    ? (args.columns as any[]).map((c) => String(c))
-    : [];
+  const columns = Array.isArray(args.columns) ? (args.columns as any[]).map((c) => String(c)) : [];
   const rows = Array.isArray(args.rows)
-    ? (args.rows as any[]).map((r) =>
-        Array.isArray(r) ? r.map((c: any) => String(c)) : [],
-      )
+    ? (args.rows as any[]).map((r) => (Array.isArray(r) ? r.map((c: any) => String(c)) : []))
     : [];
   if (!title || columns.length === 0) return { success: false, data: "Titre et colonnes requis" };
   try {
@@ -3250,9 +3246,9 @@ async function tNetworkInvestigate(args: Record<string, any>): Promise<ToolCallR
         const data = (await res.json()) as Record<string, any>;
         const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
         results.whois = {
-          registrar: (
-            (data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>
-          ).find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
+          registrar: ((data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>).find(
+            (e) => e.roles?.includes("registrar"),
+          )?.vcardArray?.[1]
             ? "available"
             : "unknown",
           registration: events.find((e) => e.eventAction === "registration")?.eventDate ?? "N/A",

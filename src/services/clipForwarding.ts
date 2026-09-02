@@ -25,24 +25,30 @@ async function fetchRecentClips(streamerName: string): Promise<TwitchClip[]> {
     const clientSecret = config.twitchClientSecret;
     if (!clientId || !clientSecret) return clips;
 
-    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, { method: "POST" });
+    const tokenRes = await fetch(
+      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+      { method: "POST" },
+    );
     if (!tokenRes.ok) return clips;
-    const tokenData = await tokenRes.json() as any;
+    const tokenData = (await tokenRes.json()) as any;
 
     const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${streamerName}`, {
       headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
     });
     if (!userRes.ok) return clips;
-    const userData = await userRes.json() as any;
+    const userData = (await userRes.json()) as any;
     const userId = userData.data?.[0]?.id;
     if (!userId) return clips;
 
     const startedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const clipRes = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${userId}&started_at=${startedAt}&first=5`, {
-      headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
-    });
+    const clipRes = await fetch(
+      `https://api.twitch.tv/helix/clips?broadcaster_id=${userId}&started_at=${startedAt}&first=5`,
+      {
+        headers: { "Client-ID": clientId, Authorization: `Bearer ${tokenData.access_token}` },
+      },
+    );
     if (!clipRes.ok) return clips;
-    const clipData = await clipRes.json() as any;
+    const clipData = (await clipRes.json()) as any;
 
     for (const clip of clipData.data ?? []) {
       clips.push({
@@ -56,7 +62,9 @@ async function fetchRecentClips(streamerName: string): Promise<TwitchClip[]> {
       });
     }
   } catch (err) {
-    logger.debug(`[Clips] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+    logger.debug(
+      `[Clips] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+    );
   }
   return clips;
 }
@@ -98,7 +106,9 @@ async function checkClips(client: Client): Promise<void> {
         await channel.send({ embeds: [embed] });
         logger.info(`[Clips] Clip notifié: ${sanitizeForLog(clip.title)}`);
       } catch (err) {
-        logger.error(`[Clips] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+        logger.error(
+          `[Clips] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+        );
       }
     }
   }

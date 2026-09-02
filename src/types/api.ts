@@ -157,9 +157,12 @@ export interface ITADGame {
 }
 
 export interface ITADPricesResponse {
-  data: Record<string, {
-    list: ITADPrice[];
-  }>;
+  data: Record<
+    string,
+    {
+      list: ITADPrice[];
+    }
+  >;
 }
 
 export interface ITADPrice {

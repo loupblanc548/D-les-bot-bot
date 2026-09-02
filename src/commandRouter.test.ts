@@ -15,6 +15,59 @@ vi.mock("./utils/logger", () => ({ default: mockLogger }));
 vi.mock("./config", () => ({ config: mockConfig }));
 vi.mock("./middleware", () => mockMiddleware);
 
+// Native addons (raknet) are not built under npm ci --ignore-scripts.
+vi.mock("raknet-native", () => ({
+  default: {},
+  Client: vi.fn(),
+}));
+vi.mock("bedrock-protocol", () => ({
+  Client: vi.fn(),
+  createClient: vi.fn(),
+  ping: vi.fn(),
+}));
+vi.mock("./services/minecraftMenu", () => ({
+  showMcMenu: vi.fn(),
+  handleMcMenuButton: vi.fn(),
+  handleMcMenuSelect: vi.fn(),
+  handleMcMenuModal: vi.fn(),
+}));
+vi.mock("./commands/gameGroup", () => ({
+  commands: [],
+  fnbotCommands: [],
+  handleCommand: vi.fn(),
+  handleFnbotCommand: vi.fn(),
+}));
+vi.mock("./commands/minecraftGroup", () => ({ commands: [] }));
+vi.mock("./commands/botGroup", () => ({ commands: [] }));
+vi.mock("./commands/modadmin", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/adminGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/ticketGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/autoThread", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/customCommands", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/manageGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/communityGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/toolsGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/funGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/debugGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/game2Group", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/musicGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/stats", () => ({ data: { name: "stats" }, execute: vi.fn() }));
+vi.mock("./commands/learnStats", () => ({ data: { name: "learnstats" }, execute: vi.fn() }));
+vi.mock("./commands/config", () => ({ data: { name: "config" }, execute: vi.fn() }));
+vi.mock("./commands/help", () => ({ data: { name: "help" }, execute: vi.fn() }));
+vi.mock("./commands/releases", () => ({ commands: [], handleReleasesCommand: vi.fn() }));
+vi.mock("./commands/trending", () => ({ commands: [], handleTrendingCommand: vi.fn() }));
+vi.mock("./commands/gameupdates", () => ({ commands: [], handleGameUpdatesCommand: vi.fn() }));
+vi.mock("./commands/stream", () => ({ commands: [], handleStreamCommand: vi.fn() }));
+vi.mock("./commands/killswitch", () => ({ data: { name: "killswitch" }, execute: vi.fn() }));
+vi.mock("./commands/privacy", () => ({ data: { name: "privacy" }, execute: vi.fn() }));
+vi.mock("./commands/follow", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/trackRetailer", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/router/index", () => ({
+  buildAllCommands: vi.fn().mockReturnValue([]),
+  dispatchInteraction: vi.fn(),
+}));
+
 // Mocker TOUS les modules de commandes pour éviter de charger leurs imports discord.js
 vi.mock("./commands/main", () => ({
   commands: [{ name: "start", description: "Start" }],
@@ -74,8 +127,14 @@ vi.mock("./commands/trackGroup", () => ({ commands: [], handleCommand: vi.fn() }
 vi.mock("./commands/casierGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/alertGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/aiGroup", () => ({ commands: [], handleCommand: vi.fn() }));
-vi.mock("./commands/helpSystem", () => ({ commands: [{ name: "help" }, { name: "commands" }], handleCommand: vi.fn() }));
-vi.mock("./commands/contextMenus", () => ({ contextMenuCommands: [{ name: "👤 Voir profil" }], handleContextMenu: vi.fn() }));
+vi.mock("./commands/helpSystem", () => ({
+  commands: [{ name: "help" }, { name: "commands" }],
+  handleCommand: vi.fn(),
+}));
+vi.mock("./commands/contextMenus", () => ({
+  contextMenuCommands: [{ name: "👤 Voir profil" }],
+  handleContextMenu: vi.fn(),
+}));
 
 // IMPORTANT: mockReturnValue pour éviter le probleme "new" avec les arrow functions
 vi.mock("discord.js", () => ({

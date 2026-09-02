@@ -117,7 +117,7 @@ describe("handleAntiraid (via handleCommand)", () => {
       expect(interaction.editReply).toHaveBeenCalledWith(
         expect.objectContaining({
           embeds: expect.any(Array),
-        })
+        }),
       );
     });
   });
@@ -143,7 +143,7 @@ describe("handleAntiraid (via handleCommand)", () => {
       expect(interaction.editReply).toHaveBeenCalledWith(
         expect.objectContaining({
           embeds: expect.any(Array),
-        })
+        }),
       );
     });
   });
@@ -208,14 +208,11 @@ describe("handleAntiraid (via handleCommand)", () => {
       const interaction = mi({ action: "on" });
       await handleCommand(interaction, mockClient);
 
-      expect(logger.error).toHaveBeenCalledWith(
-        "[CRASH CRITIQUE ANTIRAID]:",
-        expect.any(Error)
-      );
+      expect(logger.error).toHaveBeenCalledWith("[CRASH CRITIQUE ANTIRAID]:", expect.any(Error));
       expect(interaction.editReply).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.stringContaining("Impossible"),
-        })
+        }),
       );
     });
 
@@ -223,9 +220,7 @@ describe("handleAntiraid (via handleCommand)", () => {
       mockPrisma.guildConfig.upsert.mockRejectedValue(new Error("DB locked"));
       const interaction = mi({ action: "on" });
       interaction.editReply.mockRejectedValueOnce(new Error("edit failed"));
-      await expect(
-        handleCommand(interaction, mockClient)
-      ).resolves.toBeUndefined();
+      await expect(handleCommand(interaction, mockClient)).resolves.toBeUndefined();
     });
   });
 });

@@ -69,7 +69,9 @@ export async function takeScreenshot(
         return { success: true, data: `Screenshot de ${url} capturé via Colab GPU` };
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   let browser: Browser | null = null;
   try {
@@ -145,7 +147,9 @@ export async function takeScreenshot(
     if (browser) {
       try {
         await browser.close();
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }

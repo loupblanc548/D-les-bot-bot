@@ -121,7 +121,9 @@ class DeduplicationCache {
           where: { key: "lastMaintenance" },
         });
         if (state) this.lastMaintenance = state.value;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       this.initialized = true;
     } catch (error) {
       logger.error(
@@ -302,7 +304,9 @@ class DeduplicationCache {
         where: { key: "lastMaintenance" },
       });
       this.lastMaintenance = state?.value ?? null;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     if (this.lastMaintenance) {
       const lastDate = new Date(this.lastMaintenance);
       if (lastDate.getMonth() === now.getMonth() && lastDate.getFullYear() === now.getFullYear()) {

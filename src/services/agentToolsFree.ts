@@ -679,9 +679,7 @@ export async function executeFreeTool(
 
 // ─── Knowledge Ingestion Tool Handlers ───────────────────────────────────────
 
-async function handleSearchDeveloperResources(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+async function handleSearchDeveloperResources(args: Record<string, any>): Promise<ToolCallResult> {
   const query = String(args.query ?? "").trim();
   const category = String(args.category ?? "").trim();
 
@@ -905,9 +903,7 @@ async function handleGetDevSnippet(args: Record<string, any>): Promise<ToolCallR
   return res;
 }
 
-async function handleSearchProgrammingBooks(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+async function handleSearchProgrammingBooks(args: Record<string, any>): Promise<ToolCallResult> {
   const topic = String(args.topic ?? "");
   if (!topic) return { success: false, data: "Sujet vide" };
 

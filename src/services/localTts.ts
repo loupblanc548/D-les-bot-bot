@@ -80,10 +80,7 @@ export function isPiperAvailable(): boolean {
  * @param lang Language code (fr, en, es, de, it)
  * @returns WAV audio buffer, or null if failed
  */
-export async function generateLocalTTS(
-  text: string,
-  lang: string = "fr",
-): Promise<Buffer | null> {
+export async function generateLocalTTS(text: string, lang: string = "fr"): Promise<Buffer | null> {
   if (piperAvailable === null) {
     await checkPiperAvailability();
   }

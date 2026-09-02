@@ -181,7 +181,10 @@ export function testRegex(pattern: string, flags: string, testString: string): R
 
 // ─── 5. JSON Formatter ───────────────────────────────────────────────────────
 
-export function formatJson(input: string, indent: number = 2): { output: string; valid: boolean; error?: string } {
+export function formatJson(
+  input: string,
+  indent: number = 2,
+): { output: string; valid: boolean; error?: string } {
   try {
     const parsed = JSON.parse(input);
     return { output: JSON.stringify(parsed, null, indent), valid: true };
@@ -233,15 +236,59 @@ export function hexToText(hex: string): string {
 // ─── 8. Morse Code ───────────────────────────────────────────────────────────
 
 const MORSE_CODE: Record<string, string> = {
-  A: ".-", B: "-...", C: "-.-.", D: "-..", E: ".", F: "..-.", G: "--.", H: "....",
-  I: "..", J: ".---", K: "-.-", L: ".-..", M: "--", N: "-.", O: "---", P: ".--.",
-  Q: "--.-", R: ".-.", S: "...", T: "-", U: "..-", V: "...-", W: ".--", X: "-..-",
-  Y: "-.--", Z: "--..", "0": "-----", "1": ".----", "2": "..---", "3": "...--",
-  "4": "....-", "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.",
-  ".": ".-.-.-", ",": "--..--", "?": "..--..", "!": "-.-.--", "/": "-..-.",
-  "(": "-.--.", ")": "-.--.-", "&": ".-...", ":": "---...", ";": "-.-.-.",
-  "=": "-...-", "+": ".-.-.", "-": "-....-", _: "..--.-", '"': ".-..-.",
-  "@": ".--.-.", " ": "/",
+  A: ".-",
+  B: "-...",
+  C: "-.-.",
+  D: "-..",
+  E: ".",
+  F: "..-.",
+  G: "--.",
+  H: "....",
+  I: "..",
+  J: ".---",
+  K: "-.-",
+  L: ".-..",
+  M: "--",
+  N: "-.",
+  O: "---",
+  P: ".--.",
+  Q: "--.-",
+  R: ".-.",
+  S: "...",
+  T: "-",
+  U: "..-",
+  V: "...-",
+  W: ".--",
+  X: "-..-",
+  Y: "-.--",
+  Z: "--..",
+  "0": "-----",
+  "1": ".----",
+  "2": "..---",
+  "3": "...--",
+  "4": "....-",
+  "5": ".....",
+  "6": "-....",
+  "7": "--...",
+  "8": "---..",
+  "9": "----.",
+  ".": ".-.-.-",
+  ",": "--..--",
+  "?": "..--..",
+  "!": "-.-.--",
+  "/": "-..-.",
+  "(": "-.--.",
+  ")": "-.--.-",
+  "&": ".-...",
+  ":": "---...",
+  ";": "-.-.-.",
+  "=": "-...-",
+  "+": ".-.-.",
+  "-": "-....-",
+  _: "..--.-",
+  '"': ".-..-.",
+  "@": ".--.-.",
+  " ": "/",
 };
 
 const MORSE_REVERSE: Record<string, string> = Object.fromEntries(
@@ -272,10 +319,10 @@ export function caesarCipher(text: string, shift: number): string {
     .map((c) => {
       const code = c.charCodeAt(0);
       if (code >= 65 && code <= 90) {
-        return String.fromCharCode(((code - 65 + shift) % 26 + 26) % 26 + 65);
+        return String.fromCharCode(((((code - 65 + shift) % 26) + 26) % 26) + 65);
       }
       if (code >= 97 && code <= 122) {
-        return String.fromCharCode(((code - 97 + shift) % 26 + 26) % 26 + 97);
+        return String.fromCharCode(((((code - 97 + shift) % 26) + 26) % 26) + 97);
       }
       return c;
     })
@@ -310,7 +357,10 @@ export function generateHashes(input: string): MultiHashResult {
 
 // ─── 12. Lorem Ipsum Generator ───────────────────────────────────────────────
 
-const LOREM_WORDS = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum".split(" ");
+const LOREM_WORDS =
+  "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum".split(
+    " ",
+  );
 
 export function generateLoremIpsum(paragraphs: number = 1): string {
   const result: string[] = [];
@@ -343,14 +393,20 @@ export interface ColorConvertResult {
 }
 
 export function convertColor(input: string): ColorConvertResult {
-  let r = 0, g = 0, b = 0;
+  let r = 0,
+    g = 0,
+    b = 0;
   let valid = false;
 
   // HEX
   const hexMatch = input.match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
   if (hexMatch) {
     let hex = hexMatch[1];
-    if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+    if (hex.length === 3)
+      hex = hex
+        .split("")
+        .map((c) => c + c)
+        .join("");
     r = parseInt(hex.slice(0, 2), 16);
     g = parseInt(hex.slice(2, 4), 16);
     b = parseInt(hex.slice(4, 6), 16);
@@ -370,22 +426,32 @@ export function convertColor(input: string): ColorConvertResult {
     return { input, hex: "", rgb: { r: 0, g: 0, b: 0 }, hsl: { h: 0, s: 0, l: 0 }, valid: false };
   }
 
-  const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`.toUpperCase();
+  const hex =
+    `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`.toUpperCase();
 
   // RGB to HSL
-  const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+  const rNorm = r / 255,
+    gNorm = g / 255,
+    bNorm = b / 255;
   const max = Math.max(rNorm, gNorm, bNorm);
   const min = Math.min(rNorm, gNorm, bNorm);
-  let h = 0, s = 0;
+  let h = 0,
+    s = 0;
   const l = (max + min) / 2;
 
   if (max !== min) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
-      case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
-      case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
-      case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
+      case rNorm:
+        h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6;
+        break;
+      case gNorm:
+        h = ((bNorm - rNorm) / d + 2) / 6;
+        break;
+      case bNorm:
+        h = ((rNorm - gNorm) / d + 4) / 6;
+        break;
     }
   }
 

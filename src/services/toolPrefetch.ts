@@ -50,7 +50,9 @@ const PREFETCH_RULES: PrefetchRule[] = [
       /\b(bitcoin|btc|ethereum|eth|solana|sol|doge|dogecoin|xrp|cardano|ada)\b.*\b(prix|price|cours|rate)\b/i,
     ],
     extractArgs: (msg) => {
-      const cryptoMatch = msg.match(/\b(bitcoin|btc|ethereum|eth|solana|sol|doge|dogecoin|xrp|cardano|ada)\b/i);
+      const cryptoMatch = msg.match(
+        /\b(bitcoin|btc|ethereum|eth|solana|sol|doge|dogecoin|xrp|cardano|ada)\b/i,
+      );
       if (cryptoMatch?.[1]) return { coin: cryptoMatch[1].toLowerCase() };
       return null;
     },
@@ -61,9 +63,7 @@ const PREFETCH_RULES: PrefetchRule[] = [
   },
   {
     toolName: "get_nasa_apod",
-    patterns: [
-      /\b(nasa|apod|astronomy picture|photo du jour|image du jour)\b/i,
-    ],
+    patterns: [/\b(nasa|apod|astronomy picture|photo du jour|image du jour)\b/i],
     extractArgs: () => ({}),
     formatResult: (result) => {
       if (typeof result === "string") return `NASA APOD: ${result.slice(0, 400)}`;
@@ -72,7 +72,9 @@ const PREFETCH_RULES: PrefetchRule[] = [
   },
 ];
 
-export function detectPrefetchableTool(message: string): { toolName: string; args: Record<string, any> } | null {
+export function detectPrefetchableTool(
+  message: string,
+): { toolName: string; args: Record<string, any> } | null {
   const trimmed = message.trim();
 
   // Trop long → probablement complexe, ne pas pré-fetch

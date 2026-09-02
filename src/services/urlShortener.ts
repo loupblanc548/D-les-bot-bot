@@ -155,7 +155,11 @@ export function buildShortenerEmbed(result: ShortenedUrl): EmbedBuilder {
       { name: "URL originale", value: result.original.slice(0, 1024), inline: false },
       { name: "URL courte", value: result.short, inline: false },
       { name: "Provider", value: result.provider, inline: true },
-      { name: "Créée", value: `<t:${Math.floor(result.createdAt.getTime() / 1000)}:R>`, inline: true },
+      {
+        name: "Créée",
+        value: `<t:${Math.floor(result.createdAt.getTime() / 1000)}:R>`,
+        inline: true,
+      },
     )
     .setTimestamp();
 }

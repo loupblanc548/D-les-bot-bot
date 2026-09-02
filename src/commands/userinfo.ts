@@ -1,8 +1,4 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ChatInputCommandInteraction,
-} from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
 import logger from "../utils/logger.js";
 import { prisma } from "../prisma.js";
 
@@ -19,9 +15,7 @@ export const commands = [
     .toJSON(),
 ];
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
+export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const target = interaction.options.getUser("utilisateur") ?? interaction.user;
   const embed = new EmbedBuilder().setColor("#b1b12a").setTimestamp(new Date());
 
@@ -75,7 +69,9 @@ export async function handleCommand(
         );
     }
   } catch (error) {
-    logger.error("event", {
+    logger.error(
+      "event",
+      {
         cmd: "userinfo",
         err: error instanceof Error ? error.message : error,
         target: target.id,
@@ -87,7 +83,9 @@ export async function handleCommand(
       .setDescription("\u26a0\ufe0f Erreur lors de la lecture de la base de donn\u00e9es.");
   }
 
-  logger.info("event", { cmd: "userinfo", user: interaction.user.id, target: target.id },
+  logger.info(
+    "event",
+    { cmd: "userinfo", user: interaction.user.id, target: target.id },
     "/userinfo invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

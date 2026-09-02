@@ -120,7 +120,9 @@ function buildWebhookSetup(): ChannelWebhookSetup[] {
         events: ch.events,
       });
     } else {
-      logger.warn(`[WebhookSetup] ${ch.name} skipped — missing ${ch.webhookEnv} or ${ch.secretEnv}`);
+      logger.warn(
+        `[WebhookSetup] ${ch.name} skipped — missing ${ch.webhookEnv} or ${ch.secretEnv}`,
+      );
     }
   }
 
@@ -131,7 +133,8 @@ function buildWebhookSetup(): ChannelWebhookSetup[] {
 const WEBHOOK_SETUP = buildWebhookSetup();
 
 export function setupAllWebhooks(): void {
-  const baseUrl = process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;
+  const baseUrl =
+    process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;
 
   try {
     logger.info("[WebhookSetup] Registering webhook triggers for all notification channels...");
@@ -162,8 +165,14 @@ export function setupAllWebhooks(): void {
   }
 }
 
-export function getWebhookUrls(): { name: string; url: string; provider: string; events: string[] }[] {
-  const baseUrl = process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;
+export function getWebhookUrls(): {
+  name: string;
+  url: string;
+  provider: string;
+  events: string[];
+}[] {
+  const baseUrl =
+    process.env.WEBHOOK_BASE_URL || `http://localhost:${process.env.HEALTH_PORT || 3000}`;
   return WEBHOOK_SETUP.map((s) => ({
     name: s.name,
     url: `${baseUrl}/webhook/${s.secret}`,

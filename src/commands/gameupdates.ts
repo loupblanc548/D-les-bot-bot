@@ -48,7 +48,15 @@ export async function handleGameUpdatesCommand(
     }
 
     const data = (await res.json()) as {
-      appnews: { newsitems: Array<{ title: string; url: string; contents: string; date: number; author: string }> };
+      appnews: {
+        newsitems: Array<{
+          title: string;
+          url: string;
+          contents: string;
+          date: number;
+          author: string;
+        }>;
+      };
     };
 
     const items = data.appnews?.newsitems || [];

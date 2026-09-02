@@ -57,11 +57,19 @@ function getDateStamp(): string {
 /**
  * Extract connection params from DATABASE_URL for pg_dump.
  */
-function parseDbUrl(url: string): { host: string; port: string; db: string; user: string; password: string } | null {
+function parseDbUrl(
+  url: string,
+): { host: string; port: string; db: string; user: string; password: string } | null {
   try {
     const match = url.match(/^postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)$/);
     if (!match) return null;
-    return { user: match[1], password: match[2], host: match[3], port: match[4], db: match[5].split("?")[0] };
+    return {
+      user: match[1],
+      password: match[2],
+      host: match[3],
+      port: match[4],
+      db: match[5].split("?")[0],
+    };
   } catch {
     return null;
   }
@@ -75,7 +83,7 @@ async function executeDbDump(outputPath: string): Promise<number> {
   if (!conn) throw new Error("Cannot parse DATABASE_URL for pg_dump");
 
   const env: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     PGPASSWORD: conn.password,
   };
 
@@ -100,7 +108,9 @@ async function compressAndEncrypt(dumpPath: string, outputPath: string): Promise
     try {
       await readFile(join(process.cwd(), f));
       criticalFiles.push(join(process.cwd(), f));
-    } catch { /* skip missing */ }
+    } catch {
+      /* skip missing */
+    }
   }
 
   const fileList = criticalFiles.map((f) => `"${f}"`).join(" ");
@@ -122,7 +132,7 @@ async function uploadToS3(filePath: string, key: string): Promise<boolean> {
 
   const endpointFlag = S3_ENDPOINT ? `--endpoint-url ${S3_ENDPOINT}` : "";
   const env: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     AWS_ACCESS_KEY_ID: S3_ACCESS_KEY,
     AWS_SECRET_ACCESS_KEY: S3_SECRET_KEY,
   };
@@ -147,7 +157,9 @@ async function purgeLocalBackups(): Promise<void> {
         logger.info(`[VPS-BACKUP] Purged local file: ${f}`);
       }
     }
-  } catch { /* dir doesn't exist — fine */ }
+  } catch {
+    /* dir doesn't exist — fine */
+  }
 }
 
 /**
@@ -162,7 +174,7 @@ async function pruneRemoteBackups(): Promise<void> {
 
   try {
     const env: Record<string, string> = {
-      ...process.env as Record<string, string>,
+      ...(process.env as Record<string, string>),
       AWS_ACCESS_KEY_ID: S3_ACCESS_KEY,
       AWS_SECRET_ACCESS_KEY: S3_SECRET_KEY,
     };
@@ -178,14 +190,18 @@ async function pruneRemoteBackups(): Promise<void> {
         const oldKey = line.trim().split(/\s+/).pop();
         if (oldKey) {
           await execAsync(`aws s3 rm "s3://${S3_BUCKET}/${oldKey}" ${endpointFlag}`, {
-            env, timeout: 30_000, maxBuffer: 1024 * 1024,
+            env,
+            timeout: 30_000,
+            maxBuffer: 1024 * 1024,
           }).catch(() => {});
           logger.info(`[VPS-BACKUP] Pruned remote backup: ${oldKey}`);
         }
       }
     }
   } catch (err) {
-    logger.debug(`[VPS-BACKUP] Remote prune skipped: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[VPS-BACKUP] Remote prune skipped: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -196,8 +212,14 @@ async function executeBackup(): Promise<BackupResult> {
   const dateStamp = getDateStamp();
   const result: BackupResult = { success: false, date: dateStamp };
 
-  const CYAN = "\x1b[36m", GREEN = "\x1b[32m", RED = "\x1b[31m", RESET = "\x1b[0m", BOLD = "\x1b[1m";
-  logger.info(`${CYAN}${BOLD}[VPS-BACKUP]${RESET} ${GREEN}Starting daily backup — ${dateStamp}${RESET}`);
+  const CYAN = "\x1b[36m",
+    GREEN = "\x1b[32m",
+    RED = "\x1b[31m",
+    RESET = "\x1b[0m",
+    BOLD = "\x1b[1m";
+  logger.info(
+    `${CYAN}${BOLD}[VPS-BACKUP]${RESET} ${GREEN}Starting daily backup — ${dateStamp}${RESET}`,
+  );
 
   try {
     // Ensure backup dir exists
@@ -234,7 +256,9 @@ async function executeBackup(): Promise<BackupResult> {
     await pruneRemoteBackups();
 
     result.success = true;
-    logger.info(`${CYAN}${BOLD}[VPS-BACKUP]${RESET} ${GREEN}Backup complete — uploaded=${result.uploadedToRemote} purged=${result.localPurged}${RESET}`);
+    logger.info(
+      `${CYAN}${BOLD}[VPS-BACKUP]${RESET} ${GREEN}Backup complete — uploaded=${result.uploadedToRemote} purged=${result.localPurged}${RESET}`,
+    );
   } catch (err) {
     result.error = err instanceof Error ? err.message : String(err);
     logger.error(`${CYAN}${BOLD}[VPS-BACKUP]${RESET} ${RED}Backup FAILED: ${result.error}${RESET}`);
@@ -261,7 +285,9 @@ export function startVpsBackupCron(): void {
 
   cronJob = schedule("0 3 * * *", () => {
     void executeBackup().catch((err) => {
-      logger.error(`[VPS-BACKUP] Unhandled error: ${err instanceof Error ? err.message : String(err)}`);
+      logger.error(
+        `[VPS-BACKUP] Unhandled error: ${err instanceof Error ? err.message : String(err)}`,
+      );
     });
   });
 

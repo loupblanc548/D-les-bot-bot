@@ -191,6 +191,8 @@ async function sendPaginated(
     row.components.forEach((c) => c.setDisabled(true));
     try {
       await interaction.editReply({ components: [row] });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   });
 }

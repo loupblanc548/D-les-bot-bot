@@ -43,7 +43,10 @@ interface CacheSetOptions {
 /**
  * Récupère une valeur du cache selon le tier
  */
-export async function get<T = unknown>(key: string, options: CacheGetOptions = {}): Promise<T | null> {
+export async function get<T = unknown>(
+  key: string,
+  options: CacheGetOptions = {},
+): Promise<T | null> {
   const tier = options.tier ?? "multi";
   try {
     switch (tier) {
@@ -61,7 +64,7 @@ export async function get<T = unknown>(key: string, options: CacheGetOptions = {
       case "llm":
         return await getCachedCompletion<T>(key, (options as CacheSetOptions).model ?? "default");
       case "tool":
-        return await getCachedToolResult(key, {}) as T | null;
+        return (await getCachedToolResult(key, {})) as T | null;
       default:
         return null;
     }
@@ -74,7 +77,11 @@ export async function get<T = unknown>(key: string, options: CacheGetOptions = {
 /**
  * Stocke une valeur dans le cache selon le tier
  */
-export async function set<T = unknown>(key: string, value: T, options: CacheSetOptions = {}): Promise<void> {
+export async function set<T = unknown>(
+  key: string,
+  value: T,
+  options: CacheSetOptions = {},
+): Promise<void> {
   const tier = options.tier ?? "multi";
   try {
     switch (tier) {

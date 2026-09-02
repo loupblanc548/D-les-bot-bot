@@ -60,7 +60,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   try {
     const { writeFile } = await import("node:fs/promises");
     await writeFile("/opt/bot/.last_shutdown", String(Date.now()), { mode: 0o600 });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Arrêter tous les services monitoring
   const stopFns = [

@@ -79,7 +79,7 @@ describe("data-pruning", () => {
       await pruneOldData();
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("[DataPruning] Nettoyage terminé")
+        expect.stringContaining("[DataPruning] Nettoyage terminé"),
       );
     });
 
@@ -113,7 +113,7 @@ describe("data-pruning", () => {
       startDataPruning();
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining("[DataPruning] Nettoyage automatique")
+        expect.stringContaining("[DataPruning] Nettoyage automatique"),
       );
       expect(setIntervalSpy).toHaveBeenCalled();
     });

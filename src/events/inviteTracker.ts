@@ -26,8 +26,7 @@ export function handleInviteTracker(client: Client): void {
       // Trouver l'invite qui a gagné un usage
       // (comparaison avec cache précédent — simplifié: on cherche l'invite la plus récente)
       const cachedInvites = (client as any).inviteCache?.get(guild.id) as
-        | Map<string, number>
-        | undefined;
+        Map<string, number> | undefined;
 
       let inviterId: string | null = null;
 
@@ -58,7 +57,9 @@ export function handleInviteTracker(client: Client): void {
             userId: inviterId,
             targetId: member.id,
           });
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
 
         // Tracker pour détection de raid
         const now = Date.now();

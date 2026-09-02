@@ -275,11 +275,7 @@ export function embedInstantGaming(game: InstantGamingDeal): EmbedBuilder {
 export type GamingPlatform = "epic" | "steam" | "playstation" | "xbox" | "instantgaming";
 
 export type GamingDealData =
-  | EpicGameDeal
-  | SteamDeal
-  | PlayStationDeal
-  | XboxDeal
-  | InstantGamingDeal;
+  EpicGameDeal | SteamDeal | PlayStationDeal | XboxDeal | InstantGamingDeal;
 
 // Overloads : chaque paire (plateforme, donnees) est verifiee a la compilation
 export function embedGamingNotification(platform: "epic", data: EpicGameDeal): EmbedBuilder;

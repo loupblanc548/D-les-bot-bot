@@ -54,7 +54,7 @@ export async function downloadImageAsBuffer(
     const res = await fetch(imageUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "image/*,*/*;q=0.8",
+        Accept: "image/*,*/*;q=0.8",
       },
       signal: AbortSignal.timeout(10_000),
     });
@@ -72,7 +72,9 @@ export async function downloadImageAsBuffer(
 
     return { buffer, filename };
   } catch (err) {
-    logger.debug(`[ImageHelpers] Download error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[ImageHelpers] Download error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
@@ -191,7 +193,9 @@ export async function getYouTubeThumbnail(url: string): Promise<string | null> {
       try {
         const head = await fetch(maxresUrl, { method: "HEAD", signal: AbortSignal.timeout(3000) });
         if (head.ok) return maxresUrl;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     } catch {
       return null;
@@ -251,13 +255,21 @@ export async function getBlogImage(url: string): Promise<string | null> {
       // Étape 1 : og:image
       const ogImage = $('meta[property="og:image"]').attr("content");
       if (ogImage) {
-        try { return new URL(ogImage, url).href; } catch { return ogImage; }
+        try {
+          return new URL(ogImage, url).href;
+        } catch {
+          return ogImage;
+        }
       }
 
       // Étape 2 : twitter:image
       const twitterImage = $('meta[name="twitter:image"]').attr("content");
       if (twitterImage) {
-        try { return new URL(twitterImage, url).href; } catch { return twitterImage; }
+        try {
+          return new URL(twitterImage, url).href;
+        } catch {
+          return twitterImage;
+        }
       }
 
       // Étape 3 : fallback <img> scraping with lazy-loading support + filters
@@ -326,7 +338,11 @@ export async function getTweetImage(url: string): Promise<string | null> {
       // Étape 1 : og:image (plus fiable pour Discord)
       const ogImage = $('meta[property="og:image"]').attr("content");
       if (ogImage && isValidEmbedImageUrl(ogImage)) {
-        try { return new URL(ogImage, url).href; } catch { return ogImage; }
+        try {
+          return new URL(ogImage, url).href;
+        } catch {
+          return ogImage;
+        }
       }
 
       // Étape 2 : images pbs.twimg.com (images de tweets)
@@ -350,7 +366,11 @@ export async function getTweetImage(url: string): Promise<string | null> {
       // Étape 4 : twitter:image meta
       const twitterImage = $('meta[name="twitter:image"]').attr("content");
       if (twitterImage && isValidEmbedImageUrl(twitterImage)) {
-        try { return new URL(twitterImage, url).href; } catch { return twitterImage; }
+        try {
+          return new URL(twitterImage, url).href;
+        } catch {
+          return twitterImage;
+        }
       }
 
       return null;

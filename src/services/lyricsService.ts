@@ -31,7 +31,7 @@ export async function getLyrics(artist: string, title: string): Promise<LyricsRe
     });
 
     if (response.ok) {
-      const data = await response.json() as { lyrics?: string };
+      const data = (await response.json()) as { lyrics?: string };
       if (data.lyrics && data.lyrics.trim().length > 0) {
         const cleaned = cleanLyrics(data.lyrics);
         if (cleaned.length > 0) {
@@ -59,7 +59,7 @@ export async function getLyrics(artist: string, title: string): Promise<LyricsRe
       });
 
       if (searchRes.ok) {
-        const searchData = await searchRes.json() as {
+        const searchData = (await searchRes.json()) as {
           response?: { hits?: { result?: { id: number; url: string; full_title: string } }[] };
         };
         const hit = searchData.response?.hits?.[0]?.result;
@@ -72,7 +72,7 @@ export async function getLyrics(artist: string, title: string): Promise<LyricsRe
           });
 
           if (songRes.ok) {
-            const songData = await songRes.json() as {
+            const songData = (await songRes.json()) as {
               response?: { song?: { lyrics?: string; full_title?: string } };
             };
             const lyrics = songData.response?.song?.lyrics;
@@ -142,7 +142,7 @@ export async function searchLyrics(query: string): Promise<{ title: string; arti
     });
 
     if (!res.ok) return [];
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       response?: { hits?: { result?: { title: string; primary_artist?: { name: string } } }[] };
     };
 

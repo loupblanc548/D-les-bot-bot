@@ -211,7 +211,9 @@ async function loadSubcommand(
         subcommandModuleCache.set(cacheKey, def);
         return def;
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   logger.warn(`Subcommand not found: ${cacheKey}`);

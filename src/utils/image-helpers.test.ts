@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { XMLParser } from "fast-xml-parser";
-import { extractMediaThumbnail, getYouTubeThumbnail, getBlogImage, getOgImage, getTweetImage } from "./image-helpers.js";
+import {
+  extractMediaThumbnail,
+  getYouTubeThumbnail,
+  getBlogImage,
+  getOgImage,
+  getTweetImage,
+} from "./image-helpers.js";
 import { parseRssItems } from "../services/feeds.js";
 
 // ============================================================
@@ -17,9 +23,7 @@ describe("extractMediaThumbnail", () => {
         "@_height": "90",
       },
     };
-    expect(extractMediaThumbnail(item)).toBe(
-      "https://i.ytimg.com/vi/abc123/default.jpg"
-    );
+    expect(extractMediaThumbnail(item)).toBe("https://i.ytimg.com/vi/abc123/default.jpg");
   });
 
   it("extrait <media:group><media:thumbnail> au format Atom YouTube", () => {
@@ -34,9 +38,7 @@ describe("extractMediaThumbnail", () => {
         },
       },
     };
-    expect(extractMediaThumbnail(item)).toBe(
-      "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
-    );
+    expect(extractMediaThumbnail(item)).toBe("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
   });
 
   it("retourne la dernière miniature (maxresdefault) quand plusieurs existent", () => {
@@ -44,17 +46,35 @@ describe("extractMediaThumbnail", () => {
       title: "Nouveauté Fortnite",
       "media:group": {
         "media:thumbnail": [
-          { "@_url": "https://i.ytimg.com/vi/xyz789/default.jpg", "@_width": "120", "@_height": "90" },
-          { "@_url": "https://i.ytimg.com/vi/xyz789/mqdefault.jpg", "@_width": "320", "@_height": "180" },
-          { "@_url": "https://i.ytimg.com/vi/xyz789/hqdefault.jpg", "@_width": "480", "@_height": "360" },
-          { "@_url": "https://i.ytimg.com/vi/xyz789/sddefault.jpg", "@_width": "640", "@_height": "480" },
-          { "@_url": "https://i.ytimg.com/vi/xyz789/maxresdefault.jpg", "@_width": "1280", "@_height": "720" },
+          {
+            "@_url": "https://i.ytimg.com/vi/xyz789/default.jpg",
+            "@_width": "120",
+            "@_height": "90",
+          },
+          {
+            "@_url": "https://i.ytimg.com/vi/xyz789/mqdefault.jpg",
+            "@_width": "320",
+            "@_height": "180",
+          },
+          {
+            "@_url": "https://i.ytimg.com/vi/xyz789/hqdefault.jpg",
+            "@_width": "480",
+            "@_height": "360",
+          },
+          {
+            "@_url": "https://i.ytimg.com/vi/xyz789/sddefault.jpg",
+            "@_width": "640",
+            "@_height": "480",
+          },
+          {
+            "@_url": "https://i.ytimg.com/vi/xyz789/maxresdefault.jpg",
+            "@_width": "1280",
+            "@_height": "720",
+          },
         ],
       },
     };
-    expect(extractMediaThumbnail(item)).toBe(
-      "https://i.ytimg.com/vi/xyz789/maxresdefault.jpg"
-    );
+    expect(extractMediaThumbnail(item)).toBe("https://i.ytimg.com/vi/xyz789/maxresdefault.jpg");
   });
 
   it("retourne undefined si aucun media:thumbnail ni media:group", () => {
@@ -242,9 +262,7 @@ describe("extractMediaThumbnail (intégration live - flux YouTube réel)", () =>
         const thumb = extractMediaThumbnail(item);
         expect(thumb).toBeDefined();
         // YouTube sert les miniatures via i.ytimg.com ou iN.ytimg.com (CDN)
-      expect(thumb).toMatch(
-        /^https:\/\/i\d*\.ytimg\.com\/vi\/[A-Za-z0-9_-]+\/.+\.jpg$/
-      );
+        expect(thumb).toMatch(/^https:\/\/i\d*\.ytimg\.com\/vi\/[A-Za-z0-9_-]+\/.+\.jpg$/);
         thumbnailsFound++;
       }
 
@@ -316,7 +334,7 @@ describe("getYouTubeThumbnail", () => {
     expect(result).toBe("https://img.youtube.com/vi/test0000001/maxresdefault.jpg");
     expect(fetch).toHaveBeenCalledWith(
       "https://img.youtube.com/vi/test0000001/maxresdefault.jpg",
-      expect.objectContaining({ method: "HEAD" })
+      expect.objectContaining({ method: "HEAD" }),
     );
   });
 
@@ -375,7 +393,8 @@ describe("getBlogImage", () => {
   it("extrait og:image depuis une page HTML avec meta property og:image", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><head><meta property="og:image" content="https://example.com/hero.jpg"></head><body></body></html>`,
+      text: async () =>
+        `<html><head><meta property="og:image" content="https://example.com/hero.jpg"></head><body></body></html>`,
     } as Response);
 
     const url = "https://example.com/article";
@@ -386,7 +405,8 @@ describe("getBlogImage", () => {
   it("extrait og:image avec lordre content puis property inverse", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><head><meta content="https://example.com/hero2.png" property="og:image"></head><body></body></html>`,
+      text: async () =>
+        `<html><head><meta content="https://example.com/hero2.png" property="og:image"></head><body></body></html>`,
     } as Response);
 
     const url = "https://example.com/article2";
@@ -397,7 +417,8 @@ describe("getBlogImage", () => {
   it("fallback <img> quand aucun og:image nest present", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="https://example.com/content-image.jpg"></body></html>`,
+      text: async () =>
+        `<html><body><img src="https://example.com/content-image.jpg"></body></html>`,
     } as Response);
 
     const url = "https://example.com/no-og";
@@ -408,7 +429,8 @@ describe("getBlogImage", () => {
   it("ignore les data:image, avatars, icones et pixels dans le fallback img", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="data:image/png;base64,abc123"><img src="https://example.com/avatar/user.png"><img src="https://example.com/pixel.gif"><img src="https://example.com/1x1.png"><img src="https://example.com/real-photo.webp"></body></html>`,
+      text: async () =>
+        `<html><body><img src="data:image/png;base64,abc123"><img src="https://example.com/avatar/user.png"><img src="https://example.com/pixel.gif"><img src="https://example.com/1x1.png"><img src="https://example.com/real-photo.webp"></body></html>`,
     } as Response);
 
     const url = "https://example.com/filtered";
@@ -499,7 +521,9 @@ describe("Pipeline complet flux YouTube (integration live)", () => {
     const firstVideo = items[0];
     const ytThumb = await getYouTubeThumbnail(firstVideo.url);
     expect(ytThumb).toBeTruthy();
-    expect(ytThumb).toMatch(/^https:\/\/img\.youtube\.com\/vi\/[A-Za-z0-9_-]+\/(maxresdefault|hqdefault)\.jpg$/);
+    expect(ytThumb).toMatch(
+      /^https:\/\/img\.youtube\.com\/vi\/[A-Za-z0-9_-]+\/(maxresdefault|hqdefault)\.jpg$/,
+    );
   }, 20_000);
 });
 
@@ -515,7 +539,8 @@ describe("getOgImage", () => {
   it("extrait og:image depuis une page HTML avec meta property og:image", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><head><meta property="og:image" content="https://example.com/hero.jpg"></head><body></body></html>`,
+      text: async () =>
+        `<html><head><meta property="og:image" content="https://example.com/hero.jpg"></head><body></body></html>`,
     } as Response);
 
     const result = await getOgImage("https://example.com/article");
@@ -525,7 +550,8 @@ describe("getOgImage", () => {
   it("extrait og:image avec lordre content puis property inverse", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><head><meta content="https://example.com/hero2.png" property="og:image"></head><body></body></html>`,
+      text: async () =>
+        `<html><head><meta content="https://example.com/hero2.png" property="og:image"></head><body></body></html>`,
     } as Response);
 
     const result = await getOgImage("https://example.com/article2");
@@ -535,7 +561,8 @@ describe("getOgImage", () => {
   it("retourne null si aucun og:image dans la page", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><head><meta property="og:title" content="Un article"></head><body></body></html>`,
+      text: async () =>
+        `<html><head><meta property="og:title" content="Un article"></head><body></body></html>`,
     } as Response);
 
     const result = await getOgImage("https://example.com/no-og");
@@ -572,7 +599,8 @@ describe("getTweetImage", () => {
   it("extrait une image pbs.twimg.com depuis le HTML", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="https://pbs.twimg.com/media/AbCdEfGhIjk.jpg"></body></html>`,
+      text: async () =>
+        `<html><body><img src="https://pbs.twimg.com/media/AbCdEfGhIjk.jpg"></body></html>`,
     } as Response);
 
     const result = await getTweetImage("https://xcancel.com/user/status/123");
@@ -582,7 +610,8 @@ describe("getTweetImage", () => {
   it("extrait la premiere image quand plusieurs pbs.twimg.com sont presentes", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="https://pbs.twimg.com/media/first.jpg"><img src="https://pbs.twimg.com/media/second.jpg"></body></html>`,
+      text: async () =>
+        `<html><body><img src="https://pbs.twimg.com/media/first.jpg"><img src="https://pbs.twimg.com/media/second.jpg"></body></html>`,
     } as Response);
 
     const result = await getTweetImage("https://xcancel.com/user/status/456");
@@ -592,7 +621,8 @@ describe("getTweetImage", () => {
   it("fallback video.twimg.com si aucune image pbs.twimg.com", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="https://video.twimg.com/tweet_video/thumb.jpg"></body></html>`,
+      text: async () =>
+        `<html><body><img src="https://video.twimg.com/tweet_video/thumb.jpg"></body></html>`,
     } as Response);
 
     const result = await getTweetImage("https://xcancel.com/user/status/789");
@@ -602,7 +632,8 @@ describe("getTweetImage", () => {
   it("priorise pbs.twimg.com sur video.twimg.com quand les deux sont presents", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      text: async () => `<html><body><img src="https://video.twimg.com/thumb.jpg"><img src="https://pbs.twimg.com/media/real.jpg"></body></html>`,
+      text: async () =>
+        `<html><body><img src="https://video.twimg.com/thumb.jpg"><img src="https://pbs.twimg.com/media/real.jpg"></body></html>`,
     } as Response);
 
     const result = await getTweetImage("https://xcancel.com/user/status/101");
@@ -682,7 +713,9 @@ describe("Pipeline complet flux Twitter (integration live)", () => {
     const tweetImg = await getTweetImage(firstTweet.url);
     // Peut etre null si le tweet na pas dimage, ou une URL twimg
     if (tweetImg) {
-      expect(tweetImg).toMatch(/^(https?:\/\/[^/]*\.)?pbs\.twimg\.com|^(https?:\/\/[^/]*\.)?video\.twimg\.com/);
+      expect(tweetImg).toMatch(
+        /^(https?:\/\/[^/]*\.)?pbs\.twimg\.com|^(https?:\/\/[^/]*\.)?video\.twimg\.com/,
+      );
     }
   }, 20_000);
 });

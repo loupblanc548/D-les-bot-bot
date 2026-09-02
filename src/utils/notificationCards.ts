@@ -90,7 +90,9 @@ async function loadFont(): Promise<Buffer> {
         fontData = Buffer.from(await response.arrayBuffer());
         return fontData;
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     // Dernier recours : buffer vide (satori utilisera une police par défaut)
     logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
     fontData = Buffer.alloc(0);

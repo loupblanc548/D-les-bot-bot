@@ -9,7 +9,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import logger from "../utils/logger.js";
 
-type WebhookHandler = (event: string, payload: any, headers: Record<string, string>) => Promise<void>;
+type WebhookHandler = (
+  event: string,
+  payload: any,
+  headers: Record<string, string>,
+) => Promise<void>;
 
 interface WebhookRoute {
   path: string;
@@ -39,7 +43,12 @@ export function registerWebhook(
 }
 
 /** Vérifie la signature HMAC-SHA256 d'un payload */
-export function verifySignature(payload: Buffer, signature: string, secret: string, prefix = "sha256="): boolean {
+export function verifySignature(
+  payload: Buffer,
+  signature: string,
+  secret: string,
+  prefix = "sha256=",
+): boolean {
   if (!signature.startsWith(prefix)) return false;
   const expected = prefix + createHmac("sha256", secret).update(payload).digest("hex");
   const sigBuf = Buffer.from(signature);

@@ -46,11 +46,7 @@ export {
 export { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
 
 // ─── Free APIs ───────────────────────────────────────────────────────────────
-export {
-  FREE_TOOLS,
-  executeFreeTool,
-  autoHealTypeScriptError,
-} from "./agentToolsFree.js";
+export { FREE_TOOLS, executeFreeTool, autoHealTypeScriptError } from "./agentToolsFree.js";
 
 // ─── Generic dispatcher ──────────────────────────────────────────────────────
 export { executeGenericTool } from "./agentToolsGeneric.js";

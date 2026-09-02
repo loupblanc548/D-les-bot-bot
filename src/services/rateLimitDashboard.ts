@@ -31,7 +31,9 @@ export function startRateLimitDashboard(client: Client): void {
       bucket: info.bucket ?? "unknown",
     });
     if (rateLimitEvents.length > MAX_EVENTS) rateLimitEvents.shift();
-    logger.warn(`[RateLimit] ${info.method} ${info.url} — ${info.remaining}/${info.limit} remaining, reset in ${info.timeToReset}ms`);
+    logger.warn(
+      `[RateLimit] ${info.method} ${info.url} — ${info.remaining}/${info.limit} remaining, reset in ${info.timeToReset}ms`,
+    );
   });
 
   if (!DASHBOARD_CHANNEL) {
@@ -40,7 +42,11 @@ export function startRateLimitDashboard(client: Client): void {
   }
 
   logger.info("[RateLimitDashboard] Dashboard activé (intervalle: 5min)");
-  dashboardInterval = safeInterval("RateLimitDashboard", () => sendDashboard(client), CHECK_INTERVAL_MS);
+  dashboardInterval = safeInterval(
+    "RateLimitDashboard",
+    () => sendDashboard(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 async function sendDashboard(client: Client): Promise<void> {
@@ -57,7 +63,11 @@ async function sendDashboard(client: Client): Promise<void> {
     .setTitle("📊 Rate Limit Dashboard")
     .setColor(globalHits > 0 ? 0xff3344 : 0xffaa00)
     .addFields(
-      { name: "Événements récents", value: `${rateLimitEvents.length}/${MAX_EVENTS}`, inline: true },
+      {
+        name: "Événements récents",
+        value: `${rateLimitEvents.length}/${MAX_EVENTS}`,
+        inline: true,
+      },
       { name: "Global rate limits", value: `${globalHits}`, inline: true },
       { name: "Reset moyen", value: `${Math.round(avgReset)}ms`, inline: true },
     )
@@ -80,7 +90,9 @@ async function sendDashboard(client: Client): Promise<void> {
   try {
     await channel.send({ embeds: [embed] });
   } catch (err) {
-    logger.error(`[RateLimitDashboard] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[RateLimitDashboard] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 

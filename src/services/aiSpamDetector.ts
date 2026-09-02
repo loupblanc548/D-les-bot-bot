@@ -120,7 +120,9 @@ export function startAiSpamDetector(client: Client): void {
           await message.channel.send(`⚠️ ${message.author}, arrête de spammer !`);
         }
         logger.info(`[AiSpamDetector] Répétition détectée: ${message.author.tag}`);
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       return;
     }
 
@@ -141,7 +143,9 @@ export function startAiSpamDetector(client: Client): void {
         logger.info(
           `[AiSpamDetector] Spam supprimé: ${message.author.tag} — ${result.reason} (${result.confidence})`,
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   });
 }

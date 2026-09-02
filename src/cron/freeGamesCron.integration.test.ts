@@ -12,20 +12,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ─── Toutes les variables mock dans vi.hoisted ────────────────────────────────
-const { mockParseURL, mockFindUnique, mockCreate, mockLogger, mockSend, mockFetch, mockIsTextBased } =
-  vi.hoisted(() => ({
-    mockParseURL: vi.fn(),
-    mockFindUnique: vi.fn(),
-    mockCreate: vi.fn(),
-    mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
-    mockSend: vi.fn().mockResolvedValue(undefined),
-    mockFetch: vi.fn(),
-    mockIsTextBased: vi.fn().mockReturnValue(true),
-  }));
+const {
+  mockParseURL,
+  mockFindUnique,
+  mockCreate,
+  mockLogger,
+  mockSend,
+  mockFetch,
+  mockIsTextBased,
+} = vi.hoisted(() => ({
+  mockParseURL: vi.fn(),
+  mockFindUnique: vi.fn(),
+  mockCreate: vi.fn(),
+  mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  mockSend: vi.fn().mockResolvedValue(undefined),
+  mockFetch: vi.fn(),
+  mockIsTextBased: vi.fn().mockReturnValue(true),
+}));
 
 // ─── rss-parser : préserve la vraie classe, surcharge uniquement parseURL ─────
 vi.mock("rss-parser", async () => {
-  const actual = await vi.importActual<typeof import("rss-parser")>("rss-parser") as any;
+  const actual = (await vi.importActual<typeof import("rss-parser")>("rss-parser")) as any;
   const RealParser = actual.default;
   return {
     default: vi.fn().mockImplementation(function (this: any, opts?: Record<string, unknown>) {
@@ -52,7 +59,7 @@ vi.mock("../config", () => ({
 }));
 
 // ─── RSS XML Fixtures (utilise le VRAI rss-parser) ───────────────────────────
-import Parser from "rss-parser";;
+import Parser from "rss-parser";
 
 const realParser = new Parser({
   customFields: { item: ["content", "contentSnippet"] },
@@ -81,7 +88,9 @@ function epicItem(opts?: {
   const t = opts?.title ?? "[Epic Games] Death Stranding - Gratuit cette semaine";
   const l = opts?.link ?? `https://www.reddit.com/r/FreeGameFindings/comments/${g}/`;
   const d = opts?.pubDate ?? "2026-06-12T14:00:00.000Z";
-  const s = opts?.contentSnippet ?? "R\u00e9cup\u00e9rez Death Stranding gratuitement sur l'Epic Games Store !";
+  const s =
+    opts?.contentSnippet ??
+    "R\u00e9cup\u00e9rez Death Stranding gratuitement sur l'Epic Games Store !";
 
   return `<item>
       <title>${t}</title>
@@ -168,7 +177,9 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
   });
 
   it.skip("ignore un article d\u00e9j\u00e0 pr\u00e9sent dans ProcessedFreeGames", async () => {
-    const xml = buildRssXml([epicItem({ guid: "old", title: "[Epic Games] D\u00e9j\u00e0 publi\u00e9" })]);
+    const xml = buildRssXml([
+      epicItem({ guid: "old", title: "[Epic Games] D\u00e9j\u00e0 publi\u00e9" }),
+    ]);
     mockParseURL.mockResolvedValueOnce(await parseFixture(xml));
     mockFindUnique.mockResolvedValue({ id: 99, redditPostId: "old" });
 
@@ -180,7 +191,7 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
     expect(mockSend).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockLogger.info).toHaveBeenCalledWith(
-      "[FreeGamesCron] Tous les articles Epic sont d\u00e9j\u00e0 connus"
+      "[FreeGamesCron] Tous les articles Epic sont d\u00e9j\u00e0 connus",
     );
   });
 
@@ -231,7 +242,7 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
     expect(mockSend).not.toHaveBeenCalled();
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockLogger.info).toHaveBeenCalledWith(
-      "[FreeGamesCron] Aucun article Epic Games trouv\u00e9 cette fois"
+      "[FreeGamesCron] Aucun article Epic Games trouv\u00e9 cette fois",
     );
   });
 
@@ -245,7 +256,7 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
       "[FreeGamesCron] Flux Reddit inaccessible:",
-      "Error: ECONNREFUSED"
+      "Error: ECONNREFUSED",
     );
     expect(mockSend).not.toHaveBeenCalled();
   });
@@ -317,7 +328,7 @@ describe.skip("freeGamesCron \u2014 Int\u00e9gration (seul parseURL est mock\u00
       await promise;
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        "[FreeGamesCron] FREE_GAMES_CHANNEL_ID non configur\u00e9 \u2014 cron d\u00e9sactiv\u00e9"
+        "[FreeGamesCron] FREE_GAMES_CHANNEL_ID non configur\u00e9 \u2014 cron d\u00e9sactiv\u00e9",
       );
       expect(mockParseURL).not.toHaveBeenCalled();
     } finally {

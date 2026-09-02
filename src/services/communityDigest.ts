@@ -144,7 +144,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
     newMembers = (await guild.members.fetch({ limit: 50 })).filter(
       (m) => m.joinedAt && m.joinedAt >= periodStart,
     ).size;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   embed.addFields({
     name: "👥 Membres",
@@ -170,7 +172,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
         inline: true,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 3. Moderation stats
   try {
@@ -189,7 +193,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
         inline: true,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 4. Social follows
   try {
@@ -209,7 +215,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
         inline: false,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 5. Upcoming events
   try {
@@ -229,7 +237,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
         inline: false,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 6. Active polls
   try {
@@ -244,7 +254,9 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
         inline: false,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   embed.setFooter({ text: "Digest automatique — /digest disable pour désactiver" });
 

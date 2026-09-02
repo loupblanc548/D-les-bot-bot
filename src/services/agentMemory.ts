@@ -298,7 +298,9 @@ export async function persistMemoryToDb(userId: string, _guildId: string): Promi
           weight: entry.importance,
         },
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 

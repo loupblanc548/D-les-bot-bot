@@ -121,7 +121,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     logger.error("[Recherche] Erreur:", error);
     try {
       await interaction.editReply({ content: "❌ Une erreur est survenue lors de la recherche." });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 

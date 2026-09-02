@@ -87,17 +87,20 @@ const MIN_MESSAGE_LENGTH = 15;
 
 // Periodic cleanup to prevent unbounded memory growth from userCooldowns/channelResponseLog
 const PERSONALITY_MAP_RETENTION_MS = 24 * 60 * 60 * 1000; // 24h inactivity
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, ts] of userCooldowns.entries()) {
-    if (now - ts > PERSONALITY_MAP_RETENTION_MS) userCooldowns.delete(userId);
-  }
-  for (const [channelId, log] of channelResponseLog.entries()) {
-    const recent = log.filter((t) => now - t < 60 * 60 * 1000);
-    if (recent.length === 0) channelResponseLog.delete(channelId);
-    else channelResponseLog.set(channelId, recent);
-  }
-}, 60 * 60 * 1000).unref?.(); // every hour
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [userId, ts] of userCooldowns.entries()) {
+      if (now - ts > PERSONALITY_MAP_RETENTION_MS) userCooldowns.delete(userId);
+    }
+    for (const [channelId, log] of channelResponseLog.entries()) {
+      const recent = log.filter((t) => now - t < 60 * 60 * 1000);
+      if (recent.length === 0) channelResponseLog.delete(channelId);
+      else channelResponseLog.set(channelId, recent);
+    }
+  },
+  60 * 60 * 1000,
+).unref?.(); // every hour
 
 // Probability gates
 const AUTONOMOUS_RESPONSE_PROBABILITY = 0; // 0% — bot répond uniquement quand @mentionné
@@ -123,15 +126,18 @@ const channelLastMessage = new Map<string, number>();
 const recentInteractions = new Map<string, number>(); // userId -> last interaction
 
 // Periodic cleanup: purge channels/users inactive beyond retention window
-setInterval(() => {
-  const now = Date.now();
-  for (const [channelId, ts] of channelLastMessage.entries()) {
-    if (now - ts > PERSONALITY_MAP_RETENTION_MS) channelLastMessage.delete(channelId);
-  }
-  for (const [userId, ts] of recentInteractions.entries()) {
-    if (now - ts > PERSONALITY_MAP_RETENTION_MS) recentInteractions.delete(userId);
-  }
-}, 60 * 60 * 1000).unref?.(); // every hour
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [channelId, ts] of channelLastMessage.entries()) {
+      if (now - ts > PERSONALITY_MAP_RETENTION_MS) channelLastMessage.delete(channelId);
+    }
+    for (const [userId, ts] of recentInteractions.entries()) {
+      if (now - ts > PERSONALITY_MAP_RETENTION_MS) recentInteractions.delete(userId);
+    }
+  },
+  60 * 60 * 1000,
+).unref?.(); // every hour
 
 // ─── Human-like typing simulation ─────────────────────────────────────────────
 

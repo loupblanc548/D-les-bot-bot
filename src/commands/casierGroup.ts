@@ -31,7 +31,9 @@ export const commands = [
         .setName("add")
         .setDescription("Ajouter une sanction au casier")
         .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true))
-        .addStringOption((o) => o.setName("type").setDescription("Type (warn/mute/kick/ban)").setRequired(true))
+        .addStringOption((o) =>
+          o.setName("type").setDescription("Type (warn/mute/kick/ban)").setRequired(true),
+        )
         .addStringOption((o) => o.setName("raison").setDescription("Raison").setRequired(true)),
     )
     .addSubcommand((sc) =>
@@ -40,8 +42,12 @@ export const commands = [
         .setDescription("Exporter le casier d'un membre")
         .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true)),
     )
-    .addSubcommand((sc) => sc.setName("stats").setDescription("Statistiques des sanctions du serveur"))
-    .addSubcommand((sc) => sc.setName("top-sanctioned").setDescription("Top des membres les plus sanctionn\u00e9s"))
+    .addSubcommand((sc) =>
+      sc.setName("stats").setDescription("Statistiques des sanctions du serveur"),
+    )
+    .addSubcommand((sc) =>
+      sc.setName("top-sanctioned").setDescription("Top des membres les plus sanctionn\u00e9s"),
+    )
     .addSubcommand((sc) => sc.setName("history").setDescription("Historique complet des sanctions"))
     .addSubcommand((sc) =>
       sc
@@ -55,7 +61,9 @@ export const commands = [
         .setDescription("D\u00e9verrouiller le casier d'un membre")
         .addUserOption((o) => o.setName("cible").setDescription("Le membre").setRequired(true)),
     )
-    .addSubcommand((sc) => sc.setName("migrate").setDescription("Migrer les anciens warns vers le casier"))
+    .addSubcommand((sc) =>
+      sc.setName("migrate").setDescription("Migrer les anciens warns vers le casier"),
+    )
     .toJSON(),
 ];
 

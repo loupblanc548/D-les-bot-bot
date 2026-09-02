@@ -312,9 +312,7 @@ export async function toolGeocodeAddress(args: Record<string, any>): Promise<Too
   }
 }
 
-export async function toolDistanceCalculator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolDistanceCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const lat1 = Number(args.lat1),
     lon1 = Number(args.lon1),
     lat2 = Number(args.lat2),
@@ -348,9 +346,7 @@ export async function toolPeriodicTable(args: Record<string, any>): Promise<Tool
   }
 }
 
-export async function toolFakePersonGenerator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolFakePersonGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const nat = String(args.nationality || "").trim();
   try {
     const res = await fetch(
@@ -376,9 +372,7 @@ export async function toolFakePersonGenerator(
   }
 }
 
-export async function toolGitignoreGenerator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolGitignoreGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const stack = String(args.stack || "")
     .trim()
     .toLowerCase();
@@ -422,9 +416,7 @@ export async function toolNpmPackageInfo(args: Record<string, any>): Promise<Too
   }
 }
 
-export async function toolOpenLibrarySearch(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolOpenLibrarySearch(args: Record<string, any>): Promise<ToolCallResult> {
   const q = String(args.query || "").trim();
   if (!q) return err("Paramètre: query");
   try {

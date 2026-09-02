@@ -57,10 +57,16 @@ export class RedditScraperStrategy implements FetchStrategy {
           const parsed = JSON.parse(scraped.raw);
           const jsonItems = (parsed.items || parsed.entries || []) as FreeGameItem[];
           if (jsonItems.length > 0) return jsonItems;
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
 
-      if ((scraped as any).items && Array.isArray((scraped as any).items) && (scraped as any).items.length > 0) {
+      if (
+        (scraped as any).items &&
+        Array.isArray((scraped as any).items) &&
+        (scraped as any).items.length > 0
+      ) {
         return (scraped as any).items as FreeGameItem[];
       }
 
@@ -154,15 +160,21 @@ export class EpicApiStrategy implements FetchStrategy {
       const items = elements
         .filter((e: Record<string, any>) => {
           const offers = (e as Record<string, any>).promotions as Record<string, any> | undefined;
-          return offers?.promotionalOffers && Array.isArray(offers.promotionalOffers) && offers.promotionalOffers.length > 0;
+          return (
+            offers?.promotionalOffers &&
+            Array.isArray(offers.promotionalOffers) &&
+            offers.promotionalOffers.length > 0
+          );
         })
         .map((e: Record<string, any>) => ({
           title: String(e.title || "Jeu gratuit Epic Games"),
-          link: `https://store.epicgames.com/p/${e.productSlug || ((e.catalogNs as Record<string, any>)?.mappings as Record<string, any>[])?.[0]?.pageSlug || ''}`,
+          link: `https://store.epicgames.com/p/${e.productSlug || ((e.catalogNs as Record<string, any>)?.mappings as Record<string, any>[])?.[0]?.pageSlug || ""}`,
           pubDate: new Date().toISOString(),
           content: String(e.description || ""),
           guid: String(e.productSlug || e.id || ""),
-          thumbnail: Array.isArray(e.keyImages) ? String((e.keyImages as Record<string, any>[])[0]?.url || "") : "",
+          thumbnail: Array.isArray(e.keyImages)
+            ? String((e.keyImages as Record<string, any>[])[0]?.url || "")
+            : "",
         })) as FreeGameItem[];
 
       return items.length > 0 ? items : null;
@@ -202,7 +214,9 @@ export class FreeGameFetcher {
       logger.debug(`[FreeGameFetcher] Trying strategy: ${strategy.name}`);
       const items = await strategy.fetch();
       if (items && items.length > 0) {
-        logger.info(`[FreeGameFetcher] Strategy "${strategy.name}" returned ${items.length} item(s)`);
+        logger.info(
+          `[FreeGameFetcher] Strategy "${strategy.name}" returned ${items.length} item(s)`,
+        );
         return items;
       }
     }
@@ -215,6 +229,6 @@ export class FreeGameFetcher {
    * Retourne la liste des noms de stratégies (utile pour le debug).
    */
   getStrategyNames(): string[] {
-    return this.strategies.map(s => s.name);
+    return this.strategies.map((s) => s.name);
   }
 }

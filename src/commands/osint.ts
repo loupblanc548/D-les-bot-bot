@@ -1253,7 +1253,9 @@ async function handleAudit(interaction: ChatInputCommandInteraction) {
       let details: { moderator?: string; target?: string; subcommand?: string } = {};
       try {
         details = JSON.parse(entry.details || "{}");
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       const date = entry.createdAt.toISOString().slice(0, 19).replace("T", " ");
       const mod = details.moderator || entry.moderator || entry.userId || "Unknown";
       const target = details.target || entry.targetId || "N/A";

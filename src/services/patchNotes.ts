@@ -70,11 +70,15 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
       });
       clearTimeout(timeout);
       if (!response.ok) return null;
-      const data = await response.json() as any;
+      const data = (await response.json()) as any;
       const newsItem = data?.appnews?.newsitems?.[0];
       if (!newsItem) return null;
       const title = newsItem.title || `${feed.game} Update`;
-      const rawContent = (newsItem.contents || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 3000);
+      const rawContent = (newsItem.contents || "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 3000);
       const url = newsItem.url || `https://store.steampowered.com/news/app/${appid}`;
       if (!rawContent) return null;
       return { game: feed.game, title, url, rawContent };
@@ -145,7 +149,9 @@ async function summarizeWithAI(rawContent: string): Promise<string> {
     const { ollamaSummarize } = await import("../utils/ollama.js");
     const summary = await ollamaSummarize(rawContent, 5);
     if (summary && summary.trim().length > 0) return summary;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Plan B: OpenRouter API
   try {
@@ -210,7 +216,9 @@ async function checkAllFeeds(client: Client) {
         if (f.count >= MAX_FAILURES) {
           f.skipUntil = Date.now() + SKIP_DURATION_MS;
           f.count = 0;
-          logger.warn(`[PatchNotes] Flux ${feed.game} désactivé 30min (${MAX_FAILURES} échecs consécutifs)`);
+          logger.warn(
+            `[PatchNotes] Flux ${feed.game} désactivé 30min (${MAX_FAILURES} échecs consécutifs)`,
+          );
         }
         feedFailures.set(feed.game, f);
         continue;
@@ -243,7 +251,9 @@ async function checkAllFeeds(client: Client) {
           const ogImage = await getOgImage(patchNote.url);
           if (ogImage && isValidEmbedImageUrl(ogImage)) embed.setImage(ogImage);
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       try {
         const channel = await client.channels.fetch(feed.channelId);
         if (channel?.isTextBased()) {
@@ -266,7 +276,7 @@ async function checkAllFeeds(client: Client) {
         );
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : (err ? String(err) : "");
+      const errMsg = err instanceof Error ? err.message : err ? String(err) : "";
       // All PatchNotes fetch errors are non-critical (API down, 403, empty response, etc.)
       if (errMsg.includes("CRASH") || errMsg.includes("FATAL")) {
         logger.error(`[PatchNotes] Erreur critique flux ${feed.game}: ${errMsg}`);

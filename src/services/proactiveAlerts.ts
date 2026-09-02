@@ -173,7 +173,9 @@ export async function sendProactiveAlert(
 
     await owner.send({ embeds: [embed] });
     logger.info(`[ProactiveAlerts] Alerte envoyée: ${title}`);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 // ─── Détection mémoire ───────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import logger from "./logger.js";
 
 async function testConnection(): Promise<void> {
   logger.info("=== Test de connexion PostgreSQL via Prisma ===");
-  
+
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({
     log: ["error", "warn"],
@@ -14,24 +14,23 @@ async function testConnection(): Promise<void> {
   try {
     logger.info("Tentative de connexion à PostgreSQL...");
     await prisma.$connect();
-    
+
     logger.info("✅ Connexion à PostgreSQL réussie avec Prisma !");
     logger.info("La configuration DATABASE_URL est correcte.");
-    
+
     // Test simple de requête
     logger.info("Test de requête simple...");
     const result = await prisma.$queryRaw`SELECT 1 as test`;
     logger.info("✅ Requête test réussie :", result);
-    
+
     await prisma.$disconnect();
     logger.info("✅ Déconnexion réussie.");
-    
   } catch (error) {
     logger.error("❌ Erreur de connexion à PostgreSQL :");
-    
+
     if (error instanceof Error) {
       logger.error(`Message: ${error.message}`);
-      
+
       // Analyse détaillée de l'erreur
       if (error.message.includes("password authentication failed")) {
         logger.error("CAUSE IDENTIFIÉE: Mot de passe incorrect dans DATABASE_URL");
@@ -64,13 +63,13 @@ async function testConnection(): Promise<void> {
         logger.error("CAUSE INCONNUE: Erreur non identifiée");
         logger.error(`Détails complets: ${error.stack}`);
       }
-      
+
       // Afficher la DATABASE_URL (masquée) pour vérification
       const dbUrl = process.env.DATABASE_URL;
       if (dbUrl) {
         const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@");
         logger.error(`DATABASE_URL actuelle (masquée): ${maskedUrl}`);
-        
+
         // Vérifier le format
         if (!dbUrl.startsWith("postgresql://")) {
           logger.error("ERREUR DE FORMAT: DATABASE_URL doit commencer par 'postgresql://'");
@@ -81,7 +80,7 @@ async function testConnection(): Promise<void> {
     } else {
       logger.error("Erreur inconnue:", error);
     }
-    
+
     process.exit(1);
   }
 }

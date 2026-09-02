@@ -712,7 +712,9 @@ async function dispatchReport(
             reasoning: report.aiDecision.reasoning,
           }),
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   } else if (report.aiDecision && config.autonomousAgentMode === "autonomous") {
     logger.info(
@@ -736,7 +738,9 @@ async function dispatchReport(
         summary: report.summary,
       }),
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

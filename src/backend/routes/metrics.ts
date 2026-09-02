@@ -24,7 +24,13 @@ export function handleGetMetrics(req: http.IncomingMessage, res: http.ServerResp
 
   if (filtered.length === 0) {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: true, data: { period, interval: 300, data: [], summary: null }, timestamp: new Date().toISOString() }));
+    res.end(
+      JSON.stringify({
+        success: true,
+        data: { period, interval: 300, data: [], summary: null },
+        timestamp: new Date().toISOString(),
+      }),
+    );
     return;
   }
 

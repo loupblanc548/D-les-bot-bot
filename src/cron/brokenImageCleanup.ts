@@ -50,7 +50,13 @@ function resolveYoutubeThumb(url: string | undefined): string | null {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (host !== "youtube.com" && host !== "www.youtube.com" && host !== "youtu.be" && host !== "m.youtube.com") return null;
+    if (
+      host !== "youtube.com" &&
+      host !== "www.youtube.com" &&
+      host !== "youtu.be" &&
+      host !== "m.youtube.com"
+    )
+      return null;
   } catch {
     return null;
   }
@@ -61,7 +67,10 @@ function resolveYoutubeThumb(url: string | undefined): string | null {
   return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
 }
 
-async function scanAndFixChannel(client: Client, channelId: string): Promise<{ scanned: number; broken: number; fixed: number; errors: number }> {
+async function scanAndFixChannel(
+  client: Client,
+  channelId: string,
+): Promise<{ scanned: number; broken: number; fixed: number; errors: number }> {
   const stats = { scanned: 0, broken: 0, fixed: 0, errors: 0 };
 
   let channel;
@@ -79,7 +88,9 @@ async function scanAndFixChannel(client: Client, channelId: string): Promise<{ s
   try {
     messages = await textChannel.messages.fetch({ limit: SCAN_LIMIT });
   } catch (err) {
-    logger.error(`[BrokenImageCleanup] Fetch messages ${channelId}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[BrokenImageCleanup] Fetch messages ${channelId}: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return stats;
   }
 
@@ -121,7 +132,9 @@ async function scanAndFixChannel(client: Client, channelId: string): Promise<{ s
       await new Promise((resolve) => setTimeout(resolve, DELETE_DELAY_MS));
     } catch (fixErr) {
       stats.errors++;
-      logger.error(`[BrokenImageCleanup] Erreur correction ${msgId}: ${fixErr instanceof Error ? fixErr.message : String(fixErr)}`);
+      logger.error(
+        `[BrokenImageCleanup] Erreur correction ${msgId}: ${fixErr instanceof Error ? fixErr.message : String(fixErr)}`,
+      );
     }
   }
 
@@ -162,15 +175,21 @@ export function startBrokenImageCleanup(client: Client): void {
 
   setTimeout(() => {
     runBrokenImageCleanup(client).catch((err) =>
-      logger.error(`[BrokenImageCleanup] Erreur scan initial: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[BrokenImageCleanup] Erreur scan initial: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   }, 30_000);
 
   cronJob = cron.schedule(SCAN_CRON_EXPRESSION, () => {
     runBrokenImageCleanup(client).catch((err) =>
-      logger.error(`[BrokenImageCleanup] Erreur cron: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[BrokenImageCleanup] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   });
 
-  logger.info(`[BrokenImageCleanup] Cron démarré (${SCAN_CRON_EXPRESSION}) + scan initial dans 30s`);
+  logger.info(
+    `[BrokenImageCleanup] Cron démarré (${SCAN_CRON_EXPRESSION}) + scan initial dans 30s`,
+  );
 }

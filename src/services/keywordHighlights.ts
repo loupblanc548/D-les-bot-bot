@@ -23,7 +23,12 @@ export function addWatch(userId: string, guildId: string, keywords: string[]): v
 
   // Remove existing watch for this user
   const filtered = guildWatches.filter((w) => w.userId !== userId);
-  filtered.push({ userId, guildId, keywords: keywords.map((k) => k.toLowerCase()), createdAt: new Date() });
+  filtered.push({
+    userId,
+    guildId,
+    keywords: keywords.map((k) => k.toLowerCase()),
+    createdAt: new Date(),
+  });
   watchesByGuild.set(guildId, filtered);
 }
 
@@ -81,7 +86,9 @@ export async function checkMessage(
 
       await user.send({ embeds: [embed] });
       notifiedCount++;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   if (notifiedCount > 0) {

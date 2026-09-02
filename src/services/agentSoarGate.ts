@@ -192,7 +192,9 @@ export async function handleSoarToolInteraction(
         .setColor(isApproved ? 0x00ff00 : 0xff0000)
         .setTitle(isApproved ? "✅ [SOAR GATE — AUTORISÉ]" : "❌ [SOAR GATE — REJETÉ]");
       await pending.dmMessage.edit({ embeds: [updatedEmbed], components: [] });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   pending.resolve(isApproved);

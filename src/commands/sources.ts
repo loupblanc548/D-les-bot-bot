@@ -75,7 +75,9 @@ export async function handleAddSource(interaction: ChatInputCommandInteraction) 
           content: "Impossible d'ajouter cette source.",
           ephemeral: true,
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }
@@ -108,7 +110,9 @@ export async function handleRemoveSource(interaction: ChatInputCommandInteractio
           content: "Impossible de supprimer cette source.",
           ephemeral: true,
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }
@@ -162,7 +166,9 @@ export async function handleListSources(interaction: ChatInputCommandInteraction
           content: "Impossible de lister les sources.",
           ephemeral: true,
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }

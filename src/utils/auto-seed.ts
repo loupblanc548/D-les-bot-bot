@@ -37,7 +37,9 @@ export async function autoSeedSources(): Promise<void> {
           },
         });
         inserted++;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 
@@ -65,7 +67,9 @@ export async function autoSeedSources(): Promise<void> {
           },
         });
         inserted++;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 

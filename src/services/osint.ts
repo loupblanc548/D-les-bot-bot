@@ -572,11 +572,10 @@ export interface HoleheResult {
 
 export async function runHolehe(email: string): Promise<HoleheResult> {
   try {
-    const { stdout } = await execFileAsync(
-      "holehe",
-      ["--only-used", "--no-color", email],
-      { timeout: 120000, maxBuffer: 5 * 1024 * 1024 },
-    );
+    const { stdout } = await execFileAsync("holehe", ["--only-used", "--no-color", email], {
+      timeout: 120000,
+      maxBuffer: 5 * 1024 * 1024,
+    });
 
     // Holehe affiche les sites où l'email est inscrit avec [+] et ceux où il ne l'est pas avec [-]
     const lines = stdout.split("\n");
@@ -675,7 +674,10 @@ export async function runWhois(domain: string): Promise<WhoisResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import os,whois,json; w=whois.whois(os.environ['OSINT_INPUT']); print(json.dumps({k:str(v) for k,v in w.items() if v}))`],
+      [
+        "-c",
+        `import os,whois,json; w=whois.whois(os.environ['OSINT_INPUT']); print(json.dumps({k:str(v) for k,v in w.items() if v}))`,
+      ],
       { timeout: 15000, maxBuffer: 1024 * 1024, env: { ...process.env, OSINT_INPUT: domain } },
     );
 
@@ -785,8 +787,15 @@ export async function runInstaloader(username: string): Promise<InstagramResult>
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import os,instaloader,json; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, os.environ['OSINT_INPUT']); print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))`],
-      { timeout: 30000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: username } },
+      [
+        "-c",
+        `import os,instaloader,json; L=instaloader.Instaloader(); profile=instaloader.Profile.from_username(L.context, os.environ['OSINT_INPUT']); print(json.dumps({'username':profile.username,'followers':str(profile.followers),'following':str(profile.followees),'posts':str(profile.mediacount),'bio':profile.biography,'fullname':profile.full_name,'private':profile.is_private,'verified':profile.is_verified,'pic':profile.profile_pic_url}))`,
+      ],
+      {
+        timeout: 30000,
+        maxBuffer: 2 * 1024 * 1024,
+        env: { ...process.env, OSINT_INPUT: username },
+      },
     );
 
     try {
@@ -872,7 +881,10 @@ export async function runDnsLookup(domain: string): Promise<DnsResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import dns.resolver; import json; r=dns.resolver.Resolver(); results={}; [results.setdefault('A',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','A',lifetime=5)] if True else None; [results.setdefault('MX',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','MX',lifetime=5)] if True else None; [results.setdefault('TXT',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','TXT',lifetime=5)] if True else None; [results.setdefault('NS',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','NS',lifetime=5)] if True else None; print(json.dumps(results))`],
+      [
+        "-c",
+        `import dns.resolver; import json; r=dns.resolver.Resolver(); results={}; [results.setdefault('A',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','A',lifetime=5)] if True else None; [results.setdefault('MX',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','MX',lifetime=5)] if True else None; [results.setdefault('TXT',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','TXT',lifetime=5)] if True else None; [results.setdefault('NS',[]).append(str(a)) for a in r.resolve('${domain.replace(/'/g, "")}','NS',lifetime=5)] if True else None; print(json.dumps(results))`,
+      ],
       { timeout: 20000, maxBuffer: 1024 * 1024 },
     );
 
@@ -914,7 +926,10 @@ export async function runSocialScan(query: string): Promise<SocialScanResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import os,socialscan,json; r=socialscan.execute([os.environ['OSINT_INPUT']], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))`],
+      [
+        "-c",
+        `import os,socialscan,json; r=socialscan.execute([os.environ['OSINT_INPUT']], 5); print(json.dumps([{'platform':s.platform,'found':s.available==False,'valid':s.valid,'url':s.get_url()} for s in r]))`,
+      ],
       { timeout: 60000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: query } },
     );
 
@@ -954,7 +969,15 @@ export async function runHarvester(domain: string): Promise<HarvesterResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["D:\\osint-tools\\theharvester\\theHarvester\\__main__.py", "-d", domain, "-b", "all", "-f", "D:\\osint-tools\\harvester_output.json"],
+      [
+        "D:\\osint-tools\\theharvester\\theHarvester\\__main__.py",
+        "-d",
+        domain,
+        "-b",
+        "all",
+        "-f",
+        "D:\\osint-tools\\harvester_output.json",
+      ],
       { timeout: 120000, maxBuffer: 10 * 1024 * 1024 },
     );
 
@@ -1042,8 +1065,15 @@ export async function runExifExtract(imageUrl: string): Promise<ExifResult> {
   try {
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import os,exifread,urllib.request,io,json; f=urllib.request.urlopen(os.environ['OSINT_INPUT']); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))`],
-      { timeout: 30000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, OSINT_INPUT: imageUrl } },
+      [
+        "-c",
+        `import os,exifread,urllib.request,io,json; f=urllib.request.urlopen(os.environ['OSINT_INPUT']); tags=exifread.process_file(io.BytesIO(f.read())); print(json.dumps({str(k):str(v) for k,v in tags.items()}))`,
+      ],
+      {
+        timeout: 30000,
+        maxBuffer: 5 * 1024 * 1024,
+        env: { ...process.env, OSINT_INPUT: imageUrl },
+      },
     );
 
     try {
@@ -1160,7 +1190,10 @@ export async function runOsintgram(username: string): Promise<OsintgramResult> {
     // Utiliser instaloader pour des données plus profondes
     const { stdout } = await execFileAsync(
       "python",
-      ["-c", `import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))`],
+      [
+        "-c",
+        `import instaloader, json; L=instaloader.Instaloader(); p=instaloader.Profile.from_username(L.context, '${username.replace(/'/g, "")}'); d={'username':p.username,'found':True,'followers':str(p.followers),'following':str(p.followees),'posts':str(p.mediacount),'bio':p.biography,'fullname':p.full_name,'private':p.is_private,'verified':p.is_verified,'pic':p.profile_pic_url,'email':p.external_url or '','phone':'','external_urls':[p.external_url] if p.external_url else [],'tags':[t.name for t in p.get_tags()][:20] if hasattr(p,'get_tags') else []}; print(json.dumps(d))`,
+      ],
       { timeout: 45000, maxBuffer: 5 * 1024 * 1024 },
     );
 

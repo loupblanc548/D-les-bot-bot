@@ -111,7 +111,11 @@ export interface RetailerModule {
   search: (query: string, country: CountryCode, limit?: number) => Promise<RetailerSearchResult>;
   getProduct: (productId: string, country: CountryCode) => Promise<RetailerProduct | null>;
   getDeals?: (country: CountryCode, limit?: number) => Promise<RetailerProduct[]>;
-  getNewProducts?: (country: CountryCode, category?: string, limit?: number) => Promise<RetailerProduct[]>;
+  getNewProducts?: (
+    country: CountryCode,
+    category?: string,
+    limit?: number,
+  ) => Promise<RetailerProduct[]>;
 }
 
 export const RETAILER_COUNTRIES: CountryCode[] = ["FR", "DE", "BE", "NL", "ES", "IT", "CH"];

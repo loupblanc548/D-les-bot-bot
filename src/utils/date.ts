@@ -57,7 +57,10 @@ export function parseDuration(input: string): number | null {
 }
 
 /** Convertit un Date en timestamp Discord (<t:...>) */
-export function toDiscordTimestamp(date: Date | number, style: "R" | "f" | "F" | "t" | "T" | "d" | "D" = "R"): string {
+export function toDiscordTimestamp(
+  date: Date | number,
+  style: "R" | "f" | "F" | "t" | "T" | "d" | "D" = "R",
+): string {
   const ts = typeof date === "number" ? Math.floor(date / 1000) : Math.floor(date.getTime() / 1000);
   return `<t:${ts}:${style}>`;
 }

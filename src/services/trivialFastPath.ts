@@ -55,7 +55,15 @@ const TRIVIAL_RESPONSES: TrivialResponse[] = [
   // ─── Accords/désaccords courts ───
   {
     patterns: [/^\s*(vrai|faux|graves|ouf|bref|nice|cool|gg|wp|ez|clairement|carrément)\s*$/i],
-    responses: ["Franchement oui", "Carrément", "Grave", "Faut le faire", "Bien vu", "Yep", "Sans déconner"],
+    responses: [
+      "Franchement oui",
+      "Carrément",
+      "Grave",
+      "Faut le faire",
+      "Bien vu",
+      "Yep",
+      "Sans déconner",
+    ],
     variations: true,
   },
   // ─── Emoji seuls ───
@@ -66,7 +74,9 @@ const TRIVIAL_RESPONSES: TrivialResponse[] = [
   },
   // ─── "Comment ça va" ───
   {
-    patterns: [/^\s*(ça va|ca va|comment ça va|comment ca va|tu vas bien|how are you)\s*[\?？]?\s*$/i],
+    patterns: [
+      /^\s*(ça va|ca va|comment ça va|comment ca va|tu vas bien|how are you)\s*[\?？]?\s*$/i,
+    ],
     responses: [
       "Ça roule, et toi ?",
       "Tranquille, toujours en mission ! Et toi ?",
@@ -127,8 +137,11 @@ export function getTrivialResponse(message: string, userId: string): string | nu
 }
 
 // Nettoyage périodique du cache
-setInterval(() => {
-  if (userResponseCache.size > 500) {
-    userResponseCache.clear();
-  }
-}, 60 * 60 * 1000).unref();
+setInterval(
+  () => {
+    if (userResponseCache.size > 500) {
+      userResponseCache.clear();
+    }
+  },
+  60 * 60 * 1000,
+).unref();

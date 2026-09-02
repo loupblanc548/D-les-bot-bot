@@ -38,15 +38,18 @@ export interface TreeOfThoughtResult<T = unknown> {
 export const DEFAULT_BRANCHES = [
   {
     name: "technique",
-    perspective: "Approche technique du problème. Analyse la sécurité, l'implémentation, la faisabilité technique, les risques système.",
+    perspective:
+      "Approche technique du problème. Analyse la sécurité, l'implémentation, la faisabilité technique, les risques système.",
   },
   {
     name: "humaine",
-    perspective: "Approche humaine du problème. Analyse l'impact sur les utilisateurs, la psychologie, la communication, l'aspect communautaire.",
+    perspective:
+      "Approche humaine du problème. Analyse l'impact sur les utilisateurs, la psychologie, la communication, l'aspect communautaire.",
   },
   {
     name: "économique",
-    perspective: "Approche économique du problème. Analyse les coûts, les bénéfices, les ressources nécessaires, le ROI, l'impact à long terme.",
+    perspective:
+      "Approche économique du problème. Analyse les coûts, les bénéfices, les ressources nécessaires, le ROI, l'impact à long terme.",
   },
 ] as const;
 
@@ -93,7 +96,8 @@ export async function thinkTree<T = unknown>(
   const startTime = Date.now();
   const branches = options?.branches ?? DEFAULT_BRANCHES;
   const timeout = options?.timeoutPerStep ?? 15_000;
-  const schema = options?.outputSchema ?? '{"solution": "...", "confidence": 0-100, "rationale": "..."}';
+  const schema =
+    options?.outputSchema ?? '{"solution": "...", "confidence": 0-100, "rationale": "..."}';
 
   try {
     const client = getOpenAIClient();
@@ -102,15 +106,19 @@ export async function thinkTree<T = unknown>(
     const branchResults = await Promise.all(
       branches.map(async (branch) => {
         try {
-          const prompt = BRANCH_PROMPT
-            .replace("{perspective}", branch.perspective)
-            .replace("{problem}", problem.slice(0, 2000));
+          const prompt = BRANCH_PROMPT.replace("{perspective}", branch.perspective).replace(
+            "{problem}",
+            problem.slice(0, 2000),
+          );
 
           const completion = await client.chat.completions.create(
             {
               model: config.openRouterModel,
               messages: [
-                { role: "system", content: "Tu es un expert en analyse. Réponds UNIQUEMENT en JSON valide." },
+                {
+                  role: "system",
+                  content: "Tu es un expert en analyse. Réponds UNIQUEMENT en JSON valide.",
+                },
                 { role: "user", content: prompt },
               ],
               max_tokens: 500,
@@ -146,9 +154,10 @@ export async function thinkTree<T = unknown>(
 
     // Identifier la meilleure branche (score le plus élevé)
     const scored = branchResults.filter((b) => b.score !== undefined);
-    const bestBranch = scored.length > 0
-      ? scored.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0]?.name ?? null
-      : null;
+    const bestBranch =
+      scored.length > 0
+        ? (scored.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0]?.name ?? null)
+        : null;
 
     // Phase 2: Fusion
     const branchesText = branchResults
@@ -158,8 +167,7 @@ export async function thinkTree<T = unknown>(
       )
       .join("\n\n");
 
-    const fusionPrompt = FUSION_PROMPT
-      .replace("{problem}", problem.slice(0, 1000))
+    const fusionPrompt = FUSION_PROMPT.replace("{problem}", problem.slice(0, 1000))
       .replace("{branches}", branchesText)
       .replace("{format}", "")
       .replace("{schema}", schema);
@@ -168,7 +176,11 @@ export async function thinkTree<T = unknown>(
       {
         model: config.openRouterModel,
         messages: [
-          { role: "system", content: "Tu es un expert en synthèse décisionnelle. Réponds UNIQUEMENT en JSON valide." },
+          {
+            role: "system",
+            content:
+              "Tu es un expert en synthèse décisionnelle. Réponds UNIQUEMENT en JSON valide.",
+          },
           { role: "user", content: fusionPrompt },
         ],
         max_tokens: 800,
@@ -212,15 +224,18 @@ export async function moderationThinkTree(
     branches: [
       {
         name: "règles",
-        perspective: "Approche par les règles. Quelle règle est violée? Quelle sanction est prévue? Y a-t-il des circonstances atténuantes?",
+        perspective:
+          "Approche par les règles. Quelle règle est violée? Quelle sanction est prévue? Y a-t-il des circonstances atténuantes?",
       },
       {
         name: "contexte",
-        perspective: "Approche contextuelle. Quel est le contexte du message? L'intention derrière? L'historique de l'utilisateur?",
+        perspective:
+          "Approche contextuelle. Quel est le contexte du message? L'intention derrière? L'historique de l'utilisateur?",
       },
       {
         name: "impact",
-        perspective: "Approche par l'impact. Quel est l'impact sur la communauté? Sur les autres membres? Le précédent que ça crée?",
+        perspective:
+          "Approche par l'impact. Quel est l'impact sur la communauté? Sur les autres membres? Le précédent que ça crée?",
       },
     ],
     outputSchema: '{"solution": "...", "confidence": 0-100, "rationale": "..."}',
@@ -241,17 +256,21 @@ export async function threatThinkTree(
     branches: [
       {
         name: "technique",
-        perspective: "Analyse technique: vecteurs d'attaque, vulnérabilités, patterns malveillants, indicateurs de compromis.",
+        perspective:
+          "Analyse technique: vecteurs d'attaque, vulnérabilités, patterns malveillants, indicateurs de compromis.",
       },
       {
         name: "comportemental",
-        perspective: "Analyse comportementale: patterns d'utilisateur, anomalies temporelles, coordination suspecte, escalation.",
+        perspective:
+          "Analyse comportementale: patterns d'utilisateur, anomalies temporelles, coordination suspecte, escalation.",
       },
       {
         name: "impact",
-        perspective: "Analyse d'impact: dégâts potentiels, propagation, réputation du serveur, récupération nécessaire.",
+        perspective:
+          "Analyse d'impact: dégâts potentiels, propagation, réputation du serveur, récupération nécessaire.",
       },
     ],
-    outputSchema: '{"threat_level": "none|low|medium|high|critical", "risk_score": 0-100, "recommendations": [], "summary": "..."}',
+    outputSchema:
+      '{"threat_level": "none|low|medium|high|critical", "risk_score": 0-100, "recommendations": [], "summary": "..."}',
   });
 }

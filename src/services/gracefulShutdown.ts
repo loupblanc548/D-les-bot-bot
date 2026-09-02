@@ -58,10 +58,7 @@ const registration: RuntimeRegistration = {
  * Idempotent sur les listeners process : un second (ou N-ième) appel
  * étend simplement la liste de jobs sans re-attacher SIGINT/SIGTERM.
  */
-export function registerShutdownHandler(
-  client: Client,
-  jobs: ShutdownJob[],
-): void {
+export function registerShutdownHandler(client: Client, jobs: ShutdownJob[]): void {
   if (!client) {
     logger.warn("[gracefulShutdown] client manquant — register ignoré");
     return;
@@ -93,14 +90,9 @@ export function registerShutdownHandler(
  * ou un déclenchement programmatique). Anti-double-run : un second
  * appel (ex. SIGTERM après SIGINT) est ignoré sans warning bloquant.
  */
-export async function triggerShutdown(
-  client: Client,
-  signal: string = "manual",
-): Promise<void> {
+export async function triggerShutdown(client: Client, signal: string = "manual"): Promise<void> {
   if (registration.triggered) {
-    logger.warn(
-      `[gracefulShutdown] Shutdown déjà déclenché — ignoré ${signal}`,
-    );
+    logger.warn(`[gracefulShutdown] Shutdown déjà déclenché — ignoré ${signal}`);
     return;
   }
   registration.triggered = true;
@@ -132,9 +124,7 @@ async function runAllJobs(jobs: ShutdownJob[]): Promise<void> {
     logger.info("[gracefulShutdown] Aucun job à exécuter");
     return;
   }
-  logger.info(
-    `[gracefulShutdown] Exécution parallèle de ${jobs.length} job(s)…`,
-  );
+  logger.info(`[gracefulShutdown] Exécution parallèle de ${jobs.length} job(s)…`);
   await Promise.allSettled(jobs.map((job) => runOneJob(job)));
 }
 
@@ -142,9 +132,7 @@ async function runOneJob(job: ShutdownJob): Promise<void> {
   const start = Date.now();
   try {
     await withTimeout(job.cleanup(), JOB_TIMEOUT_MS, job.name);
-    logger.info(
-      `[gracefulShutdown] ✓ ${job.name} terminé en ${Date.now() - start}ms`,
-    );
+    logger.info(`[gracefulShutdown] ✓ ${job.name} terminé en ${Date.now() - start}ms`);
   } catch (error) {
     logger.warn(
       `[gracefulShutdown] ✗ ${job.name} en erreur après ${Date.now() - start}ms: ${
@@ -159,11 +147,7 @@ async function runOneJob(job: ShutdownJob): Promise<void> {
  * résout pas avant `ms`, on rejette avec une `ShutdownTimeoutError`
  * typée — le caller (runOneJob) la catch et log simplement.
  */
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  jobName: string,
-): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, ms: number, jobName: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {

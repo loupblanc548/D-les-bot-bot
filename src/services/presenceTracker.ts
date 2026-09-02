@@ -92,7 +92,9 @@ async function checkRichPresence(client: Client): Promise<void> {
           gameStats.set(gameName, existing);
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   const platformGroups = new Map<string, { game: string; count: number; players: string[] }[]>();

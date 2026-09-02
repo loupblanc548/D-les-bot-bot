@@ -55,7 +55,9 @@ async function checkTikTokAccount(username: string): Promise<TikTokVideo[]> {
       if (videos.length >= 3) break;
     }
   } catch (err) {
-    logger.debug(`[TikTok] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+    logger.debug(
+      `[TikTok] Erreur fetch: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+    );
   }
   return videos;
 }
@@ -79,7 +81,11 @@ async function checkTikTokVideos(client: Client): Promise<void> {
         .setURL(video.url)
         .addFields(
           { name: "Créateur", value: `@${username}`, inline: true },
-          { name: "Publié le", value: new Date(video.createdAt).toLocaleString("fr-FR"), inline: true },
+          {
+            name: "Publié le",
+            value: new Date(video.createdAt).toLocaleString("fr-FR"),
+            inline: true,
+          },
         )
         .setFooter({ text: "Surveillance System • TikTok Alerts" })
         .setTimestamp();
@@ -89,7 +95,9 @@ async function checkTikTokVideos(client: Client): Promise<void> {
         await dedupCache.markAsProcessed("tiktok", dedupKey);
         logger.info(`[TikTok] Notification envoyée — vidéo ${sanitizeForLog(video.videoId)}`);
       } catch (err) {
-        logger.error(`[TikTok] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`);
+        logger.error(
+          `[TikTok] Erreur envoi: ${sanitizeForLog(err instanceof Error ? err.message : String(err))}`,
+        );
       }
     }
   }
@@ -106,7 +114,9 @@ export function startTikTokMonitoring(client: Client): void {
   }
   if (checkInterval) return;
 
-  logger.info(`[TikTok] Surveillance activée — ${trackedAccounts.length} compte(s) — intervalle: 15min`);
+  logger.info(
+    `[TikTok] Surveillance activée — ${trackedAccounts.length} compte(s) — intervalle: 15min`,
+  );
   checkInterval = safeInterval("TikTokMonitor", () => checkTikTokVideos(client), CHECK_INTERVAL_MS);
 }
 

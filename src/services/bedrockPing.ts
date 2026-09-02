@@ -13,8 +13,7 @@ import logger from "../utils/logger.js";
 
 // RakNet magic bytes
 const RAKNET_MAGIC = Buffer.from([
-  0x00, 0xFF, 0xFF, 0x00, 0xFE, 0xFE, 0xFE, 0xFE,
-  0xFD, 0xFD, 0xFD, 0xFD, 0x12, 0x34, 0x56, 0x78,
+  0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78,
 ]);
 
 interface BedrockServerInfo {
@@ -35,8 +34,10 @@ function buildPingPacket(): Buffer {
   const buf = Buffer.alloc(33);
   let offset = 0;
   buf.writeUInt8(0x01, offset++); // ID_UNCONNECTED_PING
-  buf.writeBigInt64BE(BigInt(Date.now()), offset); offset += 8; // timestamp
-  RAKNET_MAGIC.copy(buf, offset); offset += 16; // magic
+  buf.writeBigInt64BE(BigInt(Date.now()), offset);
+  offset += 8; // timestamp
+  RAKNET_MAGIC.copy(buf, offset);
+  offset += 16; // magic
   buf.writeBigInt64BE(0n, offset); // client GUID
   return buf;
 }
@@ -47,7 +48,7 @@ function buildPingPacket(): Buffer {
 function parsePongResponse(buf: Buffer): BedrockServerInfo | null {
   let offset = 0;
   const packetId = buf.readUInt8(offset++);
-  if (packetId !== 0x1C) return null; // ID_UNCONNECTED_PONG
+  if (packetId !== 0x1c) return null; // ID_UNCONNECTED_PONG
 
   offset += 8; // timestamp (skip)
   offset += 16; // magic (skip)
@@ -94,7 +95,11 @@ export function pingBedrockServer(
         resolved = true;
         resolve(null);
       }
-      try { socket.close(); } catch { /* already closed */ }
+      try {
+        socket.close();
+      } catch {
+        /* already closed */
+      }
     };
 
     socket.on("message", (msg) => {
@@ -102,9 +107,15 @@ export function pingBedrockServer(
       resolved = true;
       const info = parsePongResponse(msg);
       if (info) {
-        logger.info(`[BedrockPing] ✅ ${host}:${port} — ${info.motd} (${info.onlinePlayers}/${info.maxPlayers})`);
+        logger.info(
+          `[BedrockPing] ✅ ${host}:${port} — ${info.motd} (${info.onlinePlayers}/${info.maxPlayers})`,
+        );
       }
-      try { socket.close(); } catch { /* */ }
+      try {
+        socket.close();
+      } catch {
+        /* */
+      }
       resolve(info);
     });
 
@@ -154,14 +165,16 @@ export async function resolveRealmAddress(
     if (info) {
       return { host: realmHost, port: 19132, method: "direct-realm-hostname" };
     }
-  } catch { /* try next */ }
+  } catch {
+    /* try next */
+  }
 
   // Method 2: Try mcsrvstat.us bedrock endpoint
   try {
     const res = await fetch(`https://api.mcsrvstat.us/bedrock/${realmHost}`, {
       signal: AbortSignal.timeout(5000),
     });
-    const data = await res.json() as { online?: boolean; hostname?: string; port?: number };
+    const data = (await res.json()) as { online?: boolean; hostname?: string; port?: number };
     if (data.online) {
       return {
         host: data.hostname || realmHost,
@@ -169,7 +182,9 @@ export async function resolveRealmAddress(
         method: "mcsrvstat-bedrock",
       };
     }
-  } catch { /* try next */ }
+  } catch {
+    /* try next */
+  }
 
   // Method 3: Try with port 19133 (alternate Bedrock port)
   try {
@@ -177,7 +192,9 @@ export async function resolveRealmAddress(
     if (info) {
       return { host: realmHost, port: 19133, method: "alternate-port" };
     }
-  } catch { /* */ }
+  } catch {
+    /* */
+  }
 
   return null;
 }
@@ -186,9 +203,7 @@ export async function resolveRealmAddress(
  * Full Bedrock server status check.
  * Supports both direct IP:port and Realm invite codes.
  */
-export async function getBedrockServerStatus(
-  address: string,
-): Promise<string> {
+export async function getBedrockServerStatus(address: string): Promise<string> {
   // Parse address — could be "host:port", "host", or a Realm invite code
   let host: string;
   let port: number = 19132;
@@ -211,14 +226,16 @@ export async function getBedrockServerStatus(
     logger.info(`[BedrockPing] 🏰 Resolving Realm invite code: ${address}`);
     const resolved = await resolveRealmAddress(address);
     if (!resolved) {
-      return `🏰 Realm "${address}" — Impossible de résoudre l'adresse.\n` +
+      return (
+        `🏰 Realm "${address}" — Impossible de résoudre l'adresse.\n` +
         `Les Realms Bedrock utilisent le proxy Mojang (IP cachée).\n` +
         `**Solutions pour trouver l'IP:**\n` +
         `1. Dans Minecraft, rejoins le Realm\n` +
         `2. Va dans Paramètres > Informations du serveur\n` +
         `3. Note l'IP et le port affichés\n` +
         `4. Relance la commande avec l'IP:port directe\n\n` +
-        `Ou utilise le code d'invitation directement dans Minecraft: Bedrock Edition.`;
+        `Ou utilise le code d'invitation directement dans Minecraft: Bedrock Edition.`
+      );
     }
 
     host = resolved.host;
@@ -235,7 +252,7 @@ export async function getBedrockServerStatus(
       const res = await fetch(`https://api.mcsrvstat.us/bedrock/${host}:${port}`, {
         signal: AbortSignal.timeout(5000),
       });
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         online?: boolean;
         players?: { online: number; max: number };
         version?: string;
@@ -243,19 +260,25 @@ export async function getBedrockServerStatus(
       };
       if (data.online) {
         const motd = data.motd?.clean?.join(" ") || "N/A";
-        return `🟢 **Serveur Bedrock ${host}:${port}**\n` +
+        return (
+          `🟢 **Serveur Bedrock ${host}:${port}**\n` +
           `**MOTD:** ${motd}\n` +
           `**Joueurs:** ${data.players?.online}/${data.players?.max}\n` +
-          `**Version:** ${data.version || "N/A"}`;
+          `**Version:** ${data.version || "N/A"}`
+        );
       }
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
 
     return `🔴 Serveur Bedrock ${host}:${port} — Hors ligne ou injoignable (UDP ping échoué)`;
   }
 
-  return `🟢 **Serveur Bedrock ${host}:${port}**${isRealm ? " (Realm)" : ""}\n` +
+  return (
+    `🟢 **Serveur Bedrock ${host}:${port}**${isRealm ? " (Realm)" : ""}\n` +
     `**MOTD:** ${info.motd}\n` +
     `**Joueurs:** ${info.onlinePlayers}/${info.maxPlayers}\n` +
     `**Version:** ${info.version} (protocol ${info.protocol})\n` +
-    `**Gamemode:** ${info.gamemode}`;
+    `**Gamemode:** ${info.gamemode}`
+  );
 }

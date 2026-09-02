@@ -88,7 +88,10 @@ export async function runReasoningPipeline<T = unknown>(
       {
         model: config.openRouterModel,
         messages: [
-          { role: "system", content: "Tu es un analyste expert. Réponds UNIQUEMENT en JSON valide." },
+          {
+            role: "system",
+            content: "Tu es un analyste expert. Réponds UNIQUEMENT en JSON valide.",
+          },
           { role: "user", content: step1Prompt },
         ],
         max_tokens: 300,
@@ -115,15 +118,19 @@ export async function runReasoningPipeline<T = unknown>(
     // Étape 2: Analyser chaque aspect
     const analyses: { aspect: string; result: PipelineStep2 }[] = [];
     for (const aspect of aspects) {
-      const step2Prompt = STEP2_PROMPT
-        .replace("{aspect}", aspect)
-        .replace("{problem}", problem.slice(0, 1500));
+      const step2Prompt = STEP2_PROMPT.replace("{aspect}", aspect).replace(
+        "{problem}",
+        problem.slice(0, 1500),
+      );
 
       const step2Completion = await client.chat.completions.create(
         {
           model: config.openRouterModel,
           messages: [
-            { role: "system", content: "Tu es un analyste expert. Réponds UNIQUEMENT en JSON valide." },
+            {
+              role: "system",
+              content: "Tu es un analyste expert. Réponds UNIQUEMENT en JSON valide.",
+            },
             { role: "user", content: step2Prompt },
           ],
           max_tokens: 400,
@@ -142,18 +149,25 @@ export async function runReasoningPipeline<T = unknown>(
 
     // Étape 3: Synthèse
     const analysisResults = analyses
-      .map((a) => `[${a.aspect}] ${a.result.analysis}${a.result.severity !== undefined ? ` (sévérité: ${a.result.severity}/10)` : ""}`)
+      .map(
+        (a) =>
+          `[${a.aspect}] ${a.result.analysis}${a.result.severity !== undefined ? ` (sévérité: ${a.result.severity}/10)` : ""}`,
+      )
       .join("\n");
 
-    const step3Prompt = STEP3_PROMPT
-      .replace("{problem}", problem.slice(0, 1000))
-      .replace("{analysisResults}", analysisResults);
+    const step3Prompt = STEP3_PROMPT.replace("{problem}", problem.slice(0, 1000)).replace(
+      "{analysisResults}",
+      analysisResults,
+    );
 
     const step3Completion = await client.chat.completions.create(
       {
         model: config.openRouterModel,
         messages: [
-          { role: "system", content: "Tu es un expert en synthèse. Réponds UNIQUEMENT en JSON valide." },
+          {
+            role: "system",
+            content: "Tu es un expert en synthèse. Réponds UNIQUEMENT en JSON valide.",
+          },
           { role: "user", content: step3Prompt },
         ],
         max_tokens: 800,

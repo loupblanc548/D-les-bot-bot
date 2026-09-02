@@ -243,8 +243,7 @@ export async function restoreBackup(
         logger.warn(`[serverBackup] Type de salon inconnu: "${channel.type}"`);
         continue;
       }
-      const parentRef =
-        channel.parentId !== undefined ? idRemap.get(channel.parentId) : undefined;
+      const parentRef = channel.parentId !== undefined ? idRemap.get(channel.parentId) : undefined;
       const created = (await guild.channels.create({
         name: channel.name,
         type: channelType,

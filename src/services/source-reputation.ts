@@ -24,7 +24,11 @@ class SourceReputationService {
   /**
    * Enregistre une source
    */
-  async registerSource(sourceId: string, sourceName: string, metadata: Record<string, any> = {}): Promise<void> {
+  async registerSource(
+    sourceId: string,
+    sourceName: string,
+    metadata: Record<string, any> = {},
+  ): Promise<void> {
     const reputation: SourceReputation = {
       sourceId,
       sourceName,
@@ -64,7 +68,9 @@ class SourceReputationService {
     this.reputationCache.set(sourceId, reputation);
     await this.saveReputation(sourceId);
 
-    logger.debug(`[SourceReputation] Deal réussi pour ${sourceId}: score ${reputation.reliabilityScore}`);
+    logger.debug(
+      `[SourceReputation] Deal réussi pour ${sourceId}: score ${reputation.reliabilityScore}`,
+    );
   }
 
   /**
@@ -83,7 +89,9 @@ class SourceReputationService {
     this.reputationCache.set(sourceId, reputation);
     await this.saveReputation(sourceId);
 
-    logger.debug(`[SourceReputation] Deal échoué pour ${sourceId}: score ${reputation.reliabilityScore}`);
+    logger.debug(
+      `[SourceReputation] Deal échoué pour ${sourceId}: score ${reputation.reliabilityScore}`,
+    );
   }
 
   /**
@@ -107,7 +115,7 @@ class SourceReputationService {
    */
   getLeastReliableSources(limit: number = 10): SourceReputation[] {
     return Array.from(this.reputationCache.values())
-      .filter(s => s.totalDeals >= 5)
+      .filter((s) => s.totalDeals >= 5)
       .sort((a, b) => a.reliabilityScore - b.reliabilityScore)
       .slice(0, limit);
   }
@@ -141,7 +149,7 @@ class SourceReputationService {
    */
   async loadReputationsFromPrisma(): Promise<void> {
     const reputations = await prisma.sourceReputation.findMany();
-    
+
     for (const reputation of reputations) {
       this.reputationCache.set(reputation.sourceId, reputation as any as SourceReputation);
     }
@@ -177,14 +185,16 @@ class SourceReputationService {
     successRate: number;
   } {
     const sources = Array.from(this.reputationCache.values());
-    
-    const averageReliability = sources.length > 0
-      ? sources.reduce((sum, s) => sum + s.reliabilityScore, 0) / sources.length
-      : 0;
 
-    const averageAccuracy = sources.length > 0
-      ? sources.reduce((sum, s) => sum + s.accuracyScore, 0) / sources.length
-      : 0;
+    const averageReliability =
+      sources.length > 0
+        ? sources.reduce((sum, s) => sum + s.reliabilityScore, 0) / sources.length
+        : 0;
+
+    const averageAccuracy =
+      sources.length > 0
+        ? sources.reduce((sum, s) => sum + s.accuracyScore, 0) / sources.length
+        : 0;
 
     const totalDeals = sources.reduce((sum, s) => sum + s.totalDeals, 0);
     const successfulDeals = sources.reduce((sum, s) => sum + s.successfulDeals, 0);

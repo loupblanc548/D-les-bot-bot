@@ -61,11 +61,7 @@ function parseFreeForDevMarkdown(markdown: string): ParsedResource[] {
     if (match) {
       const [, name, url, description] = match;
       // Filter out non-resource links (anchors, images, etc.)
-      if (
-        url.startsWith("http") &&
-        !url.includes("github.com/ripienaar") &&
-        name.length > 1
-      ) {
+      if (url.startsWith("http") && !url.includes("github.com/ripienaar") && name.length > 1) {
         resources.push({
           category: currentCategory,
           name: name.trim(),
@@ -122,21 +118,25 @@ export async function syncFreeForDev(): Promise<void> {
     const syncedUrls = resources.map((r) => r.url);
 
     // Delete entries not in current sync
-    await prisma.$executeRaw`DELETE FROM "FreeResource" WHERE url NOT IN (${syncedUrls})`.catch(() => {});
+    await prisma.$executeRaw`DELETE FROM "FreeResource" WHERE url NOT IN (${syncedUrls})`.catch(
+      () => {},
+    );
 
     // Insert in batches using createMany with skipDuplicates
     const batchSize = 50;
     for (let i = 0; i < resources.length; i += batchSize) {
       const batch = resources.slice(i, i + batchSize);
-      await prisma.freeResource.createMany({
-        data: batch.map((r) => ({
-          category: r.category,
-          name: r.name,
-          url: r.url,
-          description: r.description,
-        })),
-        skipDuplicates: true,
-      }).catch(() => {});
+      await prisma.freeResource
+        .createMany({
+          data: batch.map((r) => ({
+            category: r.category,
+            name: r.name,
+            url: r.url,
+            description: r.description,
+          })),
+          skipDuplicates: true,
+        })
+        .catch(() => {});
     }
 
     logger.info(
@@ -167,7 +167,9 @@ export function startSyncFreeForDev(): void {
 
   cronJob = schedule("0 3 * * 0", () => {
     void syncFreeForDev().catch((err) =>
-      logger.error(`[FREE-FOR-DEV] Cron error: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[FREE-FOR-DEV] Cron error: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   });
 
@@ -177,7 +179,9 @@ export function startSyncFreeForDev(): void {
   }, 30_000);
 
   if (cronJob.unref) cronJob.unref();
-  logger.info(`${"\x1b[36m"}[KNOWLEDGE-INGESTION] [FREE-FOR-DEV] Cron started — weekly sync (Sun 03:00)${"\x1b[0m"}`);
+  logger.info(
+    `${"\x1b[36m"}[KNOWLEDGE-INGESTION] [FREE-FOR-DEV] Cron started — weekly sync (Sun 03:00)${"\x1b[0m"}`,
+  );
 }
 
 export function stopSyncFreeForDev(): void {

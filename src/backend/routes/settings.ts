@@ -21,7 +21,9 @@ export function updateSettings(partial: Partial<AppSettings>): AppSettings {
 export function handleGetSettings(req: http.IncomingMessage, res: http.ServerResponse): void {
   if (!authenticate(req, res)) return;
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ success: true, data: getSettings(), timestamp: new Date().toISOString() }));
+  res.end(
+    JSON.stringify({ success: true, data: getSettings(), timestamp: new Date().toISOString() }),
+  );
 }
 
 export function handlePutSettings(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -36,9 +38,14 @@ export function handlePutSettings(req: http.IncomingMessage, res: http.ServerRes
       for (const key of allowed) {
         if (key in partial) (sanitized as Record<string, any>)[key] = partial[key];
       }
-      if (sanitized.refreshInterval && (sanitized.refreshInterval < 1 || sanitized.refreshInterval > 60)) {
+      if (
+        sanitized.refreshInterval &&
+        (sanitized.refreshInterval < 1 || sanitized.refreshInterval > 60)
+      ) {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "refreshInterval doit être entre 1 et 60" }));
+        res.end(
+          JSON.stringify({ success: false, error: "refreshInterval doit être entre 1 et 60" }),
+        );
         return;
       }
       const data = updateSettings(sanitized);

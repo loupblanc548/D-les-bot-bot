@@ -27,11 +27,36 @@ interface Deal {
 }
 
 const STORE_CONFIGS = [
-  { name: "Steam", emoji: "🎮", color: 0x1b2838, url: "https://store.steampowered.com/api/featuredcategories" },
-  { name: "GOG", emoji: "💿", color: 0x5c2d91, url: "https://www.gog.com/games/ajax/filtered?mediaType=game&search=&sort=popularity&page=1" },
-  { name: "Humble Bundle", emoji: "🤝", color: 0xcccccc, url: "https://www.humblebundle.com/store/api/search?sort=discount&page=1&request=1" },
-  { name: "Green Man Gaming", emoji: "🟢", color: 0x00aa00, url: "https://www.greenmangaming.com/api/products?pageSize=20&onSale=true" },
-  { name: "Fanatical", emoji: "🔥", color: 0xff6600, url: "https://www.fanatical.com/api/products?onSale=true&pageSize=20" },
+  {
+    name: "Steam",
+    emoji: "🎮",
+    color: 0x1b2838,
+    url: "https://store.steampowered.com/api/featuredcategories",
+  },
+  {
+    name: "GOG",
+    emoji: "💿",
+    color: 0x5c2d91,
+    url: "https://www.gog.com/games/ajax/filtered?mediaType=game&search=&sort=popularity&page=1",
+  },
+  {
+    name: "Humble Bundle",
+    emoji: "🤝",
+    color: 0xcccccc,
+    url: "https://www.humblebundle.com/store/api/search?sort=discount&page=1&request=1",
+  },
+  {
+    name: "Green Man Gaming",
+    emoji: "🟢",
+    color: 0x00aa00,
+    url: "https://www.greenmangaming.com/api/products?pageSize=20&onSale=true",
+  },
+  {
+    name: "Fanatical",
+    emoji: "🔥",
+    color: 0xff6600,
+    url: "https://www.fanatical.com/api/products?onSale=true&pageSize=20",
+  },
 ];
 
 async function fetchSteamDeals(): Promise<Deal[]> {
@@ -42,14 +67,30 @@ async function fetchSteamDeals(): Promise<Deal[]> {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
     if (!res.ok) return deals;
-    const data = await res.json() as Record<string, any>;
+    const data = (await res.json()) as Record<string, any>;
 
     // Special offers
-    const specials = data.specials as { items: Array<{ id: number; name: string; discount_block?: string; discount_original_price?: number; discount_final_price?: number; header_image?: string; url?: string }> } | undefined;
+    const specials = data.specials as
+      | {
+          items: Array<{
+            id: number;
+            name: string;
+            discount_block?: string;
+            discount_original_price?: number;
+            discount_final_price?: number;
+            header_image?: string;
+            url?: string;
+          }>;
+        }
+      | undefined;
     if (specials?.items) {
       for (const item of specials.items.slice(0, 10)) {
-        const originalPrice = item.discount_original_price ? (item.discount_original_price / 100).toFixed(2) + "€" : "N/A";
-        const finalPrice = item.discount_final_price ? (item.discount_final_price / 100).toFixed(2) + "€" : "N/A";
+        const originalPrice = item.discount_original_price
+          ? (item.discount_original_price / 100).toFixed(2) + "€"
+          : "N/A";
+        const finalPrice = item.discount_final_price
+          ? (item.discount_final_price / 100).toFixed(2) + "€"
+          : "N/A";
         const discountMatch = item.discount_block?.match(/(\d+)%/);
         const discountPercent = discountMatch ? parseInt(discountMatch[1], 10) : 0;
 
@@ -67,7 +108,9 @@ async function fetchSteamDeals(): Promise<Deal[]> {
       }
     }
   } catch (err) {
-    logger.debug(`[MultiSiteDeals] Steam fetch error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[MultiSiteDeals] Steam fetch error: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return deals;
 }
@@ -75,20 +118,34 @@ async function fetchSteamDeals(): Promise<Deal[]> {
 async function fetchGOGDeals(): Promise<Deal[]> {
   const deals: Deal[] = [];
   try {
-    const res = await fetch("https://www.gog.com/games/ajax/filtered?mediaType=game&search=&sort=popularity&page=1", {
-      signal: AbortSignal.timeout(15000),
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
+    const res = await fetch(
+      "https://www.gog.com/games/ajax/filtered?mediaType=game&search=&sort=popularity&page=1",
+      {
+        signal: AbortSignal.timeout(15000),
+        headers: { "User-Agent": "Mozilla/5.0" },
+      },
+    );
     if (!res.ok) return deals;
-    const data = await res.json() as { products: Array<{ title: string; price: { baseAmount: string; finalAmount: string; discountPercentage: number }; url: string; image: string }> };
+    const data = (await res.json()) as {
+      products: Array<{
+        title: string;
+        price: { baseAmount: string; finalAmount: string; discountPercentage: number };
+        url: string;
+        image: string;
+      }>;
+    };
     if (!data.products) return deals;
 
     for (const product of data.products.slice(0, 10)) {
       if (product.price?.discountPercentage >= 50) {
         deals.push({
           title: product.title,
-          originalPrice: product.price.baseAmount ? parseFloat(product.price.baseAmount).toFixed(2) + "€" : "N/A",
-          discountedPrice: product.price.finalAmount ? parseFloat(product.price.finalAmount).toFixed(2) + "€" : "GRATUIT",
+          originalPrice: product.price.baseAmount
+            ? parseFloat(product.price.baseAmount).toFixed(2) + "€"
+            : "N/A",
+          discountedPrice: product.price.finalAmount
+            ? parseFloat(product.price.finalAmount).toFixed(2) + "€"
+            : "GRATUIT",
           discountPercent: product.price.discountPercentage,
           url: `https://www.gog.com${product.url}`,
           store: "GOG",
@@ -97,7 +154,9 @@ async function fetchGOGDeals(): Promise<Deal[]> {
       }
     }
   } catch (err) {
-    logger.debug(`[MultiSiteDeals] GOG fetch error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[MultiSiteDeals] GOG fetch error: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return deals;
 }
@@ -105,12 +164,23 @@ async function fetchGOGDeals(): Promise<Deal[]> {
 async function fetchHumbleDeals(): Promise<Deal[]> {
   const deals: Deal[] = [];
   try {
-    const res = await fetch("https://www.humblebundle.com/store/api/search?sort=discount&page=1&request=1", {
-      signal: AbortSignal.timeout(15000),
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
+    const res = await fetch(
+      "https://www.humblebundle.com/store/api/search?sort=discount&page=1&request=1",
+      {
+        signal: AbortSignal.timeout(15000),
+        headers: { "User-Agent": "Mozilla/5.0" },
+      },
+    );
     if (!res.ok) return deals;
-    const data = await res.json() as { results: Array<{ human_name: string; current_price: { amount: number }; full_price: { amount: number }; discount_percentage: number; url: string }> };
+    const data = (await res.json()) as {
+      results: Array<{
+        human_name: string;
+        current_price: { amount: number };
+        full_price: { amount: number };
+        discount_percentage: number;
+        url: string;
+      }>;
+    };
     if (!data.results) return deals;
 
     for (const item of data.results.slice(0, 10)) {
@@ -118,7 +188,9 @@ async function fetchHumbleDeals(): Promise<Deal[]> {
         deals.push({
           title: item.human_name,
           originalPrice: item.full_price ? item.full_price.amount.toFixed(2) + "€" : "N/A",
-          discountedPrice: item.current_price ? item.current_price.amount.toFixed(2) + "€" : "GRATUIT",
+          discountedPrice: item.current_price
+            ? item.current_price.amount.toFixed(2) + "€"
+            : "GRATUIT",
           discountPercent: item.discount_percentage,
           url: `https://www.humblebundle.com/store/${item.url}`,
           store: "Humble Bundle",
@@ -126,7 +198,9 @@ async function fetchHumbleDeals(): Promise<Deal[]> {
       }
     }
   } catch (err) {
-    logger.debug(`[MultiSiteDeals] Humble fetch error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[MultiSiteDeals] Humble fetch error: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return deals;
 }
@@ -164,57 +238,65 @@ async function checkDeals(client: Client): Promise<void> {
       return;
     }
 
-  let postedCount = 0;
-  for (const deal of deals) {
-    const dedupKey = `deal:${deal.store}:${deal.title}`;
-    if (dedupCache.isAlreadyProcessed("game_updates", dedupKey)) continue;
+    let postedCount = 0;
+    for (const deal of deals) {
+      const dedupKey = `deal:${deal.store}:${deal.title}`;
+      if (dedupCache.isAlreadyProcessed("game_updates", dedupKey)) continue;
 
-    // Auto-traduction FR
-    let displayTitle = deal.title;
-    try {
-      const titleResult = await translateAutoToFrench(deal.title);
-      if (titleResult && titleResult.detectedLanguage !== "fr") {
-        displayTitle = titleResult.translatedText;
-      }
-    } catch { logger.error("[Silent catch]"); }
-
-    const storeConfig = STORE_CONFIGS.find(s => s.name === deal.store);
-    const emoji = storeConfig?.emoji || "🏷️";
-    const color = storeConfig?.color || 0x5865f2;
-
-    const embed = new EmbedBuilder()
-      .setAuthor({ name: `${emoji} BON PLAN ${deal.store}` })
-      .setTitle(`🔥 ${displayTitle}`)
-      .setColor(color)
-      .setURL(deal.url)
-      .addFields(
-        { name: "💰 Prix original", value: `~~${deal.originalPrice}~~`, inline: true },
-        { name: "✅ Prix promo", value: `**${deal.discountedPrice}**`, inline: true },
-        { name: "📉 Réduction", value: `**-${deal.discountPercent}%**`, inline: true },
-      )
-      .setFooter({ text: `Multi-Site Deals • ${deal.store}` })
-      .setTimestamp();
-
-    if (deal.image && typeof deal.image === "string" && /^https?:\/\//.test(deal.image)) {
+      // Auto-traduction FR
+      let displayTitle = deal.title;
       try {
-        embed.setThumbnail(deal.image);
-      } catch { logger.error("[Silent catch]"); }
+        const titleResult = await translateAutoToFrench(deal.title);
+        if (titleResult && titleResult.detectedLanguage !== "fr") {
+          displayTitle = titleResult.translatedText;
+        }
+      } catch {
+        logger.error("[Silent catch]");
+      }
+
+      const storeConfig = STORE_CONFIGS.find((s) => s.name === deal.store);
+      const emoji = storeConfig?.emoji || "🏷️";
+      const color = storeConfig?.color || 0x5865f2;
+
+      const embed = new EmbedBuilder()
+        .setAuthor({ name: `${emoji} BON PLAN ${deal.store}` })
+        .setTitle(`🔥 ${displayTitle}`)
+        .setColor(color)
+        .setURL(deal.url)
+        .addFields(
+          { name: "💰 Prix original", value: `~~${deal.originalPrice}~~`, inline: true },
+          { name: "✅ Prix promo", value: `**${deal.discountedPrice}**`, inline: true },
+          { name: "📉 Réduction", value: `**-${deal.discountPercent}%**`, inline: true },
+        )
+        .setFooter({ text: `Multi-Site Deals • ${deal.store}` })
+        .setTimestamp();
+
+      if (deal.image && typeof deal.image === "string" && /^https?:\/\//.test(deal.image)) {
+        try {
+          embed.setThumbnail(deal.image);
+        } catch {
+          logger.error("[Silent catch]");
+        }
+      }
+
+      try {
+        await channel.send({ embeds: [embed] });
+        await dedupCache.markAsProcessed("game_updates", dedupKey);
+        postedCount++;
+        logger.info(
+          `[MultiSiteDeals] Deal posté: ${deal.title} (${deal.store} -${deal.discountPercent}%)`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      } catch (err) {
+        logger.error(
+          `[MultiSiteDeals] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
 
-    try {
-      await channel.send({ embeds: [embed] });
-      await dedupCache.markAsProcessed("game_updates", dedupKey);
-      postedCount++;
-      logger.info(`[MultiSiteDeals] Deal posté: ${deal.title} (${deal.store} -${deal.discountPercent}%)`);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-    } catch (err) {
-      logger.error(`[MultiSiteDeals] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+    if (postedCount > 0) {
+      logger.info(`[MultiSiteDeals] ${postedCount} deal(s) posté(s)`);
     }
-  }
-
-  if (postedCount > 0) {
-    logger.info(`[MultiSiteDeals] ${postedCount} deal(s) posté(s)`);
-  }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     if (errMsg.includes("Received one or more errors")) {
@@ -227,7 +309,9 @@ async function checkDeals(client: Client): Promise<void> {
 
 export function startMultiSiteDealsMonitor(client: Client): void {
   if (dealsInterval) return;
-  logger.info(`[MultiSiteDeals] Monitoring Steam, GOG, Humble Bundle (intervalle: ${CHECK_INTERVAL_MS / 60000}min)`);
+  logger.info(
+    `[MultiSiteDeals] Monitoring Steam, GOG, Humble Bundle (intervalle: ${CHECK_INTERVAL_MS / 60000}min)`,
+  );
 
   setTimeout(() => checkDeals(client), 60000);
   dealsInterval = safeInterval("MultiSiteDeals", () => checkDeals(client), CHECK_INTERVAL_MS);

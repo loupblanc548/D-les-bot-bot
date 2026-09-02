@@ -27,7 +27,7 @@ export async function fetchGMGDeals(): Promise<GMGDeal[]> {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
     const deals: GMGDeal[] = [];
 
     if (data.deals && Array.isArray(data.deals)) {

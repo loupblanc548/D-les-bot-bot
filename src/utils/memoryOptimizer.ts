@@ -58,17 +58,23 @@ async function purgeAllCaches(): Promise<void> {
   try {
     const { dedupCache } = await import("./deduplicationCache.js");
     dedupCache.clearMemory?.();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   try {
     const mod = await import("./image-helpers.js");
     mod.clearAllCaches?.();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   try {
     const mod = await import("./image-fallback.js");
     mod.clearImageCache?.();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   logger.info("[Memory] Caches purgés (dedup, images, fallback)");
 }

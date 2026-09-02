@@ -165,7 +165,9 @@ async function checkNickname(oldMember: GuildMember, newMember: GuildMember): Pr
         userId: newMember.user.id,
       });
       logger.info(`[AutoEvents] Nickname reset: ${newMember.user.tag} — "${newNick}"`);
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -340,10 +342,14 @@ async function checkTempExpiry(client: Client): Promise<void> {
           await guild.bans.remove(log.userId, "Tempban expiré automatiquement").catch(() => {});
           await prisma.log.delete({ where: { id: log.id } }).catch(() => {});
           logger.info(`[AutoEvents] Tempban expired: ${log.userId} in ${log.guildId}`);
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 // ─── Permission Audit (EVENT-35) ─────────────────────────────────────────────

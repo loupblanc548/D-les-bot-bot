@@ -202,7 +202,9 @@ async function checkTwitter(follows: FollowType): Promise<void> {
         }
         success = true;
         break;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     if (!success) {
       logger.debug(`[SocialFollow] Twitter check failed for @${follow.channelName}`);
@@ -603,7 +605,9 @@ export async function addSocialFollow(params: {
       const { getStreamerByLogin } = await import("./twitch.js");
       const streamer = await getStreamerByLogin(params.channelName);
       if (streamer) channelId = streamer.id;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   } else if (params.platform === "youtube") {
     // Try to resolve channel ID via search API
     if (config.youtubeApiKey) {
@@ -617,7 +621,9 @@ export async function addSocialFollow(params: {
           const data = (await res.json()) as { items: Array<{ id: { channelId: string } }> };
           if (data.items?.[0]) channelId = data.items[0].id.channelId;
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 

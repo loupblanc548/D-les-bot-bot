@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { formatRelative, parseDuration, toDiscordTimestamp, toTimezone, startOfDay, endOfDay } from "./date.js";
+import {
+  formatRelative,
+  parseDuration,
+  toDiscordTimestamp,
+  toTimezone,
+  startOfDay,
+  endOfDay,
+} from "./date.js";
 
 describe("date utils", () => {
   it("formatRelative past", () => {

@@ -1,10 +1,10 @@
-import { 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  EmbedBuilder, 
-  Message, 
-  MessageComponentInteraction 
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  Message,
+  MessageComponentInteraction,
 } from "discord.js";
 import logger from "../utils/logger.js";
 
@@ -66,8 +66,8 @@ export class PaginationSystem {
       .setColor(this.embedColor)
       .setTitle(this.embedTitle)
       .setDescription(this.generatePageContent(pageItems))
-      .setFooter({ 
-        text: `${this.footerText} • Page ${this.currentPage + 1}/${this.totalPages} • ${this.items.length} éléments` 
+      .setFooter({
+        text: `${this.footerText} • Page ${this.currentPage + 1}/${this.totalPages} • ${this.items.length} éléments`,
       })
       .setTimestamp();
 
@@ -78,12 +78,14 @@ export class PaginationSystem {
    * Génère le contenu de la page
    */
   private generatePageContent(items: PaginationItem[]): string {
-    return items.map((item, index) => {
-      const globalIndex = this.currentPage * this.itemsPerPage + index + 1;
-      const emoji = item.emoji || "•";
-      const url = item.url ? ` [🔗](${item.url})` : "";
-      return `${globalIndex}. ${emoji} **${item.title}**${url}\n   ${item.description}`;
-    }).join("\n\n");
+    return items
+      .map((item, index) => {
+        const globalIndex = this.currentPage * this.itemsPerPage + index + 1;
+        const emoji = item.emoji || "•";
+        const url = item.url ? ` [🔗](${item.url})` : "";
+        return `${globalIndex}. ${emoji} **${item.title}**${url}\n   ${item.description}`;
+      })
+      .join("\n\n");
   }
 
   /**
@@ -95,45 +97,45 @@ export class PaginationSystem {
     // Bouton première page
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('pagination_first')
-        .setLabel('⏮️')
+        .setCustomId("pagination_first")
+        .setLabel("⏮️")
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(this.currentPage === 0)
+        .setDisabled(this.currentPage === 0),
     );
 
     // Bouton page précédente
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('pagination_prev')
-        .setLabel('◀️')
+        .setCustomId("pagination_prev")
+        .setLabel("◀️")
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(this.currentPage === 0)
+        .setDisabled(this.currentPage === 0),
     );
 
     // Bouton page suivante
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('pagination_next')
-        .setLabel('▶️')
+        .setCustomId("pagination_next")
+        .setLabel("▶️")
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(this.currentPage === this.totalPages - 1)
+        .setDisabled(this.currentPage === this.totalPages - 1),
     );
 
     // Bouton dernière page
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('pagination_last')
-        .setLabel('⏭️')
+        .setCustomId("pagination_last")
+        .setLabel("⏭️")
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(this.currentPage === this.totalPages - 1)
+        .setDisabled(this.currentPage === this.totalPages - 1),
     );
 
     // Bouton stop
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId('pagination_stop')
-        .setLabel('⏹️')
-        .setStyle(ButtonStyle.Danger)
+        .setCustomId("pagination_stop")
+        .setLabel("⏹️")
+        .setStyle(ButtonStyle.Danger),
     );
 
     return row;
@@ -146,7 +148,7 @@ export class PaginationSystem {
     try {
       await this.message.edit({
         embeds: [this.generateEmbed()],
-        components: [this.generateButtons()]
+        components: [this.generateButtons()],
       });
     } catch (error) {
       logger.error(`[Pagination] Erreur mise à jour message: ${error}`);
@@ -160,19 +162,19 @@ export class PaginationSystem {
     if (!interaction.isButton()) return;
 
     switch (interaction.customId) {
-      case 'pagination_first':
+      case "pagination_first":
         this.currentPage = 0;
         break;
-      case 'pagination_prev':
+      case "pagination_prev":
         if (this.currentPage > 0) this.currentPage--;
         break;
-      case 'pagination_next':
+      case "pagination_next":
         if (this.currentPage < this.totalPages - 1) this.currentPage++;
         break;
-      case 'pagination_last':
+      case "pagination_last":
         this.currentPage = this.totalPages - 1;
         break;
-      case 'pagination_stop':
+      case "pagination_stop":
         this.stop();
         interaction.update({ components: [] }).catch(() => {});
         return;
@@ -190,17 +192,17 @@ export class PaginationSystem {
 
     // Créer le collector pour les interactions
     const filter = (i: MessageComponentInteraction) => i.user.id === this.message.author.id;
-    
+
     this.collector = this.message.createMessageComponentCollector({
       filter,
-      time: this.timeout
+      time: this.timeout,
     });
 
-    (this.collector as any).on('collect', (interaction: MessageComponentInteraction) => {
+    (this.collector as any).on("collect", (interaction: MessageComponentInteraction) => {
       this.handleInteraction(interaction);
     });
 
-    (this.collector as any).on('end', () => {
+    (this.collector as any).on("end", () => {
       this.stop();
     });
 
@@ -209,7 +211,9 @@ export class PaginationSystem {
       this.stop();
     }, this.timeout);
 
-    logger.info(`[Pagination] Démarrée pour ${this.items.length} éléments, ${this.totalPages} pages`);
+    logger.info(
+      `[Pagination] Démarrée pour ${this.items.length} éléments, ${this.totalPages} pages`,
+    );
   }
 
   /**
@@ -258,7 +262,7 @@ export class PaginationSystem {
 export async function createPagination(
   message: Message,
   items: PaginationItem[],
-  options: Partial<PaginationOptions> = {}
+  options: Partial<PaginationOptions> = {},
 ): Promise<PaginationSystem> {
   const defaultOptions: PaginationOptions = {
     items,
@@ -266,7 +270,7 @@ export async function createPagination(
     timeout: options.timeout || 60000,
     embedColor: options.embedColor || 0x0099ff,
     embedTitle: options.embedTitle || "Pagination",
-    footerText: options.footerText || "Navigation"
+    footerText: options.footerText || "Navigation",
   };
 
   const pagination = new PaginationSystem(message, defaultOptions);
@@ -285,7 +289,7 @@ export class PaginationPresets {
     return items.map((cmd, i) => ({
       title: `/${cmd}`,
       description: `Commande #${i + 1}`,
-      emoji: "⚡"
+      emoji: "⚡",
     }));
   }
 
@@ -293,10 +297,10 @@ export class PaginationPresets {
    * Pagination pour les utilisateurs
    */
   static users(users: Array<{ name: string; id: string; activity: string }>): PaginationItem[] {
-    return users.map(user => ({
+    return users.map((user) => ({
       title: user.name,
       description: user.activity,
-      emoji: "👤"
+      emoji: "👤",
     }));
   }
 
@@ -304,21 +308,23 @@ export class PaginationPresets {
    * Pagination pour les deals
    */
   static deals(deals: Array<{ title: string; price: string; platform: string }>): PaginationItem[] {
-    return deals.map(deal => ({
+    return deals.map((deal) => ({
       title: deal.title,
       description: `${deal.price} • ${deal.platform}`,
-      emoji: "🎮"
+      emoji: "🎮",
     }));
   }
 
   /**
    * Pagination pour les patch notes
    */
-  static patchNotes(patches: Array<{ title: string; platform: string; date: string }>): PaginationItem[] {
-    return patches.map(patch => ({
+  static patchNotes(
+    patches: Array<{ title: string; platform: string; date: string }>,
+  ): PaginationItem[] {
+    return patches.map((patch) => ({
       title: patch.title,
       description: `${patch.platform} • ${patch.date}`,
-      emoji: "📋"
+      emoji: "📋",
     }));
   }
 }

@@ -91,7 +91,9 @@ export async function gatherFreeKnowledge(userMessage: string): Promise<string |
       logger.info("[KnowledgeSources] Cache hit — returning cached result");
       return cached;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Rate limit: prevent spamming external APIs
   const rlKey = `rl:${userMessage.slice(0, 100)}`;
@@ -147,7 +149,9 @@ export async function gatherFreeKnowledge(userMessage: string): Promise<string |
         // Cache result for 5 minutes
         try {
           await redisCache.set(cacheKey, result, 300);
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
         return result;
       }
     } catch (err) {

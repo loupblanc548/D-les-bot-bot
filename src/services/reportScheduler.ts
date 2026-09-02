@@ -170,7 +170,9 @@ export async function generateSecurityReport(
       targetId: guildId,
       details: JSON.stringify({ reportId: report.id, metrics: report.metrics }),
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   logger.info(
     `[ReportScheduler] Rapport ${frequency} généré pour ${guildId}: ${periodEvents.length} événements`,

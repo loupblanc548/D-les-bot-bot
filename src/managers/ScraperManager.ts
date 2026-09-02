@@ -265,7 +265,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
       try {
         const el = await page.$(sel.title);
         if (el) title = (await el.textContent())?.trim() || "";
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     if (!title) {
       try {
@@ -273,7 +275,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
           'meta[property="og:title"]',
           (el: any) => el.getAttribute("content") || "",
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     title = title.replace(/\n\n/g, " ").replace(/\n/g, " ").trim();
     let content = "";
@@ -282,7 +286,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
         content = await page.$$eval(sel.content, (els: any[]) =>
           els.map((el: any) => el.textContent?.trim() || "").join(" "),
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     content = content.replace(/\n\n/g, " ").replace(/\n/g, " ").trim().slice(0, 5000);
     let pubDate = "";
@@ -296,7 +302,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
             el.textContent?.trim() ||
             "",
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     pubDate = pubDate.trim();
     let image = "";
@@ -306,7 +314,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
           sel.image,
           (el: any) => el.getAttribute("src") || el.getAttribute("content") || "",
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
     image = image.trim();
     return { success: true, title, content, pubDate, link: url, image };

@@ -1,4 +1,9 @@
-import { SteamApiResponse, SteamPlayerSummaries, SteamOwnedGames, SteamVanityResponse } from "../types/api.js";
+import {
+  SteamApiResponse,
+  SteamPlayerSummaries,
+  SteamOwnedGames,
+  SteamVanityResponse,
+} from "../types/api.js";
 import logger from "../utils/logger.js";
 // Service Steam — récupération des profils et jeux
 import { config } from "../config.js";
@@ -18,7 +23,7 @@ export async function getPlayerSummaries(steamIds: string[]): Promise<any[]> {
       logger.error("[STEAM] API GetPlayerSummaries error:", res.status);
       return [];
     }
-    const data = await res.json() as SteamApiResponse<SteamPlayerSummaries>;
+    const data = (await res.json()) as SteamApiResponse<SteamPlayerSummaries>;
     return data.response?.players || [];
   } catch (err) {
     logger.error("[STEAM] Fetch error:", err);
@@ -38,7 +43,7 @@ export async function getOwnedGames(steamId: string): Promise<any[]> {
       logger.error("[STEAM] API GetOwnedGames error:", res.status);
       return [];
     }
-    const data = await res.json() as SteamApiResponse<SteamOwnedGames>;
+    const data = (await res.json()) as SteamApiResponse<SteamOwnedGames>;
     return data.response?.games || [];
   } catch (err) {
     logger.error("[STEAM] Fetch error:", err);
@@ -47,7 +52,9 @@ export async function getOwnedGames(steamId: string): Promise<any[]> {
 }
 
 // Récupère le jeu en cours (via GetPlayerSummaries)
-export async function getCurrentlyPlaying(steamId: string): Promise<{ gameName: string; gameId: string } | null> {
+export async function getCurrentlyPlaying(
+  steamId: string,
+): Promise<{ gameName: string; gameId: string } | null> {
   const players = await getPlayerSummaries([steamId]);
   const player = players[0];
   if (!player || !player.gameextrainfo) return null;
@@ -66,7 +73,7 @@ export async function resolveVanityUrl(vanity: string): Promise<string | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    const data = await res.json() as SteamApiResponse<SteamVanityResponse>;
+    const data = (await res.json()) as SteamApiResponse<SteamVanityResponse>;
     if (data.response?.success === 1) {
       return data.response.steamid || null;
     }

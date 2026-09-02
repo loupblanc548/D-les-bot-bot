@@ -172,7 +172,9 @@ function killAndRestart(): void {
   if (mediaWorker) {
     try {
       mediaWorker.kill("SIGKILL");
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     mediaWorker = null;
   }
   if (heartbeatTimer) {
@@ -206,7 +208,9 @@ export function stopMediaWorker(): void {
     } catch {
       try {
         mediaWorker.kill("SIGTERM");
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       mediaWorker = null;
     }
   }

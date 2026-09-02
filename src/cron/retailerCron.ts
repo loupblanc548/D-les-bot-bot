@@ -19,7 +19,9 @@ export function initRetailerCron(client: Client): void {
 
   const enabled = process.env.RETAILER_ALERTS_ENABLED !== "false";
   if (!enabled) {
-    logger.info("[RetailerCron] Surveillance revendeurs désactivée (RETAILER_ALERTS_ENABLED=false)");
+    logger.info(
+      "[RetailerCron] Surveillance revendeurs désactivée (RETAILER_ALERTS_ENABLED=false)",
+    );
     return;
   }
 

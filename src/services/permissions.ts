@@ -159,7 +159,8 @@ export async function requireAdmin(interaction: CommandInteraction): Promise<boo
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;
     await interaction.reply({
-      content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+      content:
+        "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
       flags: [MessageFlags.Ephemeral],
     });
     return false;
@@ -191,7 +192,8 @@ export async function requireMod(interaction: CommandInteraction): Promise<boole
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;
     await interaction.reply({
-      content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+      content:
+        "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
       flags: [MessageFlags.Ephemeral],
     });
     return false;

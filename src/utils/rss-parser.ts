@@ -1,62 +1,62 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser } from "fast-xml-parser";
 
 // RSS Headers constants
 export const RSS_HEADERS = {
-  Accept: 'application/rss+xml, application/xml, text/xml',
-  'User-Agent': 'DiscordSurveillanceBot/1.0',
+  Accept: "application/rss+xml, application/xml, text/xml",
+  "User-Agent": "DiscordSurveillanceBot/1.0",
 };
 
 // Platform constants
 export const PLATFORM_COLORS: Record<string, number> = {
-  youtube: 0xFF0000,
-  twitter: 0x1DA1F2,
-  blog: 0xE67E22,
-  bluesky: 0x0085FF,
+  youtube: 0xff0000,
+  twitter: 0x1da1f2,
+  blog: 0xe67e22,
+  bluesky: 0x0085ff,
   epicgames: 0x7c3aed,
-  'patch-notes': 0x5865f2,
+  "patch-notes": 0x5865f2,
 };
 
 export const PLATFORM_ICONS: Record<string, string> = {
-  youtube: '▶️',
-  twitter: '🐦',
-  blog: '📰',
-  bluesky: '🦋',
-  epicgames: '🎮',
+  youtube: "▶️",
+  twitter: "🐦",
+  blog: "📰",
+  bluesky: "🦋",
+  epicgames: "🎮",
 };
 
 export const PLATFORM_LABELS: Record<string, string> = {
-  youtube: 'NOUVEAUTÉ sur YouTube !',
-  twitter: 'Nouveau Tweet !',
-  blog: 'Nouvel article !',
-  bluesky: 'Nouveau post Bluesky !',
-  'patch-notes': '📢 Notes de mise à jour !',
+  youtube: "NOUVEAUTÉ sur YouTube !",
+  twitter: "Nouveau Tweet !",
+  blog: "Nouvel article !",
+  bluesky: "Nouveau post Bluesky !",
+  "patch-notes": "📢 Notes de mise à jour !",
 };
 
 export const PLATFORM_NAMES: Record<string, string> = {
-  youtube: 'YouTube',
-  twitter: 'Twitter/X',
-  bluesky: 'Bluesky',
+  youtube: "YouTube",
+  twitter: "Twitter/X",
+  bluesky: "Bluesky",
 };
 
 // XML Parser instance (shared)
 export const xmlParser = new XMLParser({
   ignoreAttributes: false,
-  attributeNamePrefix: '@_',
+  attributeNamePrefix: "@_",
   removeNSPrefix: true,
-  isArray: (name: string) => ['item', 'entry'].includes(name),
+  isArray: (name: string) => ["item", "entry"].includes(name),
 });
 
 // Helper functions for RSS parsing
 export function textOf(val: any): string {
-  return typeof val === 'string' ? val : val?.['#text'] || '';
+  return typeof val === "string" ? val : val?.["#text"] || "";
 }
 
 export function extractLink(link: any): string {
-  if (!link) return '';
-  if (typeof link === 'string') return link;
+  if (!link) return "";
+  if (typeof link === "string") return link;
   if (Array.isArray(link)) {
-    const alt = link.find((l: any) => l['@_rel'] === 'alternate') || link[0];
-    return alt?.['@_href'] || '';
+    const alt = link.find((l: any) => l["@_rel"] === "alternate") || link[0];
+    return alt?.["@_href"] || "";
   }
-  return link['@_href'] || link['#text'] || '';
+  return link["@_href"] || link["#text"] || "";
 }

@@ -19,9 +19,13 @@ export const commands = [
       sc
         .setName("play")
         .setDescription("Joue une musique (YouTube/Spotify/SoundCloud/700+ sites)")
-        .addStringOption((o) => o.setName("requete").setDescription("Titre ou URL").setRequired(true)),
+        .addStringOption((o) =>
+          o.setName("requete").setDescription("Titre ou URL").setRequired(true),
+        ),
     )
-    .addSubcommand((sc) => sc.setName("stop").setDescription("Arrête la musique et déconnecte le bot"))
+    .addSubcommand((sc) =>
+      sc.setName("stop").setDescription("Arrête la musique et déconnecte le bot"),
+    )
     .addSubcommand((sc) => sc.setName("pause").setDescription("Met en pause"))
     .addSubcommand((sc) => sc.setName("resume").setDescription("Reprend la lecture"))
     .addSubcommand((sc) => sc.setName("skip").setDescription("Passe à la musique suivante"))
@@ -47,7 +51,14 @@ export const commands = [
       sc
         .setName("volume")
         .setDescription("Régler le volume")
-        .addIntegerOption((o) => o.setName("volume").setDescription("Volume 0-100").setRequired(true).setMinValue(0).setMaxValue(100)),
+        .addIntegerOption((o) =>
+          o
+            .setName("volume")
+            .setDescription("Volume 0-100")
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(100),
+        ),
     )
     .addSubcommand((sc) => sc.setName("queue").setDescription("Voir la file d'attente"))
     .addSubcommand((sc) => sc.setName("nowplaying").setDescription("Musique en cours de lecture"))
@@ -71,14 +82,22 @@ export const commands = [
             ),
         ),
     )
-    .addSubcommand((sc) => sc.setName("autoplay").setDescription("Active/désactive la lecture automatique"))
+    .addSubcommand((sc) =>
+      sc.setName("autoplay").setDescription("Active/désactive la lecture automatique"),
+    )
     .toJSON(),
 ];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function handleCommand(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   const dt = getDisTube();
   if (!dt) {
-    await interaction.reply({ content: "❌ Le système de musique n'est pas initialisé.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Le système de musique n'est pas initialisé.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -94,21 +113,27 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, _c
       const query = interaction.options.getString("requete", true);
       const voiceChannel = member.voice?.channel;
       if (!voiceChannel) {
-        await interaction.reply({ content: "❌ Tu dois être dans un salon vocal.", ephemeral: true });
+        await interaction.reply({
+          content: "❌ Tu dois être dans un salon vocal.",
+          ephemeral: true,
+        });
         return;
       }
       await interaction.deferReply();
       try {
         await dt.play(voiceChannel, query, {
           member,
-          textChannel: interaction.channel as import("discord.js").GuildTextBasedChannel | undefined,
+          textChannel: interaction.channel as
+            import("discord.js").GuildTextBasedChannel | undefined,
         });
         const updatedQueue = dt.getQueue(guildId);
         const song = updatedQueue?.songs[updatedQueue.songs.length - 1];
         embed.setTitle("🎵 Ajouté à la file").setDescription(formatSong(song!));
         await interaction.editReply({ embeds: [embed] });
       } catch (error) {
-        await interaction.editReply(`❌ Erreur: ${error instanceof Error ? error.message : "erreur inconnue"}`);
+        await interaction.editReply(
+          `❌ Erreur: ${error instanceof Error ? error.message : "erreur inconnue"}`,
+        );
       }
       break;
     }
@@ -119,7 +144,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, _c
         return;
       }
       await dt.stop(guildId);
-      embed.setTitle("⏹️ Musique arrêtée").setDescription("File d'attente vidée et bot déconnecté.");
+      embed
+        .setTitle("⏹️ Musique arrêtée")
+        .setDescription("File d'attente vidée et bot déconnecté.");
       await interaction.reply({ embeds: [embed] });
       break;
     }
@@ -241,7 +268,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, _c
         .addFields(
           { name: "Durée", value: `\`${song.formattedDuration}\``, inline: true },
           { name: "Volume", value: `\`${queue.volume}%\``, inline: true },
-          { name: "Loop", value: `\`${queue.repeatMode === 0 ? "Off" : queue.repeatMode === 1 ? "Track" : "Queue"}\``, inline: true },
+          {
+            name: "Loop",
+            value: `\`${queue.repeatMode === 0 ? "Off" : queue.repeatMode === 1 ? "Track" : "Queue"}\``,
+            inline: true,
+          },
         );
       if (song.thumbnail) embed.setThumbnail(song.thumbnail);
       await interaction.reply({ embeds: [embed] });

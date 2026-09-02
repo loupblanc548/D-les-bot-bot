@@ -114,9 +114,7 @@ export async function runWebCheck(domain: string): Promise<WebCheckReport> {
   const successCount = results.filter((r) => r.success).length;
   const failCount = results.filter((r) => !r.success).length;
 
-  logger.info(
-    `[WebCheck] ✅ ${cleanDomain}: ${successCount} OK, ${failCount} échecs`,
-  );
+  logger.info(`[WebCheck] ✅ ${cleanDomain}: ${successCount} OK, ${failCount} échecs`);
 
   return {
     url: cleanDomain,
@@ -132,7 +130,15 @@ export async function runWebCheck(domain: string): Promise<WebCheckReport> {
 export async function runWebCheckQuick(domain: string): Promise<WebCheckReport> {
   const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
-  const quickEndpoints = ["whois", "dns", "ssl", "headers", "http-security", "tech-stack", "threats"];
+  const quickEndpoints = [
+    "whois",
+    "dns",
+    "ssl",
+    "headers",
+    "http-security",
+    "tech-stack",
+    "threats",
+  ];
   const results: WebCheckResult[] = [];
 
   logger.info(`[WebCheck] ⚡ Quick scan de ${cleanDomain}...`);
@@ -251,7 +257,12 @@ function buildSummary(domain: string, results: WebCheckResult[]): string {
         break;
       }
       case "ssl": {
-        const ssl = data as { subject?: string; issuer?: string; valid?: boolean; daysRemaining?: number };
+        const ssl = data as {
+          subject?: string;
+          issuer?: string;
+          valid?: boolean;
+          daysRemaining?: number;
+        };
         const status = ssl.valid ? `✅ valide (${ssl.daysRemaining}j restants)` : "❌ invalide";
         lines.push(`🔒 SSL: ${status} — ${ssl.issuer || "?"}`);
         break;

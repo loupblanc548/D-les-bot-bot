@@ -40,7 +40,10 @@ export class WorkflowEngine {
     }
   }
 
-  private async evaluateWorkflowTriggers(triggers: any[], context: WorkflowContext): Promise<boolean> {
+  private async evaluateWorkflowTriggers(
+    triggers: any[],
+    context: WorkflowContext,
+  ): Promise<boolean> {
     if (triggers.length === 0) return false;
 
     for (const trigger of triggers) {
@@ -52,32 +55,36 @@ export class WorkflowEngine {
     return true;
   }
 
-  private async evaluateSingleTrigger(type: string, config: any, context: WorkflowContext): Promise<boolean> {
+  private async evaluateSingleTrigger(
+    type: string,
+    config: any,
+    context: WorkflowContext,
+  ): Promise<boolean> {
     switch (type) {
       case "notification_posted":
         return context.eventType === "notification_posted";
-      
+
       case "source_inactive":
         if (context.eventType !== "source_inactive") return false;
         return config.sourceId === context.data.sourceId;
-      
+
       case "keyword_match": {
         if (!context.data.content) return false;
         const keywords = config.keywords || [];
         const content = context.data.content.toLowerCase();
         return keywords.some((keyword: string) => content.includes(keyword.toLowerCase()));
       }
-      
+
       case "time_based": {
         const now = new Date();
         const hour = now.getHours();
         const day = now.getDay();
-        
+
         if (config.hours && !config.hours.includes(hour)) return false;
         if (config.days && !config.days.includes(day)) return false;
         return true;
       }
-      
+
       default:
         logger.warn(`[Workflow] Unknown trigger type: ${type}`);
         return false;
@@ -97,28 +104,32 @@ export class WorkflowEngine {
     }
   }
 
-  private async executeSingleAction(type: string, config: any, context: WorkflowContext): Promise<void> {
+  private async executeSingleAction(
+    type: string,
+    config: any,
+    context: WorkflowContext,
+  ): Promise<void> {
     switch (type) {
       case "send_message": {
         await this.actionSendMessage(config, context);
         break;
       }
-      
+
       case "add_role": {
         await this.actionAddRole(config, context);
         break;
       }
-      
+
       case "send_dm": {
         await this.actionSendDM(config, context);
         break;
       }
-      
+
       case "log_event": {
         await this.actionLogEvent(config, context);
         break;
       }
-      
+
       default:
         logger.warn(`[Workflow] Unknown action type: ${type}`);
     }
@@ -175,7 +186,7 @@ export class WorkflowEngine {
 
   private replaceVariables(template: string, context: WorkflowContext): string {
     let result = template;
-    
+
     if (context.data.userId) {
       result = result.replace(/\{userId\}/g, context.data.userId);
     }
@@ -185,12 +196,17 @@ export class WorkflowEngine {
     if (context.data.sourceId) {
       result = result.replace(/\{sourceId\}/g, context.data.sourceId);
     }
-    
+
     return result;
   }
 }
 
-export async function triggerWorkflowEvent(client: Client, eventType: string, data: any, guildId: string): Promise<void> {
+export async function triggerWorkflowEvent(
+  client: Client,
+  eventType: string,
+  data: any,
+  guildId: string,
+): Promise<void> {
   const engine = new WorkflowEngine(client);
   await engine.evaluateTriggers({ eventType, data, guildId });
 }

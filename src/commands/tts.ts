@@ -152,7 +152,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     logger.error("[TTS] Erreur:", error);
     try {
       await interaction.editReply({ content: "❌ Une erreur est survenue." });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -171,7 +173,9 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return piperBuffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. ElevenLabs si configuré
   try {
@@ -186,7 +190,9 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return buffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 3. Microsoft Edge TTS (gratuit, voix neuronales Azure)
   try {
@@ -195,7 +201,9 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
       logger.info(`[TTS] Via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 4. StreamElements / Amazon Polly (gratuit, voix naturelle)
   try {
@@ -226,7 +234,9 @@ async function generateNeuralTTS(text: string, lang: string): Promise<Buffer | n
         return seBuffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 5. Fallback: Google Translate TTS (robotique mais toujours disponible)
   try {
@@ -284,7 +294,9 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
       resolved = true;
       try {
         ws.close();
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       resolve(result);
     };
 

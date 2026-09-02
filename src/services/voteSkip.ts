@@ -91,11 +91,7 @@ export function startVoteSkip(
  * a expiré). Le caller peut alors choisir de ne rien dire ou
  * d'initier un nouveau `startVoteSkip`.
  */
-export function vote(
-  guildId: string,
-  userId: string,
-  choice: "yes" | "no",
-): VoteResult | null {
+export function vote(guildId: string, userId: string, choice: "yes" | "no"): VoteResult | null {
   if (!guildId || !userId) return null;
   if (choice !== "yes" && choice !== "no") return null;
 
@@ -120,9 +116,7 @@ export function vote(
 
   const passed = v.yesVotes.length >= v.threshold;
   if (passed) {
-    logger.info(
-      `[voteSkip] Vote PASSED pour ${guildId} — oui=${v.yesVotes.length}/${v.threshold}`,
-    );
+    logger.info(`[voteSkip] Vote PASSED pour ${guildId} — oui=${v.yesVotes.length}/${v.threshold}`);
     // One-shot : on consomme le vote.
     activeVotesByGuild.delete(guildId);
     return {

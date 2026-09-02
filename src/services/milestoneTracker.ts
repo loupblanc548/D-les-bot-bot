@@ -47,9 +47,7 @@ const milestonesByGuild = new Map<string, Set<string>>();
 function newId(guildId: string): string {
   // Canvas simple : timestamp + random court. Suffisant pour un store en
   // mémoire non-persistant ; pas une contrainte crypto.
-  return `${guildId}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `${guildId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function indexByGuild(m: Milestone): void {
@@ -89,14 +87,10 @@ export function setMilestone(
   opts: { forceNewId?: boolean } = {},
 ): Milestone {
   if (!guildId || !type || !channelId) {
-    throw new Error(
-      "[milestoneTracker] setMilestone: guildId/type/channelId requis",
-    );
+    throw new Error("[milestoneTracker] setMilestone: guildId/type/channelId requis");
   }
   if (!Number.isFinite(target) || target <= 0) {
-    throw new Error(
-      `[milestoneTracker] setMilestone: target invalide (${target})`,
-    );
+    throw new Error(`[milestoneTracker] setMilestone: target invalide (${target})`);
   }
 
   if (!opts.forceNewId) {
@@ -111,9 +105,7 @@ export function setMilestone(
       if (existing.achievedAt && existing.current < target) {
         existing.achievedAt = null;
       }
-      logger.info(
-        `[milestoneTracker] Jalon mis à jour: ${existing.id} (${type}=${target})`,
-      );
+      logger.info(`[milestoneTracker] Jalon mis à jour: ${existing.id} (${type}=${target})`);
       return existing;
     }
   }
@@ -129,9 +121,7 @@ export function setMilestone(
   };
   milestonesById.set(m.id, m);
   indexByGuild(m);
-  logger.info(
-    `[milestoneTracker] Nouveau jalon: ${m.id} (${type} → ${target})`,
-  );
+  logger.info(`[milestoneTracker] Nouveau jalon: ${m.id} (${type} → ${target})`);
   return m;
 }
 
@@ -148,10 +138,7 @@ export function listMilestones(guildId: string): Milestone[] {
     .sort((a, b) => a.target - b.target);
 }
 
-function findByGuildType(
-  guildId: string,
-  type: MilestoneType,
-): Milestone | null {
+function findByGuildType(guildId: string, type: MilestoneType): Milestone | null {
   const list = listMilestones(guildId);
   for (const m of list) {
     if (m.type === type) return m;
@@ -198,9 +185,7 @@ export async function checkMilestone(
     return { newlyAchieved: [], embeds: [] };
   }
   if (!Number.isFinite(currentValue)) {
-    logger.warn(
-      `[milestoneTracker] checkMilestone: currentValue invalide (${currentValue})`,
-    );
+    logger.warn(`[milestoneTracker] checkMilestone: currentValue invalide (${currentValue})`);
     return { newlyAchieved: [], embeds: [] };
   }
 

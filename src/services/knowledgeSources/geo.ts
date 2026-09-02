@@ -163,10 +163,9 @@ export async function fetchHolidays(query: string): Promise<string | null> {
   const countryCode = "FR";
 
   try {
-    const res = await fetch(
-      `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`,
-      { signal: AbortSignal.timeout(5_000) },
-    );
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as Array<{
       date?: string;
@@ -200,22 +199,23 @@ export async function fetchOpenSkyFlights(query: string): Promise<string | null>
   if (callsignMatch) {
     const callsign = callsignMatch[1].toUpperCase().trim();
     try {
-      const res = await fetch(
-        `https://opensky-network.org/api/states/all`,
-        { signal: AbortSignal.timeout(10_000) },
-      );
+      const res = await fetch(`https://opensky-network.org/api/states/all`, {
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!res.ok) return null;
       const data = (await res.json()) as {
         time?: number;
         states?: Array<Array<any>>;
       };
       const states = data.states;
-      if (!states || states.length === 0)
-        return `✈️ **Vol ${callsign}** — Aucun vol actif trouvé.`;
+      if (!states || states.length === 0) return `✈️ **Vol ${callsign}** — Aucun vol actif trouvé.`;
 
       // Filter by callsign (index 1 in OpenSky state array)
       const matched = states.filter(
-        (s) => String(s[1] || "").trim().toUpperCase() === callsign,
+        (s) =>
+          String(s[1] || "")
+            .trim()
+            .toUpperCase() === callsign,
       );
       if (matched.length === 0)
         return `✈️ **Vol ${callsign}** — Vol non trouvé parmi les ${states.length} vols actifs.`;
@@ -232,7 +232,8 @@ export async function fetchOpenSkyFlights(query: string): Promise<string | null>
 
       const coords = lat !== null && lon !== null ? `${lat.toFixed(2)}, ${lon.toFixed(2)}` : "N/A";
       const altStr = alt !== null ? `${alt.toFixed(0)} m` : "N/A";
-      const velStr = vel !== null ? `${vel.toFixed(0)} m/s (${(vel * 3.6).toFixed(0)} km/h)` : "N/A";
+      const velStr =
+        vel !== null ? `${vel.toFixed(0)} m/s (${(vel * 3.6).toFixed(0)} km/h)` : "N/A";
       const hdgStr = heading !== null ? `${heading.toFixed(0)}°` : "N/A";
 
       return `✈️ **Vol ${cs}** (origine: ${origin})\n\n📍 Position: ${coords}\n${onGround ? "🛬 Au sol" : `🛩️ Altitude: ${altStr}`}\n💨 Vitesse: ${velStr}\n🧭 Cap: ${hdgStr}`;

@@ -80,7 +80,7 @@ async function searchGame(query: string): Promise<ITADGame[]> {
       headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
     });
     if (!res.ok) return [];
-    const data = await res.json() as ITADSearchResponse;
+    const data = (await res.json()) as ITADSearchResponse;
     return data?.data?.list || [];
   } catch (err) {
     logger.error("[ITAD] Search error:", err);
@@ -99,7 +99,7 @@ async function getPrices(plains: string[]): Promise<ITADPrice[]> {
       headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
     });
     if (!res.ok) return [];
-    const data = await res.json() as ITADPricesResponse;
+    const data = (await res.json()) as ITADPricesResponse;
     return data?.data?.[plains[0]]?.list || [];
   } catch (err) {
     logger.error("[ITAD] Prices error:", err);
@@ -118,7 +118,7 @@ async function getLowest(plains: string[]): Promise<ITADLowest | null> {
       headers: { "User-Agent": "DiscordSurveillanceBot/1.0" },
     });
     if (!res.ok) return null;
-    const data = await res.json() as ITADLowestResponse;
+    const data = (await res.json()) as ITADLowestResponse;
     return data?.data?.[plains[0]] || null;
   } catch (err) {
     logger.error("[ITAD] Lowest error:", err);
@@ -133,10 +133,7 @@ export async function getDeals(gameName: string): Promise<ITADDealResult | null>
   const bestMatch = games[0];
   const plain = bestMatch.plain;
 
-  const [prices, lowest] = await Promise.all([
-    getPrices([plain]),
-    getLowest([plain]),
-  ]);
+  const [prices, lowest] = await Promise.all([getPrices([plain]), getLowest([plain])]);
 
   return {
     game: bestMatch,
@@ -168,9 +165,17 @@ export function buildDealEmbed(result: ITADDealResult): EmbedBuilder {
         priceText += `**${formatPrice(p.price_new)}**\n↳ ${store}\n`;
       }
     }
-    embed.addFields({ name: "💰 Meilleurs prix", value: priceText || "Aucun prix trouvé", inline: false });
+    embed.addFields({
+      name: "💰 Meilleurs prix",
+      value: priceText || "Aucun prix trouvé",
+      inline: false,
+    });
   } else {
-    embed.addFields({ name: "💰 Meilleurs prix", value: "Aucun prix disponible actuellement.", inline: false });
+    embed.addFields({
+      name: "💰 Meilleurs prix",
+      value: "Aucun prix disponible actuellement.",
+      inline: false,
+    });
   }
 
   if (lowest) {

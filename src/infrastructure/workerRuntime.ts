@@ -236,7 +236,9 @@ async function shutdown(): Promise<void> {
 
   try {
     await prisma.$disconnect();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   logger.info("[Worker] Stopped");
   process.exit(0);

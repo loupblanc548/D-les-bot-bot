@@ -33,7 +33,9 @@ export async function logAuditAction(entry: AuditEntry): Promise<void> {
           metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
         },
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // Send to webhook if configured
     if (AUDIT_WEBHOOK_URL) {

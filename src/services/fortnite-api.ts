@@ -115,9 +115,7 @@ export function extractAllNamesFromEntry(entry: Record<string, any>): string[] {
 
   // 3. Si rien trouvé, log en debug uniquement (évite le spam de warnings)
   if (names.size === 0) {
-    fortniteLogger.debug(
-      `[FortniteAPI] Entrée sans nom (offerId: ${entry.offerId || "inconnu"})`,
-    );
+    fortniteLogger.debug(`[FortniteAPI] Entrée sans nom (offerId: ${entry.offerId || "inconnu"})`);
   }
 
   return [...names];

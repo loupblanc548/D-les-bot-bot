@@ -23,7 +23,9 @@ export async function invalidateModuleCache(modulePath: string): Promise<void> {
     // en ajoutant un query string pour bypasser le cache
     await import(`${url}?t=${Date.now()}`);
     logger.debug(`[HotReload] Cache invalidé: ${modulePath}`);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 /**
@@ -49,7 +51,9 @@ export function discoverCommandFiles(): string[] {
 
   try {
     scan(commandsDir);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   return files;
 }
@@ -72,7 +76,9 @@ export function discoverServiceFiles(): string[] {
         files.push(join(servicesDir, entry.name));
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   return files;
 }

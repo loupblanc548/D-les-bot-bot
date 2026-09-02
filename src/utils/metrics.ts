@@ -1,7 +1,7 @@
 /**
  * Simple metrics collection for monitoring cron job performance
  * with time-series history and period-based aggregation support.
- * 
+ *
  * Le selecteur de periode "1h" renvoie desormais 60 minutes de donnees
  * agreeees (delta) plutot que 60 points de polling bruts.
  */
@@ -61,8 +61,9 @@ class MetricsCollector {
       current.totalErrors++;
     }
     current.lastProcessed = new Date();
-    current.averageProcessingTime = 
-      (current.averageProcessingTime * (current.totalProcessed - 1) + processingTimeMs) / current.totalProcessed;
+    current.averageProcessingTime =
+      (current.averageProcessingTime * (current.totalProcessed - 1) + processingTimeMs) /
+      current.totalProcessed;
 
     this.metrics.set(jobName, current);
   }
@@ -76,7 +77,7 @@ class MetricsCollector {
     }
 
     const history = this.timeSeriesHistory.get(jobName)!;
-    
+
     const snapshot: TimeSeriesSnapshot = {
       timestamp: Date.now(),
       totalProcessed: current.totalProcessed,
@@ -86,11 +87,13 @@ class MetricsCollector {
     };
 
     const lastSnap = history[history.length - 1];
-    if (lastSnap &&
-        lastSnap.totalProcessed === snapshot.totalProcessed &&
-        lastSnap.totalErrors === snapshot.totalErrors &&
-        lastSnap.totalSuccess === snapshot.totalSuccess &&
-        lastSnap.averageProcessingTime === snapshot.averageProcessingTime) {
+    if (
+      lastSnap &&
+      lastSnap.totalProcessed === snapshot.totalProcessed &&
+      lastSnap.totalErrors === snapshot.totalErrors &&
+      lastSnap.totalSuccess === snapshot.totalSuccess &&
+      lastSnap.averageProcessingTime === snapshot.averageProcessingTime
+    ) {
       return;
     }
 
@@ -104,14 +107,14 @@ class MetricsCollector {
   getMetricsForPeriod(
     jobName: string,
     periodMs: number,
-    periodLabel: string
+    periodLabel: string,
   ): AggregatedPeriodMetrics | null {
     const history = this.timeSeriesHistory.get(jobName);
     if (!history || history.length === 0) return null;
 
     const cutoffTime = Date.now() - periodMs;
-    const snapshotsInPeriod = history.filter(s => s.timestamp >= cutoffTime);
-    
+    const snapshotsInPeriod = history.filter((s) => s.timestamp >= cutoffTime);
+
     if (snapshotsInPeriod.length < 2) {
       const latest = history[history.length - 1];
       return {
@@ -121,9 +124,8 @@ class MetricsCollector {
         processedInPeriod: 0,
         errorsInPeriod: 0,
         successInPeriod: 0,
-        successRate: latest.totalProcessed > 0 
-          ? (latest.totalSuccess / latest.totalProcessed) * 100 
-          : 0,
+        successRate:
+          latest.totalProcessed > 0 ? (latest.totalSuccess / latest.totalProcessed) * 100 : 0,
         averageProcessingTime: latest.averageProcessingTime,
         throughputPerMinute: 0,
       };
@@ -143,9 +145,8 @@ class MetricsCollector {
     }
 
     const timeSpanMinutes = (last.timestamp - first.timestamp) / 60000;
-    const throughputPerMinute = timeSpanMinutes > 0 
-      ? processedDelta / timeSpanMinutes 
-      : processedDelta;
+    const throughputPerMinute =
+      timeSpanMinutes > 0 ? processedDelta / timeSpanMinutes : processedDelta;
 
     return {
       periodLabel,
@@ -154,12 +155,10 @@ class MetricsCollector {
       processedInPeriod: processedDelta,
       errorsInPeriod: errorsDelta,
       successInPeriod: successDelta,
-      successRate: processedDelta > 0 
-        ? (successDelta / processedDelta) * 100 
-        : 100,
-      averageProcessingTime: snapshotsInPeriod.reduce((sum, s) => 
-        sum + s.averageProcessingTime, 0
-      ) / snapshotsInPeriod.length,
+      successRate: processedDelta > 0 ? (successDelta / processedDelta) * 100 : 100,
+      averageProcessingTime:
+        snapshotsInPeriod.reduce((sum, s) => sum + s.averageProcessingTime, 0) /
+        snapshotsInPeriod.length,
       throughputPerMinute: Math.round(throughputPerMinute * 100) / 100,
     };
   }
@@ -178,7 +177,7 @@ class MetricsCollector {
 
   getAggregatedSummaryForPeriod(
     periodMs: number,
-    periodLabel: string
+    periodLabel: string,
   ): AggregatedPeriodMetrics | null {
     let totalProcessed = 0;
     let totalErrors = 0;
@@ -210,7 +209,8 @@ class MetricsCollector {
       successInPeriod: totalSuccess,
       successRate: totalProcessed > 0 ? (totalSuccess / totalProcessed) * 100 : 100,
       averageProcessingTime: avgTimeSum / avgTimeCount,
-      throughputPerMinute: totalProcessed > 0 ? Math.round((totalProcessed / (periodMs / 60000)) * 100) / 100 : 0,
+      throughputPerMinute:
+        totalProcessed > 0 ? Math.round((totalProcessed / (periodMs / 60000)) * 100) / 100 : 0,
     };
   }
 

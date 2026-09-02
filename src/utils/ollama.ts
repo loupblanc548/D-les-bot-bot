@@ -88,7 +88,8 @@ export async function ollamaSummarize(content: string, maxPoints = 5): Promise<s
 }
 
 export async function ollamaDetectLanguage(text: string): Promise<string | null> {
-  const system = "Detect the language of the following text. Reply with ONLY the ISO 639-1 language code (e.g., 'en', 'fr', 'es', 'de', 'ja').";
+  const system =
+    "Detect the language of the following text. Reply with ONLY the ISO 639-1 language code (e.g., 'en', 'fr', 'es', 'de', 'ja').";
   return ollamaChat(system, text.slice(0, 500), { temperature: 0, maxTokens: 10 });
 }
 

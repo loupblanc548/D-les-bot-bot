@@ -3,7 +3,7 @@ import http from "http";
 export function validateBody<T>(
   req: http.IncomingMessage,
   res: http.ServerResponse,
-  validator: (parsed: any) => T | null
+  validator: (parsed: any) => T | null,
 ): Promise<T | null> {
   return new Promise((resolve) => {
     let body = "";
@@ -29,7 +29,15 @@ export function validateBody<T>(
 }
 
 export function sanitize(str: string): string {
-  return str.replace(/[<>&"']/g, (c) => ({
-    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;"
-  }[c] || c));
+  return str.replace(
+    /[<>&"']/g,
+    (c) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c] || c,
+  );
 }

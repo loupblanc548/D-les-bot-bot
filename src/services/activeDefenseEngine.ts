@@ -77,7 +77,9 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
         enrichment.lon = data.lon as number | undefined;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. Reverse DNS
   try {
@@ -85,7 +87,9 @@ async function enrichIP(ip: string): Promise<OsintEnrichment | null> {
     if (hostnames && hostnames.length > 0) {
       enrichment.hostname = hostnames[0];
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   return enrichment;
 }

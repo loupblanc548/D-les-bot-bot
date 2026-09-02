@@ -138,7 +138,9 @@ async function checkMailTmInbox(account: TempEmailAccount): Promise<EmailMessage
           const detail = (await detailRes.json()) as { text?: string; html?: string[] };
           body = detail.text || detail.html?.join(" ") || msg.intro || "";
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       results.push({
         id: msg.id,
@@ -211,7 +213,9 @@ async function check1secmailInbox(account: TempEmailAccount): Promise<EmailMessa
           const bodyData = (await bodyRes.json()) as { body?: string; textBody?: string };
           body = bodyData.textBody || bodyData.body || "";
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       results.push({
         id: String(msg.id),

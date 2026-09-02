@@ -7,8 +7,8 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType
-  } from "discord.js";
+  ComponentType,
+} from "discord.js";
 import { fetchShop, ShopEntry } from "../../services/fortnite-api.js";
 
 const ITEMS_PER_PAGE = 8;
@@ -34,7 +34,7 @@ export const commands = [
           { name: "Daily", value: "daily" },
           { name: "Special Featured", value: "specialFeatured" },
           { name: "Special Daily", value: "specialDaily" },
-        )
+        ),
     )
     .toJSON(),
 ];
@@ -175,10 +175,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       nextBtn.setDisabled(true).setStyle(ButtonStyle.Secondary);
 
       const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(prevBtn, nextBtn);
-      await reply.edit({ components: [disabledRow] }).catch((err) => { logger.error("[Shop] Erreur edit reply:", String(err)) });
+      await reply.edit({ components: [disabledRow] }).catch((err) => {
+        logger.error("[Shop] Erreur edit reply:", String(err));
+      });
     });
   } catch (err) {
     logger.error("[Shop] Erreur:", String(err));
-    await interaction.editReply({ content: "❌ Une erreur est survenue." }).catch((err) => { logger.error("[Shop] Erreur edit reply:", String(err)) });
+    await interaction.editReply({ content: "❌ Une erreur est survenue." }).catch((err) => {
+      logger.error("[Shop] Erreur edit reply:", String(err));
+    });
   }
 }

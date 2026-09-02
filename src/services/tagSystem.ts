@@ -68,9 +68,7 @@ export function createTag(
     createdAt: existing?.createdAt ?? new Date(),
   };
   bucket.set(name, tag);
-  logger.info(
-    `[tagSystem] Tag "${name}" ${existing ? "mis à jour" : "créé"} sur ${guildId}`,
-  );
+  logger.info(`[tagSystem] Tag "${name}" ${existing ? "mis à jour" : "créé"} sur ${guildId}`);
   return tag;
 }
 

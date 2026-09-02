@@ -58,7 +58,9 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
         return pref;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   prefCache.set(userId, { pref: defaultPref, ts: Date.now() });
   return defaultPref;
@@ -73,7 +75,9 @@ async function savePreferences(pref: UserPreference): Promise<void> {
     if (redis) {
       await redis.setEx(`${REDIS_PREFIX}${pref.userId}`, REDIS_TTL_S, JSON.stringify(pref));
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export async function recordInteraction(userId: string): Promise<void> {
@@ -81,10 +85,13 @@ export async function recordInteraction(userId: string): Promise<void> {
     const pref = await getUserPreferences(userId);
     pref.interactionCount += 1;
     pref.lastInteraction = Date.now();
-    pref.familiarity = pref.interactionCount > 50 ? "veteran" : pref.interactionCount > 5 ? "regular" : "new";
+    pref.familiarity =
+      pref.interactionCount > 50 ? "veteran" : pref.interactionCount > 5 ? "regular" : "new";
     await savePreferences(pref);
   } catch (err) {
-    logger.debug(`[UserPref] recordInteraction failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[UserPref] recordInteraction failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -93,7 +100,9 @@ export async function setUserLanguage(userId: string, language: string): Promise
     const pref = await getUserPreferences(userId);
     pref.language = language;
     await savePreferences(pref);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export async function addUserInterest(userId: string, interest: string): Promise<void> {
@@ -106,7 +115,9 @@ export async function addUserInterest(userId: string, interest: string): Promise
       pref.interests = interests;
       await savePreferences(pref);
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export async function addUserGame(userId: string, game: string): Promise<void> {
@@ -119,15 +130,22 @@ export async function addUserGame(userId: string, game: string): Promise<void> {
       pref.favoriteGames = games;
       await savePreferences(pref);
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
-export async function setResponseStyle(userId: string, style: "brief" | "detailed" | "balanced"): Promise<void> {
+export async function setResponseStyle(
+  userId: string,
+  style: "brief" | "detailed" | "balanced",
+): Promise<void> {
   try {
     const pref = await getUserPreferences(userId);
     pref.responseStyle = style;
     await savePreferences(pref);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export function formatPreferencesForPrompt(pref: UserPreference): string {

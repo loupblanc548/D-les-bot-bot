@@ -59,7 +59,9 @@ async function notifyStatusChange(client: Client, isOk: boolean): Promise<void> 
       isDiscordWebhook =
         (parsed.hostname === "discord.com" || parsed.hostname === "discordapp.com") &&
         parsed.pathname.includes("/api/webhooks/");
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     if (isDiscordWebhook) {
       await sendWebhook(webhookUrl, {
         embeds: [
@@ -110,7 +112,9 @@ export function startProactiveHealthCheck(client: Client, intervalMs = 30000): v
     }
 
     // Alerte mémoire si > threshold (adaptatif selon VPS/local)
-    const memThreshold = process.env.MEMORY_ALERT_THRESHOLD ? parseInt(process.env.MEMORY_ALERT_THRESHOLD) : 600;
+    const memThreshold = process.env.MEMORY_ALERT_THRESHOLD
+      ? parseInt(process.env.MEMORY_ALERT_THRESHOLD)
+      : 600;
     if (status.memoryMb >= memThreshold) {
       logger.warn(
         `[HealthCheck] ⚠️ Memory ${status.memoryMb}MB ≥ ${memThreshold}MB threshold — ${status.guildCount} guilds, ${status.ping}ms`,
@@ -142,7 +146,9 @@ export async function autoBackup(): Promise<void> {
       try {
         const data = await (prisma as any)[table].findMany({ take: 10000 });
         (backup.tables as Record<string, any>)[table] = data;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
 
     // Store backup info

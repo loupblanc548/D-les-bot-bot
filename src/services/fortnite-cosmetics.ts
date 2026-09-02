@@ -62,9 +62,7 @@ export async function validateCosmeticName(itemName: string): Promise<boolean> {
   const cosmetics = await fetchCosmetics();
   const normalizedInput = itemName.toLowerCase().trim();
 
-  return cosmetics.some(
-    (item) => item.name.toLowerCase() === normalizedInput
-  );
+  return cosmetics.some((item) => item.name.toLowerCase() === normalizedInput);
 }
 
 export async function searchCosmetics(query: string, limit: number = 25): Promise<string[]> {
@@ -87,9 +85,7 @@ export async function getCosmeticByName(itemName: string): Promise<CosmeticItem 
   const cosmetics = await fetchCosmetics();
   const normalizedInput = itemName.toLowerCase().trim();
 
-  return (
-    cosmetics.find((item) => item.name.toLowerCase() === normalizedInput) || null
-  );
+  return cosmetics.find((item) => item.name.toLowerCase() === normalizedInput) || null;
 }
 
 /**

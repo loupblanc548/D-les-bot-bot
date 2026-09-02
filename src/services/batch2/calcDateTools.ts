@@ -56,9 +56,7 @@ export async function toolBmiCalculator(args: Record<string, any>): Promise<Tool
   return ok(`⚖️ **IMC: ${bmi.toFixed(1)}** — ${cat}`);
 }
 
-export async function toolCalorieCalculator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolCalorieCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const w = Number(args.weight),
     h = Number(args.height),
     age = Number(args.age);
@@ -94,9 +92,7 @@ export async function toolCompoundInterest(args: Record<string, any>): Promise<T
   );
 }
 
-export async function toolPercentageCalculator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolPercentageCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const mode = String(args.mode || "of").trim();
   const v1 = Number(args.value1),
     v2 = Number(args.value2);
@@ -251,9 +247,7 @@ export async function toolSleepCalculator(args: Record<string, any>): Promise<To
   return ok(`😴 **Si tu t'endors maintenant:**\n${r.join("\n")}`);
 }
 
-export async function toolGradientGenerator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolGradientGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const colors = (args.colors as string[]) || ["#ff0000", "#0000ff"];
   const dir = String(args.direction || "to right").trim();
   if (colors.length < 2) return err("Au moins 2 couleurs");

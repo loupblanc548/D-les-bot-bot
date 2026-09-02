@@ -73,7 +73,9 @@ export function subscribeAgentLog(callback: (line: string) => void): () => void 
             lastSeenLogContent = currentContent;
           }
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }, 2000);
     if (logPoller.unref) logPoller.unref();
   }
@@ -92,7 +94,9 @@ function readUrl(): string | null {
   try {
     const content = fs.readFileSync(URL_FILE, "utf-8").trim();
     if (content && content.startsWith("http")) return content;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return null;
 }
 
@@ -463,7 +467,9 @@ export async function setAgentGoalLive(
         await statusMsg?.edit({
           content: `🎯 **${goal}** — ✅ Terminé (timeout de suivi atteint)\nUtilise \`/mc agentlog\` pour voir l'historique complet.`,
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       return;
     }
 
@@ -477,7 +483,9 @@ export async function setAgentGoalLive(
         await statusMsg?.edit({
           content: `🎯 **${goal}** — ✅ Terminé\n\`\`\`${(finalLog || "").slice(-1500)}\`\`\``,
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       return;
     }
 
@@ -505,9 +513,13 @@ export async function setAgentGoalLive(
           await statusMsg?.edit({
             content: `🎯 **${goal}** — ${hp} ${pos}\n\`\`\`\n${lastDisplayedLog.slice(-1200)}\n\`\`\``,
           });
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }, 2000);
 
   if (pollInterval.unref) pollInterval.unref();

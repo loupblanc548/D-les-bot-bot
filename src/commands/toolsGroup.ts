@@ -66,22 +66,29 @@ export const commands = [
         .setName("parle")
         .setDescription("Fait parler le bot en vocal (TTS neuronal)")
         .addStringOption((o) =>
-          o.setName("texte").setDescription("Texte à dire à voix haute").setRequired(true).setMaxLength(500),
+          o
+            .setName("texte")
+            .setDescription("Texte à dire à voix haute")
+            .setRequired(true)
+            .setMaxLength(500),
         )
         .addStringOption((o) =>
-          o.setName("langue").setDescription("Langue (défaut: Français)").setRequired(false)
-          .addChoices(
-            { name: "Français", value: "fr" },
-            { name: "English", value: "en" },
-            { name: "Español", value: "es" },
-            { name: "Deutsch", value: "de" },
-            { name: "Italiano", value: "it" },
-            { name: "Português", value: "pt" },
-            { name: "日本語", value: "ja" },
-            { name: "한국어", value: "ko" },
-            { name: "中文", value: "zh" },
-            { name: "Русский", value: "ru" },
-          ),
+          o
+            .setName("langue")
+            .setDescription("Langue (défaut: Français)")
+            .setRequired(false)
+            .addChoices(
+              { name: "Français", value: "fr" },
+              { name: "English", value: "en" },
+              { name: "Español", value: "es" },
+              { name: "Deutsch", value: "de" },
+              { name: "Italiano", value: "it" },
+              { name: "Português", value: "pt" },
+              { name: "日本語", value: "ja" },
+              { name: "한국어", value: "ko" },
+              { name: "中文", value: "zh" },
+              { name: "Русский", value: "ru" },
+            ),
         ),
     )
     .addSubcommand((sc) =>

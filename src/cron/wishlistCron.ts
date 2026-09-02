@@ -166,7 +166,9 @@ async function checkInstantGamingDeals(_client: Client): Promise<void> {
           logger.info(
             `[WishlistCron] Deal trouvé pour "${item.gameName}" à ${price}€ — notification envoyée`,
           );
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       } catch (gameErr) {
         logger.warn(
           `[WishlistCron] Recherche IG échouée pour "${item.gameName}": ${gameErr instanceof Error ? gameErr.message : String(gameErr)}`,

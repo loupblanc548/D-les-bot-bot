@@ -186,7 +186,9 @@ export async function getSecurityMetrics(guildId: string): Promise<SecurityMetri
       trend: elevatedCount > 5 ? "up" : "stable",
       threatLevel: elevatedCount > 10 ? "HIGH" : elevatedCount > 0 ? "MEDIUM" : "LOW",
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Alertes en attente
   try {
@@ -201,7 +203,9 @@ export async function getSecurityMetrics(guildId: string): Promise<SecurityMetri
       trend: pendingAlerts > 5 ? "up" : "stable",
       threatLevel: pendingAlerts > 10 ? "HIGH" : pendingAlerts > 0 ? "MEDIUM" : "LOW",
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   return metrics;
 }
@@ -295,7 +299,9 @@ export async function checkEscalation(
         targetId: guildId,
         details: JSON.stringify({ score, level }),
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     return "CRITICAL";
   }

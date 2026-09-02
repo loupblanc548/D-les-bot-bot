@@ -20,21 +20,21 @@ const STORE_LOGOS: Record<string, string> = {
   Fanatical: "https://www.fanatical.com/favicon.ico",
 };
 
-export async function compareGamePrices(gameName: string): Promise<{ gameName: string; prices: StorePrice[]; cheapest: StorePrice | null }> {
+export async function compareGamePrices(
+  gameName: string,
+): Promise<{ gameName: string; prices: StorePrice[]; cheapest: StorePrice | null }> {
   const prices: StorePrice[] = [];
 
-  const fetchers = [
-    fetchSteamPrice,
-    fetchInstantGamingPrice,
-    fetchEpicPrice,
-  ];
+  const fetchers = [fetchSteamPrice, fetchInstantGamingPrice, fetchEpicPrice];
 
   for (const fetcher of fetchers) {
     try {
       const result = await fetcher(gameName);
       if (result) prices.push(result);
     } catch (err) {
-      logger.debug(`[PriceCompare] Erreur ${fetcher.name}: ${err instanceof Error ? err.message : String(err)}`);
+      logger.debug(
+        `[PriceCompare] Erreur ${fetcher.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -51,7 +51,7 @@ async function fetchSteamPrice(gameName: string): Promise<StorePrice | null> {
       { signal: AbortSignal.timeout(8000) },
     );
     if (!res.ok) return null;
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     const item = data.items?.[0];
     if (!item) return null;
 
@@ -100,9 +100,9 @@ async function fetchEpicPrice(gameName: string): Promise<StorePrice | null> {
       { signal: AbortSignal.timeout(8000) },
     );
     if (!res.ok) return null;
-    const data = await res.json() as any;
-    const game = data.data?.Catalog?.searchStore?.elements?.find(
-      (e: any) => e.title?.toLowerCase().includes(gameName.toLowerCase()),
+    const data = (await res.json()) as any;
+    const game = data.data?.Catalog?.searchStore?.elements?.find((e: any) =>
+      e.title?.toLowerCase().includes(gameName.toLowerCase()),
     );
     if (!game) return null;
 
@@ -119,7 +119,11 @@ async function fetchEpicPrice(gameName: string): Promise<StorePrice | null> {
   }
 }
 
-export async function sendPriceComparison(client: Client, gameName: string, channelId?: string): Promise<void> {
+export async function sendPriceComparison(
+  client: Client,
+  gameName: string,
+  channelId?: string,
+): Promise<void> {
   const { prices, cheapest } = await compareGamePrices(gameName);
 
   if (prices.length === 0) {
@@ -138,7 +142,9 @@ export async function sendPriceComparison(client: Client, gameName: string, chan
     .setTimestamp();
 
   if (cheapest) {
-    embed.setDescription(`**Meilleur prix : ${cheapest.price.toFixed(2)}€ sur ${cheapest.store}**\n[👉 Acheter](${cheapest.url})`);
+    embed.setDescription(
+      `**Meilleur prix : ${cheapest.price.toFixed(2)}€ sur ${cheapest.store}**\n[👉 Acheter](${cheapest.url})`,
+    );
   }
 
   for (const p of prices) {
@@ -151,8 +157,12 @@ export async function sendPriceComparison(client: Client, gameName: string, chan
 
   try {
     await channel.send({ embeds: [embed] });
-    logger.info(`[PriceCompare] Comparaison envoyée pour "${gameName}" — ${prices.length} boutique(s)`);
+    logger.info(
+      `[PriceCompare] Comparaison envoyée pour "${gameName}" — ${prices.length} boutique(s)`,
+    );
   } catch (err) {
-    logger.error(`[PriceCompare] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[PriceCompare] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }

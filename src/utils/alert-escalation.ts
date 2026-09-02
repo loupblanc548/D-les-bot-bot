@@ -66,7 +66,7 @@ export async function sendEscalatedAlert(
   client: Client,
   key: string,
   message: string,
-  data?: Record<string, any>
+  data?: Record<string, any>,
 ): Promise<boolean> {
   const rule = ESCALATION_RULES[key];
   if (!rule) {
@@ -83,7 +83,7 @@ export async function sendEscalatedAlert(
   // Mettre à jour ou créer l'entrée d'alerte
   const now = Date.now();
   const entry = alertMap.get(key);
-  
+
   if (!entry) {
     alertMap.set(key, {
       key,
@@ -120,7 +120,7 @@ async function sendDirectAlert(
   client: Client,
   key: string,
   message: string,
-  entry?: AlertEntry
+  entry?: AlertEntry,
 ): Promise<boolean> {
   const severity = entry?.severity || "medium";
   if (!config.logChannel) {
@@ -170,7 +170,7 @@ async function sendDirectAlert(
         name: "Première alerte",
         value: new Date(entry.firstAlert).toLocaleString(),
         inline: true,
-      }
+      },
     );
 
     if (entry.data) {

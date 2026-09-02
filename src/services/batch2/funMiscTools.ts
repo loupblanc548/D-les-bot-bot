@@ -148,9 +148,7 @@ export async function toolNameGenerator(args: Record<string, any>): Promise<Tool
   );
 }
 
-export async function toolZodiacCompatibility(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolZodiacCompatibility(args: Record<string, any>): Promise<ToolCallResult> {
   const s1 = String(args.sign1 || "")
       .trim()
       .toLowerCase(),

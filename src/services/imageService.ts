@@ -109,7 +109,9 @@ export async function generateWelcomeImage(
       );
       ctx.closePath();
       ctx.stroke();
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // Texte
     const title = options?.title || `Bienvenue ${member.user.username} !`;
@@ -178,7 +180,9 @@ export async function generateGoodbyeImage(
       );
       ctx.closePath();
       ctx.stroke();
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     const title = options?.title || `Au revoir ${member.user.username} !`;
     const subtitle =

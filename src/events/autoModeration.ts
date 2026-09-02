@@ -243,7 +243,9 @@ export function handleAutoModeration(client: Client): void {
                 content: `🐌 Slowmode automatique activé (${SLOWMODE_DURATION}s) — activité élevée détectée.`,
               });
               setTimeout(() => alert.delete().catch(() => {}), 15000);
-            } catch { logger.error("[Silent catch]"); }
+            } catch {
+              logger.error("[Silent catch]");
+            }
           }
           // Reset après activation
           channelMsgTracker.set(channelId, { count: 0, windowStart: now });

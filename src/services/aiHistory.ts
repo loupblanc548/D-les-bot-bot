@@ -37,10 +37,7 @@ export async function saveAiHistory(
   }
 }
 
-export async function getAiHistory(
-  userId: string,
-  limit = 50,
-): Promise<AiHistoryEntry[]> {
+export async function getAiHistory(userId: string, limit = 50): Promise<AiHistoryEntry[]> {
   try {
     const records = await prisma.aiHistory.findMany({
       where: { userId },

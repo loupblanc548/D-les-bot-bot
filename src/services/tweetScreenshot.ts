@@ -34,7 +34,13 @@ export interface TweetScreenshotResult {
  * @param tweetUrl L'URL originale du tweet (https://x.com/user/status/123)
  * @returns Buffer + filename si succès, null si échec
  */
-const ALLOWED_TWEET_HOSTS = new Set(["x.com", "www.x.com", "twitter.com", "www.twitter.com", "xcancel.com"]);
+const ALLOWED_TWEET_HOSTS = new Set([
+  "x.com",
+  "www.x.com",
+  "twitter.com",
+  "www.twitter.com",
+  "xcancel.com",
+]);
 
 function isAllowedTweetUrl(url: string): boolean {
   try {
@@ -131,7 +137,9 @@ export async function captureTweetScreenshot(
     if (browser) {
       try {
         await browser.close();
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }

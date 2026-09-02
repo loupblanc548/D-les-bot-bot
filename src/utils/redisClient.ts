@@ -70,7 +70,9 @@ export async function waitForRedisWritable(maxRetries = 5, baseDelayMs = 1000): 
         logger.info(`[RedisClient] Writable check passed (attempt ${attempt})`);
         return true;
       } catch (err) {
-        logger.warn(`[RedisClient] Writable check failed (attempt ${attempt}): ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(
+          `[RedisClient] Writable check failed (attempt ${attempt}): ${err instanceof Error ? err.message : String(err)}`,
+        );
         connected = false;
       }
     }
@@ -80,7 +82,9 @@ export async function waitForRedisWritable(maxRetries = 5, baseDelayMs = 1000): 
       await new Promise((r) => setTimeout(r, delay));
     }
   }
-  logger.warn(`[RedisClient] Writable check failed after ${maxRetries} attempts — BullMQ may encounter READONLY errors`);
+  logger.warn(
+    `[RedisClient] Writable check failed after ${maxRetries} attempts — BullMQ may encounter READONLY errors`,
+  );
   return false;
 }
 

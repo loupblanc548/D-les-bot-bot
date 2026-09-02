@@ -67,7 +67,9 @@ export async function connectRedis(): Promise<void> {
     try {
       await redis.config("SET", "maxmemory-policy", "noeviction");
       logger.info("[Redis] Eviction policy set to noeviction");
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   } catch (err) {
     redisConnected = false;
     logger.warn("[Redis] Connection failed — cache disabled: " + String(err));
@@ -155,7 +157,9 @@ export async function deleteCachePattern(pattern: string): Promise<void> {
 export async function incrementCache(key: string): Promise<number> {
   try {
     if (redis) return await redis.incr(key);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return 0;
 }
 
@@ -165,7 +169,9 @@ export async function incrementCache(key: string): Promise<number> {
 export async function decrementCache(key: string): Promise<number> {
   try {
     if (redis) return await redis.decr(key);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return 0;
 }
 
@@ -178,7 +184,9 @@ export async function cacheExists(key: string): Promise<boolean> {
       const result = await redis.exists(key);
       return result === 1;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return localCache.has(key);
 }
 
@@ -191,7 +199,9 @@ export async function setCacheExpire(key: string, ttlInSeconds: number): Promise
       await redis.expire(key, ttlInSeconds);
       return true;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return false;
 }
 
@@ -201,7 +211,9 @@ export async function setCacheExpire(key: string, ttlInSeconds: number): Promise
 export async function getCacheTTL(key: string): Promise<number> {
   try {
     if (redis) return await redis.ttl(key);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return -1;
 }
 
@@ -212,7 +224,9 @@ export async function disconnectRedis(): Promise<void> {
   try {
     if (redis) await redis.quit();
     logger.info("[Redis] Disconnected");
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 export default redis;

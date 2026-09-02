@@ -38,7 +38,9 @@ async function postShowcaseLink(client: Client): Promise<void> {
         const oldMsg = await (channel as any).messages?.fetch(lastMessageId);
         if (oldMsg) await oldMsg.delete();
         logger.debug("[ShowcaseLink] Ancien message supprimé");
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
 
     const embed = new EmbedBuilder()
@@ -62,9 +64,7 @@ async function postShowcaseLink(client: Client): Promise<void> {
     lastMessageId = sent.id;
     logger.info(`[ShowcaseLink] Lien showcase posté dans ${VOICE_CHANNEL_ID}`);
   } catch (err) {
-    logger.error(
-      `[ShowcaseLink] Erreur: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`[ShowcaseLink] Erreur: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -82,7 +82,9 @@ export function startShowcaseLinkCron(client: Client): void {
   // Post every day at noon (12:00)
   cronJob = schedule("0 12 * * *", () => {
     void postShowcaseLink(client).catch((err) =>
-      logger.error(`[ShowcaseLink] Erreur cron: ${err instanceof Error ? err.message : String(err)}`),
+      logger.error(
+        `[ShowcaseLink] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
+      ),
     );
   });
 

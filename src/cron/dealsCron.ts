@@ -236,7 +236,9 @@ async function sendDealEmbed(
       try {
         const ogImage = await getOgImage(item.link);
         if (ogImage) imageUrl = ogImage;
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
 
     // Fallback final: image par défaut de la plateforme

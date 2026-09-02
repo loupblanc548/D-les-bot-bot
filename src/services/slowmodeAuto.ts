@@ -64,10 +64,7 @@ export function recordMessage(channelId: string): void {
  *   toute façon ré-initialisé au prochain `recordMessage` quand la
  *   fenêtre roulante expirera.
  */
-export async function checkAndAdjust(
-  channel: TextChannel,
-  threshold: number,
-): Promise<void> {
+export async function checkAndAdjust(channel: TextChannel, threshold: number): Promise<void> {
   if (!channel) return;
   if (!Number.isFinite(threshold) || threshold <= 0) {
     logger.warn(`[slowmodeAuto] threshold invalide (${threshold}) — skip`);
@@ -120,8 +117,6 @@ export function clearSlowmodeState(): void {
 }
 
 /** Inspection utilitaire. */
-export function getChannelState(
-  channelId: string,
-): ChannelActivityState | null {
+export function getChannelState(channelId: string): ChannelActivityState | null {
   return stateByChannelId.get(channelId) ?? null;
 }

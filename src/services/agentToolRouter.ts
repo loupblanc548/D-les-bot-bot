@@ -125,7 +125,16 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   // Remove.bg
   { envVar: "REMOVEBG_API_KEY", tools: ["removeBackground"], optional: true },
   // Retailer APIs
-  { envVar: "AMAZON_PA_API_KEY", tools: ["searchRetailers", "searchSingleRetailer", "trackRetailerProduct", "compareProductPrices"], optional: true },
+  {
+    envVar: "AMAZON_PA_API_KEY",
+    tools: [
+      "searchRetailers",
+      "searchSingleRetailer",
+      "trackRetailerProduct",
+      "compareProductPrices",
+    ],
+    optional: true,
+  },
   { envVar: "EBAY_CLIENT_ID", tools: ["searchSingleRetailer"], optional: true },
   { envVar: "KEEPA_API_KEY", tools: ["getAmazonPriceHistory"], optional: true },
 ];
@@ -6568,11 +6577,23 @@ export function routeTools(
   // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement
   if (userMessage.trim().length < 15) {
     const ALWAYS_INCLUDE = new Set([
-      "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
-      "searchUserMemory", "saveMemoryFact", "getUserInfo", "getBotStatus",
-      "getDateTime", "getWeather", "translateText", "execute_code",
-      "build_rich_embed", "send_message", "ask_user_question",
-      "think_step_by_step", "delegate_to_expert",
+      "searchWeb",
+      "readUrl",
+      "fetchAndSummarize",
+      "searchKnowledge",
+      "searchUserMemory",
+      "saveMemoryFact",
+      "getUserInfo",
+      "getBotStatus",
+      "getDateTime",
+      "getWeather",
+      "translateText",
+      "execute_code",
+      "build_rich_embed",
+      "send_message",
+      "ask_user_question",
+      "think_step_by_step",
+      "delegate_to_expert",
     ]);
     const essential = allTools.filter((t) => ALWAYS_INCLUDE.has(t.function.name));
     const filtered = filterAvailableTools(essential);

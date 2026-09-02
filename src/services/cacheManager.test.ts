@@ -32,7 +32,9 @@ vi.mock("./llmCache.js", () => ({
 }));
 
 vi.mock("./toolResultCache.js", () => ({
-  getCachedToolResult: vi.fn(async (toolName: string, args: Record<string, unknown>) => `tool-${toolName}`),
+  getCachedToolResult: vi.fn(
+    async (toolName: string, args: Record<string, unknown>) => `tool-${toolName}`,
+  ),
   setCachedToolResult: vi.fn(async () => {}),
 }));
 

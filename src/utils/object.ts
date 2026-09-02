@@ -62,10 +62,7 @@ export function isEmpty(obj: any): boolean {
 }
 
 /** Aplatit un objet imbriqué en clés dot-notation */
-export function flatten(
-  obj: Record<string, any>,
-  prefix = "",
-): Record<string, any> {
+export function flatten(obj: Record<string, any>, prefix = ""): Record<string, any> {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;

@@ -21,17 +21,25 @@ export interface ShodanHost {
   tags?: string[];
 }
 
-export async function searchShodan(query: string, page = 1): Promise<{ total: number; matches: ShodanHost[] }> {
+export async function searchShodan(
+  query: string,
+  page = 1,
+): Promise<{ total: number; matches: ShodanHost[] }> {
   if (!SHODAN_API_KEY) return { total: 0, matches: [] };
   try {
-    const res = await axios.get(`${BASE_URL}/shodan/host/search`, { params: { key: SHODAN_API_KEY, query, page }, timeout: 10000 });
+    const res = await axios.get(`${BASE_URL}/shodan/host/search`, {
+      params: { key: SHODAN_API_KEY, query, page },
+      timeout: 10000,
+    });
     return {
       total: res.data.total || 0,
       matches: (res.data.matches || []).map((m: Record<string, any>) => ({
         ip: String(m.ip_str || m.ip || ""),
         port: Number(m.port || 0),
         protocol: String(m.transport || ""),
-        service: String((m._shodan as Record<string, any>)?.module || String(m.data || "").slice(0, 50) || ""),
+        service: String(
+          (m._shodan as Record<string, any>)?.module || String(m.data || "").slice(0, 50) || "",
+        ),
         product: String(m.product || ""),
         version: String(m.version || ""),
         os: String(m.os || ""),
@@ -53,12 +61,22 @@ export async function searchShodan(query: string, page = 1): Promise<{ total: nu
 export async function getHostInfo(ip: string): Promise<ShodanHost | null> {
   if (!SHODAN_API_KEY) return null;
   try {
-    const res = await axios.get(`${BASE_URL}/shodan/host/${ip}`, { params: { key: SHODAN_API_KEY }, timeout: 10000 });
+    const res = await axios.get(`${BASE_URL}/shodan/host/${ip}`, {
+      params: { key: SHODAN_API_KEY },
+      timeout: 10000,
+    });
     const d = res.data;
     return {
-      ip: String(d.ip_str || ip), port: 0, protocol: "", service: "",
-      product: String(d.product || ""), version: String(d.version || ""), os: String(d.os || ""),
-      country: String(d.country_name || ""), city: String(d.city || ""), org: String(d.org || ""),
+      ip: String(d.ip_str || ip),
+      port: 0,
+      protocol: "",
+      service: "",
+      product: String(d.product || ""),
+      version: String(d.version || ""),
+      os: String(d.os || ""),
+      country: String(d.country_name || ""),
+      city: String(d.city || ""),
+      org: String(d.org || ""),
       hostnames: Array.isArray(d.hostnames) ? d.hostnames.map(String) : [],
       domains: Array.isArray(d.domains) ? d.domains.map(String) : [],
       vulns: Array.isArray(d.vulns) ? Object.keys(d.vulns).map(String) : [],
@@ -73,12 +91,19 @@ export async function getHostInfo(ip: string): Promise<ShodanHost | null> {
 export async function getAccountInfo(): Promise<{ credits: number; plan: string } | null> {
   if (!SHODAN_API_KEY) return null;
   try {
-    const res = await axios.get(`${BASE_URL}/api-info`, { params: { key: SHODAN_API_KEY }, timeout: 10000 });
+    const res = await axios.get(`${BASE_URL}/api-info`, {
+      params: { key: SHODAN_API_KEY },
+      timeout: 10000,
+    });
     return { credits: Number(res.data.credits || 0), plan: String(res.data.plan || "free") };
   } catch (err) {
-    logger.error(`[Shodan] Account info error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[Shodan] Account info error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
 
-export function isShodanConfigured(): boolean { return SHODAN_API_KEY.length > 0; }
+export function isShodanConfigured(): boolean {
+  return SHODAN_API_KEY.length > 0;
+}

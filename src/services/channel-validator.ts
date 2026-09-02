@@ -22,7 +22,15 @@ export interface ChannelCheckResult {
   label: string;
   envKey: string;
   id: string | null | undefined;
-  status: "ok" | "unchecked" | "missing_env" | "invalid_snowflake" | "not_found" | "not_text" | "no_access" | "skipped";
+  status:
+    | "ok"
+    | "unchecked"
+    | "missing_env"
+    | "invalid_snowflake"
+    | "not_found"
+    | "not_text"
+    | "no_access"
+    | "skipped";
   message: string;
 }
 
@@ -48,8 +56,18 @@ const CHANNELS_TO_VALIDATE: ChannelDef[] = [
   { id: config.fortniteChannel, label: "Fortnite", envKey: "FORTNITE_CHANNEL_ID", optional: true },
   { id: config.steamChannel, label: "Steam News", envKey: "STEAM_CHANNEL_ID", optional: true },
   { id: config.robloxChannel, label: "Roblox", envKey: "ROBLOX_CHANNEL_ID", optional: true },
-  { id: config.instantGamingChannel, label: "Instant Gaming", envKey: "INSTANT_GAMING_CHANNEL_ID", optional: true },
-  { id: config.gamingBlogChannel, label: "Gaming Blog", envKey: "GAMING_BLOG_CHANNEL_ID", optional: true },
+  {
+    id: config.instantGamingChannel,
+    label: "Instant Gaming",
+    envKey: "INSTANT_GAMING_CHANNEL_ID",
+    optional: true,
+  },
+  {
+    id: config.gamingBlogChannel,
+    label: "Gaming Blog",
+    envKey: "GAMING_BLOG_CHANNEL_ID",
+    optional: true,
+  },
   { id: config.twitterChannel, label: "Twitter/X", envKey: "TWITTER_CHANNEL_ID", optional: true },
 
   // -- Logs & monitoring --
@@ -176,13 +194,13 @@ export async function validateChannels(client: Client): Promise<ChannelsValidati
   const passed = results.filter((r) => r.status === "ok").length;
   const warnings = results.filter((r) => r.status === "skipped").length;
   const errors = results.filter(
-    (r) => r.status !== "ok" && r.status !== "skipped" && r.status !== "unchecked"
+    (r) => r.status !== "ok" && r.status !== "skipped" && r.status !== "unchecked",
   ).length;
 
   // Log récapitulatif
   if (errors > 0) {
     logger.warn(
-      `[ChannelValidator] ${passed} salon(s) OK, ${warnings} ignoré(s), ${errors} erreur(s) détectée(s)`
+      `[ChannelValidator] ${passed} salon(s) OK, ${warnings} ignoré(s), ${errors} erreur(s) détectée(s)`,
     );
     for (const r of results) {
       if (r.status !== "ok" && r.status !== "skipped" && r.status !== "unchecked") {
@@ -191,7 +209,7 @@ export async function validateChannels(client: Client): Promise<ChannelsValidati
     }
   } else {
     logger.info(
-      `[ChannelValidator] ✅ ${passed} salon(s) validé(s), ${warnings} ignoré(s), 0 erreur`
+      `[ChannelValidator] ✅ ${passed} salon(s) validé(s), ${warnings} ignoré(s), 0 erreur`,
     );
   }
 

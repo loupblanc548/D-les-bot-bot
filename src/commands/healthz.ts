@@ -1,8 +1,4 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ChatInputCommandInteraction,
-} from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
 import logger from "../utils/logger.js";
 import { prisma } from "../prisma.js";
 import redis from "../utils/redis.js";
@@ -64,9 +60,7 @@ async function checkRedis(): Promise<CheckResult> {
   }
 }
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
+export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const [db, rd] = await Promise.all([checkDatabase(), checkRedis()]);
   const checks = [db, rd];
   const failed = checks.filter((c) => !c.ok);
@@ -88,7 +82,9 @@ export async function handleCommand(
     });
   }
 
-  logger.info("event", {
+  logger.info(
+    "event",
+    {
       cmd: "healthz",
       user: interaction.user.id,
       results: checks.map((c) => ({ name: c.name, ok: c.ok, ms: c.latencyMs })),

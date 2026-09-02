@@ -1,8 +1,4 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ChatInputCommandInteraction,
-} from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
 import logger from "../utils/logger.js";
 
 export const commands = [
@@ -26,9 +22,7 @@ function formatDuration(totalSeconds: number): string {
   return parts.join(" ");
 }
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
+export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const client = interaction.client;
   const mem = process.memoryUsage();
   const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
@@ -49,7 +43,9 @@ export async function handleCommand(
     )
     .setTimestamp(new Date());
 
-  logger.info("event", { cmd: "uptime", user: interaction.user.id, guild: interaction.guildId },
+  logger.info(
+    "event",
+    { cmd: "uptime", user: interaction.user.id, guild: interaction.guildId },
     "/uptime invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

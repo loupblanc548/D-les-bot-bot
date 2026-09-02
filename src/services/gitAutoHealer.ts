@@ -104,7 +104,9 @@ export async function processGitHubIssue(payload: GitHubIssuePayload): Promise<v
         cwd: GITHUB_REPO_DIR,
       });
       fixApplied = true;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // 4. Run verification tests
     let testResult = "No tests run";

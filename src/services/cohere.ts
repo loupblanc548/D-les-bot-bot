@@ -70,7 +70,9 @@ export async function rerankDocuments(
     const data = (await res.json()) as { results?: RerankResult[] };
     return data.results || [];
   } catch (error) {
-    logger.debug(`[Cohere] Rerank error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[Cohere] Rerank error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return [];
   }
 }
@@ -118,7 +120,9 @@ export async function embedTexts(texts: string[]): Promise<number[][] | null> {
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] * a[i];
@@ -169,10 +173,7 @@ export interface ClassifyResult {
  * @param labels Array of possible labels
  * @returns Top label + confidence
  */
-export async function classifyText(
-  text: string,
-  labels: string[],
-): Promise<ClassifyResult | null> {
+export async function classifyText(text: string, labels: string[]): Promise<ClassifyResult | null> {
   if (!config.cohereApiKey || labels.length === 0) return null;
 
   try {
@@ -199,7 +200,9 @@ export async function classifyText(
     if (!result) return null;
     return { label: result.label, confidence: result.confidence };
   } catch (error) {
-    logger.debug(`[Cohere] Classify error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `[Cohere] Classify error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }

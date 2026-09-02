@@ -176,7 +176,9 @@ export async function gravatarLookup(email: string): Promise<string> {
     let profile: any = null;
     try {
       profile = await fetchJson(profileUrl);
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     return JSON.stringify(
       {
         email,

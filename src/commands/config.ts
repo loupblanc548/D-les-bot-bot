@@ -17,9 +17,7 @@ export const data = new SlashCommandBuilder()
   .setName("config")
   .setDescription("Configuration du bot pour ce serveur")
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-  .addSubcommand((sub) =>
-    sub.setName("view").setDescription("Voir la configuration actuelle"),
-  )
+  .addSubcommand((sub) => sub.setName("view").setDescription("Voir la configuration actuelle"))
   .addSubcommand((sub) =>
     sub
       .setName("set")
@@ -31,13 +29,14 @@ export const data = new SlashCommandBuilder()
         opt.setName("value").setDescription("Valeur du paramètre").setRequired(true),
       ),
   )
-  .addSubcommand((sub) =>
-    sub.setName("reset").setDescription("Réinitialiser la configuration"),
-  );
+  .addSubcommand((sub) => sub.setName("reset").setDescription("Réinitialiser la configuration"));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "❌ Cette commande nécessite un serveur.", ephemeral: true });
+    await interaction.reply({
+      content: "❌ Cette commande nécessite un serveur.",
+      ephemeral: true,
+    });
     return;
   }
 
@@ -106,7 +105,10 @@ async function resetConfig(interaction: ChatInputCommandInteraction): Promise<vo
     await prisma.guildConfig.deleteMany({
       where: { guildId: interaction.guildId! },
     });
-    await interaction.reply({ content: "✅ Configuration réinitialisée aux valeurs par défaut.", ephemeral: true });
+    await interaction.reply({
+      content: "✅ Configuration réinitialisée aux valeurs par défaut.",
+      ephemeral: true,
+    });
   } catch {
     await interaction.reply({ content: "❌ Erreur lors de la réinitialisation.", ephemeral: true });
   }

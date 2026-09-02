@@ -11,7 +11,7 @@ export type CmdHandler = (interaction: Interaction, client: Client) => Promise<v
 export type Middleware = (
   interaction: Interaction,
   client: Client,
-  next: () => Promise<void>
+  next: () => Promise<void>,
 ) => Promise<void>;
 
 /**
@@ -19,10 +19,7 @@ export type Middleware = (
  * Modèle "onion" : chaque middleware peut exécuter du code AVANT et APRÈS `next()`.
  * Les middlewares sont exécutés dans l'ordre du tableau.
  */
-export function withMiddleware(
-  handler: CmdHandler,
-  middlewares: Middleware[]
-): CmdHandler {
+export function withMiddleware(handler: CmdHandler, middlewares: Middleware[]): CmdHandler {
   return async (interaction, client) => {
     const dispatch = async (i: number): Promise<void> => {
       if (i >= middlewares.length) {

@@ -447,11 +447,18 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
       const piperBuffer = await generateLocalTTS(text, lang);
       if (piperBuffer && piperBuffer.length > 1000) {
         logger.info(`[VoiceAgent] TTS via Piper local (voix neuronale locale, lang: ${lang})`);
-        try { const { recordPiperTts } = await import("./llmStats.js"); recordPiperTts(); } catch { logger.error("[Silent catch]"); }
+        try {
+          const { recordPiperTts } = await import("./llmStats.js");
+          recordPiperTts();
+        } catch {
+          logger.error("[Silent catch]");
+        }
         return piperBuffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 1. ElevenLabs si configuré (qualité maximale, type ChatGPT)
   try {
@@ -465,7 +472,9 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
         return buffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. Microsoft Edge TTS (gratuit, voix neuronales Azure — qualité ChatGPT/Copilot)
   try {
@@ -474,7 +483,9 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
       logger.info(`[VoiceAgent] TTS via Microsoft Edge TTS (neural, lang: ${lang})`);
       return edgeBuffer;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 3. StreamElements / Amazon Polly (gratuit, voix neuronale naturelle)
   try {
@@ -499,7 +510,9 @@ async function generateTTS(text: string, lang: string, _speed: number): Promise<
         return seBuffer;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 4. Fallback: Google Translate TTS (robotique mais toujours disponible)
   try {
@@ -566,7 +579,9 @@ async function generateEdgeTTS(text: string, lang: string): Promise<Buffer | nul
       resolved = true;
       try {
         ws.close();
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
       resolve(result);
     };
 

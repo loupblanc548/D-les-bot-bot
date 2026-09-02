@@ -17,10 +17,7 @@ const DEFAULT_TTL = 3600; // 1 heure
 const CACHE_PREFIX = "llm:cache:";
 
 function computeCacheKey(prompt: string, model: string): string {
-  const hash = createHash("sha256")
-    .update(`${model}:${prompt}`)
-    .digest("hex")
-    .slice(0, 32);
+  const hash = createHash("sha256").update(`${model}:${prompt}`).digest("hex").slice(0, 32);
   return `${CACHE_PREFIX}${hash}`;
 }
 

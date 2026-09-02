@@ -25,7 +25,9 @@ function readToolsUrl(): string | null {
   try {
     const content = fs.readFileSync(TOOLS_URL_FILE, "utf-8").trim();
     if (content && content.startsWith("http")) return content;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return null;
 }
 
