@@ -65,7 +65,7 @@ import { listModels } from "../services/modelSelector.js";
 import { getUsageStats, getGlobalStats } from "../services/tokenTracker.js";
 import { generateUserSummary, generateUserEmbed } from "../services/userSummary.js";
 import { sendPaginatedEmbed } from "../services/paginationUtil.js";
-import { safeFetch } from "../utils/ssrfGuard.js";
+import { safeFetch, checkUrlForSsrf } from "../utils/ssrfGuard.js";
 
 async function readSetting(guildId: string, key: string): Promise<string | null> {
   try {
@@ -2543,7 +2543,11 @@ export async function handleShadowExtra(
       const url = interaction.options.getString("url", true);
       await interaction.deferReply();
       try {
-        const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+        const res = await safeFetch(
+          url,
+          { method: "HEAD", signal: AbortSignal.timeout(5000) },
+          "shadow/headers",
+        );
         const headers: string[] = [];
         res.headers.forEach((v, k) => headers.push(`**${k}:** ${v}`));
         embed
@@ -2562,7 +2566,11 @@ export async function handleShadowExtra(
         .setDescription(`Domaine: ${domaine}\nVérification en cours...`);
       await interaction.deferReply();
       try {
-        const res = await fetch(`https://${domaine}`, { signal: AbortSignal.timeout(5000) });
+        const res = await safeFetch(
+          `https://${domaine}`,
+          { signal: AbortSignal.timeout(5000) },
+          "shadow/ssl-check",
+        );
         embed.setDescription(`✅ SSL valide — ${res.status} ${res.statusText}`);
       } catch {
         embed.setDescription("❌ SSL invalide ou inaccessible.");
@@ -2576,18 +2584,29 @@ export async function handleShadowExtra(
         .setTitle("🔍 Scan de ports")
         .setDescription(`Host: ${host}\nPorts communs scannés (80, 443, 22, 21, 25, 3389)...`);
       await interaction.deferReply();
+
+      // Sans ce contrôle, la commande sonde le réseau interne de l'hôte du bot.
+      const hostCheck = await checkUrlForSsrf(`http://${host}`, "shadow/port-scan");
+      if (!hostCheck.allowed) {
+        await interaction.editReply(
+          `❌ Scan refusé: \`${host}\` pointe vers une adresse privée ou locale.`,
+        );
+        break;
+      }
+
       const ports = [80, 443, 22, 21, 25, 3389];
       const results: string[] = [];
       for (const port of ports) {
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 2000);
-          await fetch(`http://${host}:${port}`, { signal: controller.signal }).catch(() => {});
-          clearTimeout(timeout);
-          results.push(`Port ${port}: ⚠️ Réponse reçue`);
+          await safeFetch(
+            `http://${host}:${port}`,
+            { signal: AbortSignal.timeout(2000) },
+            "shadow/port-scan",
+          );
+          results.push(`Port ${port}: 🟢 Ouvert`);
         } catch (err) {
-          const isAbort = err instanceof Error && err.name === "AbortError";
-          results.push(`Port ${port}: ${isAbort ? "🔴 Fermé" : "🟡 Potentiellement ouvert"}`);
+          const isAbort = err instanceof Error && err.name === "TimeoutError";
+          results.push(`Port ${port}: ${isAbort ? "🟡 Filtré (timeout)" : "🔴 Fermé"}`);
         }
       }
       embed.setDescription(results.join("\n"));
@@ -2615,7 +2634,7 @@ export async function handleShadowExtra(
       embed.setTitle("📊 Métadonnées").setDescription(`Analyse des métadonnées de: ${url}`);
       await interaction.deferReply();
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        const res = await safeFetch(url, { signal: AbortSignal.timeout(5000) }, "shadow/metadata");
         const contentType = res.headers.get("content-type");
         const contentLength = res.headers.get("content-length");
         embed.addFields(
@@ -2637,7 +2656,11 @@ export async function handleShadowExtra(
       embed.setTitle("🔍 Détection de technologies").setDescription(`Analyse de: ${url}`);
       await interaction.deferReply();
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        const res = await safeFetch(
+          url,
+          { signal: AbortSignal.timeout(5000) },
+          "shadow/tech-detect",
+        );
         const techs: string[] = [];
         const poweredBy = res.headers.get("x-powered-by");
         if (poweredBy) techs.push(`⚡ X-Powered-By: ${poweredBy}`);
