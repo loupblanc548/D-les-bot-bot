@@ -108,8 +108,7 @@ function isPrivateIPv6(ip: string): boolean {
  */
 function normalizeIPInput(input: string): string | null {
   // URL.hostname conserve les crochets autour d'une IPv6 littérale ("[::1]")
-  const unbracketed =
-    input.startsWith("[") && input.endsWith("]") ? input.slice(1, -1) : input;
+  const unbracketed = input.startsWith("[") && input.endsWith("]") ? input.slice(1, -1) : input;
 
   // Si c'est déjà une IP valide
   const family = isIP(unbracketed);
