@@ -23,6 +23,7 @@ import { stopMonthlyMaintenance } from "./cron/monthlyMaintenance.js";
 import { stopTwitterMonitoring } from "./cron/twitterCron.js";
 import { stopMapCleanup } from "./events/messages.js";
 import { closeBrowser } from "./managers/ScraperManager.js";
+import { closeExternalApisBrowser } from "./services/externalApis.js";
 import { disconnectRedis } from "./utils/redis.js";
 import { stopAutoCleanup } from "./services/auto-cleanup.js";
 import { stopLogRetention } from "./cron/logRetention.js";
@@ -125,6 +126,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     ["log-queue", shutdownLogQueue],
     ["opentelemetry", shutdownOpenTelemetry],
     ["scraper-browser", closeBrowser],
+    ["screenshot-browser", closeExternalApisBrowser],
   ]);
 
   await withTimeout("connexions", [

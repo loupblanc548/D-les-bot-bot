@@ -490,19 +490,33 @@ export async function takeScreenshot(targetUrl: string): Promise<Buffer | null> 
   const browser = await getPlaywrightBrowser();
   if (!browser) return null;
 
+  let page: import("playwright").Page | null = null;
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 15000 });
     await page.waitForTimeout(2000);
     const buffer = await page.screenshot({ type: "png" });
-    await page.close();
     return Buffer.from(buffer);
   } catch (error) {
     logger.warn(
       `[ExternalAPI] Screenshot error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return null;
+  } finally {
+    // Un goto/screenshot qui échoue laissait l'onglet ouvert: le navigateur
+    // étant un singleton, les onglets s'accumulaient pour la vie du process.
+    if (page) {
+      await page.close().catch(() => {});
+    }
   }
+}
+
+/** Ferme le navigateur Playwright partagé. Appelé au shutdown. */
+export async function closeExternalApisBrowser(): Promise<void> {
+  if (!playwrightBrowser) return;
+  const browser = playwrightBrowser;
+  playwrightBrowser = null;
+  await browser.close();
 }
 
 // ─── 9. Hugging Face Inference ───────────────────────────────────────────────
