@@ -22,7 +22,7 @@ import {
   getAllAvailableModels,
   ensureAtLeastOneModelAvailable,
 } from "./modelRotation.js";
-import { sanitizeForLlm } from "../utils/promptSanitizer.js";
+import { sanitizeForLlm, wrapUntrustedToolContent } from "../utils/promptSanitizer.js";
 import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
 import {
   ALL_AGENT_TOOLS,
@@ -1627,7 +1627,7 @@ async function runAgentLoopInternal(
       conversation.push({
         role: "tool",
         tool_call_id: result.tool_call_id,
-        content: String(result.content ?? ""),
+        content: wrapUntrustedToolContent(String(result.content ?? "")),
       });
     }
 

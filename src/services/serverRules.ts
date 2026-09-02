@@ -118,7 +118,7 @@ export async function checkMemberProfile(member: GuildMember): Promise<void> {
       );
 
       // Avertir dans le salon général
-      const generalChannel = member.guild.channels.cache.get("1134242473334554774");
+      const generalChannel = member.guild.channels.cache.get(config.generalChannel);
       if (generalChannel?.type === ChannelType.GuildText) {
         const warnMsg = await (generalChannel as TextChannel).send({
           content: `⚠️ ${member}, ton pseudo a été réinitialisé car il ne respecte pas le règlement. Merci de choisir un pseudo approprié.`,
@@ -227,7 +227,7 @@ export async function checkVoiceSoundboard(member: GuildMember): Promise<void> {
       logger.info(`[ServerRules] ${member.user.tag} déconnecté pour soundboard externe`);
 
       // Avertir dans le salon général
-      const generalChannel = member.guild.channels.cache.get("1134242473334554774");
+      const generalChannel = member.guild.channels.cache.get(config.generalChannel);
       if (generalChannel?.type === ChannelType.GuildText) {
         const warnMsg = await (generalChannel as TextChannel).send({
           content: `⚠️ ${member}, les soundboards externes (Voicemod, etc.) sont interdits en vocal (règlement).`,

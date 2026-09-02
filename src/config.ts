@@ -231,6 +231,13 @@ export const config = {
   priceTrackChannel: env.PRICE_TRACK_CHANNEL_ID || "",
   trendsChannel: env.TRENDS_CHANNEL_ID || "",
   viralChannel: env.VIRAL_CHANNEL_ID || "",
+  // Security / community channels — env overrides; hardcoded fallbacks preserve current production
+  reportChannel: env.REPORT_CHANNEL_ID || "1520866527753011220",
+  reportRoleId: env.REPORT_ROLE_ID || "1402362014264983762",
+  boostChannel: env.BOOST_CHANNEL_ID || "1203399031351545887",
+  manualReportChannel: env.MANUAL_REPORT_CHANNEL_ID || "1515767173740757112",
+  creatorsChannel: env.CREATORS_CHANNEL_ID || "1524219631047540826",
+  generalChannel: env.GENERAL_CHANNEL_ID || "1134242473334554774",
 
   // ─── Rate Limiting ────────────────────────────────────────────────────────
   rateLimit: {

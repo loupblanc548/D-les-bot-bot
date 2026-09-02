@@ -421,7 +421,8 @@ export function handleMessageEvents(client: Client) {
       if (message.author.bot) {
         // ── Exception: le bot peut se mentionner lui-même dans le salon
         //    d'alertes revendeurs pour déclencher Quent (via /track-retailer) ──
-        const isRetailerChannel = message.channelId === "1532189747500421152";
+        const isRetailerChannel =
+          Boolean(config.retailerChannel) && message.channelId === config.retailerChannel;
         const isSelfMention = message.mentions.has(client.user!);
         if (isRetailerChannel && isSelfMention) {
           // Traiter comme une mention normale → handleAiChatMention
@@ -562,19 +563,27 @@ export function handleMessageEvents(client: Client) {
       }
 
       // ── Salon de rapports manuels : ping auto ──────────────────────
-      if (message.channel.id === "1515767173740757112" && !message.author.bot) {
-        const REPORT_ROLE_ID = "1402362014264983762";
+      if (
+        config.manualReportChannel &&
+        message.channel.id === config.manualReportChannel &&
+        !message.author.bot
+      ) {
+        const reportRoleId = config.reportRoleId;
         try {
           await message.reply({
-            content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
-            allowedMentions: { roles: [REPORT_ROLE_ID] },
+            content: reportRoleId
+              ? `<@&${reportRoleId}> 📢 Nouveau rapport manuel de <@${message.author.id}>`
+              : `📢 Nouveau rapport manuel de <@${message.author.id}>`,
+            allowedMentions: reportRoleId ? { roles: [reportRoleId] } : undefined,
           });
         } catch {
           // Fallback: send in channel directly
           try {
             await (message.channel as TextChannel).send({
-              content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
-              allowedMentions: { roles: [REPORT_ROLE_ID] },
+              content: reportRoleId
+                ? `<@&${reportRoleId}> 📢 Nouveau rapport manuel de <@${message.author.id}>`
+                : `📢 Nouveau rapport manuel de <@${message.author.id}>`,
+              allowedMentions: reportRoleId ? { roles: [reportRoleId] } : undefined,
             });
           } catch {
             logger.error("[Silent catch]");

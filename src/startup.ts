@@ -7,6 +7,7 @@
 
 import { Client, Events } from "discord.js";
 import logger from "./utils/logger.js";
+import { config } from "./config.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
 import { startSocialFollowMonitoring } from "./services/socialFollow.js";
@@ -313,7 +314,9 @@ export function attachStartupLogic(
 
     // ─── Topic du salon d'alertes revendeurs ─────────────────────────────
     try {
-      const retailerChannel = await client.channels.fetch("1532189747500421152").catch(() => null);
+      const retailerChannel = config.retailerChannel
+        ? await client.channels.fetch(config.retailerChannel).catch(() => null)
+        : null;
       if (retailerChannel?.isTextBased()) {
         const topic =
           "**Suivi de Produits Revendeurs**\n" +

@@ -17,6 +17,7 @@
  */
 import { vi } from "vitest";
 
+// Required env so tests can import `config` without a local .env
 process.env.DISCORD_TOKEN ||= "test-discord-token";
 process.env.DISCORD_CLIENT_ID ||= "123456789012345678";
 process.env.DISCORD_GUILD_ID ||= "123456789012345678";

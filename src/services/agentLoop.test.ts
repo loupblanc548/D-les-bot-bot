@@ -57,7 +57,10 @@ vi.mock("./sambanova.js", () => ({
   isSambaNovaAvailable: () => false,
   getSambaNovaModel: vi.fn(),
 }));
-vi.mock("../utils/promptSanitizer.js", () => ({ sanitizeForLlm: vi.fn((s: string) => s) }));
+vi.mock("../utils/promptSanitizer.js", () => ({
+  sanitizeForLlm: vi.fn((s: string) => s),
+  wrapUntrustedToolContent: vi.fn((s: string) => s),
+}));
 vi.mock("./taskModelRouter.js", () => ({
   classifyTaskComplexity: vi.fn(() => "simple"),
   getModelChainForTask: vi.fn(() => ["test-model"]),

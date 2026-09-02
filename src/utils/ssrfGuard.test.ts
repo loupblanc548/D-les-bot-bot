@@ -62,6 +62,42 @@ describe("ssrfGuard", () => {
       const result = await checkUrlForSsrf("not-a-url", "test");
       expect(result.allowed).toBe(false);
     });
+
+    it("blocks file:// scheme", async () => {
+      const result = await checkUrlForSsrf("file:///etc/passwd", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks ftp:// scheme", async () => {
+      const result = await checkUrlForSsrf("ftp://example.com/file", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks CGNAT range 100.64.0.0/10", async () => {
+      const result = await checkUrlForSsrf("http://100.64.0.1/", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks metadata.google.internal", async () => {
+      const result = await checkUrlForSsrf(
+        "http://metadata.google.internal/computeMetadata/v1",
+        "test",
+      );
+      expect(result.allowed).toBe(false);
+    });
+
+    it("blocks IPv4-mapped IPv6 loopback", async () => {
+      const result = await checkUrlForSsrf("http://[::ffff:127.0.0.1]:80", "test");
+      expect(result.allowed).toBe(false);
+    });
+
+    it("fails closed on unresolvable hostnames", async () => {
+      const result = await checkUrlForSsrf(
+        "http://this-hostname-does-not-exist-xyz123.invalid/",
+        "test",
+      );
+      expect(result.allowed).toBe(false);
+    });
   });
 
   describe("safeFetch", () => {
