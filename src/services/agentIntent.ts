@@ -32,11 +32,12 @@ export function needsAgentLoop(content: string): boolean {
   const text = content.trim();
   if (!text) return false;
   if (isPresencePing(text)) return false;
-  if (text.length > 25) return true;
+  if (TOOL_OR_TASK_RE.test(text)) return true;
+  if (QUESTION_STARTER_RE.test(text)) return true;
   if (/[?？]/.test(text)) return true;
   if (/https?:\/\//i.test(text)) return true;
   if (/\[Image jointe:/i.test(text)) return true;
-  if (TOOL_OR_TASK_RE.test(text)) return true;
-  if (QUESTION_STARTER_RE.test(text)) return true;
+  // Très long brief → agent. Un pavé sans question (paroles, texte à traduire) reste en chat simple.
+  if (text.length > 800) return true;
   return false;
 }

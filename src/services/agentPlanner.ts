@@ -189,9 +189,11 @@ export function detectAmbiguity(userMessage: string): string[] | null {
 
   // ─── Analyse de lien / URL ───
   if (
-    (lower.includes("analyse") || lower.includes("résume") || lower.includes("lis")) &&
+    (lower.includes("analyse") || lower.includes("résume") || /\blis\b/.test(lower)) &&
     (lower.includes("lien") || lower.includes("url") || lower.includes("page")) &&
-    !hasUrl
+    !hasUrl &&
+    words.length < 16 &&
+    !/pas (une |d[' ]?)?(url|lien|page)/i.test(lower)
   ) {
     questions.push("Donne-moi le lien (URL) que tu veux que j'analyse.");
   }

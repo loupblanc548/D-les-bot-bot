@@ -25,6 +25,7 @@ import {
 } from "./responseClassifier.js";
 import { hallucinationDetected } from "./prometheusExporter.js";
 import { isPresencePing } from "./agentIntent.js";
+import { resetAllCircuitBreakers, ensureAtLeastOneModelAvailable } from "./modelRotation.js";
 
 // ─── Sanitization des réponses (délégué au classifieur unique) ───────────────
 
@@ -296,8 +297,8 @@ async function tryForcedProviders(
 /**
  * After an empty / error agent-loop result: keep sanitized content if usable,
  * otherwise retry the full provider chain, then force local LLM with its own
- * timeout budget. Never asks the user to retype: last resort remembers the
- * question so a later « go » retries it.
+ * timeout budget. Never asks the user to retype: we retry in the background
+ * (scheduleSilentRecover) and « go » still works as an optional shortcut.
  */
 export async function recoverChatReply(
   current: string,
@@ -335,6 +336,8 @@ export async function recoverChatReply(
 
     // Skip a second identical cascade: it eats the budget before Ollama can run.
     logger.warn("[ChatResponder] Recovery: cascade failed — forcing local-llm then groq/gemini");
+    resetAllCircuitBreakers();
+    ensureAtLeastOneModelAvailable();
     const delay = options.retryDelayMs ?? (process.env.NODE_ENV === "test" ? 0 : 800);
     if (delay > 0) {
       await new Promise((r) => setTimeout(r, delay));

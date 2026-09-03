@@ -76,12 +76,20 @@ interface BoutiqueData {
 
 // ─── Fetch : récupération et parsing ─────────────────────────────────
 
-const SHOP_API_URL = "https://fortnite-api.com/v2/shop/br?language=fr";
+const SHOP_API_URLS = [
+  "https://fortnite-api.com/v2/shop?language=fr",
+  "https://fortnite-api.com/v2/shop/br?language=fr",
+];
 
 // Cache 15 minutes
 let cachedData: BoutiqueData | null = null;
 let cachedAt = 0;
 const CACHE_TTL = 15 * 60 * 1000;
+
+export function invalidateBoutiqueCache(): void {
+  cachedData = null;
+  cachedAt = 0;
+}
 
 function extractItemNames(entry: FortniteShopEntry): string[] {
   const names: string[] = [];
@@ -101,17 +109,23 @@ export async function fetchBoutique(): Promise<BoutiqueData | null> {
 
   try {
     logger.info("[Boutique] Récupération de la boutique FR...");
-    const res = await fetch(SHOP_API_URL, {
-      headers: { "User-Agent": "DiscordBot/1.0" },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!res.ok) {
-      logger.warn(`[Boutique] HTTP ${res.status} — API indisponible`);
+    let json: FortniteShopApiResponse | null = null;
+    for (const url of SHOP_API_URLS) {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "JohnBot/1.0 (fortnite-shop)" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) {
+        logger.warn(`[Boutique] HTTP ${res.status} sur ${url}`);
+        continue;
+      }
+      json = (await res.json()) as FortniteShopApiResponse;
+      break;
+    }
+    if (!json) {
+      logger.warn("[Boutique] API indisponible");
       return null;
     }
-
-    const json = (await res.json()) as FortniteShopApiResponse;
     if (json.status !== 200 || !json.data?.entries) {
       logger.warn("[Boutique] Réponse API invalide");
       return null;
@@ -556,7 +570,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     if (client && config.boutiqueChannel) {
       try {
         const channel = await client.channels.fetch(config.boutiqueChannel).catch(() => null);
-        if (channel && channel.type === ChannelType.GuildText) {
+        if (
+          channel &&
+          (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildAnnouncement)
+        ) {
           await (channel as TextChannel).send({ embeds: finalEmbeds });
           logger.info(`[Boutique] Embeds envoyés dans le salon ${config.boutiqueChannel}`);
         } else {

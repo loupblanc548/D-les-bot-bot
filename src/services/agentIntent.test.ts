@@ -34,8 +34,9 @@ describe("needsAgentLoop", () => {
     expect(needsAgentLoop("cherche les sorties steam cette semaine")).toBe(true);
   });
 
-  it("treats long messages, URLs and images as agent work", () => {
-    expect(needsAgentLoop("a".repeat(26))).toBe(true);
+  it("treats URLs, images and very long briefs as agent work — not every medium message", () => {
+    expect(needsAgentLoop("a".repeat(26))).toBe(false);
+    expect(needsAgentLoop("a".repeat(801))).toBe(true);
     expect(needsAgentLoop("regarde https://example.com")).toBe(true);
     expect(needsAgentLoop("[Image jointe: https://cdn.discord.com/x.png]")).toBe(true);
   });

@@ -3,7 +3,7 @@ import { Client, EmbedBuilder, TextChannel, ChannelType } from "discord.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { fetchFreeGames } from "../services/epicgames.js";
-import { fetchShop } from "../services/fortnite-api.js";
+import { fetchShop, matchesWishlist } from "../services/fortnite-api.js";
 import { config } from "../config.js";
 
 const FOOTER = { text: "Wishlist Alert • Notifications automatiques" };
@@ -11,7 +11,7 @@ const FOOTER = { text: "Wishlist Alert • Notifications automatiques" };
 // Map plateforme wishlist → salon Discord configuré
 // Epic/Steam: pas d'envoi salon (déjà géré par freeGamesCron et dealsCron)
 const PLATFORM_CHANNELS: Record<string, string> = {
-  fortnite: config.fortniteChannel,
+  fortnite: config.boutiqueChannel || config.fortniteChannel,
   playstation: config.playstationChannel,
   xbox: config.xboxChannel,
   nintendo: config.nintendoChannel,
@@ -35,7 +35,10 @@ async function sendToPlatformChannel(
     return;
   }
   const channel = await client.channels.fetch(channelId).catch((): null => null);
-  if (!channel || channel.type !== ChannelType.GuildText) {
+  if (
+    !channel ||
+    (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildAnnouncement)
+  ) {
     logger.warn(`[WishlistCron] Salon ${channelId} inaccessible ou non textuel pour "${platform}"`);
     return;
   }
@@ -184,7 +187,7 @@ async function checkInstantGamingDeals(_client: Client): Promise<void> {
 
 // Vérifie la boutique Fortnite pour les items en wishlist
 // Envoie dans le salon Fortnite (une seule fois par item) + DM à chaque utilisateur
-async function checkFortniteShop(client: Client): Promise<void> {
+export async function checkFortniteShop(client: Client): Promise<void> {
   if (runningChecks.fortnite) {
     logger.warn("[WishlistCron] checkFortniteShop déjà en cours, skip");
     return;
@@ -226,7 +229,13 @@ async function checkFortniteShop(client: Client): Promise<void> {
     const salonNotifiedItems = new Set<string>();
 
     for (const wish of fortniteWishlists) {
-      const matched = shopMap.get(wish.itemName);
+      let matched: { displayName: string; price: number; rarity: string; icon: string } | undefined;
+      for (const [name, info] of shopMap) {
+        if (matchesWishlist(wish.itemName, name)) {
+          matched = info;
+          break;
+        }
+      }
       if (!matched) continue;
 
       const alreadyNotified =
@@ -291,13 +300,17 @@ export function startWishlistCron(client: Client): void {
     void checkInstantGamingDeals(client);
   });
 
-  // Vérifie la boutique Fortnite toutes les 3 heures (salon + DM)
-  cron.schedule("0 */3 * * *", () => {
-    logger.info("[WishlistCron] Vérification boutique Fortnite...");
-    void checkFortniteShop(client);
-  });
+  // Wishlist Fortnite juste après le reset boutique (02:05 Paris)
+  cron.schedule(
+    "5 2 * * *",
+    () => {
+      logger.info("[WishlistCron] Vérification boutique Fortnite (reset 02h)...");
+      void checkFortniteShop(client);
+    },
+    { timezone: "Europe/Paris" },
+  );
 
   logger.info(
-    "[WishlistCron] Tâches cron wishlist démarrées (Epic 2h DM-only, InstantGaming 4h, Fortnite 3h salon+DM)",
+    "[WishlistCron] Tâches cron wishlist démarrées (Epic 2h DM-only, InstantGaming 4h, Fortnite 02:05 Paris)",
   );
 }

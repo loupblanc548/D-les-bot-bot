@@ -60,11 +60,10 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
     if (vault) fs.rmSync(vault, { recursive: true, force: true });
   });
 
-  it("keeps the Node heap budget at or under 1.5G on a VPS 8 Go profile", () => {
-    expect(MEMORY_CONFIG.V8_HEAP_LIMIT_MB).toBeLessThanOrEqual(4096);
-    const vps8 = MEMORY_CONFIG.PROFILE === "vps8" || MEMORY_CONFIG.PROFILE === "tight";
-    if (vps8) {
-      expect(MEMORY_CONFIG.V8_HEAP_LIMIT_MB).toBeLessThanOrEqual(1536);
+  it("keeps the Node heap under physical RAM and skips LLM prewarm on VPS", () => {
+    expect(MEMORY_CONFIG.V8_HEAP_LIMIT_MB).toBeLessThan(MEMORY_CONFIG.TOTAL_RAM_MB);
+    const vps = MEMORY_CONFIG.PROFILE === "vps8" || MEMORY_CONFIG.PROFILE === "tight";
+    if (vps) {
       expect(MEMORY_CONFIG.SKIP_LLM_PREWARM).toBe(true);
     }
   });

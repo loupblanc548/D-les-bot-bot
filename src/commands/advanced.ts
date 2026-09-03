@@ -836,14 +836,33 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
           });
           return;
         }
-        // Stocker la wishlist dans la DB
-        // Stocker la wishlist via la table Setting
-        await prisma.setting.create({
-          data: {
+        const itemName = identifiant.toLowerCase().trim();
+        await prisma.wishlist.upsert({
+          where: {
+            userId_itemName_platform: { userId, itemName, platform: "fortnite" },
+          },
+          create: {
+            userId,
+            itemName,
+            platform: "fortnite",
+            gameName: identifiant.trim(),
+            guildId: interaction.guildId || null,
+          },
+          update: { gameName: identifiant.trim() },
+        });
+        await prisma.setting.upsert({
+          where: {
+            guildId_key: {
+              guildId: interaction.guildId || "global",
+              key: `fortnite-wishlist:${userId}:${identifiant}`,
+            },
+          },
+          create: {
             guildId: interaction.guildId || "global",
             key: `fortnite-wishlist:${userId}:${identifiant}`,
             value: identifiant,
           },
+          update: { value: identifiant },
         });
 
         // Envoyer un DM à l'utilisateur
@@ -875,6 +894,13 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
           });
           return;
         }
+        await prisma.wishlist.deleteMany({
+          where: {
+            userId,
+            platform: "fortnite",
+            itemName: identifiant.toLowerCase().trim(),
+          },
+        });
         await prisma.setting.deleteMany({
           where: {
             guildId: interaction.guildId || "global",
@@ -887,11 +913,9 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
         break;
       }
       case "list": {
-        const items = await prisma.setting.findMany({
-          where: {
-            guildId: interaction.guildId || "global",
-            key: { startsWith: `fortnite-wishlist:${userId}:` },
-          },
+        const items = await prisma.wishlist.findMany({
+          where: { userId, platform: "fortnite" },
+          orderBy: { createdAt: "desc" },
         });
         const embed = new EmbedBuilder()
           .setColor(0x9b59b6)
@@ -901,15 +925,18 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
 
         if (items.length === 0) {
           embed.setDescription(
-            "Ta wishlist est vide. Utilise `/fortnite-wishlist add` pour ajouter des items.",
+            "Ta wishlist est vide. Utilise `/wishlist` (plateforme Fortnite) pour ajouter des items.",
           );
         } else {
-          embed.setDescription(items.map((i) => `• ${i.value}`).join("\n"));
+          embed.setDescription(items.map((i) => `• ${i.gameName || i.itemName}`).join("\n"));
         }
         await interaction.editReply({ embeds: [embed] });
         break;
       }
       case "clear": {
+        await prisma.wishlist.deleteMany({
+          where: { userId, platform: "fortnite" },
+        });
         await prisma.setting.deleteMany({
           where: {
             guildId: interaction.guildId || "global",

@@ -110,7 +110,8 @@ describe("Discord Integration", () => {
       expect(msg).not.toContain("modèle");
       expect(msg).not.toContain("API");
       expect(msg.length).toBeGreaterThan(20);
-      expect(msg.toLowerCase()).toContain("go");
+      expect(msg.toLowerCase()).toContain("relance");
+      expect(msg.toLowerCase()).not.toContain("go");
     });
   });
 

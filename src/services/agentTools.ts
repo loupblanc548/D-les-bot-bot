@@ -22,6 +22,7 @@ import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
+import { listRecentMentions } from "./mentionInbox.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
@@ -221,6 +222,24 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       parameters: {
         type: "object",
         properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getRecentMentions",
+      description:
+        "Liste les derniers pings @John sur Discord, tous salons confondus (texte, fils, annonces, MP). Utilise ça si on te demande qui t'a mentionné, dans quel salon, ou si tu as raté un ping.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Nombre de pings à renvoyer (défaut 10, max 40)",
+          },
+        },
         required: [],
       },
     },
@@ -1274,6 +1293,7 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Discord & Modération ──
   "deleteMessages",
   "getBotStatus",
+  "getRecentMentions",
   "timeoutUser",
   "getUserInfo",
   "getServerStats",
@@ -1354,6 +1374,8 @@ export async function executeTool(
         return await toolDeleteMessages(args, ctx);
       case "getBotStatus":
         return await toolGetBotStatus(ctx);
+      case "getRecentMentions":
+        return await toolGetRecentMentions(args);
       case "timeoutUser":
         return await toolTimeoutUser(args, ctx);
       case "warnUser":
@@ -1601,6 +1623,30 @@ async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {
       guilds: guildCount,
       status: rssMB >= 300 ? "WARNING" : "OK",
     }),
+  };
+}
+
+async function toolGetRecentMentions(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const limit = Math.min(40, Math.max(1, Number(args.limit) || 10));
+  const recent = listRecentMentions(limit);
+  if (recent.length === 0) {
+    return {
+      success: true,
+      data: "Aucun ping @John enregistré depuis le dernier démarrage.",
+    };
+  }
+  return {
+    success: true,
+    data: JSON.stringify(
+      recent.map((m) => ({
+        when: m.at,
+        who: m.userTag,
+        channel: m.channelName,
+        guild: m.guildName,
+        text: m.content,
+        url: m.url,
+      })),
+    ),
   };
 }
 

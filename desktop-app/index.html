@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot Control Panel</title>
+  <title>John — Control Panel</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#f97316">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/john-panel.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -23,7 +24,7 @@
   <!-- Splash Screen -->
   <div id="splash" role="status" aria-label="Chargement">
     <div class="splash-logo">⚡</div>
-    <div class="splash-title">Bot Control Panel</div>
+    <div class="splash-title">John</div>
     <div class="splash-subtitle">Initialisation...</div>
     <div class="splash-bar"><div class="splash-bar-fill"></div></div>
   </div>
@@ -32,7 +33,7 @@
     <header id="titlebar" role="banner">
       <div id="titlebar-brand">
         <span id="titlebar-dot" aria-hidden="true"></span>
-        Bot Control Panel
+        John — Control Panel
       </div>
       <div id="titlebar-controls" role="group" aria-label="Contrôles de la fenêtre">
         <button onclick="window.electronAPI.minimizeWindow()" title="Réduire" aria-label="Réduire">─</button>
@@ -48,20 +49,24 @@
       <div class="status-item"><span class="status-dot ok" id="sb-rss"></span> Flux</div>
       <div class="status-item"><span class="status-dot ok" id="sb-apis"></span> APIs</div>
       <span id="sb-ping" style="margin-left:auto;display:flex;gap:12px;align-items:center">
+        <span class="live-chip demo" id="live-chip" title="État de la connexion API">DÉMO</span>
+        <button class="icon-btn" type="button" title="Rechercher (Ctrl+K)" onclick="Enhancements.toggleSearch()">⌕</button>
         <span style="cursor:pointer;opacity:0.6" title="Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh" onclick="Notifications.info('Ctrl+1-9: onglets | Ctrl+K: recherche | Ctrl+R: refresh')">⌨</span>
-        <span>Ping: --</span>
+        <span id="sb-ping-val">Ping: --</span>
       </span>
     </div>
 
     <!-- Sidebar -->
     <nav id="sidebar" role="navigation" aria-label="Navigation principale">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">⚡</div>
-        John Helldiver
+        <div class="sidebar-logo-icon">J</div>
+        John
       </div>
       <div class="sidebar-nav">
         <div class="sidebar-section">Monitoring</div>
         <button class="nav-btn active" data-tab="overview"><span class="nav-icon">◉</span> Vue générale</button>
+        <button class="nav-btn" data-tab="chat"><span class="nav-icon">✦</span> Parler à John</button>
+        <button class="nav-btn" data-tab="knowledge"><span class="nav-icon">📚</span> Mémoire</button>
         <button class="nav-btn" data-tab="servers"><span class="nav-icon">🏰</span> Serveurs</button>
         <button class="nav-btn" data-tab="platforms"><span class="nav-icon">☰</span> Gestion des Flux</button>
         <button class="nav-btn" data-tab="logs"><span class="nav-icon">⌨</span> Logs en direct</button>
@@ -83,7 +88,7 @@
       <div class="sidebar-footer">
         <span class="ws-indicator" id="ws-indicator"></span>
         <span id="ws-status">Déconnecté</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">v1.1.0</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">v1.2.0</span>
       </div>
     </nav>
 
@@ -147,6 +152,26 @@
             <div class="bento-value" id="bento-cpu-val">--</div>
             <div class="bento-label">Usage process</div>
           </div>
+          <div class="bento-cell bento-cell--sm bento-cell--accent" id="bento-shop">
+            <div class="bento-title">Boutique FN</div>
+            <div class="bento-value" id="bento-shop-val">--</div>
+            <div class="bento-label" id="bento-shop-label">Dernier envoi</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple" id="bento-wish">
+            <div class="bento-title">Wishlist FN</div>
+            <div class="bento-value" id="bento-wish-val">--</div>
+            <div class="bento-label">Items suivis</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan" id="bento-vault">
+            <div class="bento-title">Mémoire</div>
+            <div class="bento-value" id="bento-vault-val">--</div>
+            <div class="bento-label" id="bento-vault-label">Sujets appris</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success" id="bento-ai">
+            <div class="bento-title">Modèle</div>
+            <div class="bento-value bento-value--sm" id="bento-ai-val">--</div>
+            <div class="bento-label">IA de John</div>
+          </div>
           <div class="bento-cell bento-cell--md bento-cell--neutral" id="bento-activity">
             <div class="bento-title">Activité récente</div>
             <div class="activity-list" id="activity-feed" style="max-height:200px">
@@ -175,6 +200,72 @@
             <div class="chart-box"><div class="chart-title">Latence Discord (ms)</div><canvas id="chart-ping"></canvas></div>
             <div class="chart-box"><div class="chart-title">Événements</div><canvas id="chart-events"></canvas></div>
           </div>
+        </div>
+      </div>
+
+      <!-- TAB: Chat John -->
+      <div id="tab-chat" class="tab">
+        <div class="row-header">
+          <h2>Parler à John</h2>
+          <div class="actions">
+            <label class="toggle-inline">
+              <input type="checkbox" id="chat-use-tools" checked>
+              <span>Outils</span>
+            </label>
+            <button class="btn btn-sm" type="button" onclick="JohnChat.clear()">Vider</button>
+          </div>
+        </div>
+        <div class="chat-shell">
+          <div class="chat-thread" id="john-chat-thread">
+            <div class="chat-bubble chat-bubble--john">
+              Salut. Je suis John. Tu peux me parler ici comme sur Discord — boutique Fortnite, wishlist, ou n’importe quoi.
+            </div>
+          </div>
+          <form class="chat-composer" onsubmit="JohnChat.send(event)">
+            <input id="john-chat-input" type="text" maxlength="4000" placeholder="Écris à John…" autocomplete="off">
+            <button class="btn btn-primary" type="submit">Envoyer</button>
+          </form>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">Pings Discord (tous salons)</div>
+          <p class="muted-copy" id="john-ping-empty">Aucun ping récent. Dès que quelqu’un @John n’importe où, ça apparaît ici.</p>
+          <ul class="ping-list" id="john-ping-list"></ul>
+        </div>
+      </div>
+
+      <!-- TAB: Knowledge -->
+      <div id="tab-knowledge" class="tab">
+        <div class="row-header">
+          <h2>Mémoire / apprentissage</h2>
+          <div class="actions">
+            <button class="btn btn-sm btn-primary" type="button" onclick="Dashboard.fetchLearn()">Actualiser</button>
+          </div>
+        </div>
+        <div class="bento-grid">
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Appris</div>
+            <div class="bento-value" id="learn-count">--</div>
+            <div class="bento-label">Sujets en vault</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--cyan">
+            <div class="bento-title">File</div>
+            <div class="bento-value" id="learn-remaining">--</div>
+            <div class="bento-label">Encore à apprendre</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--success">
+            <div class="bento-title">Batch</div>
+            <div class="bento-value" id="learn-batch">--</div>
+            <div class="bento-label">Pages / cycle</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Statut</div>
+            <div class="bento-value bento-value--sm" id="learn-status">--</div>
+            <div class="bento-label" id="learn-status-label">Self-learner</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">Ce que ça veut dire</div>
+          <p class="muted-copy">John apprend tout seul depuis Wikipedia et range ça dans le vault Obsidian. Le cron Fortnite n’a rien à voir : la boutique part à 2h00 Paris dans le salon d’annonces.</p>
         </div>
       </div>
 
@@ -220,6 +311,7 @@
         <div class="row-header">
           <h2>🎮 Fortnite</h2>
           <div class="actions">
+            <button class="btn btn-sm btn-primary" onclick="postFortniteShop()">Envoyer la boutique</button>
             <button class="btn btn-sm btn-magnetic" onclick="refreshFortnite()">↻ Actualiser</button>
             <button class="btn btn-sm btn-magnetic" onclick="testFortniteDetection()">🧪 Test détection</button>
           </div>
@@ -245,6 +337,16 @@
             <div class="bento-value" id="fn-accounts">--</div>
             <div class="bento-label">Sources suivies</div>
           </div>
+          <div class="bento-cell bento-cell--sm bento-cell--accent">
+            <div class="bento-title">Dernier post</div>
+            <div class="bento-value bento-value--sm" id="fn-last-post">--</div>
+            <div class="bento-label" id="fn-shop-date">Salon boutique</div>
+          </div>
+          <div class="bento-cell bento-cell--sm bento-cell--purple">
+            <div class="bento-title">Wishlist</div>
+            <div class="bento-value" id="fn-wishlist-count">--</div>
+            <div class="bento-label">Items en base</div>
+          </div>
           <div class="bento-cell bento-cell--md bento-cell--neutral">
             <div class="bento-title">📡 Détections récentes</div>
             <div class="activity-list" id="fortnite-feed" style="margin-top:8px;max-height:200px;overflow-y:auto">
@@ -255,6 +357,12 @@
             <div class="bento-title">🛒 Shop du jour</div>
             <div id="fortnite-shop-preview" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
               <div class="empty-state"><div class="empty-icon">🛒</div>Chargement...</div>
+            </div>
+          </div>
+          <div class="bento-cell bento-cell--wide bento-cell--neutral">
+            <div class="bento-title">Liste de souhaits Fortnite</div>
+            <div id="fortnite-wishlist" class="wish-list">
+              <div class="empty-state"><div class="empty-icon">🎮</div>Aucun item suivi — utilise /wishlist</div>
             </div>
           </div>
         </div>
@@ -414,8 +522,8 @@
         <div class="row-header"><h2>⚙ Paramètres</h2></div>
         <div class="card" style="padding:20px">
           <div class="settings-section" id="settings-railway">
-            <div class="settings-title">🔗 Connexion Railway</div>
-            <div class="setting-desc" style="margin-bottom:12px">Configure l'URL de ton bot sur Railway et le token de contrôle.</div>
+            <div class="settings-title">🔗 Connexion VPS</div>
+            <div class="setting-desc" style="margin-bottom:12px">URL du control server (VPS, port 3002) et token <code>CONTROL_TOKEN</code>.</div>
           </div>
           <div class="settings-section">
             <div class="settings-title">🎨 Thème</div>
@@ -462,7 +570,7 @@
           <div class="settings-section">
             <div class="settings-title">📦 À propos</div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
-              <div style="font-size:12px;color:var(--text-muted)">Version: <b style="color:var(--text)">v1.1.0</b></div>
+              <div style="font-size:12px;color:var(--text-muted)">Version: <b style="color:var(--text)">v1.2.0</b></div>
               <div style="font-size:12px;color:var(--text-muted)">Electron: <b style="color:var(--text)" id="settings-electron-ver">--</b></div>
               <div style="font-size:12px;color:var(--text-muted)">Node: <b style="color:var(--text)" id="settings-node-ver">--</b></div>
             </div>
@@ -986,6 +1094,7 @@
   <script src="js/amazon.js"></script>
   <script src="js/minecraft.js"></script>
   <script src="js/enhancements.js"></script>
+  <script src="js/john-chat.js"></script>
   <script src="js/dashboard.js"></script>
 
   <script>
@@ -1040,6 +1149,7 @@
     })();
 
     document.addEventListener("DOMContentLoaded", function() {
+      if (navigator.userAgent.includes("Electron")) document.body.classList.add("is-electron");
       if (window.AuthGuard) AuthGuard.injectLoginScreen();
       if (window.Enhancements) Enhancements.init();
       Charts.init();
@@ -1050,6 +1160,7 @@
       Music.init();
       Minecraft.init();
       Dashboard.init();
+      if (window.JohnChat) JohnChat.init();
       WS.connect();
     });
   </script>

@@ -31,17 +31,17 @@ const Dashboard = {
       Store.update("settings", s);
       const tab = document.getElementById("tab-settings");
       if (tab && !tab.querySelector("#setting-api-url")) {
-        const defaultUrl = s.apiUrl || "https://d-les-bot-bot-production.up.railway.app";
+        const defaultUrl = s.apiUrl || "http://31.220.79.90:3002";
         const defaultToken = s.token || "";
         const safeToken = defaultToken.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const safeUrl = defaultUrl.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const section = document.createElement("div");
         section.className = "settings-section";
         section.innerHTML = `
-          <div class="settings-title">🔗 Connexion Railway</div>
+          <div class="settings-title">🔗 Connexion VPS</div>
           <div class="setting-row" style="flex-direction:column;align-items:stretch">
             <div class="setting-label">URL API du bot</div>
-            <div class="setting-desc">L'URL de ton bot sur Railway</div>
+            <div class="setting-desc">Control server John (VPS, port 3002)</div>
             <input type="text" id="setting-api-url" value="${safeUrl}" style="width:100%;padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;margin-top:6px">
           </div>
           <div class="setting-row" style="flex-direction:column;align-items:stretch">
@@ -81,6 +81,10 @@ const Dashboard = {
         if (btn.dataset.tab === "fortnite") {
           var badge = document.getElementById("fn-badge");
           if (badge) { badge.textContent = "0"; badge.style.display = "none"; }
+          API.fetchFortnite().catch(() => {});
+        }
+        if (btn.dataset.tab === "knowledge") {
+          Dashboard.fetchLearn();
         }
       });
     });
@@ -91,6 +95,17 @@ const Dashboard = {
     window.triggerCleanup = () => API.triggerCleanup();
     window.togglePlatform = (id, enable) => API.togglePlatform(id, enable);
     window.refreshFortnite = () => { API.fetchFortnite(); Notifications.info("Actualisation Fortnite..."); };
+    window.postFortniteShop = async () => {
+      try {
+        Notifications.info("Envoi de la boutique…");
+        const result = await window.electronAPI.apiFetch("/api/fortnite/shop-post", { method: "POST" });
+        if (result?.success) Notifications.success("Boutique envoyée dans le salon");
+        else Notifications.warning(result?.error || "Boutique déjà postée ou API pas prête");
+        API.fetchFortnite().catch(() => {});
+      } catch (e) {
+        Notifications.error("Envoi boutique impossible: " + (e.message || "erreur"));
+      }
+    };
     window.testFortniteDetection = async () => {
       try {
         await window.electronAPI.apiFetch("/api/fortnite/test", { method: "POST" });
@@ -206,6 +221,7 @@ const Dashboard = {
     API.fetchPlatforms().catch(() => {});
     API.fetchFortnite().catch(() => {});
     API.fetchHealth().catch(() => {});
+    this.fetchLearn();
     this._fetchLogs();
     this._refreshInterval = setInterval(() => API.fetchStatus().catch(() => {}), 10000);
     this._platformsInterval = setInterval(() => API.fetchPlatforms().catch(() => {}), 30000);
@@ -238,7 +254,9 @@ const Dashboard = {
       const dot = document.getElementById("titlebar-dot");
       if (dot) dot.className = "offline";
       this._updateBento({ online: false, uptime: 0, ping: -1, memMb: 0, guilds: 0, members: 0, commands: 0, cpu: 0 });
-      document.getElementById("sb-ping").textContent = "Ping: --";
+      const pingOff = document.getElementById("sb-ping-val") || document.getElementById("sb-ping");
+    if (pingOff) pingOff.textContent = "Ping: --";
+    this._setLiveChip("off");
       this._updateGauge(0);
 
       // Update status bar dots
@@ -264,8 +282,10 @@ const Dashboard = {
     const ping = data.ping ?? -1;
     const cpu = data.cpuPercent ?? 0;
 
-    this._updateBento({ online: data.online, uptime: data.uptime, ping, memMb, guilds, members, commands: data.commands || 0, cpu });
-    document.getElementById("sb-ping").textContent = "Ping: " + (ping >= 0 ? ping + "ms" : "--");
+    this._updateBento({ online: data.online, uptime: data.uptime, ping, memMb, guilds, members, commands: data.commands || 0, cpu, john: data.john });
+    const pingEl = document.getElementById("sb-ping-val") || document.getElementById("sb-ping");
+    if (pingEl) pingEl.textContent = "Ping: " + (ping >= 0 ? ping + "ms" : "--");
+    this._setLiveChip(data.__demo ? "demo" : data.online ? "live" : "off");
 
     this._updateGauge(cpu);
     Charts.record(cpu, memMb, Math.max(0, ping), this._eventsCounter);
@@ -279,6 +299,39 @@ const Dashboard = {
     set("ctrl-uptime", data.online ? Utils.formatUptime(data.uptime) : "--");
     set("ctrl-ping", data.online ? (ping >= 0 ? ping + "ms" : "--") : "--");
     set("ctrl-ram", data.online ? (memMb ? memMb + " MB" : "--") : "--");
+  },
+
+  _setLiveChip(state) {
+    const chip = document.getElementById("live-chip");
+    if (!chip) return;
+    chip.className = "live-chip " + state;
+    chip.textContent = state === "live" ? "LIVE" : state === "off" ? "OFF" : "DÉMO";
+  },
+
+  async fetchLearn() {
+    try {
+      const data = await window.electronAPI.apiFetch("/api/learn");
+      this._renderLearn(data);
+    } catch {
+      this._renderLearn(null);
+    }
+  },
+
+  _renderLearn(data) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    if (!data) {
+      set("learn-count", "--");
+      set("learn-remaining", "--");
+      set("learn-batch", "--");
+      set("learn-status", "Hors ligne");
+      return;
+    }
+    set("learn-count", Utils.formatNumber(data.subjectsLearned || 0));
+    set("learn-remaining", Utils.formatNumber(data.subjectsRemaining || 0));
+    set("learn-batch", String(data.batchSize || 0));
+    set("learn-status", data.isLearning ? "Apprend" : data.active ? "Actif" : "Pause");
+    const label = document.getElementById("learn-status-label");
+    if (label) label.textContent = data.webScanActive ? "Wiki + web" : "Self-learner";
   },
 
   _updateGauge(score) {
@@ -301,6 +354,15 @@ const Dashboard = {
     set("bento-ram-val", d.online ? (d.memMb ? d.memMb + " MB" : "--") : "--");
     set("bento-cmds-val", d.online ? Utils.formatNumber(d.commands || 0) : "--");
     set("bento-cpu-val", d.online ? (d.cpu ? d.cpu.toFixed(1) + "%" : "--") : "--");
+    const john = d.john || {};
+    set("bento-shop-val", john.shopLastPosted || "--");
+    set("bento-wish-val", john.wishlistCount != null ? Utils.formatNumber(john.wishlistCount) : "--");
+    set("bento-vault-val", john.subjectsLearned != null ? Utils.formatNumber(john.subjectsLearned) : "--");
+    set("bento-ai-val", john.model ? String(john.model).split("/").pop() : "--");
+    const shopLabel = document.getElementById("bento-shop-label");
+    if (shopLabel) shopLabel.textContent = john.shopLastPosted ? "Dernier envoi" : "Pas encore postée";
+    const vaultLabel = document.getElementById("bento-vault-label");
+    if (vaultLabel) vaultLabel.textContent = john.learnerBusy ? "En train d’apprendre" : "Sujets appris";
 
     const statusLabel = document.getElementById("bento-status-label");
     if (statusLabel) {
@@ -454,6 +516,10 @@ const Dashboard = {
     set("fn-news", Utils.formatNumber(data.news || 0));
     set("fn-skins", Utils.formatNumber(data.skins || 0));
     set("fn-accounts", Utils.formatNumber(data.accounts?.length || 0));
+    set("fn-last-post", data.shopLastPosted || "--");
+    set("fn-wishlist-count", Utils.formatNumber(data.cosmeticsTracked || data.wishlist?.length || 0));
+    const dateEl = document.getElementById("fn-shop-date");
+    if (dateEl) dateEl.textContent = data.shopDate ? "Shop " + data.shopDate.slice(0, 10) : "Salon boutique";
 
     if (data.detections?.length) {
       document.getElementById("fortnite-feed").innerHTML = data.detections.slice(0, 15).map((d) => {
@@ -466,12 +532,26 @@ const Dashboard = {
     }
 
     if (data.shop?.length) {
-      document.getElementById("fortnite-shop-preview").innerHTML = data.shop.slice(0, 6).map((item, i) => {
+      document.getElementById("fortnite-shop-preview").innerHTML = data.shop.slice(0, 8).map((item, i) => {
         const color = Utils.getRarityColor(item.rarity);
-        return '<div class="fn-shop-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-tertiary);border-radius:var(--radius-sm);animation:slideIn 0.3s ease ' + (i * 0.05) + 's both"><span style="font-size:20px">' + (item.icon || '🎮') + '</span><div style="flex:1"><div style="font-weight:600;font-size:12px">' + Utils.escapeHtml(item.name) + '</div><span style="font-size:10px;color:var(--text-muted)">' + (item.rarity || 'common') + '</span></div><span style="font-weight:700;font-size:12px;color:' + color + '">' + (item.price || '—') + ' V-Bucks</span></div>';
+        const icon = item.icon && String(item.icon).startsWith("http")
+          ? '<img src="' + Utils.escapeHtml(item.icon) + '" alt="" width="32" height="32" style="border-radius:6px;object-fit:cover">'
+          : '<span style="font-size:20px">🎮</span>';
+        return '<div class="fn-shop-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-tertiary);border-radius:var(--radius-sm);animation:slideIn 0.3s ease ' + (i * 0.05) + 's both">' + icon + '<div style="flex:1"><div style="font-weight:600;font-size:12px">' + Utils.escapeHtml(item.name) + '</div><span style="font-size:10px;color:var(--text-muted)">' + (item.rarity || 'common') + '</span></div><span style="font-weight:700;font-size:12px;color:' + color + '">' + (item.price || '—') + ' V-Bucks</span></div>';
       }).join("");
     } else {
       document.getElementById("fortnite-shop-preview").innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Shop non disponible — en attente de données</div>';
+    }
+
+    const wishEl = document.getElementById("fortnite-wishlist");
+    if (wishEl) {
+      if (!data.wishlist?.length) {
+        wishEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🎮</div>Aucun item suivi — utilise /wishlist</div>';
+      } else {
+        wishEl.innerHTML = data.wishlist.map((w) =>
+          '<span class="wish-chip">' + Utils.escapeHtml(w.gameName || w.itemName) + "</span>"
+        ).join("");
+      }
     }
   },
 };

@@ -93,13 +93,21 @@ export async function handleAIChat(client: Client, message: Message): Promise<vo
     logger.error("[AIChat] Error:", error);
     try {
       const { noteUnansweredQuestion } = await import("../../services/chatResponder.js");
-      const { FALLBACK_MESSAGE } = await import("../../services/responseClassifier.js");
+      const { scheduleSilentRecover } = await import("../../services/silentRecover.js");
       noteUnansweredQuestion(message.author.id, message.content);
-      await message.reply({ content: FALLBACK_MESSAGE });
+      const placeholder = await message.reply({
+        content: "💭 Un instant, je relance…",
+        allowedMentions: { repliedUser: false },
+      });
+      scheduleSilentRecover({
+        userId: message.author.id,
+        question: message.content,
+        placeholder,
+        guildId: message.guildId ?? undefined,
+      });
     } catch {
       await message.reply({
-        content:
-          "Les canaux IA sont saturés là. Envoie **go** et je relance, sans que tu aies à retaper.",
+        content: "Je relance ça tout seul — tu n'as rien à renvoyer.",
       });
     }
   }

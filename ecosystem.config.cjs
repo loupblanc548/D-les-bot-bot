@@ -1,10 +1,12 @@
 /**
  * ecosystem.config.cjs — PM2
  *
- * Heap et max_memory_restart suivent la RAM réelle :
+ * Heap au max de la RAM réelle, avec une réserve OS :
  *   ≤5 Go  → 1024 Mo
- *   <14 Go → 1536 Mo  (VPS 8 Go)
- *   ≥14 Go → 4096 Mo  (mini PC)
+ *   <14 Go → RAM − 1792 Mo  (VPS 8 Go → ~6.2 Go)
+ *   ≥14 Go → RAM − 4096 Mo  (mini PC)
+ *
+ * max_memory_restart est plafonné à RAM − 768 Mo pour laisser l'OS respirer.
  */
 const os = require("os");
 
@@ -13,14 +15,16 @@ const forced = parseInt(process.env.NODE_MAX_OLD_SPACE_MB || "", 10);
 
 function heapMb(ram) {
   if (Number.isFinite(forced) && forced > 256) return forced;
-  if (process.env.WORKER_MODE === "1" || process.env.FORCE_LOCAL_MEMORY === "1") return 4096;
+  if (process.env.WORKER_MODE === "1" || process.env.FORCE_LOCAL_MEMORY === "1") {
+    return Math.max(4096, ram - 2048);
+  }
   if (ram <= 5120) return 1024;
-  if (ram < 14336) return 1536;
-  return 4096;
+  if (ram < 14336) return Math.max(1536, ram - 1792);
+  return Math.max(4096, ram - 4096);
 }
 
 const heap = heapMb(totalMb);
-const restartMb = Math.round(heap * 1.2);
+const restartMb = Math.min(Math.round(heap * 1.2), Math.max(heap + 256, totalMb - 768));
 
 module.exports = {
   apps: [

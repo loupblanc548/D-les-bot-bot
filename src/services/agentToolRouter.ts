@@ -6597,6 +6597,7 @@ export function routeTools(
       "ask_user_question",
       "think_step_by_step",
       "delegate_to_expert",
+      "getRecentMentions",
     ]);
     const essential = allTools.filter((t) => ALWAYS_INCLUDE.has(t.function.name));
     const filtered = filterAvailableTools(essential);

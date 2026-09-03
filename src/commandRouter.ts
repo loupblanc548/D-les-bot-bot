@@ -54,6 +54,10 @@ import {
   handleCommand as handleGameGroup,
   handleFnbotCommand,
 } from "./commands/gameGroup.js";
+import {
+  commands as wishlistCommands,
+  handleCommand as handleWishlistCommand,
+} from "./commands/fun/wishlist.js";
 import { commands as minecraftGroupCommands } from "./commands/minecraftGroup.js";
 import {
   commands as ticketGroupCommands,
@@ -373,10 +377,10 @@ const REMOVED_COMMANDS = new Set([
   "epic-calendar",
   "steam",
   "steam-deals",
-  "wishlist",
   "wishlist-stats",
   "wishlist-notify",
   "boutique",
+  // /wishlist remis : ajouts Fortnite + notifs boutique
   // fortnite-wishlist & fortnite-shop-preview are KEPT (not removed)
   "xbox",
   "twitch",
@@ -473,6 +477,7 @@ export const allCommands = [
   ...securityGroupCommands, // 2. /security (osint, audit, config...)
   ...aiGroupCommands, // 3. /ai (chat, image, translate, config...)
   ...gameGroupCommands, // 4. /game (track, news, free-games, steam...)
+  ...wishlistCommands, // /wishlist Fortnite + multi-plateforme
   ...fnbotCommands, // 4b. /fnbot (Fortnite Party Bot)
   ...minecraftGroupCommands, // 4c. /mc (Minecraft Bedrock Bot)
   ...adminGroupCommands, // 5. /admin (config, database, roles...)
@@ -555,6 +560,10 @@ export function buildCommandRouter(): void {
   registerGroup(["ai"], handleAiGroup);
   registerGroup(["game"], handleGameGroup);
   registerGroup(["fnbot"], handleFnbotCommand);
+  commandRouter["wishlist"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleWishlistCommand(interaction as ChatInputCommandInteraction);
+  };
   // mc et bot sont maintenant dynamiques ↑
   registerGroup(["admin"], handleAdminGroup);
   // bot est maintenant dynamique ↑
@@ -733,6 +742,7 @@ export async function registerCommands(): Promise<void> {
       "ticket",
       "mod",
       "security",
+      "wishlist",
     ]);
     const hidden = mergedCommands.length;
     const publicCommands = mergedCommands.filter((cmd) => {

@@ -25,6 +25,12 @@ import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import { saveQA } from "../services/obsidianMemory.js";
 import { isTesterBot } from "../utils/testerBots.js";
 import {
+  isJohnPinged,
+  recordIncomingPing,
+  mentionAwarenessBlock,
+  isSendableChannel,
+} from "../services/mentionInbox.js";
+import {
   checkMessageMediaForAI,
   checkMessageLinksForSecurity,
 } from "../services/aiAvatarDetector.js";
@@ -55,6 +61,7 @@ import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
+import { scheduleSilentRecover } from "../services/silentRecover.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
 import { sendArtifacts } from "../services/artifacts.js";
 import { touchConversation, checkExpiredConversations } from "../services/aiConversation.js";
@@ -370,20 +377,33 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (message.author.bot) {
-        const isSelfMention = message.mentions.has(client.user!);
+        const isSelfMention = client.user ? isJohnPinged(message, client.user.id) : false;
         const isRetailerChannel =
           Boolean(config.retailerChannel) && message.channelId === config.retailerChannel;
         // Tester bot (« encore un test ») may @John so we can drive live checks.
         if (isSelfMention && (isTesterBot(message.author.id) || isRetailerChannel)) {
+          recordIncomingPing(message);
           await handleAiChatMention(message, client);
           return;
         }
         return;
       }
 
+      if (client.user && isJohnPinged(message, client.user.id)) {
+        recordIncomingPing(message);
+      }
+
       // ── DM (Message Privé) → l'agent IA répond directement ──
       if (!message.guild) {
         await handleDMMessage(message, client);
+        return;
+      }
+
+      // ── Ping John : n'importe quel salon (texte, fil, annonce, vocal) ──
+      if (client.user && isJohnPinged(message, client.user.id)) {
+        const handled = await handleVoiceCommand(message, client);
+        if (handled) return;
+        await handleAiChatMention(message, client);
         return;
       }
 
@@ -551,26 +571,9 @@ export function handleMessageEvents(client: Client) {
       const ruleViolated = await enforceServerRules(message);
       if (ruleViolated) return;
 
-      const isMentioningBot = message.mentions.has(client.user!);
+      // Les @pings John sont déjà traités en tête de handler (tous salons).
 
-      // ═══════════════════════════════════════════════════════════════════
-      // PROTECTION MUTUELLE : Un message NE PEUT PAS déclencher
-      // le chat IA ET la traduction automatique simultanément.
-      // ═══════════════════════════════════════════════════════════════════
-
-      // ── BRANCHEMENT 0 : @bot parle texte:"..." → TTS vocal ───────────
-      if (isMentioningBot) {
-        const handled = await handleVoiceCommand(message, client);
-        if (handled) return;
-      }
-
-      // ── BRANCHEMENT 1 : MODE CHAT IA (@mention du bot) ────────────────
-      if (isMentioningBot) {
-        await handleAiChatMention(message, client);
-        return; // ← PROTECTION MUTUELLE : on sort immédiatement
-      }
-
-      // ── BRANCHEMENT 2 : MODE TRADUCTION AUTOMATIQUE (pas de @mention) ─
+      // ── MODE TRADUCTION AUTOMATIQUE (pas de @mention) ─
       await handleAutoTranslation(message);
 
       // ── Les modules de sécurité continuent après la traduction ────────
@@ -1427,10 +1430,49 @@ async function generateEdgeTTS(
 // BRANCHEMENT 1 : CHAT IA PAR @MENTION
 // =============================================================================
 
+function discordChatPrompt(): string {
+  return buildPersonalitySystemPrompt(config.aiSystemPrompt) + mentionAwarenessBlock();
+}
+
+async function retryInsteadOfGo(
+  message: Message,
+  question: string,
+  statusIndicator: AgentStatusIndicator,
+): Promise<void> {
+  void statusIndicator.cleanup();
+  const placeholder = await message
+    .reply({ content: "💭 Un instant, je relance…", allowedMentions: { repliedUser: false } })
+    .catch(() => null);
+  if (!placeholder) return;
+  scheduleSilentRecover({
+    userId: message.author.id,
+    question,
+    placeholder,
+    systemPrompt: discordChatPrompt(),
+    guildId: message.guildId ?? undefined,
+  });
+}
+
+function markTalkingOnline(client: Client): void {
+  const user = client.user;
+  if (!user) return;
+  void Promise.resolve(
+    user.setPresence({
+      status: "online",
+      activities: [{ name: "Surveille les Helldivers", type: 3 }],
+    }),
+  ).catch(() => undefined);
+}
+
 async function handleAiChatMention(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
   client: Client,
 ): Promise<void> {
+  markTalkingOnline(client);
+  if (!isSendableChannel(message)) {
+    logger.warn(`[AIChat] Ping reçu mais salon non textuel: ${message.channelId}`);
+    return;
+  }
   const statusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   let userLang: SupportedLang = "fr";
   try {
@@ -1475,7 +1517,7 @@ async function handleAiChatMention(
       try {
         const { respondChat } = await import("../services/chatResponder.js");
         const result = await respondChat(cleanedContent || "tu es là ?", [], {
-          systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+          systemPrompt: discordChatPrompt(),
           temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
@@ -1556,7 +1598,9 @@ async function handleAiChatMention(
     }
 
     // ── Indicateur de frappe minimal (non-bloquant) ──
-    (message.channel as TextChannel).sendTyping().catch(() => {});
+    if (message.channel.isTextBased() && "sendTyping" in message.channel) {
+      (message.channel as TextChannel).sendTyping().catch(() => {});
+    }
 
     // ── Pré-traitement en arrière-plan (non-bloquant) ──
     touchConversation(message.author.id);
@@ -1665,7 +1709,7 @@ async function handleAiChatMention(
         const { respondChat } = await import("../services/chatResponder.js");
         const streamMsg = await (message as Message).reply("💭 ...");
         const result = await respondChat(enrichedContent, [], {
-          systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+          systemPrompt: discordChatPrompt(),
           temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
@@ -1728,7 +1772,7 @@ async function handleAiChatMention(
     if (!aiResponse || isErrorResponse(aiResponse)) {
       logger.warn(`[AIChat] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
       aiResponse = await recoverChatReply(aiResponse, enrichedContent, {
-        systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+        systemPrompt: discordChatPrompt(),
         userId: message.author.id,
         guildId: message.guildId ?? undefined,
         maxTokens: 1500,
@@ -1748,6 +1792,11 @@ async function handleAiChatMention(
       !isCannedFallback(aiResponse)
     ) {
       void setCachedResponse(enrichedContent, aiResponse, message.author.id);
+    }
+
+    if (isCannedFallback(aiResponse) || !aiResponse.trim()) {
+      await retryInsteadOfGo(message as Message, enrichedContent, statusIndicator);
+      return;
     }
 
     if (aiResponse) {
@@ -2007,7 +2056,9 @@ async function handleDMMessage(
     }
 
     // ── Indicateur de frappe minimal (non-bloquant) ──
-    (message.channel as TextChannel).sendTyping().catch(() => {});
+    if (message.channel.isTextBased() && "sendTyping" in message.channel) {
+      (message.channel as TextChannel).sendTyping().catch(() => {});
+    }
 
     if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
       dmImageUrls = [
@@ -2104,7 +2155,7 @@ async function handleDMMessage(
     if (!aiResponse || isErrorResponse(aiResponse)) {
       logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
       aiResponse = await recoverChatReply(aiResponse, dmEnrichedContent, {
-        systemPrompt: buildPersonalitySystemPrompt(config.aiSystemPrompt),
+        systemPrompt: discordChatPrompt(),
         userId: message.author.id,
         guildId: message.guildId ?? undefined,
         maxTokens: 1500,
@@ -2122,6 +2173,11 @@ async function handleDMMessage(
       !isCannedFallback(aiResponse)
     ) {
       void setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
+    }
+
+    if (isCannedFallback(aiResponse) || !aiResponse.trim()) {
+      await retryInsteadOfGo(message as Message, dmEnrichedContent, dmStatusIndicator);
+      return;
     }
 
     if (aiResponse) {

@@ -83,6 +83,7 @@ import {
   getPersonalityTemperature,
   getPersonalityMaxTokens,
 } from "../infrastructure/middleware/personalityMiddleware.js";
+import { mentionAwarenessBlock } from "./mentionInbox.js";
 import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
@@ -684,6 +685,7 @@ async function runAgentLoopInternal(
 
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
+    mentionAwarenessBlock() +
     `\n\n## LANGUE DE RÉPONSE (DÉTECTION AUTO)\n${langInstruction}\n` +
     "Si l'utilisateur change de langue en cours de conversation, adapte-toi immédiatement.\n" +
     formatPreferencesForPrompt(userPref) +

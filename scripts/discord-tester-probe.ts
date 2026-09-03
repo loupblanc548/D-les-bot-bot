@@ -64,8 +64,16 @@ async function discordJson(
 async function connectPresence(token: string): Promise<Client> {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+    presence: {
+      status: "online",
+      activities: [{ name: "en ligne", type: 0 }],
+    },
   });
   await client.login(token);
+  await client.user?.setPresence({
+    status: "online",
+    activities: [{ name: "en ligne", type: 0 }],
+  });
   console.log(`[tester] online as ${client.user?.tag} (${client.user?.id})`);
   return client;
 }

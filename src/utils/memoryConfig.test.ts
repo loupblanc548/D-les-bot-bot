@@ -5,6 +5,7 @@ import {
   formatMemoryReport,
   buildMemoryConfig,
   selectMemoryProfile,
+  maxNodeHeapMb,
 } from "./memoryConfig.js";
 
 describe("memoryConfig", () => {
@@ -23,23 +24,27 @@ describe("memoryConfig", () => {
   });
 
   describe("buildMemoryConfig", () => {
-    it("keeps an 8GB VPS under a 2GB Node budget", () => {
+    it("gives an 8GB VPS the max heap minus OS reserve", () => {
       const cfg = buildMemoryConfig(8192);
       expect(cfg.PROFILE).toBe("vps8");
       expect(cfg.IS_VPS).toBe(true);
-      expect(cfg.V8_HEAP_LIMIT_MB).toBe(1536);
-      expect(cfg.RAILWAY_RAM_MB).toBe(2048);
+      expect(cfg.V8_HEAP_LIMIT_MB).toBe(8192 - 1792);
       expect(cfg.SKIP_MEDIA_WORKER).toBe(true);
       expect(cfg.SKIP_LLM_PREWARM).toBe(true);
-      expect(cfg.WATCHDOG_SHUTDOWN_MB).toBeLessThanOrEqual(1536);
+      expect(cfg.WATCHDOG_SHUTDOWN_MB).toBeLessThanOrEqual(cfg.V8_HEAP_LIMIT_MB);
       expect(cfg.OFFLOAD_HEAP_MB).toBeLessThan(cfg.V8_HEAP_LIMIT_MB);
+      expect(cfg.WATCHDOG_GC_MB).toBeGreaterThan(4000);
     });
 
-    it("gives the mini PC a 4GB heap", () => {
+    it("gives the mini PC RAM minus 4GB", () => {
       const cfg = buildMemoryConfig(16384);
       expect(cfg.PROFILE).toBe("local");
-      expect(cfg.V8_HEAP_LIMIT_MB).toBe(4096);
+      expect(cfg.V8_HEAP_LIMIT_MB).toBe(16384 - 4096);
       expect(cfg.SKIP_MEDIA_WORKER).toBe(false);
+    });
+
+    it("honors NODE_MAX_OLD_SPACE_MB", () => {
+      expect(maxNodeHeapMb(8192, { NODE_MAX_OLD_SPACE_MB: "3072" })).toBe(3072);
     });
 
     it("lets ENABLE_MEDIA_WORKER override VPS skip", () => {

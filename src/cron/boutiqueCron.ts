@@ -1,81 +1,182 @@
 import cron from "node-cron";
+import fs from "node:fs";
+import path from "node:path";
 import { Client, TextChannel, ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
-import { fetchBoutique, buildBoutiqueEmbeds } from "../commands/fun/boutique.js";
+import {
+  fetchBoutique,
+  buildBoutiqueEmbeds,
+  invalidateBoutiqueCache,
+} from "../commands/fun/boutique.js";
+import { invalidateShopCache } from "../services/fortnite-api.js";
 
-// Anti-doublon : stocke la date de la dernière boutique postée
-let lastPostedShopDate: string | null = null;
+const TZ = "Europe/Paris";
+const POLL_MS = 2 * 60 * 1000;
+const POLL_WINDOW_MS = 24 * 60 * 1000;
+const STATE_FILE = path.join("/tmp", "bot-last-fortnite-shop.json");
+
+let lastPostedShopDate: string | null = loadLastPosted();
 let isRunning = false;
+let watchTimer: ReturnType<typeof setInterval> | null = null;
 
-async function postBoutiqueToChannel(client: Client): Promise<void> {
+function loadLastPosted(): string | null {
+  try {
+    if (!fs.existsSync(STATE_FILE)) return null;
+    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8")) as { date?: string };
+    return raw.date || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastPosted(date: string): void {
+  lastPostedShopDate = date;
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ date }), "utf-8");
+  } catch {
+    // non-critical
+  }
+}
+
+function utcShopDay(raw?: string): string {
+  if (raw && raw.length >= 10) return raw.slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
   if (isRunning) {
     logger.warn("[BoutiqueCron] Déjà en cours, skip");
-    return;
+    return false;
   }
   isRunning = true;
 
   try {
+    invalidateBoutiqueCache();
+    invalidateShopCache();
     const data = await fetchBoutique();
     if (!data) {
       logger.warn("[BoutiqueCron] API indisponible, skip");
-      return;
+      return false;
     }
 
-    // Anti-doublon : ne pas reposter si la date n'a pas changé
-    if (lastPostedShopDate === data.date) {
-      logger.info(`[BoutiqueCron] Boutique ${data.date} déjà postée, skip`);
-      return;
+    const shopDay = utcShopDay(data.date);
+    if (lastPostedShopDate === shopDay) {
+      logger.info(`[BoutiqueCron] Boutique ${shopDay} déjà postée, skip`);
+      return true;
+    }
+
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (shopDay < todayUtc) {
+      logger.info(`[BoutiqueCron] API encore sur ${shopDay}, reset ${todayUtc} pas sorti`);
+      return false;
     }
 
     const embeds = buildBoutiqueEmbeds(data);
     if (embeds.length === 0) {
       logger.warn("[BoutiqueCron] Aucun embed à poster");
-      return;
+      return false;
     }
 
     const channelId = config.boutiqueChannel;
     if (!channelId) {
       logger.warn("[BoutiqueCron] Aucun salon configuré");
-      return;
+      return false;
     }
 
     const channel = await client.channels.fetch(channelId).catch(() => null);
-    if (!channel || channel.type !== ChannelType.GuildText) {
-      logger.warn(`[BoutiqueCron] Salon ${channelId} inaccessible`);
-      return;
+    if (
+      !channel ||
+      (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildAnnouncement)
+    ) {
+      logger.warn(`[BoutiqueCron] Salon ${channelId} inaccessible (type=${channel?.type ?? "?"})`);
+      return false;
     }
 
     await (channel as TextChannel).send({
-      content: "🛒 **Boutique Fortnite du jour mise à jour automatiquement**",
+      content: "🛒 **Nouvelle boutique Fortnite**",
       embeds,
     });
 
-    lastPostedShopDate = data.date;
-    logger.info(`[BoutiqueCron] Boutique ${data.date} postée dans ${channelId}`);
+    saveLastPosted(shopDay);
+    logger.info(`[BoutiqueCron] Boutique ${shopDay} postée dans ${channelId}`);
+    return true;
   } catch (err) {
     logger.error("[BoutiqueCron] Erreur:", String(err));
+    return false;
   } finally {
     isRunning = false;
   }
 }
 
-export function startBoutiqueCron(client: Client): void {
-  // Poste la boutique à 10h00 UTC (12h00 FR) chaque jour
-  cron.schedule("0 10 * * *", () => {
-    logger.info("[BoutiqueCron] Envoi quotidien de la boutique...");
-    void postBoutiqueToChannel(client);
-  });
+function stopWatch(): void {
+  if (watchTimer) {
+    clearInterval(watchTimer);
+    watchTimer = null;
+  }
+}
 
-  // Vérification de secours toutes les 2h (au cas où la boutique n'est pas encore dispo à 10h)
-  cron.schedule("0 */2 * * *", () => {
-    if (!lastPostedShopDate) {
-      logger.info(
-        "[BoutiqueCron] Vérification de secours (boutique non encore postée aujourd'hui)...",
-      );
-      void postBoutiqueToChannel(client);
+function startShopWatch(client: Client): void {
+  stopWatch();
+  const startedAt = Date.now();
+  logger.info("[BoutiqueCron] Fenêtre reset 02h00 Paris — poll toutes les 2 min");
+
+  const tick = async (): Promise<void> => {
+    const posted = await postBoutiqueToChannel(client);
+    if (posted || Date.now() - startedAt >= POLL_WINDOW_MS) {
+      stopWatch();
+      if (posted) {
+        try {
+          const { checkFortniteShop } = await import("./wishlistCron.js");
+          await checkFortniteShop(client);
+        } catch {
+          // wishlist optionnelle
+        }
+      }
     }
-  });
+  };
 
-  logger.info("[BoutiqueCron] Cron quotidien démarré (10h UTC + vérification secours 2h)");
+  void tick();
+  watchTimer = setInterval(() => {
+    void tick();
+  }, POLL_MS);
+  if (watchTimer.unref) watchTimer.unref();
+}
+
+export function startBoutiqueCron(client: Client): void {
+  // Reset officiel Fortnite = 00:00 UTC = 02:00 Europe/Paris (été)
+  cron.schedule(
+    "0 2 * * *",
+    () => {
+      startShopWatch(client);
+    },
+    { timezone: TZ },
+  );
+
+  // Filet si le poll de 2h a raté (API très en retard)
+  cron.schedule(
+    "30 2 * * *",
+    () => {
+      if (lastPostedShopDate !== new Date().toISOString().slice(0, 10)) {
+        logger.info("[BoutiqueCron] Filet 02h30 — nouvel essai");
+        startShopWatch(client);
+      }
+    },
+    { timezone: TZ },
+  );
+
+  logger.info("[BoutiqueCron] Reset 02:00 Europe/Paris + filet 02:30 (poll 2 min)");
+
+  // Si le bot redémarre pendant la fenêtre du reset, poster tout de suite
+  try {
+    const paris = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+    const mins = paris.getHours() * 60 + paris.getMinutes();
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (mins >= 2 * 60 && mins < 3 * 60 && lastPostedShopDate !== todayUtc) {
+      logger.info("[BoutiqueCron] Rattrapage au démarrage — fenêtre 02h Paris");
+      startShopWatch(client);
+    }
+  } catch {
+    // ignore
+  }
 }

@@ -138,7 +138,8 @@ describe("responseClassifier", () => {
       expect(FALLBACK_MESSAGE).not.toContain("erreur");
       expect(FALLBACK_MESSAGE).not.toContain("indisponible");
       expect(FALLBACK_MESSAGE.length).toBeGreaterThan(20);
-      expect(FALLBACK_MESSAGE.toLowerCase()).toContain("go");
+      expect(FALLBACK_MESSAGE.toLowerCase()).toContain("relance");
+      expect(FALLBACK_MESSAGE.toLowerCase()).not.toContain("go");
     });
 
     it("is classified as canned fallback, not a valid model answer", () => {

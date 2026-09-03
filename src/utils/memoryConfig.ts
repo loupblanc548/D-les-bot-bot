@@ -3,12 +3,11 @@ import os from "os";
 /**
  * memoryConfig.ts — Seuls mémoire selon la machine.
  *
- *   tight  ≤5 GB   VPS minuscule
- *   vps8   <14 GB  VPS 8 Go (Contabo) — heap 1.5G, le reste pour OS/Postgres/Redis/swap
- *   local  ≥14 GB  mini PC / worker — heap 4G
+ *   tight  ≤5 GB   VPS minuscule — heap 1 Go
+ *   vps8   <14 GB  VPS 8–12 Go — heap au max (RAM − 1.75 Go pour OS/Postgres/Redis)
+ *   local  ≥14 GB  mini PC / worker — heap au max (RAM − 4 Go)
  *
- * Un VPS 8 Go n'est PAS une machine "locale". L'ancien seuil ≤6 Go le classait
- * à tort en local (heap 4 Go) → OOM + swap mort.
+ * NODE_MAX_OLD_SPACE_MB force le heap si besoin.
  */
 
 export type MemoryProfile = "tight" | "vps8" | "local";
@@ -41,6 +40,19 @@ function envFlag(env: NodeJS.ProcessEnv, key: string): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+/** Heap Node max pour cette RAM, en laissant de la place à l'OS. */
+export function maxNodeHeapMb(totalRAMMB: number, env: NodeJS.ProcessEnv = process.env): number {
+  const forced = parseInt((env.NODE_MAX_OLD_SPACE_MB ?? "").trim(), 10);
+  if (Number.isFinite(forced) && forced > 256) return forced;
+  if (envFlag(env, "WORKER_MODE") || envFlag(env, "FORCE_LOCAL_MEMORY")) {
+    return Math.max(4096, totalRAMMB - 2048);
+  }
+  if (totalRAMMB <= 5120) return 1024;
+  // VPS 8 Go : ~6.2 Go heap. Mini PC : RAM − 4 Go.
+  if (totalRAMMB < 14336) return Math.max(1536, totalRAMMB - 1792);
+  return Math.max(4096, totalRAMMB - 4096);
+}
+
 export function selectMemoryProfile(
   totalRAMMB: number,
   env: NodeJS.ProcessEnv = process.env,
@@ -52,60 +64,51 @@ export function selectMemoryProfile(
   return "local";
 }
 
-const PROFILES: Record<
-  MemoryProfile,
-  Omit<MemoryConfigShape, "TOTAL_RAM_MB" | "PROFILE" | "IS_VPS">
-> = {
-  tight: {
-    RAILWAY_RAM_MB: 1536,
-    V8_HEAP_LIMIT_MB: 1024,
-    GC_THRESHOLD_MB: 500,
-    CRITICAL_THRESHOLD_MB: 800,
-    CHECK_INTERVAL_MS: 20_000,
-    WATCHDOG_GC_MB: 720,
-    WATCHDOG_CRITICAL_MB: 870,
-    WATCHDOG_SHUTDOWN_MB: 980,
-    OFFLOAD_HEAP_MB: 700,
-    SKIP_MEDIA_WORKER: true,
-    SKIP_LLM_PREWARM: true,
-    LEVELS: { OK: 0, SURVEILLANCE: 300, WARNING: 500, CRITICAL: 800 },
-  },
-  vps8: {
-    RAILWAY_RAM_MB: 2048,
-    V8_HEAP_LIMIT_MB: 1536,
-    GC_THRESHOLD_MB: 900,
-    CRITICAL_THRESHOLD_MB: 1400,
-    CHECK_INTERVAL_MS: 30_000,
-    WATCHDOG_GC_MB: 1100,
-    WATCHDOG_CRITICAL_MB: 1300,
-    WATCHDOG_SHUTDOWN_MB: 1480,
-    OFFLOAD_HEAP_MB: 1100,
-    SKIP_MEDIA_WORKER: true,
-    SKIP_LLM_PREWARM: true,
-    LEVELS: { OK: 0, SURVEILLANCE: 600, WARNING: 900, CRITICAL: 1400 },
-  },
-  local: {
-    RAILWAY_RAM_MB: 8192,
-    V8_HEAP_LIMIT_MB: 4096,
-    GC_THRESHOLD_MB: 2500,
-    CRITICAL_THRESHOLD_MB: 3600,
-    CHECK_INTERVAL_MS: 45_000,
-    WATCHDOG_GC_MB: 3200,
-    WATCHDOG_CRITICAL_MB: 3800,
-    WATCHDOG_SHUTDOWN_MB: 4000,
-    OFFLOAD_HEAP_MB: 3500,
-    SKIP_MEDIA_WORKER: false,
-    SKIP_LLM_PREWARM: false,
-    LEVELS: { OK: 0, SURVEILLANCE: 1500, WARNING: 2500, CRITICAL: 3600 },
-  },
-};
+function scaledFromHeap(
+  heap: number,
+  extras: { CHECK_INTERVAL_MS: number; SKIP_MEDIA_WORKER: boolean; SKIP_LLM_PREWARM: boolean },
+): Omit<MemoryConfigShape, "TOTAL_RAM_MB" | "PROFILE" | "IS_VPS"> {
+  return {
+    RAILWAY_RAM_MB: Math.round(heap * 1.18),
+    V8_HEAP_LIMIT_MB: heap,
+    GC_THRESHOLD_MB: Math.round(heap * 0.72),
+    CRITICAL_THRESHOLD_MB: Math.round(heap * 0.9),
+    CHECK_INTERVAL_MS: extras.CHECK_INTERVAL_MS,
+    WATCHDOG_GC_MB: Math.round(heap * 0.78),
+    WATCHDOG_CRITICAL_MB: Math.round(heap * 0.88),
+    WATCHDOG_SHUTDOWN_MB: Math.round(heap * 0.95),
+    OFFLOAD_HEAP_MB: Math.round(heap * 0.8),
+    SKIP_MEDIA_WORKER: extras.SKIP_MEDIA_WORKER,
+    SKIP_LLM_PREWARM: extras.SKIP_LLM_PREWARM,
+    LEVELS: {
+      OK: 0,
+      SURVEILLANCE: Math.round(heap * 0.4),
+      WARNING: Math.round(heap * 0.72),
+      CRITICAL: Math.round(heap * 0.9),
+    },
+  };
+}
+
+const TIGHT_PROFILE = scaledFromHeap(1024, {
+  CHECK_INTERVAL_MS: 20_000,
+  SKIP_MEDIA_WORKER: true,
+  SKIP_LLM_PREWARM: true,
+});
 
 export function buildMemoryConfig(
   totalRAMMB: number,
   env: NodeJS.ProcessEnv = process.env,
 ): MemoryConfigShape {
   const profile = selectMemoryProfile(totalRAMMB, env);
-  const base = PROFILES[profile];
+  const heap = maxNodeHeapMb(totalRAMMB, env);
+  const base =
+    profile === "tight"
+      ? TIGHT_PROFILE
+      : scaledFromHeap(heap, {
+          CHECK_INTERVAL_MS: profile === "local" ? 45_000 : 30_000,
+          SKIP_MEDIA_WORKER: profile !== "local",
+          SKIP_LLM_PREWARM: profile !== "local",
+        });
   const skipMedia = envFlag(env, "ENABLE_MEDIA_WORKER")
     ? false
     : envFlag(env, "DISABLE_MEDIA_WORKER")

@@ -13,7 +13,7 @@ if (process.env.OTEL_ENABLED === "true") {
 }
 
 import * as Sentry from "@sentry/node";
-import { Client, GatewayIntentBits, Options } from "discord.js";
+import { Client, GatewayIntentBits, Options, Partials } from "discord.js";
 import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
 import logger from "./utils/logger.js";
@@ -37,6 +37,7 @@ import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
+import { attachMentionInbox } from "./services/mentionInbox.js";
 import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
 import { installGlobalFetchGuard } from "./utils/globalFetchGuard.js";
 import { handleEmojiEvents } from "./events/emojis.js";
@@ -80,6 +81,7 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     // REMOVED: GuildMessageReactions — saves ~15-20MB RAM on large guilds
   ],
+  partials: [Partials.Channel, Partials.Message, Partials.GuildMember, Partials.ThreadMember],
   // ─── ULTRA-AGGRESSIVE MEMORY CONFIG ───────────────────────────────────
   // 512MB container: every KB counts. Zero-cache for non-essential managers.
   makeCache: Options.cacheWithLimits({
@@ -412,6 +414,7 @@ async function main(): Promise<void> {
   handleRoleEvents(client);
   handleChannelEvents(client);
   handleMessageEvents(client);
+  attachMentionInbox(client);
   handleEmojiEvents(client);
   handleModerationEvents(client);
   startMapCleanup();
@@ -440,7 +443,7 @@ async function main(): Promise<void> {
   logger.info("✓ Network resilience initialise (shard backoff, presence restore)");
 
   // ─── MODULE 5: Infrastructure Watchdog — memory monitor ───
-  // Aligned with --max-old-space-size=4096 (4GB)
+  // Watchdog thresholds follow MEMORY_CONFIG (heap scaled to RAM).
   startInfraWatchdog(client, process.env.ALERT_CHANNEL_ID);
   logger.info(
     `✓ Infrastructure watchdog (${MEMORY_CONFIG.PROFILE}: GC@${MEMORY_CONFIG.WATCHDOG_GC_MB}MB, critical@${MEMORY_CONFIG.WATCHDOG_CRITICAL_MB}MB, shutdown@${MEMORY_CONFIG.WATCHDOG_SHUTDOWN_MB}MB)`,
