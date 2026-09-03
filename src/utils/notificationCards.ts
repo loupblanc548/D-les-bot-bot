@@ -75,30 +75,40 @@ export const PLATFORM_LABELS: Record<string, string> = {
 
 let fontData: Buffer | null = null;
 
+const FONT_CANDIDATES = [
+  join(process.cwd(), "assets", "fonts", "Inter-Bold.woff"),
+  join(process.cwd(), "assets", "fonts", "Inter-Bold.ttf"),
+  join(process.cwd(), "assets", "fonts", "NotoSans-Bold.ttf"),
+];
+
 async function loadFont(): Promise<Buffer> {
   if (fontData) return fontData;
-  try {
-    const fontPath = join(process.cwd(), "assets", "fonts", "NotoSans-Bold.ttf");
-    fontData = await readFile(fontPath);
-    return fontData;
-  } catch {
-    // Fallback : utiliser une police système via Google Fonts CDN
+  for (const fontPath of FONT_CANDIDATES) {
     try {
-      const response = await fetch(
-        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/files/inter-latin-700-normal.woff",
-      );
-      if (response.ok) {
-        fontData = Buffer.from(await response.arrayBuffer());
+      const buf = await readFile(fontPath);
+      if (buf.length > 0) {
+        fontData = buf;
         return fontData;
       }
     } catch {
-      logger.error("[Silent catch]");
+      // essayer le fichier suivant
     }
-    // Dernier recours : buffer vide (satori utilisera une police par défaut)
-    logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
-    fontData = Buffer.alloc(0);
-    return fontData;
   }
+  try {
+    const response = await fetch(
+      "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/files/inter-latin-700-normal.woff",
+      { signal: AbortSignal.timeout(4000) },
+    );
+    if (response.ok) {
+      fontData = Buffer.from(await response.arrayBuffer());
+      return fontData;
+    }
+  } catch {
+    logger.warn("[NotificationCards] CDN police indisponible");
+  }
+  logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
+  fontData = Buffer.alloc(0);
+  return fontData;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

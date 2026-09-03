@@ -505,18 +505,26 @@ export async function buildBoutiquePayload(data: BoutiqueData): Promise<{
   const unique = uniqueBoutiqueItems(data.items);
   const newCount = unique.filter((i) => i.isNew).length;
 
-  const card = await generateCardAttachment(
-    {
-      type: "shop",
-      title: formatShopDate(data.date),
-      subtitle: `${unique.length} articles`,
-      badge: newCount > 0 ? `${newCount} nouveautés` : "Rotation du jour",
-      description: data.nextReset ? "Reset 02:00 Paris" : undefined,
-      platformName: "FORTNITE",
-      platformColor: "#9D4EDD",
-    },
-    "boutique-fortnite",
-  );
+  let card: { attachment: Buffer; name: string } | null = null;
+  try {
+    card = await Promise.race([
+      generateCardAttachment(
+        {
+          type: "shop",
+          title: formatShopDate(data.date),
+          subtitle: `${unique.length} articles`,
+          badge: newCount > 0 ? `${newCount} nouveautés` : "Rotation du jour",
+          description: data.nextReset ? "Reset 02:00 Paris" : undefined,
+          platformName: "FORTNITE",
+          platformColor: "#9D4EDD",
+        },
+        "boutique-fortnite",
+      ),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]);
+  } catch (err) {
+    logger.warn(`[Boutique] Bannière ignorée: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   if (card) {
     embeds[0].setImage(`attachment://${card.name}`);

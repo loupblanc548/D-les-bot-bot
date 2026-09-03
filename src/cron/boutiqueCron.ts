@@ -81,7 +81,7 @@ export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
     logger.info(`[BoutiqueCron] Boutique ${shopDay} postée dans ${channelId}`);
     return true;
   } catch (err) {
-    logger.error("[BoutiqueCron] Erreur:", String(err));
+    logger.error(`[BoutiqueCron] Erreur: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   } finally {
     isRunning = false;
