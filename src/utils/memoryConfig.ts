@@ -1,8 +1,19 @@
 import os from "os";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
-const { maxNodeHeapMb: heapFromLimits } = require("./memoryLimits.cjs") as {
+const here = dirname(fileURLToPath(import.meta.url));
+const limitsPath = [
+  join(here, "memoryLimits.cjs"),
+  join(here, "..", "..", "src", "utils", "memoryLimits.cjs"),
+].find((p) => existsSync(p));
+if (!limitsPath) {
+  throw new Error("memoryLimits.cjs introuvable (dist/utils ou src/utils)");
+}
+const { maxNodeHeapMb: heapFromLimits } = require(limitsPath) as {
   maxNodeHeapMb: (totalRAMMB: number, env?: NodeJS.ProcessEnv) => number;
 };
 
