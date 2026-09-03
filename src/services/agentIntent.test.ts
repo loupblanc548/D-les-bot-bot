@@ -40,4 +40,13 @@ describe("needsAgentLoop", () => {
     expect(needsAgentLoop("regarde https://example.com")).toBe(true);
     expect(needsAgentLoop("[Image jointe: https://cdn.discord.com/x.png]")).toBe(true);
   });
+
+  it("ignores the Discord language prefix so chit-chat is not forced into tools", () => {
+    const prefix =
+      "[LANGUAGE INSTRUCTION] The user is writing in français. You MUST respond in français. Always reply in the same language as the user's message.\n\n";
+    expect(needsAgentLoop(`${prefix}pingok`)).toBe(false);
+    expect(needsAgentLoop(`${prefix}ok merci john continue comme ca`)).toBe(false);
+    expect(needsAgentLoop(`${prefix}capitale de l'Allemagne ?`)).toBe(true);
+    expect(needsAgentLoop(`${prefix}cherche le repo nmap`)).toBe(true);
+  });
 });

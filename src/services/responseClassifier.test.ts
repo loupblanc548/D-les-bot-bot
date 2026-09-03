@@ -58,6 +58,8 @@ describe("responseClassifier", () => {
         ).category,
       ).toBe("canned_fallback");
       expect(classifyResponse(FALLBACK_MESSAGE).category).toBe("canned_fallback");
+      expect(classifyResponse("No response.").category).toBe("canned_fallback");
+      expect(isErrorResponse("No response.")).toBe(true);
     });
 
     it("classifies 'circuit breaker activated' as technical error (case-insensitive)", () => {

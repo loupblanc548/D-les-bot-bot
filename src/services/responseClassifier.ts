@@ -58,6 +58,7 @@ const CANNED_FALLBACK_PATTERNS = [
   /envoie \*\*go\*\*/i,
   /je relance ça tout seul/i,
   /tu n'as rien à renvoyer/i,
+  /^no response\.?$/i,
 ];
 
 // ─── API publique ────────────────────────────────────────────────────────────

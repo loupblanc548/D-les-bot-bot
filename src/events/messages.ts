@@ -1698,7 +1698,7 @@ async function handleAiChatMention(
 
     // ── FAST PATH: bavardage court sans vraie question → skip agent loop ──
     // Les questions / tâches (code, cuisine, devoirs, recherche…) passent par l'agent.
-    const isComplexOrTool = needsAgentLoop(enrichedContent) || imageUrls.length > 0;
+    const isComplexOrTool = needsAgentLoop(effectiveContent) || imageUrls.length > 0;
     let skipAgentDueToOutage = false;
 
     if (!isComplexOrTool) {

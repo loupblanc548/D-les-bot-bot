@@ -16,11 +16,16 @@ const QUESTION_STARTER_RE =
 const PRESENCE_PING_RE =
   /^(?:(?:salut|hey|hi|yo|hello|coucou|wesh|slt)[\s,!]*)?(?:tu\s+es[t]?\s+l[aà]|t['’ ]?es\s+l[aà]|you\s+(?:still\s+)?(?:there|here)|are\s+you\s+(?:still\s+)?(?:there|here)|still\s+there|y\s*a(?:-t-il)?\s+quelqu['’]?un|anyone\s+(?:there|here)|you\s+up)\s*[?!.]*$/i;
 
-export function isPresencePing(content: string): boolean {
-  const text = content
+/** Le préfixe Discord contient le mot « language » — il ne doit pas forcer les tools. */
+export function stripChatDecorations(content: string): string {
+  return content
     .replace(/\[LANGUAGE INSTRUCTION\][\s\S]*?\n\n/i, "")
     .replace(/<@!?\d+>/g, "")
     .trim();
+}
+
+export function isPresencePing(content: string): boolean {
+  const text = stripChatDecorations(content);
   if (!text) return false;
   return PRESENCE_PING_RE.test(text);
 }
@@ -29,7 +34,7 @@ export function isPresencePing(content: string): boolean {
  * True if the message should go through the agent loop (tools + multi-step).
  */
 export function needsAgentLoop(content: string): boolean {
-  const text = content.trim();
+  const text = stripChatDecorations(content);
   if (!text) return false;
   if (isPresencePing(text)) return false;
   if (TOOL_OR_TASK_RE.test(text)) return true;
