@@ -207,7 +207,7 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
       search_system_design: { topic: "caching" },
       getSteamGame: { query: "portal" },
       searchRetailers: { query: "ssd" },
-      think_step_by_step: { thought: "2+2=4" },
+      think_step_by_step: { thought: "2+2=4", question: "2+2" },
       searchRawgGames: { query: "portal" },
       search_igdb_games: { query: "zelda" },
       get_twitch_clips: { game: "Fortnite" },
@@ -228,7 +228,6 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
       saveMemoryFact: { key: "test", value: "ok" },
       memory_search: { query: "test" },
       delegate_to_expert: { task: "hello", tier: "small" },
-      think_step_by_step: { question: "2+2" },
     };
 
     const mustWork = new Set([
