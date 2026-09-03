@@ -1,22 +1,9 @@
-import fs from "node:fs";
-import path from "node:path";
 import prisma from "../prisma.js";
 import { config } from "../config.js";
+import { getLastPostedShopDate } from "./fortniteShopState.js";
 import { getFortniteState } from "./fortnite-broadcast.js";
 import { fetchShop } from "./fortnite-api.js";
 import { getSelfLearnerStatus } from "./selfLearner.js";
-
-const SHOP_STATE_FILE = path.join("/tmp", "bot-last-fortnite-shop.json");
-
-export function readLastShopDate(): string | null {
-  try {
-    if (!fs.existsSync(SHOP_STATE_FILE)) return null;
-    const raw = JSON.parse(fs.readFileSync(SHOP_STATE_FILE, "utf-8")) as { date?: string };
-    return raw.date || null;
-  } catch {
-    return null;
-  }
-}
 
 export async function getJohnOverview(): Promise<{
   name: string;
@@ -36,7 +23,7 @@ export async function getJohnOverview(): Promise<{
     name: "John",
     model: config.openRouterModel || "",
     boutiqueChannel: config.boutiqueChannel || "",
-    shopLastPosted: readLastShopDate(),
+    shopLastPosted: getLastPostedShopDate(),
     wishlistCount,
     subjectsLearned: learner.subjectsLearned,
     learnerActive: learner.active,
@@ -149,7 +136,7 @@ export async function getFortnitePanel(): Promise<{
     accounts,
     shop,
     shopDate,
-    shopLastPosted: readLastShopDate(),
+    shopLastPosted: getLastPostedShopDate(),
     shopItemsTotal: shop.length,
     cosmeticsTracked,
     wishlist: wishlistRows,

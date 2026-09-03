@@ -9,6 +9,10 @@ import { isCannedFallback, isErrorResponse } from "./responseClassifier.js";
 import { resetAllCircuitBreakers, ensureAtLeastOneModelAvailable } from "./modelRotation.js";
 import { simulateStreamEdit } from "./streamingResponse.js";
 
+export const SILENT_RECOVER_PLACEHOLDER = "💭 Un instant, je relance…";
+export const SILENT_RECOVER_STILL_BUSY =
+  "Toujours saturé de mon côté. Je réessaie dès que ça se libère — tu n'as rien à renvoyer.";
+
 export interface SilentRecoverJob {
   userId: string;
   question: string;
@@ -66,8 +70,7 @@ async function runSilentRecover(job: SilentRecoverJob): Promise<void> {
     }
     await job.placeholder
       .edit({
-        content:
-          "Toujours saturé de mon côté. Je réessaie dès que ça se libère — tu n'as rien à renvoyer.",
+        content: SILENT_RECOVER_STILL_BUSY,
       })
       .catch(() => undefined);
   } catch (err) {

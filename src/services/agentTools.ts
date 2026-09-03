@@ -23,6 +23,7 @@ import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
 import { listRecentMentions } from "./mentionInbox.js";
+import { matchGithubCatalog } from "./githubKnowledgeCatalog.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
@@ -586,7 +587,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getGitHubRepo",
       description:
-        "Récupère les infos d'un dépôt GitHub : étoiles, forks, langage, description, dernière mise à jour. Gratuit (pas de clé API).",
+        "Récupère les infos d'un dépôt GitHub : étoiles, forks, langage, description, dernière mise à jour. Si tu ne connais pas owner/repo, appelle d'abord lookupKnowledgeRepo.",
       parameters: {
         type: "object",
         properties: {
@@ -597,6 +598,24 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           repo: { type: "string", description: "Nom du dépôt (ex: react)" },
         },
         required: ["owner", "repo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookupKnowledgeRepo",
+      description:
+        "Trouve le dépôt GitHub indexé le plus pertinent (OSINT, sécu, Discord, Node, LLM, Fortnite, Helldivers, émulation, Minecraft, DevOps, vie privée…). À appeler AVANT searchWeb quand la question colle à un de ces domaines. Ensuite searchKnowledge ou getGitHubRepo.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Sujet ou question (ex: sherlock pseudo, boutique fortnite, ollama)",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -1229,6 +1248,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "searchObsidianQA",
   "searchDocs",
   "getGitHubRepo",
+  "lookupKnowledgeRepo",
   "ingestDocumentation",
   "getWikipediaSummary",
   "getWiktionaryDefinition",
@@ -1416,6 +1436,8 @@ export async function executeTool(
         return await toolGetWiktionaryDefinition(args);
       case "getGitHubRepo":
         return await toolGetGitHubRepo(args);
+      case "lookupKnowledgeRepo":
+        return await toolLookupKnowledgeRepo(args);
       case "translateText":
         return await toolTranslateText(args);
       case "getTechNews":
@@ -2581,6 +2603,34 @@ async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallRes
       data: `Erreur GitHub: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
+}
+
+async function toolLookupKnowledgeRepo(args: Record<string, any>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "query requis" };
+  const hits = matchGithubCatalog(query, 6);
+  if (hits.length === 0) {
+    return {
+      success: true,
+      data: JSON.stringify({
+        matches: [],
+        hint: "Aucun dépôt indexé pour ce sujet. Utilise searchWeb ou getGitHubRepo si tu as owner/repo.",
+      }),
+    };
+  }
+  return {
+    success: true,
+    data: JSON.stringify({
+      matches: hits.map((h) => ({
+        owner: h.owner,
+        repo: h.repo,
+        url: `https://github.com/${h.owner}/${h.repo}`,
+        domain: h.domain,
+        description: h.description,
+        next: "searchKnowledge sur le sujet, ou getGitHubRepo(owner, repo) pour stars/version",
+      })),
+    }),
+  };
 }
 
 // MyMemory: free translation API, no key needed (5000 chars/day)

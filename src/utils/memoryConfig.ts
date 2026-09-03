@@ -1,4 +1,10 @@
 import os from "os";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { maxNodeHeapMb: heapFromLimits } = require("./memoryLimits.cjs") as {
+  maxNodeHeapMb: (totalRAMMB: number, env?: NodeJS.ProcessEnv) => number;
+};
 
 /**
  * memoryConfig.ts — Seuls mémoire selon la machine.
@@ -40,17 +46,9 @@ function envFlag(env: NodeJS.ProcessEnv, key: string): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
-/** Heap Node max pour cette RAM, en laissant de la place à l'OS. */
+/** Heap Node max pour cette RAM — même formule que PM2 (`memoryLimits.cjs`). */
 export function maxNodeHeapMb(totalRAMMB: number, env: NodeJS.ProcessEnv = process.env): number {
-  const forced = parseInt((env.NODE_MAX_OLD_SPACE_MB ?? "").trim(), 10);
-  if (Number.isFinite(forced) && forced > 256) return forced;
-  if (envFlag(env, "WORKER_MODE") || envFlag(env, "FORCE_LOCAL_MEMORY")) {
-    return Math.max(4096, totalRAMMB - 2048);
-  }
-  if (totalRAMMB <= 5120) return 1024;
-  // VPS 8 Go : ~6.2 Go heap. Mini PC : RAM − 4 Go.
-  if (totalRAMMB < 14336) return Math.max(1536, totalRAMMB - 1792);
-  return Math.max(4096, totalRAMMB - 4096);
+  return heapFromLimits(totalRAMMB, env);
 }
 
 export function selectMemoryProfile(

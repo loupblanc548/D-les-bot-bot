@@ -33,6 +33,7 @@ export function buildAgentOperatingRules(toolCount: number): string {
     `## TOOLS (${toolCount})\n` +
     "Liste auto-générée en fin de prompt. Cherche le tool qui colle. " +
     "searchKnowledge pour du technique déjà indexé, sinon searchWeb. " +
+    "lookupKnowledgeRepo si OSINT, sécu, Discord, Node, LLM, Fortnite, Helldivers, émulation, Minecraft, DevOps. " +
     "fetchAndSummarize pour un lien. analyze_image / analyzeImageGemini pour une image. " +
     "define_word si un mot t'échappe — ne dis pas « je ne connais pas ce mot ».\n\n" +
     "## IMAGES\n" +

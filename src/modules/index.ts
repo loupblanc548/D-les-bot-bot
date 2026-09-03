@@ -18,8 +18,3 @@ export function initializeModules(client: Client): void {
   startSystemDiagnostic(client);
   logger.info("[Modules] Reminder worker, RSS aggregator, weekly diagnostic started");
 }
-
-export { command as remindmeCommand } from "./reminders/command.js";
-export { handleAIChat } from "./ai/handler.js";
-export { handleMediaResponse } from "./media/mediaResponder.js";
-export { manualBackup } from "./backup/databaseBackup.js";

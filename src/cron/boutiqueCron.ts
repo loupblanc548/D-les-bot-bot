@@ -1,6 +1,4 @@
 import cron from "node-cron";
-import fs from "node:fs";
-import path from "node:path";
 import { Client, TextChannel, ChannelType } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
@@ -10,34 +8,14 @@ import {
   invalidateBoutiqueCache,
 } from "../commands/fun/boutique.js";
 import { invalidateShopCache } from "../services/fortnite-api.js";
+import { getLastPostedShopDate, saveLastPostedShopDate } from "../services/fortniteShopState.js";
 
 const TZ = "Europe/Paris";
 const POLL_MS = 2 * 60 * 1000;
 const POLL_WINDOW_MS = 24 * 60 * 1000;
-const STATE_FILE = path.join("/tmp", "bot-last-fortnite-shop.json");
 
-let lastPostedShopDate: string | null = loadLastPosted();
 let isRunning = false;
 let watchTimer: ReturnType<typeof setInterval> | null = null;
-
-function loadLastPosted(): string | null {
-  try {
-    if (!fs.existsSync(STATE_FILE)) return null;
-    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8")) as { date?: string };
-    return raw.date || null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLastPosted(date: string): void {
-  lastPostedShopDate = date;
-  try {
-    fs.writeFileSync(STATE_FILE, JSON.stringify({ date }), "utf-8");
-  } catch {
-    // non-critical
-  }
-}
 
 function utcShopDay(raw?: string): string {
   if (raw && raw.length >= 10) return raw.slice(0, 10);
@@ -61,7 +39,7 @@ export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
     }
 
     const shopDay = utcShopDay(data.date);
-    if (lastPostedShopDate === shopDay) {
+    if (getLastPostedShopDate() === shopDay) {
       logger.info(`[BoutiqueCron] Boutique ${shopDay} déjà postée, skip`);
       return true;
     }
@@ -98,7 +76,7 @@ export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
       embeds,
     });
 
-    saveLastPosted(shopDay);
+    saveLastPostedShopDate(shopDay);
     logger.info(`[BoutiqueCron] Boutique ${shopDay} postée dans ${channelId}`);
     return true;
   } catch (err) {
@@ -157,7 +135,7 @@ export function startBoutiqueCron(client: Client): void {
   cron.schedule(
     "30 2 * * *",
     () => {
-      if (lastPostedShopDate !== new Date().toISOString().slice(0, 10)) {
+      if (getLastPostedShopDate() !== new Date().toISOString().slice(0, 10)) {
         logger.info("[BoutiqueCron] Filet 02h30 — nouvel essai");
         startShopWatch(client);
       }
@@ -172,7 +150,7 @@ export function startBoutiqueCron(client: Client): void {
     const paris = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
     const mins = paris.getHours() * 60 + paris.getMinutes();
     const todayUtc = new Date().toISOString().slice(0, 10);
-    if (mins >= 2 * 60 && mins < 3 * 60 && lastPostedShopDate !== todayUtc) {
+    if (mins >= 2 * 60 && mins < 3 * 60 && getLastPostedShopDate() !== todayUtc) {
       logger.info("[BoutiqueCron] Rattrapage au démarrage — fenêtre 02h Paris");
       startShopWatch(client);
     }

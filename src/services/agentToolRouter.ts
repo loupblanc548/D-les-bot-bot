@@ -606,7 +606,43 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "코드",
       "프로젝트",
     ],
-    tools: ["getGitHubRepo", "github_profile"],
+    tools: ["lookupKnowledgeRepo", "getGitHubRepo", "github_profile", "searchKnowledge"],
+  },
+  {
+    keywords: [
+      "osint",
+      "sherlock",
+      "owasp",
+      "pentest",
+      "nuclei",
+      "seclists",
+      "payload",
+      "discord.js",
+      "discordjs",
+      "ollama",
+      "llama.cpp",
+      "langchain",
+      "fortnite",
+      "boutique fortnite",
+      "helldivers",
+      "ppsspp",
+      "duckstation",
+      "shadps4",
+      "ryujinx",
+      "pcsx2",
+      "émulateur",
+      "emulateur",
+      "minecraft",
+      "papermc",
+      "pm2",
+      "vitest",
+      "prisma",
+      "self-hosted",
+      "pi-hole",
+      "home assistant",
+      "yt-dlp",
+    ],
+    tools: ["lookupKnowledgeRepo", "searchKnowledge", "getGitHubRepo"],
   },
   {
     keywords: [
@@ -6584,6 +6620,7 @@ export function routeTools(
       "searchObsidianQA",
       "getWikipediaSummary",
       "getGitHubRepo",
+      "lookupKnowledgeRepo",
       "searchUserMemory",
       "saveMemoryFact",
       "getUserInfo",
@@ -6682,6 +6719,15 @@ export function suggestToolChain(userMessage: string): string[][] {
   // "Génère une image" → generate_image
   if (lowerMsg.includes("image") || lowerMsg.includes("dessine") || lowerMsg.includes("génère")) {
     chains.push(["generate_image"]);
+  }
+
+  // Catalogue GitHub indexé → lookup puis knowledge
+  if (
+    /osint|owasp|pentest|sherlock|fortnite|helldiver|ollama|émulateur|emulateur|discord\.js|minecraft|self-?hosted/i.test(
+      lowerMsg,
+    )
+  ) {
+    chains.push(["lookupKnowledgeRepo", "searchKnowledge"]);
   }
 
   // "Analyse ce lien" → fetchAndSummarize + searchKnowledge

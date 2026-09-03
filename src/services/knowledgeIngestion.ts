@@ -5,6 +5,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { fetchTextRetry, fetchJsonRetry } from "../utils/fetchRetry.js";
 import type { Prisma } from "@prisma/client";
+import { knowledgeRepos } from "./githubKnowledgeCatalog.js";
 
 const TIMEOUT = 30_000;
 const BATCH = 50;
@@ -330,88 +331,13 @@ export async function syncAwesomeLists(): Promise<number> {
   return count;
 }
 
-const EXTRA_KNOWLEDGE_REPOS: Array<{
-  owner: string;
-  repo: string;
-  description: string;
-  files?: string[];
-}> = [
-  {
-    owner: "awesome-selfhosted",
-    repo: "awesome-selfhosted",
-    description: "Liste de logiciels self-hosted open source.",
-  },
-  {
-    owner: "vinta",
-    repo: "awesome-python",
-    description: "Curated list of Python frameworks, libraries, and resources.",
-  },
-  {
-    owner: "avelino",
-    repo: "awesome-go",
-    description: "Curated list of Go frameworks, libraries, and software.",
-  },
-  {
-    owner: "rust-unofficial",
-    repo: "awesome-rust",
-    description: "Curated list of Rust code and resources.",
-  },
-  {
-    owner: "trimstray",
-    repo: "the-book-of-secret-knowledge",
-    description: "Collection of inspiring lists, manuals, cheatsheets, and tools.",
-  },
-  {
-    owner: "ripienaar",
-    repo: "free-for-dev",
-    description: "SaaS, PaaS and IaaS offerings with free tiers for developers.",
-  },
-  {
-    owner: "kamranahmedse",
-    repo: "developer-roadmap",
-    description: "Roadmaps interactives pour apprendre le dev.",
-  },
-  {
-    owner: "jwasham",
-    repo: "coding-interview-university",
-    description: "Cursus complet pour les entretiens d'ingénieur.",
-  },
-  {
-    owner: "practical-tutorials",
-    repo: "project-based-learning",
-    description: "Tutoriels par projets, langage par langage.",
-  },
-  {
-    owner: "ossu",
-    repo: "computer-science",
-    description: "Cursus informatique gratuit de niveau licence.",
-  },
-  {
-    owner: "papers-we-love",
-    repo: "papers-we-love",
-    description: "Papers informatiques commentés.",
-  },
-  {
-    owner: "microsoft",
-    repo: "generative-ai-for-beginners",
-    description: "Cours IA générative pour débutants.",
-  },
-  {
-    owner: "TheAlgorithms",
-    repo: "Python",
-    description: "Algorithmes en Python.",
-  },
-  {
-    owner: "TheAlgorithms",
-    repo: "JavaScript",
-    description: "Algorithmes en JavaScript.",
-  },
-  {
-    owner: "tldr-pages",
-    repo: "tldr",
-    description: "Pages man simplifiées (tldr).",
-  },
-];
+const EXTRA_KNOWLEDGE_REPOS = knowledgeRepos().map((r) => ({
+  owner: r.owner,
+  repo: r.repo,
+  description: r.description,
+  files: r.files,
+  domain: r.domain,
+}));
 
 async function fetchGithubRaw(owner: string, repo: string, file: string): Promise<string | null> {
   for (const branch of ["master", "main"]) {
@@ -434,7 +360,7 @@ export async function syncExtraGithubRepos(): Promise<number> {
         name: `${r.owner}/${r.repo}`,
         url: `https://github.com/${r.owner}/${r.repo}`,
         description: r.description,
-        tags: "github,repo,awesome",
+        tags: `github,repo,${r.domain}`,
         sourceRepo: `${r.owner}/${r.repo}`,
       })),
       skipDuplicates: true,
@@ -470,7 +396,7 @@ export async function syncDeepGithubRepos(): Promise<number> {
             wordCount: md.split(/\s+/).length,
             source: "github_readme",
             category: "GITHUB_DOC",
-            tags: `${r.owner},${r.repo}`,
+            tags: `${r.owner},${r.repo},${r.domain}`,
           } as never,
           update: {
             title,
@@ -478,11 +404,12 @@ export async function syncDeepGithubRepos(): Promise<number> {
             summary,
             wordCount: md.split(/\s+/).length,
             category: "GITHUB_DOC",
-            tags: `${r.owner},${r.repo}`,
+            tags: `${r.owner},${r.repo},${r.domain}`,
           } as never,
         })
         .catch(() => {});
       count++;
+      await new Promise((r) => setTimeout(r, 150));
     }
   }
   logger.info(`[DEEP_REPOS] Synced ${count} README/docs`);

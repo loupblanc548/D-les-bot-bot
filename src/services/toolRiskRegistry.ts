@@ -88,6 +88,10 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "low", module: "core", reason: "Read-only price lookup, no persistence" },
     ],
     ["getGitHubRepo", { level: "low", module: "core", reason: "Read-only GitHub API lookup" }],
+    [
+      "lookupKnowledgeRepo",
+      { level: "low", module: "core", reason: "Read-only local GitHub catalog match" },
+    ],
     ["getWikipediaSummary", { level: "low", module: "core", reason: "Read-only Wikipedia API" }],
     [
       "getWiktionaryDefinition",

@@ -61,7 +61,7 @@ import { sendImagesFromResponse } from "../utils/imageSender.js";
 import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
-import { scheduleSilentRecover } from "../services/silentRecover.js";
+import { scheduleSilentRecover, SILENT_RECOVER_PLACEHOLDER } from "../services/silentRecover.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
 import { sendArtifacts } from "../services/artifacts.js";
 import { touchConversation, checkExpiredConversations } from "../services/aiConversation.js";
@@ -377,21 +377,19 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (message.author.bot) {
-        const isSelfMention = client.user ? isJohnPinged(message, client.user.id) : false;
+        const pinged = client.user ? isJohnPinged(message, client.user.id) : false;
         const isRetailerChannel =
           Boolean(config.retailerChannel) && message.channelId === config.retailerChannel;
         // Tester bot (« encore un test ») may @John so we can drive live checks.
-        if (isSelfMention && (isTesterBot(message.author.id) || isRetailerChannel)) {
+        if (pinged && (isTesterBot(message.author.id) || isRetailerChannel)) {
           recordIncomingPing(message);
           await handleAiChatMention(message, client);
-          return;
         }
         return;
       }
 
-      if (client.user && isJohnPinged(message, client.user.id)) {
-        recordIncomingPing(message);
-      }
+      const pinged = Boolean(client.user && isJohnPinged(message, client.user.id));
+      if (pinged) recordIncomingPing(message);
 
       // ── DM (Message Privé) → l'agent IA répond directement ──
       if (!message.guild) {
@@ -400,7 +398,7 @@ export function handleMessageEvents(client: Client) {
       }
 
       // ── Ping John : n'importe quel salon (texte, fil, annonce, vocal) ──
-      if (client.user && isJohnPinged(message, client.user.id)) {
+      if (pinged) {
         const handled = await handleVoiceCommand(message, client);
         if (handled) return;
         await handleAiChatMention(message, client);
@@ -1441,7 +1439,7 @@ async function retryInsteadOfGo(
 ): Promise<void> {
   void statusIndicator.cleanup();
   const placeholder = await message
-    .reply({ content: "💭 Un instant, je relance…", allowedMentions: { repliedUser: false } })
+    .reply({ content: SILENT_RECOVER_PLACEHOLDER, allowedMentions: { repliedUser: false } })
     .catch(() => null);
   if (!placeholder) return;
   scheduleSilentRecover({

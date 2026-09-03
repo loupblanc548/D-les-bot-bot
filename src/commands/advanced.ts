@@ -850,20 +850,6 @@ async function handleFortniteWishlist(interaction: ChatInputCommandInteraction):
           },
           update: { gameName: identifiant.trim() },
         });
-        await prisma.setting.upsert({
-          where: {
-            guildId_key: {
-              guildId: interaction.guildId || "global",
-              key: `fortnite-wishlist:${userId}:${identifiant}`,
-            },
-          },
-          create: {
-            guildId: interaction.guildId || "global",
-            key: `fortnite-wishlist:${userId}:${identifiant}`,
-            value: identifiant,
-          },
-          update: { value: identifiant },
-        });
 
         // Envoyer un DM à l'utilisateur
         try {
