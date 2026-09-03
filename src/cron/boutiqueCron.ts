@@ -4,7 +4,7 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import {
   fetchBoutique,
-  buildBoutiqueEmbeds,
+  buildBoutiquePayload,
   invalidateBoutiqueCache,
 } from "../commands/fun/boutique.js";
 import { invalidateShopCache } from "../services/fortnite-api.js";
@@ -50,8 +50,8 @@ export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
       return false;
     }
 
-    const embeds = buildBoutiqueEmbeds(data);
-    if (embeds.length === 0) {
+    const payload = await buildBoutiquePayload(data);
+    if (payload.embeds.length === 0) {
       logger.warn("[BoutiqueCron] Aucun embed à poster");
       return false;
     }
@@ -72,8 +72,9 @@ export async function postBoutiqueToChannel(client: Client): Promise<boolean> {
     }
 
     await (channel as TextChannel).send({
-      content: "🛒 **Nouvelle boutique Fortnite**",
-      embeds,
+      embeds: payload.embeds,
+      files: payload.files,
+      components: payload.components,
     });
 
     saveLastPostedShopDate(shopDay);

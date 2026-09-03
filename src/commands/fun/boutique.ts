@@ -5,9 +5,14 @@ import {
   Client,
   TextChannel,
   ChannelType,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from "discord.js";
 import logger from "../../utils/logger.js";
 import { config } from "../../config.js";
+import { oneLineEmbedTitle } from "../../utils/embedLayout.js";
+import { generateCardAttachment } from "../../utils/notificationCards.js";
 
 // ─── Types pour parser l'API Fortnite v2 ─────────────────────────────
 
@@ -51,7 +56,7 @@ interface FortniteShopApiResponse {
 
 // ─── Types internes normalisés ───────────────────────────────────────
 
-interface BoutiqueItem {
+export interface BoutiqueItem {
   name: string;
   description: string;
   type: string;
@@ -67,7 +72,7 @@ interface BoutiqueItem {
   bundleNames: string[];
 }
 
-interface BoutiqueData {
+export interface BoutiqueData {
   date: string;
   items: BoutiqueItem[];
   shopImage: string | null;
@@ -226,6 +231,13 @@ export async function fetchBoutique(): Promise<BoutiqueData | null> {
 
 // ─── Construction des Embeds ─────────────────────────────────────────
 
+const FORTNITE_PURPLE = 0x9d4edd;
+const NEW_GREEN = 0x2ecc71;
+const LEAVING_ORANGE = 0xe67e22;
+const SHOP_URL = "https://www.fortnite.com/item-shop";
+const SHOP_GALLERY_URL = "https://fortnite.gg/shop";
+const GRID_CAP = 9;
+
 const SECTION_EMOJIS: Record<string, string> = {
   featured: "⭐",
   daily: "📅",
@@ -245,70 +257,123 @@ function getSectionEmoji(sectionId: string): string {
   return SECTION_EMOJIS[sectionId] || "📦";
 }
 
-function formatPrice(price: number): string {
-  if (price === 0) return "Gratuit";
-  return `${price} V-Bucks`;
+export function formatShopDate(iso: string): string {
+  const raw = String(iso || "").slice(0, 10);
+  const d = new Date(`${raw}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return iso || "Boutique";
+  const formatted = d.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-function formatExpiry(expiry: Date | null): string {
-  if (!expiry) return "";
-  const ts = Math.floor(expiry.getTime() / 1000);
-  return ` <t:${ts}:R>`;
+export function formatVbucks(price: number): string {
+  if (!price || price <= 0) return "Gratuit";
+  return `${String(price).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} VB`;
+}
+
+export function uniqueBoutiqueItems(items: BoutiqueItem[]): BoutiqueItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.name.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function unixTs(date: Date): number {
+  return Math.floor(date.getTime() / 1000);
+}
+
+function itemFieldName(item: BoutiqueItem): string {
+  const prefix = item.isBundle ? "📦 " : "";
+  return oneLineEmbedTitle(`${prefix}${item.name}`, 40);
+}
+
+function itemFieldValue(item: BoutiqueItem, extra = ""): string {
+  const bits = [item.type, item.rarity, `**${formatVbucks(item.price)}**`].filter(
+    (bit) => bit && bit !== "** **",
+  );
+  if (extra) bits.push(extra);
+  return bits.join(" · ") || "—";
+}
+
+function setCatalogThumbnail(embed: EmbedBuilder, items: BoutiqueItem[]): void {
+  const withIcon = items.find((i) => i.icon);
+  if (withIcon?.icon) embed.setThumbnail(withIcon.icon);
+}
+
+function addItemGrid(
+  embed: EmbedBuilder,
+  items: BoutiqueItem[],
+  extra?: (item: BoutiqueItem) => string,
+): number {
+  const unique = uniqueBoutiqueItems(items);
+  const shown = unique.slice(0, GRID_CAP);
+  for (const item of shown) {
+    embed.addFields({
+      name: itemFieldName(item),
+      value: itemFieldValue(item, extra?.(item) ?? ""),
+      inline: true,
+    });
+  }
+  if (unique.length > shown.length) {
+    embed.addFields({
+      name: "\u200b",
+      value: `*+ ${unique.length - shown.length} autres*`,
+      inline: false,
+    });
+  }
+  return unique.length;
 }
 
 function buildOverviewEmbed(data: BoutiqueData): EmbedBuilder {
+  const unique = uniqueBoutiqueItems(data.items);
+  const newCount = unique.filter((i) => i.isNew).length;
+  const dateLabel = formatShopDate(data.date);
+
   const embed = new EmbedBuilder()
-    .setTitle(`🛒 Boutique Fortnite — ${data.date}`)
-    .setColor(0x9b59b6)
+    .setAuthor({ name: "Boutique Fortnite" })
+    .setTitle(oneLineEmbedTitle(dateLabel, 90))
+    .setURL(SHOP_GALLERY_URL)
+    .setColor(FORTNITE_PURPLE)
+    .setDescription("Nouvelle rotation du jour.")
     .setTimestamp();
 
-  // Description avec compte à rebours du reset
-  let desc = `**${data.items.length} articles** disponibles.\n`;
-  if (data.nextReset) {
-    const ts = Math.floor(data.nextReset.getTime() / 1000);
-    desc += `⏰ **Reset de la boutique** : <t:${ts}:R> (<t:${ts}:f>)\n`;
-  }
+  embed.addFields(
+    { name: "Articles", value: `**${unique.length}**`, inline: true },
+    { name: "Nouveautés", value: `**${newCount}**`, inline: true },
+    {
+      name: "Reset",
+      value: data.nextReset ? `<t:${unixTs(data.nextReset)}:R>` : "02:00 Paris",
+      inline: true,
+    },
+  );
 
-  const newCount = data.items.filter((i) => i.isNew).length;
-  if (newCount > 0) {
-    desc += `🆕 **${newCount} nouveauté(s)** dans la boutique !\n`;
-  }
-
-  embed.setDescription(desc);
-
-  // Image principale de la boutique
-  if (data.shopImage) {
-    embed.setImage(data.shopImage);
-  }
-
-  // Grouper par section pour un résumé
-  const sectionCounts = new Map<string, { name: string; count: number; emoji: string }>();
-  for (const item of data.items) {
-    const existing = sectionCounts.get(item.sectionId);
-    if (existing) {
-      existing.count++;
-    } else {
-      sectionCounts.set(item.sectionId, {
+  const sectionSeen = new Map<string, { name: string; emoji: string }>();
+  for (const item of unique) {
+    if (!sectionSeen.has(item.sectionId)) {
+      sectionSeen.set(item.sectionId, {
         name: item.sectionName,
-        count: 1,
         emoji: getSectionEmoji(item.sectionId),
       });
     }
   }
-
-  const sectionLines: string[] = [];
-  for (const [, info] of sectionCounts) {
-    sectionLines.push(`${info.emoji} **${info.name}** — ${info.count} article(s)`);
-  }
-  if (sectionLines.length > 0) {
-    embed.addFields({
-      name: "📋 Sections",
-      value: sectionLines.join("\n"),
-      inline: false,
-    });
+  const chips = [...sectionSeen.values()]
+    .slice(0, 8)
+    .map((s) => `${s.emoji} ${s.name}`)
+    .join("  ·  ");
+  if (chips) {
+    embed.addFields({ name: "Rayons", value: chips, inline: false });
   }
 
-  embed.setFooter({ text: "Boutique Fortnite FR • fortnite-api.com" });
+  setCatalogThumbnail(embed, unique.filter((i) => i.isNew).concat(unique));
+  embed.setFooter({ text: "Reset tous les jours à 02:00 (Paris)" });
   return embed;
 }
 
@@ -316,171 +381,152 @@ function buildSectionEmbed(
   sectionName: string,
   sectionId: string,
   items: BoutiqueItem[],
-  date: string,
+  _date: string,
   nextReset: Date | null,
 ): EmbedBuilder {
   const emoji = getSectionEmoji(sectionId);
+  const unique = uniqueBoutiqueItems(items);
   const embed = new EmbedBuilder()
-    .setTitle(`${emoji} ${sectionName} — ${date}`)
-    .setColor(0x9b59b6)
+    .setTitle(oneLineEmbedTitle(`${emoji} ${sectionName}`, 90))
+    .setURL(SHOP_GALLERY_URL)
+    .setColor(FORTNITE_PURPLE)
     .setTimestamp();
 
-  if (items.length === 0) {
+  if (unique.length === 0) {
     embed.setDescription("Aucun article dans cette section.");
     return embed;
   }
 
-  // Limiter à 25 fields (limite Discord)
-  const maxItems = Math.min(items.length, 24);
-  const lines: string[] = [];
+  embed.setDescription(`${unique.length} article${unique.length > 1 ? "s" : ""}`);
+  addItemGrid(embed, unique);
+  setCatalogThumbnail(embed, unique);
 
-  for (let i = 0; i < maxItems; i++) {
-    const item = items[i];
-    const newBadge = item.isNew ? "🆕 " : "";
-    const packBadge = item.isBundle ? "📦 " : "";
-    const rarity = item.rarity ? ` • ${item.rarity}` : "";
-    const price = ` • ${formatPrice(item.price)}`;
-    const expiryStr = formatExpiry(item.expiry);
-
-    lines.push(`**${i + 1}.** ${newBadge}${packBadge}${item.name}${rarity}${price}${expiryStr}`);
-  }
-
-  if (items.length > maxItems) {
-    lines.push(`\n*...et ${items.length - maxItems} autres articles*`);
-  }
-
-  embed.setDescription(lines.join("\n"));
-
-  // Image du premier article avec featured image
-  const firstWithImage = items.find((i) => i.featuredImage);
-  if (firstWithImage?.featuredImage) {
-    embed.setImage(firstWithImage.featuredImage);
-  } else if (items[0]?.icon) {
-    embed.setThumbnail(items[0].icon);
-  }
-
-  // Reset info
   if (nextReset) {
-    const ts = Math.floor(nextReset.getTime() / 1000);
     embed.addFields({
-      name: "⏰ Prochain reset",
-      value: `<t:${ts}:R>`,
-      inline: false,
+      name: "Reset",
+      value: `<t:${unixTs(nextReset)}:R>`,
+      inline: true,
     });
   }
 
-  embed.setFooter({ text: `${items.length} articles • ${sectionName} • fortnite-api.com` });
+  embed.setFooter({ text: `${unique.length} articles · ${sectionName}` });
   return embed;
 }
 
-function buildNewItemsEmbed(items: BoutiqueItem[], date: string): EmbedBuilder {
+function buildNewItemsEmbed(items: BoutiqueItem[]): EmbedBuilder {
+  const unique = uniqueBoutiqueItems(items);
   const embed = new EmbedBuilder()
-    .setTitle(`🆕 Nouveautés — ${date}`)
-    .setColor(0x00ff00)
+    .setTitle("🆕 Nouveautés")
+    .setURL(SHOP_GALLERY_URL)
+    .setColor(NEW_GREEN)
     .setTimestamp();
 
-  if (items.length === 0) {
+  if (unique.length === 0) {
     embed.setDescription("Aucune nouveauté dans la boutique d'aujourd'hui.");
     return embed;
   }
 
-  const maxItems = Math.min(items.length, 24);
-  const lines: string[] = [];
-
-  for (let i = 0; i < maxItems; i++) {
-    const item = items[i];
-    const packBadge = item.isBundle ? "📦 " : "";
-    const rarity = item.rarity ? ` • ${item.rarity}` : "";
-    const price = ` • ${formatPrice(item.price)}`;
-    const expiryStr = formatExpiry(item.expiry);
-
-    lines.push(`**${i + 1}.** ${packBadge}${item.name}${rarity}${price}${expiryStr}`);
-  }
-
-  if (items.length > maxItems) {
-    lines.push(`\n*...et ${items.length - maxItems} autres nouveautés*`);
-  }
-
-  embed.setDescription(lines.join("\n"));
-
-  const firstWithImage = items.find((i) => i.featuredImage);
-  if (firstWithImage?.featuredImage) {
-    embed.setImage(firstWithImage.featuredImage);
-  } else if (items[0]?.icon) {
-    embed.setThumbnail(items[0].icon);
-  }
-
-  embed.setFooter({ text: `${items.length} nouveautés • fortnite-api.com` });
+  embed.setDescription(
+    unique.length > GRID_CAP
+      ? `${GRID_CAP} affichées · ${unique.length} au total`
+      : `${unique.length} arrivée${unique.length > 1 ? "s" : ""} aujourd'hui`,
+  );
+  addItemGrid(embed, unique);
+  setCatalogThumbnail(embed, unique);
+  embed.setFooter({ text: `${unique.length} nouveautés` });
   return embed;
 }
 
-function buildExpiringEmbed(items: BoutiqueItem[], date: string): EmbedBuilder {
+function buildExpiringEmbed(items: BoutiqueItem[]): EmbedBuilder {
+  const unique = uniqueBoutiqueItems(items);
   const embed = new EmbedBuilder()
-    .setTitle(`⏰ Bientôt retirés — ${date}`)
-    .setColor(0xff6600)
+    .setTitle("⏰ Bientôt retirés")
+    .setURL(SHOP_GALLERY_URL)
+    .setColor(LEAVING_ORANGE)
     .setTimestamp();
 
-  if (items.length === 0) {
+  if (unique.length === 0) {
     embed.setDescription("Aucun article ne part au prochain reset.");
     return embed;
   }
 
-  // Trier par expiry croissant (les plus proches du départ en premier)
-  const sorted = [...items].sort((a, b) => {
+  const sorted = [...unique].sort((a, b) => {
     if (!a.expiry) return 1;
     if (!b.expiry) return -1;
     return a.expiry.getTime() - b.expiry.getTime();
   });
 
-  const maxItems = Math.min(sorted.length, 24);
-  const lines: string[] = [];
-
-  for (let i = 0; i < maxItems; i++) {
-    const item = sorted[i];
-    const packBadge = item.isBundle ? "📦 " : "";
-    const rarity = item.rarity ? ` • ${item.rarity}` : "";
-    const price = ` • ${formatPrice(item.price)}`;
-    const expiryStr = formatExpiry(item.expiry);
-
-    lines.push(`**${i + 1}.** ${packBadge}${item.name}${rarity}${price}${expiryStr}`);
-  }
-
-  if (sorted.length > maxItems) {
-    lines.push(`\n*...et ${sorted.length - maxItems} autres articles*`);
-  }
-
-  embed.setDescription(lines.join("\n"));
-
-  const firstWithImage = sorted.find((i) => i.featuredImage);
-  if (firstWithImage?.featuredImage) {
-    embed.setImage(firstWithImage.featuredImage);
-  } else if (sorted[0]?.icon) {
-    embed.setThumbnail(sorted[0].icon);
-  }
-
-  embed.setFooter({ text: `${sorted.length} articles bientôt retirés • fortnite-api.com` });
+  embed.setDescription(
+    sorted.length > GRID_CAP
+      ? `${GRID_CAP} affichés · ${sorted.length} au total`
+      : "Ils quittent la boutique au prochain reset.",
+  );
+  addItemGrid(embed, sorted, (item) => (item.expiry ? `<t:${unixTs(item.expiry)}:R>` : ""));
+  setCatalogThumbnail(embed, sorted);
+  embed.setFooter({ text: `${sorted.length} articles bientôt retirés` });
   return embed;
 }
 
-// ─── Fonction exportée pour le cron (construit tous les embeds overview) ───
+export function buildBoutiqueComponents(): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setLabel("Boutique officielle").setStyle(ButtonStyle.Link).setURL(SHOP_URL),
+    new ButtonBuilder()
+      .setLabel("Voir en images")
+      .setStyle(ButtonStyle.Link)
+      .setURL(SHOP_GALLERY_URL),
+  );
+}
 
 export function buildBoutiqueEmbeds(data: BoutiqueData): EmbedBuilder[] {
   const embeds: EmbedBuilder[] = [buildOverviewEmbed(data)];
 
-  const newItems = data.items.filter((i) => i.isNew);
+  const newItems = uniqueBoutiqueItems(data.items).filter((i) => i.isNew);
   if (newItems.length > 0) {
-    embeds.push(buildNewItemsEmbed(newItems, data.date));
+    embeds.push(buildNewItemsEmbed(newItems));
   }
 
   const now = Date.now();
-  const expiringItems = data.items.filter(
+  const expiringItems = uniqueBoutiqueItems(data.items).filter(
     (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
   );
   if (expiringItems.length > 0) {
-    embeds.push(buildExpiringEmbed(expiringItems, data.date));
+    embeds.push(buildExpiringEmbed(expiringItems));
   }
 
   return embeds.slice(0, 10);
+}
+
+export async function buildBoutiquePayload(data: BoutiqueData): Promise<{
+  embeds: EmbedBuilder[];
+  files?: { attachment: Buffer; name: string }[];
+  components: ActionRowBuilder<ButtonBuilder>[];
+}> {
+  const embeds = buildBoutiqueEmbeds(data);
+  const unique = uniqueBoutiqueItems(data.items);
+  const newCount = unique.filter((i) => i.isNew).length;
+
+  const card = await generateCardAttachment(
+    {
+      type: "shop",
+      title: formatShopDate(data.date),
+      subtitle: `${unique.length} articles`,
+      badge: newCount > 0 ? `${newCount} nouveautés` : "Rotation du jour",
+      description: data.nextReset ? "Reset 02:00 Paris" : undefined,
+      platformName: "FORTNITE",
+      platformColor: "#9D4EDD",
+    },
+    "boutique-fortnite",
+  );
+
+  if (card) {
+    embeds[0].setImage(`attachment://${card.name}`);
+  }
+
+  return {
+    embeds,
+    files: card ? [card] : undefined,
+    components: [buildBoutiqueComponents()],
+  };
 }
 
 // ─── Commande Slash ──────────────────────────────────────────────────
@@ -525,48 +571,54 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     }
 
     const section = interaction.options.getString("section") || "overview";
+    const components = [buildBoutiqueComponents()];
+    let payload: {
+      embeds: EmbedBuilder[];
+      files?: { attachment: Buffer; name: string }[];
+      components: ActionRowBuilder<ButtonBuilder>[];
+    };
 
-    // Construire les embeds selon la section
-    let embeds: EmbedBuilder[] = [];
-
-    // ─── Vue d'ensemble : overview + nouveautés + bientôt retirés ───
     if (section === "overview") {
-      embeds = [buildOverviewEmbed(data)];
-
-      const newItems = data.items.filter((i) => i.isNew);
-      if (newItems.length > 0) {
-        embeds.push(buildNewItemsEmbed(newItems, data.date));
-      }
-
-      const now = Date.now();
-      const expiringItems = data.items.filter(
-        (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
-      );
-      if (expiringItems.length > 0) {
-        embeds.push(buildExpiringEmbed(expiringItems, data.date));
-      }
+      payload = await buildBoutiquePayload(data);
     } else if (section === "new") {
-      const newItems = data.items.filter((i) => i.isNew);
-      embeds = [buildNewItemsEmbed(newItems, data.date)];
+      payload = {
+        embeds: [buildNewItemsEmbed(uniqueBoutiqueItems(data.items).filter((i) => i.isNew))],
+        components,
+      };
     } else if (section === "expiring") {
       const now = Date.now();
-      const expiringItems = data.items.filter(
-        (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
-      );
-      embeds = [buildExpiringEmbed(expiringItems, data.date)];
+      payload = {
+        embeds: [
+          buildExpiringEmbed(
+            uniqueBoutiqueItems(data.items).filter(
+              (i) => i.expiry && i.expiry.getTime() - now < 24 * 60 * 60 * 1000,
+            ),
+          ),
+        ],
+        components,
+      };
     } else {
       const sectionItems = data.items.filter((i) => i.sectionId === section);
       const sectionName = sectionItems[0]?.sectionName || section;
-      embeds = [buildSectionEmbed(sectionName, section, sectionItems, data.date, data.nextReset)];
+      payload = {
+        embeds: [buildSectionEmbed(sectionName, section, sectionItems, data.date, data.nextReset)],
+        components,
+      };
     }
 
-    // Discord limite à 10 embeds par message
-    const finalEmbeds = embeds.slice(0, 10);
+    const finalEmbeds = payload.embeds.slice(0, 10);
+    const reply: {
+      embeds: EmbedBuilder[];
+      components: ActionRowBuilder<ButtonBuilder>[];
+      files?: { attachment: Buffer; name: string }[];
+    } = {
+      embeds: finalEmbeds,
+      components: payload.components,
+    };
+    if (payload.files) reply.files = payload.files;
 
-    // 1. Répondre à l'interaction
-    await interaction.editReply({ embeds: finalEmbeds });
+    await interaction.editReply(reply);
 
-    // 2. Envoyer aussi dans le salon boutique configuré
     if (client && config.boutiqueChannel) {
       try {
         const channel = await client.channels.fetch(config.boutiqueChannel).catch(() => null);
@@ -574,7 +626,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
           channel &&
           (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildAnnouncement)
         ) {
-          await (channel as TextChannel).send({ embeds: finalEmbeds });
+          await (channel as TextChannel).send(reply);
           logger.info(`[Boutique] Embeds envoyés dans le salon ${config.boutiqueChannel}`);
         } else {
           logger.warn(`[Boutique] Salon ${config.boutiqueChannel} inaccessible ou non textuel`);
