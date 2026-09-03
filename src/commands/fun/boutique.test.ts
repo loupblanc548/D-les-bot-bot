@@ -4,12 +4,6 @@ vi.mock("../../utils/logger.js", () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 vi.mock("../../config.js", () => ({ config: { boutiqueChannel: "" } }));
-vi.mock("../../utils/notificationCards.js", () => ({
-  generateCardAttachment: vi.fn().mockResolvedValue({
-    attachment: Buffer.from("png"),
-    name: "boutique-fortnite.png",
-  }),
-}));
 
 import {
   buildBoutiqueComponents,
@@ -117,10 +111,10 @@ describe("boutique layout", () => {
     expect(leavingJson.description).not.toMatch(/\*\*\d+\.\*\*/);
   });
 
-  it("attaches a banner and shop buttons on the channel payload", async () => {
+  it("adds shop buttons without a duplicate title line", async () => {
     const payload = await buildBoutiquePayload(sampleShop());
-    expect(payload.embeds[0].toJSON().image?.url).toBe("attachment://boutique-fortnite.png");
-    expect(payload.files?.[0]?.name).toBe("boutique-fortnite.png");
+    expect(payload.embeds[0].toJSON().image).toBeUndefined();
+    expect(payload.files).toBeUndefined();
     expect(payload.components).toHaveLength(1);
 
     const row = buildBoutiqueComponents().toJSON();

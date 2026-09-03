@@ -12,7 +12,6 @@ import {
 import logger from "../../utils/logger.js";
 import { config } from "../../config.js";
 import { oneLineEmbedTitle } from "../../utils/embedLayout.js";
-import { generateCardAttachment } from "../../utils/notificationCards.js";
 
 // ─── Types pour parser l'API Fortnite v2 ─────────────────────────────
 
@@ -501,38 +500,8 @@ export async function buildBoutiquePayload(data: BoutiqueData): Promise<{
   files?: { attachment: Buffer; name: string }[];
   components: ActionRowBuilder<ButtonBuilder>[];
 }> {
-  const embeds = buildBoutiqueEmbeds(data);
-  const unique = uniqueBoutiqueItems(data.items);
-  const newCount = unique.filter((i) => i.isNew).length;
-
-  let card: { attachment: Buffer; name: string } | null = null;
-  try {
-    card = await Promise.race([
-      generateCardAttachment(
-        {
-          type: "shop",
-          title: formatShopDate(data.date),
-          subtitle: `${unique.length} articles`,
-          badge: newCount > 0 ? `${newCount} nouveautés` : "Rotation du jour",
-          description: data.nextReset ? "Reset 02:00 Paris" : undefined,
-          platformName: "FORTNITE",
-          platformColor: "#9D4EDD",
-        },
-        "boutique-fortnite",
-      ),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-    ]);
-  } catch (err) {
-    logger.warn(`[Boutique] Bannière ignorée: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  if (card) {
-    embeds[0].setImage(`attachment://${card.name}`);
-  }
-
   return {
-    embeds,
-    files: card ? [card] : undefined,
+    embeds: buildBoutiqueEmbeds(data),
     components: [buildBoutiqueComponents()],
   };
 }
