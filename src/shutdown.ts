@@ -38,6 +38,9 @@ import { stopConfigCache } from "./services/configCache.js";
 import { stopDmCleanup } from "./services/dmCleanup.js";
 import { shutdownOpenTelemetry } from "./utils/otel-setup.js";
 import type {} from "discord.js";
+import { join } from "node:path";
+
+export const LAST_SHUTDOWN_FILE = join(process.cwd(), ".last_shutdown");
 
 export type ClientDestroyFn = () => void;
 
@@ -59,7 +62,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // Enregistrer l'heure d'arrêt pour que le startup sache si c'est un vrai arrêt ou un restart
   try {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile("/opt/bot/.last_shutdown", String(Date.now()), { mode: 0o600 });
+    await writeFile(LAST_SHUTDOWN_FILE, String(Date.now()), { mode: 0o600 });
   } catch {
     logger.error("[Silent catch]");
   }

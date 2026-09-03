@@ -38,7 +38,7 @@ import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalP
 import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
 import { startDigestScheduler } from "./services/communityDigest.js";
 import { startPersonalDigestScheduler } from "./services/proactiveAgent.js";
-import { registerInterval } from "./shutdown.js";
+import { LAST_SHUTDOWN_FILE, registerInterval } from "./shutdown.js";
 import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
@@ -280,11 +280,10 @@ export function attachStartupLogic(
 
     // Rattrapage startup (skippable via SKIP_RETROSPECTIVE=true)
     // Also skip if bot was only down < 5 min (normal restart, not a real outage)
-    const SHUTDOWN_FILE = "/opt/bot/.last_shutdown";
     let wasRealOutage = true;
     try {
       const { readFile: rf } = await import("node:fs/promises");
-      const lastShutdownStr = (await rf(SHUTDOWN_FILE, "utf-8")).trim();
+      const lastShutdownStr = (await rf(LAST_SHUTDOWN_FILE, "utf-8")).trim();
       const lastShutdown = parseInt(lastShutdownStr, 10);
       const downtimeMs = Date.now() - lastShutdown;
       if (downtimeMs < 5 * 60 * 1000) {
@@ -294,23 +293,25 @@ export function attachStartupLogic(
         );
       }
     } catch {
-      logger.error("[Silent catch]");
+      // Pas de fichier d'arrêt → on ne bloque plus le ready, rattrapage en fond
     }
 
     if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
       logger.info("[Startup] Rattrapage ignoré");
     } else {
-      logger.info("[Startup] Rattrapage des actualites manquees...");
-      try {
-        await runStartupRetrospective(client);
-        await runDbSourcesRetrospective(client);
-        await runWishlistRetrospective(client);
-      } catch (e) {
-        logger.error(
-          `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
-          { stack: e instanceof Error ? e.stack : undefined },
-        );
-      }
+      logger.info("[Startup] Rattrapage des actualités manquées (arrière-plan)...");
+      void (async () => {
+        try {
+          await runStartupRetrospective(client);
+          await runDbSourcesRetrospective(client);
+          await runWishlistRetrospective(client);
+        } catch (e) {
+          logger.error(
+            `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
+            { stack: e instanceof Error ? e.stack : undefined },
+          );
+        }
+      })();
     }
 
     // Validation des salons

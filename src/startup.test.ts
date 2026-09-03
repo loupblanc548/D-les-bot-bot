@@ -188,7 +188,10 @@ vi.mock("./services/presenceTracker", () => ({ startPresenceTracker: vi.fn() }))
 vi.mock("./services/dealFusion", () => ({ startDealFusion: vi.fn() }));
 vi.mock("./services/githubReleases", () => ({ startGitHubReleasesMonitor: vi.fn() }));
 vi.mock("./services/multiSiteDeals", () => ({ startMultiSiteDealsMonitor: vi.fn() }));
-vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
+vi.mock("./shutdown", () => ({
+  registerInterval: mockCron.registerInterval,
+  LAST_SHUTDOWN_FILE: "/tmp/john-last-shutdown-test",
+}));
 vi.mock("./services/socialFollow", () => ({ startSocialFollowMonitoring: vi.fn() }));
 vi.mock("./managers/ChannelRouter", () => ({
   enableSilentMode: vi.fn(),
@@ -295,7 +298,9 @@ describe("startup", () => {
       await readyHandler(readyClient);
 
       expect(mockServices.checkWishlistMatches).toHaveBeenCalledWith(mockClient);
-      expect(mockServices.runWishlistRetrospective).toHaveBeenCalledWith(mockClient);
+      await vi.waitFor(() => {
+        expect(mockServices.runWishlistRetrospective).toHaveBeenCalledWith(mockClient);
+      });
     });
 
     it("enregistre l'intervalle cyclique wishlist (24h)", async () => {

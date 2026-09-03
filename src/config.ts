@@ -25,7 +25,7 @@ export const config = {
 
   // Twitch
   twitterAccounts: env.TWITTER_ACCOUNTS || "",
-  twitterChannel: env.TWITTER_CHANNEL_ID || env.LOG_CHANNEL_ID || "",
+  twitterChannel: env.TWITTER_CHANNEL_ID || "",
   twitchClientId: env.TWITCH_CLIENT_ID || "",
   twitchClientSecret: env.TWITCH_CLIENT_SECRET || "",
 

@@ -2,6 +2,7 @@ node_modules
 
 # Anti-restart-loop lock file
 .restart-lock
+.last_shutdown
 
 # Persistent cooldown state
 .cooldown-state

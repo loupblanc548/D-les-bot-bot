@@ -63,8 +63,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     const format = interaction.options.getString("format") || "{author} - {date}";
 
     try {
-      await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS auto_thread_config (guildId TEXT, channelId TEXT, format TEXT, PRIMARY KEY (guildId, channelId))`;
-      await prisma.$executeRaw`INSERT OR REPLACE INTO auto_thread_config (guildId, channelId, format) VALUES (${interaction.guildId}, ${channel.id}, ${format})`;
+      await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS auto_thread_config ("guildId" TEXT, "channelId" TEXT, format TEXT, PRIMARY KEY ("guildId", "channelId"))`;
+      await prisma.$executeRaw`INSERT INTO auto_thread_config ("guildId", "channelId", format) VALUES (${interaction.guildId}, ${channel.id}, ${format}) ON CONFLICT ("guildId", "channelId") DO UPDATE SET format = EXCLUDED.format`;
     } catch (err) {
       logger.error(`[AutoThread] DB error: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -79,7 +79,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   if (sub === "disable") {
     const channel = interaction.options.getChannel("salon", true);
     try {
-      await prisma.$executeRaw`DELETE FROM auto_thread_config WHERE guildId = ${interaction.guildId} AND channelId = ${channel.id}`;
+      await prisma.$executeRaw`DELETE FROM auto_thread_config WHERE "guildId" = ${interaction.guildId} AND "channelId" = ${channel.id}`;
     } catch {
       logger.error("[Silent catch]");
     }
@@ -94,7 +94,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     let channels: { channelId: string; format: string }[] = [];
     try {
       channels =
-        (await prisma.$queryRaw`SELECT channelId, format FROM auto_thread_config WHERE guildId = ${interaction.guildId}`) as any;
+        (await prisma.$queryRaw`SELECT "channelId", format FROM auto_thread_config WHERE "guildId" = ${interaction.guildId}`) as any;
     } catch {
       logger.error("[Silent catch]");
     }
@@ -117,8 +117,12 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
 
 export function attachAutoThread(client: Client): void {
   // Create table at startup to avoid errors on every message
-  prisma.$executeRaw`CREATE TABLE IF NOT EXISTS auto_thread_config (guildId TEXT, channelId TEXT, format TEXT, PRIMARY KEY (guildId, channelId))}`.catch(
-    () => {},
+  prisma.$executeRaw`CREATE TABLE IF NOT EXISTS auto_thread_config ("guildId" TEXT, "channelId" TEXT, format TEXT, PRIMARY KEY ("guildId", "channelId"))`.catch(
+    (err) => {
+      logger.error(
+        `[AutoThread] CREATE TABLE: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    },
   );
 
   client.on(Events.MessageCreate, async (message) => {
@@ -128,7 +132,7 @@ export function attachAutoThread(client: Client): void {
     let config: { format: string } | null = null;
     try {
       const results =
-        (await prisma.$queryRaw`SELECT format FROM auto_thread_config WHERE guildId = ${message.guildId} AND channelId = ${message.channelId}`) as any[];
+        (await prisma.$queryRaw`SELECT format FROM auto_thread_config WHERE "guildId" = ${message.guildId} AND "channelId" = ${message.channelId}`) as any[];
       if (results.length > 0) config = results[0];
     } catch {
       return; // Table doesn't exist

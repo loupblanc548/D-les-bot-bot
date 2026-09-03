@@ -9,9 +9,7 @@ export default {
       .addStringOption((o) =>
         o
           .setName("action")
-          .setDescription(
-            "Action: collectWood, collectStone, collectIron, buildHouse, eat, sleep, defend, hunt, stop, explore, sortInventory",
-          )
+          .setDescription("Action rapide (bois, pierre, fer, maison, manger, dormir, stop…)")
           .setRequired(true)
           .addChoices(
             { name: "🪵 Collect wood (10 logs)", value: "collectWood" },

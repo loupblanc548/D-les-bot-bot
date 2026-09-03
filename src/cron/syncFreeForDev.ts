@@ -118,9 +118,15 @@ export async function syncFreeForDev(): Promise<void> {
     const syncedUrls = resources.map((r) => r.url);
 
     // Delete entries not in current sync
-    await prisma.$executeRaw`DELETE FROM "FreeResource" WHERE url NOT IN (${syncedUrls})`.catch(
-      () => {},
-    );
+    await prisma.freeResource
+      .deleteMany({
+        where: { url: { notIn: syncedUrls } },
+      })
+      .catch((err) => {
+        logger.warn(
+          `[FREE-FOR-DEV] Purge stale: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
 
     // Insert in batches using createMany with skipDuplicates
     const batchSize = 50;

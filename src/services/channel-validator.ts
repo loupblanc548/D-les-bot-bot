@@ -73,6 +73,13 @@ const CHANNELS_TO_VALIDATE: ChannelDef[] = [
   // -- Logs & monitoring --
   { id: config.logChannel, label: "Logs", envKey: "LOG_CHANNEL_ID", optional: true },
   { id: config.dedicatedChannel, label: "Dédié", envKey: "DEDICATED_CHANNEL_ID", optional: true },
+  {
+    id: config.boutiqueChannel,
+    label: "Boutique Fortnite",
+    envKey: "BOUTIQUE_CHANNEL_ID",
+    optional: true,
+  },
+  { id: config.creatorsChannel, label: "Créateurs", envKey: "CREATORS_CHANNEL_ID", optional: true },
 ];
 
 // ==========================================================================

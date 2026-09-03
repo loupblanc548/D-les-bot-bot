@@ -3,14 +3,11 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   Client,
-  TextChannel,
-  ChannelType,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
 } from "discord.js";
 import logger from "../../utils/logger.js";
-import { config } from "../../config.js";
 import { oneLineEmbedTitle } from "../../utils/embedLayout.js";
 
 // ─── Types pour parser l'API Fortnite v2 ─────────────────────────────
@@ -530,7 +527,7 @@ export const commands = [
     .toJSON(),
 ];
 
-export async function handleCommand(interaction: ChatInputCommandInteraction, client?: Client) {
+export async function handleCommand(interaction: ChatInputCommandInteraction, _client?: Client) {
   await interaction.deferReply();
 
   try {
@@ -595,23 +592,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     if (payload.files) reply.files = payload.files;
 
     await interaction.editReply(reply);
-
-    if (client && config.boutiqueChannel) {
-      try {
-        const channel = await client.channels.fetch(config.boutiqueChannel).catch(() => null);
-        if (
-          channel &&
-          (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildAnnouncement)
-        ) {
-          await (channel as TextChannel).send(reply);
-          logger.info(`[Boutique] Embeds envoyés dans le salon ${config.boutiqueChannel}`);
-        } else {
-          logger.warn(`[Boutique] Salon ${config.boutiqueChannel} inaccessible ou non textuel`);
-        }
-      } catch (err) {
-        logger.error(`[Boutique] Erreur envoi salon:`, String(err));
-      }
-    }
   } catch (err) {
     logger.error("[Boutique] Erreur:", String(err));
     await interaction.editReply({

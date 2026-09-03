@@ -24,6 +24,15 @@ import agentlog from "./agentlog.js";
 import agentworld from "./agentworld.js";
 import agentchat from "./agentchat.js";
 import agentaction from "./agentaction.js";
+import seed from "./seed.js";
+import stopServer from "./stop-server.js";
+import unfollow from "./unfollow.js";
+import give from "./give.js";
+import solo from "./solo.js";
+import link from "./link.js";
+import unlink from "./unlink.js";
+import profile from "./profile.js";
+import stats from "./stats.js";
 
 const subcommands: SubcommandDef[] = [
   connect,
@@ -33,8 +42,17 @@ const subcommands: SubcommandDef[] = [
   stop,
   chat,
   follow,
+  unfollow,
   farm,
   stopFarm,
+  seed,
+  stopServer,
+  give,
+  solo,
+  link,
+  unlink,
+  profile,
+  stats,
   agent,
   agentstop,
   agentstatus,

@@ -743,6 +743,7 @@ export async function registerCommands(): Promise<void> {
       "mod",
       "security",
       "wishlist",
+      "mc",
     ]);
     const hidden = mergedCommands.length;
     const publicCommands = mergedCommands.filter((cmd) => {
