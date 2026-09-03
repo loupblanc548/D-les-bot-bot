@@ -11,6 +11,7 @@ import prisma from "../prisma.js";
 import { Platform } from "@prisma/client";
 import { cleanUrl } from "../utils/url-cleaner.js";
 import { config } from "../config.js";
+import { fetchTextChannel } from "../utils/discordChannel.js";
 import { getYouTubeRssUrl } from "./youtube.js";
 import { fetchFreeGames } from "./epicgames.js";
 import { embedEpicGames } from "../utils/gaming-embeds.js";
@@ -19,6 +20,11 @@ import {
   getPlatformColor,
   getPlatformLabel,
 } from "../utils/notificationCards.js";
+import {
+  isFortniteOnTopic,
+  notificationHeadline,
+  oneLineEmbedTitle,
+} from "../utils/embedLayout.js";
 import { alertApiFailure, alertNotificationFailure } from "../services/proactiveAlerts.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
 import {
@@ -306,64 +312,51 @@ export async function sendToChannel(
   embed: EmbedBuilder,
 ): Promise<boolean> {
   try {
-    let channel = client.channels.cache.get(channelId) as TextChannel | undefined;
-    // Fetch from API if not in cache
-    if (!channel) {
-      try {
-        channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
-      } catch (fetchErr) {
-        logger.error(
-          `[Feeds] Channel ${channelId} introuvable: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
-        );
-        return false;
-      }
-    }
-    if (channel?.isTextBased()) {
-      try {
-        await channel.send({ embeds: [embed] });
-        return true;
-      } catch (sendErr) {
-        // Si l'embed est rejeté (image invalide, etc.), retry sans image
-        const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
-        // Log full error for debugging
-        const rawErr = JSON.stringify(sendErr, Object.getOwnPropertyNames(sendErr), 2);
-        logger.error(
-          `[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`,
-        );
-        if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
+    const channel = await fetchTextChannel(client, channelId);
+    if (!channel) return false;
+    try {
+      await channel.send({ embeds: [embed] });
+      return true;
+    } catch (sendErr) {
+      // Si l'embed est rejeté (image invalide, etc.), retry sans image
+      const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+      // Log full error for debugging
+      const rawErr = JSON.stringify(sendErr, Object.getOwnPropertyNames(sendErr), 2);
+      logger.error(
+        `[Feeds] Discord send error on ${channelId}: ${errMsg}\nRaw: ${rawErr.slice(0, 1000)}`,
+      );
+      if (errMsg.includes("Received one or more errors") || errMsg.includes("embed")) {
+        try {
+          const cleanData = { ...embed.data };
+          delete (cleanData as Record<string, any>).image;
+          delete (cleanData as Record<string, any>).thumbnail;
+          const cleanEmbed = new EmbedBuilder(cleanData);
+          await channel.send({ embeds: [cleanEmbed] });
+          logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
+          return true;
+        } catch (retryErr) {
+          const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          const retryRaw = JSON.stringify(retryErr, Object.getOwnPropertyNames(retryErr), 2);
+          logger.error(
+            `[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`,
+          );
+          // Dernier recours : envoyer en texte simple sans embed
           try {
-            const cleanData = { ...embed.data };
-            delete (cleanData as Record<string, any>).image;
-            delete (cleanData as Record<string, any>).thumbnail;
-            const cleanEmbed = new EmbedBuilder(cleanData);
-            await channel.send({ embeds: [cleanEmbed] });
-            logger.warn(`[Feeds] Embed envoyé sans image après erreur Discord sur ${channelId}`);
+            const title = embed.data.title || "Notification";
+            const url = embed.data.url || "";
+            await channel.send(`${title}${url ? " — " + url : ""}`);
+            logger.warn(`[Feeds] Texte simple envoyé sur ${channelId} (embed rejeté)`);
             return true;
-          } catch (retryErr) {
-            const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-            const retryRaw = JSON.stringify(retryErr, Object.getOwnPropertyNames(retryErr), 2);
+          } catch (textErr) {
             logger.error(
-              `[Feeds] Retry sans image échoué sur ${channelId}: ${retryMsg}\nRaw: ${retryRaw.slice(0, 1000)}`,
+              `[Feeds] Texte simple échoué sur ${channelId}: ${textErr instanceof Error ? textErr.message : String(textErr)}`,
             );
-            // Dernier recours : envoyer en texte simple sans embed
-            try {
-              const title = embed.data.title || "Notification";
-              const url = embed.data.url || "";
-              await channel.send(`${title}${url ? " — " + url : ""}`);
-              logger.warn(`[Feeds] Texte simple envoyé sur ${channelId} (embed rejeté)`);
-              return true;
-            } catch (textErr) {
-              logger.error(
-                `[Feeds] Texte simple échoué sur ${channelId}: ${textErr instanceof Error ? textErr.message : String(textErr)}`,
-              );
-            }
           }
         }
-        logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
-        return false;
       }
+      logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
+      return false;
     }
-    logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
   } catch (err) {
     logger.error(
@@ -380,31 +373,18 @@ export async function sendToChannelWithAttachment(
   attachment: { attachment: Buffer; name: string },
 ): Promise<boolean> {
   try {
-    let channel = client.channels.cache.get(channelId) as TextChannel | undefined;
-    // Fetch from API if not in cache
-    if (!channel) {
-      try {
-        channel = (await client.channels.fetch(channelId)) as TextChannel | undefined;
-      } catch (fetchErr) {
-        logger.error(
-          `[Feeds] Channel ${channelId} introuvable (attachment): ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
-        );
-        return false;
-      }
+    const channel = await fetchTextChannel(client, channelId);
+    if (!channel) return false;
+    try {
+      await channel.send({ embeds: [embed], files: [attachment] });
+      return true;
+    } catch (sendErr) {
+      // Si l'envoi avec attachment échoue, logger l'erreur réelle
+      logger.error(
+        `[Feeds] Discord API error (attachment) on ${channelId}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`,
+      );
+      return false;
     }
-    if (channel?.isTextBased()) {
-      try {
-        await channel.send({ embeds: [embed], files: [attachment] });
-        return true;
-      } catch (sendErr) {
-        // Si l'envoi avec attachment échoue, logger l'erreur réelle
-        logger.error(
-          `[Feeds] Discord API error (attachment) on ${channelId}: ${sendErr instanceof Error ? sendErr.message : String(sendErr)}`,
-        );
-        return false;
-      }
-    }
-    logger.warn(`[Feeds] Channel ${channelId} n'est pas textuel (type: ${channel?.type})`);
     return false;
   } catch (err) {
     logger.error(
@@ -429,7 +409,7 @@ async function sendToChannelWithCard(
     const cardAttachment = await generateCardAttachment(
       {
         type: cardType as "youtube" | "blog",
-        title,
+        title: oneLineEmbedTitle(title, 70),
         subtitle: `@${handle}`,
         imageUrl: thumbnail,
         platformName: getPlatformLabel(platform.toLowerCase()),
@@ -493,6 +473,9 @@ export async function runGamingFeeds(client: Client) {
           result = await checkBlogSource(source.blogUrl);
         }
         if (!result || !result.url) continue;
+        if (feed.channelName === "Fortnite" && !isFortniteOnTopic(result.title, source.handle)) {
+          continue;
+        }
         const isNewNotif = await tryInsertNotification(
           "gaming-feed",
           source.platform,
@@ -503,14 +486,20 @@ export async function runGamingFeeds(client: Client) {
 
         const icon = PLATFORM_ICONS[source.platform] || "📡";
         const label = PLATFORM_LABELS[source.platform] || "";
-        const embedTitle = (
-          label ? icon + " " + result.title + " — " + label : icon + " " + result.title
-        ).slice(0, 256);
+        const embedTitle = notificationHeadline(icon, result.title, label);
+        const body = oneLineEmbedTitle(result.title, 180);
+        const desc =
+          result.title.trim().length > body.length
+            ? result.title.replace(/\s+/g, " ").trim().slice(0, 1800)
+            : undefined;
 
         const embed = new EmbedBuilder()
           .setTitle(embedTitle)
           .setURL(result.url)
           .setColor(PLATFORM_COLORS[source.platform] || 0x5865f2)
+          .setAuthor({
+            name: `@${source.handle}`,
+          })
           .addFields(
             {
               name: "Source",
@@ -519,7 +508,9 @@ export async function runGamingFeeds(client: Client) {
             },
             { name: "Salon", value: feed.channelName.slice(0, 1024), inline: true },
           )
+          .setFooter({ text: label || source.platform })
           .setTimestamp();
+        if (desc) embed.setDescription(desc);
 
         try {
           if (source.platform === "youtube") {
@@ -602,6 +593,9 @@ export async function runStartupRetrospective(client: Client) {
         let publishedForSource = 0;
         for (const item of items) {
           if (!item.url) continue;
+          if (feed.channelName === "Fortnite" && !isFortniteOnTopic(item.title, source.handle)) {
+            continue;
+          }
           const isNewRetroNotif = await tryInsertNotification(
             "gaming-feed",
             source.platform,
@@ -612,14 +606,13 @@ export async function runStartupRetrospective(client: Client) {
 
           const icon = PLATFORM_ICONS[source.platform] || "📡";
           const label = PLATFORM_LABELS[source.platform] || "";
-          const embedTitle = (
-            label ? icon + " " + item.title + " — " + label : icon + " " + item.title
-          ).slice(0, 256);
+          const embedTitle = notificationHeadline(icon, item.title, label);
 
           const embed = new EmbedBuilder()
             .setTitle(embedTitle)
             .setURL(item.url)
             .setColor(PLATFORM_COLORS[source.platform] || 0x5865f2)
+            .setAuthor({ name: `@${source.handle}` })
             .addFields(
               {
                 name: "Source",
@@ -633,6 +626,7 @@ export async function runStartupRetrospective(client: Client) {
                 inline: false,
               },
             )
+            .setFooter({ text: label || source.platform })
             .setTimestamp();
 
           try {

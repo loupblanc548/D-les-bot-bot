@@ -9,6 +9,7 @@ import { Client, TextChannel, EmbedBuilder } from "discord.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
+import { fetchTextChannel } from "../utils/discordChannel.js";
 import { getMemoryLevel } from "../utils/memoryConfig.js";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — check interne
@@ -52,8 +53,8 @@ export function startBotHealthCheck(client: Client): void {
           lastAlertTime = Date.now();
           const logChannelId = config.logChannel;
           if (logChannelId) {
-            const channel = await client.channels.fetch(logChannelId);
-            if (channel?.isTextBased()) {
+            const channel = await fetchTextChannel(client, logChannelId);
+            if (channel) {
               const embed = new EmbedBuilder()
                 .setTitle("🩺 Bot Health Check — Alerte")
                 .setColor(rssMB >= MEMORY_ALERT_THRESHOLD_MB ? 0xff3344 : 0xff9900)

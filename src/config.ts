@@ -237,7 +237,7 @@ export const config = {
   reportRoleId: env.REPORT_ROLE_ID || "1402362014264983762",
   boostChannel: env.BOOST_CHANNEL_ID || "1203399031351545887",
   manualReportChannel: env.MANUAL_REPORT_CHANNEL_ID || "1515767173740757112",
-  creatorsChannel: env.CREATORS_CHANNEL_ID || "1524219631047540826",
+  creatorsChannel: env.CREATORS_CHANNEL_ID || "",
   generalChannel: env.GENERAL_CHANNEL_ID || "1134242473334554774",
 
   // ─── Rate Limiting ────────────────────────────────────────────────────────

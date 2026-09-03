@@ -13,6 +13,7 @@ import { dedupCache } from "../utils/deduplicationCache.js";
 import { getOgImage, safeSetImage, isValidEmbedImageUrl } from "../utils/image-helpers.js";
 import { fetchAndOptimizeImage, isOptimizableImageUrl } from "../utils/image-optimizer.js";
 import { generateStableId } from "../utils/url-cleaner.js";
+import { oneLineEmbedTitle } from "../utils/embedLayout.js";
 
 const rssParser = new RSSParser({
   timeout: 10000,
@@ -246,8 +247,14 @@ async function sendDealEmbed(
       imageUrl = platform.defaultImage;
     }
 
+    const title = oneLineEmbedTitle(translatedTitle, 90);
+    if (!title) {
+      logger.warn(`[DealsCron] Titre vide après nettoyage (${platform.name}), skip`);
+      return;
+    }
+
     const embed = new EmbedBuilder()
-      .setTitle(translatedTitle)
+      .setTitle(title)
       .setDescription(finalDescription || "Aucune description disponible")
       .setColor(platform.color)
       .setURL(item.link)

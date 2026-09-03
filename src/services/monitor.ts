@@ -28,6 +28,7 @@ import {
   getPlatformLabel,
 } from "../utils/notificationCards.js";
 import { alertApiFailure, alertCritical } from "../services/proactiveAlerts.js";
+import { notificationHeadline, oneLineEmbedTitle } from "../utils/embedLayout.js";
 import { config } from "../config.js";
 import {
   RSS_HEADERS,
@@ -519,15 +520,11 @@ async function checkAndNotify(client: Client) {
             const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
             const contentText =
               "title" in result.content ? result.content.title : result.content.text;
-            const embedTitle = label
-              ? icon + " " + contentText + " — " + label
-              : icon + " " + contentText;
+            const embedTitle = notificationHeadline(icon, contentText, label);
 
             const embed = new EmbedBuilder()
               .setTitle(embedTitle)
-              .setDescription(
-                "title" in result.content ? result.content.title : result.content.text,
-              )
+              .setDescription(oneLineEmbedTitle(contentText, 300))
               .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
               .addFields({
                 name: "Plateforme",
@@ -877,13 +874,11 @@ export async function runDbSourcesRetrospective(client: Client) {
           // Titre enrichi par plateforme
           const icon = PLATFORM_ICONS[source.type.toLowerCase()] || "📢";
           const label = PLATFORM_LABELS[source.type.toLowerCase()] || "";
-          const embedTitle = label
-            ? icon + " " + item.title + " — " + label
-            : icon + " " + item.title;
+          const embedTitle = notificationHeadline(icon, item.title, label);
 
           const embed = new EmbedBuilder()
             .setTitle(embedTitle)
-            .setDescription(item.title)
+            .setDescription(oneLineEmbedTitle(item.title, 300))
             .setColor(PLATFORM_COLORS[source.type.toLowerCase()] || 0x5865f2)
             .addFields(
               {

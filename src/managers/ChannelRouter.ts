@@ -19,6 +19,7 @@ const deadChannels = new Set<string>();
 const DEAD_CHANNEL_TTL_MS = 30 * 60 * 1000; // 30 min before retrying
 const deadChannelTimestamps = new Map<string, number>();
 import { generateCardAttachment } from "../utils/notificationCards.js";
+import { oneLineEmbedTitle } from "../utils/embedLayout.js";
 
 // ─── Configuration des plateformes ─────────────────────────────────────────
 
@@ -58,21 +59,30 @@ const PLATFORM_CONFIGS: PlatformConfig[] = [
   },
   {
     name: "Xbox",
-    keywords: [/xbox/i, /microsoft/i, /xbl/i, /game\s*pass/i, /series\s*x/i, /xcloud/i],
+    keywords: [/xbox/i, /xbl/i, /game\s*pass/i, /series\s*x/i, /xcloud/i],
     envChannelKey: "XBOX_CHANNEL_ID",
     color: 0x107c10, // Vert Xbox
     icon: "https://www.xbox.com/favicon.ico",
   },
   {
     name: "Nintendo",
-    keywords: [/nintendo/i, /switch/i, /\bwii\b/i, /gamecube/i, /3ds/i, /ds\b/i, /amiibo/i],
+    keywords: [
+      /nintendo/i,
+      /nintendo\s*switch/i,
+      /switch\s*2/i,
+      /\bwii\s*u\b/i,
+      /\bwii\b/i,
+      /gamecube/i,
+      /\b3ds\b/i,
+      /amiibo/i,
+    ],
     envChannelKey: "NINTENDO_CHANNEL_ID",
     color: 0xe60012, // Rouge Nintendo
     icon: "https://www.nintendo.com/favicon.ico",
   },
   {
     name: "Fortnite",
-    keywords: [/\bfortnite\b/i, /\bfn\b/i, /\bfort\b/i, /\bhypex\b/i, /\bshiina\b/i],
+    keywords: [/\bfortnite\b/i, /\bfncs\b/i, /\bhypex\b/i, /\bshiina\b/i],
     envChannelKey: "FORTNITE_CHANNEL_ID",
     color: 0x9147ff, // Violet Fortnite
     icon: "https://static-assets-prod.epicgames.com/fortnite/favicon.ico",
@@ -146,9 +156,10 @@ export function buildPlatformEmbed(
 ): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(platform.color)
-    .setTitle(article.title.slice(0, 256))
+    .setTitle(oneLineEmbedTitle(article.title, 90))
     .setURL(article.url || null)
-    .setTimestamp(article.pubDate ? new Date(article.pubDate) : new Date());
+    .setTimestamp(article.pubDate ? new Date(article.pubDate) : new Date())
+    .setAuthor({ name: platform.name, iconURL: platform.icon });
 
   if (article.content && article.content.length > 0) {
     const cleaned = stripAllHtml(article.content)
@@ -248,7 +259,7 @@ export async function dispatchToChannels(
       const cardAttachment = await generateCardAttachment(
         {
           type: "gaming",
-          title: article.title,
+          title: oneLineEmbedTitle(article.title, 70),
           subtitle: platform.name,
           description: article.content?.slice(0, 120),
           imageUrl: article.image,
@@ -266,11 +277,6 @@ export async function dispatchToChannels(
       if (cardAttachment) {
         embed.setImage(`attachment://${cardAttachment.name}`);
         messagePayload.files = [cardAttachment];
-      }
-
-      // Ajouter le lien URL en contenu si présent
-      if (article.url) {
-        messagePayload.content = article.url;
       }
 
       await textChannel.send(messagePayload);

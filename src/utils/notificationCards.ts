@@ -128,11 +128,17 @@ interface SatoriNode {
 }
 
 function el(type: string, props: SatoriNode["props"]): SatoriNode {
-  return { type, props };
+  const children = props.children;
+  const style = { ...(props.style || {}) };
+  const count = Array.isArray(children) ? children.length : children ? 1 : 0;
+  if (type === "div" && count > 0 && style.display === undefined) {
+    style.display = "flex";
+  }
+  return { type, props: { ...props, style } };
 }
 
 function text(content: string, style: Record<string, string | number> = {}): SatoriNode {
-  return el("div", { style, children: content });
+  return el("div", { style: { display: "flex", ...style }, children: content });
 }
 
 function flex(children: SatoriNode[], style: Record<string, string | number> = {}): SatoriNode {

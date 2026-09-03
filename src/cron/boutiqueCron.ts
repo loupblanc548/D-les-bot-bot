@@ -150,9 +150,9 @@ export function startBoutiqueCron(client: Client): void {
     const paris = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
     const mins = paris.getHours() * 60 + paris.getMinutes();
     const todayUtc = new Date().toISOString().slice(0, 10);
-    if (mins >= 2 * 60 && mins < 3 * 60 && getLastPostedShopDate() !== todayUtc) {
-      logger.info("[BoutiqueCron] Rattrapage au démarrage — fenêtre 02h Paris");
-      startShopWatch(client);
+    if (mins >= 2 * 60 && getLastPostedShopDate() !== todayUtc) {
+      logger.info("[BoutiqueCron] Rattrapage au démarrage — boutique du jour absente");
+      void postBoutiqueToChannel(client);
     }
   } catch {
     // ignore

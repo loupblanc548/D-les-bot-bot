@@ -9,11 +9,11 @@
  */
 
 import { EmbedBuilder } from "discord.js";
+import { oneLineEmbedTitle } from "./embedLayout.js";
 
 // ── Footer commun ─────────────────────────────────────────────────────────
 
 const GAMING_FOOTER = { text: "Alerte Bons Plans • Surveillance Gaming" };
-const SEPARATOR = "\n────────────────────────────────";
 
 // ── Types partagés ─────────────────────────────────────────────────────────
 
@@ -35,15 +35,13 @@ export interface EpicGameDeal extends BaseGame {
 
 export function embedEpicGames(game: EpicGameDeal): EmbedBuilder {
   const embed = new EmbedBuilder()
-    .setTitle("🎁 JEU GRATUIT EPIC GAMES • " + game.name)
+    .setTitle(oneLineEmbedTitle("🎁 JEU GRATUIT EPIC GAMES • " + game.name, 90))
     .setColor(0x00f0ff)
     .setFooter(GAMING_FOOTER)
     .setTimestamp();
 
   if (game.description) {
-    embed.setDescription(game.description.slice(0, 1024) + SEPARATOR);
-  } else {
-    embed.setDescription(SEPARATOR);
+    embed.setDescription(game.description.slice(0, 1024));
   }
 
   embed.addFields(
@@ -91,7 +89,7 @@ export function embedSteam(game: SteamDeal): EmbedBuilder {
   };
 
   const embed = new EmbedBuilder()
-    .setTitle("🔥 PROMO OU JEU GRATUIT STEAM • " + game.name)
+    .setTitle(oneLineEmbedTitle("🔥 PROMO OU JEU GRATUIT STEAM • " + game.name, 90))
     .setColor(0x1b2838)
     .setURL(game.steamAppUrl)
     .setFooter(GAMING_FOOTER)
@@ -101,7 +99,6 @@ export function embedSteam(game: SteamDeal): EmbedBuilder {
   if (game.description) {
     description += "\n" + game.description.slice(0, 900);
   }
-  description += SEPARATOR;
 
   embed.setDescription(description);
 
@@ -134,15 +131,13 @@ export function embedPlayStation(game: PlayStationDeal): EmbedBuilder {
   };
 
   const embed = new EmbedBuilder()
-    .setTitle("🎮 AJOUTS PLAYSTATION PLUS / PROMO • " + game.name)
+    .setTitle(oneLineEmbedTitle("🎮 AJOUTS PLAYSTATION PLUS / PROMO • " + game.name, 90))
     .setColor(0x003087)
     .setFooter(GAMING_FOOTER)
     .setTimestamp();
 
   if (game.description) {
-    embed.setDescription(game.description.slice(0, 1024) + SEPARATOR);
-  } else {
-    embed.setDescription(SEPARATOR);
+    embed.setDescription(game.description.slice(0, 1024));
   }
 
   embed.addFields(
@@ -184,7 +179,7 @@ export interface XboxDeal extends BaseGame {
 
 export function embedXbox(game: XboxDeal): EmbedBuilder {
   const embed = new EmbedBuilder()
-    .setTitle("🟩 ENTRÉE XBOX GAME PASS / PROMO • " + game.name)
+    .setTitle(oneLineEmbedTitle("🟩 ENTRÉE XBOX GAME PASS / PROMO • " + game.name, 90))
     .setColor(0x107c10)
     .setFooter(GAMING_FOOTER)
     .setTimestamp();
@@ -200,7 +195,6 @@ export function embedXbox(game: XboxDeal): EmbedBuilder {
     description += "\n" + game.description.slice(0, 800);
   }
   if (description) {
-    description += SEPARATOR;
     embed.setDescription(description);
   }
 
@@ -234,12 +228,10 @@ export interface InstantGamingDeal extends BaseGame {
 
 export function embedInstantGaming(game: InstantGamingDeal): EmbedBuilder {
   const embed = new EmbedBuilder()
-    .setTitle("💥 VENTE FLASH / BAISSE DE PRIX • " + game.name)
+    .setTitle(oneLineEmbedTitle("💥 VENTE FLASH / BAISSE DE PRIX • " + game.name, 90))
     .setColor(0xff5400)
     .setFooter(GAMING_FOOTER)
     .setTimestamp();
-
-  embed.setDescription(SEPARATOR);
 
   embed.addFields(
     {
