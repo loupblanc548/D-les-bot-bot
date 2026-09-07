@@ -14,6 +14,7 @@ import { fetchRetry } from "../utils/fetchRetry.js";
 import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { getJoke } from "./jokes.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
 import {
@@ -1781,8 +1782,21 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "getJoke",
-      description: "Récupère une blague aléatoire en anglais. Gratuit, pas de clé API.",
-      parameters: { type: "object", properties: {}, required: [] },
+      description:
+        "Récupère une blague. Catégories: any, programming, pun, misc, spooky, christmas, dark, dad, chuck, knock-knock. Langues: fr, en. Style: any, single, twopart.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            description:
+              "any | programming | pun | misc | spooky | christmas | dark | dad | chuck | knock-knock",
+          },
+          lang: { type: "string", description: "fr ou en (défaut fr)" },
+          style: { type: "string", description: "any | single | twopart" },
+        },
+        required: [],
+      },
     },
   },
   {
@@ -6987,7 +7001,7 @@ export async function executeExtendedTool(
         return await tTextDiff(args);
       // Fun
       case "getJoke":
-        return await tGetJoke();
+        return await tGetJoke(args);
       case "getDadJoke":
         return await tGetDadJoke();
       case "getAdvice":
@@ -7282,14 +7296,23 @@ export async function executeExtendedTool(
 
 // ─── Fun & Entertainment ─────────────────────────────────────────────────────
 
-async function tGetJoke(): Promise<ToolCallResult> {
+async function tGetJoke(args: Record<string, unknown> = {}): Promise<ToolCallResult> {
   try {
-    const res = await fetchRetry("https://official-joke-api.appspot.com/random_joke", {
-      signal: AbortSignal.timeout(8000),
+    const joke = await getJoke({
+      category: typeof args.category === "string" ? args.category : undefined,
+      lang: typeof args.lang === "string" ? args.lang : "fr",
+      style: typeof args.style === "string" ? args.style : undefined,
     });
-    if (!res.ok) return { success: false, data: "Blague indisponible" };
-    const d = (await res.json()) as { setup: string; punchline: string };
-    return { success: true, data: JSON.stringify({ setup: d.setup, punchline: d.punchline }) };
+    if (!joke) return { success: false, data: "Blague indisponible" };
+    return {
+      success: true,
+      data: JSON.stringify({
+        setup: joke.setup,
+        punchline: joke.punchline,
+        category: joke.category,
+        lang: joke.lang,
+      }),
+    };
   } catch (e) {
     return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
   }
