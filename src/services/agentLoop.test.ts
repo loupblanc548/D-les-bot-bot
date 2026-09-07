@@ -97,6 +97,7 @@ vi.mock("./memoryHints.js", () => ({
   saveSpokenFacts: vi.fn().mockResolvedValue(0),
   extractSpokenFacts: vi.fn(() => []),
   matchJohnWakeWord: vi.fn(() => ({ hit: false, prompt: "" })),
+  shouldReplyToUtterance: vi.fn(() => ({ reply: false, prompt: "" })),
 }));
 vi.mock("./agentMemory.js", () => ({
   storeMemory: vi.fn(),

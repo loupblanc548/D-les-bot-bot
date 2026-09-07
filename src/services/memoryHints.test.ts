@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSpokenFacts, matchJohnWakeWord } from "./memoryHints.js";
+import { extractSpokenFacts, matchJohnWakeWord, shouldReplyToUtterance } from "./memoryHints.js";
 
 describe("extractSpokenFacts", () => {
   it("picks games, nicknames and likes from casual French", () => {
@@ -31,5 +31,29 @@ describe("matchJohnWakeWord", () => {
 
   it("ignores talk that is not for him", () => {
     expect(matchJohnWakeWord("passe-moi le shotgun")).toEqual({ hit: false, prompt: "" });
+  });
+});
+
+describe("shouldReplyToUtterance", () => {
+  it("answers freely when you are alone with John", () => {
+    expect(
+      shouldReplyToUtterance({
+        text: "t'as vu la boutique Fortnite",
+        humans: 1,
+        sessionOpen: false,
+      }),
+    ).toEqual({ reply: true, prompt: "t'as vu la boutique Fortnite" });
+  });
+
+  it("needs John in a crowded vocal unless a session is open", () => {
+    expect(
+      shouldReplyToUtterance({ text: "passe-moi le shotgun", humans: 4, sessionOpen: false }),
+    ).toEqual({ reply: false, prompt: "" });
+    expect(
+      shouldReplyToUtterance({ text: "John t'es là", humans: 4, sessionOpen: false }).reply,
+    ).toBe(true);
+    expect(
+      shouldReplyToUtterance({ text: "et après on farm", humans: 4, sessionOpen: true }),
+    ).toEqual({ reply: true, prompt: "et après on farm" });
   });
 });

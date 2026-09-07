@@ -1,27 +1,39 @@
 /**
- * John rejoint le vocal quand il y a du monde, écoute un mot-clé ("John"),
- * et répond à voix haute. Pas d'enregistrement persisté.
+ * Conversation vocale : John rejoint dès qu'il y a quelqu'un,
+ * écoute le micro, répond à voix haute.
  */
-import { EndBehaviorType, getVoiceConnection, type VoiceConnection } from "@discordjs/voice";
+import {
+  EndBehaviorType,
+  entersState,
+  getVoiceConnection,
+  VoiceConnectionStatus,
+  type VoiceConnection,
+} from "@discordjs/voice";
 import { ChannelType, Client, Guild, VoiceChannel, VoiceState } from "discord.js";
 import prism from "prism-media";
 import logger from "../utils/logger.js";
 import { pcmToWavBuffer, transcribeAudio } from "./dictation.js";
-import { joinVoiceChannelById, leaveVoiceChannel, speakResponseInVoice } from "./voiceAgent.js";
+import { joinVoiceChannelById, leaveVoiceChannel, speakInCurrentChannel } from "./voiceAgent.js";
 import { callLlm } from "./aiGateway.js";
 import { recall } from "./aiMemory.js";
-import { matchJohnWakeWord } from "./memoryHints.js";
+import { shouldReplyToUtterance } from "./memoryHints.js";
 
-const MIN_HUMANS = 2;
+const MIN_HUMANS = 1;
 const LEAVE_AFTER_MS = 45_000;
-const REPLY_COOLDOWN_MS = 8_000;
-const MIN_AUDIO_BYTES = 8_000;
+const SESSION_MS = 120_000;
+const MIN_AUDIO_BYTES = 4_000;
 const MAX_SESSION_LISTENERS = 8;
 
-const hangouts = new Map<
-  string,
-  { channelId: string; listening: Set<string>; lastReplyAt: number }
->();
+interface HangoutSession {
+  channelId: string;
+  listening: Set<string>;
+  lastReplyAt: number;
+  talkingTo: Map<string, number>;
+  turns: Array<{ user: string; text: string }>;
+  greeted: boolean;
+}
+
+const hangouts = new Map<string, HangoutSession>();
 const leaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let started = false;
@@ -44,10 +56,16 @@ function pickBusyChannel(guild: Guild): { id: string; humans: number } | null {
   return best;
 }
 
+function sessionOpen(session: HangoutSession, userId: string): boolean {
+  const last = session.talkingTo.get(userId) ?? 0;
+  return Date.now() - last < SESSION_MS;
+}
+
 async function generateVoiceReply(
   userId: string,
   username: string,
   prompt: string,
+  turns: Array<{ user: string; text: string }>,
 ): Promise<string> {
   let memoryLine = "";
   try {
@@ -59,16 +77,24 @@ async function generateVoiceReply(
     memoryLine = "";
   }
 
+  const history = turns
+    .slice(-6)
+    .map((t) => `${t.user}: ${t.text}`)
+    .join("\n");
+
   const result = await callLlm({
     messages: [
       {
         role: "system",
         content:
           "Tu es John, dans un vocal Discord. Réponds en 1 ou 2 phrases parlées, naturel, français. " +
-          "Pas de markdown, pas de listes. " +
+          "Pas de markdown, pas de listes, pas de *astérisques*. " +
           memoryLine,
       },
-      { role: "user", content: `${username}: ${prompt}` },
+      {
+        role: "user",
+        content: `${history ? `Conversation:\n${history}\n\n` : ""}${username}: ${prompt}`,
+      },
     ],
     maxTokens: 120,
     temperature: 0.8,
@@ -84,6 +110,7 @@ async function listenUtterance(
   guildId: string,
   connection: VoiceConnection,
   userId: string,
+  humans: number,
 ): Promise<void> {
   const session = hangouts.get(guildId);
   if (!session || session.listening.has(userId)) return;
@@ -95,7 +122,7 @@ async function listenUtterance(
 
   try {
     const audioStream = connection.receiver.subscribe(userId, {
-      end: { behavior: EndBehaviorType.AfterSilence, duration: 1500 },
+      end: { behavior: EndBehaviorType.AfterSilence, duration: 1200 },
     });
     const decoder = new prism.opus.Decoder({ rate: 48000, channels: 2, frameSize: 960 });
     decoder.on("data", (chunk: Buffer) => {
@@ -117,12 +144,12 @@ async function listenUtterance(
     if (pcm.length < MIN_AUDIO_BYTES) return;
 
     const text = await transcribeAudio(pcmToWavBuffer(pcm));
-    const wake = matchJohnWakeWord(text || "");
-    if (!wake.hit) return;
-
-    const now = Date.now();
-    if (now - session.lastReplyAt < REPLY_COOLDOWN_MS) return;
-    session.lastReplyAt = now;
+    const decision = shouldReplyToUtterance({
+      text: text || "",
+      humans,
+      sessionOpen: sessionOpen(session, userId),
+    });
+    if (!decision.reply) return;
 
     logger.info(`[VoiceHangout] ${userId}: "${(text || "").slice(0, 80)}"`);
 
@@ -131,10 +158,15 @@ async function listenUtterance(
       ?.members.fetch(userId)
       .catch(() => null);
     const username = member?.displayName || member?.user.username || "quelqu'un";
-    const reply = await generateVoiceReply(userId, username, wake.prompt);
-    await speakResponseInVoice(client, guildId, userId, reply, "fr", true);
+    const reply = await generateVoiceReply(userId, username, decision.prompt, session.turns);
+    session.turns.push({ user: username, text: decision.prompt }, { user: "John", text: reply });
+    if (session.turns.length > 12) session.turns.splice(0, session.turns.length - 12);
+    session.talkingTo.set(userId, Date.now());
+    session.lastReplyAt = Date.now();
+    const spoken = await speakInCurrentChannel(guildId, reply, "fr");
+    if (!spoken) logger.warn("[VoiceHangout] TTS n'a pas pu parler");
   } catch (err) {
-    logger.debug(
+    logger.warn(
       `[VoiceHangout] listen ${userId}: ${err instanceof Error ? err.message : String(err)}`,
     );
   } finally {
@@ -146,7 +178,12 @@ function attachReceiver(client: Client, guildId: string, connection: VoiceConnec
   const speaking = connection.receiver.speaking;
   speaking.removeAllListeners("start");
   speaking.on("start", (userId: string) => {
-    void listenUtterance(client, guildId, connection, userId);
+    const channel = client.guilds.cache
+      .get(guildId)
+      ?.channels.cache.get(hangouts.get(guildId)?.channelId || "");
+    const humans =
+      channel && channel.type === ChannelType.GuildVoice ? humanCount(channel as VoiceChannel) : 1;
+    void listenUtterance(client, guildId, connection, userId, humans);
   });
 }
 
@@ -156,7 +193,6 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
 
   const target = pickBusyChannel(guild);
   const current = hangouts.get(guildId);
-  const existingConn = getVoiceConnection(guildId);
 
   if (!target) {
     if (!current) return;
@@ -178,11 +214,9 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
     leaveTimers.delete(guildId);
   }
 
-  if (existingConn && !current) {
-    return;
-  }
-
+  const existingConn = getVoiceConnection(guildId);
   if (current?.channelId === target.id && existingConn) {
+    attachReceiver(client, guildId, existingConn);
     return;
   }
 
@@ -190,14 +224,29 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
   if (!joined) return;
   const connection = getVoiceConnection(guildId);
   if (!connection) return;
+  try {
+    await entersState(connection, VoiceConnectionStatus.Ready, 8_000);
+  } catch {
+    logger.warn("[VoiceHangout] Connexion vocale pas prête");
+    return;
+  }
 
-  hangouts.set(guildId, {
+  const session: HangoutSession = {
     channelId: target.id,
     listening: new Set(),
     lastReplyAt: current?.lastReplyAt ?? 0,
-  });
+    talkingTo: current?.talkingTo ?? new Map(),
+    turns: current?.turns ?? [],
+    greeted: current?.greeted ?? false,
+  };
+  hangouts.set(guildId, session);
   attachReceiver(client, guildId, connection);
-  logger.info(`[VoiceHangout] John est dans ${target.id} (${target.humans} personnes)`);
+  logger.info(`[VoiceHangout] John écoute dans ${target.id} (${target.humans} pers.)`);
+
+  if (!session.greeted && target.humans <= 2) {
+    session.greeted = true;
+    void speakInCurrentChannel(guildId, "yo, je t'écoute", "fr");
+  }
 }
 
 export function startVoiceHangout(client: Client): void {
@@ -213,13 +262,13 @@ export function startVoiceHangout(client: Client): void {
 
   tickTimer = setInterval(() => {
     if (!clientRef) return;
-    for (const guild of clientRef.guilds.cache.values()) {
-      void reconcileGuild(clientRef, guild.id);
+    for (const g of clientRef.guilds.cache.values()) {
+      void reconcileGuild(clientRef, g.id);
     }
-  }, 30_000);
+  }, 20_000);
   if (tickTimer.unref) tickTimer.unref();
 
-  logger.info("[VoiceHangout] John rejoint le vocal dès qu'il y a du monde");
+  logger.info("[VoiceHangout] Conversation vocale active — parle, John répond");
 }
 
 export function stopVoiceHangout(): void {

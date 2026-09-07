@@ -87,6 +87,29 @@ export function matchJohnWakeWord(text: string): { hit: boolean; prompt: string 
   return { hit: true, prompt: prompt || "on t'a appelé dans le vocal, réponds court" };
 }
 
+const JUNK_TRANSCRIPT =
+  /^(sous-titrage|subtitle|thank you(?: for watching)?|thanks for watching|music|\[.*\]|\.{2,}|…+)$/i;
+const FILLER = /^(euh+|hum+|hmm+|ah+|ok|mdr+|lol|hein|pff+)\s*[.!?]*$/i;
+
+/** Seul avec John, ou session ouverte, ou mot-clé : on lui répond. */
+export function shouldReplyToUtterance(opts: {
+  text: string;
+  humans: number;
+  sessionOpen: boolean;
+}): { reply: boolean; prompt: string } {
+  const trimmed = opts.text.replace(/\s+/g, " ").trim();
+  if (trimmed.length < 2) return { reply: false, prompt: "" };
+  if (JUNK_TRANSCRIPT.test(trimmed)) return { reply: false, prompt: "" };
+
+  const wake = matchJohnWakeWord(trimmed);
+  if (wake.hit) return { reply: true, prompt: wake.prompt };
+  if (FILLER.test(trimmed)) return { reply: false, prompt: "" };
+  if (opts.humans <= 1 || opts.sessionOpen) {
+    return { reply: true, prompt: trimmed };
+  }
+  return { reply: false, prompt: "" };
+}
+
 export async function saveSpokenFacts(
   userId: string,
   text: string,

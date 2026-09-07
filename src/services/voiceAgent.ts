@@ -20,6 +20,7 @@ import {
   AudioPlayerStatus,
   VoiceConnectionStatus,
   NoSubscriberBehavior,
+  entersState,
 } from "@discordjs/voice";
 import { writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
@@ -133,6 +134,8 @@ export async function joinVoiceChannelById(
       selfMute: false,
       selfDeaf: false,
     });
+
+    await entersState(connection, VoiceConnectionStatus.Ready, 8_000);
 
     connection.on(VoiceConnectionStatus.Disconnected, () => {
       activeConnections.delete(guildId);
@@ -293,6 +296,63 @@ export async function speakResponseInVoice(
   }
 }
 
+/** Parle dans le vocal déjà rejoint, sans opt-in ni départ automatique. */
+export async function speakInCurrentChannel(
+  guildId: string,
+  text: string,
+  lang = "fr",
+): Promise<boolean> {
+  try {
+    if (!currentConfig.enabled) return false;
+    const connection = getVoiceConnection(guildId);
+    if (!connection) return false;
+
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, " (code) ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400);
+    if (!cleanText) return false;
+
+    const audioBuffer = await generateTTS(cleanText, lang, 1.0);
+    if (!audioBuffer) {
+      logger.warn("[VoiceAgent] TTS indisponible pour le hangout vocal");
+      return false;
+    }
+
+    const player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
+    const { Readable } = await import("node:stream");
+    const stream = Readable.from(audioBuffer);
+    const resource = createAudioResource(stream);
+    player.play(resource);
+    connection.subscribe(player);
+
+    return await new Promise<boolean>((resolve) => {
+      let resolved = false;
+      const finish = (result: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(result);
+      };
+      player.on(AudioPlayerStatus.Idle, () => finish(true));
+      player.on("error", (err) => {
+        logger.error(`[VoiceAgent] Hangout player: ${err.message}`);
+        finish(false);
+      });
+      setTimeout(() => finish(true), 25_000);
+    });
+  } catch (err) {
+    logger.error(
+      `[VoiceAgent] speakInCurrentChannel: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return false;
+  }
+}
+
 // ─── Queue d'alertes vocales ─────────────────────────────────────────────────
 
 /**
@@ -442,19 +502,17 @@ async function playTTSMessage(client: Client, alert: VoiceAlert): Promise<void> 
 async function generateTTS(text: string, lang: string, _speed: number): Promise<Buffer | null> {
   // 0. Piper TTS local (gratuit, illimité, ~0.3s latence)
   try {
-    const { generateLocalTTS, isPiperAvailable } = await import("./localTts.js");
-    if (isPiperAvailable()) {
-      const piperBuffer = await generateLocalTTS(text, lang);
-      if (piperBuffer && piperBuffer.length > 1000) {
-        logger.info(`[VoiceAgent] TTS via Piper local (voix neuronale locale, lang: ${lang})`);
-        try {
-          const { recordPiperTts } = await import("./llmStats.js");
-          recordPiperTts();
-        } catch {
-          logger.error("[Silent catch]");
-        }
-        return piperBuffer;
+    const { generateLocalTTS } = await import("./localTts.js");
+    const piperBuffer = await generateLocalTTS(text, lang);
+    if (piperBuffer && piperBuffer.length > 1000) {
+      logger.info(`[VoiceAgent] TTS via Piper local (voix neuronale locale, lang: ${lang})`);
+      try {
+        const { recordPiperTts } = await import("./llmStats.js");
+        recordPiperTts();
+      } catch {
+        logger.error("[Silent catch]");
       }
+      return piperBuffer;
     }
   } catch {
     logger.error("[Silent catch]");

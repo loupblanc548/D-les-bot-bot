@@ -7,10 +7,15 @@ import {
   AudioReceiveStream,
 } from "@discordjs/voice";
 import prism from "prism-media";
-import { Readable } from "stream";
+import { createReadStream } from "node:fs";
+import { writeFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { finished } from "stream/promises";
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { getGroqClient } from "./groq.js";
 
 // \u2500\u2500\u2500 Types \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
@@ -97,26 +102,44 @@ export function pcmToWavBuffer(
 
 export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   if (audioBuffer.length <= 44) {
-    logger.warn("\u26a0\ufe0f [Dictation] Audio vide ou trop court, transcription ignor\u00e9e.");
+    logger.warn("⚠️ [Dictation] Audio vide ou trop court, transcription ignorée.");
     return "";
   }
 
-  const openai = getOpenAIClient();
+  const wavPath = join(tmpdir(), `stt-${randomUUID()}.wav`);
+  await writeFile(wavPath, audioBuffer);
 
-  // Cr\u00e9er un stream lisible depuis le buffer (pas de fichier disque)
-  const stream = Readable.from(audioBuffer);
-  (stream as any).path = "audio.wav"; // n\u00e9cessaire pour l'API OpenAI
-
-  try {
-    const transcription = await openai.audio.transcriptions.create({
-      file: stream as any,
-      model: "openai/whisper-1",
+  const tryWhisper = async (client: OpenAI, model: string, label: string): Promise<string> => {
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(wavPath),
+      model,
       language: "fr",
     });
-    return transcription.text || "";
+    const text = transcription.text?.trim() || "";
+    if (text) logger.info(`[Dictation] ${label}: "${text.slice(0, 80)}"`);
+    return text;
+  };
+
+  try {
+    const groq = getGroqClient();
+    if (groq) {
+      try {
+        const text = await tryWhisper(groq, "whisper-large-v3", "Groq");
+        if (text) return text;
+      } catch (err) {
+        logger.warn(
+          `[Dictation] Groq Whisper: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    const openai = getOpenAIClient();
+    return await tryWhisper(openai, "openai/whisper-1", "OpenRouter");
   } catch (err) {
-    logger.error("\u274c [Dictation] \u00c9chec transcription Whisper :", String(err));
+    logger.error("❌ [Dictation] Échec transcription Whisper :", String(err));
     return "";
+  } finally {
+    await unlink(wavPath).catch(() => {});
   }
 }
 
