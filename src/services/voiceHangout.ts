@@ -17,6 +17,8 @@ import { joinVoiceChannelById, leaveVoiceChannel, speakInCurrentChannel } from "
 import { callLlm } from "./aiGateway.js";
 import { recall } from "./aiMemory.js";
 import { shouldReplyToUtterance } from "./memoryHints.js";
+import { isTesterBot } from "../utils/testerBots.js";
+import { pickVoiceFallback, pickVoiceGreeting } from "./voiceGreetings.js";
 
 const MIN_HUMANS = 1;
 const LEAVE_AFTER_MS = 45_000;
@@ -40,7 +42,14 @@ let started = false;
 let clientRef: Client | null = null;
 
 function humanCount(channel: VoiceChannel): number {
-  return channel.members.filter((m) => !m.user.bot).size;
+  return channel.members.filter((m) => !m.user.bot || isTesterBot(m.id)).size;
+}
+
+function isHangoutVoice(channel: VoiceChannel): boolean {
+  if (channel.id === channel.guild.afkChannelId) return false;
+  if (/créer un salon|creer un salon|hub/i.test(channel.name)) return false;
+  if (/^(utilisateurs|membres|bots)\b/i.test(channel.name)) return false;
+  return true;
 }
 
 function pickBusyChannel(guild: Guild): { id: string; humans: number } | null {
@@ -49,6 +58,7 @@ function pickBusyChannel(guild: Guild): { id: string; humans: number } | null {
     if (channel.id === guild.afkChannelId) continue;
     if (channel.type !== ChannelType.GuildVoice || !channel.isVoiceBased()) continue;
     const voice = channel as VoiceChannel;
+    if (!isHangoutVoice(voice)) continue;
     const humans = humanCount(voice);
     if (humans < MIN_HUMANS) continue;
     if (!best || humans > best.humans) best = { id: voice.id, humans };
@@ -89,6 +99,7 @@ async function generateVoiceReply(
         content:
           "Tu es John, dans un vocal Discord. Réponds en 1 ou 2 phrases parlées, naturel, français. " +
           "Pas de markdown, pas de listes, pas de *astérisques*. " +
+          "Ne commence jamais par yo. Varie tes formulations, comme un pote au micro. " +
           memoryLine,
       },
       {
@@ -102,7 +113,7 @@ async function generateVoiceReply(
     maxRetries: 0,
   });
 
-  return (result.content || "ouais ?").replace(/\*\*/g, "").slice(0, 280);
+  return (result.content || pickVoiceFallback()).replace(/\*\*/g, "").slice(0, 280);
 }
 
 async function listenUtterance(
@@ -245,7 +256,7 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
 
   if (!session.greeted && target.humans <= 2) {
     session.greeted = true;
-    void speakInCurrentChannel(guildId, "yo, je t'écoute", "fr");
+    void speakInCurrentChannel(guildId, pickVoiceGreeting().text, "fr");
   }
 }
 
