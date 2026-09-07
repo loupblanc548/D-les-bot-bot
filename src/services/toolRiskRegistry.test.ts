@@ -31,6 +31,7 @@ describe("toolRiskRegistry — classification correctness", () => {
     expect(isLowRisk("search_wikipedia")).toBe(true);
     expect(isLowRisk("detect_language")).toBe(true);
     expect(isLowRisk("getRedditPosts")).toBe(true);
+    expect(isLowRisk("setup_basic_server")).toBe(true);
   });
 
   it("classifies known high-risk tools correctly", () => {

@@ -36,6 +36,7 @@ import { initProactiveAlerts, sendConsolidatedStartupReport } from "./services/p
 import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
+import { handleGuildEvents } from "./events/guilds.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
 import { attachMentionInbox } from "./services/mentionInbox.js";
 import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
@@ -414,6 +415,7 @@ async function main(): Promise<void> {
   handleMemberEvents(client);
   handleRoleEvents(client);
   handleChannelEvents(client);
+  handleGuildEvents(client);
   handleMessageEvents(client);
   attachMentionInbox(client);
   handleEmojiEvents(client);

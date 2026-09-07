@@ -15,6 +15,7 @@ import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import { getNumberFact } from "./freeApis.js";
+import { runSetupBasicServerTool } from "./basicServerSetup.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
 import {
@@ -2519,6 +2520,25 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
             description: "Durée en secondes (défaut 86400 = 24h, 0 = permanent)",
           },
           maxUses: { type: "number", description: "Max utilisations (défaut 0 = illimité)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "setup_basic_server",
+      description:
+        "Prépare un serveur Discord basique : lien d'invite + salons (bienvenue, règles, général, vocal, staff). Discord interdit à un bot de créer le serveur : la personne le crée, m'invite, je pose les salons. applyHere=true pour aménager CE serveur.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nom du futur serveur (optionnel)" },
+          applyHere: {
+            type: "boolean",
+            description: "true = poser les salons sur ce serveur. false = lien d'invite.",
+          },
         },
         required: [],
       },
@@ -7096,6 +7116,8 @@ export async function executeExtendedTool(
         return await tSetChannelTopic(args, ctx);
       case "createInvite":
         return await tCreateInvite(args, ctx);
+      case "setup_basic_server":
+        return await runSetupBasicServerTool(args, ctx);
       case "getMemberInfo":
         return await tGetMemberInfo(args, ctx);
       case "getServerRoles":

@@ -25,6 +25,11 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/Ne dis pas « utilise \/\… »/);
   });
 
+  it("explains that John cannot create a Discord guild and must use setup_basic_server", () => {
+    expect(rules).toMatch(/setup_basic_server/);
+    expect(rules).toMatch(/interdit à un bot de créer le serveur/);
+  });
+
   it("exposes internet search and network OSINT in chat", () => {
     expect(rules).toMatch(/exa_web_search/);
     expect(rules).toMatch(/OSINT RÉSEAU/);

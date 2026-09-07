@@ -149,6 +149,14 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         reason: "Creates Discord channel — modifies server state",
       },
     ],
+    [
+      "setup_basic_server",
+      {
+        level: "low",
+        module: "extended",
+        reason: "Invite link + optional channel layout; admin-gated, no guild create API",
+      },
+    ],
 
     // ════════════════════════════════════════════════════════════════════════
     // MODULE 2: Extended (agentToolsExtended.ts)

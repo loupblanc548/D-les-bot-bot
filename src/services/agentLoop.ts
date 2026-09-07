@@ -334,6 +334,7 @@ function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
     "execute_code",
     "searchUserMemory",
     "saveMemoryFact",
+    "setup_basic_server",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));

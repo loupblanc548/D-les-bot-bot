@@ -38,6 +38,7 @@ const ADMIN_ACTIONS = new Set([
   "deleteChannel",
   "createChannel",
   "createInvite",
+  "setup_basic_server",
   "getAuditLog",
 ]);
 

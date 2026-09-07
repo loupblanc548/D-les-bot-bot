@@ -507,6 +507,19 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     keywords: [
+      "créer un serveur",
+      "creer un serveur",
+      "nouveau serveur",
+      "serveur discord",
+      "salons basiques",
+      "setup serveur",
+      "aménage le serveur",
+      "amenage le serveur",
+    ],
+    tools: ["setup_basic_server"],
+  },
+  {
+    keywords: [
       "osint réseau",
       "osint reseau",
       "osint",
@@ -6857,6 +6870,18 @@ export function suggestToolChain(userMessage: string): string[][] {
     lowerMsg.includes("rigole")
   ) {
     chains.push(["getJoke", "getMeme"]);
+  }
+
+  // "Créer un serveur Discord" → setup_basic_server (invite + layout, pas POST /guilds)
+  if (
+    (lowerMsg.includes("serveur") &&
+      (lowerMsg.includes("cré") ||
+        lowerMsg.includes("creer") ||
+        lowerMsg.includes("nouveau") ||
+        lowerMsg.includes("salon"))) ||
+    lowerMsg.includes("salons basiques")
+  ) {
+    chains.push(["setup_basic_server"]);
   }
 
   // "Stats serveur" → guild_analytics + get_server_insights + top_commands

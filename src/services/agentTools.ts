@@ -1322,6 +1322,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "timeoutUser",
   "getUserInfo",
   "getServerStats",
+  "setup_basic_server",
   // ── Mémoire ──
   "searchUserMemory",
   "saveMemoryFact",
