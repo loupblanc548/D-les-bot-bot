@@ -22,10 +22,7 @@ export function snowflakeAfter(candidateId: string, afterId: string): boolean {
   }
 }
 
-export function buildJohnMention(
-  text: string,
-  johnId: string = DEFAULT_JOHN_BOT_USER_ID,
-): string {
+export function buildJohnMention(text: string, johnId: string = DEFAULT_JOHN_BOT_USER_ID): string {
   const body = text.trim();
   return body ? `<@${johnId}> ${body}` : `<@${johnId}>`;
 }
@@ -35,9 +32,7 @@ export function findJohnReplyAfter(
   afterMessageId: string,
   johnId: string = DEFAULT_JOHN_BOT_USER_ID,
 ): ProbeChannelMessage | undefined {
-  return messages.find(
-    (m) => m.author?.id === johnId && snowflakeAfter(m.id, afterMessageId),
-  );
+  return messages.find((m) => m.author?.id === johnId && snowflakeAfter(m.id, afterMessageId));
 }
 
 export function summarizeProbeMessage(m: ProbeChannelMessage): string {
@@ -46,8 +41,6 @@ export function summarizeProbeMessage(m: ProbeChannelMessage): string {
   const contentBit = content
     ? `content=${JSON.stringify(content.slice(0, 180))}`
     : "content=(empty — enable Message Content Intent on the tester to read John's text)";
-  const ref = m.message_reference?.message_id
-    ? ` reply_to=${m.message_reference.message_id}`
-    : "";
+  const ref = m.message_reference?.message_id ? ` reply_to=${m.message_reference.message_id}` : "";
   return `${m.id} ${author} ${contentBit}${ref}`;
 }
