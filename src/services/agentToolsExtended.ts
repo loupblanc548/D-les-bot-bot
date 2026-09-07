@@ -14,6 +14,7 @@ import { fetchRetry } from "../utils/fetchRetry.js";
 import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { getNumberFact } from "./freeApis.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
 import {
@@ -8324,24 +8325,16 @@ async function tGetColorInfo(args: Record<string, any>): Promise<ToolCallResult>
 }
 
 async function tGetRandomFact(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "trivia").toLowerCase();
   const number = args.number !== undefined ? Number(args.number) : "random";
-  try {
-    const url = `http://numbersapi.com/${number}/${type}`;
-    const res = await fetchRetry(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return { success: false, data: "Numbers API indisponible" };
-    const text = await res.text();
-    return {
-      success: true,
-      data: JSON.stringify({
-        type,
-        number: number === "random" ? "aléatoire" : number,
-        fact: text,
-      }),
-    };
-  } catch (e) {
-    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
-  }
+  const fact = await getNumberFact(number === "random" || Number.isNaN(number) ? "random" : number);
+  if (!fact) return { success: false, data: "Aucun fait trouvé" };
+  return {
+    success: true,
+    data: JSON.stringify({
+      number: number === "random" || Number.isNaN(number) ? "aléatoire" : number,
+      fact,
+    }),
+  };
 }
 
 async function tGetHoroscope(args: Record<string, any>): Promise<ToolCallResult> {

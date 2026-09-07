@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { commands } from "./funGroup.js";
+import { getNumberFact } from "../services/freeApis.js";
 
 describe("fun slash commands", () => {
   it("keeps the non-joke fun subcommands and drops joke", () => {
@@ -24,5 +25,10 @@ describe("fun slash commands", () => {
       ]),
     );
     expect(names).not.toContain("joke");
+  });
+
+  it("returns a number fact without the dead Numbers API", async () => {
+    await expect(getNumberFact(7)).resolves.toMatch(/7/);
+    await expect(getNumberFact("random")).resolves.toEqual(expect.any(String));
   });
 });

@@ -173,7 +173,7 @@ export async function getActivity(): Promise<{
   participants: number;
 } | null> {
   try {
-    const res = await fetch("https://www.boredapi.com/api/activity", {
+    const res = await fetch("https://bored-api.appbrewery.com/random", {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) throw new Error(`Bored ${res.status}`);
@@ -187,21 +187,34 @@ export async function getActivity(): Promise<{
 
 // ─── 7. Numbers API (faits sur les nombres, sans clé) ─────────────────────────
 
+const NUMBER_FACTS: Record<number, string> = {
+  0: "0 is the only number that cannot be represented in Roman numerals.",
+  1: "1 is the only number that is neither prime nor composite.",
+  2: "2 is the only even prime number.",
+  4: "4 is the smallest composite number.",
+  7: "7 is considered lucky in a lot of cultures, and it is a prime.",
+  8: "8 is 2 cubed (2³).",
+  9: "9 is the highest single-digit number in base 10.",
+  10: "10 is the base of our everyday number system.",
+  12: "12 has more divisors than any smaller positive integer.",
+  13: "13 reversed is 31 — both are prime (an emirp pair).",
+  42: "42 is the answer to life, the universe, and everything — according to Douglas Adams.",
+  100: "100 is 10 squared (10²).",
+};
+
+const EXTRA_NUMBER_FACTS = [
+  "There are infinitely many primes — Euclid proved it more than 2000 years ago.",
+  "A googol is 1 followed by 100 zeros.",
+  "Zero was used as a number in India centuries before it reached Europe.",
+];
+
 export async function getNumberFact(number: number | "random"): Promise<string | null> {
-  try {
-    const n = number === "random" ? "random" : String(number);
-    const res = await fetch(`http://numbersapi.com/${n}?json=true`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) throw new Error(`Numbers ${res.status}`);
-    const data = (await res.json()) as { text: string };
-    return data.text ?? null;
-  } catch (error) {
-    logger.warn(
-      `[FreeAPI] Number fact error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
+  if (number !== "random" && NUMBER_FACTS[number]) return NUMBER_FACTS[number];
+  const keys = Object.keys(NUMBER_FACTS).map(Number);
+  if (number === "random") {
+    return NUMBER_FACTS[keys[Math.floor(Math.random() * keys.length)]];
   }
+  return EXTRA_NUMBER_FACTS[Math.abs(number) % EXTRA_NUMBER_FACTS.length];
 }
 
 // ─── 8. Dog API (photos de chiens, sans clé) ──────────────────────────────────
@@ -268,37 +281,25 @@ export async function getMeme(): Promise<{
   author: string;
 } | null> {
   try {
-    const res = await fetch("https://www.reddit.com/r/memes/hot.json?limit=20", {
-      headers: { "User-Agent": "discord-bot-helldiver/1.0" },
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch("https://meme-api.com/gimme", {
+      headers: { "User-Agent": "JohnDiscordBot/1.0" },
+      signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) throw new Error(`Reddit memes ${res.status}`);
+    if (!res.ok) throw new Error(`Meme API ${res.status}`);
     const data = (await res.json()) as {
-      data: {
-        children: Array<{
-          data: {
-            title: string;
-            url: string;
-            subreddit: string;
-            author: string;
-            post_hint: string;
-            stickied: boolean;
-          };
-        }>;
-      };
+      title?: string;
+      url?: string;
+      subreddit?: string;
+      author?: string;
+      nsfw?: boolean;
     };
-
-    const posts = data.data?.children
-      ?.filter((c) => c.data.post_hint === "image" && !c.data.stickied)
-      .map((c) => ({
-        title: c.data.title,
-        url: c.data.url,
-        subreddit: c.data.subreddit,
-        author: c.data.author,
-      }));
-
-    if (!posts?.length) return null;
-    return posts[Math.floor(Math.random() * posts.length)];
+    if (data.nsfw || !data.url || !data.title) return null;
+    return {
+      title: data.title,
+      url: data.url,
+      subreddit: data.subreddit ?? "memes",
+      author: data.author ?? "unknown",
+    };
   } catch (error) {
     logger.warn(`[FreeAPI] Meme error: ${error instanceof Error ? error.message : String(error)}`);
     return null;

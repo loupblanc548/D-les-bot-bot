@@ -1,5 +1,6 @@
 import type { ToolCallResult } from "../agentTools.js";
 import { checkUrlForSsrf } from "../../utils/ssrfGuard.js";
+import { getActivity, getNumberFact } from "../freeApis.js";
 
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
@@ -125,17 +126,11 @@ export async function toolBoardgameSearch(args: Record<string, any>): Promise<To
 }
 
 export async function toolRandomFact(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "trivia").trim();
-  const num = args.number ? String(args.number) : "random";
-  try {
-    const res = await fetch(`http://numbersapi.com/${num}/${type}`, {
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) return err("API error");
-    return ok(`🔢 ${await res.text()}`);
-  } catch (e) {
-    return err(`Erreur: ${e}`);
-  }
+  const num =
+    args.number === undefined || args.number === "random" ? "random" : Number(args.number);
+  const fact = await getNumberFact(Number.isFinite(num as number) ? (num as number) : "random");
+  if (!fact) return err("Aucun fait trouvé");
+  return ok(`🔢 ${fact}`);
 }
 
 export async function toolThisDayInHistory(_a: Record<string, any>): Promise<ToolCallResult> {
@@ -198,19 +193,12 @@ export async function toolWordOfTheDay(args: Record<string, any>): Promise<ToolC
   );
 }
 
-export async function toolBoredActivity(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "").trim();
-  try {
-    const url = type
-      ? `https://www.boredapi.com/api/activity?type=${type}`
-      : "https://www.boredapi.com/api/activity";
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return err("API error");
-    const d = (await res.json()) as { activity?: string; type?: string; participants?: number };
-    return ok(`🎯 **Activité:** ${d.activity}\nType: ${d.type} | Participants: ${d.participants}`);
-  } catch (e) {
-    return err(`Erreur: ${e}`);
-  }
+export async function toolBoredActivity(_args: Record<string, any>): Promise<ToolCallResult> {
+  const activity = await getActivity();
+  if (!activity) return err("Aucune activité trouvée");
+  return ok(
+    `🎯 **Activité:** ${activity.activity}\nType: ${activity.type} | Participants: ${activity.participants}`,
+  );
 }
 
 export async function toolChuckNorrisFact(_a: Record<string, any>): Promise<ToolCallResult> {
