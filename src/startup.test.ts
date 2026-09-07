@@ -124,6 +124,10 @@ vi.mock("./cron/hourlyMaintenance", () => ({
 vi.mock("./cron/boutiqueCron", () => ({
   startBoutiqueCron: vi.fn(),
 }));
+vi.mock("./services/presenceRotator", () => ({
+  startPresenceRotator: vi.fn(),
+  syncBotDescription: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("./cron/steamNewsCron", () => ({
   startSteamNewsMonitoring: mockServices.startSteamNewsMonitoring,
   checkTrackedGames: mockServices.checkTrackedGames,

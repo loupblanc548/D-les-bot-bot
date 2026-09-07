@@ -29,6 +29,7 @@ import { stopLogRetention } from "./cron/logRetention.js";
 import { stopLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { stopAgentBrain } from "./services/agentBrain.js";
 import { stopPersonalityEngine } from "./services/personalityEngine.js";
+import { stopPresenceRotator } from "./services/presenceRotator.js";
 import { stopMediaWorker } from "./infrastructure/processIsolator.js";
 import { shutdownLogQueue } from "./queues/logQueue.js";
 import { stopControlServer } from "./control-server.js";
@@ -86,6 +87,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopLogChannelCleanup,
     stopAgentBrain,
     stopPersonalityEngine,
+    stopPresenceRotator,
     stopMediaWorker,
     stopInfraWatchdog,
     stopConfigCache,

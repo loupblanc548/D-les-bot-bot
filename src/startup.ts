@@ -30,6 +30,7 @@ import {
 import { startWishlistCron } from "./cron/wishlistCron.js";
 import { startHourlyMaintenance } from "./cron/hourlyMaintenance.js";
 import { startBoutiqueCron } from "./cron/boutiqueCron.js";
+import { startPresenceRotator, syncBotDescription } from "./services/presenceRotator.js";
 import { checkTrackedGames } from "./cron/steamNewsCron.js";
 import { checkFreeGames, startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron.js";
@@ -198,6 +199,8 @@ export function attachStartupLogic(
   client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
+    startPresenceRotator(client);
+    void syncBotDescription(client);
 
     // ─── Vérifier Ollama (LLM local) ──────────────────────────────────
     try {

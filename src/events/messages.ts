@@ -1454,12 +1454,9 @@ async function retryInsteadOfGo(
 function markTalkingOnline(client: Client): void {
   const user = client.user;
   if (!user) return;
-  void Promise.resolve(
-    user.setPresence({
-      status: "online",
-      activities: [{ name: "Surveille les Helldivers", type: 3 }],
-    }),
-  ).catch(() => undefined);
+  void import("../services/presenceRotator.js")
+    .then(({ applyCurrentPresence }) => applyCurrentPresence(client))
+    .catch(() => undefined);
 }
 
 async function handleAiChatMention(

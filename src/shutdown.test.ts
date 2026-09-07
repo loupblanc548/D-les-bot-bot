@@ -56,6 +56,7 @@ vi.mock("./cron/twitterCron", () => ({
   stopTwitterMonitoring: mockServices.stopTwitterMonitoring,
 }));
 vi.mock("./events/messages", () => ({ stopMapCleanup: mockServices.stopMapCleanup }));
+vi.mock("./services/presenceRotator", () => ({ stopPresenceRotator: vi.fn() }));
 
 import { attachShutdownHandlers, registerDestroyClient, registerInterval } from "./shutdown.js";
 

@@ -55,7 +55,7 @@ import {
 import { initVoiceMonitoring } from "./services/voiceAgent.js";
 import { initTelegramNotifications } from "./services/telegram-notifications.js";
 import { setClient } from "./services/clientRef.js";
-import { initNetworkResilience, savePresence } from "./services/networkResilience.js";
+import { initNetworkResilience } from "./services/networkResilience.js";
 import { startInfraWatchdog, stopInfraWatchdog } from "./services/infraWatchdog.js";
 import {
   startConfigCacheCleanup,
@@ -127,8 +127,8 @@ const client = new Client({
     status: "online",
     activities: [
       {
-        name: "Surveille les Helldivers",
-        type: 3, // Watching
+        name: "Minecraft",
+        type: 0,
       },
     ],
   },
@@ -436,10 +436,6 @@ async function main(): Promise<void> {
 
   // ─── MODULE 6: Network Resilience — shard reconnect with backoff ───
   initNetworkResilience(client);
-  savePresence({
-    status: "online",
-    activities: [{ name: "Surveille les Helldivers", type: 3 }],
-  });
   logger.info("✓ Network resilience initialise (shard backoff, presence restore)");
 
   // ─── MODULE 5: Infrastructure Watchdog — memory monitor ───

@@ -499,15 +499,10 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
   };
 
   try {
-    await interaction.client.user.setPresence({
-      status: newStatus as any,
-      activities: [
-        {
-          name: "Surveille les Helldivers",
-          type: 3, // Watching
-        },
-      ],
-    });
+    const { applyCurrentPresence, setPresenceStatus } =
+      await import("../services/presenceRotator.js");
+    setPresenceStatus(newStatus as "online" | "idle" | "dnd" | "invisible");
+    await applyCurrentPresence(interaction.client);
 
     await interaction.reply({
       content: "Statut mis à jour avec succès : " + statusMap[newStatus],
