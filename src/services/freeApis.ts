@@ -116,7 +116,19 @@ export async function shortenUrl(url: string): Promise<string | null> {
 
 // ─── 3. Official Joke API (sans clé) ──────────────────────────────────────────
 
-export { getJoke } from "./jokes.js";
+export async function getJoke(): Promise<{ setup: string; punchline: string } | null> {
+  try {
+    const res = await fetch("https://official-joke-api.appspot.com/random_joke", {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) throw new Error(`Joke API ${res.status}`);
+    const data = (await res.json()) as { setup: string; punchline: string };
+    return data;
+  } catch (error) {
+    logger.warn(`[FreeAPI] Joke error: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
 
 // ─── 4. ZenQuotes (citations, sans clé) ───────────────────────────────────────
 

@@ -2,7 +2,6 @@
  * funGroup.ts — Commandes fun & divertissement (sans clé API)
  *
  * /fun meme       — Mème aléatoire (Reddit)
- * /fun joke       — Blague (catégorie, langue, style)
  * /fun quote      — Citation inspirante
  * /fun advice     — Conseil aléatoire
  * /fun activity   — Activité anti-ennui
@@ -19,7 +18,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import {
   getMeme,
-  getJoke,
   getQuote,
   getAdvice,
   getActivity,
@@ -34,47 +32,6 @@ export const commands = [
     .setName("fun")
     .setDescription("Commandes fun & divertissement")
     .addSubcommand((sc) => sc.setName("meme").setDescription("Mème aléatoire (Reddit)"))
-    .addSubcommand((sc) =>
-      sc
-        .setName("joke")
-        .setDescription("Blague — catégorie, langue et style au choix")
-        .addStringOption((o) =>
-          o
-            .setName("categorie")
-            .setDescription("Type de blague")
-            .setRequired(false)
-            .addChoices(
-              { name: "Aléatoire", value: "any" },
-              { name: "Programmation", value: "programming" },
-              { name: "Jeux de mots", value: "pun" },
-              { name: "Divers", value: "misc" },
-              { name: "Halloween", value: "spooky" },
-              { name: "Noël", value: "christmas" },
-              { name: "Sombre (safe)", value: "dark" },
-              { name: "Dad joke", value: "dad" },
-              { name: "Chuck Norris", value: "chuck" },
-              { name: "Toc toc", value: "knock-knock" },
-            ),
-        )
-        .addStringOption((o) =>
-          o
-            .setName("langue")
-            .setDescription("Langue de la blague")
-            .setRequired(false)
-            .addChoices({ name: "Français", value: "fr" }, { name: "English", value: "en" }),
-        )
-        .addStringOption((o) =>
-          o
-            .setName("style")
-            .setDescription("One-liner ou setup + chute")
-            .setRequired(false)
-            .addChoices(
-              { name: "Peu importe", value: "any" },
-              { name: "One-liner", value: "single" },
-              { name: "Setup + chute", value: "twopart" },
-            ),
-        ),
-    )
     .addSubcommand((sc) => sc.setName("quote").setDescription("Citation inspirante"))
     .addSubcommand((sc) => sc.setName("advice").setDescription("Conseil aléatoire"))
     .addSubcommand((sc) => sc.setName("activity").setDescription("Activité anti-ennui"))
@@ -206,33 +163,6 @@ export async function handleCommand(
         .setImage(meme.url)
         .setFooter({ text: `r/${meme.subreddit} • u/${meme.author}` })
         .setColor(0xff4500);
-      await interaction.editReply({ embeds: [embed] });
-      break;
-    }
-
-    case "joke": {
-      await interaction.deferReply();
-      const joke = await getJoke({
-        category: interaction.options.getString("categorie"),
-        lang: interaction.options.getString("langue") ?? "fr",
-        style: interaction.options.getString("style"),
-      });
-      if (!joke) {
-        await interaction.editReply("❌ Aucune blague trouvée.");
-        return;
-      }
-      const embed = new EmbedBuilder()
-        .setTitle("😂 Blague")
-        .setColor(0xffd700)
-        .setFooter({ text: `${joke.category} • ${joke.lang}` });
-      if (joke.oneLiner || !joke.punchline) {
-        embed.setDescription(joke.setup);
-      } else {
-        embed.addFields(
-          { name: "Setup", value: joke.setup },
-          { name: "Punchline", value: `||${joke.punchline}||` },
-        );
-      }
       await interaction.editReply({ embeds: [embed] });
       break;
     }
