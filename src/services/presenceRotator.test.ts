@@ -9,17 +9,30 @@ describe("presenceRotator", () => {
     expect(BOT_DESCRIPTION.toLowerCase()).toContain("john");
   });
 
-  it("uses short human activities of more than one type", () => {
+  it("uses a large pool of short unique activities", () => {
     const types = new Set(JOHN_ACTIVITIES.map((a) => a.type));
+    const names = JOHN_ACTIVITIES.map((a) => a.name);
+    expect(JOHN_ACTIVITIES.length).toBeGreaterThanOrEqual(500);
     expect(types.size).toBeGreaterThanOrEqual(3);
+    expect(new Set(names).size).toBe(names.length);
     expect(JOHN_ACTIVITIES.some((a) => a.name === "Surveille les Helldivers")).toBe(false);
     for (const activity of JOHN_ACTIVITIES) {
       expect(activity.name.length).toBeGreaterThan(0);
       expect(activity.name.length).toBeLessThanOrEqual(128);
     }
     expect(JOHN_ACTIVITIES.map((a) => a.type)).toEqual(
-      expect.arrayContaining([ActivityType.Playing, ActivityType.Watching, ActivityType.Listening]),
+      expect.arrayContaining([
+        ActivityType.Playing,
+        ActivityType.Watching,
+        ActivityType.Listening,
+        ActivityType.Competing,
+      ]),
     );
+    for (const activity of JOHN_ACTIVITIES.filter((a) => a.type === ActivityType.Playing)) {
+      expect(activity.name.toLowerCase().startsWith("à ")).toBe(false);
+      expect(activity.name.toLowerCase().startsWith("au ")).toBe(false);
+      expect(activity.name.toLowerCase().startsWith("aux ")).toBe(false);
+    }
   });
 
   it("does not pick the same activity twice in a row", () => {
