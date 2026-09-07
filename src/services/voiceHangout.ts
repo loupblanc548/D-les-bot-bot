@@ -3,7 +3,7 @@
  * et répond à voix haute. Pas d'enregistrement persisté.
  */
 import { EndBehaviorType, getVoiceConnection, type VoiceConnection } from "@discordjs/voice";
-import { ChannelType, Client, VoiceState } from "discord.js";
+import { ChannelType, Client, Guild, VoiceChannel, VoiceState } from "discord.js";
 import prism from "prism-media";
 import logger from "../utils/logger.js";
 import { pcmToWavBuffer, transcribeAudio } from "./dictation.js";
@@ -27,31 +27,19 @@ let tickTimer: ReturnType<typeof setInterval> | null = null;
 let started = false;
 let clientRef: Client | null = null;
 
-function humanCount(channel: {
-  members: { filter: (fn: (m: { user: { bot: boolean } }) => boolean) => { size: number } };
-}): number {
+function humanCount(channel: VoiceChannel): number {
   return channel.members.filter((m) => !m.user.bot).size;
 }
 
-function pickBusyChannel(guild: {
-  afkChannelId: string | null;
-  channels: {
-    cache: Iterable<{
-      id: string;
-      type: ChannelType;
-      isVoiceBased?: () => boolean;
-      members?: { filter: (fn: (m: { user: { bot: boolean } }) => boolean) => { size: number } };
-    }>;
-  };
-}): { id: string; humans: number } | null {
+function pickBusyChannel(guild: Guild): { id: string; humans: number } | null {
   let best: { id: string; humans: number } | null = null;
   for (const channel of guild.channels.cache.values()) {
     if (channel.id === guild.afkChannelId) continue;
-    if (channel.type !== ChannelType.GuildVoice) continue;
-    if (!channel.members) continue;
-    const humans = humanCount(channel as never);
+    if (channel.type !== ChannelType.GuildVoice || !channel.isVoiceBased()) continue;
+    const voice = channel as VoiceChannel;
+    const humans = humanCount(voice);
     if (humans < MIN_HUMANS) continue;
-    if (!best || humans > best.humans) best = { id: channel.id, humans };
+    if (!best || humans > best.humans) best = { id: voice.id, humans };
   }
   return best;
 }
