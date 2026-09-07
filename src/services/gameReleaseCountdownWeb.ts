@@ -22,6 +22,18 @@ interface ReleaseData {
   genres: string[];
 }
 
+export type WeekReleaseTier = "gold" | "purple" | "blue" | null;
+
+/** Sorties de la semaine : doré ≤2j, violet ≤4j, bleu ≤7j. */
+export function weekReleaseTier(diffMs: number): WeekReleaseTier {
+  if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
+  const days = diffMs / 86_400_000;
+  if (days <= 2) return "gold";
+  if (days <= 4) return "purple";
+  if (days <= 7) return "blue";
+  return null;
+}
+
 function getReleasesData(): ReleaseData[] {
   return getTrackedReleases().map((r) => ({
     gameName: r.gameName,
@@ -774,6 +786,39 @@ body::before {
 .game-card.imminent .gc-title {
   color: #ffe082;
 }
+.game-card.week-blue {
+  background: rgba(12,22,48,0.62);
+  border: 1px solid rgba(80,140,255,0.45);
+  box-shadow: 0 4px 18px rgba(40,100,255,0.18), 0 0 0 1px rgba(80,140,255,0.2);
+}
+.game-card.week-blue .gc-countdown,
+.game-card.week-blue .gc-cover-count {
+  color: #7eb6ff;
+  text-shadow: 0 0 12px rgba(80,140,255,0.55);
+}
+.game-card.week-purple {
+  background: rgba(32,16,48,0.62);
+  border: 1px solid rgba(180,110,255,0.45);
+  box-shadow: 0 4px 18px rgba(150,70,255,0.2), 0 0 0 1px rgba(180,110,255,0.22);
+}
+.game-card.week-purple .gc-countdown,
+.game-card.week-purple .gc-cover-count {
+  color: #c9a0ff;
+  text-shadow: 0 0 12px rgba(180,110,255,0.55);
+}
+.game-card.week-gold {
+  background: rgba(40,30,5,0.55);
+  border: 1px solid rgba(255,200,50,0.4);
+  box-shadow: 0 4px 20px rgba(255,180,0,0.15), 0 0 0 1px rgba(255,200,50,0.2);
+}
+.game-card.week-gold .gc-countdown,
+.game-card.week-gold .gc-cover-count {
+  color: #ffc832;
+  text-shadow: 0 0 12px rgba(255,200,50,0.5);
+}
+.game-card.week-gold .gc-title {
+  color: #ffe082;
+}
 
 /* ── Spotlight mode: non-imminent cards fade out, imminent cards zoom in ── */
 .games-grid.spotlight .game-card:not(.imminent) {
@@ -812,6 +857,21 @@ body::before {
   border-radius: 6px;
   margin: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+.gc-cover-count {
+  position: absolute;
+  left: 3px; right: 3px; bottom: 4px;
+  text-align: center;
+  font-size: 0.62em;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 3px 2px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.72);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
 }
 .gc-info {
   padding: 8px 12px 8px 4px;
@@ -952,14 +1012,14 @@ body::before {
 <div class="showcase">
   <div class="showcase-header">
     <h1>🎮 Sorties à venir</h1>
-    <div class="subtitle" id="subtitle">Chargement...</div>
+    <div class="subtitle" id="subtitle">Cette semaine : bleu · violet · doré</div>
   </div>
   <div class="games-track">
     <div class="games-grid" id="grid">
       <div class="loading">Chargement des sorties...</div>
     </div>
   </div>
-  <div class="footer">Game Release Countdown • Défilement automatique • Mise à jour temps réel</div>
+  <div class="footer">Sorties de la semaine • Bleu · violet · doré • Défilement auto</div>
 </div>
 <script>
 const platformColors = {
@@ -973,6 +1033,30 @@ function getPlatformColor(name) {
   }
   return '#2a2a4a';
 }
+function weekReleaseTier(diffMs) {
+  if (!(diffMs > 0)) return null;
+  const days = diffMs / 86400000;
+  if (days <= 2) return 'gold';
+  if (days <= 4) return 'purple';
+  if (days <= 7) return 'blue';
+  return null;
+}
+function applyWeekClass(card, diffMs) {
+  card.classList.remove('week-gold', 'week-purple', 'week-blue', 'imminent');
+  const tier = weekReleaseTier(diffMs);
+  if (tier) {
+    card.classList.add('week-' + tier);
+    if (tier === 'gold') card.classList.add('imminent');
+  }
+}
+function formatCountdown(diff) {
+  if (diff <= 0) return 'SORTI';
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return days + 'j ' + hours + 'h ' + minutes + 'm ' + seconds + 's';
+}
 
 let currentGames = new Map(); // gameName -> { el, releaseTime }
 
@@ -980,33 +1064,27 @@ function buildCard(game) {
   const releaseDate = new Date(game.releaseDate);
   const now = Date.now();
   const diff = releaseDate.getTime() - now;
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const minutes = Math.floor((diff % 3600000) / 60000);
-  const seconds = Math.floor((diff % 60000) / 1000);
   const cover = game.coverUrl || '';
   const dateStr = releaseDate.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
   const genres = (game.genres || []).slice(0, 3).join(' • ');
   const cards = (game.platforms || []).map(p =>
     '<div class="pcard" style="background:' + getPlatformColor(p) + '"><span class="pcard-name">' + p + '</span></div>'
   ).join('');
+  const countText = diff <= 0 ? '🎉 SORTI !' : formatCountdown(diff);
 
   const card = document.createElement('div');
   card.className = 'game-card entering';
   card.dataset.gameName = game.gameName;
   card.dataset.releaseTime = releaseDate.getTime().toString();
-  // Highlight games releasing within 7 days in gold
-  if (diff > 0 && diff <= 7 * 86400000) {
-    card.classList.add('imminent');
-  }
+  applyWeekClass(card, diff);
   card.innerHTML =
-    '<div class="gc-cover"' + (cover ? ' style="background-image:url(\\'' + cover + '\\')"' : '') + '></div>' +
+    '<div class="gc-cover"' + (cover ? ' style="background-image:url(\\'' + cover + '\\')"' : '') + '>' +
+      '<div class="gc-cover-count" data-release="' + releaseDate.getTime() + '">' + countText + '</div>' +
+    '</div>' +
     '<div class="gc-info">' +
       '<div class="gc-title">' + game.gameName + '</div>' +
       '<div class="gc-date">' + dateStr + '</div>' +
-      '<div class="gc-countdown" data-release="' + releaseDate.getTime() + '">' +
-        (diff <= 0 ? '🎉 SORTI !' : days + 'j ' + hours + 'h ' + minutes + 'm ' + seconds + 's') +
-      '</div>' +
+      '<div class="gc-countdown" data-release="' + releaseDate.getTime() + '">' + countText + '</div>' +
       (genres ? '<div class="gc-genres">' + genres + '</div>' : '') +
       '<div class="gc-platforms">' + cards + '</div>' +
     '</div>';
@@ -1030,6 +1108,8 @@ function updateCountdowns() {
       el.innerHTML = '🎉 SORTI !';
       el.classList.add('released');
       const card = el.closest('.game-card');
+      const coverDone = card ? card.querySelector('.gc-cover-count') : null;
+      if (coverDone) coverDone.innerHTML = 'SORTI';
       if (card && !card.classList.contains('expiring') && !card.classList.contains('expired')) {
         card.classList.add('expiring');
         // After glow animation, fade out with blur and remove
@@ -1045,20 +1125,11 @@ function updateCountdowns() {
       }
       return;
     }
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff % 86400000) / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    el.innerHTML = d + 'j ' + h + 'h ' + m + 'm ' + s + 's';
-    // Add/remove imminent class based on 7-day threshold
+    el.innerHTML = formatCountdown(diff);
     const card = el.closest('.game-card');
-    if (card) {
-      if (diff > 0 && diff <= 7 * 86400000) {
-        card.classList.add('imminent');
-      } else {
-        card.classList.remove('imminent');
-      }
-    }
+    if (card) applyWeekClass(card, diff);
+    const coverCount = card ? card.querySelector('.gc-cover-count') : null;
+    if (coverCount) coverCount.innerHTML = formatCountdown(diff);
   });
 }
 
@@ -1073,7 +1144,7 @@ async function fetchAndRender() {
       .sort((a, b) => new Date(a.releaseDate) - new Date(b.releaseDate));
 
     document.getElementById('subtitle').textContent =
-      'AAA & AA • ' + upcoming.length + ' jeux • Compte à rebours en temps réel';
+      upcoming.length + ' jeux • Cette semaine : bleu · violet · doré';
 
     const grid = document.getElementById('grid');
     const existingNames = new Set(currentGames.keys());
@@ -1110,7 +1181,7 @@ async function fetchAndRender() {
 
     updateCountdowns();
   } catch (err) {
-    logger.error('fetch error:', err);
+    console.error('fetch error:', err);
   }
 }
 

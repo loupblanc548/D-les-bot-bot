@@ -406,6 +406,16 @@ export function attachStartupLogic(
           () => startGitHubReleasesMonitor(client),
           () => startMultiSiteDealsMonitor(client),
           () => startGameReleaseCountdown(client),
+          () => {
+            // Le worker média est coupé sur le VPS 8 Go — on relance seulement le Go Live.
+            if (!process.env.SCREEN_SHARE_USER_TOKEN) return;
+            void import("./services/videoStream.js").then(
+              ({ startVideoStream, startStreamWatchdog }) => {
+                startVideoStream();
+                startStreamWatchdog();
+              },
+            );
+          },
           () => startSteamWishlistMonitor(client),
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
