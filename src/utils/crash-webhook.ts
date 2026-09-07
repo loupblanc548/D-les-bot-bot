@@ -51,7 +51,7 @@ export async function sendCrashAlert(
           description: description ? description.slice(0, 4000) : undefined,
           color,
           timestamp: new Date().toISOString(),
-          footer: { text: "Système d'alerte critique • John Helldiver" },
+          footer: { text: "Système d'alerte critique • John" },
         },
       ],
     };

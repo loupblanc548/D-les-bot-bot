@@ -93,6 +93,11 @@ vi.mock("./agentPlanner.js", () => ({
   formatPlanForPrompt: vi.fn(() => ""),
   detectAmbiguity: vi.fn(() => null),
 }));
+vi.mock("./memoryHints.js", () => ({
+  saveSpokenFacts: vi.fn().mockResolvedValue(0),
+  extractSpokenFacts: vi.fn(() => []),
+  matchJohnWakeWord: vi.fn(() => ({ hit: false, prompt: "" })),
+}));
 vi.mock("./agentMemory.js", () => ({
   storeMemory: vi.fn(),
   formatMemoriesForPrompt: vi.fn(() => ""),

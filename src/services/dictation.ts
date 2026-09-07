@@ -37,14 +37,14 @@ function getOpenAIClient(): OpenAI {
     apiKey: config.openRouterApiKey,
     defaultHeaders: {
       "HTTP-Referer": "https://discord.com",
-      "X-Title": "John Helldiver Dictation",
+      "X-Title": "John Dictation",
     },
   });
 }
 
 // \u2500\u2500\u2500 Conversion PCM \u2192 WAV \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-function pcmToWavBuffer(
+export function pcmToWavBuffer(
   pcmBuffer: Buffer,
   sampleRate = 16000,
   channels = 1,

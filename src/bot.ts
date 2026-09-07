@@ -53,6 +53,7 @@ import {
   stopPersonalityEngine as _stopPersonalityEngine,
 } from "./services/personalityEngine.js";
 import { initVoiceMonitoring } from "./services/voiceAgent.js";
+import { startVoiceHangout } from "./services/voiceHangout.js";
 import { initTelegramNotifications } from "./services/telegram-notifications.js";
 import { setClient } from "./services/clientRef.js";
 import { initNetworkResilience } from "./services/networkResilience.js";
@@ -485,7 +486,7 @@ async function main(): Promise<void> {
   // Agent IA autonome — scan de messages proactif + auto-résolution d'alertes
   startAgentBrain(client);
 
-  // Moteur de personnalité — John Helldiver répond de façon autonome
+  // Moteur de personnalité — John répond de façon autonome
   startPersonalityEngine(client);
 
   // Salons vocaux temporaires
@@ -495,6 +496,7 @@ async function main(): Promise<void> {
 
   // Détection de raids vocaux (5+ connexions en 30s)
   initVoiceMonitoring(client);
+  startVoiceHangout(client);
 
   // Phase 1: Removed DisTube init (music commands deleted — saves ~30MB RAM)
   logger.info("✓ Gestionnaires d'evenements initialises");

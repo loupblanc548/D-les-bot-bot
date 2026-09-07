@@ -34,6 +34,7 @@ import {
 } from "./agentTools.js";
 import { delegateToExpert, DELEGATE_TOOL } from "./orchestrator.js";
 import prisma from "../prisma.js";
+import { saveSpokenFacts } from "./memoryHints.js";
 import {
   beginInteraction,
   recordLoop,
@@ -122,7 +123,7 @@ import {
 const MAX_ITERATIONS = 8;
 const MAX_ITERATIONS_LONG_TASK = 20;
 const MAX_HISTORY_MESSAGES = 15;
-const MAX_MEMORY_FACTS = 5;
+const MAX_MEMORY_FACTS = 12;
 const AGENT_LOOP_TIMEOUT_MS = 120_000; // 120s max for the entire agent loop (70B needs ~30-50s per iteration with 110 tools)
 const AGENT_LOOP_TIMEOUT_LONG_MS = 180_000; // 180s for complex tasks
 
@@ -1547,14 +1548,16 @@ export async function extractAndSaveMemory(
   username?: string,
 ): Promise<void> {
   try {
+    const heuristic = await saveSpokenFacts(userId, userMessage);
     const llmResult = await callLlm({
       messages: [
         {
           role: "system",
           content:
-            "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
-            'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "..."}]}. ' +
-            'Si rien à mémoriser, réponds {"facts": []}.',
+            "Tu extrais les faits durables à retenir sur un utilisateur Discord. " +
+            "Priorité: surnom, jeux auxquels il joue, goûts, blagues récurrentes, opinions. " +
+            'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "game|personal|preference|opinion"}]}. ' +
+            'Si rien à mémoriser, réponds {"facts": []}. Pas de faits triviaux (salut, merci, ok).',
         },
         {
           role: "user",
@@ -1609,7 +1612,9 @@ export async function extractAndSaveMemory(
       ).catch(() => {});
     }
 
-    logger.info(`[AgentLoop] 💾 ${parsed.facts.length} faits sauvegardés pour ${userId}`);
+    logger.info(
+      `[AgentLoop] 💾 mémoire ${userId}: ${heuristic} heuristique + ${parsed.facts.length} LLM`,
+    );
   } catch (error) {
     // Non-critique — la mémoire est optionnelle
     logger.debug(

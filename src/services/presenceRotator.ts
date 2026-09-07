@@ -5,10 +5,14 @@
 import { ActivityType, Client, type PresenceStatusData } from "discord.js";
 import logger from "../utils/logger.js";
 import { savePresence } from "./networkResilience.js";
+import { config } from "../config.js";
 
 /** Description de l'application Discord (limite 400 caractères). */
 export const BOT_DESCRIPTION =
   "John, le bot du serveur. Pose-moi une question, je réponds — jeux, code, cuisine, devoirs, actu. Je poste aussi les news gaming, la boutique Fortnite, les deals, et je surveille un peu le salon. Pas besoin d'un menu : discute.";
+
+/** Tags de l'application Discord (max 5, 20 caractères chacun). */
+export const BOT_TAGS = ["gaming", "IA", "Fortnite", "Minecraft", "news"] as const;
 
 export const JOHN_ACTIVITIES: { name: string; type: ActivityType }[] = [
   // ── Joue à ──────────────────────────────────────────────────────────
@@ -814,13 +818,36 @@ export function stopPresenceRotator(): void {
 export async function syncBotDescription(client: Client): Promise<void> {
   try {
     const app = await client.application?.fetch();
-    if (!app) return;
-    if ((app.description ?? "") === BOT_DESCRIPTION) return;
-    await app.edit({ description: BOT_DESCRIPTION });
-    logger.info("[Profile] Description Discord mise à jour");
+    if (app) {
+      const tags = [...BOT_TAGS];
+      const currentTags = [...(app.tags ?? [])];
+      const descOk = (app.description ?? "") === BOT_DESCRIPTION;
+      const tagsOk = currentTags.join("|") === tags.join("|");
+      if (!descOk || !tagsOk) {
+        await app.edit({ description: BOT_DESCRIPTION, tags });
+        logger.info("[Profile] Fiche Discord mise à jour");
+      }
+    }
   } catch (err) {
     logger.warn(
       `[Profile] Description non mise à jour: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const guildId = config.guildId;
+  if (!guildId) return;
+  try {
+    const guild =
+      client.guilds.cache.get(guildId) ?? (await client.guilds.fetch(guildId).catch(() => null));
+    if (!guild) return;
+    const me = guild.members.me ?? (await guild.members.fetchMe().catch(() => null));
+    if (me && me.nickname !== "John") {
+      await me.setNickname("John");
+      logger.info("[Profile] Surnom serveur: John");
+    }
+  } catch (err) {
+    logger.warn(
+      `[Profile] Surnom non mis à jour: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }

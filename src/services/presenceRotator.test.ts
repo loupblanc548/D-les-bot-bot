@@ -1,12 +1,17 @@
 import { ActivityType } from "discord.js";
 import { describe, expect, it } from "vitest";
-import { BOT_DESCRIPTION, JOHN_ACTIVITIES, pickNextActivity } from "./presenceRotator.js";
+import { BOT_DESCRIPTION, BOT_TAGS, JOHN_ACTIVITIES, pickNextActivity } from "./presenceRotator.js";
 
 describe("presenceRotator", () => {
   it("keeps the Discord app description under 400 characters", () => {
     expect(BOT_DESCRIPTION.length).toBeGreaterThan(40);
     expect(BOT_DESCRIPTION.length).toBeLessThanOrEqual(400);
     expect(BOT_DESCRIPTION.toLowerCase()).toContain("john");
+    expect(BOT_TAGS).toHaveLength(5);
+    for (const tag of BOT_TAGS) {
+      expect(tag.length).toBeGreaterThan(0);
+      expect(tag.length).toBeLessThanOrEqual(20);
+    }
   });
 
   it("uses a large pool of short unique activities", () => {

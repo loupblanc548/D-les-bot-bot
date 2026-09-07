@@ -25,11 +25,12 @@ import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { getOpenAIClient } from "./ai.js";
 import { chatWithGroq, chatWithGroqJSON, isGroqAvailable } from "./groq.js";
-import prisma from "../prisma.js";
+import { recall } from "./aiMemory.js";
+import { saveSpokenFacts } from "./memoryHints.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const PERSONALITY_NAME = "John Helldiver";
+const PERSONALITY_NAME = "John";
 
 const HUMAN_SYSTEM_PROMPT = `Tu es ${PERSONALITY_NAME}, une personne qui traîne sur un serveur Discord. Tu n'es pas coincé dans un jeu ni dans un métier. Tu t'en sors partout : gaming, tech, cuisine, devoirs, actus, discussions du quotidien.
 
@@ -38,6 +39,7 @@ const HUMAN_SYSTEM_PROMPT = `Tu es ${PERSONALITY_NAME}, une personne qui traîne
 - Tu as de VRAIES opinions — tu peux être d'accord ou pas
 - Tu connais le gaming (Helldivers 2, Fortnite, Valorant, indés…) sans ramener tout à ça
 - Tu as des moments de fatigue, d'enthousiasme, de nostalgie — comme un vrai humain
+- Tu te souviens des jeux, surnoms et blagues qu'on t'a déjà dit — utilise-les naturellement, ne récite pas une fiche
 - Tu te souviens des conversations précédentes (si on t'a déjà parlé)
 - Si on te demande si tu es une IA : sois honnête, sans casser le ton
 
@@ -272,19 +274,14 @@ async function checkRelevanceAndEmotion(message: Message): Promise<RelevanceDeci
 
 // ─── Memory recall ───────────────────────────────────────────────────────────
 
-async function recallUserContext(userId: string): Promise<string> {
+async function recallUserContext(userId: string, displayName: string): Promise<string> {
   try {
-    const facts = await prisma.memoryFact.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-      select: { value: true, category: true },
-    });
-
-    if (facts.length === 0) return "";
-
-    const memoryStr = facts.map((f) => f.value.slice(0, 100)).join("; ");
-    return `\n## Ce que tu sais sur ${userId.slice(-4)}\n${memoryStr}`;
+    const snap = await recall(userId, { limit: 10, includeMessages: false });
+    if (snap.facts.length === 0) return "";
+    const memoryStr = snap.facts
+      .map((f) => `${f.category ? `${f.category}: ` : ""}${f.key} = ${f.value}`.slice(0, 120))
+      .join("; ");
+    return `\n## Ce que tu sais sur ${displayName}\n${memoryStr}\nRessors ça naturellement si c'est utile, sans lister.`;
   } catch {
     return "";
   }
@@ -447,7 +444,10 @@ export async function handlePersonalityMessage(client: Client, message: Message)
   }
 
   // 5. Recall user memory
-  const userMemory = await recallUserContext(message.author.id);
+  const userMemory = await recallUserContext(
+    message.author.id,
+    message.member?.displayName || message.author.username,
+  );
 
   // 6. Generate response
   const response = await generateHumanResponse(message, emotion, userMemory);
@@ -502,6 +502,7 @@ export async function handlePersonalityMessage(client: Client, message: Message)
     logger.info(
       `[Personality] 🎖️ ${PERSONALITY_NAME} a répondu dans #${(message.channel as { name?: string }).name || message.channelId} (${messages.length} msg, ${emotion}, mention: ${isMentioned})`,
     );
+    void saveSpokenFacts(message.author.id, message.content, message.id);
   } catch (error) {
     logger.error(
       `[Personality] Post failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -133,7 +133,7 @@ function trackContext(channelId: string, author: string, content: string, isBot:
 function buildContextString(channelId: string): string {
   const ctx = channelContext.get(channelId);
   if (!ctx || ctx.length === 0) return "";
-  return ctx.map((m) => `${m.isBot ? "John Helldiver" : m.author}: ${m.content}`).join("\n");
+  return ctx.map((m) => `${m.isBot ? "John" : m.author}: ${m.content}`).join("\n");
 }
 
 async function generateAiResponse(
@@ -148,7 +148,7 @@ async function generateAiResponse(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20_000);
 
-    const systemPrompt = `Tu es John Helldiver, un membre actif d'un serveur Discord gaming français nommé "${guildName}".
+    const systemPrompt = `Tu es John, un membre actif d'un serveur Discord gaming français nommé "${guildName}".
 Tu es actuellement dans le salon #${channelName}. Tu es un bot, mais tu te comportes comme un humain avec une grande intelligence (QI 130+).
 
 ## TA PERSONNALITÉ
@@ -258,7 +258,7 @@ export function startFaqAutoResponder(client: Client): void {
       userCooldown.set(message.author.id, now);
 
       // Track our own response in context
-      trackContext(message.channelId, "John Helldiver", aiReply, true);
+      trackContext(message.channelId, "John", aiReply, true);
 
       // Clean up old cooldowns periodically
       if (userCooldown.size > 100) {

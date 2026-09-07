@@ -18,4 +18,10 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).not.toMatch(/COMMANDANT/i);
     expect(rules).toMatch(/TYPE A/i);
   });
+
+  it("tells John to use tools and memory instead of slash menus", () => {
+    expect(rules).toMatch(/searchUserMemory/);
+    expect(rules).toMatch(/saveMemoryFact/);
+    expect(rules).toMatch(/Ne dis pas « utilise \/\… »/);
+  });
 });
