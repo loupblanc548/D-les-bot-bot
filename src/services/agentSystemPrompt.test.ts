@@ -24,4 +24,12 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/saveMemoryFact/);
     expect(rules).toMatch(/Ne dis pas « utilise \/\… »/);
   });
+
+  it("exposes internet search and network OSINT in chat", () => {
+    expect(rules).toMatch(/exa_web_search/);
+    expect(rules).toMatch(/OSINT RÉSEAU/);
+    expect(rules).toMatch(/dns_lookup/);
+    expect(rules).toMatch(/whois_lookup/);
+    expect(rules).toMatch(/Pas de scan de ports/);
+  });
 });

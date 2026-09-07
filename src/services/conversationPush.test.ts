@@ -78,6 +78,12 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
     expect(names.has("searchObsidianQA")).toBe(true);
     expect(names.has("getWikipediaSummary")).toBe(true);
     expect(names.has("hash_gen")).toBe(true);
+    expect(names.has("searchWeb")).toBe(true);
+    expect(names.has("dns_lookup")).toBe(true);
+    expect(names.has("whois_lookup")).toBe(true);
+    expect(names.has("getIpInfo")).toBe(true);
+    expect(names.has("ssl_checker")).toBe(true);
+    expect(names.has("ip_geolocation")).toBe(true);
     expect(routed.length).toBeGreaterThanOrEqual(20);
     expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "searchObsidianQA")).toBe(true);
     expect(ALL_AGENT_TOOLS.length).toBeGreaterThanOrEqual(40);

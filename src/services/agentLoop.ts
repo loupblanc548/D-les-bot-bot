@@ -309,31 +309,31 @@ type ProviderChatMessage = Omit<ChatMessage, "content"> & {
 // envoyé à l'API. Avec 150+ tools, ça économise ~10K+ tokens.
 // Aussi limite le nombre de tools à MAX_TOOLS pour éviter les erreurs 400
 // (Groq: max 128 tools, OpenRouter: pas de limite officielle mais recommandé <200)
-const MAX_TOOLS = 20;
+const MAX_TOOLS = 24;
 
 function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
   const ESSENTIAL = new Set([
+    "searchWeb",
+    "exa_web_search",
+    "readUrl",
+    "dns_lookup",
+    "whois_lookup",
+    "getIpInfo",
+    "ip_geolocation",
+    "ssl_checker",
+    "webcheck_scan",
     "searchObsidianQA",
     "searchKnowledge",
-    "searchWeb",
-    "readUrl",
     "getWikipediaSummary",
     "getGitHubRepo",
     "lookupKnowledgeRepo",
-    "get_github_trending",
-    "searchDocs",
     "getWeather",
-    "convert_units",
-    "translateText",
-    "execute_code",
-    "search_public_apis",
-    "search_programming_books",
-    "search_system_design",
-    "get_dev_snippet",
     "reddit_search",
     "getSteamGame",
-    "search_stackoverflow",
-    "getTechNews",
+    "translateText",
+    "execute_code",
+    "searchUserMemory",
+    "saveMemoryFact",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));

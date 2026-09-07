@@ -19,6 +19,7 @@ import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
 import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
+import { exaSearch } from "./agentReach.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
@@ -1268,6 +1269,10 @@ const TOOL_NAME_WHITELIST = new Set([
   "ip_ping",
   "dns_lookup",
   "whois_lookup",
+  "getIpInfo",
+  "ip_geolocation",
+  "ssl_checker",
+  "domain_age",
   "url_expand",
   "jwt_decode",
   "hash_gen",
@@ -1998,6 +2003,15 @@ async function toolSearchWeb(args: Record<string, any>): Promise<ToolCallResult>
         if (title && url.startsWith("http")) {
           results.push({ title: title.slice(0, 200), url, snippet: snippet.slice(0, 300) });
         }
+      }
+    }
+
+    if (results.length === 0 && !abstract) {
+      const exaResults = await exaSearch(query, 6);
+      if (exaResults.length > 0) {
+        const output = JSON.stringify({ provider: "exa", results: exaResults });
+        setCached(cacheKey, output);
+        return { success: true, data: output };
       }
     }
 
