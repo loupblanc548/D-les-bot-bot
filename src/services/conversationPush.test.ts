@@ -87,6 +87,8 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
     expect(routed.length).toBeGreaterThanOrEqual(20);
     expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "searchObsidianQA")).toBe(true);
     expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "setup_basic_server")).toBe(true);
+    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "checkDataBreach")).toBe(true);
+    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "list_bot_commands")).toBe(true);
     expect(ALL_AGENT_TOOLS.length).toBeGreaterThanOrEqual(40);
   });
 

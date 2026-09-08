@@ -105,7 +105,7 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "AGENT_DOCKER_ENABLED", tools: ["docker_manage"], optional: false },
   { envVar: "AGENT_GIT_ENABLED", tools: ["git_operations"], optional: false },
   { envVar: "AGENT_DB_ENABLED", tools: ["db_query"], optional: true },
-  { envVar: "HIBP_API_KEY", tools: ["checkDataBreach"], optional: true },
+  { envVar: "HIBP_API_KEY", tools: ["checkDataBreach", "haveibeenpwned_check"], optional: true },
   { envVar: "URLSCAN_API_KEY", tools: ["scanUrlSafety"], optional: true },
   { envVar: "WOLFRAM_APP_ID", tools: ["solveMathAdvanced"], optional: true },
   { envVar: "DEEPL_API_KEY", tools: ["translateTextDeepL"], optional: true },
@@ -189,6 +189,20 @@ interface ToolCategory {
 }
 
 const TOOL_CATEGORIES: ToolCategory[] = [
+  {
+    keywords: [
+      "toutes les commandes",
+      "liste des commandes",
+      "liste les commandes",
+      "!help",
+      "/help",
+      "slash",
+      "commandes slash",
+      "commande cmd",
+      "les commandes",
+    ],
+    tools: ["list_bot_commands"],
+  },
   {
     keywords: [
       "météo",
@@ -2122,8 +2136,11 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "fuite",
       "fuite de données",
       "have i been pwned",
+      "haveibeenpwned",
       "hibp",
+      "pwned",
       "email compromis",
+      "compromis",
       "mot de passe volé",
       "data leak",
     ],
@@ -6669,6 +6686,7 @@ export function routeTools(
       "getBotStatus",
       "getDateTime",
       "getWeather",
+      "list_bot_commands",
       "translateText",
       "execute_code",
       "build_rich_embed",

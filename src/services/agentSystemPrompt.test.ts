@@ -23,6 +23,8 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/searchUserMemory/);
     expect(rules).toMatch(/saveMemoryFact/);
     expect(rules).toMatch(/Ne dis pas « utilise \/\… »/);
+    expect(rules).toMatch(/list_bot_commands/);
+    expect(rules).toMatch(/!help/);
   });
 
   it("explains that John cannot create a Discord guild and must use setup_basic_server", () => {

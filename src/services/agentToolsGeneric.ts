@@ -1268,10 +1268,8 @@ async function handleApi(toolName: string, args: Args): Promise<ToolCallResult |
         );
       }
       case "haveibeenpwned_check": {
-        const email = arg(args, "email");
-        return ok(
-          `Check HaveIBeenPwned pour ${email}. API key requise (https://haveibeenpwned.com/API/Key). Utilisez l'API: GET https://haveibeenpwned.com/api/v3/breachedaccount/${email}`,
-        );
+        const { haveibeenpwnedCheck } = await import("../utils/osintToolkit.js");
+        return ok(await haveibeenpwnedCheck(arg(args, "email")));
       }
       case "crtsh_search": {
         const domain = arg(args, "domain");

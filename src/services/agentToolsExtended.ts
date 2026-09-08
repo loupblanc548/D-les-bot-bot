@@ -3629,7 +3629,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "haveibeenpwned_check",
-      description: "Vérifie si un email apparaît dans une breach",
+      description:
+        "Have I Been Pwned API v3: vérifie si un email apparaît dans une fuite connue (alias de checkDataBreach).",
       parameters: {
         type: "object",
         properties: {
@@ -7294,6 +7295,8 @@ export async function executeExtendedTool(
         return tTextToSpeechMulti(args);
       case "image_watermark_add":
         return await tImageWatermarkAdd(args);
+      case "haveibeenpwned_check":
+        return await tHaveibeenpwnedCheck(args);
       default:
         return null;
     }
@@ -11258,7 +11261,7 @@ async function tCrtshSearch(args: Record<string, any>): Promise<ToolCallResult> 
 }
 
 async function tHaveibeenpwnedCheck(args: Record<string, any>): Promise<ToolCallResult> {
-  const email = String(args.email || "");
+  const email = String(args.email || "").trim();
   try {
     const result = await haveibeenpwnedCheck(email);
     return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };

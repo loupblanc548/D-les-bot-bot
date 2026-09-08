@@ -49,7 +49,12 @@ import {
   isSlackConfigured,
 } from "./notifications.js";
 import { translateAny, detectLanguageAuto } from "./libreTranslate.js";
-import { checkEmail as hibpCheckEmail } from "../utils/hibp.js";
+import {
+  checkEmail as hibpCheckEmail,
+  formatEmailBreachReport,
+  getLatestBreach,
+  hasHibpApiKey,
+} from "../utils/hibp.js";
 import { detectAnomalies } from "./anomalyDetector.js";
 import {
   buildComparisonEmbed,
@@ -1107,16 +1112,17 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     function: {
       name: "checkDataBreach",
       description:
-        "Vérifie si un email a été compromis dans des fuites de données connues (Have I Been Pwned). Affiche le nom, la date et la description de chaque breach. Medium risk — données personnelles.",
+        "Have I Been Pwned API v3: vérifie si un email apparaît dans des fuites connues. Sans email, retourne la dernière fuite publique du catalogue HIBP. Medium risk — données personnelles.",
       parameters: {
         type: "object",
         properties: {
           email: {
             type: "string",
-            description: "Adresse email à vérifier (ex: user@example.com)",
+            description:
+              "Adresse email à vérifier (ex: user@example.com). Omettre pour la dernière fuite publique HIBP.",
           },
         },
-        required: ["email"],
+        required: [],
       },
     },
   },
@@ -3580,31 +3586,51 @@ async function tCheckDataBreach(args: Record<string, any>): Promise<ToolCallResu
   const email = String(args.email || "")
     .trim()
     .toLowerCase();
-  if (!email || !email.includes("@")) {
+
+  if (!email) {
+    const latest = await getLatestBreach();
+    if (!latest) {
+      return { success: false, data: "Impossible de récupérer la dernière fuite HIBP." };
+    }
+    const data = latest.compromisedData.length
+      ? `\nDonnées: ${latest.compromisedData.slice(0, 10).join(", ")}`
+      : "";
+    const count = latest.pwnCount ? `\nComptes: ${latest.pwnCount.toLocaleString("fr-FR")}` : "";
+    return {
+      success: true,
+      data: `Dernière fuite HIBP: **${latest.title || latest.name}** (${latest.breachDate})${count}${data}\n${latest.description.slice(0, 400)}`,
+    };
+  }
+
+  if (!email.includes("@")) {
     return { success: false, data: "Email invalide. Format attendu: user@example.com" };
+  }
+
+  if (!hasHibpApiKey()) {
+    return {
+      success: false,
+      data: "API Have I Been Pwned non configurée (HIBP_API_KEY). Clé: https://haveibeenpwned.com/API/Key — la dernière fuite publique reste disponible sans email.",
+    };
   }
 
   const breaches = await hibpCheckEmail(email);
   if (breaches === null) {
     return {
       success: false,
-      data: "API Have I Been Pwned non configurée (HIBP_API_KEY manquant) ou erreur. Impossible de vérifier.",
+      data: "Erreur Have I Been Pwned (clé invalide, limite de débit, ou réseau). Réessaie dans une minute.",
     };
   }
 
   if (breaches.length === 0) {
     return {
       success: true,
-      data: `✅ Aucune fuite de données trouvée pour **${email}**. Cet email n'apparaît dans aucune breach connue.`,
+      data: `Aucune fuite de données connue pour **${email}**.`,
     };
   }
 
-  const lines = breaches.map(
-    (b) => `- **${b.name}** (${b.breachDate}): ${b.description.slice(0, 200)}`,
-  );
   return {
     success: true,
-    data: `🚨 **${breaches.length} fuite(s)** trouvée(s) pour ${email}:\n\n${lines.join("\n")}`,
+    data: formatEmailBreachReport(email, breaches),
   };
 }
 

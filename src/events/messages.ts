@@ -24,6 +24,7 @@ import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import { saveQA } from "../services/obsidianMemory.js";
 import { isTesterBot } from "../utils/testerBots.js";
+import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
 import {
   isJohnPinged,
   recordIncomingPing,
@@ -1429,7 +1430,11 @@ async function generateEdgeTTS(
 // =============================================================================
 
 function discordChatPrompt(): string {
-  return buildPersonalitySystemPrompt(config.aiSystemPrompt) + mentionAwarenessBlock();
+  return (
+    buildPersonalitySystemPrompt(config.aiSystemPrompt) +
+    mentionAwarenessBlock() +
+    CHAT_FIRST_COMMANDS_HINT
+  );
 }
 
 async function retryInsteadOfGo(

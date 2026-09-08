@@ -13,6 +13,7 @@
 import logger from "../utils/logger.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { checkEmail as hibpCheckEmail } from "../utils/hibp.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -243,14 +244,8 @@ const EMAIL_CHECK_PLATFORMS: { name: string; check: (email: string) => Promise<b
     name: "Have I Been Pwned",
     check: async (email) => {
       try {
-        const r = await fetch(
-          `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}`,
-          {
-            headers: { "User-Agent": "ShadowBroker/1.0" },
-            signal: AbortSignal.timeout(8000),
-          },
-        );
-        return r.status === 200;
+        const breaches = await hibpCheckEmail(email);
+        return Array.isArray(breaches) && breaches.length > 0;
       } catch {
         return false;
       }

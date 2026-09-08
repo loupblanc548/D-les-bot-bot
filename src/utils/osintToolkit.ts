@@ -4,9 +4,10 @@
  */
 
 import { execSync } from "child_process";
-import logger from "../utils/logger.js";
+import logger from "./logger.js";
 import dns from "dns/promises";
 import https from "https";
+import { checkEmail as hibpCheckEmail, formatEmailBreachReport, hasHibpApiKey } from "./hibp.js";
 
 function fetchJson(url: string, timeout = 10000): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -82,17 +83,16 @@ export async function crtshSearch(domain: string): Promise<string> {
 
 // ─── Have I Been Pwned check ────────────────────────────────────────────────
 export async function haveibeenpwnedCheck(email: string): Promise<string> {
-  try {
-    const data = await fetchJson(
-      `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=true`,
-      10000,
-    );
-    if (!data) return "No breaches found (or API key required)";
-    return JSON.stringify(data, null, 2);
-  } catch (err) {
-    if (String(err).includes("404")) return "No breaches found for this email";
-    return `Error: ${(err as Error).message}. Note: HIBP API v3 requires an API key (HIBP_API_KEY env var).`;
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed.includes("@")) return "Email invalide. Format attendu: user@example.com";
+  if (!hasHibpApiKey()) {
+    return "API Have I Been Pwned non configurée (HIBP_API_KEY). Clé: https://haveibeenpwned.com/API/Key";
   }
+  const breaches = await hibpCheckEmail(trimmed);
+  if (breaches === null) {
+    return "Erreur Have I Been Pwned (clé invalide, limite de débit, ou réseau). Réessaie dans une minute.";
+  }
+  return formatEmailBreachReport(trimmed, breaches);
 }
 
 // ─── DeHashed search ────────────────────────────────────────────────────────

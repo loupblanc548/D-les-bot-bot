@@ -111,6 +111,9 @@ const envSchema = z.object({
   // Steam (optional)
   STEAM_API_KEY: z.string().optional(),
 
+  // Have I Been Pwned v3 (optional — Pwned Passwords stays free without a key)
+  HIBP_API_KEY: optionalSecret,
+
   // ─── Nouvelles APIs externes (optionnelles) ──────────────────────────────
   PERSPECTIVE_API_KEY: z.string().optional(),
   GIPHY_API_KEY: z.string().optional(),

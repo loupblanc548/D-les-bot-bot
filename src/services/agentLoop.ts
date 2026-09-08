@@ -85,6 +85,7 @@ import {
   getPersonalityMaxTokens,
 } from "../infrastructure/middleware/personalityMiddleware.js";
 import { mentionAwarenessBlock } from "./mentionInbox.js";
+import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
 import { githubKnowledgePromptBlock } from "./githubKnowledgeCatalog.js";
 import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
@@ -309,7 +310,7 @@ type ProviderChatMessage = Omit<ChatMessage, "content"> & {
 // envoyé à l'API. Avec 150+ tools, ça économise ~10K+ tokens.
 // Aussi limite le nombre de tools à MAX_TOOLS pour éviter les erreurs 400
 // (Groq: max 128 tools, OpenRouter: pas de limite officielle mais recommandé <200)
-const MAX_TOOLS = 24;
+const MAX_TOOLS = 27;
 
 function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
   const ESSENTIAL = new Set([
@@ -322,6 +323,8 @@ function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
     "ip_geolocation",
     "ssl_checker",
     "webcheck_scan",
+    "checkDataBreach",
+    "list_bot_commands",
     "searchObsidianQA",
     "searchKnowledge",
     "getWikipediaSummary",
@@ -692,6 +695,7 @@ async function runAgentLoopInternal(
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
     mentionAwarenessBlock() +
+    CHAT_FIRST_COMMANDS_HINT +
     githubKnowledgePromptBlock() +
     `\n\n## LANGUE DE RÉPONSE (DÉTECTION AUTO)\n${langInstruction}\n` +
     "Si l'utilisateur change de langue en cours de conversation, adapte-toi immédiatement.\n" +

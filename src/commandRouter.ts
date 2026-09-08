@@ -8,6 +8,7 @@
 import { REST, Routes, Interaction, ChatInputCommandInteraction, Client } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
+import { isChatFirstSlash } from "./commands/chatFirstSlash.js";
 import {
   createLoggingMiddleware,
   createPermissionGuardMiddleware,
@@ -732,23 +733,10 @@ export async function registerCommands(): Promise<void> {
 
     // Menu / réduit : le chat @John remplace Steam/game/fun/IA slash.
     // Les handlers restent en mémoire (owner / anciens invocations).
-    const CHAT_FIRST_SLASH = new Set([
-      "help",
-      "learn-stats",
-      "admin",
-      "config",
-      "killswitch",
-      "privacy",
-      "ticket",
-      "mod",
-      "security",
-      "wishlist",
-      "mc",
-    ]);
     const hidden = mergedCommands.length;
     const publicCommands = mergedCommands.filter((cmd) => {
       const name = (cmd as { name?: string }).name;
-      return name ? CHAT_FIRST_SLASH.has(name) : false;
+      return name ? isChatFirstSlash(name) : false;
     });
     logger.info(
       `[Register] Menu slash limité: ${publicCommands.length}/${hidden} visibles (le reste = parler à John)`,

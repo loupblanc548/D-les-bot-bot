@@ -32,6 +32,8 @@ describe("needsAgentLoop", () => {
     expect(needsAgentLoop("écris un poème sur la pluie")).toBe(true);
     expect(needsAgentLoop("quel temps fait-il à Lyon ?")).toBe(true);
     expect(needsAgentLoop("cherche les sorties steam cette semaine")).toBe(true);
+    expect(needsAgentLoop("c est quoi la command cmd pour tout mètre a d une commande")).toBe(true);
+    expect(needsAgentLoop("c'est quoi la commande pour toutes les commandes")).toBe(true);
   });
 
   it("treats URLs, images and very long briefs as agent work — not every medium message", () => {

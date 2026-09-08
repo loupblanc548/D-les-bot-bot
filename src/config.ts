@@ -160,6 +160,9 @@ export const config = {
   // Steam
   steamApiKey: env.STEAM_API_KEY || "",
 
+  // Have I Been Pwned v3
+  hibpApiKey: env.HIBP_API_KEY || "",
+
   // ===== API Base URLs =====
   openRouterBaseUrl: env.OPENROUTER_BASE_URL,
   twitchApiBaseUrl: env.TWITTER_API_BASE_URL,

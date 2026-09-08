@@ -15,6 +15,7 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
+import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
@@ -212,6 +213,19 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_bot_commands",
+      description:
+        "Liste les commandes slash Discord encore au menu (chat-first). À appeler si on demande !help, /help, « toutes les commandes », « c'est quoi la commande pour lister ». Il n'existe pas de !help.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
       },
     },
   },
@@ -1266,6 +1280,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "getTechNews",
   "search_stackoverflow",
   // ── OSINT de base ──
+  "checkDataBreach",
   "ip_ping",
   "dns_lookup",
   "whois_lookup",
@@ -1318,6 +1333,7 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Discord & Modération ──
   "deleteMessages",
   "getBotStatus",
+  "list_bot_commands",
   "getRecentMentions",
   "timeoutUser",
   "getUserInfo",
@@ -1444,6 +1460,8 @@ export async function executeTool(
         return await toolDeleteMessages(args, ctx);
       case "getBotStatus":
         return await toolGetBotStatus(ctx);
+      case "list_bot_commands":
+        return { success: true, data: formatChatFirstSlashHelp() };
       case "getRecentMentions":
         return await toolGetRecentMentions(args);
       case "timeoutUser":
