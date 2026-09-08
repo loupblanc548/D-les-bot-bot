@@ -15,7 +15,10 @@ export function sanitizeSecret(value: unknown): unknown {
     .replace(/^["']+|["']+$/g, "")
     .trim();
   if (!trimmed) return undefined;
-  const token = trimmed.split(/[\s#\u2014\u2013]+/)[0]?.trim();
+  const token = trimmed
+    .split(/[\s#\u2014\u2013]+/)[0]
+    ?.trim()
+    .replace(/^["']+|["']+$/g, "");
   return token || undefined;
 }
 
@@ -114,7 +117,7 @@ const envSchema = z.object({
   YOUTUBE_API_KEY: z.string().optional(),
   SPOTIFY_CLIENT_ID: z.string().optional(),
   SPOTIFY_CLIENT_SECRET: z.string().optional(),
-  RAWG_API_KEY: z.string().optional(),
+  RAWG_API_KEY: optionalSecret,
   NEWS_API_KEY: z.string().optional(),
   SCREENSHOT_API_KEY: z.string().optional(),
   HF_API_KEY: z.string().optional(),

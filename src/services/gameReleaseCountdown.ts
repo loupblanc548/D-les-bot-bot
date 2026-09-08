@@ -17,7 +17,6 @@
 import { Client, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
-import { isIgdbAvailable } from "./igdb.js";
 import prisma from "../prisma.js";
 
 const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
@@ -99,6 +98,67 @@ const trackedReleases: TrackedRelease[] = [];
 let checkInterval: NodeJS.Timeout | null = null;
 let countdownInterval: NodeJS.Timeout | null = null;
 
+type UpcomingGame = {
+  name: string;
+  releaseDate: Date;
+  coverUrl: string | null;
+  summary: string;
+  platforms: string[];
+  genres: string[];
+};
+
+function envSecret(name: string): string {
+  const raw = String(process.env[name] || "")
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+  return raw.split(/[\s#\u2014\u2013]+/)[0]?.replace(/^["']+|["']+$/g, "") || "";
+}
+
+const MONTHS: Record<string, number> = {
+  jan: 0,
+  january: 0,
+  feb: 1,
+  february: 1,
+  mar: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  jun: 5,
+  june: 5,
+  jul: 6,
+  july: 6,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  sept: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
+};
+
+/** Parse Steam store search dates like "8 Sep, 2026". */
+export function parseSteamSearchDate(text: string): Date | null {
+  const cleaned = text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || /coming soon|to be announced|^tba$/i.test(cleaned)) return null;
+  const m = cleaned.match(/^(\d{1,2})\s+([A-Za-z]{3,9}),?\s+(\d{4})$/);
+  if (!m) return null;
+  const month = MONTHS[m[2].toLowerCase()];
+  if (month === undefined) return null;
+  const day = Number(m[1]);
+  const year = Number(m[3]);
+  const date = new Date(Date.UTC(year, month, day, 12, 0, 0));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 // ─── IGDB: Fetch upcoming releases ──────────────────────────────────────────
 
 const PLATFORM_MAP: Record<string, number> = {
@@ -109,30 +169,31 @@ const PLATFORM_MAP: Record<string, number> = {
   all: -1,
 };
 
-async function fetchUpcomingReleases(): Promise<
-  Array<{
-    name: string;
-    releaseDate: Date;
-    coverUrl: string | null;
-    summary: string;
-    platforms: string[];
-    genres: string[];
-  }>
-> {
-  if (!isIgdbAvailable()) {
-    logger.warn("[GameReleaseCountdown] IGDB non configuré — impossible de récupérer les sorties");
+async function fetchUpcomingReleases(): Promise<UpcomingGame[]> {
+  const clientId = envSecret("IGDB_CLIENT_ID");
+  const clientSecret = envSecret("IGDB_CLIENT_SECRET");
+  if (!clientId || !clientSecret) {
+    logger.info("[GameReleaseCountdown] IGDB non configuré — fallback Steam/RAWG");
+    return [];
+  }
+  if (clientId.length < 20) {
+    logger.warn(
+      "[GameReleaseCountdown] IGDB_CLIENT_ID invalide (app Twitch requise sur https://dev.twitch.tv/console/apps)",
+    );
     return [];
   }
 
-  const clientId = process.env.IGDB_CLIENT_ID!;
-  const clientSecret = process.env.IGDB_CLIENT_SECRET!;
-
   try {
-    // Get Twitch OAuth token
-    const tokenRes = await fetch(
-      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-      { method: "POST", signal: AbortSignal.timeout(10_000) },
-    );
+    const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "client_credentials",
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!tokenRes.ok) {
       logger.warn(`[GameReleaseCountdown] IGDB token HTTP ${tokenRes.status}`);
       return [];
@@ -347,15 +408,17 @@ async function refreshReleaseList(_client: Client): Promise<void> {
     return;
   }
 
-  const releases = await fetchUpcomingReleases();
-  if (releases.length === 0) {
-    logger.warn("[GameReleaseCountdown] IGDB vide — tentative fallback CheapShark");
-    const fallback = await fetchReleasesFallback();
-    if (fallback.length === 0) return;
-    logger.info(`[GameReleaseCountdown] ${fallback.length} sorties via fallback CheapShark`);
-    // Continue with fallback data
+  let allReleases = await fetchUpcomingReleases();
+  if (allReleases.length === 0) {
+    logger.warn("[GameReleaseCountdown] IGDB vide — fallback Steam puis RAWG");
+    allReleases = await fetchSteamUpcoming();
   }
-  const allReleases = releases.length > 0 ? releases : await fetchReleasesFallback();
+  if (allReleases.length === 0) {
+    allReleases = await fetchRawgUpcoming();
+  }
+  if (allReleases.length === 0) {
+    allReleases = await fetchReleasesFallback();
+  }
   if (allReleases.length === 0) return;
 
   logger.info(`[GameReleaseCountdown] ${allReleases.length} sorties récupérées`);
@@ -412,17 +475,114 @@ async function refreshReleaseList(_client: Client): Promise<void> {
   }
 }
 
+// ─── Fallback API: RAWG (upcoming calendar) ─────────────────────────────────
+async function fetchRawgUpcoming(): Promise<UpcomingGame[]> {
+  const key = envSecret("RAWG_API_KEY");
+  if (!key || key.length < 20) return [];
+  logger.info("[GameReleaseCountdown] Fallback RAWG...");
+  try {
+    const start = new Date();
+    const end = new Date(start.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const dates = `${start.toISOString().slice(0, 10)},${end.toISOString().slice(0, 10)}`;
+    const url = `https://api.rawg.io/api/games?key=${encodeURIComponent(key)}&dates=${dates}&ordering=-added&page_size=40`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+    if (!res.ok) {
+      logger.warn(`[GameReleaseCountdown] RAWG HTTP ${res.status}`);
+      return [];
+    }
+    const data = (await res.json()) as {
+      results?: Array<{
+        name?: string;
+        released?: string | null;
+        background_image?: string | null;
+        platforms?: Array<{ platform?: { name?: string } }>;
+        genres?: Array<{ name?: string }>;
+      }>;
+    };
+    const now = Date.now() - 60 * 60 * 1000;
+    const games = (data.results || [])
+      .map((g) => {
+        const releaseDate = g.released ? new Date(`${g.released}T12:00:00Z`) : null;
+        if (!g.name || !releaseDate || Number.isNaN(releaseDate.getTime())) return null;
+        if (releaseDate.getTime() < now) return null;
+        return {
+          name: g.name,
+          releaseDate,
+          coverUrl: g.background_image || null,
+          summary: "Fiche RAWG — sortie à venir.",
+          platforms: (g.platforms || []).map((p) => p.platform?.name || "").filter(Boolean),
+          genres: (g.genres || []).map((x) => x.name || "").filter(Boolean),
+        } satisfies UpcomingGame;
+      })
+      .filter((g): g is UpcomingGame => g !== null);
+    if (games.length > 0) {
+      logger.info(`[GameReleaseCountdown] ${games.length} sorties via RAWG`);
+    }
+    return games;
+  } catch (err) {
+    logger.warn(
+      `[GameReleaseCountdown] Fallback RAWG échoué: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
+// ─── Fallback API: Steam popular coming soon (no key) ───────────────────────
+async function fetchSteamUpcoming(): Promise<UpcomingGame[]> {
+  logger.info("[GameReleaseCountdown] Fallback Steam coming soon...");
+  try {
+    const url =
+      "https://store.steampowered.com/search/results/?filter=popularcomingsoon&category1=998&infinite=1&start=0&count=40&cc=FR&l=english";
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json,text/javascript,*/*",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) {
+      logger.warn(`[GameReleaseCountdown] Steam search HTTP ${res.status}`);
+      return [];
+    }
+    const payload = (await res.json()) as { results_html?: string };
+    const html = payload.results_html || "";
+    const blocks = html.split(/data-ds-appid="/).slice(1);
+    const skip = /\bdemo\b|soundtrack|playtest|\bost\b|artbook|trailer/i;
+    const now = Date.now() - 60 * 60 * 1000;
+    const seen = new Set<string>();
+    const games: UpcomingGame[] = [];
+    for (const block of blocks) {
+      const id = block.match(/^(\d+)/)?.[1];
+      const name = block.match(/class="title">([^<]+)/)?.[1]?.trim();
+      const dateText = block.match(/search_released[^>]*>([^<]*)/)?.[1]?.trim() || "";
+      if (!id || !name || skip.test(name) || seen.has(name)) continue;
+      const releaseDate = parseSteamSearchDate(dateText);
+      if (!releaseDate || releaseDate.getTime() < now) continue;
+      seen.add(name);
+      games.push({
+        name,
+        releaseDate,
+        coverUrl: `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${id}/header.jpg`,
+        summary: "Sortie à venir sur Steam.",
+        platforms: ["PC"],
+        genres: [],
+      });
+    }
+    if (games.length > 0) {
+      logger.info(`[GameReleaseCountdown] ${games.length} sorties via Steam`);
+    }
+    return games;
+  } catch (err) {
+    logger.warn(
+      `[GameReleaseCountdown] Fallback Steam échoué: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
 // ─── Fallback API: CheapShark (free, no key needed) ──────────────────────────
-async function fetchReleasesFallback(): Promise<
-  Array<{
-    name: string;
-    releaseDate: Date;
-    coverUrl: string | null;
-    summary: string;
-    platforms: string[];
-    genres: string[];
-  }>
-> {
+async function fetchReleasesFallback(): Promise<UpcomingGame[]> {
   try {
     const res = await fetch(
       "https://www.cheapshark.com/api/1.0/deals?storeID=1&sortBy=Release&desc=0&pageSize=10",
@@ -634,11 +794,6 @@ export function startGameReleaseCountdown(client: Client): void {
     return;
   }
 
-  if (!isIgdbAvailable()) {
-    logger.info("[GameReleaseCountdown] Désactivé — IGDB non configuré");
-    return;
-  }
-
   if (checkInterval || countdownInterval) return;
 
   logger.info(
@@ -652,7 +807,7 @@ export function startGameReleaseCountdown(client: Client): void {
         `[GameReleaseCountdown] Erreur init: ${e instanceof Error ? e.message : String(e)}`,
       ),
     );
-  }, 10_000);
+  }, 3_000);
 
   // Refresh release list every 6 hours
   checkInterval = safeInterval(

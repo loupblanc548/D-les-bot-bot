@@ -14,6 +14,10 @@ describe("sanitizeSecret", () => {
     expect(sanitizeSecret('  "AIzaSyXXXX"  ')).toBe("AIzaSyXXXX");
   });
 
+  it("strips a leftover quote before an inline comment", () => {
+    expect(sanitizeSecret('abc123secretkey" # RAWG comment')).toBe("abc123secretkey");
+  });
+
   it("returns undefined for empty values", () => {
     expect(sanitizeSecret("   ")).toBeUndefined();
     expect(sanitizeSecret(undefined)).toBeUndefined();
