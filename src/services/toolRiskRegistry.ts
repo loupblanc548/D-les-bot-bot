@@ -103,6 +103,14 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "low", module: "core", reason: "Read-only image analysis, no persistence" },
     ],
     ["detect_language", { level: "low", module: "core", reason: "Read-only language detection" }],
+    [
+      "getUserInfo",
+      {
+        level: "low",
+        module: "core",
+        reason: "Read-only casier / member info lookup, no Discord mutation",
+      },
+    ],
 
     // ── Code execution (HIGH — arbitrary code) ──
     [

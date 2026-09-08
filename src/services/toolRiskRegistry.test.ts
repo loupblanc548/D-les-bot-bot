@@ -32,6 +32,7 @@ describe("toolRiskRegistry — classification correctness", () => {
     expect(isLowRisk("detect_language")).toBe(true);
     expect(isLowRisk("getRedditPosts")).toBe(true);
     expect(isLowRisk("setup_basic_server")).toBe(true);
+    expect(isLowRisk("getUserInfo")).toBe(true);
   });
 
   it("classifies known high-risk tools correctly", () => {
@@ -73,6 +74,7 @@ describe("toolRiskRegistry — SOAR gate integration", () => {
     expect(isRestrictedTool("searchWeb")).toBe(false);
     expect(isRestrictedTool("getCryptoPrice")).toBe(false);
     expect(isRestrictedTool("getJoke")).toBe(false);
+    expect(isRestrictedTool("getUserInfo")).toBe(false);
   });
 
   it("high-risk tools DO trigger SOAR gate", () => {

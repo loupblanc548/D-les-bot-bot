@@ -11,8 +11,47 @@ import {
 } from "discord.js";
 import prisma from "../prisma.js";
 import { requireMod, requireAdmin } from "../services/permissions.js";
+import {
+  type CasierItem,
+  casierAccentColor,
+  loadCasier,
+  paginateCasierTable,
+  summarizeCasierTypes,
+} from "../services/casierQuery.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.1.0" };
+const CONTENT_LIMIT = 1900;
+
+export function buildCasierSlashPages(opts: {
+  username: string;
+  userId: string;
+  items: CasierItem[];
+  riskScore: number;
+  riskLevel: string;
+  underWatch: boolean;
+}): string[] {
+  const count = opts.items.length;
+  const countBit = `${count} entrée${count > 1 ? "s" : ""}`;
+  const types = summarizeCasierTypes(opts.items);
+  const watch = opts.underWatch ? "Surveillance **oui**" : "Surveillance non";
+  const intro = [
+    `**Casier judiciaire** · ${opts.username}`,
+    `<@${opts.userId}>`,
+    `**${countBit}**${types ? ` · ${types}` : ""}`,
+    `Risque **${opts.riskScore}** (${opts.riskLevel}) · ${watch}`,
+    "",
+  ].join("\n");
+
+  const tables = paginateCasierTable(
+    opts.items,
+    false,
+    Math.max(400, CONTENT_LIMIT - intro.length - 32),
+  );
+  return tables.map((table, index) => {
+    const pageBit = tables.length > 1 ? `\n\n*Page ${index + 1} / ${tables.length}*` : "";
+    return `${intro}${table}${pageBit}`;
+  });
+}
 
 export const commands = [
   new SlashCommandBuilder()
@@ -33,170 +72,6 @@ export const commands = [
     )
     .toJSON(),
 ];
-
-export interface CasierEntry {
-  section: "warn" | "mute" | "kick" | "ban_sanction" | "ban";
-  isHeader: boolean;
-  headerLine: string;
-  line: string;
-}
-
-interface SanctionRow {
-  reason?: string | null;
-  createdAt: Date;
-  moderatorId?: string | null;
-  duration?: number | null;
-}
-
-interface LogRow {
-  action?: string | null;
-  details?: string | null;
-  createdAt: Date | string;
-}
-
-export function buildEntries(
-  warnings: SanctionRow[],
-  mutes: SanctionRow[],
-  kicks: SanctionRow[],
-  banSanctions: SanctionRow[],
-  bans: LogRow[],
-): CasierEntry[] {
-  const entries: CasierEntry[] = [];
-  const hdr = (s: string, l: string): CasierEntry => ({
-    section: s as CasierEntry["section"],
-    isHeader: true,
-    headerLine: l,
-    line: l,
-  });
-
-  if (warnings.length) {
-    entries.push(hdr("warn", "⚠️ **Avertissements (" + warnings.length + ")**"));
-    warnings.forEach((w, i) =>
-      entries.push({
-        section: "warn",
-        isHeader: false,
-        headerLine: entries[entries.length - 1].headerLine,
-        line:
-          "├ **#" +
-          (i + 1) +
-          "** • " +
-          w.reason +
-          "\n└ ⮕ <t:" +
-          Math.floor(w.createdAt.getTime() / 1000) +
-          ":d> • Mod: <@" +
-          w.moderatorId +
-          ">",
-      }),
-    );
-  }
-
-  if (mutes.length) {
-    entries.push(hdr("mute", "⏳ **Exclusions temporaires (" + mutes.length + ")**"));
-    mutes.forEach((m, i) => {
-      const endTime = new Date(m.createdAt.getTime() + (m.duration || 0) * 1000);
-      entries.push({
-        section: "mute",
-        isHeader: false,
-        headerLine: entries[entries.length - 1].headerLine,
-        line:
-          "├ **#" +
-          (i + 1) +
-          "** • <t:" +
-          Math.floor(m.createdAt.getTime() / 1000) +
-          ":d> → <t:" +
-          Math.floor(endTime.getTime() / 1000) +
-          ":d> (" +
-          Math.round((m.duration || 0) / 60) +
-          " min)\n└ • Mod: <@" +
-          m.moderatorId +
-          ">",
-      });
-    });
-  }
-
-  if (kicks.length) {
-    entries.push(hdr("kick", "👢 **Expulsions (" + kicks.length + ")**"));
-    kicks.forEach((k, i) =>
-      entries.push({
-        section: "kick",
-        isHeader: false,
-        headerLine: entries[entries.length - 1].headerLine,
-        line:
-          "├ **#" +
-          (i + 1) +
-          "** • " +
-          (k.reason || "Aucune raison") +
-          "\n└ ⮕ <t:" +
-          Math.floor(k.createdAt.getTime() / 1000) +
-          ":d> • Mod: <@" +
-          k.moderatorId +
-          ">",
-      }),
-    );
-  }
-
-  if (banSanctions.length) {
-    entries.push(hdr("ban_sanction", "🔨 **Bannissements (" + banSanctions.length + ")**"));
-    banSanctions.forEach((bs, i) =>
-      entries.push({
-        section: "ban_sanction",
-        isHeader: false,
-        headerLine: entries[entries.length - 1].headerLine,
-        line:
-          "├ **#" +
-          (i + 1) +
-          "** • " +
-          (bs.reason || "Aucune raison") +
-          "\n└ ⮕ <t:" +
-          Math.floor(bs.createdAt.getTime() / 1000) +
-          ":d> • Mod: <@" +
-          bs.moderatorId +
-          ">",
-      }),
-    );
-  }
-
-  if (bans.length) {
-    entries.push(hdr("ban", "🔨 **Bannissements logs (" + bans.length + ")**"));
-    bans.forEach((b, i) =>
-      entries.push({
-        section: "ban",
-        isHeader: false,
-        headerLine: entries[entries.length - 1].headerLine,
-        line:
-          "├ **#" +
-          (i + 1) +
-          "** • " +
-          (b.action || b.details || "Banni") +
-          "\n└ ⮕ <t:" +
-          Math.floor(new Date(b.createdAt).getTime() / 1000) +
-          ":d>",
-      }),
-    );
-  }
-
-  return entries;
-}
-
-export function chunkEntries(entries: CasierEntry[], maxChars: number): string[] {
-  const pages: string[] = [];
-  let current = "",
-    lastHeader = "";
-  for (const e of entries) {
-    if (e.isHeader) lastHeader = e.headerLine;
-    const sep = current ? "\n\n" : "";
-    const prefix = !current && !e.isHeader && lastHeader ? lastHeader + "\n" : "";
-    const candidate = current + sep + prefix + e.line;
-    if (candidate.length > maxChars && current) {
-      pages.push(current);
-      current = !e.isHeader && lastHeader ? lastHeader + "\n" + e.line : e.line;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current || !pages.length) pages.push(current);
-  return pages;
-}
 
 export function buildNavRow(page: number, total: number): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -277,84 +152,65 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
   try {
     logger.info("🔍 [Casier] Recherche sanctions pour ID:", cible.id, "| Tag:", cible.tag);
 
-    const warnings = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: "WARN" },
-      orderBy: { createdAt: "desc" },
-    });
-    logger.info("📊 [Casier] WARN:", warnings.length);
+    const snapshot = await loadCasier(guildId, cible.id, 50);
+    logger.info("📊 [Casier] Total sanctions:", snapshot.items.length);
 
-    const mutes = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: { in: ["TIMEOUT", "MUTE"] } },
-      orderBy: { createdAt: "desc" },
-    });
-    logger.info("📊 [Casier] TIMEOUT/MUTE:", mutes.length);
+    const thumbnail =
+      typeof cible.displayAvatarURL === "function"
+        ? cible.displayAvatarURL({ size: 128 })
+        : undefined;
 
-    const kicks = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: "KICK" },
-      orderBy: { createdAt: "desc" },
-    });
-    logger.info("📊 [Casier] KICK:", kicks.length);
-
-    const banSanctions = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: { in: ["BAN", "TEMPBAN", "UNBAN"] } },
-      orderBy: { createdAt: "desc" },
-    });
-    logger.info("📊 [Casier] BAN/TEMPBAN/UNBAN:", banSanctions.length);
-
-    const bans = await prisma.log.findMany({
-      where: {
-        type: { in: ["ban", "unban", "kick", "timeout", "mute", "tempban"] },
-        OR: [{ userId: cible.id }, { targetId: cible.id }],
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    logger.info("📊 [Casier] BAN logs:", bans.length);
-
-    const total = warnings.length + mutes.length + kicks.length + banSanctions.length + bans.length;
-    logger.info("📊 [Casier] Total sanctions:", total);
-
-    const vierge = total === 0;
-    const baseEmbed = () =>
-      new EmbedBuilder()
-        .setTitle("🗂️ Casier Judiciaire • " + cible.username)
-        .setColor(vierge ? 0x2ecc71 : 0xff3344)
+    const chrome = () => {
+      const embed = new EmbedBuilder()
+        .setTitle("Casier judiciaire · " + cible.username)
+        .setColor(snapshot.items.length === 0 ? 0x2ecc71 : casierAccentColor(snapshot.items))
         .setFooter(FOOTER)
         .setTimestamp();
+      if (thumbnail) embed.setThumbnail(thumbnail);
+      return embed;
+    };
 
-    if (vierge) {
-      const embed = baseEmbed()
+    if (snapshot.items.length === 0) {
+      const embed = chrome()
         .setDescription(
-          `🛡️ **Ce membre a un casier vierge.**
-Aucun historique de sanction.`,
+          `**Casier vierge.**\nAucune sanction ni log (ban, timeout, kick, mute, warn).`,
         )
         .addFields(
-          { name: "👤 Membre", value: cible.tag, inline: true },
-          { name: "🔍 ID", value: cible.id, inline: true },
+          { name: "Membre", value: cible.tag, inline: true },
+          { name: "ID", value: cible.id, inline: true },
+          {
+            name: "Risque",
+            value: `${snapshot.riskScore} · ${snapshot.riskLevel}`,
+            inline: true,
+          },
         );
       await interaction.editReply({ embeds: [embed] });
       return;
     }
 
-    const entries = buildEntries(warnings, mutes, kicks, banSanctions, bans);
-    const pages = chunkEntries(entries, 3800);
-    const embeds = pages.map((p) =>
-      baseEmbed()
-        .setDescription(p)
-        .addFields(
-          { name: "👤 Membre", value: cible.tag, inline: true },
-          { name: "🔍 ID", value: cible.id, inline: true },
-          { name: "📋 Total", value: total + " sanction(s)", inline: true },
-        ),
+    const pages = buildCasierSlashPages({
+      username: cible.username,
+      userId: cible.id,
+      items: snapshot.items,
+      riskScore: snapshot.riskScore,
+      riskLevel: snapshot.riskLevel,
+      underWatch: snapshot.underWatch,
+    });
+    const card = chrome().addFields(
+      { name: "Membre", value: cible.tag, inline: true },
+      { name: "ID", value: cible.id, inline: true },
+      { name: "Total", value: String(snapshot.items.length), inline: true },
     );
 
     if (pages.length === 1) {
-      await interaction.editReply({ embeds: [embeds[0]] });
+      await interaction.editReply({ content: pages[0], embeds: [card] });
       return;
     }
 
     let page = 0;
     const reply = await interaction.editReply({
-      embeds: [embeds[0]],
+      content: pages[0],
+      embeds: [card],
       components: [buildNavRow(0, pages.length)],
     });
     const collector = reply.createMessageComponentCollector({
@@ -374,7 +230,11 @@ Aucun historique de sanction.`,
         btn.customId === "casier_prev"
           ? Math.max(0, page - 1)
           : Math.min(pages.length - 1, page + 1);
-      await btn.update({ embeds: [embeds[page]], components: [buildNavRow(page, pages.length)] });
+      await btn.update({
+        content: pages[page],
+        embeds: [card],
+        components: [buildNavRow(page, pages.length)],
+      });
     });
 
     collector.on("end", async () => {

@@ -5,6 +5,8 @@ import {
   formatDurationSeconds,
   formatGuildSanctionLog,
   labelCasierType,
+  escapeMarkdownTableCell,
+  formatCasierTable,
 } from "./casierQuery.js";
 
 describe("formatDurationSeconds", () => {
@@ -67,7 +69,7 @@ describe("formatCasierForAgent", () => {
     expect(text).toContain("<@u1>");
   });
 
-  it("lists sanctions in French with duration and moderator", () => {
+  it("lists sanctions in a markdown table with duration and moderator", () => {
     const text = formatCasierForAgent({
       userId: "u1",
       guildId: "g1",
@@ -85,8 +87,10 @@ describe("formatCasierForAgent", () => {
       riskLevel: "FAIBLE",
       underWatch: false,
     });
-    expect(text).toMatch(/Timeout \(30 min\)/);
-    expect(text).toMatch(/John \(agent\)/);
+    expect(text).toMatch(/\| Date \| Type \| Durée \| Raison \| Par \|/);
+    expect(text).toMatch(/Timeout/);
+    expect(text).toMatch(/30 min/);
+    expect(text).toMatch(/John/);
     expect(text).toMatch(/Spam/);
     expect(labelCasierType("BAN")).toBe("Bannissement");
   });
@@ -108,9 +112,38 @@ describe("formatGuildSanctionLog", () => {
     expect(text).toMatch(/Logs de sanctions/);
     expect(text).toContain("<@u9>");
     expect(text).toMatch(/Bannissement/);
+    expect(text).toMatch(/\| Date \| Membre \| Type \| Durée \| Raison \| Par \|/);
   });
 
   it("says when the guild log is empty", () => {
     expect(formatGuildSanctionLog([])).toMatch(/Aucun log de sanction/);
+  });
+});
+
+describe("markdown table cells", () => {
+  it("strips pipes so a reason cannot break columns", () => {
+    expect(escapeMarkdownTableCell("a | b | c")).toBe("a / b / c");
+  });
+
+  it("builds a discord markdown table", () => {
+    const table = formatCasierTable(
+      [
+        {
+          source: "sanction",
+          type: "BAN",
+          reason: "Raid",
+          date: new Date("2026-09-08T12:00:00Z"),
+          moderatorId: "mod1",
+          duration: null,
+          userId: "u9",
+        },
+      ],
+      true,
+    );
+    const lines = table.split("\n");
+    expect(lines[0]).toBe("| Date | Membre | Type | Durée | Raison | Par |");
+    expect(lines[1]).toMatch(/^\| --- \| --- \| --- \| --- \| --- \| --- \|$/);
+    expect(lines[2]).toContain("<@u9>");
+    expect(lines[2]).toContain("Raid");
   });
 });

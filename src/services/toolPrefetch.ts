@@ -49,7 +49,7 @@ const PREFETCH_RULES: PrefetchRule[] = [
     },
     formatResult: (result) => {
       const text = typeof result === "string" ? result : JSON.stringify(result);
-      return `Casier / logs de sanctions:\n${text.slice(0, 2500)}`;
+      return `Casier / logs de sanctions — recopie le tableau markdown tel quel :\n${text.slice(0, 4000)}`;
     },
   },
   {

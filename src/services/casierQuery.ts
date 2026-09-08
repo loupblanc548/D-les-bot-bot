@@ -89,6 +89,147 @@ export function labelCasierType(type: string): string {
   return TYPE_LABELS[type] ?? TYPE_LABELS[type.toLowerCase()] ?? type;
 }
 
+const TYPE_EMOJI: Record<string, string> = {
+  WARN: "⚠️",
+  TIMEOUT: "⏳",
+  KICK: "👢",
+  BAN: "🔨",
+  MUTE: "🔇",
+  TEMPBAN: "⏲️",
+  UNBAN: "♻️",
+};
+
+export function emojiCasierType(type: string): string {
+  const key = normalizeType(type);
+  return TYPE_EMOJI[key] ?? "📋";
+}
+
+export function formatCasierTypeCell(type: string): string {
+  return `${emojiCasierType(type)} ${labelCasierType(type)}`;
+}
+
+export function formatModeratorCell(moderatorId: string | null | undefined): string {
+  if (!moderatorId || moderatorId === "UNKNOWN") return "—";
+  if (moderatorId === "AI_AGENT") return "John";
+  return `<@${moderatorId}>`;
+}
+
+export function formatCasierDateCell(date: Date): string {
+  const unix = Math.floor(date.getTime() / 1000);
+  if (!Number.isFinite(unix) || unix <= 0) return "—";
+  return `<t:${unix}:d> <t:${unix}:t>`;
+}
+
+export function escapeMarkdownTableCell(value: string, max = 72): string {
+  const compact = value.replace(/\s+/g, " ").replace(/\|/g, "/").trim();
+  if (!compact) return "—";
+  if (compact.length <= max) return compact;
+  return `${compact.slice(0, Math.max(1, max - 1))}…`;
+}
+
+export function casierAccentColor(items: CasierItem[]): number {
+  const types = new Set(items.map((item) => normalizeType(item.type)));
+  if (types.has("BAN") || types.has("TEMPBAN")) return 0xe74c3c;
+  if (types.has("KICK")) return 0xe67e22;
+  if (types.has("TIMEOUT") || types.has("MUTE")) return 0xf1c40f;
+  if (types.has("WARN")) return 0xe67e22;
+  return 0x5865f2;
+}
+
+export function summarizeCasierTypes(items: CasierItem[]): string {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = normalizeType(item.type);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const order = ["BAN", "TEMPBAN", "KICK", "TIMEOUT", "MUTE", "WARN", "UNBAN"];
+  const parts: string[] = [];
+  for (const key of order) {
+    const n = counts.get(key);
+    if (!n) continue;
+    parts.push(`${emojiCasierType(key)} ${n}× ${labelCasierType(key)}`);
+    counts.delete(key);
+  }
+  for (const [key, n] of counts) {
+    parts.push(`${emojiCasierType(key)} ${n}× ${labelCasierType(key)}`);
+  }
+  return parts.join(" · ");
+}
+
+function casierTableHeaders(withUser: boolean): string[] {
+  return withUser
+    ? ["Date", "Membre", "Type", "Durée", "Raison", "Par"]
+    : ["Date", "Type", "Durée", "Raison", "Par"];
+}
+
+function casierItemToCells(item: CasierItem, withUser: boolean): string[] {
+  const duration = formatDurationSeconds(item.duration) ?? "—";
+  const cells = [
+    formatCasierDateCell(item.date),
+    formatCasierTypeCell(item.type),
+    duration,
+    escapeMarkdownTableCell(item.reason || "Aucune raison"),
+    formatModeratorCell(item.moderatorId),
+  ];
+  if (withUser) {
+    cells.splice(1, 0, item.userId ? `<@${item.userId}>` : "—");
+  }
+  return cells;
+}
+
+export function renderMarkdownTable(headers: string[], rows: string[][]): string {
+  const header = `| ${headers.join(" | ")} |`;
+  const divider = `| ${headers.map(() => "---").join(" | ")} |`;
+  if (rows.length === 0) return `${header}\n${divider}`;
+  const body = rows.map((row) => `| ${row.join(" | ")} |`).join("\n");
+  return `${header}\n${divider}\n${body}`;
+}
+
+export function paginateMarkdownTable(
+  headers: string[],
+  rows: string[][],
+  maxChars: number,
+): string[] {
+  const headerBlock = renderMarkdownTable(headers, []);
+  if (rows.length === 0) return [headerBlock];
+
+  const pages: string[] = [];
+  let batch: string[][] = [];
+
+  const render = (part: string[][]) => renderMarkdownTable(headers, part);
+
+  for (const row of rows) {
+    const candidate = render([...batch, row]);
+    if (candidate.length > maxChars && batch.length > 0) {
+      pages.push(render(batch));
+      batch = [row];
+    } else {
+      batch.push(row);
+    }
+  }
+  if (batch.length > 0) pages.push(render(batch));
+  return pages;
+}
+
+export function formatCasierTable(items: CasierItem[], withUser: boolean): string {
+  return renderMarkdownTable(
+    casierTableHeaders(withUser),
+    items.map((item) => casierItemToCells(item, withUser)),
+  );
+}
+
+export function paginateCasierTable(
+  items: CasierItem[],
+  withUser: boolean,
+  maxChars: number,
+): string[] {
+  return paginateMarkdownTable(
+    casierTableHeaders(withUser),
+    items.map((item) => casierItemToCells(item, withUser)),
+    maxChars,
+  );
+}
+
 function typesOverlap(sanctionType: string, logType: string): boolean {
   const a = normalizeType(sanctionType);
   const b = normalizeType(logType);
@@ -134,47 +275,43 @@ export function mergeCasierItems(sanctions: SanctionLike[], logs: LogLike[]): Ca
   return items;
 }
 
-function formatCasierLine(item: CasierItem, index: number, withUser: boolean): string {
-  const when = item.date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-  const dur = formatDurationSeconds(item.duration);
-  const durBit = dur ? ` (${dur})` : "";
-  const mod = item.moderatorId
-    ? item.moderatorId === "AI_AGENT" || item.moderatorId === "UNKNOWN"
-      ? item.moderatorId === "AI_AGENT"
-        ? "John (agent)"
-        : "modo inconnu"
-      : `<@${item.moderatorId}>`
-    : "modo inconnu";
-  const who = withUser && item.userId ? `<@${item.userId}> — ` : "";
-  return `${index + 1}. ${who}${when} — ${labelCasierType(item.type)}${durBit} — ${item.reason} — par ${mod}`;
+function formatCasierHeader(title: string, count: number, extra?: string): string {
+  const countBit = count === 0 ? "aucune entrée" : `${count} entrée${count > 1 ? "s" : ""}`;
+  const extraBit = extra ? ` · ${extra}` : "";
+  return `**${title}** — ${countBit}${extraBit}`;
 }
 
 export function formatCasierForAgent(snapshot: CasierSnapshot): string {
-  const header = `🗂️ Casier judiciaire de <@${snapshot.userId}>`;
+  const watch = snapshot.underWatch ? "oui" : "non";
+  const risk = `Risque **${snapshot.riskScore}** (${snapshot.riskLevel}) · Surveillance ${watch}`;
   if (snapshot.items.length === 0) {
-    return (
-      `${header}\nCasier vierge. Aucune sanction ni log (ban, timeout, kick, mute, exclusion) trouvé.\n` +
-      `Risque: ${snapshot.riskScore} (${snapshot.riskLevel}). Surveillance: ${snapshot.underWatch ? "oui" : "non"}.`
-    );
+    return [
+      formatCasierHeader(`Casier judiciaire de <@${snapshot.userId}>`, 0),
+      "Casier vierge. Aucune sanction ni log (ban, timeout, kick, mute) trouvé.",
+      risk,
+    ].join("\n");
   }
 
   return [
-    `${header} — ${snapshot.items.length} entrée(s)`,
+    formatCasierHeader(
+      `Casier judiciaire de <@${snapshot.userId}>`,
+      snapshot.items.length,
+      summarizeCasierTypes(snapshot.items),
+    ),
+    risk,
     "",
-    ...snapshot.items.map((item, i) => formatCasierLine(item, i, false)),
-    "",
-    `Risque: ${snapshot.riskScore} (${snapshot.riskLevel}). Surveillance: ${snapshot.underWatch ? "oui" : "non"}.`,
+    formatCasierTable(snapshot.items, false),
   ].join("\n");
 }
 
 export function formatGuildSanctionLog(items: CasierItem[]): string {
   if (items.length === 0) {
-    return "📋 Aucun log de sanction (ban, timeout, kick, mute, warn) trouvé sur ce serveur.";
+    return "Aucun log de sanction (ban, timeout, kick, mute, warn) trouvé sur ce serveur.";
   }
   return [
-    `📋 Logs de sanctions du serveur — ${items.length} entrée(s)`,
+    formatCasierHeader("Logs de sanctions du serveur", items.length, summarizeCasierTypes(items)),
     "",
-    ...items.map((item, i) => formatCasierLine(item, i, true)),
+    formatCasierTable(items, true),
   ].join("\n");
 }
 

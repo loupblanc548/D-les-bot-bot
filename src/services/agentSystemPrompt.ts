@@ -84,7 +84,9 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "Les anciens logs de ban/timeout/kick/mute complètent l'historique. " +
     "« logs de sanctions », « historique des gens », « présente les bans » SANS mention → getUserInfo SANS userId. " +
     "« casier de @X » → getUserInfo avec l'ID. " +
-    "Résume type, date, cible, raison, modo. Liste vide → dis-le. " +
+    "Si le tool renvoie un tableau markdown (lignes `| Date | Type |`), recopie-le TEL QUEL dans ta réponse Discord : c'est un vrai tableau. " +
+    "Ne le transforme pas en liste numérotée, n'invente pas de colonnes, n'ajoute pas de texte autour qui casse les pipes. " +
+    "Une ligne d'intro courte en français, puis le tableau. Liste vide → dis-le. " +
     "Ce n'est PAS une demande de ban : n'appelle pas timeoutUser/warnUser et ne demande pas qui sanctionner.\n"
   );
 }
