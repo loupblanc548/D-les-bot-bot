@@ -27,6 +27,7 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/!help/);
     expect(rules).toMatch(/CASIER JUDICIAIRE/);
     expect(rules).toMatch(/getUserInfo/);
+    expect(rules).toMatch(/SANS userId/);
   });
 
   it("explains that John cannot create a Discord guild and must use setup_basic_server", () => {

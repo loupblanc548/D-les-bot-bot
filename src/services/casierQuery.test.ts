@@ -3,6 +3,7 @@ import {
   mergeCasierItems,
   formatCasierForAgent,
   formatDurationSeconds,
+  formatGuildSanctionLog,
   labelCasierType,
 } from "./casierQuery.js";
 
@@ -88,5 +89,28 @@ describe("formatCasierForAgent", () => {
     expect(text).toMatch(/John \(agent\)/);
     expect(text).toMatch(/Spam/);
     expect(labelCasierType("BAN")).toBe("Bannissement");
+  });
+});
+
+describe("formatGuildSanctionLog", () => {
+  it("lists server-wide sanctions with the target user", () => {
+    const text = formatGuildSanctionLog([
+      {
+        source: "sanction",
+        type: "BAN",
+        reason: "Raid",
+        date: new Date("2026-09-08T12:00:00Z"),
+        moderatorId: "mod1",
+        duration: null,
+        userId: "u9",
+      },
+    ]);
+    expect(text).toMatch(/Logs de sanctions/);
+    expect(text).toContain("<@u9>");
+    expect(text).toMatch(/Bannissement/);
+  });
+
+  it("says when the guild log is empty", () => {
+    expect(formatGuildSanctionLog([])).toMatch(/Aucun log de sanction/);
   });
 });

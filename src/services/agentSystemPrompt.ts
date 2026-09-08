@@ -82,7 +82,9 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "## CASIER JUDICIAIRE\n" +
     "Les sanctions (warn, timeout, mute vocal, kick, ban, unban) que tu appliques ou qu'un modo applique via Discord sont enregistrées. " +
     "Les anciens logs de ban/timeout/kick/mute complètent l'historique. " +
-    "« casier », « casier judiciaire », « historique de sanctions », bans/timeouts d'un membre → getUserInfo avec l'ID (mention <@id>). " +
-    "Résume type, date, raison, modo. Casier vide → dis-le. Ce n'est PAS une demande de ban.\n"
+    "« logs de sanctions », « historique des gens », « présente les bans » SANS mention → getUserInfo SANS userId. " +
+    "« casier de @X » → getUserInfo avec l'ID. " +
+    "Résume type, date, cible, raison, modo. Liste vide → dis-le. " +
+    "Ce n'est PAS une demande de ban : n'appelle pas timeoutUser/warnUser et ne demande pas qui sanctionner.\n"
   );
 }

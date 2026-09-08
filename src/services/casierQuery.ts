@@ -38,6 +38,7 @@ export interface CasierItem {
   date: Date;
   moderatorId: string | null;
   duration: number | null;
+  userId?: string | null;
 }
 
 export interface CasierSnapshot {
@@ -55,6 +56,7 @@ interface SanctionLike {
   createdAt: Date;
   moderatorId?: string | null;
   duration?: number | null;
+  userId?: string | null;
 }
 
 interface LogLike {
@@ -104,6 +106,7 @@ export function mergeCasierItems(sanctions: SanctionLike[], logs: LogLike[]): Ca
     date: s.createdAt,
     moderatorId: s.moderatorId ?? null,
     duration: s.duration ?? null,
+    userId: s.userId ?? null,
   }));
 
   for (const log of logs) {
@@ -123,11 +126,27 @@ export function mergeCasierItems(sanctions: SanctionLike[], logs: LogLike[]): Ca
       date,
       moderatorId: log.moderator ?? null,
       duration: null,
+      userId: log.targetId || log.userId || null,
     });
   }
 
   items.sort((a, b) => b.date.getTime() - a.date.getTime());
   return items;
+}
+
+function formatCasierLine(item: CasierItem, index: number, withUser: boolean): string {
+  const when = item.date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  const dur = formatDurationSeconds(item.duration);
+  const durBit = dur ? ` (${dur})` : "";
+  const mod = item.moderatorId
+    ? item.moderatorId === "AI_AGENT" || item.moderatorId === "UNKNOWN"
+      ? item.moderatorId === "AI_AGENT"
+        ? "John (agent)"
+        : "modo inconnu"
+      : `<@${item.moderatorId}>`
+    : "modo inconnu";
+  const who = withUser && item.userId ? `<@${item.userId}> — ` : "";
+  return `${index + 1}. ${who}${when} — ${labelCasierType(item.type)}${durBit} — ${item.reason} — par ${mod}`;
 }
 
 export function formatCasierForAgent(snapshot: CasierSnapshot): string {
@@ -139,26 +158,23 @@ export function formatCasierForAgent(snapshot: CasierSnapshot): string {
     );
   }
 
-  const lines = snapshot.items.map((item, i) => {
-    const when = item.date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-    const dur = formatDurationSeconds(item.duration);
-    const durBit = dur ? ` (${dur})` : "";
-    const mod = item.moderatorId
-      ? item.moderatorId === "AI_AGENT" || item.moderatorId === "UNKNOWN"
-        ? item.moderatorId === "AI_AGENT"
-          ? "John (agent)"
-          : "modo inconnu"
-        : `<@${item.moderatorId}>`
-      : "modo inconnu";
-    return `${i + 1}. ${when} — ${labelCasierType(item.type)}${durBit} — ${item.reason} — par ${mod}`;
-  });
-
   return [
     `${header} — ${snapshot.items.length} entrée(s)`,
     "",
-    ...lines,
+    ...snapshot.items.map((item, i) => formatCasierLine(item, i, false)),
     "",
     `Risque: ${snapshot.riskScore} (${snapshot.riskLevel}). Surveillance: ${snapshot.underWatch ? "oui" : "non"}.`,
+  ].join("\n");
+}
+
+export function formatGuildSanctionLog(items: CasierItem[]): string {
+  if (items.length === 0) {
+    return "📋 Aucun log de sanction (ban, timeout, kick, mute, warn) trouvé sur ce serveur.";
+  }
+  return [
+    `📋 Logs de sanctions du serveur — ${items.length} entrée(s)`,
+    "",
+    ...items.map((item, i) => formatCasierLine(item, i, true)),
   ].join("\n");
 }
 
@@ -180,6 +196,7 @@ export async function loadCasier(
         createdAt: true,
         moderatorId: true,
         duration: true,
+        userId: true,
       },
     }),
     prisma.log.findMany({
@@ -213,4 +230,38 @@ export async function loadCasier(
     riskLevel: riskProfile?.riskLevel ?? "INCONNU",
     underWatch: riskProfile?.underWatch ?? false,
   };
+}
+
+export async function loadGuildSanctionLog(guildId: string, limit = 40): Promise<CasierItem[]> {
+  const take = Math.min(100, Math.max(1, limit));
+  const [sanctions, logs] = await Promise.all([
+    prisma.sanction.findMany({
+      where: { guildId },
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        type: true,
+        reason: true,
+        createdAt: true,
+        moderatorId: true,
+        duration: true,
+        userId: true,
+      },
+    }),
+    prisma.log.findMany({
+      where: { type: { in: [...CASIER_LOG_TYPES] } },
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        type: true,
+        action: true,
+        details: true,
+        createdAt: true,
+        moderator: true,
+        userId: true,
+        targetId: true,
+      },
+    }),
+  ]);
+  return mergeCasierItems(sanctions, logs).slice(0, take);
 }

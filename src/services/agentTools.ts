@@ -16,7 +16,12 @@ import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
 import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
-import { loadCasier, formatCasierForAgent } from "./casierQuery.js";
+import {
+  loadCasier,
+  formatCasierForAgent,
+  loadGuildSanctionLog,
+  formatGuildSanctionLog,
+} from "./casierQuery.js";
 import { recordCasierSanction } from "./casierRecorder.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
@@ -309,13 +314,16 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getUserInfo",
       description:
-        "Casier judiciaire d'un membre : warns, timeouts, mutes vocaux, kicks, bans, unbans + logs historiques. À utiliser pour « casier », historique de sanctions, bans ou timeouts.",
+        "Casier / logs de sanctions. Sans userId : derniers bans, timeouts, kicks, mutes du serveur. Avec userId : casier d'un membre. Lecture seule — ne sanctionne pas.",
       parameters: {
         type: "object",
         properties: {
-          userId: { type: "string", description: "L'ID Discord de l'utilisateur" },
+          userId: {
+            type: "string",
+            description: "ID Discord. Vide = logs de tout le serveur.",
+          },
         },
-        required: ["userId"],
+        required: [],
       },
     },
   },
@@ -1808,8 +1816,12 @@ async function toolGetUserInfo(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const userId = String(args.userId);
+  const userId = args.userId ? String(args.userId).trim() : "";
   try {
+    if (!userId) {
+      const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      return { success: true, data: formatGuildSanctionLog(items) };
+    }
     const snapshot = await loadCasier(ctx.guildId, userId, 50);
     return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (err) {

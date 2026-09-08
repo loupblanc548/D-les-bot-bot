@@ -21,7 +21,12 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
-import { formatCasierForAgent, loadCasier } from "./casierQuery.js";
+import {
+  formatCasierForAgent,
+  formatGuildSanctionLog,
+  loadCasier,
+  loadGuildSanctionLog,
+} from "./casierQuery.js";
 import { stripHtml } from "../utils/stripHtml.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, searchTweets, isTwitterConfigured } from "./twitter.js";
@@ -74,13 +79,16 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     function: {
       name: "get_user_moderation_history",
       description:
-        "Casier judiciaire : warns, timeouts, mutes, kicks, bans, unbans et logs historiques. Pour « casier » ou historique de sanctions.",
+        "Casier / logs de sanctions. userId optionnel : vide = historique du serveur, sinon casier du membre. Lecture seule.",
       parameters: {
         type: "object",
         properties: {
-          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+          userId: {
+            type: "string",
+            description: "ID Discord. Vide = logs de tout le serveur.",
+          },
         },
-        required: ["userId"],
+        required: [],
       },
     },
   },
@@ -1178,8 +1186,12 @@ async function tGetUserModerationHistory(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const userId = String(args.userId);
+  const userId = args.userId ? String(args.userId).trim() : "";
   try {
+    if (!userId) {
+      const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      return { success: true, data: formatGuildSanctionLog(items) };
+    }
     const snapshot = await loadCasier(ctx.guildId, userId, 50);
     return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (e) {
