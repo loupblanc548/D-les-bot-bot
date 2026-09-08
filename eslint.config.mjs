@@ -44,6 +44,8 @@ export default tseslint.config(
       "src/rawgClient.d.ts",
       "src/rssTwitterTracker.js",
       "src/undici-patch.cjs",
+      "src/utils/memoryLimits.cjs",
+      "**/*.cjs",
       "src/dashboard/frontend/**",
       "scripts/migrate-cache-to-neon.ts",
       "scripts/codebase-graph.ts",

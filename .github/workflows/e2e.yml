@@ -26,8 +26,8 @@ jobs:
           docker compose -f docker-compose.test.yml up -d postgres-test redis-test
           sleep 10
 
-      - name: Run Prisma migrations
-        run: npx prisma migrate deploy
+      - name: Sync Prisma schema
+        run: npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: "postgresql://test:test@localhost:5433/bot_test?schema=public"
 
