@@ -156,7 +156,7 @@ async function startVideoStreamAsync(): Promise<void> {
       logger.warn("[VideoStream] ffmpeg-static introuvable");
     }
 
-    selfbotClient = new Client({ checkUpdate: false });
+    selfbotClient = new Client({ checkUpdate: false } as ConstructorParameters<typeof Client>[0]);
     selfbotClient.on(
       "raw",
       (packet: {
