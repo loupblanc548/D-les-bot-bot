@@ -6,7 +6,22 @@
  * Used whenever the agent talks in #les-test-de-lb (REST sends look offline otherwise).
  */
 import "dotenv/config";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+function loadTempTesterToken(): void {
+  if (process.env.DISCORD_TESTER_TOKEN?.trim()) return;
+  const file = join(process.env.TEMP || "/tmp", "discord-tester.env");
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    if (line.startsWith("DISCORD_TESTER_TOKEN=")) {
+      process.env.DISCORD_TESTER_TOKEN = line.slice("DISCORD_TESTER_TOKEN=".length).trim();
+      break;
+    }
+  }
+}
+
+loadTempTesterToken();
 import { Client, GatewayIntentBits } from "discord.js";
 
 const pidFile =

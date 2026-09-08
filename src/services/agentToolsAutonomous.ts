@@ -21,6 +21,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { formatCasierForAgent, loadCasier } from "./casierQuery.js";
 import { stripHtml } from "../utils/stripHtml.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, searchTweets, isTwitterConfigured } from "./twitter.js";
@@ -73,7 +74,7 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     function: {
       name: "get_user_moderation_history",
       description:
-        "Récupère l'historique de modération d'un utilisateur : warns, timeouts, kicks, bans. Via Prisma.",
+        "Casier judiciaire : warns, timeouts, mutes, kicks, bans, unbans et logs historiques. Pour « casier » ou historique de sanctions.",
       parameters: {
         type: "object",
         properties: {
@@ -1173,46 +1174,14 @@ export function trackMessageForGhostPings(
 
 // ═══ 1. MODERATION & SENTIMENT ═══
 
-async function tGetUserModerationHistory(args: Record<string, any>): Promise<ToolCallResult> {
+async function tGetUserModerationHistory(
+  args: Record<string, any>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
   const userId = String(args.userId);
   try {
-    const sanctions = await prisma.sanction.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: { type: true, reason: true, createdAt: true, moderatorId: true },
-    });
-
-    const profile = await prisma.riskProfile.findFirst({
-      where: { userId },
-      select: {
-        riskScore: true,
-        riskLevel: true,
-        totalSanctions: true,
-        warnCount: true,
-        timeoutCount: true,
-        kickCount: true,
-        banCount: true,
-      },
-    });
-
-    return {
-      success: true,
-      data: JSON.stringify({
-        userId,
-        profile: profile || {
-          riskScore: 0,
-          riskLevel: "NONE",
-          totalSanctions: 0,
-          warnCount: 0,
-          timeoutCount: 0,
-          kickCount: 0,
-          banCount: 0,
-        },
-        recentSanctions: sanctions,
-        totalFound: sanctions.length,
-      }),
-    };
+    const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (e) {
     return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2095,7 +2064,7 @@ export async function executeAutonomousTool(
     switch (toolName) {
       // 1. Moderation & Sentiment
       case "get_user_moderation_history":
-        return await tGetUserModerationHistory(args);
+        return await tGetUserModerationHistory(args, ctx);
       case "scrape_urban_slang":
         return await tScrapeUrbanSlang(args);
       case "evaluate_channel_velocity":

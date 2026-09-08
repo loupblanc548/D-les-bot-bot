@@ -16,6 +16,8 @@ import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
 import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
+import { loadCasier, formatCasierForAgent } from "./casierQuery.js";
+import { recordCasierSanction } from "./casierRecorder.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
@@ -221,10 +223,16 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "list_bot_commands",
       description:
-        "Liste les commandes slash Discord encore au menu (chat-first). À appeler si on demande !help, /help, « toutes les commandes », « c'est quoi la commande pour lister ». Il n'existe pas de !help.",
+        "Liste les commandes slash Discord (menu /) et celles qui collent à un sujet. À appeler si on demande un CMD, !help, /help, « c'est quoi la commande pour… », steam, mute, osint, etc. Pas de commandes !.",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Sujet optionnel (steam, mute, fuite, fortnite, help…). Vide = groupes slash.",
+          },
+        },
         required: [],
       },
     },
@@ -301,7 +309,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getUserInfo",
       description:
-        "Récupère les informations sur un utilisateur : sanctions, score de risque, historique de modération.",
+        "Casier judiciaire d'un membre : warns, timeouts, mutes vocaux, kicks, bans, unbans + logs historiques. À utiliser pour « casier », historique de sanctions, bans ou timeouts.",
       parameters: {
         type: "object",
         properties: {
@@ -1337,6 +1345,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "getRecentMentions",
   "timeoutUser",
   "getUserInfo",
+  "get_user_moderation_history",
   "getServerStats",
   "setup_basic_server",
   "createChannel",
@@ -1389,6 +1398,8 @@ const TOOL_NAME_WHITELIST = new Set([
   "getTrivia",
   // ── Système ──
   "system_stats",
+  "run_terminal",
+  "ssh_command",
   "think_step_by_step",
 ]);
 
@@ -1461,7 +1472,10 @@ export async function executeTool(
       case "getBotStatus":
         return await toolGetBotStatus(ctx);
       case "list_bot_commands":
-        return { success: true, data: formatChatFirstSlashHelp() };
+        return {
+          success: true,
+          data: formatChatFirstSlashHelp(args.query ? String(args.query) : undefined),
+        };
       case "getRecentMentions":
         return await toolGetRecentMentions(args);
       case "timeoutUser":
@@ -1755,18 +1769,15 @@ async function toolTimeoutUser(
 
   await member.timeout(durationMin * 60 * 1000, `[Agent IA] ${reason}`.slice(0, 512));
 
-  // Logger la sanction
-  await prisma.sanction
-    .create({
-      data: {
-        guildId: ctx.guildId,
-        userId,
-        moderatorId: "AI_AGENT",
-        type: "TIMEOUT",
-        reason: `[Agent IA] ${reason}`,
-      },
-    })
-    .catch(() => {});
+  await recordCasierSanction({
+    guildId: ctx.guildId,
+    userId,
+    moderatorId: "AI_AGENT",
+    type: "TIMEOUT",
+    reason: `[Agent IA] ${reason}`,
+    duration: durationMin * 60,
+    source: "agent",
+  }).catch(() => {});
 
   return {
     success: true,
@@ -1778,17 +1789,14 @@ async function toolWarnUser(args: Record<string, any>, ctx: ToolContext): Promis
   const userId = String(args.userId);
   const reason = String(args.reason || "Avertissement par agent IA");
 
-  await prisma.sanction
-    .create({
-      data: {
-        guildId: ctx.guildId,
-        userId,
-        moderatorId: "AI_AGENT",
-        type: "WARN",
-        reason,
-      },
-    })
-    .catch(() => {});
+  await recordCasierSanction({
+    guildId: ctx.guildId,
+    userId,
+    moderatorId: "AI_AGENT",
+    type: "WARN",
+    reason,
+    source: "agent",
+  }).catch(() => {});
 
   return {
     success: true,
@@ -1801,32 +1809,13 @@ async function toolGetUserInfo(
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
   const userId = String(args.userId);
-
-  const sanctions = await prisma.sanction.findMany({
-    where: { userId, guildId: ctx.guildId },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
-
-  const riskProfile = await prisma.riskProfile.findUnique({
-    where: { userId_guildId: { userId, guildId: ctx.guildId } },
-  });
-
-  return {
-    success: true,
-    data: JSON.stringify({
-      userId,
-      sanctions: sanctions.map((s) => ({
-        type: s.type,
-        reason: s.reason,
-        date: s.createdAt.toISOString(),
-      })),
-      sanctionCount: sanctions.length,
-      riskScore: riskProfile?.riskScore ?? 0,
-      riskLevel: riskProfile?.riskLevel ?? "INCONNU",
-      underWatch: riskProfile?.underWatch ?? false,
-    }),
-  };
+  try {
+    const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    return { success: true, data: formatCasierForAgent(snapshot) };
+  } catch (err) {
+    logger.error("[AgentTools] getUserInfo casier:", String(err));
+    return { success: false, data: `Impossible de lire le casier: ${String(err)}` };
+  }
 }
 
 async function toolSearchUserMemory(args: Record<string, any>): Promise<ToolCallResult> {

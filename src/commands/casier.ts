@@ -284,10 +284,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     logger.info("📊 [Casier] WARN:", warnings.length);
 
     const mutes = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: "TIMEOUT" },
+      where: { userId: cible.id, guildId, type: { in: ["TIMEOUT", "MUTE"] } },
       orderBy: { createdAt: "desc" },
     });
-    logger.info("📊 [Casier] TIMEOUT:", mutes.length);
+    logger.info("📊 [Casier] TIMEOUT/MUTE:", mutes.length);
 
     const kicks = await prisma.sanction.findMany({
       where: { userId: cible.id, guildId, type: "KICK" },
@@ -296,13 +296,16 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     logger.info("📊 [Casier] KICK:", kicks.length);
 
     const banSanctions = await prisma.sanction.findMany({
-      where: { userId: cible.id, guildId, type: "BAN" },
+      where: { userId: cible.id, guildId, type: { in: ["BAN", "TEMPBAN", "UNBAN"] } },
       orderBy: { createdAt: "desc" },
     });
-    logger.info("📊 [Casier] BAN:", banSanctions.length);
+    logger.info("📊 [Casier] BAN/TEMPBAN/UNBAN:", banSanctions.length);
 
     const bans = await prisma.log.findMany({
-      where: { type: "ban", OR: [{ userId: cible.id }, { targetId: cible.id }] },
+      where: {
+        type: { in: ["ban", "unban", "kick", "timeout", "mute", "tempban"] },
+        OR: [{ userId: cible.id }, { targetId: cible.id }],
+      },
       orderBy: { createdAt: "desc" },
     });
     logger.info("📊 [Casier] BAN logs:", bans.length);

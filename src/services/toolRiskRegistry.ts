@@ -781,6 +781,10 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "high", module: "external", reason: "Shell command execution on VPS — root access" },
     ],
     [
+      "run_terminal",
+      { level: "high", module: "external", reason: "Shell command execution on VPS — root access" },
+    ],
+    [
       "db_query",
       { level: "high", module: "external", reason: "Direct SQL query on production DB" },
     ],

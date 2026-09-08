@@ -8,7 +8,23 @@
  * without it we still detect that John replied (author id), but reply text is empty.
  */
 import "dotenv/config";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Client, GatewayIntentBits } from "discord.js";
+
+function loadTempTesterToken(): void {
+  if (process.env.DISCORD_TESTER_TOKEN?.trim()) return;
+  const file = join(process.env.TEMP || "/tmp", "discord-tester.env");
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    if (line.startsWith("DISCORD_TESTER_TOKEN=")) {
+      process.env.DISCORD_TESTER_TOKEN = line.slice("DISCORD_TESTER_TOKEN=".length).trim();
+      break;
+    }
+  }
+}
+
+loadTempTesterToken();
 import {
   buildJohnMention,
   DEFAULT_JOHN_BOT_USER_ID,

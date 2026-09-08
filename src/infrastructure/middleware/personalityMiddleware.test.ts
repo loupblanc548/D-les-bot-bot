@@ -14,6 +14,7 @@ describe("personalityMiddleware", () => {
     expect(GENERALIST_PERSONA_PROMPT).toMatch(/IA généraliste/i);
     expect(GENERALIST_PERSONA_PROMPT).toMatch(/cuisine/i);
     expect(GENERALIST_PERSONA_PROMPT).toMatch(/!help n'existe pas/);
+    expect(GENERALIST_PERSONA_PROMPT).toMatch(/run_terminal/);
     expect(GENERALIST_PERSONA_PROMPT).not.toMatch(/IMPIToyABLE/i);
     expect(GENERALIST_PERSONA_PROMPT).not.toMatch(/Tu ne t'excuses JAMAIS/i);
     expect(GENERALIST_PERSONA_PROMPT).not.toMatch(/Pas de "Bonjour/i);

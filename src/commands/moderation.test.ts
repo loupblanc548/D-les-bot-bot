@@ -17,11 +17,15 @@ import { ChatInputCommandInteraction, Client } from "discord.js";
 const mockPrismaSanction = vi.hoisted(() => ({ create: vi.fn() }));
 const mockCreateLog = vi.hoisted(() => vi.fn());
 const mockRecordSanction = vi.hoisted(() => vi.fn());
+const mockRecordCasierSanction = vi.hoisted(() => vi.fn());
 const mockRequireMod = vi.hoisted(() => vi.fn());
 
 vi.mock("../prisma", () => ({ default: { sanction: mockPrismaSanction } }));
 vi.mock("../services/logs", () => ({ createLog: mockCreateLog }));
 vi.mock("../services/risk-engine", () => ({ recordSanction: mockRecordSanction }));
+vi.mock("../services/casierRecorder", () => ({
+  recordCasierSanction: mockRecordCasierSanction,
+}));
 vi.mock("../services/permissions", () => ({ requireMod: mockRequireMod }));
 vi.mock("../utils/logger", () => ({
   default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -131,6 +135,7 @@ describe("handleCommand — 16 commandes", () => {
     mockRequireMod.mockResolvedValue(undefined);
     mockPrismaSanction.create.mockResolvedValue({ id: "s-1" });
     mockRecordSanction.mockResolvedValue(undefined);
+    mockRecordCasierSanction.mockResolvedValue({ recorded: true, id: 1 });
     mockCreateLog.mockResolvedValue(undefined);
   });
 
@@ -162,18 +167,15 @@ describe("handleCommand — 16 commandes", () => {
   it("/warn crée une sanction WARN dans Prisma et le risk-engine", async () => {
     const interaction = createMockInteraction({ commandName: "warn" });
     await handleCommand(interaction, {});
-    expect(mockPrismaSanction.create).toHaveBeenCalledWith(
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          type: "WARN",
-          userId: "target-123",
-          guildId: "guild-123",
-          moderatorId: "mod-123",
-          reason: "test reason",
-        }),
+        type: "WARN",
+        userId: "target-123",
+        guildId: "guild-123",
+        moderatorId: "mod-123",
+        reason: "test reason",
       }),
     );
-    expect(mockRecordSanction).toHaveBeenCalledWith("target-123", "guild-123", "WARN");
     expect(interaction.editReply).toHaveBeenCalled();
   });
 
@@ -181,15 +183,13 @@ describe("handleCommand — 16 commandes", () => {
     const interaction = createMockInteraction({ commandName: "warn" });
     interaction.options.getString = vi.fn().mockReturnValue(null);
     await handleCommand(interaction, {});
-    expect(mockPrismaSanction.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ reason: "Aucune raison fournie" }),
-      }),
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "Aucune raison fournie" }),
     );
   });
 
   it("/warn gère les erreurs Prisma avec un embed erreur", async () => {
-    mockPrismaSanction.create.mockRejectedValue(new Error("DB error"));
+    mockRecordCasierSanction.mockRejectedValue(new Error("DB error"));
     const interaction = createMockInteraction({ commandName: "warn" });
     await handleCommand(interaction, {});
     expect(interaction.editReply).toHaveBeenCalled();
@@ -203,7 +203,13 @@ describe("handleCommand — 16 commandes", () => {
     await handleCommand(interaction, {});
     const member = interaction.options.getMember("cible");
     expect(member.timeout).toHaveBeenCalledWith(30 * 60 * 1000, "test reason");
-    expect(mockRecordSanction).toHaveBeenCalledWith("target-123", "guild-123", "TIMEOUT");
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "TIMEOUT",
+        userId: "target-123",
+        duration: 30 * 60,
+      }),
+    );
   });
 
   it("/mute affiche une erreur si le membre est null", async () => {
@@ -252,7 +258,9 @@ describe("handleCommand — 16 commandes", () => {
     await handleCommand(interaction, {});
     const member = interaction.options.getMember("cible");
     expect(member.kick).toHaveBeenCalledWith("test reason");
-    expect(mockRecordSanction).toHaveBeenCalledWith("target-123", "guild-123", "KICK");
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "KICK", userId: "target-123" }),
+    );
   });
 
   it("/kick affiche une erreur si le membre est null", async () => {
@@ -280,7 +288,9 @@ describe("handleCommand — 16 commandes", () => {
       expect.objectContaining({ id: "target-123" }),
       expect.objectContaining({ reason: "test reason", deleteMessageSeconds: 7 * 86400 }),
     );
-    expect(mockRecordSanction).toHaveBeenCalledWith("target-123", "guild-123", "BAN");
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "BAN", userId: "target-123" }),
+    );
   });
 
   it("/ban utilise 7 jours par défaut si non spécifié", async () => {
@@ -308,6 +318,9 @@ describe("handleCommand — 16 commandes", () => {
     await handleCommand(interaction, {});
     const member = interaction.options.getMember("cible");
     expect(member.timeout).toHaveBeenCalledWith(120000, expect.stringContaining("Moderator"));
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "TIMEOUT", duration: 120 }),
+    );
   });
 
   it("/timeout affiche une erreur si membre null", async () => {
@@ -395,6 +408,9 @@ describe("handleCommand — 16 commandes", () => {
     expect(interaction.guild.members.unban).toHaveBeenCalledWith(
       expect.objectContaining({ id: "target-123" }),
       "Softban automatique",
+    );
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "BAN", reason: expect.stringContaining("[Softban]") }),
     );
   });
 
@@ -583,12 +599,11 @@ describe("handleCommand — 16 commandes", () => {
       reason: "test reason",
       deleteMessageSeconds: 86400,
     });
-    expect(mockCreateLog).toHaveBeenCalledWith(
+    expect(mockRecordCasierSanction).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "tempban",
+        type: "TEMPBAN",
         userId: "target-123",
-        moderator: "mod-123",
-        details: "test reason",
+        duration: 3600,
       }),
     );
     vi.useRealTimers();

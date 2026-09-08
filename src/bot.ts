@@ -81,6 +81,7 @@ const client = new Client({
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildModeration,
     // REMOVED: GuildMessageReactions — saves ~15-20MB RAM on large guilds
   ],
   partials: [Partials.Channel, Partials.Message, Partials.GuildMember, Partials.ThreadMember],

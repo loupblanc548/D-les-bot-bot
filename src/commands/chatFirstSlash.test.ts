@@ -4,24 +4,34 @@ import {
   CHAT_FIRST_SLASH,
   formatChatFirstSlashHelp,
   isChatFirstSlash,
+  matchSlashCommands,
 } from "./chatFirstSlash.js";
 
 describe("chatFirstSlash", () => {
-  it("keeps /help in the reduced menu and rejects prefix-style names", () => {
+  it("exposes the user-facing slash groups including game, ai and bot", () => {
     expect(isChatFirstSlash("help")).toBe(true);
+    expect(isChatFirstSlash("bot")).toBe(true);
+    expect(isChatFirstSlash("game")).toBe(true);
+    expect(isChatFirstSlash("ai")).toBe(true);
     expect(isChatFirstSlash("mod")).toBe(true);
     expect(isChatFirstSlash("steam")).toBe(false);
-    expect(isChatFirstSlash("game")).toBe(false);
-    expect(isChatFirstSlash("ai")).toBe(false);
-    expect(CHAT_FIRST_SLASH).toContain("help");
+    expect(CHAT_FIRST_SLASH).toContain("game");
   });
 
-  it("explains that !help does not exist and points to /help", () => {
-    const text = formatChatFirstSlashHelp();
-    expect(text).toMatch(/!help n'existe pas/i);
-    expect(text).toContain("/help");
-    expect(text).not.toMatch(/tapez simplement/i);
+  it("matches the slash that goes with a topic", () => {
+    const steam = matchSlashCommands("steam");
+    expect(steam.some((l) => l.includes("/game steam"))).toBe(true);
+    const mute = matchSlashCommands("mute");
+    expect(mute.some((l) => /\/mod mute/i.test(l))).toBe(true);
+  });
+
+  it("explains that !help does not exist and lists matching commands", () => {
+    const all = formatChatFirstSlashHelp();
+    expect(all).toMatch(/!help n'existe pas/i);
+    expect(all).toContain("/help");
+    expect(all).toContain("/game");
+    expect(formatChatFirstSlashHelp("steam")).toContain("/game steam");
     expect(CHAT_FIRST_COMMANDS_HINT).toMatch(/!help, !cmd/);
-    expect(CHAT_FIRST_COMMANDS_HINT).toMatch(/\/help/);
+    expect(CHAT_FIRST_COMMANDS_HINT).toMatch(/\/game steam/);
   });
 });

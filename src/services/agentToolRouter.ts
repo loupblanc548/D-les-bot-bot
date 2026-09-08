@@ -101,7 +101,7 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "RSSHUB_URL", tools: ["get_rsshub_feed"], optional: true },
   { envVar: "TELEGRAM_BOT_TOKEN", tools: ["send_telegram"], optional: true },
   { envVar: "DISCORD_WEBHOOK_URL", tools: [], optional: true },
-  { envVar: "AGENT_SSH_ENABLED", tools: ["ssh_command"], optional: false },
+  { envVar: "AGENT_SSH_ENABLED", tools: ["ssh_command", "run_terminal"], optional: true },
   { envVar: "AGENT_DOCKER_ENABLED", tools: ["docker_manage"], optional: false },
   { envVar: "AGENT_GIT_ENABLED", tools: ["git_operations"], optional: false },
   { envVar: "AGENT_DB_ENABLED", tools: ["db_query"], optional: true },
@@ -200,6 +200,9 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "commandes slash",
       "commande cmd",
       "les commandes",
+      "c'est quoi la commande",
+      "cest quoi la commande",
+      "commande pour",
     ],
     tools: ["list_bot_commands"],
   },
@@ -1478,6 +1481,12 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   {
     keywords: [
       "modération",
+      "casier",
+      "casier judiciaire",
+      "historique de sanctions",
+      "bannissement",
+      "expulsion",
+      "exclusion",
       "ban",
       "kick",
       "timeout",
@@ -1519,7 +1528,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "관리",
       "차단",
     ],
-    tools: ["get_user_moderation_history", "timeoutUser", "warnUser"],
+    tools: ["getUserInfo", "get_user_moderation_history", "timeoutUser", "warnUser"],
   },
   {
     keywords: [
@@ -1618,7 +1627,20 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "서버",
       "디스크",
     ],
-    tools: ["system_stats", "ssh_command"],
+    tools: ["system_stats", "run_terminal", "ssh_command"],
+  },
+  {
+    keywords: [
+      "terminal",
+      "cmd",
+      "bash",
+      "shell",
+      "console linux",
+      "ligne de commande",
+      "pm2 list",
+      "df -h",
+    ],
+    tools: ["run_terminal", "ssh_command", "system_stats"],
   },
   {
     keywords: [

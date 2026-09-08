@@ -19,12 +19,14 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/TYPE A/i);
   });
 
-  it("tells John to use tools and memory instead of slash menus", () => {
+  it("tells John to use a real server terminal for CMD, not Discord slash", () => {
     expect(rules).toMatch(/searchUserMemory/);
     expect(rules).toMatch(/saveMemoryFact/);
-    expect(rules).toMatch(/Ne dis pas « utilise \/\… »/);
     expect(rules).toMatch(/list_bot_commands/);
+    expect(rules).toMatch(/run_terminal/);
     expect(rules).toMatch(/!help/);
+    expect(rules).toMatch(/CASIER JUDICIAIRE/);
+    expect(rules).toMatch(/getUserInfo/);
   });
 
   it("explains that John cannot create a Discord guild and must use setup_basic_server", () => {

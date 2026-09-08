@@ -12,6 +12,9 @@ vi.mock("../prisma.js", () => ({
     userMemory: { findUnique: vi.fn(), upsert: vi.fn() },
     memoryFact: { findMany: vi.fn().mockResolvedValue([]), create: vi.fn(), deleteMany: vi.fn() },
     memoryEmbedding: { deleteMany: vi.fn() },
+    sanction: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn(), create: vi.fn() },
+    log: { findMany: vi.fn().mockResolvedValue([]) },
+    riskProfile: { findUnique: vi.fn().mockResolvedValue(null) },
   },
 }));
 
@@ -257,6 +260,7 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
       "deleteMessages",
       "timeoutUser",
       "getUserInfo",
+      "get_user_moderation_history",
       "getServerStats",
       "getBotStatus",
     ]);

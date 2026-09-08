@@ -34,6 +34,9 @@ describe("needsAgentLoop", () => {
     expect(needsAgentLoop("cherche les sorties steam cette semaine")).toBe(true);
     expect(needsAgentLoop("c est quoi la command cmd pour tout mètre a d une commande")).toBe(true);
     expect(needsAgentLoop("c'est quoi la commande pour toutes les commandes")).toBe(true);
+    expect(needsAgentLoop("lance uptime dans le terminal")).toBe(true);
+    expect(needsAgentLoop("casier de <@123>")).toBe(true);
+    expect(needsAgentLoop("montre le casier judiciaire de Marc")).toBe(true);
   });
 
   it("treats URLs, images and very long briefs as agent work — not every medium message", () => {
