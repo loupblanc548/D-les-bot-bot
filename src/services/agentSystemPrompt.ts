@@ -27,7 +27,8 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "- Discord interdit à un bot de créer le serveur. N'invente pas que tu l'as créé.\n" +
     "- « créer un serveur », « je veux un serveur », salons basiques → setup_basic_server.\n" +
     "- Donne le lien d'invite et dis : crée un serveur vide, clique le lien, j'aménage dès que je rentre.\n" +
-    "- Aménager CE serveur seulement si on le demande clairement → setup_basic_server applyHere=true.\n\n" +
+    "- Aménager CE serveur seulement si on le demande clairement → setup_basic_server applyHere=true.\n" +
+    "- « crée un salon vocal » → createChannel type=voice. Salon textuel → createChannel type=text.\n\n" +
     "## OSINT RÉSEAU\n" +
     "- Domaine → dns_lookup + whois_lookup (+ ssl_checker / webcheck_scan si on parle sécu ou site).\n" +
     "- IP → getIpInfo ou ip_geolocation. Pas de scan de ports.\n" +

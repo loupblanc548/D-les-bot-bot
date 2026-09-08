@@ -36,31 +36,23 @@ async function getNextGamePreviewUrl(): Promise<string> {
   // Use the showcase page (all games with animated platform cards on green background)
   const showcaseUrl = `${HTTP_BASE}/releases/showcase`;
 
-  // Wait for game data to be available
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) {
-        logger.warn(`[VideoStream] /releases/data HTTP ${res.status} — retry ${attempt + 1}/10`);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
-      }
+  try {
+    const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
       const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
-      if (games.length === 0) {
-        logger.info(`[VideoStream] 0 jeux — retry ${attempt + 1}/10 dans 5s`);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
+      if (games.length > 0) {
+        logger.info(`[VideoStream] ${games.length} jeux disponibles — page showcase`);
+        return showcaseUrl;
       }
-      logger.info(`[VideoStream] ${games.length} jeux disponibles — page showcase`);
-      return showcaseUrl;
-    } catch (err) {
-      logger.warn(
-        `[VideoStream] Erreur fetch /releases/data (retry ${attempt + 1}/10): ${err instanceof Error ? err.message : String(err)}`,
-      );
-      await new Promise((r) => setTimeout(r, 5000));
+      logger.info("[VideoStream] 0 jeux dans /releases/data — showcase quand même");
+    } else {
+      logger.warn(`[VideoStream] /releases/data HTTP ${res.status} — showcase quand même`);
     }
+  } catch (err) {
+    logger.warn(
+      `[VideoStream] /releases/data indisponible: ${err instanceof Error ? err.message : String(err)} — showcase quand même`,
+    );
   }
-  logger.warn(`[VideoStream] Aucune donnée après 10 tentatives — fallback /releases/showcase`);
   return showcaseUrl;
 }
 
@@ -151,10 +143,31 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 3. Create selfbot client for johnhelldivers26 (compte utilisateur)
     const { Client } = await import("discord.js-selfbot-v13");
-    const { Streamer, prepareStream, playStream, Utils } =
-      await import("@dank074/discord-video-stream");
+    const videoMod = await import("@dank074/discord-video-stream");
+    const { Streamer, prepareStream, playStream, Utils } = videoMod;
+    const Encoders = (videoMod as { Encoders?: { software: (opts: unknown) => unknown } }).Encoders;
 
-    selfbotClient = new Client();
+    try {
+      const ffmpegStatic = (await import("ffmpeg-static")).default;
+      if (ffmpegStatic) process.env.FFMPEG_PATH = String(ffmpegStatic);
+    } catch {
+      logger.warn("[VideoStream] ffmpeg-static introuvable");
+    }
+
+    selfbotClient = new Client({ checkUpdate: false });
+    selfbotClient.on(
+      "raw",
+      (packet: {
+        t?: string;
+        d?: { guild_id?: string; endpoint?: string; session_id?: string };
+      }) => {
+        const t = packet?.t;
+        if (t !== "VOICE_STATE_UPDATE" && t !== "VOICE_SERVER_UPDATE") return;
+        logger.info(
+          `[VideoStream] raw ${t} endpoint=${Boolean(packet?.d?.endpoint)} session=${Boolean(packet?.d?.session_id)}`,
+        );
+      },
+    );
     streamerInstance = new Streamer(selfbotClient);
 
     await new Promise<void>((resolve, reject) => {
@@ -166,8 +179,37 @@ async function startVideoStreamAsync(): Promise<void> {
       selfbotClient.login(streamToken).catch(reject);
     });
 
+    // Quitter d'abord : sinon Discord n'envoie pas de nouveau VOICE_SERVER_UPDATE.
+    try {
+      selfbotClient.ws?.broadcast?.({
+        op: 4,
+        d: {
+          guild_id: guildId,
+          channel_id: null,
+          self_mute: false,
+          self_deaf: false,
+          self_video: false,
+        },
+      });
+      await new Promise((r) => setTimeout(r, 2000));
+    } catch {
+      logger.warn("[VideoStream] Leave vocal ignoré");
+    }
+
     // 4. Join voice channel via Streamer
-    await streamerInstance.joinVoice(guildId, voiceChannelId);
+    logger.info(`[VideoStream] Connexion au salon vocal ${voiceChannelId}...`);
+    try {
+      await Promise.race([
+        streamerInstance.joinVoice(guildId, voiceChannelId),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("joinVoice timeout 60s")), 60_000);
+        }),
+      ]);
+    } catch (err) {
+      logger.error(`[VideoStream] joinVoice: ${err instanceof Error ? err.message : String(err)}`);
+      streamManuallyStopped = true;
+      throw err;
+    }
     logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
 
     // 4b. Monitor for voice connection drops
@@ -271,12 +313,19 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
     // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
-    const encoder = (Utils as any).Encoders?.software?.({
-      x264: {
-        preset: "ultrafast",
-        tune: "zerolatency",
-      },
-    }) ?? { name: "software", options: { preset: "ultrafast", tune: "zerolatency" } };
+    const encoder =
+      Encoders?.software?.({
+        x264: {
+          preset: "ultrafast",
+          tune: "zerolatency",
+        },
+      }) ??
+      (Utils as { Encoders?: { software: (opts: unknown) => unknown } }).Encoders?.software?.({
+        x264: {
+          preset: "ultrafast",
+          tune: "zerolatency",
+        },
+      });
 
     const {
       command,
@@ -449,6 +498,12 @@ export function startStreamWatchdog(): NodeJS.Timeout {
           );
         }
       }
+      return;
+    }
+
+    // Ne pas tuer le Go Live pendant le login / Playwright.
+    if (!screencastActive) {
+      watchdogFailures = 0;
       return;
     }
 

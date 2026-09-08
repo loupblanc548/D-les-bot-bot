@@ -1323,6 +1323,8 @@ const TOOL_NAME_WHITELIST = new Set([
   "getUserInfo",
   "getServerStats",
   "setup_basic_server",
+  "createChannel",
+  "getVoiceChannels",
   // ── Mémoire ──
   "searchUserMemory",
   "saveMemoryFact",

@@ -2462,12 +2462,17 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "createChannel",
-      description: "Crée un nouveau salon textuel sur ce serveur.",
+      description:
+        "Crée un salon textuel ou vocal. type=voice pour un salon vocal (Go Live, sorties de jeux).",
       parameters: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Nom du salon (ex: general-chat)" },
-          topic: { type: "string", description: "Topic/description du salon (optionnel)" },
+          name: { type: "string", description: "Nom du salon (ex: Sorties jeux)" },
+          topic: { type: "string", description: "Topic du salon textuel (optionnel)" },
+          type: {
+            type: "string",
+            description: "text (défaut) ou voice",
+          },
         },
         required: ["name"],
       },
@@ -8790,14 +8795,29 @@ async function tCreateChannel(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const name = String(args.name).toLowerCase().replace(/\s+/g, "-").slice(0, 100);
+  const kind = String(args.type || args.kind || "text").toLowerCase();
+  const isVoice = kind === "voice" || kind === "vocal";
+  const rawName = String(args.name || "").trim();
+  if (!rawName) return { success: false, data: "Nom du salon manquant" };
+  const name = isVoice
+    ? rawName.slice(0, 100)
+    : rawName.toLowerCase().replace(/\s+/g, "-").slice(0, 100);
   const topic = args.topic ? String(args.topic) : undefined;
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
-  const channel = await guild.channels.create({ name, type: ChannelType.GuildText, topic });
+  const channel = await guild.channels.create({
+    name,
+    type: isVoice ? ChannelType.GuildVoice : ChannelType.GuildText,
+    topic: isVoice ? undefined : topic,
+  });
   return {
     success: true,
-    data: JSON.stringify({ name: channel.name, id: channel.id, topic: topic || null }),
+    data: JSON.stringify({
+      name: channel.name,
+      id: channel.id,
+      type: isVoice ? "voice" : "text",
+      topic: topic || null,
+    }),
   };
 }
 

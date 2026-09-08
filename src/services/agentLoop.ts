@@ -335,6 +335,8 @@ function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
     "searchUserMemory",
     "saveMemoryFact",
     "setup_basic_server",
+    "createChannel",
+    "getVoiceChannels",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));

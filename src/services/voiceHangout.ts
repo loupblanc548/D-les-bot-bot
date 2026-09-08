@@ -47,7 +47,10 @@ function humanCount(channel: VoiceChannel): number {
 
 function isHangoutVoice(channel: VoiceChannel): boolean {
   if (channel.id === channel.guild.afkChannelId) return false;
+  const goLiveChannel = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
+  if (goLiveChannel && channel.id === goLiveChannel) return false;
   if (/créer un salon|creer un salon|hub/i.test(channel.name)) return false;
+  if (/sorties\s*jeux/i.test(channel.name)) return false;
   if (/^(utilisateurs|membres|bots)\b/i.test(channel.name)) return false;
   return true;
 }
