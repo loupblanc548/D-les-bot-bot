@@ -247,6 +247,7 @@ vi.mock("./infrastructure/processIsolator", () => ({
 vi.mock("./queues/logQueue", () => ({ initLogQueue: vi.fn() }));
 vi.mock("./utils/redisClient", () => ({ waitForRedisWritable: vi.fn().mockResolvedValue(true) }));
 vi.mock("./services/gameReleaseCountdown", () => ({ startGameReleaseCountdown: vi.fn() }));
+vi.mock("./cron/showcaseLinkCron", () => ({ startShowcaseLinkCron: vi.fn() }));
 vi.mock("./services/steamWishlist", () => ({ startSteamWishlistMonitor: vi.fn() }));
 vi.mock("./services/voiceScreenShare", () => ({ startVoiceScreenShare: vi.fn() }));
 vi.mock("./services/videoStream", () => ({

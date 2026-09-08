@@ -80,6 +80,7 @@ import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
 import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
+import { startShowcaseLinkCron } from "./cron/showcaseLinkCron.js";
 import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startMediaWorker } from "./infrastructure/processIsolator.js";
 import { initLogQueue } from "./queues/logQueue.js";
@@ -182,7 +183,6 @@ async function initSchedulers(client: Client): Promise<void> {
   // startShadowBrokerCron(client);
   // startLogChannelCleanup(client);
   // startBrokenImageCleanup(client);
-  // startShowcaseLinkCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
@@ -406,6 +406,7 @@ export function attachStartupLogic(
           () => startGitHubReleasesMonitor(client),
           () => startMultiSiteDealsMonitor(client),
           () => startGameReleaseCountdown(client),
+          () => startShowcaseLinkCron(client),
           () => {
             // Le worker média est coupé sur le VPS 8 Go — on relance seulement le Go Live.
             if (!process.env.SCREEN_SHARE_USER_TOKEN) return;
@@ -450,6 +451,7 @@ export function attachStartupLogic(
       : [
           // Stream-only mode: Go Live stream + watchdog + release data for showcase
           () => startGameReleaseCountdown(client),
+          () => startShowcaseLinkCron(client),
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),

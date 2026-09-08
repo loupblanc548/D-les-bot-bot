@@ -1,68 +1,84 @@
 /**
- * showcaseLinkCron.ts — Poste le lien du showcase chaque jour à midi
- * dans le salon vocal, en supprimant l'ancien message.
+ * showcaseLinkCron.ts — John poste le lien du showcase dans le chat du salon vocal.
+ * Un seul message à la fois : l'ancien est remplacé à chaque passage.
  */
 
 import { schedule, ScheduledTask } from "node-cron";
 import { EmbedBuilder } from "discord.js";
-import type { Client } from "discord.js";
+import type { Client, TextBasedChannel } from "discord.js";
 import logger from "../utils/logger.js";
 
-const VOICE_CHANNEL_ID = process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
-const VPS_HOST = process.env.VPS_PUBLIC_HOST || "31.220.79.90";
-const HEALTH_PORT = process.env.HEALTH_PORT || "3000";
-const SHOWCASE_URL = `http://${VPS_HOST}:${HEALTH_PORT}/releases/showcase`;
+const CRON_EXPR = process.env.SHOWCASE_LINK_CRON || "0 */2 * * *";
+const STARTUP_DELAY_MS = 20_000;
+
+function getVoiceChannelId(): string {
+  return process.env.GAME_RELEASE_VOICE_CHANNEL_ID || "";
+}
+
+export function getShowcaseUrl(): string {
+  const host = process.env.VPS_PUBLIC_HOST || "31.220.79.90";
+  const port = process.env.HEALTH_PORT || "3000";
+  return `http://${host}:${port}/releases/showcase`;
+}
 
 let cronJob: ScheduledTask | null = null;
 let lastMessageId: string | null = null;
 
-async function postShowcaseLink(client: Client): Promise<void> {
-  if (!VOICE_CHANNEL_ID) return;
+function isVoiceChat(channel: { messages?: unknown; isTextBased?: () => boolean }): boolean {
+  if (typeof channel.isTextBased === "function") return channel.isTextBased();
+  return channel.messages !== undefined;
+}
+
+export async function postShowcaseLink(client: Client): Promise<void> {
+  const voiceChannelId = getVoiceChannelId();
+  if (!voiceChannelId) return;
+
+  const showcaseUrl = getShowcaseUrl();
 
   try {
-    const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
+    const channel = await client.channels.fetch(voiceChannelId);
     if (!channel) {
-      logger.warn(`[ShowcaseLink] Salon ${VOICE_CHANNEL_ID} introuvable`);
+      logger.warn(`[ShowcaseLink] Salon ${voiceChannelId} introuvable`);
       return;
     }
-    // Accept both text and voice channels (voice channels support text in Discord)
-    const isTextBased = (channel as any).messages !== undefined;
-    if (!isTextBased) {
-      logger.warn(`[ShowcaseLink] Salon ${VOICE_CHANNEL_ID} ne supporte pas les messages texte`);
+    if (!isVoiceChat(channel)) {
+      logger.warn(`[ShowcaseLink] Salon ${voiceChannelId} ne supporte pas les messages texte`);
       return;
     }
 
-    // Delete previous message if exists
+    const textChannel = channel as TextBasedChannel & {
+      messages: {
+        fetch: (id: string) => Promise<{ delete: () => Promise<unknown> }>;
+      };
+      send: (payload: { embeds: EmbedBuilder[] }) => Promise<{ id: string }>;
+    };
+
     if (lastMessageId) {
       try {
-        const oldMsg = await (channel as any).messages?.fetch(lastMessageId);
+        const oldMsg = await textChannel.messages.fetch(lastMessageId);
         if (oldMsg) await oldMsg.delete();
-        logger.debug("[ShowcaseLink] Ancien message supprimé");
       } catch {
-        logger.error("[Silent catch]");
+        /* déjà parti */
       }
     }
 
     const embed = new EmbedBuilder()
-      .setTitle("🎮 Sorties à venir — Showcase en direct")
+      .setTitle("🎮 Sorties jeux — page web")
       .setDescription(
-        `**Regardez le showcase en temps réel :**\n` +
-          `>>> ${SHOWCASE_URL}\n\n` +
-          `📅 Mise à jour quotidienne • Compte à rebours en direct\n` +
-          `🔥 Jeux imminents mis en évidence en or`,
+        `Le showcase tourne aussi **en Go Live** dans ce salon.\n\n` +
+          `**Ouvre la page :**\n${showcaseUrl}\n\n` +
+          `Compte à rebours en direct • cartes de la semaine en or / violet / bleu`,
       )
+      .setURL(showcaseUrl)
       .setColor(0x5865f2)
-      .setThumbnail(
-        "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimages.wallpapersden.com%2Fimage%2Fdownload%2Fhelldivers-2-super-citizen_bmdoa2yUmZqaraWkpJRmbmdlrWZlbWU.jpg&f=1&nofb=1",
-      )
       .setFooter({
-        text: `Bot #6851 • Lien quotidien • ${new Date().toLocaleDateString("fr-FR")}`,
+        text: `John • lien toutes les 2 h • ${new Date().toLocaleDateString("fr-FR")}`,
       })
       .setTimestamp();
 
-    const sent = await (channel as any).send({ embeds: [embed] });
+    const sent = await textChannel.send({ embeds: [embed] });
     lastMessageId = sent.id;
-    logger.info(`[ShowcaseLink] Lien showcase posté dans ${VOICE_CHANNEL_ID}`);
+    logger.info(`[ShowcaseLink] Lien posté dans ${voiceChannelId}`);
   } catch (err) {
     logger.error(`[ShowcaseLink] Erreur: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -74,13 +90,13 @@ export function startShowcaseLinkCron(client: Client): void {
     return;
   }
 
-  if (!VOICE_CHANNEL_ID) {
+  const voiceChannelId = getVoiceChannelId();
+  if (!voiceChannelId) {
     logger.info("[ShowcaseLink] Désactivé — GAME_RELEASE_VOICE_CHANNEL_ID non configuré");
     return;
   }
 
-  // Post every day at noon (12:00)
-  cronJob = schedule("0 12 * * *", () => {
+  cronJob = schedule(CRON_EXPR, () => {
     void postShowcaseLink(client).catch((err) =>
       logger.error(
         `[ShowcaseLink] Erreur cron: ${err instanceof Error ? err.message : String(err)}`,
@@ -88,12 +104,13 @@ export function startShowcaseLinkCron(client: Client): void {
     );
   });
 
-  // Post once on startup (after 60s delay to let bot connect)
   setTimeout(() => {
     void postShowcaseLink(client).catch(() => {});
-  }, 60_000);
+  }, STARTUP_DELAY_MS);
 
-  logger.info(`[ShowcaseLink] Cron démarré — lien quotidien à 12:00 → ${SHOWCASE_URL}`);
+  logger.info(
+    `[ShowcaseLink] Cron démarré (${CRON_EXPR}) → ${getShowcaseUrl()} salon ${voiceChannelId}`,
+  );
 }
 
 export function stopShowcaseLinkCron(): void {
@@ -101,5 +118,13 @@ export function stopShowcaseLinkCron(): void {
     cronJob.stop();
     cronJob = null;
     logger.info("[ShowcaseLink] Cron arrêté");
+  }
+}
+
+export function resetShowcaseLinkStateForTests(): void {
+  lastMessageId = null;
+  if (cronJob) {
+    cronJob.stop();
+    cronJob = null;
   }
 }
