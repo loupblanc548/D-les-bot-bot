@@ -74,7 +74,7 @@ export function recordIncomingPing(message: Message): MentionPing {
       .trim()
       .slice(0, 280),
     url: message.url,
-    replied: message.mentions.repliedUser?.id === message.client.user?.id,
+    replied: message.mentions.repliedUser?.id === message.client?.user?.id,
   };
   pings = [ping, ...pings.filter((p) => p.url !== ping.url)].slice(0, MAX_PINGS);
   persist();

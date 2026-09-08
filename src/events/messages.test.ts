@@ -290,6 +290,8 @@ function createMockMessage(overrides: Record<string, unknown> = {}) {
       user: { id: "user-123", tag: "TestUser#1234" },
     },
     content: "Hello world",
+    channelId: "channel-123",
+    client: { user: { id: "bot-123" } },
     mentions: { has: vi.fn().mockReturnValue(false), users: new Collection() },
     delete: vi.fn().mockResolvedValue(undefined),
     reply: vi.fn().mockResolvedValue(undefined),

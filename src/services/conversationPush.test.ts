@@ -72,27 +72,34 @@ describe("conversation push — tools + Obsidian + 8GB budget", () => {
   });
 
   it("exposes every whitelisted tool on a non-trivial question", () => {
-    const routed = routeTools(
-      "Explique Docker, cherche sur le web, donne la météo, un hash sha256, et fouille Obsidian",
-      ALL_AGENT_TOOLS,
-      false,
-    );
-    const names = new Set(routed.map((t) => t.function.name));
-    expect(names.has("searchObsidianQA")).toBe(true);
-    expect(names.has("getWikipediaSummary")).toBe(true);
-    expect(names.has("hash_gen")).toBe(true);
-    expect(names.has("searchWeb")).toBe(true);
-    expect(names.has("dns_lookup")).toBe(true);
-    expect(names.has("whois_lookup")).toBe(true);
-    expect(names.has("getIpInfo")).toBe(true);
-    expect(names.has("ssl_checker")).toBe(true);
-    expect(names.has("ip_geolocation")).toBe(true);
-    expect(routed.length).toBeGreaterThanOrEqual(20);
-    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "searchObsidianQA")).toBe(true);
-    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "setup_basic_server")).toBe(true);
-    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "checkDataBreach")).toBe(true);
-    expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "list_bot_commands")).toBe(true);
-    expect(ALL_AGENT_TOOLS.length).toBeGreaterThanOrEqual(40);
+    const prevOpenRouter = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-key";
+    try {
+      const routed = routeTools(
+        "Explique Docker, cherche sur le web, donne la météo, un hash sha256, et fouille Obsidian",
+        ALL_AGENT_TOOLS,
+        false,
+      );
+      const names = new Set(routed.map((t) => t.function.name));
+      expect(names.has("searchObsidianQA")).toBe(true);
+      expect(names.has("getWikipediaSummary")).toBe(true);
+      expect(names.has("hash_gen")).toBe(true);
+      expect(names.has("searchWeb")).toBe(true);
+      expect(names.has("dns_lookup")).toBe(true);
+      expect(names.has("whois_lookup")).toBe(true);
+      expect(names.has("getIpInfo")).toBe(true);
+      expect(names.has("ssl_checker")).toBe(true);
+      expect(names.has("ip_geolocation")).toBe(true);
+      expect(routed.length).toBeGreaterThanOrEqual(20);
+      expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "searchObsidianQA")).toBe(true);
+      expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "setup_basic_server")).toBe(true);
+      expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "checkDataBreach")).toBe(true);
+      expect(ALL_AGENT_TOOLS.some((t) => t.function.name === "list_bot_commands")).toBe(true);
+      expect(ALL_AGENT_TOOLS.length).toBeGreaterThanOrEqual(40);
+    } finally {
+      if (prevOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = prevOpenRouter;
+    }
   });
 
   it("runs local tools and the Obsidian Q&A tool end to end", async () => {
