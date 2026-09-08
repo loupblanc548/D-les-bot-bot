@@ -15,9 +15,10 @@ import type { ChildProcess } from "child_process";
 const HTTP_BASE = "http://localhost:3000";
 const STREAM_WIDTH = 1280;
 const STREAM_HEIGHT = 720;
-const STREAM_FPS = 30;
+const STREAM_FPS = 15;
 const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
+const CAPTURE_JPEG_QUALITY = 45;
 
 function getStreamToken(): string {
   // Token du compte utilisateur johnhelldivers26 (compte créé avec email/mdp, pas un bot)
@@ -74,6 +75,7 @@ let selfbotClient: any = null;
 let isVideoStreaming = false;
 let activeBrowser: any = null;
 let activePage: any = null;
+let activeCdp: any = null;
 let activeFfmpeg: ChildProcess | null = null;
 let screencastActive = false;
 let reconnectTimer: NodeJS.Timeout | null = null;
@@ -246,7 +248,6 @@ async function startVideoStreamAsync(): Promise<void> {
         "--no-first-run",
         "--disable-popup-blocking",
         "--disable-gpu",
-        "--single-process",
         "--disable-dev-shm-usage",
         "--disable-features=TranslateUI,VizDisplayCompositor",
         "--no-zygote",
@@ -276,43 +277,77 @@ async function startVideoStreamAsync(): Promise<void> {
     }
     logger.info(`[VideoStream] Page ${showcaseUrl} chargée`);
 
-    // 6. Capture frames via screenshot loop with frame pacing
+    // 6. Capture frames (CDP screencast — screenshot() is ~0.3–1 fps and triggers Discord 2012)
     const { PassThrough } = await import("stream");
-    const videoStream = new PassThrough();
+    const videoStream = new PassThrough({ highWaterMark: 8 * 1024 * 1024 });
     screencastActive = true;
     frameCount = 0;
 
-    const targetFrameTime = 1000 / STREAM_FPS;
-    const captureLoop = async () => {
-      while (screencastActive) {
-        const frameStart = Date.now();
-        try {
-          if (!activePage || videoStream.destroyed) break;
-          const screenshot: Buffer = await activePage.screenshot({
-            type: "jpeg",
-            quality: 95,
-          });
-          frameCount++;
-          if (frameCount % 120 === 1) {
-            logger.info(`[VideoStream] Frame #${frameCount} (${screenshot.length} bytes)`);
-          }
-          if (!videoStream.destroyed && videoStream.writable) {
-            videoStream.write(screenshot);
-          }
-        } catch {
-          logger.error("[Silent catch]");
-        }
-        const elapsed = Date.now() - frameStart;
-        const wait = targetFrameTime - elapsed;
-        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const writeFrame = (buf: Buffer) => {
+      if (!screencastActive || videoStream.destroyed || !videoStream.writable) return;
+      frameCount++;
+      if (frameCount === 1 || frameCount % 150 === 0) {
+        logger.info(`[VideoStream] Frame #${frameCount} (${buf.length} bytes)`);
       }
+      videoStream.write(buf);
     };
-    void captureLoop();
 
-    logger.info(`[VideoStream] Capture démarrée — ${STREAM_FPS}fps (screenshot max speed)`);
+    try {
+      const cdp = await activePage.context().newCDPSession(activePage);
+      activeCdp = cdp;
+      await cdp.send("Page.startScreencast", {
+        format: "jpeg",
+        quality: CAPTURE_JPEG_QUALITY,
+        maxWidth: STREAM_WIDTH,
+        maxHeight: STREAM_HEIGHT,
+        everyNthFrame: 1,
+      });
+      cdp.on("Page.screencastFrame", (event: { data: string; sessionId: number }) => {
+        void (async () => {
+          try {
+            writeFrame(Buffer.from(event.data, "base64"));
+          } finally {
+            try {
+              await cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId });
+            } catch {
+              /* session closed */
+            }
+          }
+        })();
+      });
+      logger.info(
+        `[VideoStream] Capture CDP ${STREAM_WIDTH}x${STREAM_HEIGHT} jpeg q${CAPTURE_JPEG_QUALITY} → ${STREAM_FPS}fps encode`,
+      );
+    } catch (err) {
+      logger.warn(
+        `[VideoStream] CDP KO, fallback screenshot: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      const targetFrameTime = 1000 / STREAM_FPS;
+      const captureLoop = async () => {
+        while (screencastActive) {
+          const frameStart = Date.now();
+          try {
+            if (!activePage || videoStream.destroyed) break;
+            writeFrame(
+              await activePage.screenshot({
+                type: "jpeg",
+                quality: CAPTURE_JPEG_QUALITY,
+              }),
+            );
+          } catch {
+            logger.error("[Silent catch]");
+          }
+          const elapsed = Date.now() - frameStart;
+          const wait = targetFrameTime - elapsed;
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        }
+      };
+      void captureLoop();
+      logger.info(`[VideoStream] Capture screenshot ${STREAM_FPS}fps q${CAPTURE_JPEG_QUALITY}`);
+    }
 
     // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
-    // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
+    // Discord sans Nitro: 720p 30fps — 15fps + jpeg léger pour que le viewer reçoive la 1re image à temps
     const encoder =
       Encoders?.software?.({
         x264: {
@@ -336,8 +371,8 @@ async function startVideoStreamAsync(): Promise<void> {
       height: STREAM_HEIGHT,
       width: STREAM_WIDTH,
       frameRate: STREAM_FPS,
-      bitrateVideo: 2500,
-      bitrateVideoMax: 3000,
+      bitrateVideo: 1500,
+      bitrateVideoMax: 2000,
       bitrateAudio: 0,
       includeAudio: false,
       videoCodec: Utils.normalizeVideoCodec("H264"),
@@ -351,9 +386,9 @@ async function startVideoStreamAsync(): Promise<void> {
         "-bf",
         "0",
         "-g",
-        "60",
-        "-keyint_min",
         "30",
+        "-keyint_min",
+        "15",
         "-x264-params",
         "no-scenecut=1:force-cfr=1",
       ],
@@ -426,6 +461,20 @@ async function startVideoStreamAsync(): Promise<void> {
 
 function cleanupResources(): void {
   screencastActive = false;
+
+  if (activeCdp) {
+    try {
+      void activeCdp.send("Page.stopScreencast");
+    } catch {
+      /* already gone */
+    }
+    try {
+      void activeCdp.detach();
+    } catch {
+      /* already gone */
+    }
+    activeCdp = null;
+  }
 
   if (reloadTimer) {
     clearInterval(reloadTimer);
