@@ -154,6 +154,7 @@ vi.mock("./cron/monthlyMaintenance", () => ({
 vi.mock("./cron/botHealthCheck", () => ({ startBotHealthCheck: vi.fn() }));
 vi.mock("./cron/notificationCleanup", () => ({ startNotificationCleanup: vi.fn() }));
 vi.mock("./cron/alertDigest", () => ({ startAlertDigest: vi.fn() }));
+vi.mock("./cron/sslWatch", () => ({ startSslWatch: vi.fn() }));
 vi.mock("./cron/dailyGamingContent", () => ({ startDailyGamingContent: vi.fn() }));
 vi.mock("./events/autoModeration", () => ({ handleAutoModeration: vi.fn() }));
 vi.mock("./events/inviteTracker", () => ({ handleInviteTracker: vi.fn() }));

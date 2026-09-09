@@ -157,7 +157,7 @@ async function sendDigest(client: Client, guildId: string, channelId: string): P
   // 2. Command activity
   try {
     const commandLogs = await prisma.commandLog.findMany({
-      where: { guildId, createdAt: { gte: periodStart } },
+      where: { guildId, timestamp: { gte: periodStart } },
       select: { command: true },
     });
     const topCommands = new Map<string, number>();

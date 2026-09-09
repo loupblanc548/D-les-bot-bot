@@ -11,47 +11,10 @@ import {
 } from "discord.js";
 import prisma from "../prisma.js";
 import { requireMod, requireAdmin } from "../services/permissions.js";
-import {
-  type CasierItem,
-  casierAccentColor,
-  loadCasier,
-  paginateCasierTable,
-  summarizeCasierTypes,
-} from "../services/casierQuery.js";
+import { casierAccentColor, loadCasier } from "../services/casierQuery.js";
+import { buildCasierLayoutEmbeds, paginateCasierItems } from "../services/casierVisual.js";
 
 const FOOTER = { text: "Système de Surveillance • v1.1.0" };
-const CONTENT_LIMIT = 1900;
-
-export function buildCasierSlashPages(opts: {
-  username: string;
-  userId: string;
-  items: CasierItem[];
-  riskScore: number;
-  riskLevel: string;
-  underWatch: boolean;
-}): string[] {
-  const count = opts.items.length;
-  const countBit = `${count} entrée${count > 1 ? "s" : ""}`;
-  const types = summarizeCasierTypes(opts.items);
-  const watch = opts.underWatch ? "Surveillance **oui**" : "Surveillance non";
-  const intro = [
-    `**Casier judiciaire** · ${opts.username}`,
-    `<@${opts.userId}>`,
-    `**${countBit}**${types ? ` · ${types}` : ""}`,
-    `Risque **${opts.riskScore}** (${opts.riskLevel}) · ${watch}`,
-    "",
-  ].join("\n");
-
-  const tables = paginateCasierTable(
-    opts.items,
-    false,
-    Math.max(400, CONTENT_LIMIT - intro.length - 32),
-  );
-  return tables.map((table, index) => {
-    const pageBit = tables.length > 1 ? `\n\n*Page ${index + 1} / ${tables.length}*` : "";
-    return `${intro}${table}${pageBit}`;
-  });
-}
 
 export const commands = [
   new SlashCommandBuilder()
@@ -188,29 +151,33 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    const pages = buildCasierSlashPages({
-      username: cible.username,
-      userId: cible.id,
-      items: snapshot.items,
-      riskScore: snapshot.riskScore,
-      riskLevel: snapshot.riskLevel,
-      underWatch: snapshot.underWatch,
+    const pages = paginateCasierItems(snapshot.items);
+    const payload = (index: number) => ({
+      content: `<@${cible.id}>`,
+      embeds: buildCasierLayoutEmbeds({
+        title: "Casier judiciaire · " + cible.username,
+        items: pages[index],
+        catalog: snapshot.items,
+        withUser: false,
+        page: index + 1,
+        pageCount: pages.length,
+        thumbnail,
+        extraFields: [
+          { name: "Membre", value: `<@${cible.id}>`, inline: true },
+          { name: "Risque", value: `${snapshot.riskScore} · ${snapshot.riskLevel}`, inline: true },
+          { name: "Total", value: String(snapshot.items.length), inline: true },
+        ],
+      }),
     });
-    const card = chrome().addFields(
-      { name: "Membre", value: cible.tag, inline: true },
-      { name: "ID", value: cible.id, inline: true },
-      { name: "Total", value: String(snapshot.items.length), inline: true },
-    );
 
     if (pages.length === 1) {
-      await interaction.editReply({ content: pages[0], embeds: [card] });
+      await interaction.editReply(payload(0));
       return;
     }
 
     let page = 0;
     const reply = await interaction.editReply({
-      content: pages[0],
-      embeds: [card],
+      ...payload(0),
       components: [buildNavRow(0, pages.length)],
     });
     const collector = reply.createMessageComponentCollector({
@@ -231,8 +198,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           ? Math.max(0, page - 1)
           : Math.min(pages.length - 1, page + 1);
       await btn.update({
-        content: pages[page],
-        embeds: [card],
+        ...payload(page),
         components: [buildNavRow(page, pages.length)],
       });
     });

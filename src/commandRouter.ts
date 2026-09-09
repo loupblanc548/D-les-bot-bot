@@ -39,6 +39,7 @@ import {
   commands as casierGroupCommands,
   handleCommand as handleCasierGroup,
 } from "./commands/casierGroup.js";
+import { commands as fichesCommands, handleCommand as handleFiches } from "./commands/fiches.js";
 import {
   commands as alertGroupCommands,
   handleCommand as handleAlertGroup,
@@ -486,6 +487,7 @@ export const allCommands = [
   ...sourcesGroupCommands, // 7. /sources (add, remove, list, health...)
   ...alertGroupCommands, // 8. /alert (rules, ack, digest, test...)
   ...casierGroupCommands, // 9. /casier (view, clear...)
+  ...fichesCommands, // /fiches (cartes par domaine)
   ...ticketGroupCommands, // 10. /ticket (setup, close, transcript...)
   ...manageGroupCommands, // 11. /manage (roles, channels, emojis...)
   ...helpCommands, // 12. /help + /commands
@@ -571,6 +573,7 @@ export function buildCommandRouter(): void {
   registerGroup(["sources"], handleSourcesGroup);
   registerGroup(["alert"], handleAlertGroup);
   registerGroup(["casier"], handleCasierGroup);
+  registerGroup(["fiches"], handleFiches);
   registerGroup(["ticket"], handleTicketGroup);
   registerGroup(["manage"], handleManageGroup);
   registerGroup(["help", "commands"], handleHelp);

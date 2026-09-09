@@ -19,9 +19,8 @@ vi.mock("../services/permissions", () => ({
   requireAdmin: vi.fn().mockResolvedValue(true),
 }));
 
-import { buildCasierSlashPages, buildNavRow, handleCommand, handleCasierClear } from "./casier.js";
+import { buildNavRow, handleCommand, handleCasierClear } from "./casier.js";
 import type { ChatInputCommandInteraction } from "discord.js";
-import type { CasierItem } from "../services/casierQuery.js";
 
 function mockUser(id: string, tag: string) {
   return {
@@ -42,80 +41,16 @@ function mockInteraction(overrides: any = {}) {
     user: overrides.caller ?? mockUser("mod-1", "Mod#0001"),
     guildId: "guildId" in overrides ? overrides.guildId : "guild-1",
     member: overrides.member ?? null,
+    client: {
+      guilds: { cache: { get: () => undefined } },
+      users: { cache: { get: () => undefined } },
+    },
     deferReply: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
     reply: vi.fn().mockResolvedValue(undefined),
     followUp: vi.fn().mockResolvedValue(undefined),
   } as unknown as ChatInputCommandInteraction;
 }
-
-function item(partial: Partial<CasierItem> = {}): CasierItem {
-  return {
-    source: "sanction",
-    type: "WARN",
-    reason: "Spam en chat",
-    date: new Date("2026-09-08T12:00:00Z"),
-    moderatorId: "mod-1",
-    duration: null,
-    userId: "target-1",
-    ...partial,
-  };
-}
-
-describe("buildCasierSlashPages", () => {
-  it("renders a markdown table with date, type, reason and moderator", () => {
-    const pages = buildCasierSlashPages({
-      username: "Target",
-      userId: "target-1",
-      items: [item()],
-      riskScore: 12,
-      riskLevel: "FAIBLE",
-      underWatch: false,
-    });
-    expect(pages).toHaveLength(1);
-    expect(pages[0]).toMatch(/\| Date \| Type \| Durée \| Raison \| Par \|/);
-    expect(pages[0]).toContain("Spam en chat");
-    expect(pages[0]).toContain("<@mod-1>");
-    expect(pages[0]).toContain("⚠️");
-    expect(pages[0]).toContain("1 entrée");
-  });
-
-  it("includes duration in its own column", () => {
-    const pages = buildCasierSlashPages({
-      username: "Target",
-      userId: "target-1",
-      items: [item({ type: "TIMEOUT", reason: "Flood", duration: 3600, moderatorId: "mod-2" })],
-      riskScore: 20,
-      riskLevel: "MOYEN",
-      underWatch: true,
-    });
-    expect(pages[0]).toMatch(/1 h/);
-    expect(pages[0]).toMatch(/Timeout/);
-    expect(pages[0]).toMatch(/Surveillance \*\*oui\*\*/);
-  });
-
-  it("paginates when many rows would overflow Discord content", () => {
-    const items = Array.from({ length: 40 }, (_, i) =>
-      item({
-        reason: `Motif très long pour forcer la pagination numéro ${i} `.repeat(3),
-        moderatorId: `mod-${i}`,
-      }),
-    );
-    const pages = buildCasierSlashPages({
-      username: "Target",
-      userId: "target-1",
-      items,
-      riskScore: 40,
-      riskLevel: "ELEVE",
-      underWatch: false,
-    });
-    expect(pages.length).toBeGreaterThan(1);
-    for (const page of pages) {
-      expect(page.length).toBeLessThanOrEqual(2000);
-      expect(page).toMatch(/\| Date \| Type \|/);
-    }
-  });
-});
 
 describe("buildNavRow", () => {
   it("should return an ActionRow with buttons", () => {
@@ -215,7 +150,7 @@ describe("handleCommand", () => {
     expect(replyArg.embeds[0].data.description).toMatch(/casier vierge/i);
   });
 
-  it("should show sanctions in a markdown table", async () => {
+  it("should show sanctions as Discord embed cards", async () => {
     mockPrisma.sanction.findMany.mockResolvedValue([
       { id: 1, type: "WARN", reason: "Test warn", moderatorId: "mod-1", createdAt: new Date() },
     ]);
@@ -223,9 +158,13 @@ describe("handleCommand", () => {
     interaction.commandName = "casier";
     await handleCommand(interaction);
     const replyArg = (interaction.editReply as any).mock.calls[0][0];
-    expect(replyArg.content).toContain("Test warn");
-    expect(replyArg.content).toMatch(/\| Date \| Type \| Durée \| Raison \| Par \|/);
+    expect(replyArg.content).not.toMatch(/\| Date \|/);
+    expect(replyArg.files).toBeUndefined();
+    expect(replyArg.embeds.length).toBeGreaterThanOrEqual(2);
     expect(replyArg.embeds[0].data.title).toContain("Casier");
+    expect(replyArg.embeds[0].data.image).toBeUndefined();
+    expect(replyArg.embeds[1].data.title).toMatch(/Avertissement/);
+    expect(replyArg.embeds[1].data.description).toMatch(/Test warn/);
   });
 
   it("should error when no guildId", async () => {

@@ -69,7 +69,7 @@ describe("formatCasierForAgent", () => {
     expect(text).toContain("<@u1>");
   });
 
-  it("lists sanctions in a markdown table with duration and moderator", () => {
+  it("tells the model a Discord card was posted instead of dumping markdown pipes", () => {
     const text = formatCasierForAgent({
       userId: "u1",
       guildId: "g1",
@@ -87,11 +87,9 @@ describe("formatCasierForAgent", () => {
       riskLevel: "FAIBLE",
       underWatch: false,
     });
-    expect(text).toMatch(/\| Date \| Type \| Durée \| Raison \| Par \|/);
+    expect(text).not.toMatch(/\| Date \|/);
     expect(text).toMatch(/Timeout/);
-    expect(text).toMatch(/30 min/);
-    expect(text).toMatch(/John/);
-    expect(text).toMatch(/Spam/);
+    expect(text).toMatch(/fiche Discord/);
     expect(labelCasierType("BAN")).toBe("Bannissement");
   });
 });
@@ -110,9 +108,9 @@ describe("formatGuildSanctionLog", () => {
       },
     ]);
     expect(text).toMatch(/Logs de sanctions/);
-    expect(text).toContain("<@u9>");
     expect(text).toMatch(/Bannissement/);
-    expect(text).toMatch(/\| Date \| Membre \| Type \| Durée \| Raison \| Par \|/);
+    expect(text).not.toMatch(/\| Date \|/);
+    expect(text).toMatch(/fiche Discord/);
   });
 
   it("says when the guild log is empty", () => {
@@ -125,7 +123,7 @@ describe("markdown table cells", () => {
     expect(escapeMarkdownTableCell("a | b | c")).toBe("a / b / c");
   });
 
-  it("builds a discord markdown table", () => {
+  it("formats French dates instead of Discord timestamp tags", () => {
     const table = formatCasierTable(
       [
         {
@@ -140,10 +138,8 @@ describe("markdown table cells", () => {
       ],
       true,
     );
-    const lines = table.split("\n");
-    expect(lines[0]).toBe("| Date | Membre | Type | Durée | Raison | Par |");
-    expect(lines[1]).toMatch(/^\| --- \| --- \| --- \| --- \| --- \| --- \|$/);
-    expect(lines[2]).toContain("<@u9>");
-    expect(lines[2]).toContain("Raid");
+    expect(table).not.toMatch(/<t:/);
+    expect(table).toContain("Raid");
+    expect(table).toContain("<@u9>");
   });
 });

@@ -28,45 +28,37 @@ async function sendAnalyticsReport(client: Client): Promise<void> {
 
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const topCommands = await prisma.notification
-      .findMany({
-        where: { sentAt: { gte: since } },
-        select: { platform: true, content: true },
-        take: 100,
-        orderBy: { sentAt: "desc" },
-      })
-      .catch(() => []);
-
+    const commandLogs = await prisma.commandLog.findMany({
+      where: { timestamp: { gte: since } },
+      select: { command: true },
+    });
     const commandCounts = new Map<string, number>();
-    for (const notif of topCommands) {
-      const cmd = notif.platform;
-      commandCounts.set(cmd, (commandCounts.get(cmd) ?? 0) + 1);
+    for (const log of commandLogs) {
+      commandCounts.set(log.command, (commandCounts.get(log.command) ?? 0) + 1);
     }
-
-    const totalNotifications = topCommands.length;
-    const topPlatforms = [...commandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const totalCommands = commandLogs.length;
+    const topCommands = [...commandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const errors = await prisma.errorMessage.count({ where: { createdAt: { gte: since } } });
 
     const guildCount = client.guilds.cache.size;
     const totalMembers = client.guilds.cache.reduce((sum, g) => sum + g.memberCount, 0);
 
     const embed = new EmbedBuilder()
-      .setTitle("📊 Analytics — Rapport 24h")
-      .setColor(0x00aaff)
+      .setTitle("Analytics — 24 h")
+      .setColor(0x3ba55d)
       .addFields(
         { name: "Serveurs", value: `${guildCount}`, inline: true },
-        { name: "Membres totaux", value: `${totalMembers.toLocaleString()}`, inline: true },
-        { name: "Notifications 24h", value: `${totalNotifications}`, inline: true },
+        { name: "Membres", value: `${totalMembers.toLocaleString("fr-FR")}`, inline: true },
+        { name: "Slash 24 h", value: `${totalCommands}`, inline: true },
+        { name: "Erreurs", value: `${errors}`, inline: true },
       )
-      .setFooter({ text: "Surveillance System • Command Analytics" })
+      .setFooter({ text: "Analytics · fiche" })
       .setTimestamp();
 
-    if (topPlatforms.length > 0) {
+    if (topCommands.length > 0) {
       embed.addFields({
-        name: "Top plateformes",
-        value: topPlatforms
-          .map(([platform, count]) => `**${platform}**: ${count} notif(s)`)
-          .join("\n"),
+        name: "Top slash",
+        value: topCommands.map(([name, count]) => `/${name} — ${count}`).join("\n"),
         inline: false,
       });
     }

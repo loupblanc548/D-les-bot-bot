@@ -28,6 +28,7 @@ import {
   loadGuildSanctionLog,
 } from "./casierQuery.js";
 import { stripHtml } from "../utils/stripHtml.js";
+import { presentCasierFromTool } from "./casierVisual.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, searchTweets, isTwitterConfigured } from "./twitter.js";
 import { getSubredditPosts, searchReddit, getTrendingSubreddits } from "./reddit.js";
@@ -1190,9 +1191,19 @@ async function tGetUserModerationHistory(
   try {
     if (!userId) {
       const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      await presentCasierFromTool(ctx, {
+        title: "Logs de sanctions",
+        items,
+        withUser: true,
+      });
       return { success: true, data: formatGuildSanctionLog(items) };
     }
     const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    await presentCasierFromTool(ctx, {
+      title: "Casier judiciaire",
+      items: snapshot.items,
+      withUser: false,
+    });
     return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (e) {
     return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { detectPrefetchableTool } from "./toolPrefetch.js";
 
 describe("detectPrefetchableTool — casier", () => {
@@ -20,5 +20,33 @@ describe("detectPrefetchableTool — casier", () => {
 
   it("does not prefetch getUserInfo for an actual ban order", () => {
     expect(detectPrefetchableTool("ban ce type pour spam")).toBeNull();
+  });
+});
+
+describe("detectPrefetchableTool — defense", () => {
+  it("prefetches the defensive brief for a Kali cheat-sheet question", () => {
+    const hit = detectPrefetchableTool(
+      "comment se protéger contre nmap hydra ettercap hashcat metasploit",
+    );
+    expect(hit?.toolName).toBe("networkDefenseBrief");
+  });
+});
+
+describe("detectPrefetchableTool — fiches", () => {
+  it("prefetches domainFiche for a HIBP question", () => {
+    const hit = detectPrefetchableTool("fuite have i been pwned pour jane@example.com");
+    expect(hit?.toolName).toBe("domainFiche");
+    expect(hit?.args).toMatchObject({
+      domain: "securite",
+      sujet: "hibp",
+      query: "jane@example.com",
+    });
+  });
+});
+
+describe("detectPrefetchableTool — catalogue", () => {
+  it("prefetches holidaysFr for jours fériés", () => {
+    const hit = detectPrefetchableTool("c'est quoi les jours fériés en france 2026");
+    expect(hit?.toolName).toBe("holidaysFr");
   });
 });

@@ -39,20 +39,23 @@ export async function runAlertDigest(client: Client): Promise<void> {
 
     const fields = logs
       .sort((a, b) => b._count - a._count)
-      .slice(0, 10)
+      .slice(0, 8)
       .map((l) => ({
         name: l.type,
-        value: `${l._count}`,
+        value: `${l._count} événement(s)`,
         inline: true,
       }));
 
     const embed = new EmbedBuilder()
-      .setTitle("📊 Digest des alertes (7 jours)")
-      .setColor(0x2f3136)
-      .setDescription(`**${totalAlerts}** événements enregistrés dans les 7 derniers jours`)
-      .addFields(...fields)
+      .setTitle("Digest des alertes (7 jours)")
+      .setColor(0x3ba55d)
+      .setDescription(`**${totalAlerts}** événements enregistrés.`)
+      .addFields(...fields, {
+        name: "Note",
+        value: "Pas de faux Nitro ici. Trust & Safety Discord s’en charge.",
+      })
       .setTimestamp()
-      .setFooter({ text: "Digest automatique hebdomadaire" });
+      .setFooter({ text: "Digest · cartes ops" });
 
     await (channel as TextChannel).send({ embeds: [embed] });
     logger.info(`[AlertDigest] Digest envoyé: ${totalAlerts} alertes`);

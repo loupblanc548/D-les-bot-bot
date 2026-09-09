@@ -23,6 +23,13 @@ import {
   formatGuildSanctionLog,
 } from "./casierQuery.js";
 import { recordCasierSanction } from "./casierRecorder.js";
+import { presentCasierFromTool } from "./casierVisual.js";
+import {
+  findNetworkDefenseItem,
+  formatNetworkDefenseForAgent,
+  presentNetworkDefenseFromTool,
+} from "./networkDefenseBrief.js";
+import { presentDomainFicheFromTool } from "./domainFiches.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
@@ -50,6 +57,7 @@ import { generateImage } from "./freeApis.js";
 import { removeBackground } from "./removeBg.js";
 import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
 import { RETAILER_TOOL_DEFS, handleRetailerTool } from "./agentToolsRetailers.js";
+import { IMPORT_TOOLS, IMPORT_TOOL_NAMES, executeImportTool } from "./agentToolsImport.js";
 import { searchDocumentation, isContext7Available } from "./context7.js";
 import { execFileSync } from "child_process";
 import {
@@ -321,6 +329,57 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           userId: {
             type: "string",
             description: "ID Discord. Vide = logs de tout le serveur.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "networkDefenseBrief",
+      description:
+        "Fiche défense contre Nmap, Hydra, Ettercap, Hashcat, Metasploit, Wifite, SearchSploit. Prévention seulement — n'exécute aucun outil d'attaque. tool optionnel pour une seule menace.",
+      parameters: {
+        type: "object",
+        properties: {
+          tool: {
+            type: "string",
+            description:
+              "nmap | hydra | ettercap | hashcat | metasploit | wifite | searchsploit. Vide = les 7.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "domainFiche",
+      description:
+        "Poste une fiche Discord native (embeds) pour un domaine : moderation, securite, gaming, medias, retail, ia, devops, communaute, vocal, science, analytics. sujet optionnel (hibp, ssl, steam, digest, sante, nasa, multi, spam…). query = e-mail, hôte, URL, ville, jeu. Pas de Kali offensif, pas de faux Nitro, pas de secrets.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: {
+            type: "string",
+            description:
+              "moderation | securite | gaming | medias | retail | ia | devops | communaute | vocal | science | analytics. Vide = index.",
+          },
+          sujet: {
+            type: "string",
+            description:
+              "hibp | ssl | kali | steam | digest | sante | deploy | nasa | meteo | multi | spam | appel | memoire | factcheck | youtube | bienvenue…",
+          },
+          query: {
+            type: "string",
+            description: "E-mail, hôte, URL, ville, claim, nom de jeu.",
+          },
+          userId: {
+            type: "string",
+            description: "ID Discord pour signaux / mémoire / appel.",
           },
         },
         required: [],
@@ -1333,6 +1392,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "get_crypto_top",
   // ── Météo ──
   "getWeather",
+  "getNasaApod",
   "getAirQuality",
   // ── Code & Dev ──
   "execute_code",
@@ -1353,6 +1413,8 @@ const TOOL_NAME_WHITELIST = new Set([
   "getRecentMentions",
   "timeoutUser",
   "getUserInfo",
+  "networkDefenseBrief",
+  "domainFiche",
   "get_user_moderation_history",
   "getServerStats",
   "setup_basic_server",
@@ -1409,6 +1471,7 @@ const TOOL_NAME_WHITELIST = new Set([
   "run_terminal",
   "ssh_command",
   "think_step_by_step",
+  ...IMPORT_TOOL_NAMES,
 ]);
 
 export const ALL_AGENT_TOOLS: AgentToolDef[] = (() => {
@@ -1424,6 +1487,7 @@ export const ALL_AGENT_TOOLS: AgentToolDef[] = (() => {
     ...RETAILER_TOOL_DEFS,
     ...ORPHAN_TOOLS,
     ...KALI_TOOLS,
+    ...IMPORT_TOOLS,
   ].filter((t) => {
     if (!TOOL_NAME_WHITELIST.has(t.function.name) || seen.has(t.function.name)) return false;
     seen.add(t.function.name);
@@ -1492,6 +1556,10 @@ export async function executeTool(
         return await toolWarnUser(args, ctx);
       case "getUserInfo":
         return await toolGetUserInfo(args, ctx);
+      case "networkDefenseBrief":
+        return await toolNetworkDefenseBrief(args, ctx);
+      case "domainFiche":
+        return await toolDomainFiche(args, ctx);
       case "searchUserMemory":
         return await toolSearchUserMemory(args);
       case "saveMemoryFact":
@@ -1604,6 +1672,8 @@ export async function executeTool(
         const retailerResult = await handleRetailerTool(toolName, args, ctx);
         if (retailerResult.success || retailerResult.data) return retailerResult;
         // Essayer les tools génériques (math, texte, sécurité, API, crypto)
+        const importResult = await executeImportTool(toolName, args, ctx);
+        if (importResult) return importResult;
         const { executeGenericTool } = await import("./agentToolsGeneric.js");
         const genericResult = await executeGenericTool(toolName, args, ctx);
         if (genericResult) return genericResult;
@@ -1724,6 +1794,7 @@ async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {
   const ping = ctx.client.ws.ping;
   const uptime = Math.round(process.uptime() / 60);
   const guildCount = ctx.client.guilds.cache.size;
+  await presentDomainFicheFromTool(ctx, { domain: "devops", sujet: "sante" });
 
   return {
     success: true,
@@ -1820,14 +1891,46 @@ async function toolGetUserInfo(
   try {
     if (!userId) {
       const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      await presentCasierFromTool(ctx, {
+        title: "Logs de sanctions",
+        items,
+        withUser: true,
+      });
       return { success: true, data: formatGuildSanctionLog(items) };
     }
     const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    await presentCasierFromTool(ctx, {
+      title: "Casier judiciaire",
+      items: snapshot.items,
+      withUser: false,
+      extraNames: { [userId]: snapshot.userId },
+    });
     return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (err) {
     logger.error("[AgentTools] getUserInfo casier:", String(err));
     return { success: false, data: `Impossible de lire le casier: ${String(err)}` };
   }
+}
+
+async function toolNetworkDefenseBrief(
+  args: Record<string, any>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const item = findNetworkDefenseItem(args.tool ? String(args.tool) : undefined);
+  await presentNetworkDefenseFromTool(ctx, item);
+  return { success: true, data: formatNetworkDefenseForAgent(item) };
+}
+
+async function toolDomainFiche(
+  args: Record<string, any>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  return presentDomainFicheFromTool(ctx, {
+    domain: args.domain ? String(args.domain) : undefined,
+    sujet: args.sujet ? String(args.sujet) : undefined,
+    query: args.query ? String(args.query) : undefined,
+    userId: args.userId ? String(args.userId) : undefined,
+  });
 }
 
 async function toolSearchUserMemory(args: Record<string, any>): Promise<ToolCallResult> {
@@ -2169,7 +2272,7 @@ async function toolGetServerStats(ctx: ToolContext): Promise<ToolCallResult> {
 
 // Open-Meteo: free weather API, no key needed
 async function toolGetWeather(args: Record<string, any>): Promise<ToolCallResult> {
-  const city = String(args.city);
+  const city = String(args.city || args.location || "");
   const cacheKey = `weather:${city.toLowerCase()}`;
   const cached = getCached(cacheKey);
   if (cached) return { success: true, data: cached };

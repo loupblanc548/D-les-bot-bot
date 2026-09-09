@@ -20,6 +20,8 @@
  *   External (agentToolsExternal.ts), moderation tools in Core
  */
 
+import { IMPORT_TOOL_NAMES } from "./agentToolsImport.js";
+
 // ─── Risk Levels ─────────────────────────────────────────────────────────────
 
 export type RiskLevel = "low" | "medium" | "high" | "restricted";
@@ -109,6 +111,22 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         level: "low",
         module: "core",
         reason: "Read-only casier / member info lookup, no Discord mutation",
+      },
+    ],
+    [
+      "networkDefenseBrief",
+      {
+        level: "low",
+        module: "core",
+        reason: "Read-only defensive hardening brief, no scanner or attack execution",
+      },
+    ],
+    [
+      "domainFiche",
+      {
+        level: "low",
+        module: "core",
+        reason: "Read-only Discord fiche presenter, no attack execution",
       },
     ],
 
@@ -1686,6 +1704,16 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "low", module: "amazon", reason: "Read-only review page scraping" },
     ],
   ]);
+
+  for (const name of IMPORT_TOOL_NAMES) {
+    if (!map.has(name)) {
+      map.set(name, {
+        level: "low",
+        module: "import",
+        reason: "Read-only public API, no persistence",
+      });
+    }
+  }
 
   // Remove mutating methods to enforce immutability at runtime
   (map as any as Record<string, any>).set = undefined;

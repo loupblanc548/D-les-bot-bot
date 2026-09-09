@@ -33,6 +33,7 @@ describe("toolRiskRegistry — classification correctness", () => {
     expect(isLowRisk("getRedditPosts")).toBe(true);
     expect(isLowRisk("setup_basic_server")).toBe(true);
     expect(isLowRisk("getUserInfo")).toBe(true);
+    expect(isLowRisk("snowflakeDecode")).toBe(true);
   });
 
   it("classifies known high-risk tools correctly", () => {

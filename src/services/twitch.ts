@@ -115,10 +115,15 @@ async function checkTwitchStreams(client: Client) {
           .setColor(0x9146ff)
           .setTitle(`${stream.user_name} est en live sur Twitch !`)
           .setURL(`https://twitch.tv/${follow.streamerName}`)
-          .setDescription(
-            `**Jeu :** ${stream.game_name || "Inconnu"}\n` +
-              `**Titre :** ${stream.title}\n` +
-              `**Spectateurs :** ${stream.viewer_count.toLocaleString()}`,
+          .addFields(
+            { name: "Titre", value: stream.title?.slice(0, 1024) || "—" },
+            { name: "Jeu", value: stream.game_name || "Inconnu", inline: true },
+            {
+              name: "Viewers",
+              value: `${stream.viewer_count.toLocaleString("fr-FR")}`,
+              inline: true,
+            },
+            { name: "Lien", value: `https://twitch.tv/${follow.streamerName}` },
           )
           .setImage(
             stream.thumbnail_url?.replace("{width}", "1280").replace("{height}", "720") ||

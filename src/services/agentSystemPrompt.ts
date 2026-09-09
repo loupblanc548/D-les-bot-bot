@@ -84,9 +84,23 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "Les anciens logs de ban/timeout/kick/mute complètent l'historique. " +
     "« logs de sanctions », « historique des gens », « présente les bans » SANS mention → getUserInfo SANS userId. " +
     "« casier de @X » → getUserInfo avec l'ID. " +
-    "Si le tool renvoie un tableau markdown (lignes `| Date | Type |`), recopie-le TEL QUEL dans ta réponse Discord : c'est un vrai tableau. " +
-    "Ne le transforme pas en liste numérotée, n'invente pas de colonnes, n'ajoute pas de texte autour qui casse les pipes. " +
-    "Une ligne d'intro courte en français, puis le tableau. Liste vide → dis-le. " +
-    "Ce n'est PAS une demande de ban : n'appelle pas timeoutUser/warnUser et ne demande pas qui sanctionner.\n"
+    "Le tool poste déjà une fiche Discord (embed) dans le salon. " +
+    "Réponds en une phrase en français. N'écris JAMAIS un tableau markdown avec des | pipes |. " +
+    "Liste vide → dis-le. " +
+    "Ce n'est PAS une demande de ban : n'appelle pas timeoutUser/warnUser et ne demande pas qui sanctionner.\n\n" +
+    "## DÉFENSE RÉSEAU\n" +
+    "Nmap, Hydra, Ettercap, Hashcat, Metasploit, Wifite, SearchSploit = techniques d'attaquant. " +
+    "On en parle uniquement pour se protéger. " +
+    "« comment se protéger », cheat sheet Kali, ces noms d'outils → networkDefenseBrief. " +
+    "Ne lance PAS hydra/hashcat/msf/wifite/ettercap/searchsploit/nmap d'attaque. " +
+    "Pas de commandes Kali, pas de tableau markdown | col |. Une phrase + la fiche.\n\n" +
+    "## FICHES\n" +
+    "Casier, défense, HIBP, SSL, Steam, digest, santé bot, NASA, météo, signaux multi-comptes, anti-spam, accueil → domainFiche (domain + sujet + query). " +
+    "Le tool poste déjà les embeds. Une phrase. Jamais de tableau markdown | col |. " +
+    "Jamais de secret (mdp, token). Jamais de Kali offensif. " +
+    "Faux Nitro : hors scope — c'est Discord Trust & Safety, pas un filtre John.\n\n" +
+    "## CATALOGUE PUBLIC\n" +
+    "snowflakeDecode, discordStatus, timeoutRemaining, vcWho, compareRoles, cveLookup, cisaKev, endoflife, emailAuth, securityTxt, protonDb, cheapShark, scryfall, tvmazeSchedule, deezerSearch, podcastSearch, platformStatus, fearGreed, holidaysFr, rappelConso, pollen, pubmed, mdnSearch, bundlephobia, nasaNeo : lecture seule. " +
+    "Pas de tableau markdown. Pas d'exploit CVE.\n"
   );
 }

@@ -111,25 +111,18 @@ async function sendPriceAlertNotification(client: Client, alert: PriceAlert): Pr
   }
 
   const embed = new EmbedBuilder()
-    .setTitle(`💰 ${alert.gameName} - ${alert.discount}% de réduction !`)
-    .setDescription(`Prix actuel : **${alert.currentPrice}€** (au lieu de ${alert.originalPrice}€)`)
+    .setTitle(`Baisse de prix — ${alert.gameName}`)
     .setColor(0x00ff00)
     .addFields(
+      { name: "Date", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true },
+      { name: "Boutique", value: alert.platform.toUpperCase(), inline: true },
       {
-        name: "Plateforme",
-        value: alert.platform.toUpperCase(),
+        name: "Prix",
+        value: `${alert.currentPrice}€ (était ${alert.originalPrice}€)`,
         inline: true,
       },
-      {
-        name: "Réduction",
-        value: `-${alert.discount}%`,
-        inline: true,
-      },
-      {
-        name: "Économie",
-        value: `${(alert.originalPrice - alert.currentPrice).toFixed(2)}€`,
-        inline: true,
-      },
+      { name: "Stock", value: `-${alert.discount}%`, inline: true },
+      { name: "Lien", value: alert.url || "—" },
     )
     .setURL(alert.url)
     .setTimestamp();

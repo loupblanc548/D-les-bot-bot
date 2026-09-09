@@ -125,6 +125,7 @@ vi.mock("./commands/securityGroup", () => ({ commands: [], handleCommand: vi.fn(
 vi.mock("./commands/sourcesGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/trackGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/casierGroup", () => ({ commands: [], handleCommand: vi.fn() }));
+vi.mock("./commands/fiches", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/alertGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/aiGroup", () => ({ commands: [], handleCommand: vi.fn() }));
 vi.mock("./commands/helpSystem", () => ({

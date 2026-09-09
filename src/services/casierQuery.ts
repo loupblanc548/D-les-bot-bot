@@ -115,9 +115,17 @@ export function formatModeratorCell(moderatorId: string | null | undefined): str
 }
 
 export function formatCasierDateCell(date: Date): string {
-  const unix = Math.floor(date.getTime() / 1000);
-  if (!Number.isFinite(unix) || unix <= 0) return "—";
-  return `<t:${unix}:d> <t:${unix}:t>`;
+  if (!Number.isFinite(date.getTime()) || date.getTime() <= 0) return "—";
+  return date
+    .toLocaleString("fr-FR", {
+      timeZone: "Europe/Paris",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    .replace(",", "");
 }
 
 export function escapeMarkdownTableCell(value: string, max = 72): string {
@@ -125,6 +133,22 @@ export function escapeMarkdownTableCell(value: string, max = 72): string {
   if (!compact) return "—";
   if (compact.length <= max) return compact;
   return `${compact.slice(0, Math.max(1, max - 1))}…`;
+}
+
+export function casierTypeColor(type: string): number {
+  const key = normalizeType(type);
+  if (key === "BAN" || key === "TEMPBAN") return 0xed4245;
+  if (key === "KICK") return 0xe67e22;
+  if (key === "TIMEOUT" || key === "MUTE") return 0xfee75c;
+  if (key === "WARN") return 0xf0b232;
+  if (key === "UNBAN") return 0x3ba55d;
+  return 0x5865f2;
+}
+
+export function formatCasierDiscordTime(date: Date): string {
+  const unix = Math.floor(date.getTime() / 1000);
+  if (!Number.isFinite(unix) || unix <= 0) return "—";
+  return `<t:${unix}:f>`;
 }
 
 export function casierAccentColor(items: CasierItem[]): number {
@@ -275,6 +299,20 @@ export function mergeCasierItems(sanctions: SanctionLike[], logs: LogLike[]): Ca
   return items;
 }
 
+export function formatCasierEmbedRows(items: CasierItem[], withUser: boolean): string {
+  return items
+    .slice(0, 15)
+    .map((item) => {
+      const who = withUser && item.userId ? `<@${item.userId}> · ` : "";
+      const dur = formatDurationSeconds(item.duration);
+      return (
+        `**${formatCasierDateCell(item.date)}** · ${labelCasierType(item.type)}` +
+        `${dur ? ` · ${dur}` : ""}\n${who}${item.reason} · ${formatModeratorCell(item.moderatorId)}`
+      );
+    })
+    .join("\n\n");
+}
+
 function formatCasierHeader(title: string, count: number, extra?: string): string {
   const countBit = count === 0 ? "aucune entrée" : `${count} entrée${count > 1 ? "s" : ""}`;
   const extraBit = extra ? ` · ${extra}` : "";
@@ -299,8 +337,7 @@ export function formatCasierForAgent(snapshot: CasierSnapshot): string {
       summarizeCasierTypes(snapshot.items),
     ),
     risk,
-    "",
-    formatCasierTable(snapshot.items, false),
+    "La fiche Discord a été envoyée dans le salon. Réponds en une courte phrase en français. N'écris PAS de tableau markdown (| col |).",
   ].join("\n");
 }
 
@@ -310,8 +347,7 @@ export function formatGuildSanctionLog(items: CasierItem[]): string {
   }
   return [
     formatCasierHeader("Logs de sanctions du serveur", items.length, summarizeCasierTypes(items)),
-    "",
-    formatCasierTable(items, true),
+    "La fiche Discord a été envoyée dans le salon. Réponds en une courte phrase en français. N'écris PAS de tableau markdown (| col |).",
   ].join("\n");
 }
 

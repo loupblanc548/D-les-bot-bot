@@ -41,5 +41,11 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toMatch(/dns_lookup/);
     expect(rules).toMatch(/whois_lookup/);
     expect(rules).toMatch(/Pas de scan de ports/);
+    expect(rules).toMatch(/DÉFENSE RÉSEAU/);
+    expect(rules).toMatch(/networkDefenseBrief/);
+    expect(rules).toMatch(/domainFiche/);
+    expect(rules).toMatch(/Faux Nitro/);
+    expect(rules).toMatch(/CATALOGUE PUBLIC/);
+    expect(rules).toMatch(/snowflakeDecode/);
   });
 });

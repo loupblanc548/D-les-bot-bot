@@ -135,6 +135,26 @@ export const commands = [
             .addStringOption((o) =>
               o.setName("raison").setDescription("Raison").setRequired(false),
             ),
+        )
+        .addSubcommand((sc) =>
+          sc
+            .setName("playbook")
+            .setDescription("Fiche défense : scan, brute-force, Wi-Fi, exploits")
+            .addStringOption((o) =>
+              o
+                .setName("outil")
+                .setDescription("Une menace précise (sinon les 7)")
+                .setRequired(false)
+                .addChoices(
+                  { name: "Nmap", value: "nmap" },
+                  { name: "Hydra", value: "hydra" },
+                  { name: "Ettercap", value: "ettercap" },
+                  { name: "Hashcat", value: "hashcat" },
+                  { name: "Metasploit", value: "metasploit" },
+                  { name: "Wifite", value: "wifite" },
+                  { name: "SearchSploit", value: "searchsploit" },
+                ),
+            ),
         ),
     )
     .toJSON(),
@@ -153,6 +173,16 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 
   if (action === "raid-shield") {
     await handleModPro(interaction);
+    return;
+  }
+
+  if (group === "defense" && action === "playbook") {
+    const { buildNetworkDefenseEmbeds, findNetworkDefenseItem } =
+      await import("../services/networkDefenseBrief.js");
+    const tool = interaction.options.getString("outil");
+    await interaction.reply({
+      embeds: buildNetworkDefenseEmbeds(findNetworkDefenseItem(tool)),
+    });
     return;
   }
 
