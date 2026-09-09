@@ -13,7 +13,6 @@
 
 import { GuildMember, EmbedBuilder } from "discord.js";
 import logger from "../utils/logger.js";
-import {} from "./logs.js";
 import { recordSecurityEvent } from "./socExtension.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

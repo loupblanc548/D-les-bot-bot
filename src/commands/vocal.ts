@@ -108,7 +108,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 

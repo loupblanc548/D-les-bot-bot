@@ -238,9 +238,7 @@ export async function toolAnagramSolver(args: Record<string, any>): Promise<Tool
   return ok(`🔤 **Anagrammes de "${word}":**\n${[...perms].slice(0, 20).join(", ") || "Aucune"}`);
 }
 
-export async function toolRomanNumeralConvert(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolRomanNumeralConvert(args: Record<string, any>): Promise<ToolCallResult> {
   const input = String(args.input || "").trim();
   if (!input) return err("Paramètre: input");
   if (/^[0-9]+$/.test(input)) {
@@ -428,9 +426,7 @@ export async function toolHtmlEntityEncodeDecode(
   );
 }
 
-export async function toolBase32EncodeDecode(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolBase32EncodeDecode(args: Record<string, any>): Promise<ToolCallResult> {
   const text = String(args.text || "");
   const mode = String(args.mode || "encode").trim();
   if (!text) return err("Paramètre: text");

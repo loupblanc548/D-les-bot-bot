@@ -15,9 +15,10 @@ import type { ChildProcess } from "child_process";
 const HTTP_BASE = "http://localhost:3000";
 const STREAM_WIDTH = 1280;
 const STREAM_HEIGHT = 720;
-const STREAM_FPS = 30;
+const STREAM_FPS = 15;
 const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
+const CAPTURE_JPEG_QUALITY = 45;
 
 function getStreamToken(): string {
   // Token du compte utilisateur johnhelldivers26 (compte créé avec email/mdp, pas un bot)
@@ -36,31 +37,23 @@ async function getNextGamePreviewUrl(): Promise<string> {
   // Use the showcase page (all games with animated platform cards on green background)
   const showcaseUrl = `${HTTP_BASE}/releases/showcase`;
 
-  // Wait for game data to be available
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) {
-        logger.warn(`[VideoStream] /releases/data HTTP ${res.status} — retry ${attempt + 1}/10`);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
-      }
+  try {
+    const res = await fetch(`${HTTP_BASE}/releases/data`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
       const games = (await res.json()) as Array<{ gameName: string; releaseDate: string }>;
-      if (games.length === 0) {
-        logger.info(`[VideoStream] 0 jeux — retry ${attempt + 1}/10 dans 5s`);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
+      if (games.length > 0) {
+        logger.info(`[VideoStream] ${games.length} jeux disponibles — page showcase`);
+        return showcaseUrl;
       }
-      logger.info(`[VideoStream] ${games.length} jeux disponibles — page showcase`);
-      return showcaseUrl;
-    } catch (err) {
-      logger.warn(
-        `[VideoStream] Erreur fetch /releases/data (retry ${attempt + 1}/10): ${err instanceof Error ? err.message : String(err)}`,
-      );
-      await new Promise((r) => setTimeout(r, 5000));
+      logger.info("[VideoStream] 0 jeux dans /releases/data — showcase quand même");
+    } else {
+      logger.warn(`[VideoStream] /releases/data HTTP ${res.status} — showcase quand même`);
     }
+  } catch (err) {
+    logger.warn(
+      `[VideoStream] /releases/data indisponible: ${err instanceof Error ? err.message : String(err)} — showcase quand même`,
+    );
   }
-  logger.warn(`[VideoStream] Aucune donnée après 10 tentatives — fallback /releases/showcase`);
   return showcaseUrl;
 }
 
@@ -69,7 +62,9 @@ async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean>
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (res.ok || res.status === 404) return true;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     await new Promise((r) => setTimeout(r, 2000));
   }
   return false;
@@ -80,6 +75,7 @@ let selfbotClient: any = null;
 let isVideoStreaming = false;
 let activeBrowser: any = null;
 let activePage: any = null;
+let activeCdp: any = null;
 let activeFfmpeg: ChildProcess | null = null;
 let screencastActive = false;
 let reconnectTimer: NodeJS.Timeout | null = null;
@@ -149,10 +145,31 @@ async function startVideoStreamAsync(): Promise<void> {
 
     // 3. Create selfbot client for johnhelldivers26 (compte utilisateur)
     const { Client } = await import("discord.js-selfbot-v13");
-    const { Streamer, prepareStream, playStream, Utils } =
-      await import("@dank074/discord-video-stream");
+    const videoMod = await import("@dank074/discord-video-stream");
+    const { Streamer, prepareStream, playStream, Utils } = videoMod;
+    const Encoders = (videoMod as { Encoders?: { software: (opts: unknown) => unknown } }).Encoders;
 
-    selfbotClient = new Client();
+    try {
+      const ffmpegStatic = (await import("ffmpeg-static")).default;
+      if (ffmpegStatic) process.env.FFMPEG_PATH = String(ffmpegStatic);
+    } catch {
+      logger.warn("[VideoStream] ffmpeg-static introuvable");
+    }
+
+    selfbotClient = new Client({ checkUpdate: false } as ConstructorParameters<typeof Client>[0]);
+    selfbotClient.on(
+      "raw",
+      (packet: {
+        t?: string;
+        d?: { guild_id?: string; endpoint?: string; session_id?: string };
+      }) => {
+        const t = packet?.t;
+        if (t !== "VOICE_STATE_UPDATE" && t !== "VOICE_SERVER_UPDATE") return;
+        logger.info(
+          `[VideoStream] raw ${t} endpoint=${Boolean(packet?.d?.endpoint)} session=${Boolean(packet?.d?.session_id)}`,
+        );
+      },
+    );
     streamerInstance = new Streamer(selfbotClient);
 
     await new Promise<void>((resolve, reject) => {
@@ -164,8 +181,37 @@ async function startVideoStreamAsync(): Promise<void> {
       selfbotClient.login(streamToken).catch(reject);
     });
 
+    // Quitter d'abord : sinon Discord n'envoie pas de nouveau VOICE_SERVER_UPDATE.
+    try {
+      selfbotClient.ws?.broadcast?.({
+        op: 4,
+        d: {
+          guild_id: guildId,
+          channel_id: null,
+          self_mute: false,
+          self_deaf: false,
+          self_video: false,
+        },
+      });
+      await new Promise((r) => setTimeout(r, 2000));
+    } catch {
+      logger.warn("[VideoStream] Leave vocal ignoré");
+    }
+
     // 4. Join voice channel via Streamer
-    await streamerInstance.joinVoice(guildId, voiceChannelId);
+    logger.info(`[VideoStream] Connexion au salon vocal ${voiceChannelId}...`);
+    try {
+      await Promise.race([
+        streamerInstance.joinVoice(guildId, voiceChannelId),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("joinVoice timeout 60s")), 60_000);
+        }),
+      ]);
+    } catch (err) {
+      logger.error(`[VideoStream] joinVoice: ${err instanceof Error ? err.message : String(err)}`);
+      streamManuallyStopped = true;
+      throw err;
+    }
     logger.info(`[VideoStream] Connecté au salon vocal ${voiceChannelId}`);
 
     // 4b. Monitor for voice connection drops
@@ -202,7 +248,6 @@ async function startVideoStreamAsync(): Promise<void> {
         "--no-first-run",
         "--disable-popup-blocking",
         "--disable-gpu",
-        "--single-process",
         "--disable-dev-shm-usage",
         "--disable-features=TranslateUI,VizDisplayCompositor",
         "--no-zygote",
@@ -232,47 +277,90 @@ async function startVideoStreamAsync(): Promise<void> {
     }
     logger.info(`[VideoStream] Page ${showcaseUrl} chargée`);
 
-    // 6. Capture frames via screenshot loop with frame pacing
+    // 6. Capture frames (CDP screencast — screenshot() is ~0.3–1 fps and triggers Discord 2012)
     const { PassThrough } = await import("stream");
-    const videoStream = new PassThrough();
+    const videoStream = new PassThrough({ highWaterMark: 8 * 1024 * 1024 });
     screencastActive = true;
     frameCount = 0;
 
-    const targetFrameTime = 1000 / STREAM_FPS;
-    const captureLoop = async () => {
-      while (screencastActive) {
-        const frameStart = Date.now();
-        try {
-          if (!activePage || videoStream.destroyed) break;
-          const screenshot: Buffer = await activePage.screenshot({
-            type: "jpeg",
-            quality: 95,
-          });
-          frameCount++;
-          if (frameCount % 120 === 1) {
-            logger.info(`[VideoStream] Frame #${frameCount} (${screenshot.length} bytes)`);
-          }
-          if (!videoStream.destroyed && videoStream.writable) {
-            videoStream.write(screenshot);
-          }
-        } catch { logger.error("[Silent catch]"); }
-        const elapsed = Date.now() - frameStart;
-        const wait = targetFrameTime - elapsed;
-        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const writeFrame = (buf: Buffer) => {
+      if (!screencastActive || videoStream.destroyed || !videoStream.writable) return;
+      frameCount++;
+      if (frameCount === 1 || frameCount % 150 === 0) {
+        logger.info(`[VideoStream] Frame #${frameCount} (${buf.length} bytes)`);
       }
+      videoStream.write(buf);
     };
-    void captureLoop();
 
-    logger.info(`[VideoStream] Capture démarrée — ${STREAM_FPS}fps (screenshot max speed)`);
+    try {
+      const cdp = await activePage.context().newCDPSession(activePage);
+      activeCdp = cdp;
+      await cdp.send("Page.startScreencast", {
+        format: "jpeg",
+        quality: CAPTURE_JPEG_QUALITY,
+        maxWidth: STREAM_WIDTH,
+        maxHeight: STREAM_HEIGHT,
+        everyNthFrame: 1,
+      });
+      cdp.on("Page.screencastFrame", (event: { data: string; sessionId: number }) => {
+        void (async () => {
+          try {
+            writeFrame(Buffer.from(event.data, "base64"));
+          } finally {
+            try {
+              await cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId });
+            } catch {
+              /* session closed */
+            }
+          }
+        })();
+      });
+      logger.info(
+        `[VideoStream] Capture CDP ${STREAM_WIDTH}x${STREAM_HEIGHT} jpeg q${CAPTURE_JPEG_QUALITY} → ${STREAM_FPS}fps encode`,
+      );
+    } catch (err) {
+      logger.warn(
+        `[VideoStream] CDP KO, fallback screenshot: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      const targetFrameTime = 1000 / STREAM_FPS;
+      const captureLoop = async () => {
+        while (screencastActive) {
+          const frameStart = Date.now();
+          try {
+            if (!activePage || videoStream.destroyed) break;
+            writeFrame(
+              await activePage.screenshot({
+                type: "jpeg",
+                quality: CAPTURE_JPEG_QUALITY,
+              }),
+            );
+          } catch {
+            logger.error("[Silent catch]");
+          }
+          const elapsed = Date.now() - frameStart;
+          const wait = targetFrameTime - elapsed;
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        }
+      };
+      void captureLoop();
+      logger.info(`[VideoStream] Capture screenshot ${STREAM_FPS}fps q${CAPTURE_JPEG_QUALITY}`);
+    }
 
     // 7. Encode screenshots via ffmpeg, pipe NUT output to playStream
-    // Discord sans Nitro: 720p 30fps max 2500kbps — on pousse la qualité au max
-    const encoder = (Utils as any).Encoders?.software?.({
-      x264: {
-        preset: "ultrafast",
-        tune: "zerolatency",
-      },
-    }) ?? { name: "software", options: { preset: "ultrafast", tune: "zerolatency" } };
+    // Discord sans Nitro: 720p 30fps — 15fps + jpeg léger pour que le viewer reçoive la 1re image à temps
+    const encoder =
+      Encoders?.software?.({
+        x264: {
+          preset: "ultrafast",
+          tune: "zerolatency",
+        },
+      }) ??
+      (Utils as { Encoders?: { software: (opts: unknown) => unknown } }).Encoders?.software?.({
+        x264: {
+          preset: "ultrafast",
+          tune: "zerolatency",
+        },
+      });
 
     const {
       command,
@@ -283,8 +371,8 @@ async function startVideoStreamAsync(): Promise<void> {
       height: STREAM_HEIGHT,
       width: STREAM_WIDTH,
       frameRate: STREAM_FPS,
-      bitrateVideo: 2500,
-      bitrateVideoMax: 3000,
+      bitrateVideo: 1500,
+      bitrateVideoMax: 2000,
       bitrateAudio: 0,
       includeAudio: false,
       videoCodec: Utils.normalizeVideoCodec("H264"),
@@ -298,9 +386,9 @@ async function startVideoStreamAsync(): Promise<void> {
         "-bf",
         "0",
         "-g",
-        "60",
-        "-keyint_min",
         "30",
+        "-keyint_min",
+        "15",
         "-x264-params",
         "no-scenecut=1:force-cfr=1",
       ],
@@ -351,7 +439,9 @@ async function startVideoStreamAsync(): Promise<void> {
       try {
         await activePage.reload({ waitUntil: "domcontentloaded", timeout: 8000 });
         logger.debug("[VideoStream] Page rechargée");
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }, 300_000);
 
     // 9. Auto-reconnect if stream stops (check every 30s)
@@ -371,6 +461,20 @@ async function startVideoStreamAsync(): Promise<void> {
 
 function cleanupResources(): void {
   screencastActive = false;
+
+  if (activeCdp) {
+    try {
+      void activeCdp.send("Page.stopScreencast");
+    } catch {
+      /* already gone */
+    }
+    try {
+      void activeCdp.detach();
+    } catch {
+      /* already gone */
+    }
+    activeCdp = null;
+  }
 
   if (reloadTimer) {
     clearInterval(reloadTimer);
@@ -443,6 +547,12 @@ export function startStreamWatchdog(): NodeJS.Timeout {
           );
         }
       }
+      return;
+    }
+
+    // Ne pas tuer le Go Live pendant le login / Playwright.
+    if (!screencastActive) {
+      watchdogFailures = 0;
       return;
     }
 

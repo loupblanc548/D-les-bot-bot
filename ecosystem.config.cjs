@@ -1,27 +1,29 @@
 /**
- * ecosystem.config.js — Configuration PM2 pour le bot Discord
+ * ecosystem.config.cjs — PM2
  *
- * Usage:
- *   pm2 start ecosystem.config.js
- *   pm2 restart bot
- *   pm2 logs bot
+ * Heap via src/utils/memoryLimits.cjs (même formule que memoryConfig.ts).
  */
+const os = require("os");
+const { maxNodeHeapMb, restartMbFor } = require("./src/utils/memoryLimits.cjs");
+
+const totalMb = Math.floor(os.totalmem() / (1024 * 1024));
+const heap = maxNodeHeapMb(totalMb);
+const restartMb = restartMbFor(heap, totalMb);
+
 module.exports = {
   apps: [
     {
       name: "bot",
       script: "dist/index.js",
-      cwd: "/opt/discord-bot",
+      cwd: __dirname,
       instances: 1,
       exec_mode: "fork",
-      max_memory_restart: "4G",
+      max_memory_restart: `${restartMb}M`,
+      node_args: `--expose-gc --max-old-space-size=${heap}`,
       env: {
         NODE_ENV: "production",
-        NODE_OPTIONS: "--max-old-space-size=4096",
+        NODE_OPTIONS: `--max-old-space-size=${heap}`,
       },
-      error_file: "/root/.pm2/logs/bot-error.log",
-      out_file: "/root/.pm2/logs/bot-out.log",
-      log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
       autorestart: true,
       max_restarts: 10,

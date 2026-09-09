@@ -43,7 +43,9 @@ async function fusionDeals(deals: DealInfo[]): Promise<void> {
   const dedupKey = `deal-fusion:${gameName.toLowerCase()}`;
   if (dedupCache.isAlreadyProcessed("deals", dedupKey)) return;
 
-  const channel = globalClient?.channels.cache.get(config.dealsChannel || config.steamEpicChannel || "") as TextChannel;
+  const channel = globalClient?.channels.cache.get(
+    config.dealsChannel || config.steamEpicChannel || "",
+  ) as TextChannel;
   if (!channel?.isTextBased()) return;
 
   const embed = new EmbedBuilder()

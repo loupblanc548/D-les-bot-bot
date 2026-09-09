@@ -52,19 +52,23 @@ async function processAlert(alert: WazuhAlert): Promise<void> {
 
   // Persist to SecurityIncident table
   try {
-    await prisma.securityIncident.upsert({
-      where: { wazuhAlertId: alertId },
-      create: {
-        wazuhAlertId: alertId,
-        level: alert.level,
-        description: alert.description,
-        endpointName: alert.agent?.name ?? "unknown",
-        agentAssessment: `Rule: ${alert.rule?.description ?? "N/A"} | Source: ${alert.data?.srcip ?? "N/A"} | File: ${alert.data?.file ?? "N/A"} | PID: ${alert.data?.pid ?? "N/A"}`,
-        status: "OPEN",
-      },
-      update: {},
-    }).catch(() => {});
-  } catch { logger.error("[Silent catch]"); }
+    await prisma.securityIncident
+      .upsert({
+        where: { wazuhAlertId: alertId },
+        create: {
+          wazuhAlertId: alertId,
+          level: alert.level,
+          description: alert.description,
+          endpointName: alert.agent?.name ?? "unknown",
+          agentAssessment: `Rule: ${alert.rule?.description ?? "N/A"} | Source: ${alert.data?.srcip ?? "N/A"} | File: ${alert.data?.file ?? "N/A"} | PID: ${alert.data?.pid ?? "N/A"}`,
+          status: "OPEN",
+        },
+        update: {},
+      })
+      .catch(() => {});
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // ── HONEYTOKEN FIM TRIPWIRE ──
   // If Wazuh FIM logs a READ or WRITE on a honeytoken file, bypass level checks
@@ -81,7 +85,9 @@ async function processAlert(alert: WazuhAlert): Promise<void> {
         await executeActiveDefense(alert);
         return;
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   // Trigger active defense engine for critical threats
@@ -107,11 +113,15 @@ async function pollWazuhAlerts(): Promise<void> {
     const alerts = await getLatestAlerts(10);
     for (const alert of alerts) {
       await processAlert(alert).catch((err) =>
-        logger.error(`[WAZUH-WATCHDOG] Process alert failed: ${err instanceof Error ? err.message : String(err)}`),
+        logger.error(
+          `[WAZUH-WATCHDOG] Process alert failed: ${err instanceof Error ? err.message : String(err)}`,
+        ),
       );
     }
   } catch (err) {
-    logger.debug(`[WAZUH-WATCHDOG] Poll error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[WAZUH-WATCHDOG] Poll error: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -139,7 +149,9 @@ export function startWazuhWatchdog(): void {
   }, 10_000);
 
   if (cronJob.unref) cronJob.unref();
-  logger.info(`${"\x1b[36m"}[WAZUH-WATCHDOG] Cron started — polling every 60s for critical alerts (level >= 10)${"\x1b[0m"}`);
+  logger.info(
+    `${"\x1b[36m"}[WAZUH-WATCHDOG] Cron started — polling every 60s for critical alerts (level >= 10)${"\x1b[0m"}`,
+  );
 }
 
 export function stopWazuhWatchdog(): void {

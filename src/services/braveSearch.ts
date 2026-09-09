@@ -50,10 +50,7 @@ export interface BraveSearchResponse {
  * @param count Number of results (max 20)
  * @returns Array of search results
  */
-export async function braveWebSearch(
-  query: string,
-  count = 5,
-): Promise<SearchResult[]> {
+export async function braveWebSearch(query: string, count = 5): Promise<SearchResult[]> {
   if (!config.braveSearchApiKey) return [];
 
   try {
@@ -68,7 +65,7 @@ export async function braveWebSearch(
     const res = await fetch(`${BRAVE_BASE_URL}?${params}`, {
       headers: {
         "X-Subscription-Token": config.braveSearchApiKey,
-        "Accept": "application/json",
+        Accept: "application/json",
         "Accept-Encoding": "gzip",
       },
       signal: AbortSignal.timeout(8_000),

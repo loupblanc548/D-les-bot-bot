@@ -177,8 +177,6 @@ export async function evaluateShouldRespond(
   }
 
   // 8) Défaut : on s'abstient par prudence, confiance médiocre.
-  logger.debug(
-    `[conversationEvaluator] Pas de signal fort pour: ${message.slice(0, 80)}`,
-  );
+  logger.debug(`[conversationEvaluator] Pas de signal fort pour: ${message.slice(0, 80)}`);
   return { shouldRespond: false, reason: "Aucun signal fort", confidence: 0.5 };
 }

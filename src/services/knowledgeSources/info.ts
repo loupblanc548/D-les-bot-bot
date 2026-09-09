@@ -220,7 +220,9 @@ export async function fetchTmdb(query: string): Promise<string | null> {
         media_type?: string;
       }>;
     };
-    const items = (data.results || []).filter((r) => r.media_type === "movie" || r.media_type === "tv").slice(0, 3);
+    const items = (data.results || [])
+      .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+      .slice(0, 3);
     if (items.length === 0) return null;
 
     const lines = items.map((item) => {
@@ -242,10 +244,9 @@ export async function fetchNasaApod(query: string): Promise<string | null> {
 
   const apiKey = process.env.NASA_API_KEY || "DEMO_KEY";
   try {
-    const res = await fetch(
-      `https://api.nasa.gov/planetary/apod?api_key=${apiKey}`,
-      { signal: AbortSignal.timeout(8_000) },
-    );
+    const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${apiKey}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       title?: string;
@@ -267,10 +268,9 @@ export async function fetchThisDayInHistory(query: string): Promise<string | nul
     const date = new Date();
     const month = date.getMonth() + 1;
     const day = date.getDate();
-    const res = await fetch(
-      `https://byabbe.se/on-this-day/${month}/${day}/events.json`,
-      { signal: AbortSignal.timeout(8_000) },
-    );
+    const res = await fetch(`https://byabbe.se/on-this-day/${month}/${day}/events.json`, {
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       events?: Array<{ year?: string; description?: string }>;

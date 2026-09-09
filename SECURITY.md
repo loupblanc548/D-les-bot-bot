@@ -2,20 +2,35 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security fixes are applied on the latest `main` branch of this bot.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Version               | Supported   |
+| --------------------- | ----------- |
+| `main` (latest)       | Yes         |
+| Older tagged releases | Best-effort |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please **do not** open a public GitHub issue for security vulnerabilities.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+1. Use GitHub **Security Advisories** on this repository (`Security` → `Report a vulnerability`), or
+2. Open a private report via the [security issue template](.github/ISSUE_TEMPLATE/security_issue.md) if the advisory form is unavailable.
+
+You can expect:
+
+- An acknowledgement when the report is received
+- A follow-up once the issue has been triaged
+- A fix or mitigation on `main` for confirmed issues that affect this codebase
+
+Please include:
+
+- Affected component (command, agent tool, HTTP endpoint, cron)
+- Steps to reproduce (without exploit payloads against third-party systems)
+- Impact (privilege escalation, data leak, SSRF, RCE, etc.)
+
+## Hardening notes
+
+- Control API requires `CONTROL_TOKEN` (fail-closed; timing-safe compare)
+- Outbound fetches should go through `safeFetch` / `checkUrlForSsrf` (fail-closed DNS)
+- Restricted agent tools require SOAR admin approval
+- Dashboard JWT secret (`JWT_SECRET`) is mandatory in production

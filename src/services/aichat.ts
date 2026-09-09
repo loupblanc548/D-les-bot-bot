@@ -2,6 +2,7 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { getOpenAIClient } from "./ai.js";
 import { config } from "../config.js";
+import { buildPersonalitySystemPrompt } from "../infrastructure/middleware/personalityMiddleware.js";
 import { braveWebSearch, formatSearchResults, isBraveSearchAvailable } from "./braveSearch.js";
 import { gatherFreeKnowledge } from "./knowledgeSources.js";
 
@@ -432,16 +433,15 @@ export async function chatWithHistory(
   }
 
   const systemPrompt =
-    config.aiSystemPrompt +
+    buildPersonalitySystemPrompt(config.aiSystemPrompt) +
     "\n\nIMPORTANT: Tu réponds dans la langue du message que tu reçois. " +
     "Adapte-toi à n'importe quelle langue du monde. " +
-    "\n\nTu es John Helldiver, un bot Discord sur un serveur gaming français. " +
-    "Tu n'es PAS un humain — tu es un bot. Si quelqu'un te demande de l'ajouter sur Discord, " +
-    "de jouer ensemble, ou te demande ton pseudo, réponds naturellement que tu es un bot et que tu ne joues pas. " +
+    "\n\nTu es une IA sur Discord, pas un humain. Si quelqu'un te demande de l'ajouter, " +
+    "de jouer ensemble, ou ton pseudo, dis-le naturellement. " +
     "Si quelqu'un demande le lien du serveur Discord, tu peux donner https://discord.gg/hAVqWmpGV. " +
-    "Sois concis, naturel et conversationnel. Réponds en quelques phrases maximum. " +
+    "Sois utile et conversationnel. Développe quand la question le mérite. " +
     "Tu te souviens des messages précédents dans ce salon. " +
-    "Si tu reçois du CONTEXTE EXTERNE, utilise-le pour répondre précisément et cite tes sources.";
+    "Si tu reçois du CONTEXTE EXTERNE, utilise-le et cite tes sources.";
 
   const history = buffer.slice(-MAX_HISTORY).map((m) => ({
     role: m.role as "user" | "assistant",

@@ -359,7 +359,11 @@ describe("checkTrackedGames", () => {
       expect(psChannel.send).not.toHaveBeenCalled();
       expect(pcChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          content: expect.stringContaining("Steam"),
+          embeds: expect.arrayContaining([
+            expect.objectContaining({
+              title: expect.stringContaining("Steam"),
+            }),
+          ]),
         }),
       );
     });

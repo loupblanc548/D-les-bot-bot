@@ -27,7 +27,7 @@ export async function fetchHumbleBundleDeals(): Promise<HumbleBundleDeal[]> {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json() as any[];
+    const data = (await response.json()) as any[];
     const deals: HumbleBundleDeal[] = [];
 
     for (const bundle of data) {

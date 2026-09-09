@@ -81,7 +81,8 @@ export function createPermissionGuardMiddleware(): Middleware {
         return next();
       }
       await interaction.reply({
-        content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+        content:
+          "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
         flags: [MessageFlags.Ephemeral],
       });
       return;

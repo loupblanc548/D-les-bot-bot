@@ -9,6 +9,7 @@
     "src/events/**/*.ts",
     "src/commands/**/*.ts",
     "src/cron/**/*.ts",
+    "src/modules/index.ts",
     "src/services/**/*.test.ts",
     "src/utils/**/*.test.ts"
   ],

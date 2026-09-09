@@ -261,9 +261,6 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 
 // ─── Handler fnbot (Fortnite Party Bot) ────────────────────────────────────────
 
-export async function handleFnbotCommand(
-  interaction: ChatInputCommandInteraction,
-  _client: any,
-) {
+export async function handleFnbotCommand(interaction: ChatInputCommandInteraction, _client: any) {
   await handleFortniteParty(interaction);
 }

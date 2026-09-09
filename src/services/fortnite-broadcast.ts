@@ -12,19 +12,25 @@ import logger from "../utils/logger.js";
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export interface FortniteUpdatePayload {
-  type: 'fortnite-update';
+  type: "fortnite-update";
   tweets: number;
   news: number;
   skins: number;
-  accounts: Array<{ name: string; platform: string; type: string; lastDetection: string; active: boolean }>;
-  detections: Array<{ type: 'tweets' | 'news' | 'skins'; time: string; message: string }>;
+  accounts: Array<{
+    name: string;
+    platform: string;
+    type: string;
+    lastDetection: string;
+    active: boolean;
+  }>;
+  detections: Array<{ type: "tweets" | "news" | "skins"; time: string; message: string }>;
   shop: Array<{ name: string; rarity: string; price: number; icon?: string }>;
 }
 
 // ─── État global ───────────────────────────────────────────────────────────
 
 export const fortniteState: FortniteUpdatePayload = {
-  type: 'fortnite-update',
+  type: "fortnite-update",
   tweets: 0,
   news: 0,
   skins: 0,
@@ -48,7 +54,9 @@ function rawBroadcast(data: object): void {
         client.send(payload);
       }
     }
-  } catch { logger.error("[Silent catch]"); } finally {
+  } catch {
+    logger.error("[Silent catch]");
+  } finally {
     broadcasting = false;
   }
 }
@@ -82,18 +90,15 @@ export function broadcastFortniteUpdate(update: Partial<FortniteUpdatePayload>):
 /**
  * Ajoute une détection et la diffuse en temps réel.
  */
-export function pushFortniteDetection(
-  type: 'tweets' | 'news' | 'skins',
-  message: string
-): void {
+export function pushFortniteDetection(type: "tweets" | "news" | "skins", message: string): void {
   fortniteState.detections = [
     { type, time: new Date().toISOString(), message },
     ...fortniteState.detections,
   ].slice(0, 100);
 
-  if (type === 'tweets') fortniteState.tweets++;
-  else if (type === 'news') fortniteState.news++;
-  else if (type === 'skins') fortniteState.skins++;
+  if (type === "tweets") fortniteState.tweets++;
+  else if (type === "news") fortniteState.news++;
+  else if (type === "skins") fortniteState.skins++;
 
   rawBroadcast(fortniteState);
 }
@@ -102,7 +107,12 @@ export function pushFortniteDetection(
  * Retourne l'état Fortnite actuel (pour l'endpoint API).
  */
 export function getFortniteState(): FortniteUpdatePayload {
-  return { ...fortniteState, accounts: [...fortniteState.accounts], detections: [...fortniteState.detections], shop: [...fortniteState.shop] };
+  return {
+    ...fortniteState,
+    accounts: [...fortniteState.accounts],
+    detections: [...fortniteState.detections],
+    shop: [...fortniteState.shop],
+  };
 }
 
 /**
@@ -119,7 +129,7 @@ export function resetFortniteCounters(): void {
 /**
  * Met à jour la liste des comptes surveillés.
  */
-export function setFortniteAccounts(accounts: FortniteUpdatePayload['accounts']): void {
+export function setFortniteAccounts(accounts: FortniteUpdatePayload["accounts"]): void {
   fortniteState.accounts = accounts;
   rawBroadcast(fortniteState);
 }

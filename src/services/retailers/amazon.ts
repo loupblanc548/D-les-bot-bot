@@ -149,7 +149,9 @@ async function searchScraping(
             lastSeen: new Date(),
           });
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   } catch (err) {
     logger.debug(
@@ -407,7 +409,9 @@ async function getAmazonDeals(country: CountryCode, limit = 10): Promise<Retaile
             lastSeen: new Date(),
           });
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   } catch (err) {
     logger.debug(`[Amazon] Deals error: ${err instanceof Error ? err.message : String(err)}`);

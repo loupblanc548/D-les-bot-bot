@@ -249,6 +249,8 @@ async function handleWordFilter(interaction: ChatInputCommandInteraction): Promi
     logger.error("[WordFilter] Erreur:", error);
     try {
       await interaction.editReply({ content: "❌ Erreur." });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }

@@ -13,7 +13,9 @@ vi.mock("../utils/logger", () => ({
 
 import { createLoggingMiddleware } from "./logging.js";
 
-function makeInteraction(overrides: { commandName?: string; guild?: any; guildId?: string | null } = {}) {
+function makeInteraction(
+  overrides: { commandName?: string; guild?: any; guildId?: string | null } = {},
+) {
   return {
     isChatInputCommand: () => true,
     commandName: overrides.commandName ?? "ping",

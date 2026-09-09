@@ -12,8 +12,12 @@ export function setClient(client: import("discord.js").Client): void {
   startTime = Date.now();
 }
 
-export function incrementAlerts(): void { alertCount++; }
-export function resetAlerts(): void { alertCount = 0; }
+export function incrementAlerts(): void {
+  alertCount++;
+}
+export function resetAlerts(): void {
+  alertCount = 0;
+}
 
 export function handleDashboard(req: http.IncomingMessage, res: http.ServerResponse): void {
   if (!authenticate(req, res)) return;

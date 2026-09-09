@@ -20,15 +20,7 @@ interface SearchResult {
 
 export async function searchNotifications(filters: SearchFilters): Promise<SearchResult> {
   try {
-    const {
-      query,
-      sourceId,
-      platform,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 25,
-    } = filters;
+    const { query, sourceId, platform, startDate, endDate, page = 1, limit = 25 } = filters;
 
     const where: any = {};
 
@@ -96,7 +88,7 @@ export async function searchByPlatform(platform: string, page: number = 1): Prom
 export async function searchByDateRange(
   startDate: Date,
   endDate: Date,
-  page: number = 1
+  page: number = 1,
 ): Promise<SearchResult> {
   return searchNotifications({ startDate, endDate, page });
 }

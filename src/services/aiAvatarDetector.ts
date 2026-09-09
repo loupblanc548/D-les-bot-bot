@@ -21,7 +21,7 @@ import {
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 
-const SIGNALEMENT_CHANNEL_ID = "1520866527753011220";
+const SIGNALEMENT_CHANNEL_ID = config.reportChannel;
 
 // Sightengine API (free tier: 2000 requests/month)
 const SIGHTENGINE_API_URL = "https://api.sightengine.com/1.0/check.json";
@@ -60,7 +60,9 @@ async function detectAIMedia(
           };
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   const apiKey = process.env.SIGHTENGINE_API_KEY;
@@ -428,7 +430,9 @@ export async function checkMessageLinksForSecurity(
           await sendLinkSecurityAlert(client, message, url, result);
           break;
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   } catch (err) {
     logger.error(

@@ -23,6 +23,14 @@ import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
 import { saveQA } from "../services/obsidianMemory.js";
+import { isTesterBot } from "../utils/testerBots.js";
+import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
+import {
+  isJohnPinged,
+  recordIncomingPing,
+  mentionAwarenessBlock,
+  isSendableChannel,
+} from "../services/mentionInbox.js";
 import {
   checkMessageMediaForAI,
   checkMessageLinksForSecurity,
@@ -39,14 +47,23 @@ import {
   suggestThread,
 } from "../services/agentFeedback.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "../services/gemini.js";
-import { callLlm } from "../services/aiGateway.js";
-import { isErrorResponse } from "../services/responseClassifier.js";
+import { isErrorResponse, isCannedFallback } from "../services/responseClassifier.js";
+import {
+  recoverChatReply,
+  resolveIncomingQuestion,
+  clearPendingQuestion,
+} from "../services/chatResponder.js";
+import { isPresencePing, needsAgentLoop } from "../services/agentIntent.js";
+import {
+  buildPersonalitySystemPrompt,
+  getPersonalityTemperature,
+} from "../infrastructure/middleware/personalityMiddleware.js";
 import { sendImagesFromResponse } from "../utils/imageSender.js";
-import { getCachedResponse, setCachedResponse } from "../utils/aiResponseCache.js";
+import { setCachedResponse } from "../utils/aiResponseCache.js";
 import { detectLanguage, type SupportedLang } from "../utils/languageDetector.js";
 import { simulateStreamEdit } from "../services/streamingResponse.js";
+import { scheduleSilentRecover, SILENT_RECOVER_PLACEHOLDER } from "../services/silentRecover.js";
 import { isDeepResearchRequest, runDeepResearch } from "../services/deepResearch.js";
-import { isCapabilityQuery, generateCapabilitiesEmbed } from "../services/capabilitiesGenerator.js";
 import { sendArtifacts } from "../services/artifacts.js";
 import { touchConversation, checkExpiredConversations } from "../services/aiConversation.js";
 import {
@@ -117,107 +134,53 @@ setInterval(
 
 const HELPDIVER_EMPTY_MENTION_REPLIES: Record<string, string[]> = {
   fr: [
-    "🫡 **John Helldiver** à l'écoute, soldat ! Ta mission ? Pose ta question, je suis prêt à déployer la puissance de la Super-Terre pour toi !",
-    "🎖️ Soldat ! Tu m'as appelé ? La démocratie a besoin de savoir ce que tu veux — balance ta question !",
-    "🦅 **Présent pour la Super-Terre !** Dis-moi tout, camarade. Traduction, info gaming, soutien tactique… je gère !",
-    "💪 **John Helldiver en renfort !** Pas de question = pas de victoire, soldat. Qu'est-ce que je peux faire pour toi ?",
+    "Ouais, je t'écoute — cuisine, code, devoirs, actus, Discord, ce que tu veux.",
+    "John ici. Pose ta question, je gère.",
+    "Présent. Dis-moi ce dont tu as besoin.",
+    "Je suis là. Quoi de neuf ?",
   ],
   en: [
-    "🫡 **John Helldiver** reporting in, soldier! What's your mission? Ask your question, I'm ready to deploy Super Earth's firepower for you!",
-    "🎖️ Soldier! You called? Democracy needs to know what you want — drop your question!",
-    "🦅 **Present for Super Earth!** Tell me everything, comrade. Translation, gaming intel, tactical support… I've got it!",
-    "💪 **John Helldiver reinforcements!** No question = no victory, soldier. What can I do for you?",
+    "Yeah, I'm here — cooking, code, homework, news, Discord, whatever you need.",
+    "John here. Ask away.",
+    "Present. What do you need?",
+    "I'm listening. What's up?",
   ],
   de: [
-    "🫡 **John Helldiver** hört zu, Soldat! Was ist deine Mission? Stell deine Frage, ich bin bereit, die Macht von Super-Erde für dich einzusetzen!",
-    "🎖️ Soldat! Du hast gerufen? Die Demokratie muss wissen, was du willst — stell deine Frage!",
-    "🦅 **Für Super-Erde bereit!** Sag mir alles, Kamerad. Übersetzung, Gaming-Infos, taktische Unterstützung… ich mach das!",
-    "💪 **John Helldiver als Verstärkung!** Keine Frage = kein Sieg, Soldat. Was kann ich für dich tun?",
+    "Ja, ich höre zu — Kochen, Code, Hausaufgaben, News, Discord, was du willst.",
+    "John hier. Frag einfach.",
   ],
   es: [
-    "🫡 **John Helldiver** al habla, ¡soldado! ¿Cuál es tu misión? Haz tu pregunta, ¡estoy listo para desplegar el poder de la Super-Tierra para ti!",
-    "🎖️ ¡Soldado! ¿Me llamaste? La democracia necesita saber qué quieres — ¡suelta tu pregunta!",
-    "🦅 **¡Presente para la Super-Tierra!** Dímelo todo, camarada. Traducción, info de gaming, apoyo táctico… ¡yo lo manejo!",
-    "💪 **¡John Helldiver de refuerzo!** Sin pregunta = sin victoria, soldado. ¿Qué puedo hacer por ti?",
+    "Sí, te escucho — cocina, código, deberes, noticias, Discord, lo que sea.",
+    "John aquí. Pregunta lo que quieras.",
   ],
   pt: [
-    "🫡 **John Helldiver** à escuta, soldado! Qual é a sua missão? Faça sua pergunta, estou pronto para implantar o poder da Super-Terra para você!",
-    "🎖️ Soldado! Você me chamou? A democracia precisa saber o que você quer — faça sua pergunta!",
-    "🦅 **Presente para a Super-Terra!** Diga tudo, camarada. Tradução, info de gaming, suporte tático… eu cuido disso!",
-    "💪 **John Helldiver como reforço!** Sem pergunta = sem vitória, soldado. O que posso fazer por você?",
+    "Sim, estou aqui — cozinha, código, deveres, notícias, Discord, o que você quiser.",
+    "John aqui. Manda a pergunta.",
   ],
   it: [
-    "🫡 **John Helldiver** in ascolto, soldato! Qual è la tua missione? Fai la tua domanda, sono pronto a schierare la potenza della Super-Terra per te!",
-    "🎖️ Soldato! Mi hai chiamato? La democrazia ha bisogno di sapere cosa vuoi — fai la tua domanda!",
-    "🦅 **Presente per la Super-Terra!** Dimmi tutto, compagno. Traduzione, info gaming, supporto tattico… ci penso io!",
-    "💪 **John Helldiver come rinforzo!** Nessuna domanda = nessuna vittoria, soldato. Cosa posso fare per te?",
+    "Sì, ti ascolto — cucina, codice, compiti, news, Discord, quello che vuoi.",
+    "John qui. Chiedi pure.",
   ],
   nl: [
-    "🫡 **John Helldiver** luistert, soldaat! Wat is je missie? Stel je vraag, ik ben klaar om de kracht van Super-Earde voor je in te zetten!",
-    "🎖️ Soldaat! Je riep me? De democratie moet weten wat je wilt — stel je vraag!",
-    "🦅 **Present voor Super-Earde!** Vertel me alles, kameraad. Vertaling, gaming-info, tactische steun… ik regel het!",
-    "💪 **John Helldiver als versterking!** Geen vraag = geen overwinning, soldaat. Wat kan ik voor je doen?",
+    "Ja, ik luister — koken, code, huiswerk, nieuws, Discord, whatever.",
+    "John hier. Stel je vraag.",
   ],
   sv: [
-    "🫡 **John Helldiver** lyssnar, soldat! Vad är ditt uppdrag? Ställ din fråga, jag är redo att utplacera Super-Jordens kraft för dig!",
-    "🎖️ Soldat! Kallade du på mig? Demokratin behöver veta vad du vill — ställ din fråga!",
-    "🦅 **Redo för Super-Jorden!** Berätta allt, kamrat. Översättning, gaming-info, taktiskt stöd… jag fixar det!",
-    "💪 **John Helldiver som förstärkning!** Ingen fråga = ingen seger, soldat. Vad kan jag göra för dig?",
+    "Ja, jag lyssnar — matlagning, kod, läxor, nyheter, Discord, vad du vill.",
+    "John här. Fråga på.",
   ],
-  no: [
-    "🫡 **John Helldiver** lytter, soldat! Hva er ditt oppdrag? Still ditt spørsmål, jeg er klar til å distribuere Super-Jordens kraft for deg!",
-    "🎖️ Soldat! Kalte du meg? Demokratiet trenger å vite hva du vil — still ditt spørsmål!",
-    "🦅 **Til stede for Super-Jorden!** Fortell meg alt, kamerat. Oversettelse, gaming-info, taktisk støtte… jeg fikser det!",
-    "💪 **John Helldiver som forsterkning!** Ingen spørsmål = ingen seier, soldat. Hva kan jeg gjøre for deg?",
-  ],
-  cs: [
-    "🫡 **John Helldiver** naslouchá, vojáku! Jaká je tvá mise? Polož svou otázku, jsem připraven nasadit sílu Super-Země pro tebe!",
-    "🎖️ Vojáku! Volal jsi mě? Demokracie potřebuje vědět, co chceš — polož svou otázku!",
-    "🦅 **Přítomen pro Super-Zemi!** Řekni mi všechno, soudruhu. Překlad, herní info, taktická podpora… to zvládnu!",
-    "💪 **John Helldiver jako posila!** Žádná otázka = žádné vítězství, vojáku. Co mohu pro tebe udělat?",
-  ],
-  pl: [
-    "🫡 **John Helldiver** słucha, żołnierzu! Jaka jest twoja misja? Zadaj pytanie, jestem gotów do rozmieszczenia sił Super-Ziemi dla ciebie!",
-    "🎖️ Żołnierzu! Wzywałeś mnie? Demokracja musi wiedzieć, czego chcesz — zadaj pytanie!",
-    "🦅 **Gotów dla Super-Ziemi!** Powiedz mi wszystko, towarzyszu. Tłumaczenie, info gamingowe, wsparcie taktyczne… zajmę się tym!",
-    "💪 **John Helldiver jako wsparcie!** Brak pytania = brak zwycięstwa, żołnierzu. Co mogę dla ciebie zrobić?",
-  ],
+  no: ["Ja, jeg hører — mat, kode, lekser, nyheter, Discord, hva du vil.", "John her. Spør i vei."],
+  cs: ["Jo, poslouchám — vaření, kód, úkoly, zprávy, Discord, cokoliv.", "John tady. Ptej se."],
+  pl: ["Tak, słucham — gotowanie, kod, zadania, newsy, Discord, cokolwiek.", "John tutaj. Pytaj."],
   tr: [
-    "🫡 **John Helldiver** dinliyor, asker! Görevin ne? Sorunu sor, Süper Dünya'nın gücünü senin için kullanmaya hazırım!",
-    "🎖️ Asker! Beni mi çağırdın? Demokrasi ne istediğini bilmeli — sorunu sor!",
-    "🦅 **Süper Dünya için hazırım!** Bana her şeyi anlat, yoldaş. Çeviri, oyun bilgisi, taktik destek… ben hallederim!",
-    "💪 **John Helldiver takviye olarak!** Soru yok = zafer yok, asker. Senin için ne yapabilirim?",
+    "Evet, dinliyorum — yemek, kod, ödev, haber, Discord, ne istersen.",
+    "John burada. Sorunu sor.",
   ],
-  ru: [
-    "🫡 **Джон Хеллдайвер** на связи, солдат! Какова твоя миссия? Задавай вопрос, я готов применить мощь Супер-Земли для тебя!",
-    "🎖️ Солдат! Ты звал меня? Демократии нужно знать, чего ты хочешь — задавай вопрос!",
-    "🦅 **Готов служить Супер-Земле!** Расскажи мне всё, товарищ. Перевод, игровая информация, тактическая поддержка… я всё улажу!",
-    "💪 **Джон Хеллдайвер в качестве подкрепления!** Нет вопроса = нет победы, солдат. Что я могу для тебя сделать?",
-  ],
-  ja: [
-    "🫡 **ジョン・ヘルダイバー**が聞いています、兵士！ミッションは何ですか？質問してください、スーパーアースの力をあなたのために展開する準備ができています！",
-    "🎖️ 兵士！呼びましたか？民主主義はあなたが何を望んでいるかを知る必要があります — 質問してください！",
-    "🦅 **スーパーアースのために！** 全部教えてください、同志。翻訳、ゲーム情報、戦術サポート…私がやります！",
-    "💪 **ジョン・ヘルダイバーが増援として！** 質問なし＝勝利なし、兵士。何ができますか？",
-  ],
-  zh: [
-    "🫡 **约翰·地狱潜者**在听，士兵！你的任务是什么？提问吧，我准备为你部署超级地球的力量！",
-    "🎖️ 士兵！你叫我？民主需要知道你想要什么 — 提问吧！",
-    "🦅 **为超级地球效劳！** 告诉我一切，同志。翻译、游戏信息、战术支援…我来处理！",
-    "💪 **约翰·地狱潜者作为增援！** 没问题 = 没胜利，士兵。我能为你做什么？",
-  ],
-  ar: [
-    "🫡 **جون هيلدايفر** يستمع، أيها الجندي! ما مهمتك؟ اطرح سؤالك، أنا مستعد لنشر قوة الأرض العظمى من أجلك!",
-    "🎖️ أيها الجندي! هل ناديتني؟ الديمقراطية بحاجة لمعرفة ما تريد — اطرح سؤالك!",
-    "🦅 **حاضر من أجل الأرض العظمى!** أخبرني بكل شيء، يا رفيق. ترجمة، معلومات الألعاب، دعم تكتيكي… أنا أتولى الأمر!",
-    "💪 **جون هيلدايفر كتعزيزات!** لا سؤال = لا نصر، أيها الجندي. ماذا يمكنني أن أفعل لك؟",
-  ],
-  ko: [
-    "🫡 **존 헬다이버**가 듣고 있습니다, 병사! 임무가 무엇입니까? 질문하세요, 슈퍼어스의 힘을 당신을 위해 배치할 준비가 되어 있습니다!",
-    "🎖️ 병사! 나를 불렀나요? 민주주의는 당신이 원하는 것을 알아야 합니다 — 질문하세요!",
-    "🦅 **슈퍼어스를 위해!** 모든 것을 말해주세요, 동지. 번역, 게임 정보, 전술 지원… 제가 처리합니다!",
-    "💪 **존 헬다이버가 증원으로!** 질문 없음 = 승리 없음, 병사. 무엇을 도와드릴까요?",
-  ],
+  ru: ["Да, я здесь — готовка, код, учёба, новости, Discord, что угодно.", "Это Джон. Спрашивай."],
+  ja: ["いるよ。料理でもコードでも宿題でも、何でも聞いて。", "ジョンだ。どうぞ。"],
+  zh: ["在的。做饭、代码、作业、新闻、Discord，随便问。", "我是 John。说吧。"],
+  ar: ["نعم، أسمعك — طبخ، برمجة، واجبات، أخبار، ديسكورد، أي شيء.", "جون هنا. اسأل."],
+  ko: ["응, 듣고 있어 — 요리, 코드, 숙제, 뉴스, 디스코드, 뭐든.", "존이야. 물어봐."],
 };
 
 function getRandomHelldiverReply(lang: SupportedLang = "fr"): string {
@@ -415,21 +378,31 @@ export function handleMessageEvents(client: Client) {
   client.on("messageCreate", async (message) => {
     try {
       if (message.author.bot) {
-        // ── Exception: le bot peut se mentionner lui-même dans le salon
-        //    d'alertes revendeurs pour déclencher Quent (via /track-retailer) ──
-        const isRetailerChannel = message.channelId === "1532189747500421152";
-        const isSelfMention = message.mentions.has(client.user!);
-        if (isRetailerChannel && isSelfMention) {
-          // Traiter comme une mention normale → handleAiChatMention
+        const pinged = client.user ? isJohnPinged(message, client.user.id) : false;
+        const isRetailerChannel =
+          Boolean(config.retailerChannel) && message.channelId === config.retailerChannel;
+        // Tester bot (« encore un test ») may @John so we can drive live checks.
+        if (pinged && (isTesterBot(message.author.id) || isRetailerChannel)) {
+          recordIncomingPing(message);
           await handleAiChatMention(message, client);
-          return;
         }
         return;
       }
 
+      const pinged = Boolean(client.user && isJohnPinged(message, client.user.id));
+      if (pinged) recordIncomingPing(message);
+
       // ── DM (Message Privé) → l'agent IA répond directement ──
       if (!message.guild) {
         await handleDMMessage(message, client);
+        return;
+      }
+
+      // ── Ping John : n'importe quel salon (texte, fil, annonce, vocal) ──
+      if (pinged) {
+        const handled = await handleVoiceCommand(message, client);
+        if (handled) return;
+        await handleAiChatMention(message, client);
         return;
       }
 
@@ -558,19 +531,27 @@ export function handleMessageEvents(client: Client) {
       }
 
       // ── Salon de rapports manuels : ping auto ──────────────────────
-      if (message.channel.id === "1515767173740757112" && !message.author.bot) {
-        const REPORT_ROLE_ID = "1402362014264983762";
+      if (
+        config.manualReportChannel &&
+        message.channel.id === config.manualReportChannel &&
+        !message.author.bot
+      ) {
+        const reportRoleId = config.reportRoleId;
         try {
           await message.reply({
-            content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
-            allowedMentions: { roles: [REPORT_ROLE_ID] },
+            content: reportRoleId
+              ? `<@&${reportRoleId}> 📢 Nouveau rapport manuel de <@${message.author.id}>`
+              : `📢 Nouveau rapport manuel de <@${message.author.id}>`,
+            allowedMentions: reportRoleId ? { roles: [reportRoleId] } : undefined,
           });
         } catch {
           // Fallback: send in channel directly
           try {
             await (message.channel as TextChannel).send({
-              content: `<@&${REPORT_ROLE_ID}> 📢 Nouveau rapport manuel de <@${message.author.id}>`,
-              allowedMentions: { roles: [REPORT_ROLE_ID] },
+              content: reportRoleId
+                ? `<@&${reportRoleId}> 📢 Nouveau rapport manuel de <@${message.author.id}>`
+                : `📢 Nouveau rapport manuel de <@${message.author.id}>`,
+              allowedMentions: reportRoleId ? { roles: [reportRoleId] } : undefined,
             });
           } catch {
             logger.error("[Silent catch]");
@@ -589,26 +570,9 @@ export function handleMessageEvents(client: Client) {
       const ruleViolated = await enforceServerRules(message);
       if (ruleViolated) return;
 
-      const isMentioningBot = message.mentions.has(client.user!);
+      // Les @pings John sont déjà traités en tête de handler (tous salons).
 
-      // ═══════════════════════════════════════════════════════════════════
-      // PROTECTION MUTUELLE : Un message NE PEUT PAS déclencher
-      // le chat IA ET la traduction automatique simultanément.
-      // ═══════════════════════════════════════════════════════════════════
-
-      // ── BRANCHEMENT 0 : @bot parle texte:"..." → TTS vocal ───────────
-      if (isMentioningBot) {
-        const handled = await handleVoiceCommand(message, client);
-        if (handled) return;
-      }
-
-      // ── BRANCHEMENT 1 : MODE CHAT IA (@mention du bot) ────────────────
-      if (isMentioningBot) {
-        await handleAiChatMention(message, client);
-        return; // ← PROTECTION MUTUELLE : on sort immédiatement
-      }
-
-      // ── BRANCHEMENT 2 : MODE TRADUCTION AUTOMATIQUE (pas de @mention) ─
+      // ── MODE TRADUCTION AUTOMATIQUE (pas de @mention) ─
       await handleAutoTranslation(message);
 
       // ── Les modules de sécurité continuent après la traduction ────────
@@ -1465,15 +1429,55 @@ async function generateEdgeTTS(
 // BRANCHEMENT 1 : CHAT IA PAR @MENTION
 // =============================================================================
 
+function discordChatPrompt(): string {
+  return (
+    buildPersonalitySystemPrompt(config.aiSystemPrompt) +
+    mentionAwarenessBlock() +
+    CHAT_FIRST_COMMANDS_HINT
+  );
+}
+
+async function retryInsteadOfGo(
+  message: Message,
+  question: string,
+  statusIndicator: AgentStatusIndicator,
+): Promise<void> {
+  void statusIndicator.cleanup();
+  const placeholder = await message
+    .reply({ content: SILENT_RECOVER_PLACEHOLDER, allowedMentions: { repliedUser: false } })
+    .catch(() => null);
+  if (!placeholder) return;
+  scheduleSilentRecover({
+    userId: message.author.id,
+    question,
+    placeholder,
+    systemPrompt: discordChatPrompt(),
+    guildId: message.guildId ?? undefined,
+  });
+}
+
+function markTalkingOnline(client: Client): void {
+  const user = client.user;
+  if (!user) return;
+  void import("../services/presenceRotator.js")
+    .then(({ applyCurrentPresence }) => applyCurrentPresence(client))
+    .catch(() => undefined);
+}
+
 async function handleAiChatMention(
   message: OmitPartialGroupDMChannel<Message<boolean>>,
   client: Client,
 ): Promise<void> {
+  markTalkingOnline(client);
+  if (!isSendableChannel(message)) {
+    logger.warn(`[AIChat] Ping reçu mais salon non textuel: ${message.channelId}`);
+    return;
+  }
   const statusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   let userLang: SupportedLang = "fr";
   try {
     // Nettoyer le message : retirer la mention du bot
-    const cleanedContent = message.content
+    let cleanedContent = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
 
@@ -1486,20 +1490,57 @@ async function handleAiChatMention(
       );
     }
     if (!cleanedContent && !hasAttachments) {
-      const langDetection = detectLanguage(message.content || "");
-      await message.reply({
-        content: getRandomHelldiverReply(langDetection.lang),
-        allowedMentions: { repliedUser: false },
-      });
-      return;
+      const pendingRetry = resolveIncomingQuestion(message.author.id, "", false);
+      if (!pendingRetry) {
+        const langDetection = detectLanguage(message.content || "");
+        await message.reply({
+          content: getRandomHelldiverReply(langDetection.lang),
+          allowedMentions: { repliedUser: false },
+        });
+        return;
+      }
+      logger.info(
+        `[AIChat] Empty mention — retrying last unanswered question for ${message.author.id}`,
+      );
+      cleanedContent = pendingRetry;
+    } else {
+      const original = cleanedContent;
+      cleanedContent = resolveIncomingQuestion(message.author.id, cleanedContent, hasAttachments);
+      if (cleanedContent && cleanedContent !== original) {
+        logger.info(`[AIChat] Retry cue — replaying last unanswered question`);
+      }
     }
-    // Si on a des attachments mais pas de texte, utiliser un prompt par défaut
     const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
 
-    // ── Détection "que peux-tu faire ?" → affiche le tableau des capacités ──
-    if (isCapabilityQuery(cleanedContent)) {
-      const embed = generateCapabilitiesEmbed();
-      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+    // « tu es là » → une vraie phrase via le chat, pas un embed / une commande.
+    if (isPresencePing(cleanedContent) && !hasAttachments) {
+      try {
+        const { respondChat } = await import("../services/chatResponder.js");
+        const result = await respondChat(cleanedContent || "tu es là ?", [], {
+          systemPrompt: discordChatPrompt(),
+          temperature: getPersonalityTemperature(),
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          maxTokens: 200,
+          deadlineMs: 12_000,
+        });
+        const text = result.content?.trim() ?? "";
+        if (
+          text &&
+          result.provider !== "fallback" &&
+          !isErrorResponse(text) &&
+          !isCannedFallback(text)
+        ) {
+          await message.reply({ content: text, allowedMentions: { repliedUser: false } });
+          return;
+        }
+      } catch {
+        // fallback local
+      }
+      await message.reply({
+        content: "Oui, je suis là.",
+        allowedMentions: { repliedUser: false },
+      });
       return;
     }
 
@@ -1557,7 +1598,9 @@ async function handleAiChatMention(
     }
 
     // ── Indicateur de frappe minimal (non-bloquant) ──
-    (message.channel as TextChannel).sendTyping().catch(() => {});
+    if (message.channel.isTextBased() && "sendTyping" in message.channel) {
+      (message.channel as TextChannel).sendTyping().catch(() => {});
+    }
 
     // ── Pré-traitement en arrière-plan (non-bloquant) ──
     touchConversation(message.author.id);
@@ -1655,119 +1698,41 @@ async function handleAiChatMention(
       // Si le deep research échoue, on continue vers l'agent loop
     }
 
-    // ── FAST PATH: chat simple sans tools → streaming direct, skip agent loop ──
-    // Si le message est court et ne contient pas de keywords de tools, on répond
-    // directement sans passer par l'agent loop (économise ~2-5s de latence)
-    const lowerMsgEarly = enrichedContent.toLowerCase();
-    const toolKeywords = [
-      "cherche",
-      "search",
-      "recherche",
-      "trouve",
-      "find",
-      "look up",
-      "analyse",
-      "analyze",
-      "scan",
-      "vérifie",
-      "check",
-      "test",
-      "calcule",
-      "calculate",
-      "compute",
-      "résous",
-      "solve",
-      "convert",
-      "transform",
-      "encode",
-      "decode",
-      "hash",
-      "météo",
-      "weather",
-      "prix",
-      "price",
-      "crypto",
-      "stock",
-      "github",
-      "repo",
-      "commit",
-      "issue",
-      "pull request",
-      "site",
-      "url",
-      "page",
-      "lien",
-      "link",
-      "http",
-      "image",
-      "screenshot",
-      "photo",
-      "génère",
-      "generate",
-      "dessine",
-      "code",
-      "script",
-      "exécute",
-      "execute",
-      "run",
-      "wikipedia",
-      "wiki",
-      "news",
-      "article",
-      "video",
-      "youtube",
-      "meme",
-      "blague",
-      "joke",
-      "citation",
-      "quote",
-      "translate",
-      "traduis",
-      "langue",
-      "language",
-      "stock",
-      "prix",
-      "deal",
-      "promo",
-      "shop",
-      "boutique",
-      "server",
-      "serveur",
-      "ping",
-      "ip",
-      "dns",
-      "domain",
-      "password",
-      "mot de passe",
-      "token",
-      "clé",
-      "key",
-    ];
-    const hasToolIntent = toolKeywords.some((kw) => lowerMsgEarly.includes(kw));
-    const isComplexOrTool = hasToolIntent || effectiveContent.length > 200;
+    // ── FAST PATH: bavardage court sans vraie question → skip agent loop ──
+    // Les questions / tâches (code, cuisine, devoirs, recherche…) passent par l'agent.
+    const isComplexOrTool = needsAgentLoop(effectiveContent) || imageUrls.length > 0;
+    let skipAgentDueToOutage = false;
 
     if (!isComplexOrTool) {
       // Chat simple → réponse rapide via le gateway (multi-providers, pas de message d'erreur)
       try {
         const { respondChat } = await import("../services/chatResponder.js");
-        const { isAiHallucinatedError: isHalluc } =
-          await import("../services/aiFallbackHelpers.js");
         const streamMsg = await (message as Message).reply("💭 ...");
         const result = await respondChat(enrichedContent, [], {
-          systemPrompt:
-            "Tu es un assistant IA utile et amical sur Discord. Réponds en français de manière concise et naturelle.",
+          systemPrompt: discordChatPrompt(),
+          temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
-          maxTokens: 1000,
+          maxTokens: 1500,
           deadlineMs: 15_000,
         });
         const fastText = result.content?.trim() ?? "";
-        if (fastText && !isHalluc(fastText)) {
+        const fastUsable =
+          Boolean(fastText) &&
+          result.provider !== "fallback" &&
+          !isErrorResponse(fastText) &&
+          !isCannedFallback(fastText);
+        if (fastUsable) {
+          clearPendingQuestion(message.author.id);
           await simulateStreamEdit(streamMsg, fastText);
           logger.info(
             `[AIChat] ⚡ Fast-path réussi via ${result.provider} (${fastText.length} chars, ${result.latencyMs}ms)`,
           );
           return;
+        }
+        // Total outage: skip the agent loop so recover can give local-llm a fresh budget.
+        if (result.provider === "fallback") {
+          skipAgentDueToOutage = true;
         }
         // Hallucination ou vide: supprimer le placeholder et continuer vers l'agent loop
         await streamMsg.delete().catch(() => {});
@@ -1781,68 +1746,57 @@ async function handleAiChatMention(
     // ── AGENT LOOP : Think → Act → Observe → Respond ──
     // L'IA reçoit les tools, réfléchit, exécute des actions si nécessaire,
     // puis synthétise sa réponse finale.
-    let aiResponse: string;
-    try {
-      aiResponse = await runAgentLoop(
-        message as Message,
-        enrichedContent,
-        (toolName, iter) => {
-          void statusIndicator.onToolCall(toolName, iter);
-        },
-        undefined,
-        imageUrls,
-      );
-    } catch (loopError) {
-      logger.warn(
-        `[AIChat] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
-      );
-      aiResponse = "";
-    }
-
-    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
-    if (!aiResponse || isErrorResponse(aiResponse)) {
-      logger.warn(
-        `[AIChat] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`,
-      );
+    let aiResponse = "";
+    if (!skipAgentDueToOutage) {
       try {
-        const fallbackResult = await callLlm({
-          messages: [
-            {
-              role: "system",
-              content:
-                config.aiSystemPrompt +
-                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            },
-            { role: "user", content: enrichedContent.slice(0, 4000) },
-          ],
-          maxTokens: 500,
-          timeoutMs: 15_000,
-          deadlineMs: 20_000,
-          userId: message.author.id,
-          guildId: message.guildId ?? undefined,
-          commandName: "chat-fallback",
-        });
-        if (fallbackResult.content && !isErrorResponse(fallbackResult.content)) {
-          aiResponse = fallbackResult.content;
-          logger.info(`[AIChat] Fallback aiGateway réussi via ${fallbackResult.provider}`);
-        }
-      } catch (fallbackErr) {
-        logger.error(
-          `[AIChat] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
+        aiResponse = await runAgentLoop(
+          message as Message,
+          enrichedContent,
+          (toolName, iter) => {
+            void statusIndicator.onToolCall(toolName, iter);
+          },
+          undefined,
+          imageUrls,
         );
+      } catch (loopError) {
+        logger.warn(
+          `[AIChat] AgentLoop échoué, fallback via aiGateway: ${loopError instanceof Error ? loopError.message : String(loopError)}`,
+        );
+        aiResponse = "";
       }
+    } else {
+      logger.warn("[AIChat] Providers down on fast-path — skip agent loop, recover immediately");
     }
 
-    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
+    // ── Si l'agent loop a échoué ou retourné une erreur, retry multi-provider ──
     if (!aiResponse || isErrorResponse(aiResponse)) {
-      aiResponse =
-        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
+      logger.warn(`[AIChat] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
+      aiResponse = await recoverChatReply(aiResponse, enrichedContent, {
+        systemPrompt: discordChatPrompt(),
+        userId: message.author.id,
+        guildId: message.guildId ?? undefined,
+        maxTokens: 1500,
+        deadlineMs: 20_000,
+      });
+    } else {
+      clearPendingQuestion(message.author.id);
     }
 
-    // ── Stocker la réponse dans le cache sémantique ──
+    // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──
     // Ne pas cacher les réponses génériques du LLM local (qwen2.5:3b)
-    if (aiResponse && !aiResponse.includes("⚠️") && !isGenericLocalResponse(aiResponse)) {
+    if (
+      aiResponse &&
+      !aiResponse.includes("⚠️") &&
+      !isGenericLocalResponse(aiResponse) &&
+      !isErrorResponse(aiResponse) &&
+      !isCannedFallback(aiResponse)
+    ) {
       void setCachedResponse(enrichedContent, aiResponse, message.author.id);
+    }
+
+    if (isCannedFallback(aiResponse) || !aiResponse.trim()) {
+      await retryInsteadOfGo(message as Message, enrichedContent, statusIndicator);
+      return;
     }
 
     if (aiResponse) {
@@ -1965,13 +1919,12 @@ async function handleAiChatMention(
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const errorFallbackMsgs: Record<string, { overload: string; error: string }> = {
         fr: {
-          overload:
-            "🦅 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat.",
-          error: "🦅 *Static* — Problème de transmission. Le QG est notifié. Réessaie.",
+          overload: "Les canaux sont saturés. Réessaie dans quelques secondes.",
+          error: "Petit souci de transmission. Réessaie dans un instant.",
         },
         en: {
-          overload: "🦅 *Static* — Orbital relay saturated. Try again in a few seconds, soldier.",
-          error: "🦅 *Static* — Transmission problem. HQ has been notified. Try again.",
+          overload: "Channels are saturated. Try again in a few seconds.",
+          error: "Transmission glitch. Try again in a moment.",
         },
         de: {
           overload:
@@ -2062,8 +2015,12 @@ async function handleDMMessage(
 ): Promise<void> {
   const dmStatusIndicator = new AgentStatusIndicator(message.channel as TextChannel);
   try {
-    const content = message.content.trim();
+    const contentRaw = message.content.trim();
     const hasDmAttachments = [...message.attachments.values()].some(isMediaAttachment);
+    const content = resolveIncomingQuestion(message.author.id, contentRaw, hasDmAttachments);
+    if (content && content !== contentRaw) {
+      logger.info(`[DM] Retry cue — replaying last unanswered question`);
+    }
     if (!content && !hasDmAttachments) return;
     const effectiveDmContent = content || "Analyse cette image et dis-moi ce que tu vois.";
 
@@ -2099,7 +2056,9 @@ async function handleDMMessage(
     }
 
     // ── Indicateur de frappe minimal (non-bloquant) ──
-    (message.channel as TextChannel).sendTyping().catch(() => {});
+    if (message.channel.isTextBased() && "sendTyping" in message.channel) {
+      (message.channel as TextChannel).sendTyping().catch(() => {});
+    }
 
     if (dmImageAttachments.length > 0 || dmEmbedImageUrls.length > 0) {
       dmImageUrls = [
@@ -2192,47 +2151,33 @@ async function handleDMMessage(
       aiResponse = "";
     }
 
-    // ── Si l'agent loop a échoué ou retourné une erreur, fallback unifié via aiGateway ──
+    // ── Si l'agent loop a échoué ou retourné une erreur, retry multi-provider ──
     if (!aiResponse || isErrorResponse(aiResponse)) {
-      logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, fallback via aiGateway.callLlm`);
-      try {
-        const dmFallbackResult = await callLlm({
-          messages: [
-            {
-              role: "system",
-              content:
-                config.aiSystemPrompt +
-                "\n\nTu es John Helldiver, réponds en français par défaut, sois concis et naturel.",
-            },
-            { role: "user", content: dmEnrichedContent.slice(0, 4000) },
-          ],
-          maxTokens: 500,
-          timeoutMs: 15_000,
-          deadlineMs: 20_000,
-          userId: message.author.id,
-          guildId: message.guildId ?? undefined,
-          commandName: "dm-fallback",
-        });
-        if (dmFallbackResult.content && !isErrorResponse(dmFallbackResult.content)) {
-          aiResponse = dmFallbackResult.content;
-          logger.info(`[DM] Fallback aiGateway réussi via ${dmFallbackResult.provider}`);
-        }
-      } catch (fallbackErr) {
-        logger.error(
-          `[DM] Fallback aiGateway échoué: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
-        );
-      }
+      logger.warn(`[DM] AgentLoop a retourné une erreur ou vide, recovery multi-provider`);
+      aiResponse = await recoverChatReply(aiResponse, dmEnrichedContent, {
+        systemPrompt: discordChatPrompt(),
+        userId: message.author.id,
+        guildId: message.guildId ?? undefined,
+        maxTokens: 1500,
+        deadlineMs: 20_000,
+      });
+    } else {
+      clearPendingQuestion(message.author.id);
     }
 
-    // ── Si toujours vide ou erreur, dernier recours: message conversationnel honnête ──
-    if (!aiResponse || isErrorResponse(aiResponse)) {
-      aiResponse =
-        "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
-    }
-
-    // ── Stocker la réponse dans le cache sémantique ──
-    if (aiResponse && !aiResponse.includes("⚠️")) {
+    // ── Stocker la réponse dans le cache sémantique (jamais les replis canned) ──
+    if (
+      aiResponse &&
+      !aiResponse.includes("⚠️") &&
+      !isErrorResponse(aiResponse) &&
+      !isCannedFallback(aiResponse)
+    ) {
       void setCachedResponse(dmEnrichedContent, aiResponse, message.author.id);
+    }
+
+    if (isCannedFallback(aiResponse) || !aiResponse.trim()) {
+      await retryInsteadOfGo(message as Message, dmEnrichedContent, dmStatusIndicator);
+      return;
     }
 
     if (aiResponse) {
@@ -2337,8 +2282,8 @@ async function handleDMMessage(
       const errMsg = error instanceof Error ? error.message : String(error);
       const isOverload = /429|rate.limit|overload|timeout|503/i.test(errMsg);
       const userMsg = isOverload
-        ? "🦉 *Static* — Le relais orbital est saturé. Réessaie dans quelques secondes, soldat."
-        : "🦉 *Static* — Problème de transmission. Le QG est notifié. Réessaie.";
+        ? "Les canaux sont saturés. Réessaie dans quelques secondes."
+        : "Petit souci de transmission. Réessaie dans un instant.";
       await message.reply({
         content: userMsg,
         allowedMentions: { repliedUser: false },

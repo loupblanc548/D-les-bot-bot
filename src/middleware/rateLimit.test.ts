@@ -65,7 +65,8 @@ function makeInteraction(overrides: {
     guild: guildId ? { ownerId: overrides.isOwner ? "u_owner" : "u_other" } : null,
     inGuild: () => !!guildId,
 
-    user: { id: overrides.isOwner ? "u_owner" : "u1", tag: "user#0001" },    member: overrides.isAdmin
+    user: { id: overrides.isOwner ? "u_owner" : "u1", tag: "user#0001" },
+    member: overrides.isAdmin
       ? { permissions: { has: (f: bigint) => f === PermissionsBitField.Flags.Administrator } }
       : { permissions: { has: () => false } },
     deferred: false,

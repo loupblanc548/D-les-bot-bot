@@ -2,12 +2,14 @@
 
 ## Provider Order
 
-Default: `local → openai → openrouter`
+Default: `openai → openrouter` while local Ollama is in **standby**
+(Qwen weights stay on disk). After the Llama install: `local → openai → openrouter`.
 
-### 1. Local (Ollama) — Primary
+### 1. Local (Ollama) — Standby until Llama
 
-- **When to use**: Short prompts, chat, translation, simple Q&A
-- **Model**: `qwen2.5:7b-fast` (CPU) or `qwen2.5:14b` (with swap)
+- **When to use**: Off by default (`LOCAL_LLM_ENABLED=false`, `OLLAMA_STANDBY=true`)
+- **Unload RAM**: `bash scripts/ollama-standby.sh` (never `ollama rm`)
+- **Model (later)**: Llama on the mini PC; Qwen 3B/7B/14B stay installed unused
 - **Timeout**: 30s (chat), 90s (tools)
 - **Concurrency**: Max 4 parallel requests
 - **Circuit breaker**: Opens after 4 failures, 60s cooldown
@@ -51,10 +53,14 @@ Default: `local → openai → openrouter`
 ## Environment Variables
 
 ```env
-LOCAL_LLM_ENABLED=true
+LOCAL_LLM_ENABLED=false
+OLLAMA_STANDBY=true
+# Later (Llama):
+# LOCAL_LLM_ENABLED=true
+# OLLAMA_STANDBY=false
+# LOCAL_LLM_MODEL=llama3.1:8b
 LOCAL_LLM_URL=http://127.0.0.1:11434/v1
-LOCAL_LLM_MODEL=qwen2.5:7b-fast
-AI_PROVIDER_ORDER=local,openai,openrouter
+AI_PROVIDER_ORDER=openai,openrouter
 LLM_MAX_CONCURRENCY_LOCAL=4
 AI_MAX_CONCURRENCY_CLOUD=4
 LLM_TIMEOUT_LOCAL_MS=30000

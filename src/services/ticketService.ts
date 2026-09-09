@@ -179,7 +179,9 @@ export async function createTicket(
     const embed = new EmbedBuilder()
       .setColor(0x00f0ff)
       .setTitle("🎫 Ticket créé")
-      .setDescription(`${welcomeMsg}\n\n**Utilisateur:** ${member.toString()}\n**Sujet:** ${topic || "Non précisé"}`)
+      .setDescription(
+        `${welcomeMsg}\n\n**Utilisateur:** ${member.toString()}\n**Sujet:** ${topic || "Non précisé"}`,
+      )
       .setFooter({ text: `Ticket ID: ${ticketChannel.id}` })
       .setTimestamp();
 
@@ -272,7 +274,9 @@ export async function closeTicket(
 
     // Générer le transcript
     const messages = await channel.messages.fetch({ limit: 100 });
-    const sorted = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    const sorted = Array.from(messages.values()).sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp,
+    );
     const transcript = sorted
       .map((m) => {
         const time = m.createdAt.toLocaleString("fr-FR");
@@ -322,10 +326,7 @@ export async function closeTicket(
 
 // ─── Ticket Add User ─────────────────────────────────────────────────────────
 
-export async function addUserToTicket(
-  channel: TextChannel,
-  userId: string,
-): Promise<boolean> {
+export async function addUserToTicket(channel: TextChannel, userId: string): Promise<boolean> {
   try {
     await channel.permissionOverwrites.edit(userId, {
       ViewChannel: true,

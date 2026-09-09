@@ -11,7 +11,7 @@ import {
 export async function requestConfirmation(
   interaction: CommandInteraction,
   message: string,
-  timeoutMs: number = 30000
+  timeoutMs: number = 30000,
 ): Promise<boolean> {
   const confirmButton = new ButtonBuilder()
     .setCustomId("confirm")
@@ -23,10 +23,7 @@ export async function requestConfirmation(
     .setLabel("❌ Annuler")
     .setStyle(ButtonStyle.Danger);
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    confirmButton,
-    cancelButton
-  );
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirmButton, cancelButton);
 
   const response = await interaction.reply({
     content: `⚠️ **Confirmation requise**\n${message}`,
@@ -36,12 +33,10 @@ export async function requestConfirmation(
   });
 
   try {
-    const collected =
-      await response.awaitMessageComponent<ComponentType.Button>({
-        filter: (i: MessageComponentInteraction) =>
-          i.user.id === interaction.user.id,
-        time: timeoutMs,
-      });
+    const collected = await response.awaitMessageComponent<ComponentType.Button>({
+      filter: (i: MessageComponentInteraction) => i.user.id === interaction.user.id,
+      time: timeoutMs,
+    });
 
     if (collected.customId === "confirm") {
       await collected.update({ content: "✅ Action confirmee.", components: [] }).catch(() => {});

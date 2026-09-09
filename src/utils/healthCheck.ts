@@ -49,7 +49,9 @@ export async function runHealthCheck(client?: Client): Promise<HealthStatus> {
   };
 }
 
-async function checkDiscord(client?: Client): Promise<{ ok: boolean; latency?: number; detail: string }> {
+async function checkDiscord(
+  client?: Client,
+): Promise<{ ok: boolean; latency?: number; detail: string }> {
   if (!client) return { ok: false, detail: "Client non fourni" };
   if (!client.isReady()) return { ok: false, detail: "Client Discord non prêt" };
   const start = Date.now();
@@ -73,7 +75,9 @@ async function checkDatabase(): Promise<{ ok: boolean; latency?: number; detail:
     const latency = Date.now() - start;
     return { ok: true, latency, detail: "PostgreSQL accessible" };
   } catch (err) {
-    logger.warn(`[HealthCheck] DB check failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[HealthCheck] DB check failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return { ok: false, detail: "PostgreSQL inaccessible" };
   }
 }

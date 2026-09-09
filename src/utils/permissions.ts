@@ -6,7 +6,12 @@
  * Ce fichier garde les helpers simples pour utilisation légère dans les utils.
  */
 
-import { PermissionsBitField, type GuildMember, type TextChannel, type PermissionResolvable } from "discord.js";
+import {
+  PermissionsBitField,
+  type GuildMember,
+  type TextChannel,
+  type PermissionResolvable,
+} from "discord.js";
 
 /** Vérifie si un membre a une permission spécifique */
 export function hasPermission(member: GuildMember, permission: PermissionResolvable): boolean {
@@ -46,9 +51,7 @@ export function canViewChannel(member: GuildMember, channel: TextChannel): boole
 
 /** Vérifie si un membre peut envoyer des messages dans un salon */
 export function canSendInChannel(member: GuildMember, channel: TextChannel): boolean {
-  return (
-    channel.permissionsFor(member)?.has(PermissionsBitField.Flags.SendMessages) ?? false
-  );
+  return channel.permissionsFor(member)?.has(PermissionsBitField.Flags.SendMessages) ?? false;
 }
 
 /** Vérifie si un membre est admin ou propriétaire du serveur */
@@ -58,7 +61,10 @@ export function isAdminOrOwner(member: GuildMember): boolean {
 }
 
 /** Retourne la liste des permissions manquantes pour une action */
-export function getMissingPermissions(member: GuildMember, required: PermissionResolvable[]): string[] {
+export function getMissingPermissions(
+  member: GuildMember,
+  required: PermissionResolvable[],
+): string[] {
   const missing: string[] = [];
   for (const perm of required) {
     if (!member.permissions.has(perm)) {

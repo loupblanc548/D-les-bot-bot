@@ -1,23 +1,22 @@
 /**
  * localLlm.ts — LLM local via Ollama (OpenAI-compatible API)
  *
- * Ollama expose une API OpenAI-compatible sur http://localhost:11434/v1
- * Modèle recommandé: qwen2.5:14b (9GB RAM avec swap, function calling robuste)
+ * Qwen (3B / 7B / 14B) is on standby by default: weights stay on disk,
+ * nothing is loaded into RAM. Cloud APIs handle chat until a later Llama install.
  *
- * Utilisé en priorité pour les tâches simples (chat, traduction, réponses courtes).
- * Si le modèle local échoue ou est indisponible, fallback vers OpenRouter/NVIDIA.
+ * Wake-up (mini PC): LOCAL_LLM_ENABLED=true and OLLAMA_STANDBY=false.
+ * See src/utils/localLlmGate.ts and docs/LOCAL_LLM_SETUP.md.
  */
 
 import OpenAI from "openai";
 import logger from "../utils/logger.js";
+import { shouldUseLocalOllama } from "../utils/localLlmGate.js";
 
 const LOCAL_LLM_URL = process.env.LOCAL_LLM_URL || "http://127.0.0.1:11434/v1";
 const LOCAL_LLM_MODEL = process.env.LOCAL_LLM_MODEL || "qwen2.5:14b";
 // Optional vision model (for example qwen2.5vl:7b or llava:latest).
 // The text model is never sent an image unless it is explicitly configured as a vision model.
 const LOCAL_LLM_VISION_MODEL = process.env.LOCAL_LLM_VISION_MODEL?.trim() || "";
-// Standby: set LOCAL_LLM_ENABLED=false in .env to disable local LLM and use APIs only
-const LOCAL_LLM_ENABLED = process.env.LOCAL_LLM_ENABLED !== "false";
 
 export type LocalLlmContent =
   | string
@@ -48,14 +47,14 @@ let visionAvailable = false;
  * Vérifie si Ollama est accessible (cache le résultat pour éviter les ping à chaque appel).
  */
 export function isLocalLlmAvailable(): boolean {
-  if (!LOCAL_LLM_ENABLED) return false;
+  if (!shouldUseLocalOllama()) return false;
   if (!availabilityChecked) return false;
   return available;
 }
 
 /** Returns true only when an explicitly configured local vision model is installed. */
 export function isLocalLlmVisionAvailable(): boolean {
-  return LOCAL_LLM_ENABLED && availabilityChecked && visionAvailable;
+  return shouldUseLocalOllama() && availabilityChecked && visionAvailable;
 }
 
 export function getLocalLlmVisionModelName(): string | null {
@@ -67,8 +66,13 @@ export function getLocalLlmVisionModelName(): string | null {
  * À appeler au démarrage du bot et périodiquement.
  */
 export async function checkLocalLlmAvailability(): Promise<boolean> {
-  if (!LOCAL_LLM_ENABLED) {
-    logger.info("[LocalLLM] 🔇 LLM local désactivé (LOCAL_LLM_ENABLED=false) — APIs uniquement");
+  if (!shouldUseLocalOllama()) {
+    available = false;
+    visionAvailable = false;
+    availabilityChecked = true;
+    logger.info(
+      "[LocalLLM] ⏸ Ollama en standby — Qwen/GLM locaux non chargés (fichiers conservés). APIs cloud uniquement. Llama plus tard: LOCAL_LLM_ENABLED=true OLLAMA_STANDBY=false",
+    );
     return false;
   }
   try {
@@ -118,6 +122,10 @@ export async function checkLocalLlmAvailability(): Promise<boolean> {
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startLocalLlmHealthCheck(): void {
+  if (!shouldUseLocalOllama()) {
+    logger.info("[LocalLLM] Health check sauté — Ollama en standby");
+    return;
+  }
   if (healthCheckInterval) return;
   healthCheckInterval = setInterval(async () => {
     const wasAvailable = available;
@@ -141,7 +149,7 @@ export function stopLocalLlmHealthCheck(): void {
  * Without this, the first message after bot startup takes ~5s extra.
  */
 export async function preWarmLocalModel(): Promise<void> {
-  if (!isLocalLlmAvailable()) return;
+  if (!shouldUseLocalOllama() || !isLocalLlmAvailable()) return;
   try {
     logger.info(`[LocalLLM] 🔥 Pre-warm ${LOCAL_LLM_MODEL}...`);
     const localClient = getLocalClient();

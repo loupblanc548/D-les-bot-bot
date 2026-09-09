@@ -85,7 +85,9 @@ export async function classifyNsfw(
         return result;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const apiKey = process.env.SIGHTENGINE_API_KEY;
   const apiUser = process.env.SIGHTENGINE_API_USER;

@@ -4,13 +4,15 @@
  * Catégories explicites:
  *  - technical_error: message d'erreur technique hardcodé
  *  - hallucinated_error: l'IA a inventé un message d'erreur sur la disponibilité
+ *  - canned_fallback: « petit blanc / repose ta question » (pas une vraie réponse)
  *  - empty: réponse vide ou trop courte
  *  - valid: réponse normale et utilisable
  *
  * Remplace les patterns éparpillés dans aiFallbackHelpers.ts et chatResponder.ts.
  */
 
-export type ResponseCategory = "technical_error" | "hallucinated_error" | "empty" | "valid";
+export type ResponseCategory =
+  "technical_error" | "hallucinated_error" | "canned_fallback" | "empty" | "valid";
 
 // ─── Patterns d'erreurs techniques (hardcodés, non générés par l'IA) ─────────
 
@@ -43,6 +45,22 @@ const HALLUCINATED_ERROR_PATTERNS = [
 
 const EMPTY_THRESHOLD = 2; // Moins de 2 caractères = vide
 
+// Replis canned (« petit blanc », « repose ta question ») — pas de vraies réponses.
+const CANNED_FALLBACK_PATTERNS = [
+  /petit blanc/i,
+  /repose[- ]moi ta question/i,
+  /repose ta question/i,
+  /redis[- ]moi ce que tu voulais/i,
+  /laisse[- ]moi reformuler ça dans ma tête/i,
+  /je suis en pleine r[ée]flexion l[àa]/i,
+  /canaux IA sont satur/i,
+  /j'ai ta question en m[ée]moire/i,
+  /envoie \*\*go\*\*/i,
+  /je relance ça tout seul/i,
+  /tu n'as rien à renvoyer/i,
+  /^no response\.?$/i,
+];
+
 // ─── API publique ────────────────────────────────────────────────────────────
 
 /**
@@ -55,6 +73,10 @@ export function classifyResponse(text: string): {
 } {
   if (!text || text.trim().length < EMPTY_THRESHOLD) {
     return { category: "empty", isValid: false };
+  }
+
+  if (CANNED_FALLBACK_PATTERNS.some((p) => p.test(text))) {
+    return { category: "canned_fallback", isValid: false };
   }
 
   if (TECHNICAL_ERROR_PATTERNS.some((p) => p.test(text))) {
@@ -74,8 +96,16 @@ export function classifyResponse(text: string): {
 export function isErrorResponse(text: string): boolean {
   const { category } = classifyResponse(text);
   return (
-    category === "technical_error" || category === "hallucinated_error" || category === "empty"
+    category === "technical_error" ||
+    category === "hallucinated_error" ||
+    category === "canned_fallback" ||
+    category === "empty"
   );
+}
+
+/** Vrai si c'est le message « petit blanc / repose ta question », pas une vraie réponse. */
+export function isCannedFallback(text: string): boolean {
+  return classifyResponse(text).category === "canned_fallback";
 }
 
 /**
@@ -93,15 +123,35 @@ export function isEmptyResponse(text: string): boolean {
 }
 
 /**
+ * Si un modèle ressort encore l'ancien gabarit [ANALYSIS]/[RESPONSE]/[SUGGESTION],
+ * on ne montre que la partie destinée à l'utilisateur.
+ */
+export function unwrapStructuredReply(text: string): string {
+  if (!text) return text;
+  const responseMatch = text.match(/\[RESPONSE\]\s*([\s\S]*?)(?=\[SUGGESTION\]|$)/i);
+  if (responseMatch) {
+    const body = responseMatch[1].trim();
+    const suggestion = text.match(/\[SUGGESTION\]\s*([\s\S]*?)$/i)?.[1]?.trim();
+    if (suggestion && suggestion.length > 0 && suggestion.length < 400) {
+      return `${body}\n\n${suggestion}`.trim();
+    }
+    return body;
+  }
+  return text.replace(/\[(?:ANALYSIS|RESPONSE|SUGGESTION)\]\s*/gi, "").trim();
+}
+
+/**
  * Nettoie une réponse: supprime les lignes qui hallucinent des erreurs
  * tout en conservant le reste du contenu utile.
  */
 export function sanitizeResponse(text: string): string {
-  const lines = text.split("\n");
+  const unwrapped = unwrapStructuredReply(text);
+  const lines = unwrapped.split("\n");
   const kept = lines.filter(
     (line) =>
       !HALLUCINATED_ERROR_PATTERNS.some((p) => p.test(line)) &&
-      !TECHNICAL_ERROR_PATTERNS.some((p) => p.test(line)),
+      !TECHNICAL_ERROR_PATTERNS.some((p) => p.test(line)) &&
+      !CANNED_FALLBACK_PATTERNS.some((p) => p.test(line)),
   );
   return kept.join("\n").trim();
 }
@@ -109,5 +159,4 @@ export function sanitizeResponse(text: string): string {
 /**
  * Message de repli conversationnel quand tout échoue.
  */
-export const FALLBACK_MESSAGE =
-  "Hmm, j'ai eu un petit blanc… Repose-moi ta question, je te réponds tout de suite, soldat.";
+export const FALLBACK_MESSAGE = "Je relance ça tout seul — tu n'as rien à renvoyer.";

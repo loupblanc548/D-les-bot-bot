@@ -14,7 +14,8 @@ import { Client, Message } from "discord.js";
 import logger from "../utils/logger.js";
 import { config } from "../config.js";
 import { callLlm } from "./aiGateway.js";
-import { isErrorResponse } from "./responseClassifier.js";
+import { NVIDIA_TOOLS_MODEL, nvidiaModelSupportsTools } from "./nvidiaNim.js";
+import { isErrorResponse, sanitizeResponse } from "./responseClassifier.js";
 import {
   markModelSuccess,
   recordModelLatency,
@@ -22,7 +23,7 @@ import {
   getAllAvailableModels,
   ensureAtLeastOneModelAvailable,
 } from "./modelRotation.js";
-import { sanitizeForLlm } from "../utils/promptSanitizer.js";
+import { sanitizeForLlm, wrapUntrustedToolContent } from "../utils/promptSanitizer.js";
 import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
 import {
   ALL_AGENT_TOOLS,
@@ -33,6 +34,7 @@ import {
 } from "./agentTools.js";
 import { delegateToExpert, DELEGATE_TOOL } from "./orchestrator.js";
 import prisma from "../prisma.js";
+import { saveSpokenFacts } from "./memoryHints.js";
 import {
   beginInteraction,
   recordLoop,
@@ -82,6 +84,10 @@ import {
   getPersonalityTemperature,
   getPersonalityMaxTokens,
 } from "../infrastructure/middleware/personalityMiddleware.js";
+import { mentionAwarenessBlock } from "./mentionInbox.js";
+import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
+import { githubKnowledgePromptBlock } from "./githubKnowledgeCatalog.js";
+import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
 import { getCachedResponse, cacheResponse } from "./aiCache.js";
 import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
 import { getTrivialResponse } from "./trivialFastPath.js";
@@ -118,7 +124,7 @@ import {
 const MAX_ITERATIONS = 8;
 const MAX_ITERATIONS_LONG_TASK = 20;
 const MAX_HISTORY_MESSAGES = 15;
-const MAX_MEMORY_FACTS = 5;
+const MAX_MEMORY_FACTS = 12;
 const AGENT_LOOP_TIMEOUT_MS = 120_000; // 120s max for the entire agent loop (70B needs ~30-50s per iteration with 110 tools)
 const AGENT_LOOP_TIMEOUT_LONG_MS = 180_000; // 180s for complex tasks
 
@@ -304,24 +310,37 @@ type ProviderChatMessage = Omit<ChatMessage, "content"> & {
 // envoyé à l'API. Avec 150+ tools, ça économise ~10K+ tokens.
 // Aussi limite le nombre de tools à MAX_TOOLS pour éviter les erreurs 400
 // (Groq: max 128 tools, OpenRouter: pas de limite officielle mais recommandé <200)
-const MAX_TOOLS = 120;
+const MAX_TOOLS = 28;
 
 function compactTools(tools: AgentToolDef[]): AgentToolDef[] {
-  // Prioriser: tools essentiels d'abord, puis par ordre original
   const ESSENTIAL = new Set([
     "searchWeb",
+    "exa_web_search",
     "readUrl",
-    "fetchAndSummarize",
+    "dns_lookup",
+    "whois_lookup",
+    "getIpInfo",
+    "ip_geolocation",
+    "ssl_checker",
+    "webcheck_scan",
+    "checkDataBreach",
+    "list_bot_commands",
+    "searchObsidianQA",
     "searchKnowledge",
-    "getDateTime",
+    "getWikipediaSummary",
+    "getGitHubRepo",
+    "lookupKnowledgeRepo",
     "getWeather",
+    "reddit_search",
+    "getSteamGame",
     "translateText",
     "execute_code",
-    "send_message",
-    "ask_user_question",
-    "think_step_by_step",
-    "delegate_to_expert",
-    "analyzeImageGemini",
+    "searchUserMemory",
+    "saveMemoryFact",
+    "setup_basic_server",
+    "createChannel",
+    "getVoiceChannels",
+    "run_terminal",
   ]);
 
   const essential = tools.filter((t) => ESSENTIAL.has(t.function.name));
@@ -497,12 +516,12 @@ export async function runAgentLoop(
   const lastCall = userCooldowns.get(message.author.id);
   if (lastCall && now - lastCall < COOLDOWN_MS) {
     const wait = Math.ceil((COOLDOWN_MS - (now - lastCall)) / 1000);
-    return `⏳ Patiente ${wait}s avant de me re-solliciter, soldat !`;
+    return `⏳ Patiente ${wait}s avant de me re-solliciter.`;
   }
 
   // Concurrency lock: prevent the same user from running multiple agent loops
   if (activeAgentLoops.has(message.author.id)) {
-    return "⏳ Je traite déjà ton message précédent, soldat ! Patiente un instant.";
+    return "⏳ Je traite déjà ton message précédent. Patiente un instant.";
   }
   activeAgentLoops.add(message.author.id);
   userCooldowns.set(message.author.id, now);
@@ -570,7 +589,7 @@ async function runAgentLoopInternal(
   userMessage = sanitizeForLlm(userMessage);
   if (isKilled()) {
     logger.warn("[AgentLoop] Kill switch is active — skipping agent loop");
-    return "🔴 Le kill switch est activé. Les boucles autonomes sont suspendues. Utilise `/killswitch deactivate` pour reprendre.";
+    return "Je suis en pause côté actions automatiques. Un admin peut me relancer depuis le panneau killswitch.";
   }
 
   const ctx: ToolContext = {
@@ -676,130 +695,15 @@ async function runAgentLoopInternal(
 
   const systemPrompt =
     buildPersonalitySystemPrompt(config.aiSystemPrompt) +
+    mentionAwarenessBlock() +
+    CHAT_FIRST_COMMANDS_HINT +
+    githubKnowledgePromptBlock() +
     `\n\n## LANGUE DE RÉPONSE (DÉTECTION AUTO)\n${langInstruction}\n` +
     "Si l'utilisateur change de langue en cours de conversation, adapte-toi immédiatement.\n" +
     formatPreferencesForPrompt(userPref) +
-    "\n\nTu es John Helldiver, un agent IA autonome sur Discord. " +
-    `Tu as accès à Internet et à ${availableTools.length} outils couvrant TOUS les domaines.\n` +
-    "## CAPACITÉS INTERNET\n" +
-    "- **searchWeb** : recherche web en temps réel (Brave Search)\n" +
-    "- **readUrl** : lis et résume n'importe quelle page web\n" +
-    "- **webcheck_scan** : analyse OSINT complète d'un site web (SSL, DNS, WHOIS, ports, tech-stack, menaces)\n" +
-    "- **ip_ping / ip_portscan / dns_lookup** : outils réseau OSINT\n" +
-    "- **searchYouTube / getWikipediaSummary / getWiktionaryDefinition** : YouTube, Wikipedia (encyclopédie) et Wiktionnaire (définitions, synonymes, conjugaison)\n" +
-    "- **getWeather / getCryptoPrice** : données en temps réel\n" +
-    "Tu PEUX et DOIS faire des recherches web quand l'utilisateur te demande des informations actuelles.\n" +
-    "## OBLIGATION DE RECHERCHE WEB\n" +
-    "- Si la question porte sur un sujet RÉCENT (sortie produit, actualité, version, release, news, technologie, politique, sport): UTILISE searchWeb AVANT de répondre.\n" +
-    "- Tes connaissances ont une date de coupure. Ne fais JAMAIS confiance à tes connaissances pour des informations qui peuvent avoir changé récemment.\n" +
-    "- Exemples: 'quel est le dernier processeur' → searchWeb; 'qui a gagné la dernière élection' → searchWeb; 'quelle est la dernière version de X' → searchWeb\n" +
-    "- Si tu n'es pas CERTAIN que l'info est à jour: recherche sur le web. C'est TOUJOURS mieux que de répondre avec des infos potentiellement obsolètes.\n\n" +
+    buildAgentOperatingRules(availableTools.length) +
     getFeedbackHints(message.author.id) +
     (await getCustomInstructions(message.author.id)) +
-    "## PROCESSUS DE RAISONNEMENT\n" +
-    "Tu DOIS suivre ce cycle pour chaque message utilisateur :\n" +
-    "1. REASON : Analyse la demande, détermine quels tools sont nécessaires\n" +
-    "2. ACT : Appelle les tools pertinents (searchWeb, getWeather, analyze_image, etc.)\n" +
-    "3. OBSERVE : Analyse les résultats retournés par les tools\n" +
-    "4. REPLY : Formule ta réponse finale\n\n" +
-    "## FORMAT DE RÉPONSE OBLIGATOIRE\n" +
-    "Ta réponse finale DOIT contenir exactement 3 blocs :\n\n" +
-    "[ANALYSIS] Résumé des findings des tools (détails image, score sentiment, données récupérées)\n" +
-    "[RESPONSE] Ta réponse directe à l'utilisateur\n" +
-    "[SUGGESTION] Suggestion proactive ou prochaine action recommandée\n\n" +
-    "## TOOLS DISPONIBLES\n" +
-    `Tu as accès à ${availableTools.length} outils couvrant TOUS les domaines: modération Discord, recherche web, OSINT, sécurité, pentest (Kali Linux), forensique, data science, conversions, gaming, crypto, météo, multimédia, et plus.\n` +
-    "La liste complète auto-générée est fournie à la fin de ce prompt — chaque tool y est listé avec sa description.\n" +
-    "Utilise le bon tool selon le contexte. Si unsure, searchKnowledge en premier pour les questions techniques.\n\n" +
-    "## RÈGLES\n" +
-    "- Tu es le point d'entrée UNIQUE. L'utilisateur te @mention et tu fais TOUT.\n" +
-    "- searchKnowledge EN PREMIER pour les questions techniques, puis searchWeb.\n" +
-    "- fetchAndSummarize pour les liens. analyze_image pour les images. detect_language si non-français.\n" +
-    "- Cite ta source (URL) si tu trouves une info sur le web.\n" +
-    "- Sois concis, naturel, réponds en français. Enchaîne plusieurs tools si besoin.\n" +
-    "- Si un tool échoue, utilise un autre tool ou réponds avec les informations dont tu disposes. Ta réponse doit toujours apporter de la valeur à l'utilisateur.\n" +
-    "- define_word AUTOMATIQUEMENT quand tu rencontres un mot que tu ne connais pas ou qui semble technique/inhabituel. Ne dis JAMAIS 'je ne connais pas ce mot' — utilise define_word à la place.\n" +
-    "\n## ANALYSE D'IMAGES\n" +
-    "- Quand le message contient [Image jointe: ...] avec une Description visuelle, UTILISE cette description pour répondre à la question de l'utilisateur.\n" +
-    "- La description visuelle a déjà été générée par Gemini Vision — tu n'as PAS besoin de rappeler analyzeImageGemini sauf si tu as besoin de plus de détails.\n" +
-    "- IMPORTANT: Si le message contient [Image jointe: URL] SANS 'Description visuelle', cela signifie que l'analyse auto a échoué. Tu DOIS utiliser l'outil analyzeImageGemini avec l'imageUrl fournie pour analyser l'image AVANT de répondre.\n" +
-    "- Ne dis JAMAIS 'aucune image' ou 'je ne vois pas d'image' si le message contient [Image jointe: ...]. L'image EST là, utilise l'outil analyzeImageGemini pour l'analyser.\n" +
-    "- Croise l'analyse visuelle avec la question de l'utilisateur pour donner une réponse cohérente et pertinente.\n" +
-    "- Si l'image contient du texte (screenshot, document), extrait et utilise les informations pertinentes.\n" +
-    "- Si l'utilisateur pose une question complexe sur l'image (analyse technique, comparaison, raisonnement), UTILISE delegateToExpert avec tier='medium' ou 'large' pour obtenir une réponse experte, puis synthétise la réponse finale.\n" +
-    "- Pour les questions simples sur une image ('qu'est-ce qu'il y a sur cette image?'), réponds directement avec la description visuelle.\n" +
-    "- RÉPONDS DANS LA LANGUE DE L'UTILISATEUR. Si la question est en anglais, réponds en anglais. Si en espagnol, réponds en espagnol. Etc. Détecte la langue et adapte-toi.\n" +
-    "- Langues supportées: français, anglais, allemand, espagnol, portugais, italien, néerlandais, suédois, norvégien, tchèque, polonais, turc, russe, japonais, chinois, arabe, coréen.\n" +
-    "\n## USAGE PROACTIF — KNOWLEDGE INGESTION\n" +
-    "- search_developer_resources : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur demande des services gratuits, des free tiers, des hébergeurs gratuits, des outils CI/CD, des bases de données gratuites, du monitoring gratuit, des APIs gratuites. N'attends pas qu'il le demande explicitement.\n" +
-    "- lookup_typescript_skill : UTILISE-LE AUTOMATIQUEMENT quand l'utilisateur a une erreur TypeScript, demande comment typer quelque chose, pose une question sur les generics/conditional types/inference/mapped types, ou montre du code TS qui ne compile pas.\n" +
-    "- Ces tools interrogent une base locale de 1250+ ressources et patterns — c'est PLUS RAPIDE et PLUS PRÉCIS qu'une recherche web.\n" +
-    "- Après search_developer_resources, présente les résultats de façon lisible avec nom, URL et description courte.\n" +
-    "- Après lookup_typescript_skill, montre le code solution avec explication. Si l'erreur correspond, propose directement la correction.\n" +
-    "\n## DISTINCTION INTENTION vs ACTION — RÈGLE #1 (À LIRE EN PREMIER, AVANT TOUTE CLARIFICATION)\n" +
-    "AVANT de demander la moindre précision, tu DOIS d'abord déterminer le TYPE de message:\n" +
-    "  TYPE A = QUESTION DE CAPACITÉ — l'utilisateur demande ce que tu sais faire, si tu peux faire X, ce sont tes capacités\n" +
-    "  TYPE B = DEMANDE D'ACTION — l'utilisateur veut que tu fasses quelque chose MAINTENANT\n" +
-    "  TYPE C = QUESTION GÉNÉRALE — l'utilisateur pose une question d'information\n" +
-    "\n" +
-    "### TYPE A — QUESTION DE CAPACITÉ → RÉPONDS DIRECTEMENT, NE DEMANDE JAMAIS DE CIBLE\n" +
-    "Mots-clés (TOUTES LANGUES):\n" +
-    "  FR: « tu peux », « tu sais », « t'es capable de », « est-ce que tu peux », « c'était pour savoir », « juste pour savoir », « si tu pouvais », « est-ce possible », « tu as le droit de », « ça te dit de », « tu ferais quoi si », « fais rien », « dis-moi juste », « t'es capable de faire quoi », « que peux-tu faire », « quelles sont tes capacités »\n" +
-    "  EN: « can you », « could you », « do you know how », « are you able to », « just wondering », « just curious », « hypothetically », « what can you do », « what are your capabilities », « don't actually do it », « just tell me »\n" +
-    "  DE: « kannst du », « würdest du können », « weißt du wie », « nur neugierig », « nur so gefragt », « könntest du », « was kannst du tun »\n" +
-    "  ES: « puedes », « sabes », « serías capaz de », « solo por saber », « solo pregunto », « podrías », « qué puedes hacer »\n" +
-    "  IT: « puoi », « sai », « saresti capace di », « solo per sapere », « solo chiedevo », « riusciresti a », « cosa sai fare »\n" +
-    "  PT: « você consegue », « você sabe », « só por curiosidade », « só perguntando », « serias capaz de », « o que você pode fazer »\n" +
-    "  NL: « kun je », « weet je », « zou je kunnen », « zomaar gevraagd », « uit nieuwsgierigheid », « wat kun je doen »\n" +
-    "  RU: « ты можешь », « ты умеешь », « просто интересно », « мог бы ты », « что ты умеешь »\n" +
-    "  JA: « できる？ », « 知ってる？ », « ただ聞いてみただけ », « 何ができるの »\n" +
-    "  ZH: « 你能吗 », « 你会吗 », « 只是问问 », « 你能做什么 »\n" +
-    "→ RÉPONDS PAR: « Oui, je peux [X]. Voici comment: [explication]. » ou « Non, je ne peux pas [X] parce que [raison]. »\n" +
-    "→ NE DEMANDE JAMAIS « Qui ? », « Quelle cible ? », « Quel utilisateur ? » POUR UNE QUESTION DE CAPACITÉ\n" +
-    "→ EXEMPLE: « T'es capable de faire quoi en modération ? » → « Je peux bannir, exclure, mute, surveiller... Utilise /mod ou mentionne-moi. » (PAS de « Quel utilisateur ? »)\n" +
-    "→ EXEMPLE: « Juste fais rien, dis-moi t'es capable de faire quoi ? » → Liste tes capacités. NE FAIS AUCUNE ACTION. NE DEMANDE AUCUNE CIBLE.\n" +
-    "\n" +
-    "### TYPE B — DEMANDE D'ACTION → DEMANDE LES INFOS MANQUantes SI NÉCESSAIRE\n" +
-    "L'utilisateur veut que tu fasses quelque chose CONCRÈTEMENT. Il mentionne une action + (parfois) une cible.\n" +
-    "Si cible/paramètre manquant → pose 1 à 3 questions courtes (Quel utilisateur ? Quelle sanction ? etc.)\n" +
-    "Si tout est clair → EXÉCUTE l'action.\n" +
-    "\n" +
-    "### TYPE C — QUESTION GÉNÉRALE → RÉPONDS DIRECTEMENT\n" +
-    "Question d'information, culture générale, définition, etc. → réponds directement.\n" +
-    "\n" +
-    "### RÈGLE ABSOLUE\n" +
-    "Si le message ne contient AUCUNE cible (@utilisateur, nom, etc.) ET ne demande pas explicitement d'exécuter une action MAINTENANT → c'est TYPE A ou C. RÉPONDS DIRECTEMENT. NE DEMANDE PAS DE CIBLE.\n" +
-    "Le simple fait de mentionner un mot comme « ban », « modération », « sanction » NE signifie PAS que l'utilisateur veut bannir quelqu'un. IL FAUT D'ABORD DÉTERMINER L'INTENT.\n" +
-    "\n## CLARIFICATION (UNIQUEMENT POUR TYPE B — DEMANDE D'ACTION)\n" +
-    "- Après avoir déterminé que c'est une demande d'action réelle, vérifie si tu as toutes les infos nécessaires. Si non, pose 1 à 3 questions.\n" +
-    "- Les questions doivent être courtes, précises, et en rapport direct avec ce que l'utilisateur a demandé.\n" +
-    "- Quand tu poses une question, ne lance AUCUN tool — attends la réponse de l'utilisateur.\n" +
-    "- Format: liste numérotée si plusieurs questions, sinon une question directe.\n" +
-    "- Exemples: « Quelle cible ? » / « Quel utilisateur ? (@) » / « Quelle sanction ? » / « Combien ? » / « Quelle URL ? » / « Quel sujet ? »\n" +
-    "- Si la demande est SIMPLE et claire (blague, météo, pile-ou-face, prix crypto, NASA APOD, stats, cat/dog image), NE pose PAS de questions, réponds directement.\n" +
-    "- Si la demande est AMBIGUË ou manque d'un paramètre crucial, pose ta question AU LIEU de deviner.\n" +
-    "\n## RETAILER TRACKING\n" +
-    "Quand l'utilisateur demande de tracker/suivre/pister un produit, UTILISE les tools retailer (searchRetailers, trackRetailerProduct, etc.).\n" +
-    "Reconnais l'intention en FR/EN/DE/ES/IT/NL: track, suivre, pister, surveiller, alerte, promo, deal, comparer, panier.\n" +
-    "- Image (panier/produit): analyse avec analyzeImageGemini → searchSingleRetailer + trackRetailerProduct.\n" +
-    "- Produit + boutique: searchSingleRetailer(retailer, productName, country) → trackRetailerProduct.\n" +
-    "- Produit seul: searchRetailers (toutes boutiques) → trackRetailerProduct sur le moins cher.\n" +
-    "- Promo/deal: getRetailerDeals(retailer, country). Comparaison: compareProductPrices(productName, country).\n" +
-    "- JAMAIS de message de limitation. Essaie d'abord, rapporte après. Réponds dans la langue de l'utilisateur.\n" +
-    "\n## DÉLÉGATION INTELLIGENTE\n" +
-    "- Tâches SIMPLES: réponds DIRECTEMENT.\n" +
-    "- Tâches COMPLEXES (code, analyse, image+question): utilise delegateToExpert (tier='small|medium|large').\n" +
-    "- Synthétise le résultat expert dans la langue de l'utilisateur.\n" +
-    "\n## COMMANDES SLASH PRINCIPALES\n" +
-    "Modération: /mod, /security, /casier, /alert, /killswitch\n" +
-    "IA: /chat, /aichat, /smartpoll (ou @mention directe)\n" +
-    "Gaming: /game, /mc, /mcmenu, /fnbot, /track, /releases, /stream\n" +
-    "Retailer: /track-retailer (add, scan, list, search)\n" +
-    "Fun: /fun, /music, /community\n" +
-    "Admin: /admin, /bot, /manage, /config, /ticket\n" +
-    "Utils: /help, /stats, /privacy, /debug\n" +
-    "Context menus: clic droit → profil, casier, analyser IA, risque, signaler, traduire, sentiment\n" +
-    "DM: toutes les commandes fonctionnent en DM. Tools restreints (SSH, Docker, Kali) en DM seulement.\n" +
     "\n## LISTE DES TOOLS DISPONIBLES (auto-générée)\n" +
     generateToolListPrompt(availableTools) +
     "\n\n" +
@@ -916,7 +820,7 @@ async function runAgentLoopInternal(
     let lastErrMsg = "";
 
     // ─── Étape 1: Routeur intelligent — sélection du modèle selon la complexité ───
-    const taskComplexity = classifyTaskComplexity(userMessage, availableTools.length);
+    const taskComplexity = classifyTaskComplexity(userMessage);
     const modelChain = getModelChainForTask(taskComplexity);
     const preferredModel = getPersonalityModel(config.openRouterModel);
 
@@ -950,6 +854,11 @@ async function runAgentLoopInternal(
     // Ajouter les autres modèles disponibles non déjà inclus
     for (const m of allModels) {
       if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+    if (availableTools.length > 0) {
+      const idx = modelsToTry.indexOf(NVIDIA_TOOLS_MODEL);
+      if (idx >= 0) modelsToTry.splice(idx, 1);
+      modelsToTry.unshift(NVIDIA_TOOLS_MODEL);
     }
 
     // ─── Filtre retailer: écarter les petits modèles (<20B) pour les tâches retailer ───
@@ -1150,7 +1059,7 @@ async function runAgentLoopInternal(
           })),
           model: preferredModelName,
           tools:
-            availableTools.length > 0
+            availableTools.length > 0 && nvidiaModelSupportsTools(preferredModelName)
               ? compactTools(availableTools).map((t) => ({
                   type: "function" as const,
                   function: {
@@ -1160,7 +1069,7 @@ async function runAgentLoopInternal(
                   },
                 }))
               : undefined,
-          requireToolCalling: availableTools.length > 0,
+          requireToolCalling: false,
           requireVision: imageUrls.length > 0,
           maxTokens: getPersonalityMaxTokens(),
           temperature: getPersonalityTemperature(),
@@ -1304,8 +1213,33 @@ async function runAgentLoopInternal(
       }
     }
 
-    // Si l'IA n'a pas demandé d'outil → c'est la réponse finale
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+    // Si l'IA n'a pas demandé d'outil valide → c'est la réponse finale
+    // callLlm flatten tool calls to {id,name,arguments}; OpenAI-native uses {id,function:{name,arguments}}
+    const rawToolCalls = (assistantMessage.tool_calls ?? []) as Array<Record<string, any>>;
+    const toolCalls = rawToolCalls
+      .map((tc, index) => {
+        const name = tc?.function?.name || tc?.name;
+        const args = tc?.function?.arguments ?? tc?.arguments ?? "{}";
+        const id = tc?.id || `tool-call-${index}`;
+        if (typeof name !== "string" || name.length === 0 || name === "unknown") return null;
+        return {
+          id,
+          function: {
+            name,
+            arguments: typeof args === "string" ? args : JSON.stringify(args),
+          },
+        };
+      })
+      .filter(
+        (tc): tc is { id: string; function: { name: string; arguments: string } } => tc !== null,
+      );
+    if (rawToolCalls.length > toolCalls.length) {
+      logger.warn(
+        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s)`,
+      );
+    }
+
+    if (toolCalls.length === 0) {
       const finalReply = assistantMessage.content || "";
       logger.info(`[AgentLoop] ✅ Réponse finale (itération ${iteration + 1})`);
       logStatsSummary();
@@ -1346,8 +1280,15 @@ async function runAgentLoopInternal(
       // ─── Cognitive Loop Engine: purge on success ───
       purgeCognitiveSession(cognitiveSessionId);
 
-      // ─── Filter hallucinated error responses ──
+      // ─── Filter hallucinated error responses (keep useful content if any) ──
       if (isErrorResponse(finalReply)) {
+        const cleaned = sanitizeResponse(finalReply);
+        if (cleaned.length > 20 && !isErrorResponse(cleaned)) {
+          logger.warn(
+            `[AgentLoop] ⚠️ LLM mixed error phrasing into the reply — kept ${cleaned.length} sanitized chars`,
+          );
+          return cleaned;
+        }
         logger.warn(`[AgentLoop] ⚠️ LLM returned a hallucinated error response — filtering`);
         return "";
       }
@@ -1364,42 +1305,8 @@ async function runAgentLoopInternal(
     conversation.push({
       role: "assistant",
       content: assistantMessage.content || "",
-      tool_calls: assistantMessage.tool_calls,
+      tool_calls: toolCalls,
     });
-
-    // Exécuter tous les tools en parallèle pour la performance
-    const rawToolCalls = (assistantMessage.tool_calls ?? []) as Array<{
-      id: string;
-      function: { name: string; arguments: string };
-    }>;
-
-    // Filter out malformed tool calls (missing function, name, or id)
-    const toolCalls = rawToolCalls.filter(
-      (tc) =>
-        tc &&
-        tc.function &&
-        typeof tc.function.name === "string" &&
-        tc.function.name.length > 0 &&
-        tc.id,
-    );
-    if (rawToolCalls.length > toolCalls.length) {
-      const rejected = rawToolCalls
-        .filter(
-          (tc) =>
-            !(
-              tc &&
-              tc.function &&
-              typeof tc.function.name === "string" &&
-              tc.function.name.length > 0 &&
-              tc.id
-            ),
-        )
-        .map((tc) => tc?.function?.name || "unknown")
-        .join(", ");
-      logger.warn(
-        `[AgentLoop] ${rawToolCalls.length - toolCalls.length} tool call(s) malformé(s) ignoré(s): ${rejected}`,
-      );
-    }
 
     // Notify status indicator (if provided) about tool calls
     if (statusCallback && toolCalls.length > 0) {
@@ -1620,7 +1527,7 @@ async function runAgentLoopInternal(
       conversation.push({
         role: "tool",
         tool_call_id: result.tool_call_id,
-        content: String(result.content ?? ""),
+        content: wrapUntrustedToolContent(String(result.content ?? "")),
       });
     }
 
@@ -1649,14 +1556,16 @@ export async function extractAndSaveMemory(
   username?: string,
 ): Promise<void> {
   try {
+    const heuristic = await saveSpokenFacts(userId, userMessage);
     const llmResult = await callLlm({
       messages: [
         {
           role: "system",
           content:
-            "Tu extrais les faits importants à mémoriser sur un utilisateur. " +
-            'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "..."}]}. ' +
-            'Si rien à mémoriser, réponds {"facts": []}.',
+            "Tu extrais les faits durables à retenir sur un utilisateur Discord. " +
+            "Priorité: surnom, jeux auxquels il joue, goûts, blagues récurrentes, opinions. " +
+            'Réponds en JSON : {"facts": [{"key": "...", "value": "...", "category": "game|personal|preference|opinion"}]}. ' +
+            'Si rien à mémoriser, réponds {"facts": []}. Pas de faits triviaux (salut, merci, ok).',
         },
         {
           role: "user",
@@ -1711,7 +1620,9 @@ export async function extractAndSaveMemory(
       ).catch(() => {});
     }
 
-    logger.info(`[AgentLoop] 💾 ${parsed.facts.length} faits sauvegardés pour ${userId}`);
+    logger.info(
+      `[AgentLoop] 💾 mémoire ${userId}: ${heuristic} heuristique + ${parsed.facts.length} LLM`,
+    );
   } catch (error) {
     // Non-critique — la mémoire est optionnelle
     logger.debug(

@@ -17,6 +17,15 @@
  */
 import { vi } from "vitest";
 
+// Required env so tests can import `config` without a local .env
+process.env.DISCORD_TOKEN ||= "test-discord-token";
+process.env.DISCORD_CLIENT_ID ||= "123456789012345678";
+process.env.DISCORD_GUILD_ID ||= "123456789012345678";
+process.env.OWNER_ID ||= "123456789012345678";
+process.env.DATABASE_URL ||=
+  "postgresql://discord_bot:discord_bot@localhost:5432/discord_bot?schema=public";
+process.env.NODE_ENV ||= "test";
+
 type MockLogger = {
   debug: ReturnType<typeof vi.fn>;
   info: ReturnType<typeof vi.fn>;

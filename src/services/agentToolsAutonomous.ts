@@ -21,6 +21,12 @@ import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { fetchRetry } from "../utils/fetchRetry.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import {
+  formatCasierForAgent,
+  formatGuildSanctionLog,
+  loadCasier,
+  loadGuildSanctionLog,
+} from "./casierQuery.js";
 import { stripHtml } from "../utils/stripHtml.js";
 import { runOsintScan, quickShodanSearch } from "./osintToolkit.js";
 import { getUser as getTwitterUser, searchTweets, isTwitterConfigured } from "./twitter.js";
@@ -49,7 +55,12 @@ import {
   isSlackConfigured,
 } from "./notifications.js";
 import { translateAny, detectLanguageAuto } from "./libreTranslate.js";
-import { checkEmail as hibpCheckEmail } from "../utils/hibp.js";
+import {
+  checkEmail as hibpCheckEmail,
+  formatEmailBreachReport,
+  getLatestBreach,
+  hasHibpApiKey,
+} from "../utils/hibp.js";
 import { detectAnomalies } from "./anomalyDetector.js";
 import {
   buildComparisonEmbed,
@@ -68,13 +79,16 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     function: {
       name: "get_user_moderation_history",
       description:
-        "Récupère l'historique de modération d'un utilisateur : warns, timeouts, kicks, bans. Via Prisma.",
+        "Casier / logs de sanctions. userId optionnel : vide = historique du serveur, sinon casier du membre. Lecture seule.",
       parameters: {
         type: "object",
         properties: {
-          userId: { type: "string", description: "ID Discord de l'utilisateur" },
+          userId: {
+            type: "string",
+            description: "ID Discord. Vide = logs de tout le serveur.",
+          },
         },
-        required: ["userId"],
+        required: [],
       },
     },
   },
@@ -1107,16 +1121,17 @@ export const AUTONOMOUS_TOOLS: AgentToolDef[] = [
     function: {
       name: "checkDataBreach",
       description:
-        "Vérifie si un email a été compromis dans des fuites de données connues (Have I Been Pwned). Affiche le nom, la date et la description de chaque breach. Medium risk — données personnelles.",
+        "Have I Been Pwned API v3: vérifie si un email apparaît dans des fuites connues. Sans email, retourne la dernière fuite publique du catalogue HIBP. Medium risk — données personnelles.",
       parameters: {
         type: "object",
         properties: {
           email: {
             type: "string",
-            description: "Adresse email à vérifier (ex: user@example.com)",
+            description:
+              "Adresse email à vérifier (ex: user@example.com). Omettre pour la dernière fuite publique HIBP.",
           },
         },
-        required: ["email"],
+        required: [],
       },
     },
   },
@@ -1167,46 +1182,18 @@ export function trackMessageForGhostPings(
 
 // ═══ 1. MODERATION & SENTIMENT ═══
 
-async function tGetUserModerationHistory(args: Record<string, any>): Promise<ToolCallResult> {
-  const userId = String(args.userId);
+async function tGetUserModerationHistory(
+  args: Record<string, any>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const userId = args.userId ? String(args.userId).trim() : "";
   try {
-    const sanctions = await prisma.sanction.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: { type: true, reason: true, createdAt: true, moderatorId: true },
-    });
-
-    const profile = await prisma.riskProfile.findFirst({
-      where: { userId },
-      select: {
-        riskScore: true,
-        riskLevel: true,
-        totalSanctions: true,
-        warnCount: true,
-        timeoutCount: true,
-        kickCount: true,
-        banCount: true,
-      },
-    });
-
-    return {
-      success: true,
-      data: JSON.stringify({
-        userId,
-        profile: profile || {
-          riskScore: 0,
-          riskLevel: "NONE",
-          totalSanctions: 0,
-          warnCount: 0,
-          timeoutCount: 0,
-          kickCount: 0,
-          banCount: 0,
-        },
-        recentSanctions: sanctions,
-        totalFound: sanctions.length,
-      }),
-    };
+    if (!userId) {
+      const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      return { success: true, data: formatGuildSanctionLog(items) };
+    }
+    const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    return { success: true, data: formatCasierForAgent(snapshot) };
   } catch (e) {
     return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -2089,7 +2076,7 @@ export async function executeAutonomousTool(
     switch (toolName) {
       // 1. Moderation & Sentiment
       case "get_user_moderation_history":
-        return await tGetUserModerationHistory(args);
+        return await tGetUserModerationHistory(args, ctx);
       case "scrape_urban_slang":
         return await tScrapeUrbanSlang(args);
       case "evaluate_channel_velocity":
@@ -2665,13 +2652,9 @@ async function tDetectAnomalies(args: Record<string, any>): Promise<ToolCallResu
 
 async function tBuildComparisonEmbed(args: Record<string, any>): Promise<ToolCallResult> {
   const title = String(args.title || "").slice(0, 256);
-  const columns = Array.isArray(args.columns)
-    ? (args.columns as any[]).map((c) => String(c))
-    : [];
+  const columns = Array.isArray(args.columns) ? (args.columns as any[]).map((c) => String(c)) : [];
   const rows = Array.isArray(args.rows)
-    ? (args.rows as any[]).map((r) =>
-        Array.isArray(r) ? r.map((c: any) => String(c)) : [],
-      )
+    ? (args.rows as any[]).map((r) => (Array.isArray(r) ? r.map((c: any) => String(c)) : []))
     : [];
   if (!title || columns.length === 0) return { success: false, data: "Titre et colonnes requis" };
   try {
@@ -3250,9 +3233,9 @@ async function tNetworkInvestigate(args: Record<string, any>): Promise<ToolCallR
         const data = (await res.json()) as Record<string, any>;
         const events = (data.events || []) as Array<{ eventAction: string; eventDate: string }>;
         results.whois = {
-          registrar: (
-            (data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>
-          ).find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]
+          registrar: ((data.entities || []) as Array<{ roles: string[]; vcardArray: any[] }>).find(
+            (e) => e.roles?.includes("registrar"),
+          )?.vcardArray?.[1]
             ? "available"
             : "unknown",
           registration: events.find((e) => e.eventAction === "registration")?.eventDate ?? "N/A",
@@ -3584,31 +3567,51 @@ async function tCheckDataBreach(args: Record<string, any>): Promise<ToolCallResu
   const email = String(args.email || "")
     .trim()
     .toLowerCase();
-  if (!email || !email.includes("@")) {
+
+  if (!email) {
+    const latest = await getLatestBreach();
+    if (!latest) {
+      return { success: false, data: "Impossible de récupérer la dernière fuite HIBP." };
+    }
+    const data = latest.compromisedData.length
+      ? `\nDonnées: ${latest.compromisedData.slice(0, 10).join(", ")}`
+      : "";
+    const count = latest.pwnCount ? `\nComptes: ${latest.pwnCount.toLocaleString("fr-FR")}` : "";
+    return {
+      success: true,
+      data: `Dernière fuite HIBP: **${latest.title || latest.name}** (${latest.breachDate})${count}${data}\n${latest.description.slice(0, 400)}`,
+    };
+  }
+
+  if (!email.includes("@")) {
     return { success: false, data: "Email invalide. Format attendu: user@example.com" };
+  }
+
+  if (!hasHibpApiKey()) {
+    return {
+      success: false,
+      data: "API Have I Been Pwned non configurée (HIBP_API_KEY). Clé: https://haveibeenpwned.com/API/Key — la dernière fuite publique reste disponible sans email.",
+    };
   }
 
   const breaches = await hibpCheckEmail(email);
   if (breaches === null) {
     return {
       success: false,
-      data: "API Have I Been Pwned non configurée (HIBP_API_KEY manquant) ou erreur. Impossible de vérifier.",
+      data: "Erreur Have I Been Pwned (clé invalide, limite de débit, ou réseau). Réessaie dans une minute.",
     };
   }
 
   if (breaches.length === 0) {
     return {
       success: true,
-      data: `✅ Aucune fuite de données trouvée pour **${email}**. Cet email n'apparaît dans aucune breach connue.`,
+      data: `Aucune fuite de données connue pour **${email}**.`,
     };
   }
 
-  const lines = breaches.map(
-    (b) => `- **${b.name}** (${b.breachDate}): ${b.description.slice(0, 200)}`,
-  );
   return {
     success: true,
-    data: `🚨 **${breaches.length} fuite(s)** trouvée(s) pour ${email}:\n\n${lines.join("\n")}`,
+    data: formatEmailBreachReport(email, breaches),
   };
 }
 

@@ -33,13 +33,15 @@ const consoleFormat = winston.format.combine(
     if (cid) (info as Record<string, any>).correlationId = cid;
     return info;
   })(),
-  winston.format.printf(({ timestamp, level, message, _service, _environment, _correlationId, ...meta }) => {
-    const cid = correlationStorage.getStore();
-    const cidStr = cid ? ` [${cid}]` : "";
-    const metaStr =
-      Object.keys(meta).length > 0 && meta.stack == null ? " " + JSON.stringify(meta) : "";
-    return `${timestamp} ${level}:${cidStr} ${message}${metaStr}`;
-  }),
+  winston.format.printf(
+    ({ timestamp, level, message, _service, _environment, _correlationId, ...meta }) => {
+      const cid = correlationStorage.getStore();
+      const cidStr = cid ? ` [${cid}]` : "";
+      const metaStr =
+        Object.keys(meta).length > 0 && meta.stack == null ? " " + JSON.stringify(meta) : "";
+      return `${timestamp} ${level}:${cidStr} ${message}${metaStr}`;
+    },
+  ),
 );
 
 /** Format JSON structuré pour les fichiers de log et production */

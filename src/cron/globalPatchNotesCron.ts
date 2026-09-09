@@ -270,7 +270,9 @@ async function checkPatchNotes(client: Client): Promise<void> {
       if (redditFeedFailures.count >= MAX_REDDIT_FAILURES) {
         redditFeedFailures.skipUntil = Date.now() + REDDIT_SKIP_MS;
         redditFeedFailures.count = 0;
-        logger.warn(`[GlobalPatchNotes] Flux Reddit désactivé ${REDDIT_SKIP_MS / 60000}min (${MAX_REDDIT_FAILURES} échecs)`);
+        logger.warn(
+          `[GlobalPatchNotes] Flux Reddit désactivé ${REDDIT_SKIP_MS / 60000}min (${MAX_REDDIT_FAILURES} échecs)`,
+        );
       }
       logger.warn("[GlobalPatchNotes] Format RSS invalide ou aucun item");
       return;

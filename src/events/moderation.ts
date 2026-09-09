@@ -1,9 +1,10 @@
 import logger from "../utils/logger.js";
-import { Client, GuildBan, GuildTextBasedChannel } from "discord.js";
+import { Client, Guild, GuildAuditLogsEntry, GuildBan, GuildTextBasedChannel } from "discord.js";
 import { createLog, sendBanPurgeLog } from "../services/logs.js";
 import { config } from "../config.js";
 import { sendStealthAlert } from "../services/shadowBroker.js";
 import { stealthGuildLeave } from "../services/stealthLeave.js";
+import { mapAuditLogToCasier, recordCasierSanction } from "../services/casierRecorder.js";
 
 export function handleModerationEvents(client: Client) {
   // Ban + Purge automatique des messages
@@ -99,5 +100,27 @@ export function handleModerationEvents(client: Client) {
       action: `${ban.user.tag} a ete debanni`,
       userId: ban.user.id,
     });
+  });
+
+  // Sanctions faites depuis l'UI Discord (clic droit ban / timeout / kick / mute vocal)
+  client.on("guildAuditLogEntryCreate", async (entry: GuildAuditLogsEntry, guild: Guild) => {
+    try {
+      const mapped = mapAuditLogToCasier({
+        action: entry.action,
+        guildId: guild.id,
+        targetId: entry.targetId,
+        executorId: entry.executorId,
+        reason: entry.reason,
+        changes: entry.changes?.map((change) => ({
+          key: String(change.key),
+          old: change.old,
+          new: change.new,
+        })),
+      });
+      if (!mapped) return;
+      await recordCasierSanction(mapped);
+    } catch (err) {
+      logger.warn("[Casier] audit log:", err instanceof Error ? err.message : String(err));
+    }
   });
 }

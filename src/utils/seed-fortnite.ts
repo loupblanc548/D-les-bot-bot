@@ -21,18 +21,14 @@ import { resolveYouTubeChannelId as resolveHandleToId } from "../services/youtub
 // ── Constantes (placeholders clairs, chargés depuis .env) ──────────────────
 
 const GUILD_ID = process.env.DISCORD_GUILD_ID || "<GUILD_ID>";
-const FORTNITE_CHANNEL_ID =
-  process.env.FORTNITE_CHANNEL_ID || "<FORTNITE_CHANNEL_ID>";
+const FORTNITE_CHANNEL_ID = process.env.FORTNITE_CHANNEL_ID || "<FORTNITE_CHANNEL_ID>";
 
 // ── Validation des placeholders ─────────────────────────────────────────────
 
-if (
-  GUILD_ID === "<GUILD_ID>" ||
-  FORTNITE_CHANNEL_ID === "<FORTNITE_CHANNEL_ID>"
-) {
+if (GUILD_ID === "<GUILD_ID>" || FORTNITE_CHANNEL_ID === "<FORTNITE_CHANNEL_ID>") {
   logger.error(
     "❌ GUILD_ID ou FORTNITE_CHANNEL_ID non configurés.\n" +
-    "   Vérifie les variables DISCORD_GUILD_ID et FORTNITE_CHANNEL_ID dans .env"
+      "   Vérifie les variables DISCORD_GUILD_ID et FORTNITE_CHANNEL_ID dans .env",
   );
   process.exit(1);
 }
@@ -61,9 +57,7 @@ async function main() {
     if (type === "YOUTUBE") {
       const resolved = await resolveHandleToId(urlOrHandle);
       if (!resolved) {
-        logger.error(
-          `   ❌ Chaîne YouTube ${urlOrHandle} introuvable. Source ignorée.`
-        );
+        logger.error(`   ❌ Chaîne YouTube ${urlOrHandle} introuvable. Source ignorée.`);
         failed++;
         continue;
       }
@@ -107,8 +101,8 @@ async function main() {
 
   logger.info(
     `\n📊 Résultat : ${inserted} inséré(s), ${skipped} ignoré(s)` +
-    (failed > 0 ? `, ${failed} échec(s)` : "") +
-    "."
+      (failed > 0 ? `, ${failed} échec(s)` : "") +
+      ".",
   );
 
   await prisma.$disconnect();

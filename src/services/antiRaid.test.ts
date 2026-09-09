@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { checkJoinBurst, checkMessageSimilarity, resetRaidTracking, DEFAULT_RAID_CONFIG } from "./antiRaid.js";
+import {
+  checkJoinBurst,
+  checkMessageSimilarity,
+  resetRaidTracking,
+  DEFAULT_RAID_CONFIG,
+} from "./antiRaid.js";
 
 describe("antiRaid", () => {
   it("does not trigger on single join", () => {
@@ -12,7 +17,9 @@ describe("antiRaid", () => {
   it("detects join burst", () => {
     resetRaidTracking();
     const config = { ...DEFAULT_RAID_CONFIG, joinThreshold: 3, joinWindowMs: 10_000 };
-    const member = { user: { createdTimestamp: Date.now() - 999_999_999, tag: "user#0001" } } as any;
+    const member = {
+      user: { createdTimestamp: Date.now() - 999_999_999, tag: "user#0001" },
+    } as any;
     checkJoinBurst(member, config);
     checkJoinBurst(member, config);
     const result = checkJoinBurst(member, config);

@@ -10,6 +10,7 @@ import {
   isEmptyResponse,
   sanitizeResponse,
   FALLBACK_MESSAGE,
+  isCannedFallback,
 } from "./responseClassifier.js";
 
 describe("responseClassifier", () => {
@@ -45,6 +46,20 @@ describe("responseClassifier", () => {
       expect(classifyResponse("Réessaie dans 1-2 minutes").category).toBe("hallucinated_error");
       expect(classifyResponse("Aucun modèle n'est disponible").category).toBe("hallucinated_error");
       expect(classifyResponse("quota/cooldown actif").category).toBe("hallucinated_error");
+    });
+
+    it("classifies canned blank-stare fallbacks", () => {
+      expect(
+        classifyResponse("Petit blanc de mon côté — redis-moi ce que tu voulais savoir ?").category,
+      ).toBe("canned_fallback");
+      expect(
+        classifyResponse(
+          "Je suis en pleine réflexion là. Repose ta question, je te réponds tout de suite.",
+        ).category,
+      ).toBe("canned_fallback");
+      expect(classifyResponse(FALLBACK_MESSAGE).category).toBe("canned_fallback");
+      expect(classifyResponse("No response.").category).toBe("canned_fallback");
+      expect(isErrorResponse("No response.")).toBe(true);
     });
 
     it("classifies 'circuit breaker activated' as technical error (case-insensitive)", () => {
@@ -108,6 +123,16 @@ describe("responseClassifier", () => {
     it("returns clean text unchanged", () => {
       expect(sanitizeResponse("Bonjour tout le monde!")).toBe("Bonjour tout le monde!");
     });
+
+    it("unwraps leftover [ANALYSIS]/[RESPONSE]/[SUGGESTION] blocks", () => {
+      const input =
+        "[ANALYSIS] Le tool a trouvé 12C à Lyon.\n[RESPONSE] Il fait 12 degrés à Lyon.\n[SUGGESTION] Tu veux la météo demain ?";
+      const result = sanitizeResponse(input);
+      expect(result).toContain("Il fait 12 degrés à Lyon.");
+      expect(result).toContain("Tu veux la météo demain");
+      expect(result).not.toContain("[ANALYSIS]");
+      expect(result).not.toContain("[RESPONSE]");
+    });
   });
 
   describe("FALLBACK_MESSAGE", () => {
@@ -115,6 +140,14 @@ describe("responseClassifier", () => {
       expect(FALLBACK_MESSAGE).not.toContain("erreur");
       expect(FALLBACK_MESSAGE).not.toContain("indisponible");
       expect(FALLBACK_MESSAGE.length).toBeGreaterThan(20);
+      expect(FALLBACK_MESSAGE.toLowerCase()).toContain("relance");
+      expect(FALLBACK_MESSAGE.toLowerCase()).not.toContain("go");
+    });
+
+    it("is classified as canned fallback, not a valid model answer", () => {
+      expect(classifyResponse(FALLBACK_MESSAGE).category).toBe("canned_fallback");
+      expect(isErrorResponse(FALLBACK_MESSAGE)).toBe(true);
+      expect(isCannedFallback(FALLBACK_MESSAGE)).toBe(true);
     });
   });
 });

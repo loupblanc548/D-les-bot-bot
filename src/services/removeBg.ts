@@ -31,7 +31,9 @@ export async function removeBackground(
         return { resultUrl: dataUrl, creditsUsed: 0 };
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   if (!REMOVEBG_API_KEY) {
     logger.debug("[RemoveBg] API key not configured");

@@ -74,7 +74,9 @@ export class LoadingAnimation {
       } else if (this.interaction.deferred || this.interaction.replied) {
         await this.interaction.editReply({ content: text });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   private progressBar(percent: number): string {
@@ -103,6 +105,8 @@ export class LoadingAnimation {
           await this.interaction.editReply({ content: finalContent });
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }

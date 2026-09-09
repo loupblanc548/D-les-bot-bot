@@ -124,7 +124,9 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
           },
         });
         newGames.push(game);
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
 
     if (newGames.length > 0) {
@@ -182,7 +184,9 @@ export async function fetchFreeGames(client: Client): Promise<EpicGame[]> {
                   match.gameUrl,
               );
             }
-          } catch (_dmErr) { logger.error("[Silent catch]", _dmErr); }
+          } catch (_dmErr) {
+            logger.error("[Silent catch]", _dmErr);
+          }
         }
       }
     }

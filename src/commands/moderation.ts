@@ -10,9 +10,7 @@ import {
   GuildTextBasedChannel,
   Message,
 } from "discord.js";
-import prisma from "../prisma.js";
-import { createLog } from "../services/logs.js";
-import { recordSanction } from "../services/risk-engine.js";
+import { recordCasierSanction } from "../services/casierRecorder.js";
 import { requireMod } from "../services/permissions.js";
 
 const FOOTER = { text: "Systeme de Surveillance - v1.0.0" };
@@ -271,18 +269,14 @@ async function handleWarn(interaction: ChatInputCommandInteraction) {
     const cible = interaction.options.getUser("cible", true);
     const raison = interaction.options.getString("raison") || "Aucune raison fournie";
 
-    await prisma.sanction.create({
-      data: {
-        guildId: interaction.guildId!,
-        userId: cible.id,
-        moderatorId: interaction.user.id,
-        reason: raison,
-        type: "WARN",
-      },
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.id,
+      moderatorId: interaction.user.id,
+      type: "WARN",
+      reason: raison,
+      source: "command",
     });
-
-    // Enregistrer dans le risk-engine
-    await recordSanction(cible.id, interaction.guildId!, "WARN");
 
     const embed = baseEmbed("Avertissement", 0xffaa00)
       .setDescription(
@@ -330,8 +324,15 @@ async function handleMute(interaction: ChatInputCommandInteraction) {
     const dureeMs = dureeMin * 60 * 1000;
     await cible.timeout(dureeMs, raison);
 
-    // Enregistrer dans le risk-engine
-    await recordSanction(cible.user.id, interaction.guildId!, "TIMEOUT");
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.user.id,
+      moderatorId: interaction.user.id,
+      type: "TIMEOUT",
+      reason: raison,
+      duration: dureeMin * 60,
+      source: "command",
+    });
 
     const embed = baseEmbed("Mute", 0xff3344).setDescription(
       "- **Membre** : " +
@@ -409,8 +410,14 @@ async function handleKick(interaction: ChatInputCommandInteraction) {
 
     await cible.kick(raison);
 
-    // Enregistrer dans le risk-engine
-    await recordSanction(cible.user.id, interaction.guildId!, "KICK");
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.user.id,
+      moderatorId: interaction.user.id,
+      type: "KICK",
+      reason: raison,
+      source: "command",
+    });
 
     const embed = baseEmbed("Expulsion", 0xffaa00).setDescription(
       "- **Membre** : " +
@@ -451,8 +458,14 @@ async function handleBan(interaction: ChatInputCommandInteraction) {
 
     await interaction.guild!.members.ban(cible, { reason: raison, deleteMessageSeconds });
 
-    // Enregistrer dans le risk-engine
-    await recordSanction(cible.id, interaction.guildId!, "BAN");
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.id,
+      moderatorId: interaction.user.id,
+      type: "BAN",
+      reason: raison,
+      source: "command",
+    });
 
     const embed = baseEmbed("Bannissement", 0xff3344).setDescription(
       "- **Membre** : " +
@@ -499,7 +512,18 @@ async function handleTimeout(interaction: ChatInputCommandInteraction) {
     }
 
     const dureeMs = dureeSec * 1000;
-    await cible.timeout(dureeMs, "Timeout par " + interaction.user.tag);
+    const timeoutReason = "Timeout par " + interaction.user.tag;
+    await cible.timeout(dureeMs, timeoutReason);
+
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.user.id,
+      moderatorId: interaction.user.id,
+      type: "TIMEOUT",
+      reason: timeoutReason,
+      duration: dureeSec,
+      source: "command",
+    });
 
     const embed = baseEmbed("Timeout", 0xffaa00).setDescription(
       "- **Membre** : " +
@@ -640,6 +664,15 @@ async function handleSoftban(interaction: ChatInputCommandInteraction) {
 
     await interaction.guild!.members.ban(cible, { reason: raison, deleteMessageSeconds: 604800 });
     await interaction.guild!.members.unban(cible, "Softban automatique");
+
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
+      userId: cible.id,
+      moderatorId: interaction.user.id,
+      type: "BAN",
+      reason: `[Softban] ${raison}`,
+      source: "command",
+    });
 
     const embed = baseEmbed("Softban", 0xffaa00).setDescription(
       "- **Membre** : " +
@@ -921,12 +954,14 @@ async function handleTempban(interaction: ChatInputCommandInteraction) {
 
     await interaction.guild!.members.ban(cible, { reason: raison, deleteMessageSeconds });
 
-    await createLog({
-      type: "tempban",
-      action: cible.tag + " banni temporairement (" + dureeHumaine + ")",
+    await recordCasierSanction({
+      guildId: interaction.guildId!,
       userId: cible.id,
-      moderator: interaction.user.id,
-      details: raison,
+      moderatorId: interaction.user.id,
+      type: "TEMPBAN",
+      reason: `${raison} (${dureeHumaine})`,
+      duration: Math.round(dureeMs / 1000),
+      source: "command",
     });
 
     setTimeout(async () => {

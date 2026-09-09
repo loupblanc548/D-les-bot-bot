@@ -11,7 +11,9 @@ export async function cachedGet<T>(key: string): Promise<T | null> {
   try {
     const result = await getCache<T>(key);
     if (result !== null) return result;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const entry = memoryFallback.get(key);
   if (entry && Date.now() < entry.expiresAt) {
@@ -25,7 +27,9 @@ export async function cachedSet(key: string, value: any, ttlSeconds = 300): Prom
   try {
     await setCache(key, value, ttlSeconds);
     return; // Redis a accepté : pas de double-storage dans le fallback mémoire.
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   memoryFallback.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }

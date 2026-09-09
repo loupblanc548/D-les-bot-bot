@@ -1,10 +1,11 @@
 /**
- * knowledgeIngestion.ts — 5 GitHub repo syncers for knowledge pipeline
+ * knowledgeIngestion.ts — GitHub repo syncers for the knowledge pipeline
  */
 import logger from "../utils/logger.js";
 import prisma from "../prisma.js";
 import { fetchTextRetry, fetchJsonRetry } from "../utils/fetchRetry.js";
 import type { Prisma } from "@prisma/client";
+import { knowledgeRepos } from "./githubKnowledgeCatalog.js";
 
 const TIMEOUT = 30_000;
 const BATCH = 50;
@@ -242,14 +243,43 @@ export async function syncSystemDesign(): Promise<number> {
 }
 
 // ─── 5. Awesome Lists (whitelisted only) ─────────────────────────
-const AWESOME_WHITELIST = ["security", "nodejs", "typescript", "docker", "devops", "cybersecurity"];
+const AWESOME_WHITELIST = [
+  "security",
+  "nodejs",
+  "typescript",
+  "docker",
+  "devops",
+  "cybersecurity",
+  "python",
+  "golang",
+  "rust",
+  "linux",
+  "databases",
+  "front-end",
+  "javascript",
+  "machine learning",
+  "artificial intelligence",
+  "self-hosted",
+  "kubernetes",
+  "interview",
+  "algorithms",
+  "career",
+  "cloud",
+  "networking",
+];
 
 export async function syncAwesomeLists(): Promise<number> {
   logger.info("[KnowledgeIngestion] [AWESOME_LISTS] Starting sync...");
-  const md = await fetchTextRetry(
-    "https://raw.githubusercontent.com/sindresorhus/awesome/main/README.md",
-    { timeoutMs: TIMEOUT },
-  );
+  const ua = { headers: { "User-Agent": "JohnBot/1.0 (knowledge-sync)" } };
+  const md =
+    (await fetchTextRetry("https://raw.githubusercontent.com/sindresorhus/awesome/main/README.md", {
+      timeoutMs: TIMEOUT,
+      ...ua,
+    })) ||
+    (await fetchTextRetry("https://cdn.jsdelivr.net/gh/sindresorhus/awesome@main/readme.md", {
+      timeoutMs: TIMEOUT,
+      ...ua,
+    }));
   if (!md) {
     logger.warn("[AWESOME_LISTS] Fetch failed");
     return 0;
@@ -298,5 +328,90 @@ export async function syncAwesomeLists(): Promise<number> {
   logger.info(
     `[AWESOME_LISTS] Synced ${count} items (whitelisted: ${AWESOME_WHITELIST.join(", ")})`,
   );
+  return count;
+}
+
+const EXTRA_KNOWLEDGE_REPOS = knowledgeRepos().map((r) => ({
+  owner: r.owner,
+  repo: r.repo,
+  description: r.description,
+  files: r.files,
+  domain: r.domain,
+}));
+
+async function fetchGithubRaw(owner: string, repo: string, file: string): Promise<string | null> {
+  for (const branch of ["master", "main"]) {
+    const md = await fetchTextRetry(
+      `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${file}`,
+      { timeoutMs: TIMEOUT },
+    );
+    if (md && md.length > 120) return md;
+  }
+  return null;
+}
+
+/** Index extra GitHub knowledge repos so searchKnowledge / getGitHubRepo can find them. */
+export async function syncExtraGithubRepos(): Promise<number> {
+  logger.info("[KnowledgeIngestion] [EXTRA_REPOS] Starting sync...");
+  await prisma.freeResource
+    .createMany({
+      data: EXTRA_KNOWLEDGE_REPOS.map((r) => ({
+        category: "GITHUB_REPO",
+        name: `${r.owner}/${r.repo}`,
+        url: `https://github.com/${r.owner}/${r.repo}`,
+        description: r.description,
+        tags: `github,repo,${r.domain}`,
+        sourceRepo: `${r.owner}/${r.repo}`,
+      })),
+      skipDuplicates: true,
+    })
+    .catch(() => {});
+  logger.info(`[EXTRA_REPOS] Indexed ${EXTRA_KNOWLEDGE_REPOS.length} GitHub repos`);
+  return EXTRA_KNOWLEDGE_REPOS.length;
+}
+
+/** Ingest README (and optional files) into agentKnowledge so searchKnowledge can use them. */
+export async function syncDeepGithubRepos(): Promise<number> {
+  logger.info("[KnowledgeIngestion] [DEEP_REPOS] Starting README sync...");
+  let count = 0;
+  for (const r of EXTRA_KNOWLEDGE_REPOS) {
+    const files = r.files?.length ? r.files : ["README.md"];
+    for (const file of files) {
+      const md = await fetchGithubRaw(r.owner, r.repo, file);
+      if (!md) continue;
+      const url = `https://github.com/${r.owner}/${r.repo}/blob/HEAD/${file}`;
+      const title = `${r.owner}/${r.repo}: ${file.replace(/\.md$/i, "")}`;
+      const summary = (md.slice(0, 400).replace(/[#*`]/g, "").trim() || r.description).slice(
+        0,
+        500,
+      );
+      await prisma.agentKnowledge
+        .upsert({
+          where: { url },
+          create: {
+            url,
+            title,
+            content: md.slice(0, 12000),
+            summary,
+            wordCount: md.split(/\s+/).length,
+            source: "github_readme",
+            category: "GITHUB_DOC",
+            tags: `${r.owner},${r.repo},${r.domain}`,
+          } as never,
+          update: {
+            title,
+            content: md.slice(0, 12000),
+            summary,
+            wordCount: md.split(/\s+/).length,
+            category: "GITHUB_DOC",
+            tags: `${r.owner},${r.repo},${r.domain}`,
+          } as never,
+        })
+        .catch(() => {});
+      count++;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  logger.info(`[DEEP_REPOS] Synced ${count} README/docs`);
   return count;
 }

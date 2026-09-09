@@ -1,6 +1,11 @@
 import { EmbedBuilder, AttachmentBuilder } from "discord.js";
 import logger from "../../utils/logger.js";
-import { getBlogImage, resolveImageUrl, createImageAttachment, isValidEmbedImageUrl } from "../../utils/image-helpers.js";
+import {
+  getBlogImage,
+  resolveImageUrl,
+  createImageAttachment,
+  isValidEmbedImageUrl,
+} from "../../utils/image-helpers.js";
 import { stripHtml } from "../../utils/stripHtml.js";
 
 interface RSSItem {
@@ -47,9 +52,13 @@ export function createSteamEmbed(item: RSSItem): EmbedBuilder {
     .setTimestamp(item.pubDate ? new Date(item.pubDate) : new Date());
 }
 
-export async function createPlayStationEmbed(item: RSSItem): Promise<{ embed: EmbedBuilder; files?: AttachmentBuilder[] }> {
+export async function createPlayStationEmbed(
+  item: RSSItem,
+): Promise<{ embed: EmbedBuilder; files?: AttachmentBuilder[] }> {
   const cleanDescription = cleanHTML(item.description);
-  const timestamp = item.pubDate ? Math.floor(new Date(item.pubDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
+  const timestamp = item.pubDate
+    ? Math.floor(new Date(item.pubDate).getTime() / 1000)
+    : Math.floor(Date.now() / 1000);
 
   const embed = new EmbedBuilder()
     .setAuthor({ name: "📡 TRANSMISSION ENTRANTE // INTEL PLAYSTATION" })
@@ -63,7 +72,9 @@ export async function createPlayStationEmbed(item: RSSItem): Promise<{ embed: Em
   let imageUrl: string | null = null;
   try {
     imageUrl = await getBlogImage(item.link);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   if (imageUrl) {
     // Resolve relative URLs against PlayStation blog base
@@ -82,7 +93,9 @@ export async function createPlayStationEmbed(item: RSSItem): Promise<{ embed: Em
           embed.setImage(`attachment://${attachmentResult.filename}`);
           return { embed, files: [attachmentResult.attachment] };
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 

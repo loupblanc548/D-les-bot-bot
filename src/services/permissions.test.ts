@@ -13,6 +13,7 @@ vi.mock("../config", () => ({
   config: {
     adminRoles: [] as string[],
     modRoles: [] as string[],
+    ownerId: "",
   },
 }));
 
@@ -168,6 +169,19 @@ describe("getPermissionLevel", () => {
     expect(level).toBe(PermissionLevel.EVERYONE);
   });
 
+  it("should return ADMIN for the bot owner without Discord Administrator", async () => {
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
+    config.adminRoles = [];
+    config.modRoles = [];
+    (config as any).ownerId = "owner-123";
+    (prisma.default.guildConfig.findUnique as any).mockResolvedValue(null);
+
+    const member = mockMember({ id: "owner-123", roleIds: [] });
+    const level = await getPermissionLevel(member);
+    expect(level).toBe(PermissionLevel.ADMIN);
+  });
+
   it("should prioritize admin over mod when member has both", async () => {
     const _prisma = await import("../prisma.js");
     const { config } = await import("../config.js");
@@ -182,8 +196,12 @@ describe("getPermissionLevel", () => {
 });
 
 describe("requireAdmin", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const { config } = await import("../config.js");
+    (config as any).ownerId = "";
+    config.adminRoles = [];
+    config.modRoles = [];
   });
 
   it("should return false and reply for DM interactions (no member)", async () => {
@@ -216,6 +234,16 @@ describe("requireAdmin", () => {
         content: expect.stringContaining("propriétaire"),
       }),
     );
+  });
+
+  it("should return true for the bot owner on a guild without Administrator", async () => {
+    const { config } = await import("../config.js");
+    (config as any).ownerId = "owner-123";
+    const member = mockMember({ id: "owner-123", roleIds: [] });
+    const interaction = mockInteraction(member);
+    (interaction as { user: { id: string } }).user = { id: "owner-123" };
+    const result = await requireAdmin(interaction);
+    expect(result).toBe(true);
   });
 
   it("should return true for admin members", async () => {

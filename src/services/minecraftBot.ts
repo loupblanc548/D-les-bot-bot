@@ -230,7 +230,9 @@ export function disconnectBot(): { success: boolean; message: string } {
   try {
     if (typeof (bot as any).disconnect === "function") (bot as any).disconnect();
     else if (typeof (bot as any).close === "function") (bot as any).close();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   cleanupBot();
   logger.info("[MinecraftBot] Bot déconnecté");
   return { success: true, message: "✅ Bot Minecraft déconnecté." };
@@ -546,7 +548,9 @@ async function generateAIResponse(
           return groqReply;
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // Fallback final: patterns locaux
     return generatePatternResponse(message, sender, botName);
@@ -942,7 +946,9 @@ async function digBlock(pos: { x: number; y: number; z: number }): Promise<void>
     });
 
     miningState.blocksMined++;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 async function moveForward(): Promise<void> {
@@ -1020,7 +1026,9 @@ export function followPlayer(username: string): { success: boolean; message: str
       // Pour simplifier, on envoie un packet de mouvement vers la dernière position connue du joueur
       // Le bot se déplace vers le joueur en envoyant des packets de mouvement
       // (bedrock-protocol expose les entités via les events)
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }, 1000);
 
   if (followInterval.unref) followInterval.unref();

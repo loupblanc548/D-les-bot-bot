@@ -166,7 +166,7 @@ function learnPattern(source: string, message: string): void {
         normalized.includes("prisma.$executeraw") ||
         normalized.includes("dealscron.*429") ||
         normalized.includes("freegamefindings.*429") ||
-        normalized.includes("salon") && normalized.includes("introuvable");
+        (normalized.includes("salon") && normalized.includes("introuvable"));
       if (!isNonCritical) {
         detectAnomaly(
           "NEW_ERROR_TYPE",

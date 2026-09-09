@@ -89,7 +89,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .addFields(
         { name: "📚 Total Q&A", value: `${totalQA}`, inline: true },
         { name: "🔒 Sujets hashés (dédup)", value: `${dedupCount}`, inline: true },
-        { name: "⚡ Cadence", value: "5 Q&A / 5min (~1440/jour)", inline: true },
+        {
+          name: "⚡ Cadence",
+          value: "~80 Q&A / 5s (wiki filtré + vault push si dépôt séparé)",
+          inline: true,
+        },
         { name: "📂 Répartition par catégorie", value: categoryList, inline: false },
         { name: "🕐 Derniers sujets appris", value: recentList, inline: false },
       )

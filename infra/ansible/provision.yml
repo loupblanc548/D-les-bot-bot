@@ -104,14 +104,17 @@
         enabled: yes
         state: started
 
-    - name: Set up swap (16GB)
+    - name: Set up swap (8GB overflow for 8GB RAM VPS)
       shell: |
-        if [ ! -f /swapfile ]; then
-          fallocate -l 16G /swapfile
-          chmod 600 /swapfile
-          mkswap /swapfile
-          swapon /swapfile
-          echo '/swapfile none swap sw 0 0' >> /etc/fstab
-        fi
+        bash "{{ bot_dir }}/scripts/setup-swap.sh" || {
+          if [ ! -f /swapfile ]; then
+            fallocate -l 8G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=8192
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          fi
+          sysctl -w vm.swappiness=25
+        }
       args:
         creates: /swapfile

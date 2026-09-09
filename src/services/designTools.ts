@@ -50,7 +50,9 @@ export async function getGodlyInspiration(category?: string): Promise<string | n
           for (const s of parsed.slice(0, 10)) {
             sites.push(`• **${s.title}** — ${s.url}`);
           }
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
     }
 

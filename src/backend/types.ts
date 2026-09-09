@@ -27,7 +27,7 @@ export interface MetricSnapshot {
 }
 
 export interface MetricsResponse {
-  period: '1h' | '24h' | '7d';
+  period: "1h" | "24h" | "7d";
   interval: number;
   data: MetricSnapshot[];
   summary: {
@@ -53,7 +53,7 @@ export interface FeedInfo {
 
 export interface LogEntry {
   timestamp: string;
-  level: 'info' | 'success' | 'warn' | 'error' | 'debug';
+  level: "info" | "success" | "warn" | "error" | "debug";
   message: string;
   module?: string;
 }
@@ -74,14 +74,14 @@ export interface AppSettings {
   token?: string;
   port?: number;
   refreshInterval?: number;
-  theme?: 'dark' | 'light';
+  theme?: "dark" | "light";
   notifications?: boolean;
   autoReconnect?: boolean;
 }
 
 export interface AlertInfo {
   id: string;
-  level: 'critical' | 'warning' | 'info';
+  level: "critical" | "warning" | "info";
   title: string;
   description: string;
   timestamp: string;
@@ -97,12 +97,12 @@ export interface ApiResponse<T = unknown> {
 }
 
 export type WsEventType =
-  | 'dashboard-update'
-  | 'platform-update'
-  | 'cache-update'
-  | 'log'
-  | 'alert'
-  | 'bot-status'
-  | 'fortnite-update'
-  | 'connected'
-  | 'metric-snapshot';
+  | "dashboard-update"
+  | "platform-update"
+  | "cache-update"
+  | "log"
+  | "alert"
+  | "bot-status"
+  | "fortnite-update"
+  | "connected"
+  | "metric-snapshot";

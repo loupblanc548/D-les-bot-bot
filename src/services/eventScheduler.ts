@@ -50,9 +50,7 @@ const eventsByGuild = new Map<string, Set<string>>();
 // ─── Helpers ──────────────────────────────────────────────────────
 
 function newId(guildId: string): string {
-  return `${guildId}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `${guildId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function indexByGuild(e: ServerEvent): void {
@@ -96,9 +94,7 @@ export function createEvent(
   if (!channelId) throw new Error("[eventScheduler] channelId requis");
   if (!createdBy) throw new Error("[eventScheduler] createdBy requis");
   if (!Number.isFinite(reminderMs) || reminderMs < 0) {
-    throw new Error(
-      `[eventScheduler] reminderMs invalide (${reminderMs})`,
-    );
+    throw new Error(`[eventScheduler] reminderMs invalide (${reminderMs})`);
   }
 
   const e: ServerEvent = {
@@ -113,9 +109,7 @@ export function createEvent(
   };
   eventsById.set(e.id, e);
   indexByGuild(e);
-  logger.info(
-    `[eventScheduler] Événement créé: ${e.id} "${name}" à ${scheduledAt.toISOString()}`,
-  );
+  logger.info(`[eventScheduler] Événement créé: ${e.id} "${name}" à ${scheduledAt.toISOString()}`);
   return e;
 }
 
@@ -207,9 +201,7 @@ export async function checkEvents(
       await (channel as TextChannel).send({ embeds: [embed] });
       dispatched.push(e);
       cancelEvent(e.id); // one-shot
-      logger.info(
-        `[eventScheduler] 📣 Événement envoyé: ${e.id} "${e.name}"`,
-      );
+      logger.info(`[eventScheduler] 📣 Événement envoyé: ${e.id} "${e.name}"`);
     } catch (error) {
       logger.warn(
         `[eventScheduler] Échec dispatch événement ${e.id}: ${
@@ -226,10 +218,7 @@ export async function checkEvents(
 
 // ─── Embed helper ─────────────────────────────────────────────────
 
-function buildEventEmbed(
-  e: ServerEvent,
-  opts: { tz: string; locale: string },
-): EmbedBuilder {
+function buildEventEmbed(e: ServerEvent, opts: { tz: string; locale: string }): EmbedBuilder {
   let when = e.scheduledAt.toISOString();
   try {
     const fmt = new Intl.DateTimeFormat(opts.locale, {
@@ -238,7 +227,9 @@ function buildEventEmbed(
       timeStyle: "short",
     });
     when = fmt.format(e.scheduledAt);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   return new EmbedBuilder()
     .setTitle(`📅 ${e.name}`)
     .setDescription(e.description || "_(pas de description)_")
@@ -246,10 +237,7 @@ function buildEventEmbed(
       { name: "Quand", value: when, inline: false },
       {
         name: "Rappel",
-        value:
-          e.reminderMs > 0
-            ? `${Math.round(e.reminderMs / 60_000)} min avant`
-            : "Aucun",
+        value: e.reminderMs > 0 ? `${Math.round(e.reminderMs / 60_000)} min avant` : "Aucun",
         inline: true,
       },
     )

@@ -98,9 +98,7 @@ async function crawlSkillsDirectory(): Promise<ParsedSkill[]> {
     if (entry.type === "dir") {
       // Each subdirectory is a skill — fetch its contents
       try {
-        const subEntries: GitHubContent[] = await fetchJson(
-          `${GITHUB_API_BASE}/${entry.name}`,
-        );
+        const subEntries: GitHubContent[] = await fetchJson(`${GITHUB_API_BASE}/${entry.name}`);
         if (!Array.isArray(subEntries)) continue;
 
         let problemStatement = "";
@@ -118,17 +116,23 @@ async function crawlSkillsDirectory(): Promise<ParsedSkill[]> {
             try {
               problemStatement = await fetchRaw(rawFileUrl);
               rawUrl = rawFileUrl;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           } else if (file.name.match(/solution|answer|code/i)) {
             try {
               solutionCode = await fetchRaw(rawFileUrl);
               if (!rawUrl) rawUrl = rawFileUrl;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           } else if (file.name.match(/explanation|notes|guide/i)) {
             try {
               explanation = await fetchRaw(rawFileUrl);
               if (!rawUrl) rawUrl = rawFileUrl;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           } else if (file.name.endsWith(".md")) {
             // Generic markdown — use as explanation if not yet set
             try {
@@ -136,22 +140,24 @@ async function crawlSkillsDirectory(): Promise<ParsedSkill[]> {
               if (!explanation) explanation = content;
               if (!problemStatement) problemStatement = content.split("\n").slice(0, 5).join("\n");
               rawUrl = rawFileUrl;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           } else if (file.name.endsWith(".ts") || file.name.endsWith(".tsx")) {
             // TypeScript file — use as solution code
             try {
               solutionCode = await fetchRaw(rawFileUrl);
               if (!rawUrl) rawUrl = rawFileUrl;
-            } catch { /* skip */ }
+            } catch {
+              /* skip */
+            }
           }
         }
 
         // Only add if we got meaningful content
         if (problemStatement || solutionCode || explanation) {
           // Derive title from directory name
-          const title = entry.name
-            .replace(/[-_]/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase());
+          const title = entry.name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
           // Derive category from first word or common patterns
           const category = entry.name.split(/[-_]/)[0] || "general";
@@ -208,28 +214,32 @@ export async function syncTypeScriptSkills(): Promise<void> {
       const batch = skills.slice(i, i + batchSize);
       await Promise.all(
         batch.map((s) =>
-          prisma.typeScriptSkill.upsert({
-            where: { slug: s.slug },
-            create: {
-              slug: s.slug,
-              title: s.title,
-              category: s.category,
-              problemStatement: s.problemStatement,
-              solutionCode: s.solutionCode,
-              explanation: s.explanation,
-              rawUrl: s.rawUrl,
-            },
-            update: {
-              title: s.title,
-              category: s.category,
-              problemStatement: s.problemStatement,
-              solutionCode: s.solutionCode,
-              explanation: s.explanation,
-              rawUrl: s.rawUrl,
-            },
-          }).catch((err: any) => {
-            logger.debug(`[TS-WIZARD] Upsert failed for ${s.slug}: ${err instanceof Error ? err.message : String(err)}`);
-          }),
+          prisma.typeScriptSkill
+            .upsert({
+              where: { slug: s.slug },
+              create: {
+                slug: s.slug,
+                title: s.title,
+                category: s.category,
+                problemStatement: s.problemStatement,
+                solutionCode: s.solutionCode,
+                explanation: s.explanation,
+                rawUrl: s.rawUrl,
+              },
+              update: {
+                title: s.title,
+                category: s.category,
+                problemStatement: s.problemStatement,
+                solutionCode: s.solutionCode,
+                explanation: s.explanation,
+                rawUrl: s.rawUrl,
+              },
+            })
+            .catch((err: any) => {
+              logger.debug(
+                `[TS-WIZARD] Upsert failed for ${s.slug}: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }),
         ),
       );
     }
@@ -272,7 +282,9 @@ export function startSyncTypeScriptSkills(): void {
   }, 60_000);
 
   if (cronJob.unref) cronJob.unref();
-  logger.info(`${"\x1b[36m"}[KNOWLEDGE-INGESTION] [TS-WIZARD] Cron started — monthly sync (1st at 04:00)${"\x1b[0m"}`);
+  logger.info(
+    `${"\x1b[36m"}[KNOWLEDGE-INGESTION] [TS-WIZARD] Cron started — monthly sync (1st at 04:00)${"\x1b[0m"}`,
+  );
 }
 
 export function stopSyncTypeScriptSkills(): void {

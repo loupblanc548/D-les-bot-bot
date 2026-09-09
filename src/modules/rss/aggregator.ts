@@ -163,9 +163,16 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
             translatedDescription = descResult.translatedText;
           }
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
-      const translatedItem = { ...item, title: translatedTitle, description: translatedDescription, contentSnippet: translatedDescription };
+      const translatedItem = {
+        ...item,
+        title: translatedTitle,
+        description: translatedDescription,
+        contentSnippet: translatedDescription,
+      };
       const embedResult = createThemedEmbed(feed.type, translatedItem);
 
       try {
@@ -200,7 +207,12 @@ async function checkFeed(client: Client, feed: RSSFeed, url: string): Promise<vo
   }
 }
 
-function createThemedEmbed(type: string, item: any): EmbedBuilder | Promise<{ embed: EmbedBuilder; files?: import("discord.js").AttachmentBuilder[] }> {
+function createThemedEmbed(
+  type: string,
+  item: any,
+):
+  | EmbedBuilder
+  | Promise<{ embed: EmbedBuilder; files?: import("discord.js").AttachmentBuilder[] }> {
   const rssItem = {
     title: item.title || "Sans titre",
     description: item.contentSnippet || item.description || "Sans description",

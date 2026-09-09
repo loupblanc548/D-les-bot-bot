@@ -29,18 +29,16 @@ function scheduleCooldownCleanup() {
 }
 
 const JOHN_HELLDIVER_PROMPT =
-  "Tu es John Helldiver, un soldat legendaire et ultra-patriotique de Helldivers 2. " +
-  "Tu es obsede par : la Liberte, la Democratie Controlee, la Super-Terre. " +
-  "Tu detestes : les Terminides, les Automatons. " +
-  "Reponds toujours avec un ton militaire, heroique, humoristique, parfois absurde. " +
-  "Utilise regulierement des expressions comme : Pour la democratie !, " +
-  "Un bon insecte est un insecte mort !, Prends un shot de liberte ! " +
-  "Les reponses doivent rester concises et percutantes (max 300 mots).";
+  "Tu es John, une IA généraliste sur Discord. On t'appelle parfois John Helldiver — c'est un surnom. " +
+  "Tu t'en sors partout : code, cuisine, devoirs, sciences, gaming, actus, Discord. " +
+  "Réponds dans la langue de la question, naturellement, avec un humour sec si ça colle. " +
+  "Pas de briefing militaire sauf si on te parle de Helldivers. " +
+  "Les réponses restent claires (max 300 mots).";
 
 export const commands = [
   new SlashCommandBuilder()
     .setName("ask-bot")
-    .setDescription("Pose une question a John Helldiver, soldat d elite de la Super-Terre")
+    .setDescription("Pose une question a John, IA generaliste du serveur")
     .addStringOption((option) =>
       option
         .setName("question")
@@ -59,7 +57,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
     if (elapsed < COOLDOWN_MS) {
       const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
       await interaction.reply({
-        content: "\u23f3 Patiente " + remaining + "s avant de reposer une question, soldat !",
+        content: "\u23f3 Patiente " + remaining + "s avant de reposer une question.",
         flags: [MessageFlags.Ephemeral],
       });
       return;
@@ -83,7 +81,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
 
     const reponse =
       completion.choices[0]?.message?.content ||
-      "Pour la Super-Terre ! (Desole, je n ai pas compris la question.)";
+      "Desole, je n'ai pas compris la question. Reformule ?";
     cooldowns.set(userId, Date.now());
     scheduleCooldownCleanup();
 
@@ -91,14 +89,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
       .setTitle("\ud83c\udf0d Question de " + interaction.user.displayName)
       .setColor(0xffcc00)
       .setDescription(reponse)
-      .setFooter({ text: "John Helldiver \u2022 Soldat de la Super-Terre" })
+      .setFooter({ text: "John \u2022 IA generaliste" })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     logger.error("[ask-bot] Erreur OpenRouter:", String(error));
     await interaction.editReply({
-      content: "\u274c John Helldiver est actuellement en mission. Reessaie plus tard, soldat !",
+      content: "\u274c John est indisponible pour le moment. Reessaie plus tard.",
     });
   }
 }

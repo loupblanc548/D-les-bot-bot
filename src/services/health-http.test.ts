@@ -21,17 +21,19 @@ import { startHealthServer, stopHealthServer } from "./health-http.js";
 
 function httpGet(url: string): Promise<{ status: number; body: unknown }> {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => {
-        try {
-          resolve({ status: res.statusCode || 0, body: JSON.parse(data) });
-        } catch {
-          resolve({ status: res.statusCode || 0, body: data });
-        }
-      });
-    }).on("error", reject);
+    http
+      .get(url, (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            resolve({ status: res.statusCode || 0, body: JSON.parse(data) });
+          } catch {
+            resolve({ status: res.statusCode || 0, body: data });
+          }
+        });
+      })
+      .on("error", reject);
   });
 }
 
@@ -51,9 +53,7 @@ describe("health-http", () => {
       // Wait briefly for server to start
       await new Promise((r) => setTimeout(r, 50));
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        "Health server listening on port 3099"
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith("Health server listening on port 3099");
     });
 
     it("should not start a second server if one is already running", () => {

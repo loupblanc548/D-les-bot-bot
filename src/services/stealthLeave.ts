@@ -34,12 +34,16 @@ export async function stealthGuildLeave(client: Client, guild: Guild): Promise<v
         }
         logger.info(`[StealthLeave] ${commands.size} commandes slash supprimées de ${guildName}`);
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // 2. Supprimer les commandes au niveau application pour ce serveur
     try {
       await client.application?.commands.set([], guildId).catch(() => {});
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // 3. Nettoyer les données DB liées au serveur (invisible, aucune trace serveur)
     try {
@@ -55,13 +59,17 @@ export async function stealthGuildLeave(client: Client, guild: Guild): Promise<v
         prisma.riskProfile.deleteMany({ where: { guildId } }),
       ]);
       logger.info(`[StealthLeave] Données DB nettoyées pour ${guildName}`);
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // 4. Quitter le serveur silencieusement
     try {
       await guild.leave();
       logger.info(`[StealthLeave] Bot a quitté ${guildName} (${guildId}) silencieusement`);
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // 5. Alerte DM à l'owner (en DM uniquement, aucune trace serveur)
     await sendProactiveAlert(
@@ -88,5 +96,7 @@ export async function checkOwnerPresence(client: Client, guild: Guild): Promise<
       logger.warn(`[StealthLeave] Owner absent de ${guild.name} — départ invisible déclenché`);
       await stealthGuildLeave(client, guild);
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }

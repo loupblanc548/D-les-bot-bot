@@ -4,18 +4,22 @@ import type { FeedInfo } from "../types.js";
 
 const PLATFORM_LABELS: Record<string, string> = {
   "free-games": "Jeux gratuits (Epic/Steam/GOG...)",
-  "twitter": "Twitter / X",
-  "deals": "Bons plans (Dealabs/PPDG...)",
+  twitter: "Twitter / X",
+  deals: "Bons plans (Dealabs/PPDG...)",
   "steam-news": "Actualités Steam",
-  "patch_notes": "Patch notes globaux",
-  "instantgaming_news": "Instant Gaming - News",
+  patch_notes: "Patch notes globaux",
+  instantgaming_news: "Instant Gaming - News",
   "instantgaming-giveaway": "Instant Gaming - Giveaway",
 };
 
 const platformActive: Record<string, boolean> = {
-  "free-games": true, "twitter": true, "deals": true,
-  "steam-news": true, "patch_notes": true,
-  "instantgaming_news": true, "instantgaming-giveaway": true,
+  "free-games": true,
+  twitter: true,
+  deals: true,
+  "steam-news": true,
+  patch_notes: true,
+  instantgaming_news: true,
+  "instantgaming-giveaway": true,
 };
 
 export function getPlatforms(): FeedInfo[] {
@@ -43,7 +47,9 @@ export function isPlatformActive(id: string): boolean {
 export function handleGetFeeds(req: http.IncomingMessage, res: http.ServerResponse): void {
   if (!authenticate(req, res)) return;
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ success: true, data: getPlatforms(), timestamp: new Date().toISOString() }));
+  res.end(
+    JSON.stringify({ success: true, data: getPlatforms(), timestamp: new Date().toISOString() }),
+  );
 }
 
 export function handleToggleFeed(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -60,7 +66,13 @@ export function handleToggleFeed(req: http.IncomingMessage, res: http.ServerResp
         return;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, data: { platformId, active: enable }, timestamp: new Date().toISOString() }));
+      res.end(
+        JSON.stringify({
+          success: true,
+          data: { platformId, active: enable },
+          timestamp: new Date().toISOString(),
+        }),
+      );
     } catch {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: false, error: "JSON invalide" }));

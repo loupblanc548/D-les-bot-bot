@@ -39,10 +39,7 @@ interface FetchRetryOptions extends RequestInit {
  * @param options Fetch options + retry config
  * @returns Response object
  */
-export async function fetchRetry(
-  url: string,
-  options: FetchRetryOptions = {},
-): Promise<Response> {
+export async function fetchRetry(url: string, options: FetchRetryOptions = {}): Promise<Response> {
   const {
     retries = 2,
     retryDelayMs = 1000,
@@ -60,9 +57,7 @@ export async function fetchRetry(
       if (externalSignal) signals.push(externalSignal);
       signals.push(AbortSignal.timeout(timeoutMs));
 
-      const combinedSignal = signals.length > 1
-        ? AbortSignal.any(signals)
-        : signals[0];
+      const combinedSignal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
 
       const res = await fetch(url, {
         ...fetchOptions,
@@ -84,7 +79,7 @@ export async function fetchRetry(
       const delay = retryDelayMs * Math.pow(1.5, attempt); // exponential backoff
       logger.debug(
         `[FetchRetry] Attempt ${attempt + 1}/${retries + 1} failed for ${url.slice(0, 80)}: ` +
-        `${error instanceof Error ? error.message : String(error)} — retrying in ${Math.round(delay)}ms`,
+          `${error instanceof Error ? error.message : String(error)} — retrying in ${Math.round(delay)}ms`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }

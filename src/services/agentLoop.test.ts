@@ -41,6 +41,10 @@ vi.mock("./nvidiaNim.js", () => ({
   getNvidiaNimClient: vi.fn(() => ({})),
   isNvidiaNimAvailable: () => false,
   isNvidiaModel: () => false,
+  resolveNvidiaModel: (requested?: string) => requested || "test-model",
+  nvidiaModelSupportsTools: () => true,
+  NVIDIA_DEFAULT_MODEL: "test-model",
+  NVIDIA_TOOLS_MODEL: "test-model",
 }));
 vi.mock("./omniroute.js", () => ({
   getOmnirouteClient: vi.fn(() => ({})),
@@ -57,7 +61,10 @@ vi.mock("./sambanova.js", () => ({
   isSambaNovaAvailable: () => false,
   getSambaNovaModel: vi.fn(),
 }));
-vi.mock("../utils/promptSanitizer.js", () => ({ sanitizeForLlm: vi.fn((s: string) => s) }));
+vi.mock("../utils/promptSanitizer.js", () => ({
+  sanitizeForLlm: vi.fn((s: string) => s),
+  wrapUntrustedToolContent: vi.fn((s: string) => s),
+}));
 vi.mock("./taskModelRouter.js", () => ({
   classifyTaskComplexity: vi.fn(() => "simple"),
   getModelChainForTask: vi.fn(() => ["test-model"]),
@@ -85,6 +92,12 @@ vi.mock("./agentPlanner.js", () => ({
   generatePlan: vi.fn().mockResolvedValue(null),
   formatPlanForPrompt: vi.fn(() => ""),
   detectAmbiguity: vi.fn(() => null),
+}));
+vi.mock("./memoryHints.js", () => ({
+  saveSpokenFacts: vi.fn().mockResolvedValue(0),
+  extractSpokenFacts: vi.fn(() => []),
+  matchJohnWakeWord: vi.fn(() => ({ hit: false, prompt: "" })),
+  shouldReplyToUtterance: vi.fn(() => ({ reply: false, prompt: "" })),
 }));
 vi.mock("./agentMemory.js", () => ({
   storeMemory: vi.fn(),

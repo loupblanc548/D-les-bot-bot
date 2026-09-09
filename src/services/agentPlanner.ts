@@ -131,19 +131,29 @@ export function detectAmbiguity(userMessage: string): string[] | null {
     /\b(?:tu peux|tu sais|t['e]?s capable|peux.tu|sais.tu|est.ce que tu peux|c['e]?tait pour savoir|juste pour savoir|si tu pouvais|est.ce possible|tu as le droit|ça te dit|tu ferais quoi|fais rien|dis.moi juste|que peux.tu|quelles sont tes|tes capacités|can you|could you|do you know|are you able|what can you|just wondering|just curious|kannst du|was kannst|puedes|sabes|puoi|sai|kun je|weet je)\b/i.test(
       lower,
     );
+  const isModerationHistory =
+    /\bcasier\b/.test(lower) ||
+    /\bhistorique\b/.test(lower) ||
+    /\blogs?\b/.test(lower) ||
+    /\bjournal\b/.test(lower) ||
+    (/\b(montre|montrer|pr[ée]sente|afficher?|consulte|liste|voir)\b/.test(lower) &&
+      /\b(sanction|ban|timeout|kick|mute|exclusion)\b/.test(lower));
   if (
     (lower.includes("ban") ||
       lower.includes("kick") ||
       lower.includes("timeout") ||
       lower.includes("warn")) &&
     !hasMention &&
-    !isCapabilityQuestion
+    !isCapabilityQuestion &&
+    !isModerationHistory
   ) {
     questions.push("Quel utilisateur veux-tu sanctionner ? (mentionne-le avec @)");
   }
   if (
     (lower.includes("timeout") || lower.includes("mute")) &&
     hasMention &&
+    !isModerationHistory &&
+    !isCapabilityQuestion &&
     !lower.match(/\d+\s*(min|heure|hour|sec|jour|day)/)
   ) {
     questions.push("Quelle durée pour le timeout ? (ex: 10min, 1heure, 1jour)");
@@ -189,9 +199,11 @@ export function detectAmbiguity(userMessage: string): string[] | null {
 
   // ─── Analyse de lien / URL ───
   if (
-    (lower.includes("analyse") || lower.includes("résume") || lower.includes("lis")) &&
+    (lower.includes("analyse") || lower.includes("résume") || /\blis\b/.test(lower)) &&
     (lower.includes("lien") || lower.includes("url") || lower.includes("page")) &&
-    !hasUrl
+    !hasUrl &&
+    words.length < 16 &&
+    !/pas (une |d[' ]?)?(url|lien|page)/i.test(lower)
   ) {
     questions.push("Donne-moi le lien (URL) que tu veux que j'analyse.");
   }

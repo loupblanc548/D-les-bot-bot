@@ -13,10 +13,11 @@ if (process.env.OTEL_ENABLED === "true") {
 }
 
 import * as Sentry from "@sentry/node";
-import { Client, GatewayIntentBits, Options } from "discord.js";
+import { Client, GatewayIntentBits, Options, Partials } from "discord.js";
 import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
 import logger from "./utils/logger.js";
+import { MEMORY_CONFIG } from "./utils/memoryConfig.js";
 import { startHealthServer, setDiscordClient } from "./services/health-http.js";
 import { setupAllWebhooks } from "./services/webhookSetup.js";
 import { startMetricsServer } from "./services/metrics.js";
@@ -35,7 +36,9 @@ import { initProactiveAlerts, sendConsolidatedStartupReport } from "./services/p
 import { handleMemberEvents } from "./events/members.js";
 import { handleRoleEvents } from "./events/roles.js";
 import { handleChannelEvents } from "./events/channels.js";
+import { handleGuildEvents } from "./events/guilds.js";
 import { handleMessageEvents, startMapCleanup } from "./events/messages.js";
+import { attachMentionInbox } from "./services/mentionInbox.js";
 import { startMemoryOptimizer } from "./utils/memoryOptimizer.js";
 import { installGlobalFetchGuard } from "./utils/globalFetchGuard.js";
 import { handleEmojiEvents } from "./events/emojis.js";
@@ -51,9 +54,10 @@ import {
   stopPersonalityEngine as _stopPersonalityEngine,
 } from "./services/personalityEngine.js";
 import { initVoiceMonitoring } from "./services/voiceAgent.js";
+import { startVoiceHangout } from "./services/voiceHangout.js";
 import { initTelegramNotifications } from "./services/telegram-notifications.js";
 import { setClient } from "./services/clientRef.js";
-import { initNetworkResilience, savePresence } from "./services/networkResilience.js";
+import { initNetworkResilience } from "./services/networkResilience.js";
 import { startInfraWatchdog, stopInfraWatchdog } from "./services/infraWatchdog.js";
 import {
   startConfigCacheCleanup,
@@ -77,8 +81,10 @@ const client = new Client({
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildModeration,
     // REMOVED: GuildMessageReactions — saves ~15-20MB RAM on large guilds
   ],
+  partials: [Partials.Channel, Partials.Message, Partials.GuildMember, Partials.ThreadMember],
   // ─── ULTRA-AGGRESSIVE MEMORY CONFIG ───────────────────────────────────
   // 512MB container: every KB counts. Zero-cache for non-essential managers.
   makeCache: Options.cacheWithLimits({
@@ -124,8 +130,8 @@ const client = new Client({
     status: "online",
     activities: [
       {
-        name: "Surveille les Helldivers",
-        type: 3, // Watching
+        name: "Minecraft",
+        type: 0,
       },
     ],
   },
@@ -410,7 +416,9 @@ async function main(): Promise<void> {
   handleMemberEvents(client);
   handleRoleEvents(client);
   handleChannelEvents(client);
+  handleGuildEvents(client);
   handleMessageEvents(client);
+  attachMentionInbox(client);
   handleEmojiEvents(client);
   handleModerationEvents(client);
   startMapCleanup();
@@ -432,16 +440,14 @@ async function main(): Promise<void> {
 
   // ─── MODULE 6: Network Resilience — shard reconnect with backoff ───
   initNetworkResilience(client);
-  savePresence({
-    status: "online",
-    activities: [{ name: "Surveille les Helldivers", type: 3 }],
-  });
   logger.info("✓ Network resilience initialise (shard backoff, presence restore)");
 
   // ─── MODULE 5: Infrastructure Watchdog — memory monitor ───
-  // Aligned with --max-old-space-size=4096 (4GB)
+  // Watchdog thresholds follow MEMORY_CONFIG (heap scaled to RAM).
   startInfraWatchdog(client, process.env.ALERT_CHANNEL_ID);
-  logger.info("✓ Infrastructure watchdog initialise (3.2/3.8/4.0GB thresholds)");
+  logger.info(
+    `✓ Infrastructure watchdog (${MEMORY_CONFIG.PROFILE}: GC@${MEMORY_CONFIG.WATCHDOG_GC_MB}MB, critical@${MEMORY_CONFIG.WATCHDOG_CRITICAL_MB}MB, shutdown@${MEMORY_CONFIG.WATCHDOG_SHUTDOWN_MB}MB)`,
+  );
 
   // ─── MODULE 2: Config Cache — start background cleanup + pre-warm ───
   startConfigCacheCleanup();
@@ -483,7 +489,7 @@ async function main(): Promise<void> {
   // Agent IA autonome — scan de messages proactif + auto-résolution d'alertes
   startAgentBrain(client);
 
-  // Moteur de personnalité — John Helldiver répond de façon autonome
+  // Moteur de personnalité — John répond de façon autonome
   startPersonalityEngine(client);
 
   // Salons vocaux temporaires
@@ -493,6 +499,7 @@ async function main(): Promise<void> {
 
   // Détection de raids vocaux (5+ connexions en 30s)
   initVoiceMonitoring(client);
+  startVoiceHangout(client);
 
   // Phase 1: Removed DisTube init (music commands deleted — saves ~30MB RAM)
   logger.info("✓ Gestionnaires d'evenements initialises");
@@ -582,6 +589,8 @@ async function main(): Promise<void> {
 
   // Auto-apprentissage: génère des Q&A via Wikipédia/Wiktionnaire → Obsidian
   try {
+    const { syncVault } = await import("./services/obsidianMemory.js");
+    void syncVault();
     const { startSelfLearner } = await import("./services/selfLearner.js");
     startSelfLearner();
   } catch (err) {

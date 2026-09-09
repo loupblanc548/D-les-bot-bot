@@ -24,8 +24,7 @@ const SYSTEM_PROMPT =
   "Réponds uniquement en français, de manière claire, concise et neutre.";
 
 const USER_PROMPT =
-  "Résume ces messages Discord en 3-5 points clés. Sois concis.\n\n" +
-  "Messages à résumer :\n";
+  "Résume ces messages Discord en 3-5 points clés. Sois concis.\n\n" + "Messages à résumer :\n";
 
 /**
  *Résume un fil de messages Discord via OpenRouter.
@@ -33,17 +32,13 @@ const USER_PROMPT =
  * @param messages    Messages a fournir au modele (ordre chronologique preserve).
  * @param maxMessages Si defini, conserve uniquement les `maxMessages` derniers messages.
  */
-export async function summarizeChannel(
-  messages: string[],
-  maxMessages?: number,
-): Promise<string> {
+export async function summarizeChannel(messages: string[], maxMessages?: number): Promise<string> {
   if (!Array.isArray(messages) || messages.length === 0) {
     return FALLBACK_MESSAGE;
   }
 
-  const slice = typeof maxMessages === "number" && maxMessages > 0
-    ? messages.slice(-maxMessages)
-    : messages;
+  const slice =
+    typeof maxMessages === "number" && maxMessages > 0 ? messages.slice(-maxMessages) : messages;
 
   // Filtre les chaines vides pour ne pas gonfler inutilement le prompt.
   const nonEmpty = slice.filter((m): m is string => typeof m === "string" && m.trim().length > 0);
@@ -76,7 +71,9 @@ export async function summarizeChannel(
   } catch (error) {
     const reason =
       error instanceof Error
-        ? (error.name === "AbortError" ? "timeout 15s" : error.message)
+        ? error.name === "AbortError"
+          ? "timeout 15s"
+          : error.message
         : String(error);
     logger.warn(`[channelSummary] Echec du resume OpenRouter: ${reason}`);
     return FALLBACK_MESSAGE;

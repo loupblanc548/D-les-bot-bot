@@ -324,7 +324,9 @@ export function sshKeyAudit(): string {
             bits: parts[0]?.includes("rsa") ? 0 : 0,
             fingerprint: parts[1]?.slice(0, 30) + "...",
           });
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
     }
     return JSON.stringify({ totalKeys: results.length, keys: results }, null, 2);

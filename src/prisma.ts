@@ -23,7 +23,10 @@ const globalForPrisma = globalThis as any as {
 function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   return new PrismaClient({
-    log: process.env.NODE_ENV === "production" ? ["error", "warn"] : ["query", "info", "warn", "error"],
+    log:
+      process.env.NODE_ENV === "production"
+        ? ["error", "warn"]
+        : ["query", "info", "warn", "error"],
     adapter,
   });
 }
@@ -39,7 +42,9 @@ if (!globalForPrisma.prisma) {
 process.on("beforeExit", async () => {
   try {
     await prisma.$disconnect();
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 });
 
 export default prisma;

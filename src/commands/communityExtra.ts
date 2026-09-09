@@ -121,7 +121,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -142,7 +144,9 @@ async function handleReminder(interaction: ChatInputCommandInteraction, client: 
         triggerAt,
       },
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
@@ -179,7 +183,9 @@ async function handleReminder(interaction: ChatInputCommandInteraction, client: 
           await prisma.reminder.deleteMany({
             where: { userId: interaction.user.id, message, triggerAt },
           });
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       } catch (error) {
         logger.error("[Reminder] Erreur déclenchement:", error);
       }
@@ -316,7 +322,9 @@ async function handleSelfRole(interaction: ChatInputCommandInteraction, _client:
           value: interaction.channelId,
         },
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     logger.info(`[SelfRole] Message créé par ${interaction.user.tag} avec ${roles.length} rôles`);
     return;

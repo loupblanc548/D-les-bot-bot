@@ -101,11 +101,11 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   { envVar: "RSSHUB_URL", tools: ["get_rsshub_feed"], optional: true },
   { envVar: "TELEGRAM_BOT_TOKEN", tools: ["send_telegram"], optional: true },
   { envVar: "DISCORD_WEBHOOK_URL", tools: [], optional: true },
-  { envVar: "AGENT_SSH_ENABLED", tools: ["ssh_command"], optional: false },
+  { envVar: "AGENT_SSH_ENABLED", tools: ["ssh_command", "run_terminal"], optional: true },
   { envVar: "AGENT_DOCKER_ENABLED", tools: ["docker_manage"], optional: false },
   { envVar: "AGENT_GIT_ENABLED", tools: ["git_operations"], optional: false },
   { envVar: "AGENT_DB_ENABLED", tools: ["db_query"], optional: true },
-  { envVar: "HIBP_API_KEY", tools: ["checkDataBreach"], optional: true },
+  { envVar: "HIBP_API_KEY", tools: ["checkDataBreach", "haveibeenpwned_check"], optional: true },
   { envVar: "URLSCAN_API_KEY", tools: ["scanUrlSafety"], optional: true },
   { envVar: "WOLFRAM_APP_ID", tools: ["solveMathAdvanced"], optional: true },
   { envVar: "DEEPL_API_KEY", tools: ["translateTextDeepL"], optional: true },
@@ -125,7 +125,16 @@ const API_KEY_REGISTRY: ApiKeyRequirement[] = [
   // Remove.bg
   { envVar: "REMOVEBG_API_KEY", tools: ["removeBackground"], optional: true },
   // Retailer APIs
-  { envVar: "AMAZON_PA_API_KEY", tools: ["searchRetailers", "searchSingleRetailer", "trackRetailerProduct", "compareProductPrices"], optional: true },
+  {
+    envVar: "AMAZON_PA_API_KEY",
+    tools: [
+      "searchRetailers",
+      "searchSingleRetailer",
+      "trackRetailerProduct",
+      "compareProductPrices",
+    ],
+    optional: true,
+  },
   { envVar: "EBAY_CLIENT_ID", tools: ["searchSingleRetailer"], optional: true },
   { envVar: "KEEPA_API_KEY", tools: ["getAmazonPriceHistory"], optional: true },
 ];
@@ -180,6 +189,23 @@ interface ToolCategory {
 }
 
 const TOOL_CATEGORIES: ToolCategory[] = [
+  {
+    keywords: [
+      "toutes les commandes",
+      "liste des commandes",
+      "liste les commandes",
+      "!help",
+      "/help",
+      "slash",
+      "commandes slash",
+      "commande cmd",
+      "les commandes",
+      "c'est quoi la commande",
+      "cest quoi la commande",
+      "commande pour",
+    ],
+    tools: ["list_bot_commands"],
+  },
   {
     keywords: [
       "météo",
@@ -488,8 +514,50 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "검색",
       "찾기",
       "웹 검색",
+      "recherche internet",
+      "recherche web",
+      "cherche sur internet",
+      "cherche sur le net",
+      "cherche sur le web",
     ],
-    tools: ["searchWeb", "getWikipediaSummary"],
+    tools: ["searchWeb", "exa_web_search", "readUrl", "getWikipediaSummary"],
+  },
+  {
+    keywords: [
+      "créer un serveur",
+      "creer un serveur",
+      "nouveau serveur",
+      "serveur discord",
+      "salons basiques",
+      "setup serveur",
+      "aménage le serveur",
+      "amenage le serveur",
+    ],
+    tools: ["setup_basic_server"],
+  },
+  {
+    keywords: [
+      "osint réseau",
+      "osint reseau",
+      "osint",
+      "whois",
+      "dns lookup",
+      "enregistrements dns",
+      "géolocalise",
+      "geolocalise",
+      "geo ip",
+      "ip info",
+      "certificat ssl",
+      "ssl check",
+    ],
+    tools: [
+      "dns_lookup",
+      "whois_lookup",
+      "getIpInfo",
+      "ip_geolocation",
+      "ssl_checker",
+      "webcheck_scan",
+    ],
   },
   {
     keywords: [
@@ -597,7 +665,43 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "코드",
       "프로젝트",
     ],
-    tools: ["getGitHubRepo", "github_profile"],
+    tools: ["lookupKnowledgeRepo", "getGitHubRepo", "github_profile", "searchKnowledge"],
+  },
+  {
+    keywords: [
+      "osint",
+      "sherlock",
+      "owasp",
+      "pentest",
+      "nuclei",
+      "seclists",
+      "payload",
+      "discord.js",
+      "discordjs",
+      "ollama",
+      "llama.cpp",
+      "langchain",
+      "fortnite",
+      "boutique fortnite",
+      "helldivers",
+      "ppsspp",
+      "duckstation",
+      "shadps4",
+      "ryujinx",
+      "pcsx2",
+      "émulateur",
+      "emulateur",
+      "minecraft",
+      "papermc",
+      "pm2",
+      "vitest",
+      "prisma",
+      "self-hosted",
+      "pi-hole",
+      "home assistant",
+      "yt-dlp",
+    ],
+    tools: ["lookupKnowledgeRepo", "searchKnowledge", "getGitHubRepo"],
   },
   {
     keywords: [
@@ -1377,6 +1481,12 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   {
     keywords: [
       "modération",
+      "casier",
+      "casier judiciaire",
+      "historique de sanctions",
+      "bannissement",
+      "expulsion",
+      "exclusion",
       "ban",
       "kick",
       "timeout",
@@ -1418,7 +1528,7 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "관리",
       "차단",
     ],
-    tools: ["get_user_moderation_history", "timeoutUser", "warnUser"],
+    tools: ["getUserInfo", "get_user_moderation_history", "timeoutUser", "warnUser"],
   },
   {
     keywords: [
@@ -1517,7 +1627,20 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "서버",
       "디스크",
     ],
-    tools: ["system_stats", "ssh_command"],
+    tools: ["system_stats", "run_terminal", "ssh_command"],
+  },
+  {
+    keywords: [
+      "terminal",
+      "cmd",
+      "bash",
+      "shell",
+      "console linux",
+      "ligne de commande",
+      "pm2 list",
+      "df -h",
+    ],
+    tools: ["run_terminal", "ssh_command", "system_stats"],
   },
   {
     keywords: [
@@ -2035,8 +2158,11 @@ const TOOL_CATEGORIES: ToolCategory[] = [
       "fuite",
       "fuite de données",
       "have i been pwned",
+      "haveibeenpwned",
       "hibp",
+      "pwned",
       "email compromis",
+      "compromis",
       "mot de passe volé",
       "data leak",
     ],
@@ -6568,11 +6694,29 @@ export function routeTools(
   // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement
   if (userMessage.trim().length < 15) {
     const ALWAYS_INCLUDE = new Set([
-      "searchWeb", "readUrl", "fetchAndSummarize", "searchKnowledge",
-      "searchUserMemory", "saveMemoryFact", "getUserInfo", "getBotStatus",
-      "getDateTime", "getWeather", "translateText", "execute_code",
-      "build_rich_embed", "send_message", "ask_user_question",
-      "think_step_by_step", "delegate_to_expert",
+      "searchWeb",
+      "readUrl",
+      "fetchAndSummarize",
+      "searchKnowledge",
+      "searchObsidianQA",
+      "getWikipediaSummary",
+      "getGitHubRepo",
+      "lookupKnowledgeRepo",
+      "searchUserMemory",
+      "saveMemoryFact",
+      "getUserInfo",
+      "getBotStatus",
+      "getDateTime",
+      "getWeather",
+      "list_bot_commands",
+      "translateText",
+      "execute_code",
+      "build_rich_embed",
+      "send_message",
+      "ask_user_question",
+      "think_step_by_step",
+      "delegate_to_expert",
+      "getRecentMentions",
     ]);
     const essential = allTools.filter((t) => ALWAYS_INCLUDE.has(t.function.name));
     const filtered = filterAvailableTools(essential);
@@ -6657,6 +6801,15 @@ export function suggestToolChain(userMessage: string): string[][] {
   // "Génère une image" → generate_image
   if (lowerMsg.includes("image") || lowerMsg.includes("dessine") || lowerMsg.includes("génère")) {
     chains.push(["generate_image"]);
+  }
+
+  // Catalogue GitHub indexé → lookup puis knowledge
+  if (
+    /osint|owasp|pentest|sherlock|fortnite|helldiver|ollama|émulateur|emulateur|discord\.js|minecraft|self-?hosted/i.test(
+      lowerMsg,
+    )
+  ) {
+    chains.push(["lookupKnowledgeRepo", "searchKnowledge"]);
   }
 
   // "Analyse ce lien" → fetchAndSummarize + searchKnowledge
@@ -6757,6 +6910,18 @@ export function suggestToolChain(userMessage: string): string[][] {
     lowerMsg.includes("rigole")
   ) {
     chains.push(["getJoke", "getMeme"]);
+  }
+
+  // "Créer un serveur Discord" → setup_basic_server (invite + layout, pas POST /guilds)
+  if (
+    (lowerMsg.includes("serveur") &&
+      (lowerMsg.includes("cré") ||
+        lowerMsg.includes("creer") ||
+        lowerMsg.includes("nouveau") ||
+        lowerMsg.includes("salon"))) ||
+    lowerMsg.includes("salons basiques")
+  ) {
+    chains.push(["setup_basic_server"]);
   }
 
   // "Stats serveur" → guild_analytics + get_server_insights + top_commands

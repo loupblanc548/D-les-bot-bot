@@ -8,6 +8,7 @@
 import { REST, Routes, Interaction, ChatInputCommandInteraction, Client } from "discord.js";
 import { config } from "./config.js";
 import logger from "./utils/logger.js";
+import { isChatFirstSlash } from "./commands/chatFirstSlash.js";
 import {
   createLoggingMiddleware,
   createPermissionGuardMiddleware,
@@ -54,6 +55,10 @@ import {
   handleCommand as handleGameGroup,
   handleFnbotCommand,
 } from "./commands/gameGroup.js";
+import {
+  commands as wishlistCommands,
+  handleCommand as handleWishlistCommand,
+} from "./commands/fun/wishlist.js";
 import { commands as minecraftGroupCommands } from "./commands/minecraftGroup.js";
 import {
   commands as ticketGroupCommands,
@@ -373,10 +378,10 @@ const REMOVED_COMMANDS = new Set([
   "epic-calendar",
   "steam",
   "steam-deals",
-  "wishlist",
   "wishlist-stats",
   "wishlist-notify",
   "boutique",
+  // /wishlist remis : ajouts Fortnite + notifs boutique
   // fortnite-wishlist & fortnite-shop-preview are KEPT (not removed)
   "xbox",
   "twitch",
@@ -473,6 +478,7 @@ export const allCommands = [
   ...securityGroupCommands, // 2. /security (osint, audit, config...)
   ...aiGroupCommands, // 3. /ai (chat, image, translate, config...)
   ...gameGroupCommands, // 4. /game (track, news, free-games, steam...)
+  ...wishlistCommands, // /wishlist Fortnite + multi-plateforme
   ...fnbotCommands, // 4b. /fnbot (Fortnite Party Bot)
   ...minecraftGroupCommands, // 4c. /mc (Minecraft Bedrock Bot)
   ...adminGroupCommands, // 5. /admin (config, database, roles...)
@@ -555,6 +561,10 @@ export function buildCommandRouter(): void {
   registerGroup(["ai"], handleAiGroup);
   registerGroup(["game"], handleGameGroup);
   registerGroup(["fnbot"], handleFnbotCommand);
+  commandRouter["wishlist"] = async (interaction, _client) => {
+    if (!interaction.isChatInputCommand()) return;
+    await handleWishlistCommand(interaction as ChatInputCommandInteraction);
+  };
   // mc et bot sont maintenant dynamiques ↑
   registerGroup(["admin"], handleAdminGroup);
   // bot est maintenant dynamique ↑
@@ -720,6 +730,19 @@ export async function registerCommands(): Promise<void> {
     logger.info(
       `Déploiement: ${dynamicCommands.length} dynamiques + ${legacyFiltered.length} legacy = ${mergedCommands.length} total`,
     );
+
+    // Menu / réduit : le chat @John remplace Steam/game/fun/IA slash.
+    // Les handlers restent en mémoire (owner / anciens invocations).
+    const hidden = mergedCommands.length;
+    const publicCommands = mergedCommands.filter((cmd) => {
+      const name = (cmd as { name?: string }).name;
+      return name ? isChatFirstSlash(name) : false;
+    });
+    logger.info(
+      `[Register] Menu slash limité: ${publicCommands.length}/${hidden} visibles (le reste = parler à John)`,
+    );
+    mergedCommands.length = 0;
+    mergedCommands.push(...publicCommands);
 
     // ── Déploiement en un seul PUT (bulk overwrite) ──
     // Le PUT vers applicationGuildCommands/applicationCommands remplace

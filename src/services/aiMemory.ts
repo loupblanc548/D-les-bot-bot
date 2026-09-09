@@ -103,6 +103,7 @@ export async function remember(
   const expiresAt = options.ttlDays ? new Date(Date.now() + options.ttlDays * 86_400_000) : null;
 
   try {
+    await touch(userId);
     await prisma.memoryFact.upsert({
       where: { userId_key: { userId, key } },
       create: {
@@ -123,7 +124,6 @@ export async function remember(
         updatedAt: new Date(),
       },
     });
-    await touch(userId);
     logger.info(`[aiMemory] remember: user=${userId} key=${key} ttl=${options.ttlDays ?? "∞"}`);
   } catch (err) {
     logger.error(

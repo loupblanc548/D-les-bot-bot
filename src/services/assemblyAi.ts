@@ -40,7 +40,9 @@ export async function transcribeAudio(audioUrl: string): Promise<string | null> 
         return colabResult.text;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   if (!config.assemblyAiApiKey) return null;
 

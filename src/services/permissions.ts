@@ -103,6 +103,11 @@ export function invalidatePermissionCache(guildId: string, memberId: string): vo
 }
 
 async function computePermissionLevel(member: GuildMember): Promise<PermissionLevel> {
+  // Le propriétaire du bot a toujours le niveau admin, même sans rôle Discord.
+  if (config.ownerId && member.id === config.ownerId) {
+    return PermissionLevel.ADMIN;
+  }
+
   // Admin Discord = accès total
   if (member.permissions.has(PermissionFlagsBits.Administrator)) {
     return PermissionLevel.ADMIN;
@@ -155,11 +160,14 @@ async function computePermissionLevel(member: GuildMember): Promise<PermissionLe
 }
 
 export async function requireAdmin(interaction: CommandInteraction): Promise<boolean> {
+  if (config.ownerId && interaction.user.id === config.ownerId) return true;
+
   // ── DM: owner only, others get error ──
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;
     await interaction.reply({
-      content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+      content:
+        "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
       flags: [MessageFlags.Ephemeral],
     });
     return false;
@@ -187,11 +195,14 @@ export async function requireAdmin(interaction: CommandInteraction): Promise<boo
 }
 
 export async function requireMod(interaction: CommandInteraction): Promise<boolean> {
+  if (config.ownerId && interaction.user.id === config.ownerId) return true;
+
   // ── DM: owner only, others get error ──
   if (!interaction.guild) {
     if (interaction.user.id === config.ownerId) return true;
     await interaction.reply({
-      content: "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
+      content:
+        "❌ Cette commande est dangereuse et réservée au propriétaire du bot en message privé.",
       flags: [MessageFlags.Ephemeral],
     });
     return false;

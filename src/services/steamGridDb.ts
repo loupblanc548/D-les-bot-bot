@@ -29,13 +29,10 @@ export async function searchGameByName(name: string): Promise<number | null> {
   if (!isSteamGridDbAvailable()) return null;
 
   try {
-    const res = await fetch(
-      `${BASE_URL}/search/autocomplete/${encodeURIComponent(name)}`,
-      {
-        headers: { Authorization: `Bearer ${config.steamgriddbApiKey}` },
-        signal: AbortSignal.timeout(10_000),
-      },
-    );
+    const res = await fetch(`${BASE_URL}/search/autocomplete/${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${config.steamgriddbApiKey}` },
+      signal: AbortSignal.timeout(10_000),
+    });
 
     if (!res.ok) {
       logger.warn(`[SteamGridDB] Search HTTP ${res.status}`);
@@ -49,7 +46,9 @@ export async function searchGameByName(name: string): Promise<number | null> {
 
     return data.data?.[0]?.id ?? null;
   } catch (error) {
-    logger.warn(`[SteamGridDB] Search error: ${error instanceof Error ? error.message : String(error)}`);
+    logger.warn(
+      `[SteamGridDB] Search error: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }

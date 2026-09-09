@@ -8,6 +8,7 @@ import {
   PermissionFlagsBits,
 } from "discord.js";
 import prisma from "../prisma.js";
+import { config } from "../config.js";
 import { requireAdmin } from "../services/permissions.js";
 import { getLogs } from "../services/logs.js";
 import { requestConfirmation } from "../utils/confirm.js";
@@ -483,9 +484,7 @@ async function handleDeleteHistory(interaction: ChatInputCommandInteraction) {
 // ===== /status =====
 
 async function handleStatus(interaction: ChatInputCommandInteraction) {
-  const OWNER_ID = "620589482185457674";
-
-  if (interaction.user.id !== OWNER_ID) {
+  if (interaction.user.id !== config.ownerId) {
     await interaction.reply({ content: "Accès refusé", ephemeral: true });
     return;
   }
@@ -500,15 +499,10 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
   };
 
   try {
-    await interaction.client.user.setPresence({
-      status: newStatus as any,
-      activities: [
-        {
-          name: "Surveille les Helldivers",
-          type: 3, // Watching
-        },
-      ],
-    });
+    const { applyCurrentPresence, setPresenceStatus } =
+      await import("../services/presenceRotator.js");
+    setPresenceStatus(newStatus as "online" | "idle" | "dnd" | "invisible");
+    await applyCurrentPresence(interaction.client);
 
     await interaction.reply({
       content: "Statut mis à jour avec succès : " + statusMap[newStatus],

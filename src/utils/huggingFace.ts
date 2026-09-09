@@ -144,18 +144,15 @@ export async function textToImage(prompt: string): Promise<Buffer | null> {
   if (!config.hfApiKey) return null;
 
   try {
-    const response = await fetch(
-      `${HF_INFERENCE_URL}/black-forest-labs/FLUX.1-dev`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.hfApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inputs: prompt }),
-        signal: AbortSignal.timeout(30_000),
+    const response = await fetch(`${HF_INFERENCE_URL}/black-forest-labs/FLUX.1-dev`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.hfApiKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ inputs: prompt }),
+      signal: AbortSignal.timeout(30_000),
+    });
 
     if (!response.ok) {
       logger.warn(`[HuggingFace] textToImage HTTP ${response.status}`);
@@ -165,7 +162,9 @@ export async function textToImage(prompt: string): Promise<Buffer | null> {
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
   } catch (err) {
-    logger.warn(`[HuggingFace] textToImage error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[HuggingFace] textToImage error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }

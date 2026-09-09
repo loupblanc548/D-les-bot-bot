@@ -42,9 +42,7 @@ const DEFAULT_GEOMETRY: Record<string, any> = {
  * @param skinPath Path to the PNG skin file (64x64 or 128x128)
  * @returns skinData object for bedrock-protocol Client options, or null if failed
  */
-export function loadCustomSkin(
-  skinPath: string = DEFAULT_SKIN_PATH,
-): Record<string, any> | null {
+export function loadCustomSkin(skinPath: string = DEFAULT_SKIN_PATH): Record<string, any> | null {
   if (!existsSync(skinPath)) {
     logger.info(
       `[MinecraftSkin] Pas de skin personnalisé trouvé (${skinPath}) — utilisation du skin par défaut (Steve)`,

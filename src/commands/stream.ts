@@ -25,9 +25,7 @@ export const commands = [
     .toJSON(),
 ];
 
-export async function handleStreamCommand(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
+export async function handleStreamCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const action = interaction.options.getString("action", true);
   const active = isStreamActive();
 

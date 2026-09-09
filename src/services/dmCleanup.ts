@@ -70,7 +70,9 @@ async function purgeBotMessages(
           try {
             await msg.delete();
             deletedCount++;
-          } catch { logger.error("[Silent catch]"); }
+          } catch {
+            logger.error("[Silent catch]");
+          }
         }
       } else {
         // Pour les text channels, essayer bulkDelete si tous < 14 jours
@@ -88,7 +90,9 @@ async function purgeBotMessages(
               try {
                 await msg.delete();
                 deletedCount++;
-              } catch { logger.error("[Silent catch]"); }
+              } catch {
+                logger.error("[Silent catch]");
+              }
             }
           }
         } else {
@@ -96,7 +100,9 @@ async function purgeBotMessages(
             try {
               await msg.delete();
               deletedCount++;
-            } catch { logger.error("[Silent catch]"); }
+            } catch {
+              logger.error("[Silent catch]");
+            }
           }
         }
       }

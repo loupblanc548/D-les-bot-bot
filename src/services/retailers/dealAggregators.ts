@@ -8,9 +8,15 @@
 import logger from "../../utils/logger.js";
 import { safeFetch } from "../../utils/ssrfGuard.js";
 import Parser from "rss-parser";
-import type { RetailerModule, RetailerProduct, RetailerSearchResult, CountryCode } from "./types.js";
+import type {
+  RetailerModule,
+  RetailerProduct,
+  RetailerSearchResult,
+  CountryCode,
+} from "./types.js";
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const rssParser = new Parser({ timeout: 10000, headers: { "User-Agent": UA } });
 
 function parsePrice(str: string): number {
@@ -19,12 +25,16 @@ function parsePrice(str: string): number {
 
 // ─── Dealabs (FR) ───────────────────────────────────────────────────────────
 
-async function searchDealabs(query: string, _country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchDealabs(
+  query: string,
+  _country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const products: RetailerProduct[] = [];
   try {
     const url = `https://www.dealabs.com/api/v2/threads?search_query=${encodeURIComponent(query)}&limit=${limit}`;
     const res = await safeFetch(url, {
-      headers: { "User-Agent": UA, "Accept": "application/json", "Accept-Language": "fr-FR" },
+      headers: { "User-Agent": UA, Accept: "application/json", "Accept-Language": "fr-FR" },
       signal: AbortSignal.timeout(15000),
     });
 
@@ -41,7 +51,8 @@ async function searchDealabs(query: string, _country: CountryCode, limit = 10): 
       };
       for (const deal of data.data || []) {
         products.push({
-          retailer: "dealabs", country: "FR",
+          retailer: "dealabs",
+          country: "FR",
           productId: String(deal.thread_id || ""),
           title: deal.title || "",
           price: deal.price || 0,
@@ -61,10 +72,15 @@ async function searchDealabs(query: string, _country: CountryCode, limit = 10): 
         const price = priceMatch ? parsePrice(priceMatch[1]) : 0;
         if (title) {
           products.push({
-            retailer: "dealabs", country: "FR",
+            retailer: "dealabs",
+            country: "FR",
             productId: item.guid || item.link || "",
-            title, price, currency: "EUR", inStock: true,
-            url: item.link || "", lastSeen: new Date(),
+            title,
+            price,
+            currency: "EUR",
+            inStock: true,
+            url: item.link || "",
+            lastSeen: new Date(),
           });
         }
       }
@@ -76,7 +92,9 @@ async function searchDealabs(query: string, _country: CountryCode, limit = 10): 
 }
 
 export const dealabsModule: RetailerModule = {
-  id: "dealabs", name: "Dealabs", countries: ["FR", "BE", "CH"],
+  id: "dealabs",
+  name: "Dealabs",
+  countries: ["FR", "BE", "CH"],
   search: searchDealabs,
   getProduct: async () => null,
   getDeals: async (_country, limit = 20) => {
@@ -87,7 +105,11 @@ export const dealabsModule: RetailerModule = {
 
 // ─── MyDealz (DE) ───────────────────────────────────────────────────────────
 
-async function searchMyDealz(query: string, _country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchMyDealz(
+  query: string,
+  _country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const products: RetailerProduct[] = [];
   try {
     const feed = await rssParser.parseURL(`https://www.mydealz.de/rss/`);
@@ -97,10 +119,15 @@ async function searchMyDealz(query: string, _country: CountryCode, limit = 10): 
       const price = priceMatch ? parsePrice(priceMatch[1]) : 0;
       if (title) {
         products.push({
-          retailer: "mydealz", country: "DE",
+          retailer: "mydealz",
+          country: "DE",
           productId: item.guid || item.link || "",
-          title, price, currency: "EUR", inStock: true,
-          url: item.link || "", lastSeen: new Date(),
+          title,
+          price,
+          currency: "EUR",
+          inStock: true,
+          url: item.link || "",
+          lastSeen: new Date(),
         });
       }
     }
@@ -111,7 +138,9 @@ async function searchMyDealz(query: string, _country: CountryCode, limit = 10): 
 }
 
 export const mydealzModule: RetailerModule = {
-  id: "mydealz", name: "MyDealz", countries: ["DE", "AT", "CH"],
+  id: "mydealz",
+  name: "MyDealz",
+  countries: ["DE", "AT", "CH"],
   search: searchMyDealz,
   getProduct: async () => null,
   getDeals: async (_country, limit = 20) => {
@@ -122,7 +151,11 @@ export const mydealzModule: RetailerModule = {
 
 // ─── HotUKDeals (UK) ────────────────────────────────────────────────────────
 
-async function searchHotUKDeals(query: string, _country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchHotUKDeals(
+  query: string,
+  _country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const products: RetailerProduct[] = [];
   try {
     const feed = await rssParser.parseURL(`https://www.hotukdeals.com/rss`);
@@ -132,10 +165,15 @@ async function searchHotUKDeals(query: string, _country: CountryCode, limit = 10
       const price = priceMatch ? parsePrice(priceMatch[1]) : 0;
       if (title) {
         products.push({
-          retailer: "hotukdeals", country: "UK",
+          retailer: "hotukdeals",
+          country: "UK",
           productId: item.guid || item.link || "",
-          title, price, currency: "GBP", inStock: true,
-          url: item.link || "", lastSeen: new Date(),
+          title,
+          price,
+          currency: "GBP",
+          inStock: true,
+          url: item.link || "",
+          lastSeen: new Date(),
         });
       }
     }
@@ -146,7 +184,9 @@ async function searchHotUKDeals(query: string, _country: CountryCode, limit = 10
 }
 
 export const hotukdealsModule: RetailerModule = {
-  id: "hotukdeals", name: "HotUKDeals", countries: ["UK"],
+  id: "hotukdeals",
+  name: "HotUKDeals",
+  countries: ["UK"],
   search: searchHotUKDeals,
   getProduct: async () => null,
   getDeals: async (_country, limit = 20) => {
@@ -157,11 +197,18 @@ export const hotukdealsModule: RetailerModule = {
 
 // ─── Idealo (FR, DE, ES, IT, CH) ────────────────────────────────────────────
 
-async function searchIdealo(query: string, country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchIdealo(
+  query: string,
+  country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const products: RetailerProduct[] = [];
   const domains: Record<string, string> = {
-    FR: "www.idealo.fr", DE: "www.idealo.de", ES: "www.idealo.es",
-    IT: "www.idealo.it", CH: "www.idealo.ch",
+    FR: "www.idealo.fr",
+    DE: "www.idealo.de",
+    ES: "www.idealo.es",
+    IT: "www.idealo.it",
+    CH: "www.idealo.ch",
   };
   const domain = domains[country] || domains.FR;
   const currencies: Record<string, string> = { CH: "CHF", UK: "GBP" };
@@ -169,7 +216,7 @@ async function searchIdealo(query: string, country: CountryCode, limit = 10): Pr
   try {
     const url = `https://${domain}/compare/offerList?searchQuery=${encodeURIComponent(query)}`;
     const res = await safeFetch(url, {
-      headers: { "User-Agent": UA, "Accept": "application/json", "Accept-Language": "fr-FR" },
+      headers: { "User-Agent": UA, Accept: "application/json", "Accept-Language": "fr-FR" },
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return { products, retailer: "idealo", totalFound: 0, searchQuery: query };
@@ -185,7 +232,8 @@ async function searchIdealo(query: string, country: CountryCode, limit = 10): Pr
 
     for (const offer of (data.offers || []).slice(0, limit)) {
       products.push({
-        retailer: "idealo", country,
+        retailer: "idealo",
+        country,
         productId: "",
         title: offer.title || "",
         price: offer.price?.value || 0,
@@ -203,18 +251,27 @@ async function searchIdealo(query: string, country: CountryCode, limit = 10): Pr
 }
 
 export const idealoModule: RetailerModule = {
-  id: "idealo", name: "Idealo", countries: ["FR", "DE", "ES", "IT", "CH"],
+  id: "idealo",
+  name: "Idealo",
+  countries: ["FR", "DE", "ES", "IT", "CH"],
   search: searchIdealo,
   getProduct: async (id, country) => (await searchIdealo(id, country, 1)).products[0] || null,
 };
 
 // ─── PriceSpy (FR, UK, DE, ES, IT) ──────────────────────────────────────────
 
-async function searchPriceSpy(query: string, country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchPriceSpy(
+  query: string,
+  country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const products: RetailerProduct[] = [];
   const domains: Record<string, string> = {
-    FR: "www.pricespy.fr", UK: "www.pricespy.co.uk", DE: "www.pricespy.de",
-    ES: "www.pricespy.es", IT: "www.pricespy.it",
+    FR: "www.pricespy.fr",
+    UK: "www.pricespy.co.uk",
+    DE: "www.pricespy.de",
+    ES: "www.pricespy.es",
+    IT: "www.pricespy.it",
   };
   const domain = domains[country] || domains.FR;
   const currencies: Record<string, string> = { UK: "GBP" };
@@ -228,7 +285,8 @@ async function searchPriceSpy(query: string, country: CountryCode, limit = 10): 
     if (!res.ok) return { products, retailer: "pricespy", totalFound: 0, searchQuery: query };
     const html = await res.text();
 
-    const blocks = html.match(/class="product[\s\S]*?(?=class="product|<div class="pagination)/g) || [];
+    const blocks =
+      html.match(/class="product[\s\S]*?(?=class="product|<div class="pagination)/g) || [];
     for (const block of blocks.slice(0, limit)) {
       const titleMatch = block.match(/<a[^>]*>([\s\S]*?)<\/a>/);
       const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
@@ -239,12 +297,16 @@ async function searchPriceSpy(query: string, country: CountryCode, limit = 10): 
 
       if (title && price > 0) {
         products.push({
-          retailer: "pricespy", country,
-          productId: "", title, price,
+          retailer: "pricespy",
+          country,
+          productId: "",
+          title,
+          price,
           currency: currencies[country] || "EUR",
           inStock: true,
           url: urlMatch ? `https://${domain}${urlMatch[1]}` : "",
-          image: imgMatch?.[1], lastSeen: new Date(),
+          image: imgMatch?.[1],
+          lastSeen: new Date(),
         });
       }
     }
@@ -255,7 +317,9 @@ async function searchPriceSpy(query: string, country: CountryCode, limit = 10): 
 }
 
 export const pricespyModule: RetailerModule = {
-  id: "pricespy", name: "PriceSpy", countries: ["FR", "UK", "DE", "ES", "IT"],
+  id: "pricespy",
+  name: "PriceSpy",
+  countries: ["FR", "UK", "DE", "ES", "IT"],
   search: searchPriceSpy,
   getProduct: async (id, country) => (await searchPriceSpy(id, country, 1)).products[0] || null,
 };

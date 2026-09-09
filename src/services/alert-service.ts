@@ -117,7 +117,9 @@ export async function buildAlertEmbed(alert: AlertData, client: Client): Promise
         joinedAt = `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const riskEmoji = RISK_EMOJIS[alert.riskLevel] || "\u26A0";
 

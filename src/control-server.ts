@@ -21,16 +21,20 @@
 
 import http from "http";
 import crypto from "crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Client } from "discord.js";
 import { WebSocketServer, WebSocket } from "ws";
 import logger from "./utils/logger.js";
 import prisma from "./prisma.js";
 import { config } from "./config.js";
-import { getFortniteState } from "./services/fortnite-broadcast.js";
+import { getFortnitePanel, getJohnOverview, getLearnPanel } from "./services/controlPanelData.js";
+import { listRecentMentions } from "./services/mentionInbox.js";
 import { handleWebhookRequest } from "./services/webhookTriggers.js";
 import { handleWebhook as handleSecureWebhook } from "./services/webhookReceiver.js";
 import { analyzeImage } from "./services/googleCloudServices.js";
 import { isLowRisk, getRiskLevel } from "./services/toolRiskRegistry.js";
+
+const requestStore = new AsyncLocalStorage<http.IncomingMessage>();
 
 let server: http.Server | null = null;
 let wss: WebSocketServer | null = null;
@@ -121,7 +125,7 @@ function authCheck(req: http.IncomingMessage): boolean {
 
 const ctrlRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const CTRL_RATE_LIMIT_WINDOW = 60_000;
-const CTRL_RATE_LIMIT_MAX = 30;
+const CTRL_RATE_LIMIT_MAX = 120;
 
 function ctrlRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -141,8 +145,24 @@ function getClientIp(req: http.IncomingMessage): string {
 }
 
 function getAllowedOrigin(): string {
-  const origins = process.env.CONTROL_CORS_ORIGINS || process.env.CORS_ORIGIN || "";
-  if (origins && origins !== "*") return origins.split(",")[0].trim();
+  const configured = process.env.CONTROL_CORS_ORIGINS || process.env.CORS_ORIGIN || "";
+  const requestOrigin = String(requestStore.getStore()?.headers.origin || "").trim();
+  if (configured === "*") return requestOrigin || "*";
+  if (configured) {
+    const list = configured
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (requestOrigin && list.includes(requestOrigin)) return requestOrigin;
+    return list[0] || "";
+  }
+  if (!requestOrigin || requestOrigin === "null") return "null";
+  try {
+    const host = new URL(requestOrigin).hostname;
+    if (host === "localhost" || host === "127.0.0.1") return requestOrigin;
+  } catch {
+    // ignore
+  }
   if (process.env.NODE_ENV === "production") return "";
   return "*";
 }
@@ -195,7 +215,11 @@ async function readBody(req: http.IncomingMessage): Promise<Record<string, any>>
 export async function startControlServer(port: number, client: Client): Promise<void> {
   if (server) return;
 
-  server = http.createServer(async (req, res) => {
+  const handleControlRequest = async (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    client: Client,
+  ): Promise<void> => {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
     const path = url.pathname;
 
@@ -270,6 +294,7 @@ export async function startControlServer(port: number, client: Client): Promise<
     try {
       if (path === "/api/status" && req.method === "GET") {
         const guilds = client.guilds.cache;
+        const john = await getJohnOverview().catch(() => null);
         sendJson(res, 200, {
           online: client.isReady(),
           uptime: process.uptime(),
@@ -279,6 +304,8 @@ export async function startControlServer(port: number, client: Client): Promise<
           memoryMb: (process.memoryUsage().rss / 1048576).toFixed(1),
           cpuPercent: process.cpuUsage().user / 1000000,
           commands: client.application?.commands.cache.size || 0,
+          john,
+          mentions: listRecentMentions(8),
         });
         return;
       }
@@ -517,50 +544,7 @@ export async function startControlServer(port: number, client: Client): Promise<
 
       if (path === "/api/fortnite" && req.method === "GET") {
         try {
-          // Récupérer l'état Fortnite enrichi depuis le module broadcast
-          const fnState = getFortniteState();
-
-          // Compter les tweets traités en base
-          const tweetCount = await prisma.processedTweets.count().catch(() => 0);
-
-          // Compter les comptes suivis
-          const accountsRaw = process.env.TWITTER_ACCOUNTS_FORTNITE_ACCOUNTS || "";
-          const accounts = accountsRaw
-            .split(",")
-            .map((a) => a.trim())
-            .filter(Boolean);
-
-          // Compter les cosmétiques trackés dans la wishlist
-          const cosmeticsTracked = await prisma.wishlist.count().catch(() => 0);
-
-          // Récupérer les détections récentes
-          const recentPosts = await prisma.processedTweets
-            .findMany({
-              orderBy: { id: "desc" },
-              take: 15,
-            })
-            .catch((): any[] => []);
-
-          // Mapper les détections
-          const detections = [
-            ...(fnState.detections || []),
-            ...recentPosts.map((p: any) => ({
-              type: "tweets",
-              time: p.createdAt?.toISOString?.() || new Date().toISOString(),
-              message: `Tweet traité: ${p.tweetId}`,
-            })),
-          ].slice(0, 15);
-
-          sendJson(res, 200, {
-            tweets: fnState.tweets || tweetCount,
-            news: fnState.news || 0,
-            skins: fnState.skins || 0,
-            accounts,
-            shop: fnState.shop || [],
-            shopItemsTotal: (fnState.shop || []).length,
-            cosmeticsTracked,
-            detections,
-          });
+          sendJson(res, 200, await getFortnitePanel());
         } catch (err) {
           logger.warn("[ControlServer] Fortnite endpoint error:", err);
           sendJson(res, 200, {
@@ -569,9 +553,50 @@ export async function startControlServer(port: number, client: Client): Promise<
             skins: 0,
             accounts: [],
             shop: [],
+            shopDate: "",
+            shopLastPosted: null,
             shopItemsTotal: 0,
             cosmeticsTracked: 0,
+            wishlist: [],
+            boutiqueChannel: config.boutiqueChannel || "",
             detections: [],
+          });
+        }
+        return;
+      }
+      if (path === "/api/mentions" && req.method === "GET") {
+        sendJson(res, 200, { mentions: listRecentMentions(25) });
+        return;
+      }
+      if (path === "/api/learn" && req.method === "GET") {
+        try {
+          sendJson(res, 200, await getLearnPanel());
+        } catch (err) {
+          sendJson(res, 200, {
+            subjectsLearned: 0,
+            subjectsRemaining: 0,
+            batchSize: 0,
+            intervalMs: 0,
+            active: false,
+            isLearning: false,
+            webScanActive: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        return;
+      }
+      if (path === "/api/fortnite/shop-post" && req.method === "POST") {
+        try {
+          const { postBoutiqueToChannel } = await import("./cron/boutiqueCron.js");
+          const posted = await postBoutiqueToChannel(client);
+          sendJson(res, 200, {
+            success: posted,
+            lastPosted: posted ? new Date().toISOString() : null,
+          });
+        } catch (err) {
+          sendJson(res, 500, {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
           });
         }
         return;
@@ -1107,6 +1132,7 @@ export async function startControlServer(port: number, client: Client): Promise<
             "POST /api/tools/execute — Exécute un outil directement",
             "GET /api/capabilities — Capacités du bot",
             "GET /api/status — Statut du bot",
+            "GET /api/mentions — Derniers pings @John (tous salons)",
             "GET /api/metrics — Métriques",
             "GET /api/health — Health check",
             "GET /api/logs — Logs récents",
@@ -1218,6 +1244,10 @@ export async function startControlServer(port: number, client: Client): Promise<
       logger.error("[ControlServer] Error:", err);
       sendJson(res, 500, { error: "Erreur serveur" });
     }
+  };
+
+  server = http.createServer((req, res) => {
+    void requestStore.run(req, () => handleControlRequest(req, res, client));
   });
 
   // WebSocket server for real-time updates to desktop app
@@ -1259,7 +1289,8 @@ export async function startControlServer(port: number, client: Client): Promise<
   });
 
   return new Promise((resolve) => {
-    const bindAddress = process.env.CONTROL_BIND_ADDRESS || "127.0.0.1";
+    const bindAddress =
+      process.env.CONTROL_BIND_ADDRESS || (config.controlToken ? "0.0.0.0" : "127.0.0.1");
     server!.listen(port, bindAddress, () => {
       logger.info(`[ControlServer] Écoute sur ${bindAddress}:${port} (HTTP + WS)`);
       resolve();

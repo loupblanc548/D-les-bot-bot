@@ -29,6 +29,8 @@ import { stopLogRetention } from "./cron/logRetention.js";
 import { stopLogChannelCleanup } from "./cron/logChannelCleanup.js";
 import { stopAgentBrain } from "./services/agentBrain.js";
 import { stopPersonalityEngine } from "./services/personalityEngine.js";
+import { stopPresenceRotator } from "./services/presenceRotator.js";
+import { stopVoiceHangout } from "./services/voiceHangout.js";
 import { stopMediaWorker } from "./infrastructure/processIsolator.js";
 import { shutdownLogQueue } from "./queues/logQueue.js";
 import { stopControlServer } from "./control-server.js";
@@ -38,6 +40,9 @@ import { stopConfigCache } from "./services/configCache.js";
 import { stopDmCleanup } from "./services/dmCleanup.js";
 import { shutdownOpenTelemetry } from "./utils/otel-setup.js";
 import type {} from "discord.js";
+import { join } from "node:path";
+
+export const LAST_SHUTDOWN_FILE = join(process.cwd(), ".last_shutdown");
 
 export type ClientDestroyFn = () => void;
 
@@ -59,8 +64,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // Enregistrer l'heure d'arrêt pour que le startup sache si c'est un vrai arrêt ou un restart
   try {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile("/opt/bot/.last_shutdown", String(Date.now()), { mode: 0o600 });
-  } catch { logger.error("[Silent catch]"); }
+    await writeFile(LAST_SHUTDOWN_FILE, String(Date.now()), { mode: 0o600 });
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // Arrêter tous les services monitoring
   const stopFns = [
@@ -81,6 +88,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopLogChannelCleanup,
     stopAgentBrain,
     stopPersonalityEngine,
+    stopPresenceRotator,
+    stopVoiceHangout,
     stopMediaWorker,
     stopInfraWatchdog,
     stopConfigCache,

@@ -10,7 +10,9 @@ import { prisma } from "../prisma.js";
 export const commands = [
   new SlashCommandBuilder()
     .setName("security-audit")
-    .setDescription("Audit s\u00e9curit\u00e9 : r\u00e9partition des sanctions sur les derni\u00e8res 24h")
+    .setDescription(
+      "Audit s\u00e9curit\u00e9 : r\u00e9partition des sanctions sur les derni\u00e8res 24h",
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .toJSON(),
 ];
@@ -25,16 +27,16 @@ const SANCTION_TYPE_LABELS: Record<string, string> = {
   UNBAN: "\ud83d\udd13 D\u00e9ban",
 };
 
-export async function handleCommand(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
+export async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const guildId = interaction.guildId;
   if (!guildId) {
     await interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(0xed4245)
-          .setDescription("\u274c Cette commande doit \u00eatre ex\u00e9cut\u00e9e dans un serveur."),
+          .setDescription(
+            "\u274c Cette commande doit \u00eatre ex\u00e9cut\u00e9e dans un serveur.",
+          ),
       ],
       ephemeral: true,
     });
@@ -51,7 +53,9 @@ export async function handleCommand(
     });
     rows = result as any as Array<{ type: string; _count: { _all: number } }>;
   } catch (error) {
-    logger.error("event", { cmd: "security-audit", err: error instanceof Error ? error.message : error },
+    logger.error(
+      "event",
+      { cmd: "security-audit", err: error instanceof Error ? error.message : error },
       "Failed to query sanctions",
     );
     await interaction.reply({
@@ -83,7 +87,9 @@ export async function handleCommand(
     embed.addFields({ name: label, value: `${r._count._all}`, inline: true });
   }
 
-  logger.info("event", { cmd: "security-audit", user: interaction.user.id, guildId, total },
+  logger.info(
+    "event",
+    { cmd: "security-audit", user: interaction.user.id, guildId, total },
     "/security-audit invoked",
   );
   await interaction.reply({ embeds: [embed], ephemeral: true });

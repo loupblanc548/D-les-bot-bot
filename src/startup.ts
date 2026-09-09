@@ -7,6 +7,8 @@
 
 import { Client, Events } from "discord.js";
 import logger from "./utils/logger.js";
+import { MEMORY_CONFIG } from "./utils/memoryConfig.js";
+import { config } from "./config.js";
 import { checkWishlistMatches, runWishlistRetrospective } from "./services/fortnite-api.js";
 import { startTwitchMonitoring } from "./services/twitch.js";
 import { startSocialFollowMonitoring } from "./services/socialFollow.js";
@@ -28,16 +30,16 @@ import {
 import { startWishlistCron } from "./cron/wishlistCron.js";
 import { startHourlyMaintenance } from "./cron/hourlyMaintenance.js";
 import { startBoutiqueCron } from "./cron/boutiqueCron.js";
+import { startPresenceRotator, syncBotDescription } from "./services/presenceRotator.js";
 import { checkTrackedGames } from "./cron/steamNewsCron.js";
-import { checkFreeGames } from "./cron/freeGamesCron.js";
+import { checkFreeGames, startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startTwitterMonitoring, checkTwitterAccounts } from "./cron/twitterCron.js";
 import { checkDeals } from "./cron/dealsCron.js";
 import { startGlobalPatchNotesMonitoring, checkPatchNotes } from "./cron/globalPatchNotesCron.js";
 import { enableSilentMode, disableSilentMode } from "./managers/ChannelRouter.js";
-import { startFreeGamesMonitoring } from "./cron/freeGamesCron.js";
 import { startDigestScheduler } from "./services/communityDigest.js";
 import { startPersonalDigestScheduler } from "./services/proactiveAgent.js";
-import { registerInterval } from "./shutdown.js";
+import { LAST_SHUTDOWN_FILE, registerInterval } from "./shutdown.js";
 import { safeInterval } from "./utils/safe-interval.js";
 import prisma from "./prisma.js";
 import { dedupCache } from "./utils/deduplicationCache.js";
@@ -59,9 +61,7 @@ import { setKaliClient, ensureKaliContainer } from "./services/agentToolsKali.js
 import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
-import {
-  handleAllInteractions,
-} from "./events/interactions.js";
+import { handleAllInteractions } from "./events/interactions.js";
 import { handleAutoModeration } from "./events/autoModeration.js";
 import { handleInviteTracker } from "./events/inviteTracker.js";
 import { handleServerCloneDetect } from "./events/serverCloneDetect.js";
@@ -80,10 +80,12 @@ import { startDealFusion } from "./services/dealFusion.js";
 import { startGitHubReleasesMonitor } from "./services/githubReleases.js";
 import { startMultiSiteDealsMonitor } from "./services/multiSiteDeals.js";
 import { startGameReleaseCountdown } from "./services/gameReleaseCountdown.js";
+import { startShowcaseLinkCron } from "./cron/showcaseLinkCron.js";
 import { startSteamWishlistMonitor } from "./services/steamWishlist.js";
 import { startMediaWorker } from "./infrastructure/processIsolator.js";
 import { initLogQueue } from "./queues/logQueue.js";
 import { waitForRedisWritable } from "./utils/redisClient.js";
+import { initializeModules } from "./modules/index.js";
 
 // ─── Initialisation des schedulers (boot scan + cron) ──────────────────────
 
@@ -181,7 +183,6 @@ async function initSchedulers(client: Client): Promise<void> {
   // startShadowBrokerCron(client);
   // startLogChannelCleanup(client);
   // startBrokenImageCleanup(client);
-  // startShowcaseLinkCron(client);
   logger.info("⏱️ Tous les crons sont planifies");
 }
 
@@ -198,6 +199,8 @@ export function attachStartupLogic(
   client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`✓ ${readyClient.user.tag} est en ligne !`);
     logger.info(`📡 ${client.guilds.cache.size} serveurs`);
+    startPresenceRotator(client);
+    void syncBotDescription(client);
 
     // ─── Vérifier Ollama (LLM local) ──────────────────────────────────
     try {
@@ -206,11 +209,18 @@ export function attachStartupLogic(
       void checkLocalLlmAvailability().then((ok) => {
         if (ok) {
           logger.info("[Startup] 🏠 LLM local (Ollama) disponible — utilisé en priorité");
-          void preWarmLocalModel(); // Load model into RAM for fast first response
+          if (MEMORY_CONFIG.SKIP_LLM_PREWARM) {
+            logger.info(
+              "[Startup] Pre-warm Ollama sauté (VPS 8 Go) — le modèle se charge au 1er message",
+            );
+          } else {
+            void preWarmLocalModel();
+          }
         } else {
-          logger.info("[Startup] LLM local non disponible — fallback OpenRouter/NVIDIA");
+          logger.info(
+            "[Startup] LLM local en standby (Qwen non chargé) — APIs cloud. Llama plus tard: LOCAL_LLM_ENABLED=true OLLAMA_STANDBY=false",
+          );
         }
-        // Démarrer le health check périodique (auto-recovery si Ollama redémarre)
         startLocalLlmHealthCheck();
       });
 
@@ -221,7 +231,9 @@ export function attachStartupLogic(
           if (piperOk)
             logger.info("[Startup] 🔊 TTS local (Piper) disponible — voix française locale");
         });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       // ─── Démarrer l'endpoint /health (monitoring externe) ─────────────
       // DÉSACTIVÉ — health-http.ts tourne déjà sur port 3000, ce endpoint sur 7890 cause EADDRINUSE
@@ -231,7 +243,9 @@ export function attachStartupLogic(
       // } catch {
       //   // healthEndpoint.ts non disponible — ignorer
       // }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
 
     // ─── DM owner de démarrage SUPPRIMÉ ──────────────────────────────────
     // Un seul embed consolidé est envoyé depuis bot.ts via sendConsolidatedStartupReport
@@ -269,11 +283,10 @@ export function attachStartupLogic(
 
     // Rattrapage startup (skippable via SKIP_RETROSPECTIVE=true)
     // Also skip if bot was only down < 5 min (normal restart, not a real outage)
-    const SHUTDOWN_FILE = "/opt/bot/.last_shutdown";
     let wasRealOutage = true;
     try {
       const { readFile: rf } = await import("node:fs/promises");
-      const lastShutdownStr = (await rf(SHUTDOWN_FILE, "utf-8")).trim();
+      const lastShutdownStr = (await rf(LAST_SHUTDOWN_FILE, "utf-8")).trim();
       const lastShutdown = parseInt(lastShutdownStr, 10);
       const downtimeMs = Date.now() - lastShutdown;
       if (downtimeMs < 5 * 60 * 1000) {
@@ -282,22 +295,26 @@ export function attachStartupLogic(
           `[Startup] Bot arrêté seulement ${Math.round(downtimeMs / 1000)}s — rattrapage ignoré (restart normal)`,
         );
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      // Pas de fichier d'arrêt → on ne bloque plus le ready, rattrapage en fond
+    }
 
     if (process.env.SKIP_RETROSPECTIVE === "true" || !wasRealOutage) {
       logger.info("[Startup] Rattrapage ignoré");
     } else {
-      logger.info("[Startup] Rattrapage des actualites manquees...");
-      try {
-        await runStartupRetrospective(client);
-        await runDbSourcesRetrospective(client);
-        await runWishlistRetrospective(client);
-      } catch (e) {
-        logger.error(
-          `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
-          { stack: e instanceof Error ? e.stack : undefined },
-        );
-      }
+      logger.info("[Startup] Rattrapage des actualités manquées (arrière-plan)...");
+      void (async () => {
+        try {
+          await runStartupRetrospective(client);
+          await runDbSourcesRetrospective(client);
+          await runWishlistRetrospective(client);
+        } catch (e) {
+          logger.error(
+            `[Startup] Erreur lors du rattrapage: ${e instanceof Error ? e.message : String(e)}`,
+            { stack: e instanceof Error ? e.stack : undefined },
+          );
+        }
+      })();
     }
 
     // Validation des salons
@@ -309,7 +326,9 @@ export function attachStartupLogic(
 
     // ─── Topic du salon d'alertes revendeurs ─────────────────────────────
     try {
-      const retailerChannel = await client.channels.fetch("1532189747500421152").catch(() => null);
+      const retailerChannel = config.retailerChannel
+        ? await client.channels.fetch(config.retailerChannel).catch(() => null)
+        : null;
       if (retailerChannel?.isTextBased()) {
         const topic =
           "**Suivi de Produits Revendeurs**\n" +
@@ -359,16 +378,12 @@ export function attachStartupLogic(
     const services: (() => void)[] = isPrimary
       ? [
           () => startMonitoring(client),
+          () => initializeModules(client),
           () => startInactivityCheck(client),
           () => startTwitchMonitoring(client),
           () => startSocialFollowMonitoring(client),
           () => startPatchNotesService(client),
           () => startBackupService(client),
-          // () => startInstantGamingCheck(client), // DÉSACTIVÉ — inutilisé
-          // () => startSteamNewsMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startDealsMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startMonthlyMaintenance(client), // DÉSACTIVÉ — inutilisé
-          // () => startGlobalPatchNotesMonitoring(client), // DÉSACTIVÉ — inutilisé
           () => startLogChannelCleanup(client),
           () => startBotHealthCheck(client),
           () => startNotificationCleanup(client),
@@ -378,50 +393,31 @@ export function attachStartupLogic(
           () => handleInviteTracker(client),
           () => handleServerCloneDetect(client),
           () => handleAutoEvents(client),
-          // () => startShowcaseLinkCron(client), // DÉSACTIVÉ — inutilisé
           () => startMiscCrons(client),
           () => startCommandAutomation(client),
           () => startMemoryGrooming(client),
-          // () => startRadioGamingCron(client), // DÉSACTIVÉ — inutilisé
-          // () => attachDramaPrediction(client), // DÉSACTIVÉ — inutilisé
-          // () => startToxicityScanCron(client), // DÉSACTIVÉ — inutilisé
           () => startLogRetention(),
           () => startSecurityIntegration(client),
           () => initHoneypotMonitoring(client),
           () => startPriceAlertsMonitoring(client),
           () => startGameUpdatesMonitoring(client),
           () => initRetailerCron(client),
-          // () => startReportScheduler(client), // DÉSACTIVÉ — inutilisé
-          // () => enableSmartAlerts(client), // DÉSACTIVÉ — channel logs non disponible, erreurs en boucle
-          // () => startTikTokMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startKickMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startVodMonitoring(client), // DÉSACTIVÉ — inutilisé
-          // () => startClipForwarding(client), // DÉSACTIVÉ — inutilisé
-          // () => startScheduledMessages(client), // DÉSACTIVÉ — inutilisé
-          // () => startOnboardingFlow(client), // DÉSACTIVÉ — inutilisé
-          // () => startReactionRoles(client), // DÉSACTIVÉ — inutilisé
-          // () => startTicketSystem(client), // DÉSACTIVÉ — inutilisé
-          // () => startFaqAutoResponder(client), // DÉSACTIVÉ — inutilisé
-          // () => startCreatorRoleSync(client), // DÉSACTIVÉ — inutilisé
-          // () => startRateLimitDashboard(client), // DÉSACTIVÉ — inutilisé
-          // () => startCommandAnalytics(client), // DÉSACTIVÉ — inutilisé
-          // () => startReleaseCalendar(client), // DÉSACTIVÉ — inutilisé
-          // () => startHotTopicsDetector(client), // DÉSACTIVÉ — inutilisé
-          // () => startConversationSummarizer(client), // DÉSACTIVÉ — inutilisé
-          // () => startChurnPrediction(client), // DÉSACTIVÉ — inutilisé
-          // () => startLFGMatchmaker(client), // DÉSACTIVÉ — inutilisé
-          // () => startActivityHeatmap(client), // DÉSACTIVÉ — inutilisé
-          // () => startPinRotation(client), // DÉSACTIVÉ — inutilisé
-          // () => startPresenceTracker(client), // DÉSACTIVÉ — inutilisé
           () => startDealFusion(client),
           () => startGitHubReleasesMonitor(client),
           () => startMultiSiteDealsMonitor(client),
-          // () => startProactiveAgent(client), // STANDBY — réflexion proactive & tendances Google désactivées
           () => startGameReleaseCountdown(client),
+          () => startShowcaseLinkCron(client),
+          () => {
+            // Le worker média est coupé sur le VPS 8 Go — on relance seulement le Go Live.
+            if (!process.env.SCREEN_SHARE_USER_TOKEN) return;
+            void import("./services/videoStream.js").then(
+              ({ startVideoStream, startStreamWatchdog }) => {
+                startVideoStream();
+                startStreamWatchdog();
+              },
+            );
+          },
           () => startSteamWishlistMonitor(client),
-          // () => startAutoTranslate(client), // DÉSACTIVÉ — inutilisé
-          // () => startAiSpamDetector(client), // DÉSACTIVÉ — inutilisé
-          // ── Directive 1: Media/gaming offloaded to isolated child process ──
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),
@@ -455,6 +451,7 @@ export function attachStartupLogic(
       : [
           // Stream-only mode: Go Live stream + watchdog + release data for showcase
           () => startGameReleaseCountdown(client),
+          () => startShowcaseLinkCron(client),
           () => startMediaWorker(),
           () => startSyncFreeForDev(),
           () => startSyncTypeScriptSkills(),

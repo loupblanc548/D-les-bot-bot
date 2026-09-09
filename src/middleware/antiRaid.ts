@@ -32,7 +32,9 @@ export async function detectRaid(member: GuildMember): Promise<boolean> {
   detection.joins++;
 
   if (detection.joins >= RAID_THRESHOLD) {
-    logger.warn(`[AntiRaid] Raid detected in guild ${guildId}: ${detection.joins} joins in ${RAID_WINDOW}ms`);
+    logger.warn(
+      `[AntiRaid] Raid detected in guild ${guildId}: ${detection.joins} joins in ${RAID_WINDOW}ms`,
+    );
     await triggerRaidProtection(member.guild);
     return true;
   }
@@ -61,7 +63,9 @@ export async function isUserSuspicious(member: GuildMember): Promise<boolean> {
   const daysSinceCreation = accountAge / (1000 * 60 * 60 * 24);
 
   if (daysSinceCreation < 1) {
-    logger.warn(`[AntiRaid] Suspicious user: ${member.id} (account age: ${daysSinceCreation.toFixed(2)} days)`);
+    logger.warn(
+      `[AntiRaid] Suspicious user: ${member.id} (account age: ${daysSinceCreation.toFixed(2)} days)`,
+    );
     return true;
   }
 

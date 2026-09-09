@@ -11,6 +11,7 @@
  *  - FreeGame (jeu gratuit Epic/Steam)
  *  - PatchNote (news/patch notes)
  *  - Gaming (notification gaming générique par plateforme)
+ *  - Shop (bannière boutique Fortnite)
  */
 
 import satori from "satori";
@@ -22,7 +23,7 @@ import logger from "./logger.js";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type CardType =
-  "youtube" | "blog" | "deal" | "freegame" | "patchnote" | "gaming" | "fortnite";
+  "youtube" | "blog" | "deal" | "freegame" | "patchnote" | "gaming" | "fortnite" | "shop";
 
 export interface CardData {
   type: CardType;
@@ -74,28 +75,40 @@ export const PLATFORM_LABELS: Record<string, string> = {
 
 let fontData: Buffer | null = null;
 
+const FONT_CANDIDATES = [
+  join(process.cwd(), "assets", "fonts", "Inter-Bold.woff"),
+  join(process.cwd(), "assets", "fonts", "Inter-Bold.ttf"),
+  join(process.cwd(), "assets", "fonts", "NotoSans-Bold.ttf"),
+];
+
 async function loadFont(): Promise<Buffer> {
   if (fontData) return fontData;
-  try {
-    const fontPath = join(process.cwd(), "assets", "fonts", "NotoSans-Bold.ttf");
-    fontData = await readFile(fontPath);
-    return fontData;
-  } catch {
-    // Fallback : utiliser une police système via Google Fonts CDN
+  for (const fontPath of FONT_CANDIDATES) {
     try {
-      const response = await fetch(
-        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/files/inter-latin-700-normal.woff",
-      );
-      if (response.ok) {
-        fontData = Buffer.from(await response.arrayBuffer());
+      const buf = await readFile(fontPath);
+      if (buf.length > 0) {
+        fontData = buf;
         return fontData;
       }
-    } catch { logger.error("[Silent catch]"); }
-    // Dernier recours : buffer vide (satori utilisera une police par défaut)
-    logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
-    fontData = Buffer.alloc(0);
-    return fontData;
+    } catch {
+      // essayer le fichier suivant
+    }
   }
+  try {
+    const response = await fetch(
+      "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/files/inter-latin-700-normal.woff",
+      { signal: AbortSignal.timeout(4000) },
+    );
+    if (response.ok) {
+      fontData = Buffer.from(await response.arrayBuffer());
+      return fontData;
+    }
+  } catch {
+    logger.warn("[NotificationCards] CDN police indisponible");
+  }
+  logger.warn("[NotificationCards] Police non trouvée, utilisation fallback");
+  fontData = Buffer.alloc(0);
+  return fontData;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -126,11 +139,17 @@ interface SatoriNode {
 }
 
 function el(type: string, props: SatoriNode["props"]): SatoriNode {
-  return { type, props };
+  const children = props.children;
+  const style = { ...(props.style || {}) };
+  const count = Array.isArray(children) ? children.length : children ? 1 : 0;
+  if (type === "div" && count > 0 && style.display === undefined) {
+    style.display = "flex";
+  }
+  return { type, props: { ...props, style } };
 }
 
 function text(content: string, style: Record<string, string | number> = {}): SatoriNode {
-  return el("div", { style, children: content });
+  return el("div", { style: { display: "flex", ...style }, children: content });
 }
 
 function flex(children: SatoriNode[], style: Record<string, string | number> = {}): SatoriNode {
@@ -815,6 +834,82 @@ function fortniteCosmeticCard(data: CardData): SatoriNode {
   );
 }
 
+function shopChip(label: string): SatoriNode {
+  return flex(
+    [
+      text(label, {
+        fontSize: 13,
+        color: "#f3e8ff",
+        fontWeight: 700,
+      }),
+    ],
+    {
+      backgroundColor: "#2a1644",
+      borderRadius: 8,
+      paddingTop: 8,
+      paddingBottom: 8,
+      paddingLeft: 14,
+      paddingRight: 14,
+      marginRight: 10,
+    },
+  );
+}
+
+/** Bannière boutique Fortnite — pas d'image distante, texte + stats. */
+function shopBannerCard(data: CardData): SatoriNode {
+  const color = data.platformColor || "#9D4EDD";
+  const chips: SatoriNode[] = [];
+  if (data.subtitle) chips.push(shopChip(data.subtitle));
+  if (data.badge) chips.push(shopChip(data.badge));
+  if (data.description) chips.push(shopChip(data.description));
+
+  return flex(
+    [
+      el("div", {
+        style: { width: "100%", height: "8px", backgroundColor: color, flexShrink: 0 },
+      }),
+      flex(
+        [
+          text("BOUTIQUE FORTNITE", {
+            fontSize: 13,
+            color,
+            fontWeight: 700,
+            letterSpacing: 4,
+          }),
+          text(truncate(data.title, 48), {
+            fontSize: 28,
+            color: "#ffffff",
+            fontWeight: 700,
+            marginTop: 10,
+            lineHeight: 1.2,
+          }),
+          chips.length > 0
+            ? flex(chips, { marginTop: 22, alignItems: "center" })
+            : el("div", { style: {} }),
+        ],
+        {
+          flexDirection: "column",
+          paddingTop: 28,
+          paddingBottom: 28,
+          paddingLeft: 28,
+          paddingRight: 28,
+          width: "100%",
+          justifyContent: "center",
+          flex: 1,
+        },
+      ),
+    ],
+    {
+      flexDirection: "column",
+      width: 600,
+      height: 260,
+      backgroundColor: "#12081f",
+      borderRadius: 12,
+      overflow: "hidden",
+    },
+  );
+}
+
 // ─── Génération PNG ──────────────────────────────────────────────────────────
 
 function selectTemplate(data: CardData): SatoriNode {
@@ -831,6 +926,8 @@ function selectTemplate(data: CardData): SatoriNode {
       return patchNoteCard(data);
     case "fortnite":
       return fortniteCosmeticCard(data);
+    case "shop":
+      return shopBannerCard(data);
     case "gaming":
     default:
       return gamingCard(data);
@@ -855,7 +952,9 @@ export async function generateNotificationCard(data: CardData): Promise<Buffer |
           ? 400
           : data.type === "fortnite"
             ? 420
-            : 340,
+            : data.type === "shop"
+              ? 260
+              : 340,
       fonts: font.length > 0 ? [{ name: "Inter", data: font, weight: 700, style: "normal" }] : [],
     });
 
@@ -884,8 +983,9 @@ export async function generateCardAttachment(
   data: CardData,
   filename: string = "notification",
 ): Promise<{ attachment: Buffer; name: string } | null> {
-  // Si pas d'image valide, ne pas générer de carte — l'embed sera envoyé sans carte
-  if (!data.imageUrl || !data.imageUrl.startsWith("http")) {
+  // Boutique : bannière texte, pas besoin d'image distante.
+  // Autres cartes : sans image HTTP, on laisse l'embed Discord se débrouiller.
+  if (data.type !== "shop" && (!data.imageUrl || !data.imageUrl.startsWith("http"))) {
     return null;
   }
   const png = await generateNotificationCard(data);

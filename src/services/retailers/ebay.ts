@@ -7,7 +7,12 @@
 
 import logger from "../../utils/logger.js";
 import { safeFetch } from "../../utils/ssrfGuard.js";
-import type { RetailerModule, RetailerProduct, RetailerSearchResult, CountryCode } from "./types.js";
+import type {
+  RetailerModule,
+  RetailerProduct,
+  RetailerSearchResult,
+  CountryCode,
+} from "./types.js";
 
 const EBAY_DOMAINS: Record<CountryCode, string> = {
   FR: "www.ebay.fr",
@@ -23,7 +28,16 @@ const EBAY_DOMAINS: Record<CountryCode, string> = {
 };
 
 const EBAY_CURRENCIES: Record<CountryCode, string> = {
-  FR: "EUR", DE: "EUR", BE: "EUR", NL: "EUR", ES: "EUR", IT: "EUR", CH: "CHF", UK: "GBP", US: "USD", AT: "EUR",
+  FR: "EUR",
+  DE: "EUR",
+  BE: "EUR",
+  NL: "EUR",
+  ES: "EUR",
+  IT: "EUR",
+  CH: "CHF",
+  UK: "GBP",
+  US: "USD",
+  AT: "EUR",
 };
 
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || "";
@@ -54,13 +68,25 @@ async function getEbayToken(): Promise<string | null> {
   }
 }
 
-async function searchApi(query: string, country: CountryCode, limit: number): Promise<RetailerSearchResult | null> {
+async function searchApi(
+  query: string,
+  country: CountryCode,
+  limit: number,
+): Promise<RetailerSearchResult | null> {
   const token = await getEbayToken();
   if (!token) return null;
 
   const marketplaceMap: Record<CountryCode, string> = {
-    FR: "EBAY_FR", DE: "EBAY_DE", BE: "EBAY_BE", NL: "EBAY_NL",
-    ES: "EBAY_ES", IT: "EBAY_IT", CH: "EBAY_CH", UK: "EBAY_GB", US: "EBAY_US", AT: "EBAY_AT",
+    FR: "EBAY_FR",
+    DE: "EBAY_DE",
+    BE: "EBAY_BE",
+    NL: "EBAY_NL",
+    ES: "EBAY_ES",
+    IT: "EBAY_IT",
+    CH: "EBAY_CH",
+    UK: "EBAY_GB",
+    US: "EBAY_US",
+    AT: "EBAY_AT",
   };
   const marketplaceId = marketplaceMap[country] || "EBAY_FR";
   const currency = EBAY_CURRENCIES[country] || "EUR";
@@ -99,14 +125,23 @@ async function searchApi(query: string, country: CountryCode, limit: number): Pr
       lastSeen: new Date(),
     }));
 
-    return { products, retailer: "ebay", totalFound: data.total || products.length, searchQuery: query };
+    return {
+      products,
+      retailer: "ebay",
+      totalFound: data.total || products.length,
+      searchQuery: query,
+    };
   } catch (err) {
     logger.debug(`[eBay] API search error: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
 
-async function searchScraping(query: string, country: CountryCode, limit = 10): Promise<RetailerSearchResult> {
+async function searchScraping(
+  query: string,
+  country: CountryCode,
+  limit = 10,
+): Promise<RetailerSearchResult> {
   const domain = EBAY_DOMAINS[country] || EBAY_DOMAINS.FR;
   const currency = EBAY_CURRENCIES[country] || "EUR";
   const products: RetailerProduct[] = [];
@@ -115,7 +150,8 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
     const url = `https://${domain}/sch/i.html?_nkw=${encodeURIComponent(query)}&_sop=15&LH_PrefLoc=1`;
     const res = await safeFetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "fr-FR,fr;q=0.9",
       },
       signal: AbortSignal.timeout(15000),
@@ -125,7 +161,8 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
     const html = await res.text();
 
     // Extraction des items eBay
-    const itemBlocks = html.match(/class="s-item[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g) || [];
+    const itemBlocks =
+      html.match(/class="s-item[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g) || [];
 
     for (const block of itemBlocks.slice(0, limit)) {
       try {
@@ -139,7 +176,9 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
         const urlMatch = block.match(/class="s-item__link"[^>]*href="([^"]+)"/);
         const itemUrl = urlMatch ? urlMatch[1] : "";
 
-        const imgMatch = block.match(/class="s-item__image[^"]*"[^>]*src="([^"]+)"/) || block.match(/<img[^>]*src="([^"]+)"/);
+        const imgMatch =
+          block.match(/class="s-item__image[^"]*"[^>]*src="([^"]+)"/) ||
+          block.match(/<img[^>]*src="([^"]+)"/);
         const image = imgMatch ? imgMatch[1] : undefined;
 
         const idMatch = itemUrl.match(/\/itm\/(\d+)/);
@@ -159,7 +198,9 @@ async function searchScraping(query: string, country: CountryCode, limit = 10): 
             lastSeen: new Date(),
           });
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   } catch (err) {
     logger.debug(`[eBay] Scraping error: ${err instanceof Error ? err.message : String(err)}`);

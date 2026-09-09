@@ -10,6 +10,7 @@
  */
 
 import logger from "./logger.js";
+import { shouldUseLocalOllama } from "./localLlmGate.js";
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
@@ -20,6 +21,10 @@ let lastCheckTime = 0;
 const CHECK_INTERVAL = 60_000; // Check availability every 60s
 
 async function isOllamaAvailable(): Promise<boolean> {
+  if (!shouldUseLocalOllama()) {
+    ollamaAvailable = false;
+    return false;
+  }
   if (!ollamaAvailable && Date.now() - lastCheckTime < CHECK_INTERVAL) {
     return false;
   }
@@ -88,7 +93,8 @@ export async function ollamaSummarize(content: string, maxPoints = 5): Promise<s
 }
 
 export async function ollamaDetectLanguage(text: string): Promise<string | null> {
-  const system = "Detect the language of the following text. Reply with ONLY the ISO 639-1 language code (e.g., 'en', 'fr', 'es', 'de', 'ja').";
+  const system =
+    "Detect the language of the following text. Reply with ONLY the ISO 639-1 language code (e.g., 'en', 'fr', 'es', 'de', 'ja').";
   return ollamaChat(system, text.slice(0, 500), { temperature: 0, maxTokens: 10 });
 }
 

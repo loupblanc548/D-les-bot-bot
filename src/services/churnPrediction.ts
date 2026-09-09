@@ -65,7 +65,9 @@ async function checkChurnRisk(client: Client): Promise<void> {
           });
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   if (atRiskMembers.length === 0) return;

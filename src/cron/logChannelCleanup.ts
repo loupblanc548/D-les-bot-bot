@@ -62,7 +62,9 @@ async function runLogChannelCleanup(client: Client): Promise<void> {
       if (msg) await msg.delete().catch(() => {});
     }
 
-    logger.info(`[LogCleanup] ${toDelete.length} message(s) du bot supprimé(s) (> ${RETENTION_HOURS}h) dans le salon de log`);
+    logger.info(
+      `[LogCleanup] ${toDelete.length} message(s) du bot supprimé(s) (> ${RETENTION_HOURS}h) dans le salon de log`,
+    );
   } catch (err) {
     logger.error(`[LogCleanup] Erreur: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -81,7 +83,9 @@ export function startLogChannelCleanup(client: Client): void {
   // Premier run après 2 min
   setTimeout(() => void runLogChannelCleanup(client), 2 * 60 * 1000);
 
-  logger.info(`[LogCleanup] Nettoyage du salon de log programmé (hebdomadaire, lundi 05:00, messages > ${RETENTION_HOURS}h supprimés)`);
+  logger.info(
+    `[LogCleanup] Nettoyage du salon de log programmé (hebdomadaire, lundi 05:00, messages > ${RETENTION_HOURS}h supprimés)`,
+  );
 }
 
 export function stopLogChannelCleanup(): void {

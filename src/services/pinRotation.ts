@@ -29,7 +29,9 @@ async function rotatePins(client: Client): Promise<void> {
             logger.info(
               `[PinRotation] Dépinglé: "${msg.content.substring(0, 50)}" dans #${channel.name}`,
             );
-          } catch { logger.error("[Silent catch]"); }
+          } catch {
+            logger.error("[Silent catch]");
+          }
         }
       }
     } catch (err) {

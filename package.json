@@ -6,10 +6,10 @@
   "type": "module",
   "scripts": {
     "start": "node --expose-gc --import tsx src/index.ts",
-    "start:prod": "node --expose-gc --max-old-space-size=4096 dist/index.js",
-    "start:worker": "node --max-old-space-size=4096 --import tsx src/infrastructure/workerRuntime.ts",
+    "start:prod": "node --expose-gc --max-old-space-size=6144 dist/index.js",
+    "start:worker": "node --expose-gc --max-old-space-size=4096 --import tsx src/infrastructure/workerRuntime.ts",
     "dev": "node --expose-gc --max-old-space-size=4096 --import tsx --inspect src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-dist-assets.cjs",
     "check:types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,6 +24,7 @@
     "prepare": "husky",
     "postinstall": "node scripts/patch-video-stream.cjs || true && npx prisma generate || true",
     "test:ci": "vitest run --coverage --reporter=verbose",
+    "test:docker": "docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from bot-test",
     "cli": "tsx scripts/cli.ts",
     "youtube:auth": "tsx scripts/youtube-auth.ts",
     "dashboard": "tsx src/dashboard/launcher.ts",
@@ -32,13 +33,14 @@
     "dashboard:build": "tsc && electron-builder --config dashboard-builder.yml",
     "changeset": "changeset",
     "version": "changeset version",
-    "graph": "tsx scripts/codebase-graph.ts"
+    "graph": "tsx scripts/codebase-graph.ts",
+    "test:discord-live": "tsx scripts/discord-tester-probe.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.22",
     "@bull-board/api": "^8.1.2",
     "@bull-board/express": "^8.1.2",
-    "@dank074/discord-video-stream": "^5.0.2",
+    "@dank074/discord-video-stream": "^6.0.0",
     "@discordjs/voice": "^0.19.2",
     "@mozilla/readability": "^0.6.0",
     "@napi-rs/canvas": "^1.0.1",

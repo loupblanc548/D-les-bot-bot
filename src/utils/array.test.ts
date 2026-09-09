@@ -11,7 +11,11 @@ describe("array utils", () => {
   });
 
   it("groupBy groups by key", () => {
-    const items = [{ type: "a", v: 1 }, { type: "b", v: 2 }, { type: "a", v: 3 }];
+    const items = [
+      { type: "a", v: 1 },
+      { type: "b", v: 2 },
+      { type: "a", v: 3 },
+    ];
     const grouped = groupBy(items, (i) => i.type);
     expect(grouped.a).toHaveLength(2);
     expect(grouped.b).toHaveLength(1);

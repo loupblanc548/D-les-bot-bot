@@ -124,6 +124,10 @@ vi.mock("./cron/hourlyMaintenance", () => ({
 vi.mock("./cron/boutiqueCron", () => ({
   startBoutiqueCron: vi.fn(),
 }));
+vi.mock("./services/presenceRotator", () => ({
+  startPresenceRotator: vi.fn(),
+  syncBotDescription: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("./cron/steamNewsCron", () => ({
   startSteamNewsMonitoring: mockServices.startSteamNewsMonitoring,
   checkTrackedGames: mockServices.checkTrackedGames,
@@ -188,7 +192,10 @@ vi.mock("./services/presenceTracker", () => ({ startPresenceTracker: vi.fn() }))
 vi.mock("./services/dealFusion", () => ({ startDealFusion: vi.fn() }));
 vi.mock("./services/githubReleases", () => ({ startGitHubReleasesMonitor: vi.fn() }));
 vi.mock("./services/multiSiteDeals", () => ({ startMultiSiteDealsMonitor: vi.fn() }));
-vi.mock("./shutdown", () => ({ registerInterval: mockCron.registerInterval }));
+vi.mock("./shutdown", () => ({
+  registerInterval: mockCron.registerInterval,
+  LAST_SHUTDOWN_FILE: "/tmp/john-last-shutdown-test",
+}));
 vi.mock("./services/socialFollow", () => ({ startSocialFollowMonitoring: vi.fn() }));
 vi.mock("./managers/ChannelRouter", () => ({
   enableSilentMode: vi.fn(),
@@ -240,6 +247,7 @@ vi.mock("./infrastructure/processIsolator", () => ({
 vi.mock("./queues/logQueue", () => ({ initLogQueue: vi.fn() }));
 vi.mock("./utils/redisClient", () => ({ waitForRedisWritable: vi.fn().mockResolvedValue(true) }));
 vi.mock("./services/gameReleaseCountdown", () => ({ startGameReleaseCountdown: vi.fn() }));
+vi.mock("./cron/showcaseLinkCron", () => ({ startShowcaseLinkCron: vi.fn() }));
 vi.mock("./services/steamWishlist", () => ({ startSteamWishlistMonitor: vi.fn() }));
 vi.mock("./services/voiceScreenShare", () => ({ startVoiceScreenShare: vi.fn() }));
 vi.mock("./services/videoStream", () => ({
@@ -295,7 +303,9 @@ describe("startup", () => {
       await readyHandler(readyClient);
 
       expect(mockServices.checkWishlistMatches).toHaveBeenCalledWith(mockClient);
-      expect(mockServices.runWishlistRetrospective).toHaveBeenCalledWith(mockClient);
+      await vi.waitFor(() => {
+        expect(mockServices.runWishlistRetrospective).toHaveBeenCalledWith(mockClient);
+      });
     });
 
     it("enregistre l'intervalle cyclique wishlist (24h)", async () => {

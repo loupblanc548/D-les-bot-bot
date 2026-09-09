@@ -2,7 +2,19 @@
 # Configuration LLM Local — Mini PC (Standby)
 # =============================================================================
 #
-# Status: STANDBY — En attente de la fin de l'abonnement VPS (décembre 2026)
+# Status: STANDBY — Qwen 3B / 7B / 14B restent sur disque, PAS en RAM.
+# Le bot utilise les APIs cloud (OpenRouter / GLM / etc.). Llama plus tard.
+#
+# Décharger les modèles déjà chargés (ne supprime rien) :
+#   bash scripts/ollama-standby.sh
+#
+# Réveil (mini PC, après install Llama) dans .env :
+#   LOCAL_LLM_ENABLED=true
+#   OLLAMA_STANDBY=false
+#   LOCAL_LLM_MODEL=llama3.1:8b
+#
+# Transfert: depuis le VPS, `bash scripts/pack-minipc.sh` → dist/minipc-bundle.tar.gz
+# (le .env avec les tokens se copie à part, pas dans l'archive).
 #
 # Hardware: Lenovo ThinkCentre M910q Tiny
 #   - CPU: Intel Core i7-6700T (4 cores / 8 threads @ 2.5-3.4 GHz)
@@ -79,8 +91,8 @@
 #   LOCAL_LLM_URL=http://127.0.0.1:11434/v1
 #   LOCAL_LLM_MODEL=qwen2.5:7b
 #
-# Le code du bot (src/services/localLlm.ts) est déjà prêt.
-# Il suffit de définir ces deux variables dans .env et redémarrer le bot.
+# Le code du bot (src/services/localLlm.ts) refuse Ollama tant que
+LOCAL_LLM_ENABLED n'est pas true. Qwen peut rester installé (`ollama list`).
 #
 # =============================================================================
 # ÉTAPE 4: Vérification de sécurité (obligatoire)

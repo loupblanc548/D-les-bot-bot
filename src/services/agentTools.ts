@@ -15,13 +15,24 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
+import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
+import {
+  loadCasier,
+  formatCasierForAgent,
+  loadGuildSanctionLog,
+  formatGuildSanctionLog,
+} from "./casierQuery.js";
+import { recordCasierSanction } from "./casierRecorder.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
 import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
+import { exaSearch } from "./agentReach.js";
 import { rerankDocuments, isCohereAvailable } from "./cohere.js";
 import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
 import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
+import { listRecentMentions } from "./mentionInbox.js";
+import { matchGithubCatalog } from "./githubKnowledgeCatalog.js";
 import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
 import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
 import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
@@ -215,12 +226,49 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   {
     type: "function",
     function: {
+      name: "list_bot_commands",
+      description:
+        "Liste les commandes slash Discord (menu /) et celles qui collent à un sujet. À appeler si on demande un CMD, !help, /help, « c'est quoi la commande pour… », steam, mute, osint, etc. Pas de commandes !.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Sujet optionnel (steam, mute, fuite, fortnite, help…). Vide = groupes slash.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "getBotStatus",
       description:
         "Récupère le statut du bot : mémoire, latence, nombre de serveurs, uptime. Aucun paramètre.",
       parameters: {
         type: "object",
         properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getRecentMentions",
+      description:
+        "Liste les derniers pings @John sur Discord, tous salons confondus (texte, fils, annonces, MP). Utilise ça si on te demande qui t'a mentionné, dans quel salon, ou si tu as raté un ping.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Nombre de pings à renvoyer (défaut 10, max 40)",
+          },
+        },
         required: [],
       },
     },
@@ -266,13 +314,16 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getUserInfo",
       description:
-        "Récupère les informations sur un utilisateur : sanctions, score de risque, historique de modération.",
+        "Casier / logs de sanctions. Sans userId : derniers bans, timeouts, kicks, mutes du serveur. Avec userId : casier d'un membre. Lecture seule — ne sanctionne pas.",
       parameters: {
         type: "object",
         properties: {
-          userId: { type: "string", description: "L'ID Discord de l'utilisateur" },
+          userId: {
+            type: "string",
+            description: "ID Discord. Vide = logs de tout le serveur.",
+          },
         },
-        required: ["userId"],
+        required: [],
       },
     },
   },
@@ -448,6 +499,23 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   {
     type: "function",
     function: {
+      name: "searchObsidianQA",
+      description:
+        "Cherche une Q&A déjà apprise dans le vault Obsidian (tiroirs qa/). " +
+        "À utiliser quand l'utilisateur pose une question de culture générale déjà vue, " +
+        "ou demande ce que le bot a appris.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Sujet ou question à chercher dans Obsidian" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "searchYouTube",
       description:
         "Recherche des vidéos YouTube. Retourne titre, chaîne, URL et miniature. Utile pour trouver des tutoriels, gameplay, ou contenu vidéo.",
@@ -550,7 +618,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getGitHubRepo",
       description:
-        "Récupère les infos d'un dépôt GitHub : étoiles, forks, langage, description, dernière mise à jour. Gratuit (pas de clé API).",
+        "Récupère les infos d'un dépôt GitHub : étoiles, forks, langage, description, dernière mise à jour. Si tu ne connais pas owner/repo, appelle d'abord lookupKnowledgeRepo.",
       parameters: {
         type: "object",
         properties: {
@@ -561,6 +629,24 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           repo: { type: "string", description: "Nom du dépôt (ex: react)" },
         },
         required: ["owner", "repo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookupKnowledgeRepo",
+      description:
+        "Trouve le dépôt GitHub indexé le plus pertinent (OSINT, sécu, Discord, Node, LLM, Fortnite, Helldivers, émulation, Minecraft, DevOps, vie privée…). À appeler AVANT searchWeb quand la question colle à un de ces domaines. Ensuite searchKnowledge ou getGitHubRepo.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Sujet ou question (ex: sherlock pseudo, boutique fortnite, ollama)",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -1125,6 +1211,45 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "whois_lookup",
+      description: "WHOIS d'un nom de domaine (registrar, dates, nameservers). Pas un scan réseau.",
+      parameters: {
+        type: "object",
+        properties: {
+          domain: {
+            type: "string",
+            description: "Domaine (ex: example.com)",
+          },
+        },
+        required: ["domain"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "think_step_by_step",
+      description:
+        "Note un raisonnement intermédiaire avant de répondre. N'appelle pas d'API externe.",
+      parameters: {
+        type: "object",
+        properties: {
+          thought: {
+            type: "string",
+            description: "Étapes de raisonnement",
+          },
+          question: {
+            type: "string",
+            description: "Question en cours (optionnel)",
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -1151,14 +1276,34 @@ const TOOL_NAME_WHITELIST = new Set([
   "readUrl",
   "fetchAndSummarize",
   "searchKnowledge",
+  "searchObsidianQA",
   "searchDocs",
+  "getGitHubRepo",
+  "lookupKnowledgeRepo",
+  "ingestDocumentation",
   "getWikipediaSummary",
   "getWiktionaryDefinition",
   "searchYouTube",
+  "getDesignInspiration",
+  "getUiComponents",
+  "webcheck_scan",
+  "search_public_apis",
+  "get_dev_snippet",
+  "search_programming_books",
+  "search_system_design",
+  "search_arxiv",
+  "get_google_trends",
+  "getTechNews",
+  "search_stackoverflow",
   // ── OSINT de base ──
+  "checkDataBreach",
   "ip_ping",
   "dns_lookup",
   "whois_lookup",
+  "getIpInfo",
+  "ip_geolocation",
+  "ssl_checker",
+  "domain_age",
   "url_expand",
   "jwt_decode",
   "hash_gen",
@@ -1166,12 +1311,23 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Réseaux sociaux ──
   "get_hackernews_top",
   "get_github_trending",
-  "search_reddit",
+  "reddit_search",
   "get_twitch_clips",
   // ── Gaming ──
   "search_igdb_games",
   "searchRawgGames",
   "get_steam_requirements",
+  "getSteamGame",
+  "getSteamDeals",
+  "getGameReleases",
+  "compare_game_prices",
+  "searchRetailers",
+  "get_minecraft_status",
+  "get_lyrics",
+  "search_movies",
+  "search_music",
+  "analyzeImageGemini",
+  "extract_text_from_image",
   // ── Crypto & Finance ──
   "getCryptoPrice",
   "get_crypto_top",
@@ -1193,31 +1349,87 @@ const TOOL_NAME_WHITELIST = new Set([
   // ── Discord & Modération ──
   "deleteMessages",
   "getBotStatus",
+  "list_bot_commands",
+  "getRecentMentions",
   "timeoutUser",
   "getUserInfo",
+  "get_user_moderation_history",
   "getServerStats",
+  "setup_basic_server",
+  "createChannel",
+  "getVoiceChannels",
   // ── Mémoire ──
   "searchUserMemory",
   "saveMemoryFact",
+  "memory_search",
+  "retrieve_user_memory",
+  "upsert_user_memory",
+  // ── Quotidien déjà écrit, maintenant visible ──
+  "define_word",
+  "search_wikipedia",
+  "search_recipe",
+  "get_weather_forecast",
+  "getDateTime",
+  "reddit_get_posts",
+  "reddit_trending",
+  "reddit_hot",
+  "fetch_game_patchnotes",
+  "match_fortnite_shop_wishlist",
+  "scrape_epic_free_countdown",
+  "check_community_streams",
+  "searchSingleRetailer",
+  "trackRetailerProduct",
+  "getRetailerDeals",
+  "compareProductPrices",
+  "listAvailableRetailers",
+  "set_reminder",
+  "youtube_transcript",
+  "exa_web_search",
+  "jina_read_url",
+  "search_books",
+  "search_food",
+  "search_anime",
+  "get_devto_articles",
+  "lookup_typescript_skill",
+  "search_developer_resources",
+  "convert_currency",
+  "get_stock_price",
+  "grammar_check",
+  "text_summarize",
+  "boardgame_search",
+  "get_valorant_agents",
+  "github_profile",
+  "get_discord_events",
+  "follow_social",
+  "list_social_follows",
+  "getJoke",
+  "getTrivia",
   // ── Système ──
   "system_stats",
-  // ── Multi-expert ──
-  "delegate_to_expert",
+  "run_terminal",
+  "ssh_command",
   "think_step_by_step",
 ]);
 
-export const ALL_AGENT_TOOLS: AgentToolDef[] = [
-  ...AGENT_TOOLS,
-  ...EXTENDED_TOOLS,
-  ...AUTONOMOUS_TOOLS,
-  ...FREE_TOOLS,
-  ...EXTERNAL_TOOLS,
-  ...EXTRA_TOOLS,
-  ...MEMORY_TOOLS,
-  ...RETAILER_TOOL_DEFS,
-  ...ORPHAN_TOOLS,
-  ...KALI_TOOLS,
-].filter((t) => TOOL_NAME_WHITELIST.has(t.function.name));
+export const ALL_AGENT_TOOLS: AgentToolDef[] = (() => {
+  const seen = new Set<string>();
+  return [
+    ...AGENT_TOOLS,
+    ...EXTENDED_TOOLS,
+    ...AUTONOMOUS_TOOLS,
+    ...FREE_TOOLS,
+    ...EXTERNAL_TOOLS,
+    ...EXTRA_TOOLS,
+    ...MEMORY_TOOLS,
+    ...RETAILER_TOOL_DEFS,
+    ...ORPHAN_TOOLS,
+    ...KALI_TOOLS,
+  ].filter((t) => {
+    if (!TOOL_NAME_WHITELIST.has(t.function.name) || seen.has(t.function.name)) return false;
+    seen.add(t.function.name);
+    return true;
+  });
+})();
 
 // ─── Handlers — Exécution réelle des outils ──────────────────────────────────
 
@@ -1242,6 +1454,13 @@ export async function executeTool(
 
   try {
     switch (toolName) {
+      case "whois_lookup":
+        return await toolWhoisLookup(args);
+      case "think_step_by_step":
+        return {
+          success: true,
+          data: String(args.thought || args.question || "ok").slice(0, 1500),
+        };
       case "webcheck_scan":
         return await toolWebcheckScan(args);
       case "searchDocs":
@@ -1260,6 +1479,13 @@ export async function executeTool(
         return await toolDeleteMessages(args, ctx);
       case "getBotStatus":
         return await toolGetBotStatus(ctx);
+      case "list_bot_commands":
+        return {
+          success: true,
+          data: formatChatFirstSlashHelp(args.query ? String(args.query) : undefined),
+        };
+      case "getRecentMentions":
+        return await toolGetRecentMentions(args);
       case "timeoutUser":
         return await toolTimeoutUser(args, ctx);
       case "warnUser":
@@ -1284,6 +1510,8 @@ export async function executeTool(
         return await toolIngestDocumentation(args);
       case "searchKnowledge":
         return await toolSearchKnowledge(args);
+      case "searchObsidianQA":
+        return await toolSearchObsidianQA(args);
       case "searchYouTube":
         return await toolSearchYouTube(args);
       case "getServerStats":
@@ -1298,6 +1526,8 @@ export async function executeTool(
         return await toolGetWiktionaryDefinition(args);
       case "getGitHubRepo":
         return await toolGetGitHubRepo(args);
+      case "lookupKnowledgeRepo":
+        return await toolLookupKnowledgeRepo(args);
       case "translateText":
         return await toolTranslateText(args);
       case "getTechNews":
@@ -1508,6 +1738,30 @@ async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {
   };
 }
 
+async function toolGetRecentMentions(args: Record<string, unknown>): Promise<ToolCallResult> {
+  const limit = Math.min(40, Math.max(1, Number(args.limit) || 10));
+  const recent = listRecentMentions(limit);
+  if (recent.length === 0) {
+    return {
+      success: true,
+      data: "Aucun ping @John enregistré depuis le dernier démarrage.",
+    };
+  }
+  return {
+    success: true,
+    data: JSON.stringify(
+      recent.map((m) => ({
+        when: m.at,
+        who: m.userTag,
+        channel: m.channelName,
+        guild: m.guildName,
+        text: m.content,
+        url: m.url,
+      })),
+    ),
+  };
+}
+
 async function toolTimeoutUser(
   args: Record<string, any>,
   ctx: ToolContext,
@@ -1523,18 +1777,15 @@ async function toolTimeoutUser(
 
   await member.timeout(durationMin * 60 * 1000, `[Agent IA] ${reason}`.slice(0, 512));
 
-  // Logger la sanction
-  await prisma.sanction
-    .create({
-      data: {
-        guildId: ctx.guildId,
-        userId,
-        moderatorId: "AI_AGENT",
-        type: "TIMEOUT",
-        reason: `[Agent IA] ${reason}`,
-      },
-    })
-    .catch(() => {});
+  await recordCasierSanction({
+    guildId: ctx.guildId,
+    userId,
+    moderatorId: "AI_AGENT",
+    type: "TIMEOUT",
+    reason: `[Agent IA] ${reason}`,
+    duration: durationMin * 60,
+    source: "agent",
+  }).catch(() => {});
 
   return {
     success: true,
@@ -1546,17 +1797,14 @@ async function toolWarnUser(args: Record<string, any>, ctx: ToolContext): Promis
   const userId = String(args.userId);
   const reason = String(args.reason || "Avertissement par agent IA");
 
-  await prisma.sanction
-    .create({
-      data: {
-        guildId: ctx.guildId,
-        userId,
-        moderatorId: "AI_AGENT",
-        type: "WARN",
-        reason,
-      },
-    })
-    .catch(() => {});
+  await recordCasierSanction({
+    guildId: ctx.guildId,
+    userId,
+    moderatorId: "AI_AGENT",
+    type: "WARN",
+    reason,
+    source: "agent",
+  }).catch(() => {});
 
   return {
     success: true,
@@ -1568,33 +1816,18 @@ async function toolGetUserInfo(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const userId = String(args.userId);
-
-  const sanctions = await prisma.sanction.findMany({
-    where: { userId, guildId: ctx.guildId },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
-
-  const riskProfile = await prisma.riskProfile.findUnique({
-    where: { userId_guildId: { userId, guildId: ctx.guildId } },
-  });
-
-  return {
-    success: true,
-    data: JSON.stringify({
-      userId,
-      sanctions: sanctions.map((s) => ({
-        type: s.type,
-        reason: s.reason,
-        date: s.createdAt.toISOString(),
-      })),
-      sanctionCount: sanctions.length,
-      riskScore: riskProfile?.riskScore ?? 0,
-      riskLevel: riskProfile?.riskLevel ?? "INCONNU",
-      underWatch: riskProfile?.underWatch ?? false,
-    }),
-  };
+  const userId = args.userId ? String(args.userId).trim() : "";
+  try {
+    if (!userId) {
+      const items = await loadGuildSanctionLog(ctx.guildId, 40);
+      return { success: true, data: formatGuildSanctionLog(items) };
+    }
+    const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    return { success: true, data: formatCasierForAgent(snapshot) };
+  } catch (err) {
+    logger.error("[AgentTools] getUserInfo casier:", String(err));
+    return { success: false, data: `Impossible de lire le casier: ${String(err)}` };
+  }
 }
 
 async function toolSearchUserMemory(args: Record<string, any>): Promise<ToolCallResult> {
@@ -1792,6 +2025,15 @@ async function toolSearchWeb(args: Record<string, any>): Promise<ToolCallResult>
         if (title && url.startsWith("http")) {
           results.push({ title: title.slice(0, 200), url, snippet: snippet.slice(0, 300) });
         }
+      }
+    }
+
+    if (results.length === 0 && !abstract) {
+      const exaResults = await exaSearch(query, 6);
+      if (exaResults.length > 0) {
+        const output = JSON.stringify({ provider: "exa", results: exaResults });
+        setCached(cacheKey, output);
+        return { success: true, data: output };
       }
     }
 
@@ -2352,7 +2594,35 @@ async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<T
   }
 }
 
-// GitHub API: free for public repos, no key needed (60 req/hour)
+async function scrapeGitHubRepoPage(owner: string, repo: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+      {
+        headers: { "User-Agent": "DiscordBot/1.0" },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!res.ok) return null;
+    const html = await res.text();
+    const starsMatch =
+      html.match(/([\d.,\s]+)\s+users starred this repository/i) ||
+      html.match(/id="repo-stars-counter-star"[^>]*>([^<]+)/i);
+    const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    const stars = starsMatch?.[1]?.replace(/[^\d]/g, "") || "n/a";
+    return JSON.stringify({
+      name: `${owner}/${repo}`,
+      description: descMatch?.[1] || "Pas de description",
+      stars: Number(stars) || stars,
+      url: `https://github.com/${owner}/${repo}`,
+      source: "github-html",
+    });
+  } catch {
+    return null;
+  }
+}
+
+// GitHub API: token optional — unauthenticated datacenter IPs often hit the 60/hour cap
 async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallResult> {
   const owner = String(args.owner);
   const repo = String(args.repo);
@@ -2362,14 +2632,24 @@ async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallRes
 
   try {
     const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "DiscordBot/1.0",
+    };
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "DiscordBot/1.0",
-      },
+      headers,
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return { success: false, data: `Dépôt ${owner}/${repo} introuvable` };
+    if (!res.ok) {
+      const scraped = await scrapeGitHubRepoPage(owner, repo);
+      if (scraped) return { success: true, data: scraped };
+      return {
+        success: false,
+        data: `Dépôt ${owner}/${repo} inaccessible (GitHub ${res.status}). Réessaie plus tard ou ajoute GITHUB_TOKEN.`,
+      };
+    }
     const data = (await res.json()) as {
       full_name: string;
       description: string | null;
@@ -2401,6 +2681,34 @@ async function toolGetGitHubRepo(args: Record<string, any>): Promise<ToolCallRes
       data: `Erreur GitHub: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
+}
+
+async function toolLookupKnowledgeRepo(args: Record<string, any>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "query requis" };
+  const hits = matchGithubCatalog(query, 6);
+  if (hits.length === 0) {
+    return {
+      success: true,
+      data: JSON.stringify({
+        matches: [],
+        hint: "Aucun dépôt indexé pour ce sujet. Utilise searchWeb ou getGitHubRepo si tu as owner/repo.",
+      }),
+    };
+  }
+  return {
+    success: true,
+    data: JSON.stringify({
+      matches: hits.map((h) => ({
+        owner: h.owner,
+        repo: h.repo,
+        url: `https://github.com/${h.owner}/${h.repo}`,
+        domain: h.domain,
+        description: h.description,
+        next: "searchKnowledge sur le sujet, ou getGitHubRepo(owner, repo) pour stars/version",
+      })),
+    }),
+  };
 }
 
 // MyMemory: free translation API, no key needed (5000 chars/day)
@@ -2629,6 +2937,20 @@ async function toolIngestDocumentation(args: Record<string, any>): Promise<ToolC
       results: result.results,
       message: `${result.success}/${urls.length} pages ingérées avec succès`,
     }),
+  };
+}
+
+async function toolSearchObsidianQA(args: Record<string, any>): Promise<ToolCallResult> {
+  const query = String(args.query || "").trim();
+  if (!query) return { success: false, data: "query vide" };
+  const { searchQA } = await import("./obsidianMemory.js");
+  const hit = await searchQA(query);
+  if (!hit) {
+    return { success: false, data: "Rien dans le vault Obsidian pour cette question." };
+  }
+  return {
+    success: true,
+    data: `Catégorie: ${hit.category}\nQ: ${hit.question}\nR: ${hit.answer.slice(0, 2500)}`,
   };
 }
 
@@ -3108,6 +3430,22 @@ async function toolMcAgentLog(args: Record<string, any>): Promise<ToolCallResult
   const log = await getAgentLog(lines);
   if (!log) return { success: false, data: "❌ Aucun log disponible" };
   return { success: true, data: `\`\`\`\n${log.slice(0, 1800)}\n\`\`\`` };
+}
+
+async function toolWhoisLookup(args: Record<string, any>): Promise<ToolCallResult> {
+  const domain = String(args.domain || args.query || "").trim();
+  if (!domain) return { success: false, data: "Domaine manquant" };
+  const { whoisLookup } = await import("./dnsResolver.js");
+  const info = await whoisLookup(domain);
+  if (!info) return { success: false, data: `WHOIS introuvable pour ${domain}` };
+  const lines = [
+    `Domaine: ${info.domainName || domain}`,
+    info.registrar ? `Registrar: ${info.registrar}` : "",
+    info.creationDate ? `Créé: ${info.creationDate}` : "",
+    info.expirationDate ? `Expire: ${info.expirationDate}` : "",
+    info.nameServers?.length ? `NS: ${info.nameServers.slice(0, 6).join(", ")}` : "",
+  ].filter(Boolean);
+  return { success: true, data: lines.join("\n") };
 }
 
 // ─── Web-Check OSINT ────────────────────────────────────────────────────────

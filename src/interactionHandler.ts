@@ -38,7 +38,11 @@ import { handleAutocomplete as handleFollowAutocomplete } from "./commands/follo
 import { handleAutocomplete as handleFortnitePartyAutocomplete } from "./commands/fun/fortniteParty.js";
 import { handleAutocomplete as handleProfileAutocomplete } from "./commands/profile.js";
 import { handleAutocomplete as handleRetailerAutocomplete } from "./commands/trackRetailer.js";
-import { handleMcMenuButton, handleMcMenuSelect, handleMcMenuModal } from "./services/minecraftMenu.js";
+import {
+  handleMcMenuButton,
+  handleMcMenuSelect,
+  handleMcMenuModal,
+} from "./services/minecraftMenu.js";
 
 export function attachInteractionHandlers(client: Client): void {
   // ── 0. Context Menus (clic droit) ──────────────────────────────────
@@ -351,10 +355,12 @@ export function attachInteractionHandlers(client: Client): void {
       } catch (error) {
         logger.error(`[MCMenu Modal] ${error instanceof Error ? error.message : String(error)}`);
         if (!interaction.replied && !interaction.deferred) {
-          await interaction.reply({
-            content: "❌ Une erreur est survenue.",
-            flags: [MessageFlags.Ephemeral],
-          }).catch(() => {});
+          await interaction
+            .reply({
+              content: "❌ Une erreur est survenue.",
+              flags: [MessageFlags.Ephemeral],
+            })
+            .catch(() => {});
         }
       }
     }

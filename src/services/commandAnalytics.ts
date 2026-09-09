@@ -15,7 +15,11 @@ export function startCommandAnalytics(client: Client): void {
   }
 
   logger.info("[Analytics] Dashboard analytique activé (intervalle: 24h)");
-  analyticsInterval = safeInterval("CommandAnalytics", () => sendAnalyticsReport(client), CHECK_INTERVAL_MS);
+  analyticsInterval = safeInterval(
+    "CommandAnalytics",
+    () => sendAnalyticsReport(client),
+    CHECK_INTERVAL_MS,
+  );
 }
 
 async function sendAnalyticsReport(client: Client): Promise<void> {
@@ -25,12 +29,14 @@ async function sendAnalyticsReport(client: Client): Promise<void> {
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const topCommands = await prisma.notification.findMany({
-      where: { sentAt: { gte: since } },
-      select: { platform: true, content: true },
-      take: 100,
-      orderBy: { sentAt: "desc" },
-    }).catch(() => []);
+    const topCommands = await prisma.notification
+      .findMany({
+        where: { sentAt: { gte: since } },
+        select: { platform: true, content: true },
+        take: 100,
+        orderBy: { sentAt: "desc" },
+      })
+      .catch(() => []);
 
     const commandCounts = new Map<string, number>();
     for (const notif of topCommands) {
@@ -58,7 +64,9 @@ async function sendAnalyticsReport(client: Client): Promise<void> {
     if (topPlatforms.length > 0) {
       embed.addFields({
         name: "Top plateformes",
-        value: topPlatforms.map(([platform, count]) => `**${platform}**: ${count} notif(s)`).join("\n"),
+        value: topPlatforms
+          .map(([platform, count]) => `**${platform}**: ${count} notif(s)`)
+          .join("\n"),
         inline: false,
       });
     }

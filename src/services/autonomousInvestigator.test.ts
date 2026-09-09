@@ -103,7 +103,14 @@ vi.mock("./ai.js", () => ({
     chat: {
       completions: {
         create: vi.fn().mockResolvedValue({
-          choices: [{ message: { content: "{\"action\":\"WATCH\",\"confidence\":75,\"reasoning\":\"Surveillance recommandée\"}" } }],
+          choices: [
+            {
+              message: {
+                content:
+                  '{"action":"WATCH","confidence":75,"reasoning":"Surveillance recommandée"}',
+              },
+            },
+          ],
         }),
       },
     },

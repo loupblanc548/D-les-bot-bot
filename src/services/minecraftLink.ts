@@ -133,7 +133,9 @@ export async function verifyCode(
     if (stats) {
       uuid = stats.uuid;
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   await prisma.minecraftProfile.update({
     where: { userId: profile.userId },

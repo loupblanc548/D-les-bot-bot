@@ -2,9 +2,7 @@ import { Client, TextChannel, EmbedBuilder, User, GuildMember } from "discord.js
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { addAlertToBuffer } from "../utils/smart-alerts.js";
-
-// Salon de sécurité — fallback hardcoded si pas configuré en DB
-const SECURITY_CHANNEL_FALLBACK = "1520866527753011220";
+import { config } from "../config.js";
 
 const REPORT_CHANNEL_CACHE = new Map<string, { id: string | null; cachedAt: number }>();
 const USER_REPORT_CHANNEL_CACHE = new Map<string, { id: string | null; cachedAt: number }>();
@@ -17,11 +15,11 @@ async function getReportChannelId(guildId: string): Promise<string | null> {
   }
   try {
     const cfg = await prisma.guildConfig.findUnique({ where: { guildId } });
-    const id = cfg?.reportChannelId || SECURITY_CHANNEL_FALLBACK;
+    const id = cfg?.reportChannelId || config.reportChannel || null;
     REPORT_CHANNEL_CACHE.set(guildId, { id, cachedAt: Date.now() });
     return id;
   } catch {
-    return SECURITY_CHANNEL_FALLBACK;
+    return config.reportChannel || null;
   }
 }
 
@@ -32,11 +30,11 @@ async function getUserReportChannelId(guildId: string): Promise<string | null> {
   }
   try {
     const cfg = await prisma.guildConfig.findUnique({ where: { guildId } });
-    const id = cfg?.userReportChannelId || cfg?.reportChannelId || SECURITY_CHANNEL_FALLBACK;
+    const id = cfg?.userReportChannelId || cfg?.reportChannelId || config.reportChannel || null;
     USER_REPORT_CHANNEL_CACHE.set(guildId, { id, cachedAt: Date.now() });
     return id;
   } catch {
-    return SECURITY_CHANNEL_FALLBACK;
+    return config.reportChannel || null;
   }
 }
 
@@ -54,7 +52,10 @@ export async function setReportChannel(guildId: string, channelId: string | null
   clearReportChannelCache();
 }
 
-export async function setUserReportChannel(guildId: string, channelId: string | null): Promise<void> {
+export async function setUserReportChannel(
+  guildId: string,
+  channelId: string | null,
+): Promise<void> {
   await prisma.guildConfig.upsert({
     where: { guildId },
     create: { guildId, userReportChannelId: channelId },
@@ -64,7 +65,15 @@ export async function setUserReportChannel(guildId: string, channelId: string | 
 }
 
 export interface SecurityAlert {
-  type: "AI_MODERATION" | "ANTI_PHISHING" | "ANTI_SPAM" | "USER_REPORT" | "SUSPICIOUS" | "ABUSE_FILTER" | "SPAM_DETECTOR" | "PERSPECTIVE_MOD";
+  type:
+    | "AI_MODERATION"
+    | "ANTI_PHISHING"
+    | "ANTI_SPAM"
+    | "USER_REPORT"
+    | "SUSPICIOUS"
+    | "ABUSE_FILTER"
+    | "SPAM_DETECTOR"
+    | "PERSPECTIVE_MOD";
   userId: string;
   userTag: string;
   guildId: string;
@@ -74,15 +83,14 @@ export interface SecurityAlert {
   messageUrl?: string;
 }
 
-const REPORT_ROLE_ID = "1402362014264983762";
-
 export async function sendSecurityAlert(client: Client, alert: SecurityAlert): Promise<void> {
   try {
-    // Critical alerts send immediately, others are grouped via smart alerts
-    const criticalTypes: SecurityAlert["type"][] = ["ANTI_PHISHING", "ABUSE_FILTER"];
-    if (!criticalTypes.includes(alert.type)) {
+    // Immediate: security-relevant events that a moderator must see now.
+    // Buffered: noisy AI scoring that benefits from grouping.
+    const bufferedTypes: SecurityAlert["type"][] = ["AI_MODERATION", "PERSPECTIVE_MOD"];
+    if (bufferedTypes.includes(alert.type)) {
       const alertMsg = `${alert.userTag}: ${alert.reason}${alert.messageContent ? ` | "${alert.messageContent.slice(0, 80)}"` : ""}`;
-      const severity = alert.type === "ANTI_SPAM" || alert.type === "SPAM_DETECTOR" ? "medium" : "low";
+      const severity = alert.type === "AI_MODERATION" ? "medium" : "low";
       addAlertToBuffer(alert.type, alertMsg, severity);
       return;
     }
@@ -90,30 +98,35 @@ export async function sendSecurityAlert(client: Client, alert: SecurityAlert): P
     const channelId = await getReportChannelId(alert.guildId);
     if (!channelId) return;
 
+    const mention = config.reportRoleId ? `<@&${config.reportRoleId}>` : undefined;
     const channel = client.channels.cache.get(channelId) as TextChannel | undefined;
     if (!channel) {
       const fetched = await client.channels.fetch(channelId).catch(() => null);
       if (!fetched || !fetched.isTextBased()) return;
-      return void (await (fetched as TextChannel).send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [buildAlertEmbed(alert)] }));
+      return void (await (fetched as TextChannel).send({
+        content: mention,
+        embeds: [buildAlertEmbed(alert)],
+      }));
     }
 
-    await channel.send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [buildAlertEmbed(alert)] });
+    await channel.send({ content: mention, embeds: [buildAlertEmbed(alert)] });
   } catch (err) {
     logger.error("[ReportChannel] Erreur envoi alerte:", err);
   }
 }
 
 function buildAlertEmbed(alert: SecurityAlert): EmbedBuilder {
-  const typeLabels: Record<SecurityAlert["type"], { label: string; emoji: string; color: number }> = {
-    AI_MODERATION: { label: "IA Modération", emoji: "🤖", color: 0xff6b6b },
-    ANTI_PHISHING: { label: "Anti-Phishing", emoji: "🛡️", color: 0xff4444 },
-    ANTI_SPAM: { label: "Anti-Spam", emoji: "🚫", color: 0xff9500 },
-    USER_REPORT: { label: "Signalement Utilisateur", emoji: "📢", color: 0x3498db },
-    SUSPICIOUS: { label: "Activité Suspecte", emoji: "⚠️", color: 0xf39c12 },
-    ABUSE_FILTER: { label: "Abuse Filter", emoji: "🔍", color: 0xe74c3c },
-    SPAM_DETECTOR: { label: "Spam Detector ML", emoji: "🚨", color: 0xe67e22 },
-    PERSPECTIVE_MOD: { label: "Perspective API", emoji: "📊", color: 0x9b59b6 },
-  };
+  const typeLabels: Record<SecurityAlert["type"], { label: string; emoji: string; color: number }> =
+    {
+      AI_MODERATION: { label: "IA Modération", emoji: "🤖", color: 0xff6b6b },
+      ANTI_PHISHING: { label: "Anti-Phishing", emoji: "🛡️", color: 0xff4444 },
+      ANTI_SPAM: { label: "Anti-Spam", emoji: "🚫", color: 0xff9500 },
+      USER_REPORT: { label: "Signalement Utilisateur", emoji: "📢", color: 0x3498db },
+      SUSPICIOUS: { label: "Activité Suspecte", emoji: "⚠️", color: 0xf39c12 },
+      ABUSE_FILTER: { label: "Abuse Filter", emoji: "🔍", color: 0xe74c3c },
+      SPAM_DETECTOR: { label: "Spam Detector ML", emoji: "🚨", color: 0xe67e22 },
+      PERSPECTIVE_MOD: { label: "Perspective API", emoji: "📊", color: 0x9b59b6 },
+    };
 
   const info = typeLabels[alert.type];
   const embed = new EmbedBuilder()
@@ -129,7 +142,11 @@ function buildAlertEmbed(alert: SecurityAlert): EmbedBuilder {
     embed.addFields({ name: "Détails", value: alert.details.slice(0, 1024), inline: false });
   }
   if (alert.messageContent) {
-    embed.addFields({ name: "Message", value: alert.messageContent.slice(0, 1024) || "[vide]", inline: false });
+    embed.addFields({
+      name: "Message",
+      value: alert.messageContent.slice(0, 1024) || "[vide]",
+      inline: false,
+    });
   }
   if (alert.messageUrl) {
     embed.addFields({ name: "Lien", value: alert.messageUrl, inline: false });
@@ -163,7 +180,11 @@ export async function sendUserReport(
       .setColor(0x3498db)
       .addFields(
         { name: "Signalé par", value: `<@${reporter.id}> (${reporter.tag})`, inline: true },
-        { name: "Utilisateur signalé", value: target ? `<@${target.id}> (${target.tag})` : "N/A", inline: true },
+        {
+          name: "Utilisateur signalé",
+          value: target ? `<@${target.id}> (${target.tag})` : "N/A",
+          inline: true,
+        },
         { name: "Raison", value: reason.slice(0, 1024), inline: false },
       )
       .setTimestamp();
@@ -172,7 +193,8 @@ export async function sendUserReport(
       embed.addFields({ name: "Lien du message", value: messageUrl, inline: false });
     }
 
-    await targetChannel.send({ content: `<@&${REPORT_ROLE_ID}>`, embeds: [embed] });
+    const mention = config.reportRoleId ? `<@&${config.reportRoleId}>` : undefined;
+    await targetChannel.send({ content: mention, embeds: [embed] });
   } catch (err) {
     logger.error("[ReportChannel] Erreur envoi signalement utilisateur:", err);
   }
@@ -185,19 +207,22 @@ const SUSPICIOUS_JOIN_THRESHOLD = 5; // 5 joins en 10 secondes = raid
 const SUSPICIOUS_JOIN_WINDOW = 10_000;
 
 // Periodic cleanup: purge stale entries from timestamp-tracking Maps to prevent memory leak
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, timestamps] of recentJoinTimestamps.entries()) {
-    const recent = timestamps.filter((t) => now - t < SUSPICIOUS_JOIN_WINDOW);
-    if (recent.length === 0) recentJoinTimestamps.delete(key);
-    else recentJoinTimestamps.set(key, recent);
-  }
-  for (const [key, timestamps] of messageTimestamps.entries()) {
-    const recent = timestamps.filter((t) => now - t < SPAM_WINDOW);
-    if (recent.length === 0) messageTimestamps.delete(key);
-    else messageTimestamps.set(key, recent);
-  }
-}, 60 * 60 * 1000).unref?.(); // every hour
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, timestamps] of recentJoinTimestamps.entries()) {
+      const recent = timestamps.filter((t) => now - t < SUSPICIOUS_JOIN_WINDOW);
+      if (recent.length === 0) recentJoinTimestamps.delete(key);
+      else recentJoinTimestamps.set(key, recent);
+    }
+    for (const [key, timestamps] of messageTimestamps.entries()) {
+      const recent = timestamps.filter((t) => now - t < SPAM_WINDOW);
+      if (recent.length === 0) messageTimestamps.delete(key);
+      else messageTimestamps.set(key, recent);
+    }
+  },
+  60 * 60 * 1000,
+).unref?.(); // every hour
 
 /**
  * Détecte un rush de joins (potentiel raid) et alerte le salon de sécurité
@@ -217,7 +242,8 @@ export async function checkSuspiciousJoin(client: Client, guildId: string): Prom
       userTag: "Détection automatique",
       guildId,
       reason: `🚨 Rush de joins détecté — ${timestamps.length} membres en ${SUSPICIOUS_JOIN_WINDOW / 1000}s`,
-      details: "Potentiel raid en cours. Vérifiez les nouveaux membres et activez le mode lockdown si nécessaire.",
+      details:
+        "Potentiel raid en cours. Vérifiez les nouveaux membres et activez le mode lockdown si nécessaire.",
     });
   }
 }
@@ -239,7 +265,8 @@ export async function checkSuspiciousNewMember(client: Client, member: GuildMemb
   const username = member.user.username;
   if (/[\u0300-\u036F]/.test(username)) flags.push("🔤 Caractères diacritiques (zalgo?)");
   if (username.length < 3) flags.push("📝 Nom très court");
-  if (/(discord|admin|moderator|staff|support|nitro|free|gift|steam)/i.test(username)) flags.push("🎭 Nom suspect (impersonation?)");
+  if (/(discord|admin|moderator|staff|support|nitro|free|gift|steam)/i.test(username))
+    flags.push("🎭 Nom suspect (impersonation?)");
 
   if (flags.length === 0) return;
 
@@ -260,7 +287,13 @@ const messageTimestamps: Map<string, number[]> = new Map();
 const SPAM_THRESHOLD = 8; // 8 messages en 5 secondes
 const SPAM_WINDOW = 5_000;
 
-export async function checkMessageSpam(client: Client, userId: string, guildId: string, channelId: string, content: string): Promise<void> {
+export async function checkMessageSpam(
+  client: Client,
+  userId: string,
+  guildId: string,
+  channelId: string,
+  content: string,
+): Promise<void> {
   const key = `${userId}:${channelId}`;
   const now = Date.now();
   let timestamps = messageTimestamps.get(key) || [];

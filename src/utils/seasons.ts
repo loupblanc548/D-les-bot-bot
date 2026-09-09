@@ -9,12 +9,12 @@ const CHAPTER_SEASON_REGEX = /^(?:chapitre|chapter)\s*(\d+)\s*(?:saison|season)\
 
 // Maximums connus (approximatifs, pour validation)
 const CHAPTER_MAX_SEASONS: Record<number, number> = {
-  1: 10,  // Chapter 1: Season 1-10 (X)
-  2: 8,   // Chapter 2: Season 1-8
-  3: 4,   // Chapter 3: Season 1-4
-  4: 4,   // Chapter 4: Season 1-4
-  5: 4,   // Chapter 5: Season 1-4
-  6: 2,   // Chapter 6: Season 1-2
+  1: 10, // Chapter 1: Season 1-10 (X)
+  2: 8, // Chapter 2: Season 1-8
+  3: 4, // Chapter 3: Season 1-4
+  4: 4, // Chapter 4: Season 1-4
+  5: 4, // Chapter 5: Season 1-4
+  6: 2, // Chapter 6: Season 1-2
 };
 
 /**
@@ -23,7 +23,7 @@ const CHAPTER_MAX_SEASONS: Record<number, number> = {
  */
 export function normalizeSeason(input: string): string | null {
   const trimmed = input.trim();
-  
+
   // Essayer le format "Chapter N Season M" / "Chapitre N Saison M"
   const chapterMatch = trimmed.match(CHAPTER_SEASON_REGEX);
   if (chapterMatch) {
@@ -38,7 +38,7 @@ export function normalizeSeason(input: string): string | null {
     }
     return null;
   }
-  
+
   // Essayer le format "Season X" / "Saison X"
   const seasonMatch = trimmed.match(SEASON_REGEX);
   if (seasonMatch) {
@@ -49,7 +49,7 @@ export function normalizeSeason(input: string): string | null {
     }
     return null;
   }
-  
+
   return null;
 }
 
@@ -138,8 +138,8 @@ export function parseSeasonRange(input: string): { start: string; end: string } 
   const trimmed = input.trim();
 
   // Chercher un séparateur de plage : tiret, tiret cadratin, "à", "to", "->"
-  const sepMatch = trimmed.match(/^(.*?)\s*[-–—→]+\s*(.+)$/)
-    || trimmed.match(/^(.*?)\s+(?:à|to)\s+(.+)$/i);
+  const sepMatch =
+    trimmed.match(/^(.*?)\s*[-–—→]+\s*(.+)$/) || trimmed.match(/^(.*?)\s+(?:à|to)\s+(.+)$/i);
 
   if (!sepMatch) return null;
 
@@ -172,7 +172,7 @@ export function normalizeSeasonRange(input: string): string | null {
 export function isSeasonInRange(
   cosmeticSeason: string,
   rangeStart: string,
-  rangeEnd: string
+  rangeEnd: string,
 ): boolean {
   const cosmeticOrder = getSeasonNumericOrder(cosmeticSeason);
   const startOrder = getSeasonNumericOrder(rangeStart);

@@ -97,7 +97,9 @@ export async function fetchOpenGraph(query: string): Promise<string | null> {
     if (!res.ok) return null;
     const html = await res.text();
     const getMeta = (prop: string) => {
-      const m = html.match(new RegExp(`<meta[^>]*property=["']${prop}["'][^>]*content=["']([^"']+)["']`));
+      const m = html.match(
+        new RegExp(`<meta[^>]*property=["']${prop}["'][^>]*content=["']([^"']+)["']`),
+      );
       return m?.[1] || null;
     };
     const title = getMeta("og:title");
@@ -112,7 +114,9 @@ export async function fetchOpenGraph(query: string): Promise<string | null> {
 
 export async function fetchUnitConverter(query: string): Promise<string | null> {
   const lower = query.toLowerCase();
-  const match = lower.match(/(\d+(?:\.\d+)?)\s*(km|mi|miles|m|meters|cm|in|inches|ft|feet|kg|lbs|pounds|c|f|k)\s*(?:en|to|vers|in)\s*(km|mi|miles|m|meters|cm|in|inches|ft|feet|kg|lbs|pounds|c|f|k)/);
+  const match = lower.match(
+    /(\d+(?:\.\d+)?)\s*(km|mi|miles|m|meters|cm|in|inches|ft|feet|kg|lbs|pounds|c|f|k)\s*(?:en|to|vers|in)\s*(km|mi|miles|m|meters|cm|in|inches|ft|feet|kg|lbs|pounds|c|f|k)/,
+  );
   if (!match) return null;
 
   const value = parseFloat(match[1]);
@@ -173,8 +177,17 @@ export async function fetchTimezoneConverter(query: string): Promise<string | nu
 
   try {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString("fr-FR", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
-    const dateStr = now.toLocaleDateString("fr-FR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" });
+    const timeStr = now.toLocaleTimeString("fr-FR", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const dateStr = now.toLocaleDateString("fr-FR", {
+      timeZone: tz,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
     return `🕐 **Heure à ${city}** (${tz})\n\n📅 ${dateStr}\n⏰ ${timeStr}`;
   } catch {
     return null;

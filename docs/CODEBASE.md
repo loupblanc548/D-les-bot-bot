@@ -15,7 +15,8 @@
 ### AI / LLM
 
 - `src/services/agentLoop.ts` — Main AI agent loop (tool calling, model selection)
-- `src/services/localLlm.ts` — Ollama local LLM client (health, prewarm, chat, tools)
+- `src/services/localLlm.ts` — Ollama client (standby by default; Qwen on disk, Llama later)
+- `src/utils/localLlmGate.ts` — LOCAL_LLM_ENABLED / OLLAMA_STANDBY opt-in gate
 - `src/services/aichat.ts` — Chat AI fallback logic
 - `src/utils/aiGateway.ts` — Multi-provider AI gateway with circuit breaker + metrics
 - `src/utils/circuitBreaker.ts` — Circuit breaker for external API calls
@@ -145,7 +146,7 @@
 
 ## Key Design Decisions
 
-1. **Local LLM first** — Ollama (qwen2.5:7b-fast) as primary, external APIs as fallback
+1. **Cloud APIs first while local is standby** — Qwen stays on disk; Llama later. OpenRouter/GLM handle chat until then.
 2. **Circuit breaker** — Prevents cascade failures when LLM/APIs are down
 3. **SSRF guard** — All outbound fetch calls go through `globalFetchGuard.ts`
 4. **Multi-stage Docker** — Build + production stages for smaller images

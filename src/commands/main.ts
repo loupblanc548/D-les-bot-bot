@@ -16,6 +16,7 @@ import { runStartupRetrospective } from "../services/feeds.js";
 import { runDbSourcesRetrospective } from "../services/monitor.js";
 import { CATEGORIES, type Category } from "./helpCategories.js";
 import { isLocalLlmAvailable } from "../services/localLlm.js";
+import { isOllamaStandby } from "../utils/localLlmGate.js";
 import { isNvidiaNimAvailable } from "../services/nvidiaNim.js";
 import { getCacheSize } from "../utils/aiResponseCache.js";
 
@@ -158,7 +159,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
         {
           name: "🤖 Services IA",
           value: [
-            `Ollama (local): ${isLocalLlmAvailable() ? "✅" : "❌"}`,
+            `Ollama (local): ${isLocalLlmAvailable() ? "✅" : isOllamaStandby() ? "⏸ standby" : "❌"}`,
             `Groq 70B: ✅`,
             `NVIDIA NIM: ${isNvidiaNimAvailable() ? "✅" : "❌"}`,
             `OpenRouter: ${config.openRouterApiKey ? "✅" : "❌"}`,
@@ -181,15 +182,22 @@ async function handleStatus(interaction: ChatInputCommandInteraction, client: Cl
   }
 }
 
-async function handleRestart(interaction: ChatInputCommandInteraction, _client: Client) {
+export async function handleRestart(
+  interaction: ChatInputCommandInteraction,
+  _client: Client,
+): Promise<void> {
   if (!(await requireAdmin(interaction))) return;
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
   try {
     logger.info("Redémarrage demandé par", interaction.user.tag);
-    await interaction.editReply({ content: "🔄 Redémarrage du bot en cours..." });
+    await interaction.editReply({
+      content:
+        "🔄 Redémarrage du bot… il devrait revenir en ligne dans quelques secondes (superviseur systemd/docker/pm2).",
+    });
+    // Exit 1: Restart=on-failure and most process managers respawn; exit 0 often does not.
     setTimeout(() => {
-      process.exit(0);
-    }, 1000);
+      process.exit(1);
+    }, 1500);
   } catch (error) {
     logger.error("[CRASH COMMANDE RESTART]:", error);
     try {

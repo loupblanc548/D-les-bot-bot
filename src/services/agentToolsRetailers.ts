@@ -326,14 +326,20 @@ export async function handleRetailerTool(
           return { success: true, data: "Aucun produit trouvé pour cette recherche." };
         }
 
-        const formatted = products.slice(0, 20).map((p) => {
-          const emoji = RETAILER_EMOJIS[p.retailer] || "🏷️";
-          const discount = p.discountPercent ? ` (-${p.discountPercent}%)` : "";
-          const stock = p.inStock ? "✅" : "❌";
-          return `${emoji} **${RETAILER_NAMES[p.retailer]}** (${p.country}) — ${p.title}\n   ${p.price} ${p.currency}${discount} ${stock}\n   ${p.url}`;
-        }).join("\n\n");
+        const formatted = products
+          .slice(0, 20)
+          .map((p) => {
+            const emoji = RETAILER_EMOJIS[p.retailer] || "🏷️";
+            const discount = p.discountPercent ? ` (-${p.discountPercent}%)` : "";
+            const stock = p.inStock ? "✅" : "❌";
+            return `${emoji} **${RETAILER_NAMES[p.retailer]}** (${p.country}) — ${p.title}\n   ${p.price} ${p.currency}${discount} ${stock}\n   ${p.url}`;
+          })
+          .join("\n\n");
 
-        return { success: true, data: `Résultats pour "${query}" (${products.length} produits):\n\n${formatted}` };
+        return {
+          success: true,
+          data: `Résultats pour "${query}" (${products.length} produits):\n\n${formatted}`,
+        };
       }
 
       case "searchSingleRetailer": {
@@ -345,16 +351,24 @@ export async function handleRetailerTool(
         const products = await searchRetailer(retailer, query, country, limit);
 
         if (products.length === 0) {
-          return { success: true, data: `Aucun produit trouvé sur ${RETAILER_NAMES[retailer]} (${country}).` };
+          return {
+            success: true,
+            data: `Aucun produit trouvé sur ${RETAILER_NAMES[retailer]} (${country}).`,
+          };
         }
 
-        const formatted = products.map((p) => {
-          const discount = p.discountPercent ? ` (-${p.discountPercent}%)` : "";
-          const stock = p.inStock ? "✅" : "❌";
-          return `**${p.title}**\n   ${p.price} ${p.currency}${discount} ${stock}\n   ${p.url}`;
-        }).join("\n\n");
+        const formatted = products
+          .map((p) => {
+            const discount = p.discountPercent ? ` (-${p.discountPercent}%)` : "";
+            const stock = p.inStock ? "✅" : "❌";
+            return `**${p.title}**\n   ${p.price} ${p.currency}${discount} ${stock}\n   ${p.url}`;
+          })
+          .join("\n\n");
 
-        return { success: true, data: `${RETAILER_NAMES[retailer]} (${country}) — ${products.length} résultat(s):\n\n${formatted}` };
+        return {
+          success: true,
+          data: `${RETAILER_NAMES[retailer]} (${country}) — ${products.length} résultat(s):\n\n${formatted}`,
+        };
       }
 
       case "trackRetailerProduct": {
@@ -384,7 +398,10 @@ export async function handleRetailerTool(
         if (!removed) {
           return { success: false, data: "Tracking introuvable ou déjà supprimé." };
         }
-        return { success: true, data: "✅ Suivi du produit arrêté. Tu ne recevras plus d'alertes." };
+        return {
+          success: true,
+          data: "✅ Suivi du produit arrêté. Tu ne recevras plus d'alertes.",
+        };
       }
 
       case "listTrackedProducts": {
@@ -395,16 +412,20 @@ export async function handleRetailerTool(
           return { success: true, data: "Aucun produit suivi pour le moment." };
         }
 
-        const formatted = tracked.map((t) => {
-          const emoji = RETAILER_EMOJIS[t.retailer] || "🏷️";
-          const target = t.targetPrice ? ` | Cible: ${t.targetPrice}€` : "";
-          const alerts = [
-            t.alertOnPriceDrop ? "prix↓" : "",
-            t.alertOnRestock ? "stock✅" : "",
-            t.alertOnPromotion ? "promo🔥" : "",
-          ].filter(Boolean).join(", ");
-          return `${emoji} **${t.title}** — ${RETAILER_NAMES[t.retailer]} (${t.country})\n   Prix actuel: ${t.lastPrice}€${target} | Alertes: ${alerts}\n   ID: ${t.id}`;
-        }).join("\n\n");
+        const formatted = tracked
+          .map((t) => {
+            const emoji = RETAILER_EMOJIS[t.retailer] || "🏷️";
+            const target = t.targetPrice ? ` | Cible: ${t.targetPrice}€` : "";
+            const alerts = [
+              t.alertOnPriceDrop ? "prix↓" : "",
+              t.alertOnRestock ? "stock✅" : "",
+              t.alertOnPromotion ? "promo🔥" : "",
+            ]
+              .filter(Boolean)
+              .join(", ");
+            return `${emoji} **${t.title}** — ${RETAILER_NAMES[t.retailer]} (${t.country})\n   Prix actuel: ${t.lastPrice}€${target} | Alertes: ${alerts}\n   ID: ${t.id}`;
+          })
+          .join("\n\n");
 
         return { success: true, data: `Produits suivis (${tracked.length}):\n\n${formatted}` };
       }
@@ -417,15 +438,23 @@ export async function handleRetailerTool(
         const deals = await getRetailerDeals(retailer, country, limit);
 
         if (deals.length === 0) {
-          return { success: true, data: `Aucun deal trouvé sur ${RETAILER_NAMES[retailer]} (${country}).` };
+          return {
+            success: true,
+            data: `Aucun deal trouvé sur ${RETAILER_NAMES[retailer]} (${country}).`,
+          };
         }
 
-        const formatted = deals.map((d) => {
-          const discount = d.discountPercent ? ` (-${d.discountPercent}%)` : "";
-          return `🔥 **${d.title}** — ${d.price} ${d.currency}${discount}\n   ${d.url}`;
-        }).join("\n\n");
+        const formatted = deals
+          .map((d) => {
+            const discount = d.discountPercent ? ` (-${d.discountPercent}%)` : "";
+            return `🔥 **${d.title}** — ${d.price} ${d.currency}${discount}\n   ${d.url}`;
+          })
+          .join("\n\n");
 
-        return { success: true, data: `${RETAILER_NAMES[retailer]} (${country}) — Deals:\n\n${formatted}` };
+        return {
+          success: true,
+          data: `${RETAILER_NAMES[retailer]} (${country}) — Deals:\n\n${formatted}`,
+        };
       }
 
       case "getAmazonPriceHistory": {
@@ -434,12 +463,16 @@ export async function handleRetailerTool(
 
         const history = await getKeepaPriceHistory(asin, country);
         if (!history) {
-          return { success: false, data: "Historique indisponible (Keepa API key manquante ou produit introuvable)." };
+          return {
+            success: false,
+            data: "Historique indisponible (Keepa API key manquante ou produit introuvable).",
+          };
         }
 
         return {
           success: true,
-          data: `📈 Historique Amazon (${country}) — ASIN: ${asin}\n` +
+          data:
+            `📈 Historique Amazon (${country}) — ASIN: ${asin}\n` +
             `Prix actuel: ${history.currentPrice}€\n` +
             `Plus bas: ${history.lowestPrice}€\n` +
             `Plus haut: ${history.highestPrice}€\n` +
@@ -451,12 +484,17 @@ export async function handleRetailerTool(
 
       case "listAvailableRetailers": {
         const retailers = getAvailableRetailers();
-        const formatted = retailers.map((r) => {
-          const emoji = RETAILER_EMOJIS[r.id] || "🏷️";
-          return `${emoji} **${r.name}** — Pays: ${r.countries.join(", ")}`;
-        }).join("\n");
+        const formatted = retailers
+          .map((r) => {
+            const emoji = RETAILER_EMOJIS[r.id] || "🏷️";
+            return `${emoji} **${r.name}** — Pays: ${r.countries.join(", ")}`;
+          })
+          .join("\n");
 
-        return { success: true, data: `Revendeurs disponibles (${retailers.length}):\n\n${formatted}` };
+        return {
+          success: true,
+          data: `Revendeurs disponibles (${retailers.length}):\n\n${formatted}`,
+        };
       }
 
       case "compareProductPrices": {
@@ -477,15 +515,19 @@ export async function handleRetailerTool(
         const cheapest = products[0];
         const emoji = RETAILER_EMOJIS[cheapest.retailer] || "🏷️";
 
-        const formatted = products.slice(0, 10).map((p, i) => {
-          const e = RETAILER_EMOJIS[p.retailer] || "🏷️";
-          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-          return `${medal} ${e} ${RETAILER_NAMES[p.retailer]} (${p.country}) — ${p.price} ${p.currency}`;
-        }).join("\n");
+        const formatted = products
+          .slice(0, 10)
+          .map((p, i) => {
+            const e = RETAILER_EMOJIS[p.retailer] || "🏷️";
+            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+            return `${medal} ${e} ${RETAILER_NAMES[p.retailer]} (${p.country}) — ${p.price} ${p.currency}`;
+          })
+          .join("\n");
 
         return {
           success: true,
-          data: `Comparaison de prix pour "${query}":\n\n${formatted}\n\n` +
+          data:
+            `Comparaison de prix pour "${query}":\n\n${formatted}\n\n` +
             `Meilleur prix: ${emoji} **${RETAILER_NAMES[cheapest.retailer]}** — ${cheapest.price} ${cheapest.currency}\n${cheapest.url}`,
         };
       }

@@ -88,6 +88,10 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "low", module: "core", reason: "Read-only price lookup, no persistence" },
     ],
     ["getGitHubRepo", { level: "low", module: "core", reason: "Read-only GitHub API lookup" }],
+    [
+      "lookupKnowledgeRepo",
+      { level: "low", module: "core", reason: "Read-only local GitHub catalog match" },
+    ],
     ["getWikipediaSummary", { level: "low", module: "core", reason: "Read-only Wikipedia API" }],
     [
       "getWiktionaryDefinition",
@@ -99,6 +103,14 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "low", module: "core", reason: "Read-only image analysis, no persistence" },
     ],
     ["detect_language", { level: "low", module: "core", reason: "Read-only language detection" }],
+    [
+      "getUserInfo",
+      {
+        level: "low",
+        module: "core",
+        reason: "Read-only casier / member info lookup, no Discord mutation",
+      },
+    ],
 
     // ── Code execution (HIGH — arbitrary code) ──
     [
@@ -143,6 +155,14 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
         level: "medium",
         module: "core",
         reason: "Creates Discord channel — modifies server state",
+      },
+    ],
+    [
+      "setup_basic_server",
+      {
+        level: "low",
+        module: "extended",
+        reason: "Invite link + optional channel layout; admin-gated, no guild create API",
       },
     ],
 
@@ -766,6 +786,10 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
     ],
     [
       "ssh_command",
+      { level: "high", module: "external", reason: "Shell command execution on VPS — root access" },
+    ],
+    [
+      "run_terminal",
       { level: "high", module: "external", reason: "Shell command execution on VPS — root access" },
     ],
     [

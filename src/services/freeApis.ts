@@ -173,7 +173,7 @@ export async function getActivity(): Promise<{
   participants: number;
 } | null> {
   try {
-    const res = await fetch("https://www.boredapi.com/api/activity", {
+    const res = await fetch("https://bored-api.appbrewery.com/random", {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) throw new Error(`Bored ${res.status}`);
@@ -187,21 +187,34 @@ export async function getActivity(): Promise<{
 
 // ─── 7. Numbers API (faits sur les nombres, sans clé) ─────────────────────────
 
+const NUMBER_FACTS: Record<number, string> = {
+  0: "0 is the only number that cannot be represented in Roman numerals.",
+  1: "1 is the only number that is neither prime nor composite.",
+  2: "2 is the only even prime number.",
+  4: "4 is the smallest composite number.",
+  7: "7 is considered lucky in a lot of cultures, and it is a prime.",
+  8: "8 is 2 cubed (2³).",
+  9: "9 is the highest single-digit number in base 10.",
+  10: "10 is the base of our everyday number system.",
+  12: "12 has more divisors than any smaller positive integer.",
+  13: "13 reversed is 31 — both are prime (an emirp pair).",
+  42: "42 is the answer to life, the universe, and everything — according to Douglas Adams.",
+  100: "100 is 10 squared (10²).",
+};
+
+const EXTRA_NUMBER_FACTS = [
+  "There are infinitely many primes — Euclid proved it more than 2000 years ago.",
+  "A googol is 1 followed by 100 zeros.",
+  "Zero was used as a number in India centuries before it reached Europe.",
+];
+
 export async function getNumberFact(number: number | "random"): Promise<string | null> {
-  try {
-    const n = number === "random" ? "random" : String(number);
-    const res = await fetch(`http://numbersapi.com/${n}?json=true`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) throw new Error(`Numbers ${res.status}`);
-    const data = (await res.json()) as { text: string };
-    return data.text ?? null;
-  } catch (error) {
-    logger.warn(
-      `[FreeAPI] Number fact error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return null;
+  if (number !== "random" && NUMBER_FACTS[number]) return NUMBER_FACTS[number];
+  const keys = Object.keys(NUMBER_FACTS).map(Number);
+  if (number === "random") {
+    return NUMBER_FACTS[keys[Math.floor(Math.random() * keys.length)]];
   }
+  return EXTRA_NUMBER_FACTS[Math.abs(number) % EXTRA_NUMBER_FACTS.length];
 }
 
 // ─── 8. Dog API (photos de chiens, sans clé) ──────────────────────────────────
@@ -268,37 +281,25 @@ export async function getMeme(): Promise<{
   author: string;
 } | null> {
   try {
-    const res = await fetch("https://www.reddit.com/r/memes/hot.json?limit=20", {
-      headers: { "User-Agent": "discord-bot-helldiver/1.0" },
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch("https://meme-api.com/gimme", {
+      headers: { "User-Agent": "JohnDiscordBot/1.0" },
+      signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) throw new Error(`Reddit memes ${res.status}`);
+    if (!res.ok) throw new Error(`Meme API ${res.status}`);
     const data = (await res.json()) as {
-      data: {
-        children: Array<{
-          data: {
-            title: string;
-            url: string;
-            subreddit: string;
-            author: string;
-            post_hint: string;
-            stickied: boolean;
-          };
-        }>;
-      };
+      title?: string;
+      url?: string;
+      subreddit?: string;
+      author?: string;
+      nsfw?: boolean;
     };
-
-    const posts = data.data?.children
-      ?.filter((c) => c.data.post_hint === "image" && !c.data.stickied)
-      .map((c) => ({
-        title: c.data.title,
-        url: c.data.url,
-        subreddit: c.data.subreddit,
-        author: c.data.author,
-      }));
-
-    if (!posts?.length) return null;
-    return posts[Math.floor(Math.random() * posts.length)];
+    if (data.nsfw || !data.url || !data.title) return null;
+    return {
+      title: data.title,
+      url: data.url,
+      subreddit: data.subreddit ?? "memes",
+      author: data.author ?? "unknown",
+    };
   } catch (error) {
     logger.warn(`[FreeAPI] Meme error: ${error instanceof Error ? error.message : String(error)}`);
     return null;
@@ -701,11 +702,7 @@ export function makeTimestamp(
 
 // ─── 21. Pollinations.ai — Génération d'images gratuite (sans clé) ───────────
 
-export async function generateImage(
-  prompt: string,
-  width = 1024,
-  height = 1024,
-): Promise<string> {
+export async function generateImage(prompt: string, width = 1024, height = 1024): Promise<string> {
   const seed = Math.floor(Math.random() * 1000000);
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
 }
@@ -717,26 +714,50 @@ export function generateTTSUrl(text: string, voice = "Brian"): string {
 }
 
 export const TTS_VOICES = [
-  "Brian", "Emma", "Joey", "Matthew", "Russell", "Amy", "Charlotte",
-  "Justin", "Kendra", "Salli", "Joanna", "Ivy", "Raveena", "Nicole",
-  "Celine", "Mathieu", "Chantal", "Marlene", "Hans", "Vicki",
+  "Brian",
+  "Emma",
+  "Joey",
+  "Matthew",
+  "Russell",
+  "Amy",
+  "Charlotte",
+  "Justin",
+  "Kendra",
+  "Salli",
+  "Joanna",
+  "Ivy",
+  "Raveena",
+  "Nicole",
+  "Celine",
+  "Mathieu",
+  "Chantal",
+  "Marlene",
+  "Hans",
+  "Vicki",
 ];
 
 // ─── 23. NASA APOD — Astronomy Picture of the Day ─────────────────────────────
 
 export async function getNasaApod(date?: string): Promise<{
-  title: string; explanation: string; url: string; mediaType: string; date: string;
+  title: string;
+  explanation: string;
+  url: string;
+  mediaType: string;
+  date: string;
 } | null> {
   try {
     const apiKey = process.env.NASA_API_KEY ?? "DEMO_KEY";
     const dateParam = date ? `&date=${date}` : "";
-    const res = await fetch(
-      `https://api.nasa.gov/planetary/apod?api_key=${apiKey}${dateParam}`,
-      { signal: AbortSignal.timeout(10_000) },
-    );
+    const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${apiKey}${dateParam}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      title: string; explanation: string; url: string; media_type: string; date: string;
+      title: string;
+      explanation: string;
+      url: string;
+      media_type: string;
+      date: string;
     };
     return {
       title: data.title,
@@ -755,10 +776,15 @@ export async function getNasaApod(date?: string): Promise<{
 export async function getEarthquakes(
   minMagnitude = 4.5,
   limit = 10,
-): Promise<Array<{
-  magnitude: number; place: string; time: string; url: string;
-  coords: { lat: number; lng: number };
-}>> {
+): Promise<
+  Array<{
+    magnitude: number;
+    place: string;
+    time: string;
+    url: string;
+    coords: { lat: number; lng: number };
+  }>
+> {
   try {
     const res = await fetch(
       `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_${minMagnitude}.geojson`,
@@ -787,7 +813,15 @@ export async function getEarthquakes(
 
 export async function getChessStats(username: string): Promise<{
   username: string;
-  stats: Array<{ mode: string; rating: number; best: number; games: number; wins: number; losses: number; draws: number }>;
+  stats: Array<{
+    mode: string;
+    rating: number;
+    best: number;
+    games: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  }>;
 } | null> {
   try {
     const res = await fetch(
@@ -795,13 +829,21 @@ export async function getChessStats(username: string): Promise<{
       { signal: AbortSignal.timeout(8_000) },
     );
     if (!res.ok) return null;
-    const data = (await res.json()) as Record<string, {
-      last?: { rating: number }; best?: { rating: number };
-      record?: { win: number; loss: number; draw: number };
-    }>;
+    const data = (await res.json()) as Record<
+      string,
+      {
+        last?: { rating: number };
+        best?: { rating: number };
+        record?: { win: number; loss: number; draw: number };
+      }
+    >;
     const modeMap: Record<string, string> = {
-      chess_rapid: "Rapid", chess_bullet: "Bullet", chess_blitz: "Blitz",
-      chess_daily: "Daily", tactics: "Tactics", puzzle_rush: "Puzzle Rush",
+      chess_rapid: "Rapid",
+      chess_bullet: "Bullet",
+      chess_blitz: "Blitz",
+      chess_daily: "Daily",
+      tactics: "Tactics",
+      puzzle_rush: "Puzzle Rush",
     };
     const stats = Object.entries(data)
       .filter(([, v]) => v.last?.rating)
@@ -838,7 +880,9 @@ export async function getLichessStats(username: string): Promise<{
       playTime?: { total: number };
     };
     const perfs = Object.entries(data.perfs ?? {}).map(([mode, v]) => ({
-      mode, rating: v.rating, games: v.games,
+      mode,
+      rating: v.rating,
+      games: v.games,
     }));
     const hours = Math.floor((data.playTime?.total ?? 0) / 3600);
     return { username, perfs, playTime: `${hours}h` };
@@ -849,7 +893,10 @@ export async function getLichessStats(username: string): Promise<{
 
 // ─── 27. OpenLibrary — Recherche de livres (sans clé) ────────────────────────
 
-export async function searchBooks(query: string, limit = 5): Promise<
+export async function searchBooks(
+  query: string,
+  limit = 5,
+): Promise<
   Array<{ title: string; author: string; year: number | null; cover: string | null; url: string }>
 > {
   try {
@@ -860,8 +907,11 @@ export async function searchBooks(query: string, limit = 5): Promise<
     if (!res.ok) return [];
     const data = (await res.json()) as {
       docs: Array<{
-        title: string; author_name?: string[];
-        first_publish_year?: number; cover_i?: number; key: string;
+        title: string;
+        author_name?: string[];
+        first_publish_year?: number;
+        cover_i?: number;
+        key: string;
       }>;
     };
     return (data.docs ?? []).map((d) => ({
@@ -878,8 +928,17 @@ export async function searchBooks(query: string, limit = 5): Promise<
 
 // ─── 28. Open Food Facts — Base alimentaire (sans clé) ───────────────────────
 
-export async function searchFood(query: string, limit = 5): Promise<
-  Array<{ name: string; brand: string; calories: number | null; nutriscore: string | null; url: string }>
+export async function searchFood(
+  query: string,
+  limit = 5,
+): Promise<
+  Array<{
+    name: string;
+    brand: string;
+    calories: number | null;
+    nutriscore: string | null;
+    url: string;
+  }>
 > {
   try {
     const res = await fetch(
@@ -889,8 +948,11 @@ export async function searchFood(query: string, limit = 5): Promise<
     if (!res.ok) return [];
     const data = (await res.json()) as {
       products: Array<{
-        product_name?: string; brands?: string; energy_100g?: number;
-        nutriscore_grade?: string; url?: string;
+        product_name?: string;
+        brands?: string;
+        energy_100g?: number;
+        nutriscore_grade?: string;
+        url?: string;
       }>;
     };
     return (data.products ?? []).map((p) => ({
@@ -907,7 +969,10 @@ export async function searchFood(query: string, limit = 5): Promise<
 
 // ─── 29. arXiv — Papers scientifiques (sans clé) ──────────────────────────────
 
-export async function searchArxiv(query: string, limit = 5): Promise<
+export async function searchArxiv(
+  query: string,
+  limit = 5,
+): Promise<
   Array<{ title: string; authors: string; summary: string; published: string; url: string }>
 > {
   try {
@@ -942,7 +1007,23 @@ export async function getFlights(): Promise<
     });
     if (!res.ok) return [];
     const data = (await res.json()) as {
-      states: Array<[string, string, string, number, number, number, number, number, number, number, number, number, number]> | null;
+      states: Array<
+        [
+          string,
+          string,
+          string,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+        ]
+      > | null;
     };
     if (!data.states) return [];
     return data.states.slice(0, 20).map((s) => ({
@@ -959,9 +1040,9 @@ export async function getFlights(): Promise<
 
 // ─── 31. Google Trends — Tendances (sans clé) ────────────────────────────────
 
-export async function getGoogleTrends(country = "FR"): Promise<
-  Array<{ title: string; traffic: string; url: string }>
-> {
+export async function getGoogleTrends(
+  country = "FR",
+): Promise<Array<{ title: string; traffic: string; url: string }>> {
   try {
     const res = await fetch(
       `https://trends.google.com/trending/rss?geo=${encodeURIComponent(country)}`,
@@ -985,7 +1066,10 @@ export async function getGoogleTrends(country = "FR"): Promise<
 
 const RSSHUB_URL = process.env.RSSHUB_URL ?? "https://rsshub.app";
 
-export async function getRssHubFeed(route: string, limit = 10): Promise<
+export async function getRssHubFeed(
+  route: string,
+  limit = 10,
+): Promise<
   Array<{ title: string; link: string; content: string; pubDate: string; author: string }>
 > {
   try {
@@ -1013,9 +1097,10 @@ export function isRssHubConfigured(): boolean {
 
 // ─── 33. Dev.to — Articles tech (sans clé) ───────────────────────────────────
 
-export async function getDevToArticles(tag?: string, limit = 5): Promise<
-  Array<{ title: string; url: string; author: string; tags: string; reactions: number }>
-> {
+export async function getDevToArticles(
+  tag?: string,
+  limit = 5,
+): Promise<Array<{ title: string; url: string; author: string; tags: string; reactions: number }>> {
   try {
     const url = tag
       ? `https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=${limit}`
@@ -1023,8 +1108,11 @@ export async function getDevToArticles(tag?: string, limit = 5): Promise<
     const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) return [];
     const data = (await res.json()) as Array<{
-      title: string; url: string; user: { username: string };
-      tag_list?: string[]; positive_reactions_count: number;
+      title: string;
+      url: string;
+      user: { username: string };
+      tag_list?: string[];
+      positive_reactions_count: number;
     }>;
     return (data ?? []).map((a) => ({
       title: a.title,
@@ -1056,23 +1144,36 @@ export async function getCatImage(): Promise<string | null> {
 // ─── 35. PokeAPI (sans clé) ───────────────────────────────────────────────────
 
 export async function getPokemon(nameOrId: string): Promise<{
-  name: string; id: number; height: number; weight: number;
-  types: string[]; stats: Array<{ name: string; value: number }>; sprite: string;
+  name: string;
+  id: number;
+  height: number;
+  weight: number;
+  types: string[];
+  stats: Array<{ name: string; value: number }>;
+  sprite: string;
 } | null> {
   try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nameOrId.toLowerCase())}`, {
-      signal: AbortSignal.timeout(8_000),
-    });
+    const res = await fetch(
+      `https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(nameOrId.toLowerCase())}`,
+      {
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      name: string; id: number; height: number; weight: number;
+      name: string;
+      id: number;
+      height: number;
+      weight: number;
       types: Array<{ type: { name: string } }>;
       stats: Array<{ base_stat: number; stat: { name: string } }>;
       sprites: { front_default: string };
     };
     return {
-      name: data.name, id: data.id,
-      height: data.height / 10, weight: data.weight / 10,
+      name: data.name,
+      id: data.id,
+      height: data.height / 10,
+      weight: data.weight / 10,
       types: data.types.map((t) => t.type.name),
       stats: data.stats.map((s) => ({ name: s.stat.name, value: s.base_stat })),
       sprite: data.sprites.front_default,
@@ -1085,7 +1186,12 @@ export async function getPokemon(nameOrId: string): Promise<{
 // ─── 36. NPM registry (sans clé) ──────────────────────────────────────────────
 
 export async function getNpmPackage(name: string): Promise<{
-  name: string; version: string; description: string; author: string; license: string; homepage: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  license: string;
+  homepage: string;
 } | null> {
   try {
     const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`, {
@@ -1093,11 +1199,16 @@ export async function getNpmPackage(name: string): Promise<{
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      name: string; version: string; description: string;
-      author?: { name: string } | string; license?: string; homepage?: string;
+      name: string;
+      version: string;
+      description: string;
+      author?: { name: string } | string;
+      license?: string;
+      homepage?: string;
     };
     return {
-      name: data.name, version: data.version,
+      name: data.name,
+      version: data.version,
       description: (data.description ?? "").slice(0, 300),
       author: typeof data.author === "string" ? data.author : (data.author?.name ?? "Unknown"),
       license: data.license ?? "Unknown",
@@ -1111,7 +1222,12 @@ export async function getNpmPackage(name: string): Promise<{
 // ─── 37. PyPI (sans clé) ──────────────────────────────────────────────────────
 
 export async function getPypiPackage(name: string): Promise<{
-  name: string; version: string; summary: string; author: string; license: string; homepage: string;
+  name: string;
+  version: string;
+  summary: string;
+  author: string;
+  license: string;
+  homepage: string;
 } | null> {
   try {
     const res = await fetch(`https://pypi.org/pypi/${encodeURIComponent(name)}/json`, {
@@ -1119,10 +1235,18 @@ export async function getPypiPackage(name: string): Promise<{
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      info: { name: string; version: string; summary: string; author: string; license: string; home_page: string };
+      info: {
+        name: string;
+        version: string;
+        summary: string;
+        author: string;
+        license: string;
+        home_page: string;
+      };
     };
     return {
-      name: data.info.name, version: data.info.version,
+      name: data.info.name,
+      version: data.info.version,
       summary: (data.info.summary ?? "").slice(0, 300),
       author: data.info.author ?? "Unknown",
       license: data.info.license ?? "Unknown",
@@ -1136,8 +1260,13 @@ export async function getPypiPackage(name: string): Promise<{
 // ─── 38. REST Countries (sans clé) ────────────────────────────────────────────
 
 export async function getCountryInfo(name: string): Promise<{
-  name: string; capital: string; population: number; region: string;
-  languages: string[]; currencies: string[]; flag: string;
+  name: string;
+  capital: string;
+  population: number;
+  region: string;
+  languages: string[];
+  currencies: string[];
+  flag: string;
 } | null> {
   try {
     const res = await fetch(
@@ -1146,9 +1275,13 @@ export async function getCountryInfo(name: string): Promise<{
     );
     if (!res.ok) return null;
     const data = (await res.json()) as Array<{
-      name: { common: string }; capital?: string[]; population: number;
-      region: string; languages?: Record<string, string>;
-      currencies?: Record<string, { name: string }>; flag: string;
+      name: { common: string };
+      capital?: string[];
+      population: number;
+      region: string;
+      languages?: Record<string, string>;
+      currencies?: Record<string, { name: string }>;
+      flag: string;
     }>;
     const c = data[0];
     if (!c) return null;
@@ -1169,12 +1302,17 @@ export async function getCountryInfo(name: string): Promise<{
 // ─── 39. Urban Dictionary (sans clé) ──────────────────────────────────────────
 
 export async function getUrbanDict(term: string): Promise<{
-  word: string; definition: string; example: string;
+  word: string;
+  definition: string;
+  example: string;
 } | null> {
   try {
-    const res = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`, {
-      signal: AbortSignal.timeout(8_000),
-    });
+    const res = await fetch(
+      `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`,
+      {
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as {
       list: Array<{ word: string; definition: string; example: string }>;
@@ -1193,8 +1331,15 @@ export async function getUrbanDict(term: string): Promise<{
 
 // ─── 40. Currency exchange (exchangerate.host — sans clé) ────────────────────
 
-export async function getCurrencyRate(from: string, to: string, amount = 1): Promise<{
-  from: string; to: string; rate: number; result: number;
+export async function getCurrencyRate(
+  from: string,
+  to: string,
+  amount = 1,
+): Promise<{
+  from: string;
+  to: string;
+  rate: number;
+  result: number;
 } | null> {
   try {
     const res = await fetch(
@@ -1215,7 +1360,11 @@ export async function getCurrencyRate(from: string, to: string, amount = 1): Pro
 // ─── 41. Random User (sans clé) ───────────────────────────────────────────────
 
 export async function getRandomUser(): Promise<{
-  name: string; gender: string; email: string; country: string; picture: string;
+  name: string;
+  gender: string;
+  email: string;
+  country: string;
+  picture: string;
 } | null> {
   try {
     const res = await fetch("https://randomuser.me/api/?nat=fr", {
@@ -1224,16 +1373,21 @@ export async function getRandomUser(): Promise<{
     if (!res.ok) return null;
     const data = (await res.json()) as {
       results: Array<{
-        name: { first: string; last: string }; gender: string; email: string;
-        location: { country: string }; picture: { large: string };
+        name: { first: string; last: string };
+        gender: string;
+        email: string;
+        location: { country: string };
+        picture: { large: string };
       }>;
     };
     const u = data.results?.[0];
     if (!u) return null;
     return {
       name: `${u.name.first} ${u.name.last}`,
-      gender: u.gender, email: u.email,
-      country: u.location.country, picture: u.picture.large,
+      gender: u.gender,
+      email: u.email,
+      country: u.location.country,
+      picture: u.picture.large,
     };
   } catch {
     return null;
@@ -1243,8 +1397,13 @@ export async function getRandomUser(): Promise<{
 // ─── 42. Stock price (Alpha Vantage — gratuit, 500 req/jour) ─────────────────
 
 export async function getStockPrice(symbol: string): Promise<{
-  symbol: string; price: number; change: number; changePercent: number;
-  high: number; low: number; volume: number;
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  high: number;
+  low: number;
+  volume: number;
 } | null> {
   try {
     const apiKey = process.env.ALPHA_VANTAGE_API_KEY ?? "demo";

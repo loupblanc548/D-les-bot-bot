@@ -34,10 +34,7 @@ export async function dnsLookup(domain: string, types?: string[]): Promise<DnsRe
 
   for (const type of recordTypes) {
     try {
-      const resolver = dnsPromises as any as Record<
-        string,
-        (hostname: string) => Promise<any>
-      >;
+      const resolver = dnsPromises as any as Record<string, (hostname: string) => Promise<any>>;
       const fn = resolver[`resolve${type}`];
       if (!fn) continue;
       const result = await fn(domain);
@@ -48,7 +45,9 @@ export async function dnsLookup(domain: string, types?: string[]): Promise<DnsRe
       } else if (result) {
         records.push({ type, value: String(result) });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   return {
@@ -163,7 +162,9 @@ export async function checkHttpMethods(url: string): Promise<HttpMethodsResult> 
     if (optionsResult?.allow) {
       allowedMethods.push(...optionsResult.allow.split(",").map((m) => m.trim().toUpperCase()));
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // If no Allow header, test each method individually
   if (allowedMethods.length === 0) {
@@ -192,7 +193,9 @@ export async function checkHttpMethods(url: string): Promise<HttpMethodsResult> 
         if (result !== null && result !== 405 && result !== 501) {
           allowedMethods.push(method);
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 
@@ -592,7 +595,9 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
   try {
     const mx = await dnsPromises.resolveMx(domain);
     mxRecords = mx.map((r) => r.exchange);
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // SPF (TXT record)
   let spfRecord: string | null = null;
@@ -605,7 +610,9 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
         break;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // DMARC (_dmarc.domain TXT)
   let dmarcRecord: string | null = null;
@@ -618,14 +625,18 @@ export async function validateEmail(email: string): Promise<EmailValidateResult>
         break;
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // DKIM (try default selector)
   let hasDkim = false;
   try {
     const dkimTxt = await dnsPromises.resolveTxt(`default._domainkey.${domain}`);
     hasDkim = dkimTxt.length > 0;
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const hasMx = mxRecords.length > 0;
   const hasSpf = !!spfRecord;

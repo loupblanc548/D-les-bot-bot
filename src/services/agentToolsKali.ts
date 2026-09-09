@@ -872,10 +872,7 @@ async function tRunRogueApDetection(
 
 // ─── 2.2 ARP Scan ────────────────────────────────────────────────────────────
 
-async function tRunArpScan(
-  args: Record<string, any>,
-  invokedBy: string,
-): Promise<ToolCallResult> {
+async function tRunArpScan(args: Record<string, any>, invokedBy: string): Promise<ToolCallResult> {
   const cidr = String(args.cidr || "").trim();
 
   try {
@@ -947,10 +944,7 @@ async function tRunArpScan(
 
 const arpWatchState = new Map<string, { knownMacs: Set<string>; interval: NodeJS.Timeout }>();
 
-async function tRunArpWatch(
-  args: Record<string, any>,
-  invokedBy: string,
-): Promise<ToolCallResult> {
+async function tRunArpWatch(args: Record<string, any>, invokedBy: string): Promise<ToolCallResult> {
   const cidr = String(args.cidr || "").trim();
   const intervalSeconds = Math.max(60, Number(args.intervalSeconds) || 300);
 

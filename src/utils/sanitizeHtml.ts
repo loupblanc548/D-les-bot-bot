@@ -8,14 +8,42 @@
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const ALLOWED_TAGS = new Set([
-  "b", "strong", "i", "em", "u", "s", "del", "ins",
-  "br", "p", "div", "span",
-  "a", "code", "pre", "blockquote",
-  "ul", "ol", "li",
-  "h1", "h2", "h3", "h4", "h5", "h6",
-  "img", "hr",
-  "table", "thead", "tbody", "tr", "th", "td",
-  "sub", "sup", "mark",
+  "b",
+  "strong",
+  "i",
+  "em",
+  "u",
+  "s",
+  "del",
+  "ins",
+  "br",
+  "p",
+  "div",
+  "span",
+  "a",
+  "code",
+  "pre",
+  "blockquote",
+  "ul",
+  "ol",
+  "li",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "img",
+  "hr",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "sub",
+  "sup",
+  "mark",
 ]);
 
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
@@ -48,13 +76,14 @@ const SELF_CLOSING_TAGS = new Set(["br", "img", "hr", "input"]);
  * Nettoie du HTML en gardant uniquement les tags/attributs autorisés.
  * Utilise un parser caractère par caractère au lieu de regex.
  */
-export function sanitizeHtml(html: string, options?: {
-  allowedTags?: string[];
-  disallowedTagsMode?: "discard" | "escape";
-}): string {
-  const allowedTags = options?.allowedTags
-    ? new Set(options.allowedTags)
-    : ALLOWED_TAGS;
+export function sanitizeHtml(
+  html: string,
+  options?: {
+    allowedTags?: string[];
+    disallowedTagsMode?: "discard" | "escape";
+  },
+): string {
+  const allowedTags = options?.allowedTags ? new Set(options.allowedTags) : ALLOWED_TAGS;
   const escapeMode = options?.disallowedTagsMode ?? "discard";
 
   let result = "";
@@ -187,7 +216,9 @@ function isDangerousUrl(url: string): boolean {
   try {
     const parsed = new URL(trimmed, "http://safe.invalid");
     const proto = parsed.protocol.toLowerCase();
-    return proto === "javascript:" || proto === "data:" || proto === "vbscript:" || proto === "file:";
+    return (
+      proto === "javascript:" || proto === "data:" || proto === "vbscript:" || proto === "file:"
+    );
   } catch {
     return false;
   }
@@ -242,10 +273,13 @@ export function htmlToMarkdown(html: string): string {
   // Conversions HTML → Markdown
   md = md
     // Liens
-    .replace(/<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis, (_match, href: string, text: string) => {
-      const cleanText = text.replace(/<[^>]*>/g, "").trim();
-      return cleanText ? `[${cleanText}](${href})` : "";
-    })
+    .replace(
+      /<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis,
+      (_match, href: string, text: string) => {
+        const cleanText = text.replace(/<[^>]*>/g, "").trim();
+        return cleanText ? `[${cleanText}](${href})` : "";
+      },
+    )
     // Gras
     .replace(/<(?:b|strong)>(.*?)<\/(?:b|strong)>/gis, "**$1**")
     // Italique
@@ -269,7 +303,10 @@ export function htmlToMarkdown(html: string): string {
     .replace(/<li[^>]*>(.*?)<\/li>/gis, "- $1\n")
     .replace(/<\/?(?:ul|ol)[^>]*>/gis, "\n")
     // Images
-    .replace(/<img\s+[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gis, (_, src, alt) => `[${alt}](${src})`)
+    .replace(
+      /<img\s+[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gis,
+      (_, src, alt) => `[${alt}](${src})`,
+    )
     .replace(/<img\s+[^>]*src="([^"]*)"[^>]*\/?>/gis, (_, src) => `[image](${src})`)
     // Sauts de ligne
     .replace(/<br\s*\/?>/gi, "\n")
@@ -301,9 +338,7 @@ export function htmlToMarkdown(html: string): string {
  */
 export function sanitizeForEmbed(text: string, maxLength = 1024): string {
   const markdown = htmlToMarkdown(text);
-  return markdown.length > maxLength
-    ? markdown.slice(0, maxLength - 3) + "..."
-    : markdown;
+  return markdown.length > maxLength ? markdown.slice(0, maxLength - 3) + "..." : markdown;
 }
 
 /**

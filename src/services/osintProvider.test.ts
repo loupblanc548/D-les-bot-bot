@@ -49,30 +49,26 @@ vi.mock("./osint.js", () => ({
     .mockResolvedValue({ email: "test@test.com", registered: [], totalRegistered: 0 }),
   runPhoneInfoga: vi.fn().mockResolvedValue({ number: "+1234567890", valid: true }),
   runWhois: vi.fn().mockResolvedValue({ domain: "example.com", registrar: "Test" }),
-  runDnsLookup: vi
-    .fn()
-    .mockResolvedValue({
-      domain: "example.com",
-      aRecords: ["1.2.3.4"],
-      mxRecords: [],
-      txtRecords: [],
-      nsRecords: [],
-      cnameRecords: [],
-    }),
+  runDnsLookup: vi.fn().mockResolvedValue({
+    domain: "example.com",
+    aRecords: ["1.2.3.4"],
+    mxRecords: [],
+    txtRecords: [],
+    nsRecords: [],
+    cnameRecords: [],
+  }),
   runSublist3r: vi.fn().mockResolvedValue({ domain: "example.com", subdomains: [], total: 0 }),
   runH8mail: vi.fn().mockResolvedValue({ email: "test@test.com", breaches: [], totalBreaches: 0 }),
   runInstaloader: vi.fn().mockResolvedValue({ username: "test", found: false }),
-  runPhoton: vi
-    .fn()
-    .mockResolvedValue({
-      url: "https://example.com",
-      internalUrls: [],
-      externalUrls: [],
-      emails: [],
-      socialLinks: [],
-      files: [],
-      total: 0,
-    }),
+  runPhoton: vi.fn().mockResolvedValue({
+    url: "https://example.com",
+    internalUrls: [],
+    externalUrls: [],
+    emails: [],
+    socialLinks: [],
+    files: [],
+    total: 0,
+  }),
   runSocialScan: vi.fn().mockResolvedValue({ query: "test", results: [], totalFound: 0 }),
   runHarvester: vi
     .fn()
@@ -81,16 +77,14 @@ vi.mock("./osint.js", () => ({
   runExifExtract: vi
     .fn()
     .mockResolvedValue({ imageUrl: "https://example.com/img.jpg", metadata: [], hasExif: false }),
-  runCmseek: vi
-    .fn()
-    .mockResolvedValue({
-      url: "https://example.com",
-      cms: "Unknown",
-      technologies: [],
-      wordpress: false,
-      drupal: false,
-      joomla: false,
-    }),
+  runCmseek: vi.fn().mockResolvedValue({
+    url: "https://example.com",
+    cms: "Unknown",
+    technologies: [],
+    wordpress: false,
+    drupal: false,
+    joomla: false,
+  }),
   runOsintgram: vi.fn().mockResolvedValue({ username: "test", found: false }),
 }));
 

@@ -7,8 +7,14 @@ function parseRedisUrl(): { host: string; port: number; password?: string } | nu
   if (!url) return null;
   try {
     const p = new URL(url);
-    return { host: p.hostname, port: parseInt(p.port || "6379", 10), password: p.password ? decodeURIComponent(p.password) : undefined };
-  } catch { return null; }
+    return {
+      host: p.hostname,
+      port: parseInt(p.port || "6379", 10),
+      password: p.password ? decodeURIComponent(p.password) : undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 const redisConn = parseRedisUrl();

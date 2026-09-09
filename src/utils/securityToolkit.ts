@@ -497,7 +497,9 @@ export async function enumerateSubdomains(
       if (ips.length > 0) {
         found.push({ subdomain: fullDomain, ips });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   return {

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { parseSeasonRange, isSeasonInRange, getSeasonNumericOrder, normalizeSeason, seasonsMatch, getAllValidSeasons } from "./seasons.js";
+import {
+  parseSeasonRange,
+  isSeasonInRange,
+  getSeasonNumericOrder,
+  normalizeSeason,
+  seasonsMatch,
+  getAllValidSeasons,
+} from "./seasons.js";
 
 // Helpers existants
 describe("normalizeSeason", () => {
@@ -96,7 +103,7 @@ describe("getAllValidSeasons", () => {
 
   it("contient tous les chapitres connus", () => {
     const seasons = getAllValidSeasons();
-    expect(seasons).toContain("Season 10");    // Chapter 1 max
+    expect(seasons).toContain("Season 10"); // Chapter 1 max
     expect(seasons).toContain("Chapter 2 Season 8");
     expect(seasons).toContain("Chapter 3 Season 4");
     expect(seasons).toContain("Chapter 4 Season 4");
@@ -284,30 +291,22 @@ describe("isSeasonInRange", () => {
   });
 
   it("fonctionne avec des Chapter", () => {
-    expect(isSeasonInRange(
-      "Chapter 2 Season 4",
-      "Chapter 2 Season 1",
-      "Chapter 2 Season 5"
-    )).toBe(true);
+    expect(isSeasonInRange("Chapter 2 Season 4", "Chapter 2 Season 1", "Chapter 2 Season 5")).toBe(
+      true,
+    );
   });
 
   it("fonctionne avec une plage cross-chapter", () => {
     // "Chapter 2 Saison 5" → 205
     // "Chapter 3 Saison 2" → 302
     // "Chapter 3 Saison 1" → 301, donc 205 ≤ 301 ≤ 302
-    expect(isSeasonInRange(
-      "Chapter 3 Season 1",
-      "Chapter 2 Season 5",
-      "Chapter 3 Season 2"
-    )).toBe(true);
+    expect(isSeasonInRange("Chapter 3 Season 1", "Chapter 2 Season 5", "Chapter 3 Season 2")).toBe(
+      true,
+    );
   });
 
   it("fonctionne avec des tags normalisés (casse différente)", () => {
-    expect(isSeasonInRange(
-      "season 3",
-      "SEASON 1",
-      "Season 5"
-    )).toBe(true);
+    expect(isSeasonInRange("season 3", "SEASON 1", "Season 5")).toBe(true);
   });
 
   it("fonctionne avec une plage Season → Chapter (mixte)", () => {
@@ -315,22 +314,14 @@ describe("isSeasonInRange", () => {
     // "Season 1"   → 101
     // "Chapter 2 Season 2" → 202
     // 101 ≤ 110 ≤ 202 → true
-    expect(isSeasonInRange(
-      "Season 10",
-      "Season 1",
-      "Chapter 2 Season 2"
-    )).toBe(true);
+    expect(isSeasonInRange("Season 10", "Season 1", "Chapter 2 Season 2")).toBe(true);
   });
 
   it("fonctionne avec le début et la fin de la vie du jeu", () => {
     // "Season 1" → 101
     // "Chapter 6 Season 2" → 602
     // "Chapter 3 Season 2" → 302, donc 101 ≤ 302 ≤ 602
-    expect(isSeasonInRange(
-      "Chapter 3 Season 2",
-      "Season 1",
-      "Chapter 6 Season 2"
-    )).toBe(true);
+    expect(isSeasonInRange("Chapter 3 Season 2", "Season 1", "Chapter 6 Season 2")).toBe(true);
   });
 
   // ❌ Cas invalides — saison hors plage
@@ -343,11 +334,9 @@ describe("isSeasonInRange", () => {
   });
 
   it("retourne false pour une saison Chapter hors plage", () => {
-    expect(isSeasonInRange(
-      "Chapter 5 Season 4",
-      "Chapter 2 Season 1",
-      "Chapter 2 Season 8"
-    )).toBe(false);
+    expect(isSeasonInRange("Chapter 5 Season 4", "Chapter 2 Season 1", "Chapter 2 Season 8")).toBe(
+      false,
+    );
   });
 
   it("retourne false si la saison cosmétique est invalide", () => {
@@ -383,18 +372,12 @@ describe("isSeasonInRange", () => {
     // "Chapter 1 Season 3" n'est pas dans CHAPTER_MAX_SEASONS? Si, chapitre 1 est reconnu
     // mais normalisé en "Season 3". Donc getSeasonNumericOrder("Chapter 1 Season 3") → 103
     // "Season 1" → 101, "Season 5" → 105. 103 entre 101 et 105 → true
-    expect(isSeasonInRange(
-      "Chapter 1 Season 3",
-      "Season 1",
-      "Season 5"
-    )).toBe(true);
+    expect(isSeasonInRange("Chapter 1 Season 3", "Season 1", "Season 5")).toBe(true);
   });
 
   it("gère le cas où la saison est identique aux deux bornes", () => {
-    expect(isSeasonInRange(
-      "Chapter 4 Season 2",
-      "Chapter 4 Season 2",
-      "Chapter 4 Season 2"
-    )).toBe(true);
+    expect(isSeasonInRange("Chapter 4 Season 2", "Chapter 4 Season 2", "Chapter 4 Season 2")).toBe(
+      true,
+    );
   });
 });

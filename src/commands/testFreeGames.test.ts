@@ -15,7 +15,10 @@ function makeInteraction(opts: { channelMock?: any; envValue?: string | undefine
   if (opts.envValue === undefined) delete process.env.FREE_GAMES_CHANNEL_ID;
   else process.env.FREE_GAMES_CHANNEL_ID = opts.envValue;
 
-  const channelMock = 'channelMock' in opts ? opts.channelMock : { isTextBased: () => true, send: vi.fn(async () => undefined) };
+  const channelMock =
+    "channelMock" in opts
+      ? opts.channelMock
+      : { isTextBased: () => true, send: vi.fn(async () => undefined) };
   mocks.mockClient.channels.fetch.mockResolvedValue(channelMock);
 
   return {
@@ -36,7 +39,9 @@ function makeInteraction(opts: { channelMock?: any; envValue?: string | undefine
 }
 
 describe("handleTestFreeGames (via handleCommand)", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("répond avec erreur si FREE_GAMES_CHANNEL_ID est manquant", async () => {
     const i = makeInteraction({ envValue: undefined });
@@ -59,7 +64,9 @@ describe("handleTestFreeGames (via handleCommand)", () => {
     expect(sent!.embeds[0].data.title).toContain("Message de test");
     expect(sent!.embeds[0].data.color).toBe(0x2a9d8f);
     expect(i.editReply).toHaveBeenCalledTimes(1);
-    expect((i.editReply as any).mock.calls[0][0].embeds[0].data.title).toContain("Message de test envoyé");
+    expect((i.editReply as any).mock.calls[0][0].embeds[0].data.title).toContain(
+      "Message de test envoyé",
+    );
     i._restoreEnv();
   });
 
@@ -67,7 +74,9 @@ describe("handleTestFreeGames (via handleCommand)", () => {
     const i = makeInteraction({ envValue: "111111111", channelMock: null });
     await (handleCommand as any)(i, mocks.mockClient);
     expect(i.editReply).toHaveBeenCalledTimes(1);
-    expect((i.editReply as any).mock.calls[0][0].embeds[0].data.title).toContain("Salon introuvable");
+    expect((i.editReply as any).mock.calls[0][0].embeds[0].data.title).toContain(
+      "Salon introuvable",
+    );
     i._restoreEnv();
   });
 });

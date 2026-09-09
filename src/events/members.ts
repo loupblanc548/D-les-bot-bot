@@ -14,8 +14,6 @@ import { checkAvatarForAI } from "../services/aiAvatarDetector.js";
 import { invalidateGuild } from "../services/configCache.js";
 import { checkJoinBurst as checkRaidJoinBurst } from "../services/antiRaid.js";
 
-const BOOST_CHANNEL_ID = "1203399031351545887";
-
 export function handleMemberEvents(client: Client) {
   client.on("guildMemberAdd", async (member: GuildMember) => {
     try {
@@ -281,9 +279,10 @@ async function sendBoostAnnouncement(
   member: GuildMember | PartialGuildMember,
 ): Promise<void> {
   try {
-    const channel = await client.channels.fetch(BOOST_CHANNEL_ID).catch(() => null);
+    if (!config.boostChannel) return;
+    const channel = await client.channels.fetch(config.boostChannel).catch(() => null);
     if (!channel || !channel.isTextBased()) {
-      logger.warn(`[Boost] Channel ${BOOST_CHANNEL_ID} introuvable ou non textuel`);
+      logger.warn(`[Boost] Channel ${config.boostChannel} introuvable ou non textuel`);
       return;
     }
 

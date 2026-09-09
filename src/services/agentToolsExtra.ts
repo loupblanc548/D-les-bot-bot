@@ -3334,7 +3334,9 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
         }
       }
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // 2. Fallback: English Wiktionary if the lang-specific one failed
   if (results.length === 0 && lang !== "en") {
@@ -3365,7 +3367,9 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
           }
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   // 3. Fallback: French Wiktionary if still nothing
@@ -3397,7 +3401,9 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
           }
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   // 4. Final fallback: Wikipedia summary
@@ -3422,7 +3428,9 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
           }
         }
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   if (results.length === 0) {
@@ -4337,7 +4345,9 @@ async function toolSetReminder(
         await (channel as { send: (s: string) => Promise<any> }).send(
           `⏰ <@${userId}> **Rappel:** ${message}`,
         );
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     },
     minutes * 60 * 1000,
   );

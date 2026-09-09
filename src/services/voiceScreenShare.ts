@@ -46,7 +46,9 @@ async function waitForHttpServer(url: string, maxRetries = 30): Promise<boolean>
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (res.ok || res.status === 404) return true;
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
     logger.debug(`[VoiceScreenShare] Attente serveur HTTP... (${i + 1}/${maxRetries})`);
     await new Promise((r) => setTimeout(r, 2000));
   }
@@ -224,7 +226,9 @@ async function takeAndPostScreenshot(client: Client, voiceChannelId: string): Pr
         try {
           const oldMsg = await targetChannel.messages.fetch(lastScreenshotMessageId);
           if (oldMsg) await oldMsg.delete();
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
 
       const sent = await targetChannel.send({

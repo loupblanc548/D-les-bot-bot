@@ -525,7 +525,9 @@ export async function checkIPReputation(ip: string): Promise<IPReputationResult>
         raw: geoData,
       });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   const isMalicious = results.some((r) => r.malicious);
   const abuseScore = abuseResult.confidence;

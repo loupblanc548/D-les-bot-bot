@@ -57,7 +57,10 @@ export async function onMemberJoin(member: GuildMember, config: GatekeeperConfig
     if (channel) {
       const embed = new EmbedBuilder()
         .setTitle("Vérification requise")
-        .setDescription(config.welcomeMessage || `Bienvenue ${member.user.tag}! Clique sur le bouton ci-dessous pour vérifier ton compte.`)
+        .setDescription(
+          config.welcomeMessage ||
+            `Bienvenue ${member.user.tag}! Clique sur le bouton ci-dessous pour vérifier ton compte.`,
+        )
         .setColor(0x5865f2)
         .setThumbnail(member.user.displayAvatarURL());
 
@@ -71,7 +74,9 @@ export async function onMemberJoin(member: GuildMember, config: GatekeeperConfig
       await channel.send({ embeds: [embed], components: [row] });
     }
   } catch (err) {
-    logger.warn(`[Gatekeeper] onMemberJoin failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(
+      `[Gatekeeper] onMemberJoin failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 

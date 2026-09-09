@@ -44,21 +44,31 @@ export async function getCaptchaConfig(guildId: string): Promise<CaptchaConfig> 
   try {
     const record = await prisma.guildConfig.findUnique({ where: { guildId } }).catch(() => null);
     if (record?.captchaConfig) {
-      return { ...DEFAULT_CONFIG, ...(JSON.parse(record.captchaConfig as string) as Partial<CaptchaConfig>) };
+      return {
+        ...DEFAULT_CONFIG,
+        ...(JSON.parse(record.captchaConfig as string) as Partial<CaptchaConfig>),
+      };
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ...DEFAULT_CONFIG };
 }
 
-export async function setCaptchaConfig(guildId: string, config: Partial<CaptchaConfig>): Promise<void> {
+export async function setCaptchaConfig(
+  guildId: string,
+  config: Partial<CaptchaConfig>,
+): Promise<void> {
   try {
     const current = await getCaptchaConfig(guildId);
     const merged = { ...current, ...config };
-    await prisma.guildConfig.upsert({
-      where: { guildId },
-      create: { guildId, captchaConfig: JSON.stringify(merged) },
-      update: { captchaConfig: JSON.stringify(merged) },
-    }).catch(() => {});
+    await prisma.guildConfig
+      .upsert({
+        where: { guildId },
+        create: { guildId, captchaConfig: JSON.stringify(merged) },
+        update: { captchaConfig: JSON.stringify(merged) },
+      })
+      .catch(() => {});
   } catch (error) {
     logger.error("[Captcha] setCaptchaConfig:", String(error));
   }
@@ -73,9 +83,14 @@ function generateMathCaptcha(): { question: string; answer: string } {
   const op = ops[Math.floor(Math.random() * ops.length)];
   let answer: number;
   switch (op) {
-    case "+": answer = a + b; break;
-    case "-": answer = a - b; break;
-    default: answer = a * b;
+    case "+":
+      answer = a + b;
+      break;
+    case "-":
+      answer = a - b;
+      break;
+    default:
+      answer = a * b;
   }
   return { question: `Combien font ${a} ${op} ${b} ?`, answer: String(answer) };
 }
@@ -91,7 +106,9 @@ export async function handleNewMember(member: GuildMember): Promise<void> {
   if (accountAgeHours >= config.minAccountAgeHours && config.minAccountAgeHours > 0) {
     // Trusted enough, auto-verify
     if (config.verifiedRoleId) {
-      await member.roles.add(config.verifiedRoleId, "Auto-verified: account old enough").catch(() => {});
+      await member.roles
+        .add(config.verifiedRoleId, "Auto-verified: account old enough")
+        .catch(() => {});
     }
     if (config.unverifiedRoleId) {
       await member.roles.remove(config.unverifiedRoleId, "Auto-verified").catch(() => {});
@@ -101,12 +118,15 @@ export async function handleNewMember(member: GuildMember): Promise<void> {
 
   // Assign unverified role
   if (config.unverifiedRoleId) {
-    await member.roles.add(config.unverifiedRoleId, "New member needs verification").catch(() => {});
+    await member.roles
+      .add(config.unverifiedRoleId, "New member needs verification")
+      .catch(() => {});
   }
 
   // Send verification message if channel exists
   if (config.verifyChannelId) {
-    const channel = member.guild.channels.cache.get(config.verifyChannelId) as TextChannel | undefined;
+    const channel = member.guild.channels.cache.get(config.verifyChannelId) as
+      TextChannel | undefined;
     if (channel && channel.type === ChannelType.GuildText) {
       if (config.captchaType === "button") {
         const button = new ButtonBuilder()
@@ -117,9 +137,13 @@ export async function handleNewMember(member: GuildMember): Promise<void> {
         const embed = new EmbedBuilder()
           .setTitle("🔐 Vérification requise")
           .setColor(0x5865f2)
-          .setDescription(`Bienvenue <@${member.id}>! Clique sur le bouton pour vérifier ton compte.`)
+          .setDescription(
+            `Bienvenue <@${member.id}>! Clique sur le bouton pour vérifier ton compte.`,
+          )
           .setTimestamp();
-        await channel.send({ content: `<@${member.id}>`, embeds: [embed], components: [row] }).catch(() => {});
+        await channel
+          .send({ content: `<@${member.id}>`, embeds: [embed], components: [row] })
+          .catch(() => {});
       } else {
         // Math captcha
         const captcha = generateMathCaptcha();
@@ -127,7 +151,9 @@ export async function handleNewMember(member: GuildMember): Promise<void> {
         const embed = new EmbedBuilder()
           .setTitle("🔐 Captcha de vérification")
           .setColor(0x5865f2)
-          .setDescription(`Bienvenue <@${member.id}>!\n\n**${captcha.question}**\n\nRéponds avec la bonne valeur dans ce channel pour vérifier ton compte.\nTu as 2 minutes.`)
+          .setDescription(
+            `Bienvenue <@${member.id}>!\n\n**${captcha.question}**\n\nRéponds avec la bonne valeur dans ce channel pour vérifier ton compte.\nTu as 2 minutes.`,
+          )
           .setTimestamp();
         await channel.send({ content: `<@${member.id}>`, embeds: [embed] }).catch(() => {});
       }
@@ -142,7 +168,10 @@ export async function handleCaptchaResponse(
 ): Promise<{ success: boolean; message: string }> {
   const challenge = activeChallenges.get(memberId);
   if (!challenge) {
-    return { success: false, message: "Aucun captcha actif. Demande à un modérateur de vérifier manuellement." };
+    return {
+      success: false,
+      message: "Aucun captcha actif. Demande à un modérateur de vérifier manuellement.",
+    };
   }
   if (Date.now() > challenge.expires) {
     activeChallenges.delete(memberId);
@@ -155,7 +184,9 @@ export async function handleCaptchaResponse(
 
     // Log success
     if (config.logChannelId) {
-      const logChannel = (await prisma.guildConfig.findUnique({ where: { guildId: guildId } }).catch(() => null));
+      const logChannel = await prisma.guildConfig
+        .findUnique({ where: { guildId: guildId } })
+        .catch(() => null);
       void logChannel; // just to avoid unused warning
     }
 
@@ -187,9 +218,21 @@ export async function generateCaptchaStatusEmbed(guildId: string): Promise<Embed
       { name: "Status", value: config.enabled ? "✅ Activé" : "❌ Désactivé", inline: true },
       { name: "Type", value: config.captchaType, inline: true },
       { name: "Min account age", value: `${config.minAccountAgeHours}h`, inline: true },
-      { name: "Canal de vérification", value: config.verifyChannelId ? `<#${config.verifyChannelId}>` : "Non défini", inline: false },
-      { name: "Role non vérifié", value: config.unverifiedRoleId ? `<@&${config.unverifiedRoleId}>` : "Non défini", inline: true },
-      { name: "Role vérifié", value: config.verifiedRoleId ? `<@&${config.verifiedRoleId}>` : "Non défini", inline: true },
+      {
+        name: "Canal de vérification",
+        value: config.verifyChannelId ? `<#${config.verifyChannelId}>` : "Non défini",
+        inline: false,
+      },
+      {
+        name: "Role non vérifié",
+        value: config.unverifiedRoleId ? `<@&${config.unverifiedRoleId}>` : "Non défini",
+        inline: true,
+      },
+      {
+        name: "Role vérifié",
+        value: config.verifiedRoleId ? `<@&${config.verifiedRoleId}>` : "Non défini",
+        inline: true,
+      },
       { name: "Captchas actifs", value: String(activeChallenges.size), inline: true },
     )
     .setTimestamp();

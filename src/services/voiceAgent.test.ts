@@ -23,8 +23,9 @@ vi.mock("@discordjs/voice", () => ({
     on: vi.fn(),
   }),
   AudioPlayerStatus: { Idle: "idle", Playing: "playing" },
-  VoiceConnectionStatus: { Disconnected: "disconnected" },
+  VoiceConnectionStatus: { Disconnected: "disconnected", Ready: "ready" },
   NoSubscriberBehavior: { Pause: "pause" },
+  entersState: vi.fn().mockResolvedValue(undefined),
 }));
 
 import {

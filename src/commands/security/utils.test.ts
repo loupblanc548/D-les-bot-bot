@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  checkSuspiciousLinks,
-  checkSuspiciousLinksDetailed,
-} from "./utils.js";
+import { checkSuspiciousLinks, checkSuspiciousLinksDetailed } from "./utils.js";
 
 describe("checkSuspiciousLinks", () => {
   it("retourne false pour un texte sans URL", () => {

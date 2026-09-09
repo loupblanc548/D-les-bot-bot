@@ -84,10 +84,7 @@ export function scorePromptDetailed(prompt: string): PromptScoreDetail {
   const total = Math.min(clarity + context + examples + constraints + role, 100);
 
   const grade: PromptScoreDetail["grade"] =
-    total >= 90 ? "A" :
-    total >= 75 ? "B" :
-    total >= 60 ? "C" :
-    total >= 40 ? "D" : "F";
+    total >= 90 ? "A" : total >= 75 ? "B" : total >= 60 ? "C" : total >= 40 ? "D" : "F";
 
   return {
     total,
@@ -96,7 +93,8 @@ export function scorePromptDetailed(prompt: string): PromptScoreDetail {
     examples,
     constraints,
     role,
-    suggestions: suggestions.length > 0 ? suggestions : ["Prompt excellent — aucune amélioration nécessaire"],
+    suggestions:
+      suggestions.length > 0 ? suggestions : ["Prompt excellent — aucune amélioration nécessaire"],
     grade,
   };
 }
@@ -124,12 +122,18 @@ export function scorePromptsBatch(prompts: { name: string; prompt: string }[]): 
 
 export function gradeEmoji(grade: string): string {
   switch (grade) {
-    case "A": return "🟢";
-    case "B": return "🟩";
-    case "C": return "🟡";
-    case "D": return "🟠";
-    case "F": return "🔴";
-    default: return "⚪";
+    case "A":
+      return "🟢";
+    case "B":
+      return "🟩";
+    case "C":
+      return "🟡";
+    case "D":
+      return "🟠";
+    case "F":
+      return "🔴";
+    default:
+      return "⚪";
   }
 }
 
@@ -146,7 +150,7 @@ export interface BestPracticesReport {
   checks: BestPracticeCheck[];
   passedCount: number;
   totalCount: number;
-  score: number;        // 0-100
+  score: number; // 0-100
   grade: "A" | "B" | "C" | "D" | "F";
   missing: string[];
   summary: string;
@@ -158,61 +162,93 @@ export function validateBestPractices(prompt: string): BestPracticesReport {
       id: 1,
       name: "Spécifique et détaillé",
       passed: prompt.length > 200,
-      detail: prompt.length > 200 ? `Prompt de ${prompt.length} chars` : `Trop court (${prompt.length} chars), manque de détails`,
+      detail:
+        prompt.length > 200
+          ? `Prompt de ${prompt.length} chars`
+          : `Trop court (${prompt.length} chars), manque de détails`,
     },
     {
       id: 2,
       name: "Contexte complet",
       passed: /CONTEXTE[:\s]|CONTEXT[:\s]/i.test(prompt) || prompt.length > 500,
-      detail: /CONTEXTE[:\s]|CONTEXT[:\s]/i.test(prompt) ? "Section CONTEXTE présente" : prompt.length > 500 ? "Contexte implicite (longueur suffisante)" : "Manque de contexte",
+      detail: /CONTEXTE[:\s]|CONTEXT[:\s]/i.test(prompt)
+        ? "Section CONTEXTE présente"
+        : prompt.length > 500
+          ? "Contexte implicite (longueur suffisante)"
+          : "Manque de contexte",
     },
     {
       id: 3,
       name: "Format structuré (JSON)",
       passed: /JSON/i.test(prompt) && /[{}[\]]/.test(prompt),
-      detail: /JSON/i.test(prompt) && /[{}[\]]/.test(prompt) ? "Format JSON spécifié avec structure" : /JSON/i.test(prompt) ? "JSON mentionné mais sans structure" : "Aucun format structuré spécifié",
+      detail:
+        /JSON/i.test(prompt) && /[{}[\]]/.test(prompt)
+          ? "Format JSON spécifié avec structure"
+          : /JSON/i.test(prompt)
+            ? "JSON mentionné mais sans structure"
+            : "Aucun format structuré spécifié",
     },
     {
       id: 4,
       name: "Exemples fournis",
       passed: /Exemple/i.test(prompt) || /Example/i.test(prompt),
-      detail: /Exemple/i.test(prompt) || /Example/i.test(prompt) ? "Exemples few-shot présents" : "Aucun exemple fourni (few-shot manquant)",
+      detail:
+        /Exemple/i.test(prompt) || /Example/i.test(prompt)
+          ? "Exemples few-shot présents"
+          : "Aucun exemple fourni (few-shot manquant)",
     },
     {
       id: 5,
       name: "Rôle clairement défini",
       passed: /Tu es/i.test(prompt) || /You are/i.test(prompt),
-      detail: /Tu es/i.test(prompt) || /You are/i.test(prompt) ? "Rôle explicite défini" : "Aucun rôle défini ('Tu es...')",
+      detail:
+        /Tu es/i.test(prompt) || /You are/i.test(prompt)
+          ? "Rôle explicite défini"
+          : "Aucun rôle défini ('Tu es...')",
     },
     {
       id: 6,
       name: "Contraintes spécifiées",
       passed: /CONTRAINTES[:\s]|RÈGLES[:\s]|CONSTRAINTS[:\s]|RULES[:\s]/i.test(prompt),
-      detail: /CONTRAINTES[:\s]|RÈGLES[:\s]|CONSTRAINTS[:\s]|RULES[:\s]/i.test(prompt) ? "Contraintes/Règles présentes" : "Aucune contrainte explicite",
+      detail: /CONTRAINTES[:\s]|RÈGLES[:\s]|CONSTRAINTS[:\s]|RULES[:\s]/i.test(prompt)
+        ? "Contraintes/Règles présentes"
+        : "Aucune contrainte explicite",
     },
     {
       id: 7,
       name: "Divisé en étapes",
       passed: /\d+\.\s|étape|step|Réfléchis étape/i.test(prompt),
-      detail: /\d+\.\s|étape|step|Réfléchis étape/i.test(prompt) ? "Étapes numérotées ou chain-of-thought" : "Pas de division en étapes",
+      detail: /\d+\.\s|étape|step|Réfléchis étape/i.test(prompt)
+        ? "Étapes numérotées ou chain-of-thought"
+        : "Pas de division en étapes",
     },
     {
       id: 8,
       name: "Testable et itérable",
       passed: /Exemple/i.test(prompt) && /JSON/i.test(prompt),
-      detail: /Exemple/i.test(prompt) && /JSON/i.test(prompt) ? "Exemples + JSON = testable" : "Manque exemples ou JSON pour tester",
+      detail:
+        /Exemple/i.test(prompt) && /JSON/i.test(prompt)
+          ? "Exemples + JSON = testable"
+          : "Manque exemples ou JSON pour tester",
     },
     {
       id: 9,
       name: "Délimiteurs utilisés",
       passed: /---|###|```|\|/.test(prompt),
-      detail: /---|###|```|\|/.test(prompt) ? "Délimiteurs structurés présents" : "Aucun délimiteur (---, ###, ```)",
+      detail: /---|###|```|\|/.test(prompt)
+        ? "Délimiteurs structurés présents"
+        : "Aucun délimiteur (---, ###, ```)",
     },
     {
       id: 10,
       name: "Concis mais complet",
       passed: prompt.length > 200 && prompt.length < 5000,
-      detail: prompt.length > 200 && prompt.length < 5000 ? `Longueur optimale (${prompt.length} chars)` : prompt.length <= 200 ? "Trop concis" : "Trop long (>5000 chars)",
+      detail:
+        prompt.length > 200 && prompt.length < 5000
+          ? `Longueur optimale (${prompt.length} chars)`
+          : prompt.length <= 200
+            ? "Trop concis"
+            : "Trop long (>5000 chars)",
     },
   ];
 
@@ -226,7 +262,9 @@ export function validateBestPractices(prompt: string): BestPracticesReport {
   const summary = [
     `${passedCount}/${totalCount} best practices respectées`,
     `Score: ${score}/100 (Grade ${grade})`,
-    missing.length > 0 ? `Manquantes: ${missing.join(", ")}` : "Toutes les best practices sont respectées!",
+    missing.length > 0
+      ? `Manquantes: ${missing.join(", ")}`
+      : "Toutes les best practices sont respectées!",
   ].join("\n");
 
   return { checks, passedCount, totalCount, score, grade, missing, summary };
@@ -249,7 +287,7 @@ export interface AntiPatternReport {
   criticalCount: number;
   warningCount: number;
   clean: boolean;
-  score: number;        // 100 - penalties
+  score: number; // 100 - penalties
   summary: string;
 }
 
@@ -258,15 +296,22 @@ export function detectAntiPatterns(prompt: string): AntiPatternReport {
     {
       id: 1,
       name: "Vague et général",
-      detected: prompt.length < 100 || /^(analyse|check|review|help|do)/i.test(prompt.trim()) && prompt.length < 150,
+      detected:
+        prompt.length < 100 ||
+        (/^(analyse|check|review|help|do)/i.test(prompt.trim()) && prompt.length < 150),
       severity: "critical",
-      detail: prompt.length < 100 ? `Prompt trop court (${prompt.length} chars)` : "Instructions vagues sans détails",
+      detail:
+        prompt.length < 100
+          ? `Prompt trop court (${prompt.length} chars)`
+          : "Instructions vagues sans détails",
       fix: "Sois spécifique: ajoute TÂCHE, RÈGLES, et FORMAT avec des détails concrets",
     },
     {
       id: 2,
       name: "Pas de contexte",
-      detected: !/CONTEXTE|CONTEXT|serveur|discord|gaming|utilisateur|message/i.test(prompt) && prompt.length < 500,
+      detected:
+        !/CONTEXTE|CONTEXT|serveur|discord|gaming|utilisateur|message/i.test(prompt) &&
+        prompt.length < 500,
       severity: "warning",
       detail: "Aucun contexte fourni sur l'environnement ou la situation",
       fix: "Ajoute une section CONTEXTE: décrivant l'environnement et la situation",
@@ -324,8 +369,14 @@ export function detectAntiPatterns(prompt: string): AntiPatternReport {
       name: "Prompt trop long/court",
       detected: prompt.length < 50 || prompt.length > 6000,
       severity: prompt.length < 50 ? "critical" : "warning",
-      detail: prompt.length < 50 ? `Trop court (${prompt.length} chars)` : `Trop long (${prompt.length} chars)`,
-      fix: prompt.length < 50 ? "Ajoute du contexte et des détails (viser 200-5000 chars)" : "Divise en sous-prompts ou simplifie (viser 200-5000 chars)",
+      detail:
+        prompt.length < 50
+          ? `Trop court (${prompt.length} chars)`
+          : `Trop long (${prompt.length} chars)`,
+      fix:
+        prompt.length < 50
+          ? "Ajoute du contexte et des détails (viser 200-5000 chars)"
+          : "Divise en sous-prompts ou simplifie (viser 200-5000 chars)",
     },
     {
       id: 10,
@@ -340,7 +391,10 @@ export function detectAntiPatterns(prompt: string): AntiPatternReport {
   const detectedCount = checks.filter((c) => c.detected).length;
   const criticalCount = checks.filter((c) => c.detected && c.severity === "critical").length;
   const warningCount = checks.filter((c) => c.detected && c.severity === "warning").length;
-  const penalty = criticalCount * 15 + warningCount * 7 + checks.filter((c) => c.detected && c.severity === "minor").length * 3;
+  const penalty =
+    criticalCount * 15 +
+    warningCount * 7 +
+    checks.filter((c) => c.detected && c.severity === "minor").length * 3;
   const score = Math.max(0, 100 - penalty);
   const clean = detectedCount === 0;
 
@@ -349,9 +403,10 @@ export function detectAntiPatterns(prompt: string): AntiPatternReport {
     : [
         `${detectedCount} anti-patterns détectés (${criticalCount} critiques, ${warningCount} warnings)`,
         `Score: ${score}/100`,
-        ...checks.filter((c) => c.detected && c.severity === "critical").map((c) => `🔴 #${c.id} ${c.name}: ${c.fix}`),
+        ...checks
+          .filter((c) => c.detected && c.severity === "critical")
+          .map((c) => `🔴 #${c.id} ${c.name}: ${c.fix}`),
       ].join("\n");
 
   return { checks, detectedCount, criticalCount, warningCount, clean, score, summary };
 }
-

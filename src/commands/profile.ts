@@ -1432,7 +1432,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction) {
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -1733,7 +1735,9 @@ async function handleBadges(interaction: ChatInputCommandInteraction, userId: st
     collector.on("end", async () => {
       try {
         await interaction.editReply({ components: [] });
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     });
 
     return;

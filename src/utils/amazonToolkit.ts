@@ -211,8 +211,7 @@ export async function amazonPriceTrack(asin: string, domain: string = "com"): Pr
     }
     const url = `https://api.keepa.com/product?key=${apiKey}&domain=${domain === "com" ? 1 : domain === "co.uk" ? 2 : domain === "de" ? 3 : domain === "fr" ? 4 : 1}&asin=${asin}&stats=1`;
     const data = (await httpsGetJson(url)) as Record<string, any>;
-    const product = (data.products as any[] | undefined)?.[0] as
-      Record<string, any> | undefined;
+    const product = (data.products as any[] | undefined)?.[0] as Record<string, any> | undefined;
     if (!product) return JSON.stringify({ error: "Product not found in Keepa" });
 
     const csv = product.csv as number[][] | undefined;
@@ -257,8 +256,7 @@ export async function amazonPriceHistory(
     }
     const url = `https://api.keepa.com/product?key=${apiKey}&domain=${domain === "com" ? 1 : 4}&asin=${asin}&days=${days}&stats=1`;
     const data = (await httpsGetJson(url)) as Record<string, any>;
-    const product = (data.products as any[] | undefined)?.[0] as
-      Record<string, any> | undefined;
+    const product = (data.products as any[] | undefined)?.[0] as Record<string, any> | undefined;
     if (!product) return JSON.stringify({ error: "Product not found" });
 
     const csv = product.csv as number[][] | undefined;

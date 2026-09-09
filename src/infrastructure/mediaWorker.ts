@@ -34,7 +34,9 @@ function startHeartbeat(): void {
           memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         },
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }, 30_000);
 }
 
@@ -77,7 +79,9 @@ async function initModules(): Promise<void> {
   // Signal ready
   try {
     process.send?.({ type: "ready" });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   startHeartbeat();
 }
@@ -105,7 +109,9 @@ process.on("uncaughtException", (err) => {
   logger.error(`${CYAN}[MediaWorker]${RESET} Uncaught: ${err.message}`);
   try {
     process.send?.({ type: "error", message: err.message });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   process.exit(1);
 });
 
@@ -119,6 +125,8 @@ void initModules().catch((err) => {
       type: "error",
       message: `Init failed: ${err instanceof Error ? err.message : String(err)}`,
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
   process.exit(1);
 });

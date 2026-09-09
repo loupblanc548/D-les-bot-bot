@@ -38,7 +38,10 @@ const ADMIN_ACTIONS = new Set([
   "deleteChannel",
   "createChannel",
   "createInvite",
+  "setup_basic_server",
   "getAuditLog",
+  "ssh_command",
+  "run_terminal",
 ]);
 
 /** Role name patterns that count as "moderator" */
@@ -72,6 +75,7 @@ export async function getUserPermissionLevel(
   guildId: string,
   userId: string,
 ): Promise<PermissionLevel> {
+  if (process.env.OWNER_ID && userId === process.env.OWNER_ID) return "admin";
   try {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return "user";

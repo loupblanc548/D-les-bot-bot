@@ -371,8 +371,7 @@ async function checkTrackedProducts(client: Client): Promise<void> {
 }
 
 // ─── Channel dédié aux alertes revendeurs ───────────────────────────────────
-
-const RETAILER_ALERT_CHANNEL = "1532189747500421152";
+// Configuré via RETAILER_CHANNEL_ID (config.retailerChannel)
 
 // ─── Pays : drapeaux et noms multilingues ───────────────────────────────────
 
@@ -559,7 +558,7 @@ async function sendRetailerAlert(
   alertType: AlertType,
   message: string,
 ): Promise<void> {
-  const channelId = RETAILER_ALERT_CHANNEL;
+  const channelId = config.retailerChannel;
   const channel = client.channels.cache.get(channelId) as TextChannel;
   if (!channel?.isTextBased()) return;
 
@@ -650,13 +649,15 @@ async function checkRetailerDeals(client: Client): Promise<void> {
           await sendDealNotification(client, deal);
           await dedupCache.markAsProcessed("retailer_deals", dedupKey);
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
     }
   }
 }
 
 async function sendDealNotification(client: Client, product: RetailerProduct): Promise<void> {
-  const channelId = RETAILER_ALERT_CHANNEL;
+  const channelId = config.retailerChannel;
   const channel = client.channels.cache.get(channelId) as TextChannel;
   if (!channel?.isTextBased()) return;
 
@@ -700,7 +701,9 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
 
   try {
     await channel.send({ embeds: [embed] });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   // ── DM notification à l'owner pour les deals ──
   try {
@@ -709,7 +712,9 @@ async function sendDealNotification(client: Client, product: RetailerProduct): P
     if (user) {
       await user.send({ content: `🏷️ Deal — ${product.title}`, embeds: [embed] });
     }
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }
 
 // ─── Démarrage / arrêt ──────────────────────────────────────────────────────

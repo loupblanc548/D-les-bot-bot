@@ -14,6 +14,8 @@ import { fetchRetry } from "../utils/fetchRetry.js";
 import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { getNumberFact } from "./freeApis.js";
+import { runSetupBasicServerTool } from "./basicServerSetup.js";
 import prisma from "../prisma.js";
 import { SCREENSHOT_TOOL_DEF, handleScreenshotTool } from "./screenshotTool.js";
 import {
@@ -2460,12 +2462,17 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "createChannel",
-      description: "Crée un nouveau salon textuel sur ce serveur.",
+      description:
+        "Crée un salon textuel ou vocal. type=voice pour un salon vocal (Go Live, sorties de jeux).",
       parameters: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Nom du salon (ex: general-chat)" },
-          topic: { type: "string", description: "Topic/description du salon (optionnel)" },
+          name: { type: "string", description: "Nom du salon (ex: Sorties jeux)" },
+          topic: { type: "string", description: "Topic du salon textuel (optionnel)" },
+          type: {
+            type: "string",
+            description: "text (défaut) ou voice",
+          },
         },
         required: ["name"],
       },
@@ -2518,6 +2525,25 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
             description: "Durée en secondes (défaut 86400 = 24h, 0 = permanent)",
           },
           maxUses: { type: "number", description: "Max utilisations (défaut 0 = illimité)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "setup_basic_server",
+      description:
+        "Prépare un serveur Discord basique : lien d'invite + salons (bienvenue, règles, général, vocal, staff). Discord interdit à un bot de créer le serveur : la personne le crée, m'invite, je pose les salons. applyHere=true pour aménager CE serveur.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nom du futur serveur (optionnel)" },
+          applyHere: {
+            type: "boolean",
+            description: "true = poser les salons sur ce serveur. false = lien d'invite.",
+          },
         },
         required: [],
       },
@@ -3603,7 +3629,8 @@ export const EXTENDED_TOOLS: AgentToolDef[] = [
     type: "function",
     function: {
       name: "haveibeenpwned_check",
-      description: "Vérifie si un email apparaît dans une breach",
+      description:
+        "Have I Been Pwned API v3: vérifie si un email apparaît dans une fuite connue (alias de checkDataBreach).",
       parameters: {
         type: "object",
         properties: {
@@ -7095,6 +7122,8 @@ export async function executeExtendedTool(
         return await tSetChannelTopic(args, ctx);
       case "createInvite":
         return await tCreateInvite(args, ctx);
+      case "setup_basic_server":
+        return await runSetupBasicServerTool(args, ctx);
       case "getMemberInfo":
         return await tGetMemberInfo(args, ctx);
       case "getServerRoles":
@@ -7266,6 +7295,8 @@ export async function executeExtendedTool(
         return tTextToSpeechMulti(args);
       case "image_watermark_add":
         return await tImageWatermarkAdd(args);
+      case "haveibeenpwned_check":
+        return await tHaveibeenpwnedCheck(args);
       default:
         return null;
     }
@@ -8324,24 +8355,16 @@ async function tGetColorInfo(args: Record<string, any>): Promise<ToolCallResult>
 }
 
 async function tGetRandomFact(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "trivia").toLowerCase();
   const number = args.number !== undefined ? Number(args.number) : "random";
-  try {
-    const url = `http://numbersapi.com/${number}/${type}`;
-    const res = await fetchRetry(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return { success: false, data: "Numbers API indisponible" };
-    const text = await res.text();
-    return {
-      success: true,
-      data: JSON.stringify({
-        type,
-        number: number === "random" ? "aléatoire" : number,
-        fact: text,
-      }),
-    };
-  } catch (e) {
-    return { success: false, data: `Erreur: ${e instanceof Error ? e.message : String(e)}` };
-  }
+  const fact = await getNumberFact(number === "random" || Number.isNaN(number) ? "random" : number);
+  if (!fact) return { success: false, data: "Aucun fait trouvé" };
+  return {
+    success: true,
+    data: JSON.stringify({
+      number: number === "random" || Number.isNaN(number) ? "aléatoire" : number,
+      fact,
+    }),
+  };
 }
 
 async function tGetHoroscope(args: Record<string, any>): Promise<ToolCallResult> {
@@ -8775,14 +8798,29 @@ async function tCreateChannel(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const name = String(args.name).toLowerCase().replace(/\s+/g, "-").slice(0, 100);
+  const kind = String(args.type || args.kind || "text").toLowerCase();
+  const isVoice = kind === "voice" || kind === "vocal";
+  const rawName = String(args.name || "").trim();
+  if (!rawName) return { success: false, data: "Nom du salon manquant" };
+  const name = isVoice
+    ? rawName.slice(0, 100)
+    : rawName.toLowerCase().replace(/\s+/g, "-").slice(0, 100);
   const topic = args.topic ? String(args.topic) : undefined;
   const guild = ctx.client.guilds.cache.get(ctx.guildId);
   if (!guild) return { success: false, data: "Serveur introuvable" };
-  const channel = await guild.channels.create({ name, type: ChannelType.GuildText, topic });
+  const channel = await guild.channels.create({
+    name,
+    type: isVoice ? ChannelType.GuildVoice : ChannelType.GuildText,
+    topic: isVoice ? undefined : topic,
+  });
   return {
     success: true,
-    data: JSON.stringify({ name: channel.name, id: channel.id, topic: topic || null }),
+    data: JSON.stringify({
+      name: channel.name,
+      id: channel.id,
+      type: isVoice ? "voice" : "text",
+      topic: topic || null,
+    }),
   };
 }
 
@@ -11223,7 +11261,7 @@ async function tCrtshSearch(args: Record<string, any>): Promise<ToolCallResult> 
 }
 
 async function tHaveibeenpwnedCheck(args: Record<string, any>): Promise<ToolCallResult> {
-  const email = String(args.email || "");
+  const email = String(args.email || "").trim();
   try {
     const result = await haveibeenpwnedCheck(email);
     return { success: true, data: typeof result === "string" ? result : JSON.stringify(result) };

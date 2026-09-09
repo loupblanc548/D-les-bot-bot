@@ -48,8 +48,7 @@ export class RawgClient {
   private _cooldownUntil = 0;
 
   constructor(options: RawgClientOptions = {}) {
-    this.apiKey =
-      "apiKey" in options ? options.apiKey : process.env.RAWG_API_KEY;
+    this.apiKey = "apiKey" in options ? options.apiKey : process.env.RAWG_API_KEY;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
     this.logger = { ...NOOP_LOG, ...(options.logger ?? {}) };
     this.timeoutMs = options.timeoutMs ?? 8000;
@@ -73,10 +72,7 @@ export class RawgClient {
     return this._cooldownUntil;
   }
 
-  async searchByTitle(
-    title: string,
-    opts: SearchOptions = {},
-  ): Promise<RawgGame | null> {
+  async searchByTitle(title: string, opts: SearchOptions = {}): Promise<RawgGame | null> {
     if (!this.isEnabled()) return null;
 
     // Cache (inclut les valeurs null)
@@ -100,10 +96,7 @@ export class RawgClient {
     return promise;
   }
 
-  private async doSearch(
-    title: string,
-    opts: SearchOptions,
-  ): Promise<RawgGame | null> {
+  private async doSearch(title: string, opts: SearchOptions): Promise<RawgGame | null> {
     const result = await this.fetchWithRetry(title, opts, true);
     return result;
   }
@@ -153,8 +146,7 @@ export class RawgClient {
       this.cache.set(title, game);
       return game;
     } catch (error) {
-      const isAbort =
-        error instanceof Error && error.name === "AbortError";
+      const isAbort = error instanceof Error && error.name === "AbortError";
 
       // Abort déclenché par l'appelant → pas de retry
       if (isAbort && opts.signal?.aborted) {

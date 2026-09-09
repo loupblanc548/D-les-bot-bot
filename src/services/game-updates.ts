@@ -35,10 +35,18 @@ const TRACKED_GAMES = [
   { id: "rocket-league", name: "Rocket League", platform: "epic" },
 ];
 
-const PLATFORM_CHANNELS: Record<string, { channelId: string; color: number; emoji: string; label: string }> = {
+const PLATFORM_CHANNELS: Record<
+  string,
+  { channelId: string; color: number; emoji: string; label: string }
+> = {
   steam: { channelId: config.steamEpicChannel, color: 0x1b2838, emoji: "🎮", label: "Steam" },
   epic: { channelId: config.steamEpicChannel, color: 0x2a2a2a, emoji: "📦", label: "Epic Games" },
-  playstation: { channelId: config.playstationChannel, color: 0x003791, emoji: "🎮", label: "PlayStation" },
+  playstation: {
+    channelId: config.playstationChannel,
+    color: 0x003791,
+    emoji: "🎮",
+    label: "PlayStation",
+  },
   xbox: { channelId: config.xboxChannel, color: 0x107c10, emoji: "🎮", label: "Xbox" },
   nintendo: { channelId: config.nintendoChannel, color: 0xe60012, emoji: "🎮", label: "Nintendo" },
   fortnite: { channelId: config.fortniteChannel, color: 0x9147ff, emoji: "🎯", label: "Fortnite" },
@@ -186,7 +194,9 @@ async function sendUpdateNotification(client: Client, update: GameUpdate): Promi
 
   try {
     await channel.send({ embeds: [embed] });
-    logger.info(`[GameUpdates] Notification envoyée pour ${update.gameName} (${platformLabel}) dans #${channel.name}`);
+    logger.info(
+      `[GameUpdates] Notification envoyée pour ${update.gameName} (${platformLabel}) dans #${channel.name}`,
+    );
   } catch (error) {
     logger.error("[GameUpdates] Erreur lors de l'envoi de la notification:", error);
   }

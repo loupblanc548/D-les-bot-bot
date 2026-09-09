@@ -211,27 +211,43 @@ export async function searchKnowledge(
 
         // Calculer les embeddings manquants et scorer tous les docs
         const scored = await Promise.all(
-          allDocs.map(async (doc: { url: string; title: string; summary: string | null; content: string }) => {
-            let docEmbedding = knowledgeEmbeddings.get(doc.url);
-            if (!docEmbedding) {
-              const embeddings = await embedTexts([`${doc.title} ${doc.summary}`]);
-              if (embeddings && embeddings[0]) {
-                docEmbedding = embeddings[0];
-                knowledgeEmbeddings.set(doc.url, docEmbedding);
+          allDocs.map(
+            async (doc: {
+              url: string;
+              title: string;
+              summary: string | null;
+              content: string;
+            }) => {
+              let docEmbedding = knowledgeEmbeddings.get(doc.url);
+              if (!docEmbedding) {
+                const embeddings = await embedTexts([`${doc.title} ${doc.summary}`]);
+                if (embeddings && embeddings[0]) {
+                  docEmbedding = embeddings[0];
+                  knowledgeEmbeddings.set(doc.url, docEmbedding);
+                }
               }
-            }
-            const score = docEmbedding ? cosineSimilarity(queryVec, docEmbedding) : 0;
-            return { doc, score };
-          }),
+              const score = docEmbedding ? cosineSimilarity(queryVec, docEmbedding) : 0;
+              return { doc, score };
+            },
+          ),
         );
 
         // Trier par score de similarité
         scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
-        return scored.slice(0, limit).map(({ doc }: { doc: { url: string; title: string; summary: string | null; content: string }; score: number }) => ({
-          title: doc.title,
-          summary: doc.summary || doc.content.slice(0, 500),
-          url: doc.url,
-        }));
+        return scored
+          .slice(0, limit)
+          .map(
+            ({
+              doc,
+            }: {
+              doc: { url: string; title: string; summary: string | null; content: string };
+              score: number;
+            }) => ({
+              title: doc.title,
+              summary: doc.summary || doc.content.slice(0, 500),
+              url: doc.url,
+            }),
+          );
       }
     }
 

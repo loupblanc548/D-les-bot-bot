@@ -30,7 +30,7 @@ const API = {
       return data;
     } catch (e) {
       if (window.__mockFallback) {
-        const mock = window.__mockFallback.getStatus();
+        const mock = Object.assign({ __demo: true }, window.__mockFallback.getStatus());
         Store.update("status", mock);
         return mock;
       }

@@ -33,7 +33,11 @@ describe("autoMod", () => {
   });
 
   it("allows whitelisted domains", () => {
-    const rules: AutoModRule = { ...DEFAULT_RULES, blockLinks: true, allowedLinkDomains: ["example.com"] };
+    const rules: AutoModRule = {
+      ...DEFAULT_RULES,
+      blockLinks: true,
+      allowedLinkDomains: ["example.com"],
+    };
     const result = checkMessage(mockMessage("check https://example.com"), rules);
     expect(result.violated).toBe(false);
   });

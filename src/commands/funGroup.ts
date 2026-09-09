@@ -2,7 +2,6 @@
  * funGroup.ts — Commandes fun & divertissement (sans clé API)
  *
  * /fun meme       — Mème aléatoire (Reddit)
- * /fun joke       — Blague aléatoire
  * /fun quote      — Citation inspirante
  * /fun advice     — Conseil aléatoire
  * /fun activity   — Activité anti-ennui
@@ -19,7 +18,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import {
   getMeme,
-  getJoke,
   getQuote,
   getAdvice,
   getActivity,
@@ -34,7 +32,6 @@ export const commands = [
     .setName("fun")
     .setDescription("Commandes fun & divertissement")
     .addSubcommand((sc) => sc.setName("meme").setDescription("Mème aléatoire (Reddit)"))
-    .addSubcommand((sc) => sc.setName("joke").setDescription("Blague aléatoire (EN)"))
     .addSubcommand((sc) => sc.setName("quote").setDescription("Citation inspirante"))
     .addSubcommand((sc) => sc.setName("advice").setDescription("Conseil aléatoire"))
     .addSubcommand((sc) => sc.setName("activity").setDescription("Activité anti-ennui"))
@@ -166,24 +163,6 @@ export async function handleCommand(
         .setImage(meme.url)
         .setFooter({ text: `r/${meme.subreddit} • u/${meme.author}` })
         .setColor(0xff4500);
-      await interaction.editReply({ embeds: [embed] });
-      break;
-    }
-
-    case "joke": {
-      await interaction.deferReply();
-      const joke = await getJoke();
-      if (!joke) {
-        await interaction.editReply("❌ Aucune blague trouvée.");
-        return;
-      }
-      const embed = new EmbedBuilder()
-        .setTitle("😂 Blague")
-        .addFields(
-          { name: "Setup", value: joke.setup },
-          { name: "Punchline", value: `||${joke.punchline}||` },
-        )
-        .setColor(0xffd700);
       await interaction.editReply({ embeds: [embed] });
       break;
     }

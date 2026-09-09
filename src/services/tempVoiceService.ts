@@ -36,7 +36,9 @@ export async function setHubChannel(guildId: string, channelId: string): Promise
       create: { guildId, hubChannelId: channelId },
     });
   } catch (err) {
-    logger.error(`[TempVoice] Erreur setHubChannel: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(
+      `[TempVoice] Erreur setHubChannel: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 

@@ -29,8 +29,7 @@ export async function handleTrendingCommand(
 
   if (releases.length === 0) {
     await interaction.reply({
-      content:
-        "📭 Aucune donnée IGDB disponible pour le moment. Réessaie dans quelques minutes.",
+      content: "📭 Aucune donnée IGDB disponible pour le moment. Réessaie dans quelques minutes.",
       ephemeral: true,
     });
     return;
@@ -49,9 +48,7 @@ export async function handleTrendingCommand(
 
   const medals = ["🥇", "🥈", "🥉"];
   const lines = sorted.map((r, i) => {
-    const daysLeft = Math.ceil(
-      (r.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-    );
+    const daysLeft = Math.ceil((r.releaseDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     const countdown = daysLeft > 0 ? `⏰ **${daysLeft}j**` : "🎉 **Sorti !**";
     const medal = medals[i] || `**${i + 1}.**`;
     const platforms = r.platforms.slice(0, 3).join(", ") || "N/A";

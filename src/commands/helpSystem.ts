@@ -293,7 +293,7 @@ const HELP_DATA: Record<string, HelpCategory> = {
       { name: "/bot dashboard", description: "Dashboard web" },
       { name: "/bot server-info", description: "Infos serveur" },
       { name: "/bot userinfo", description: "Infos utilisateur" },
-      { name: "/bot shadowbroker", description: "Dashboard Shadow Broker" },
+      { name: "/bot shadowbroker", description: "Dashboard John" },
       { name: "/bot broadcast", description: "Broadcast message" },
       { name: "/bot dm", description: "Envoyer un DM" },
       { name: "/bot maintenance", description: "Mode maintenance" },

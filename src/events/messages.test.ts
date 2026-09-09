@@ -128,9 +128,14 @@ vi.mock("../services/chatResponder", () => ({
     latencyMs: 1,
     fromFallback: true,
   }),
+  recoverChatReply: vi.fn().mockResolvedValue("Réponse de recovery"),
   orderProvidersBySpeed: vi.fn().mockReturnValue([]),
   containsHallucinatedError: vi.fn().mockReturnValue(false),
   sanitizeResponse: vi.fn((t: string) => t),
+  takePendingQuestion: vi.fn().mockReturnValue(null),
+  noteUnansweredQuestion: vi.fn(),
+  clearPendingQuestion: vi.fn(),
+  resolveIncomingQuestion: vi.fn((_id: string, incoming: string) => incoming),
 }));
 
 vi.mock("../services/aiConversation", () => ({
@@ -285,6 +290,8 @@ function createMockMessage(overrides: Record<string, unknown> = {}) {
       user: { id: "user-123", tag: "TestUser#1234" },
     },
     content: "Hello world",
+    channelId: "channel-123",
+    client: { user: { id: "bot-123" } },
     mentions: { has: vi.fn().mockReturnValue(false), users: new Collection() },
     delete: vi.fn().mockResolvedValue(undefined),
     reply: vi.fn().mockResolvedValue(undefined),
@@ -376,6 +383,23 @@ describe("messageCreate — AI Chat @mention", () => {
     handleMessageEvents(client as unknown as Client);
   });
 
+  it("répond localement à « tu est la » sans appeler l'IA", async () => {
+    const msg = createMockMessage({
+      content: `<@bot-123> tu est la`,
+      mentions: { has: vi.fn().mockReturnValue(true), users: new Collection() },
+    });
+
+    await client._listeners.messageCreate?.[0](msg);
+
+    expect(msg.reply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringMatching(/John|écoute|Quoi de neuf|Dis-moi|Présent|là/),
+        allowedMentions: { repliedUser: false },
+      }),
+    );
+    expect(mockChatWithHistory).not.toHaveBeenCalled();
+  });
+
   it("répond avec une relance humoristique si @mention sans message", async () => {
     const msg = createMockMessage({
       content: `<@bot-123>`,
@@ -386,7 +410,7 @@ describe("messageCreate — AI Chat @mention", () => {
 
     expect(msg.reply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringMatching(/John Helldiver|Soldat|Super-Terre|camarade/),
+        content: expect.stringMatching(/John|écoute|Quoi de neuf|Dis-moi|Présent/),
         allowedMentions: { repliedUser: false },
       }),
     );
@@ -401,6 +425,24 @@ describe("messageCreate — AI Chat @mention", () => {
     await client._listeners.messageCreate?.[0](msg);
 
     expect(msg.reply).not.toHaveBeenCalled();
+  });
+
+  it("laisse le bot testeur @mentionner John", async () => {
+    const msg = createMockMessage({
+      author: {
+        id: "1321693294933180538",
+        tag: "encore un test#7462",
+        username: "encore un test",
+        bot: true,
+        displayAvatarURL: () => "https://avatar.url",
+      },
+      content: `<@bot-123>`,
+      mentions: { has: vi.fn().mockReturnValue(true), users: new Collection() },
+    });
+
+    await client._listeners.messageCreate?.[0](msg);
+
+    expect(msg.reply).toHaveBeenCalled();
   });
 
   it("ignore les messages hors guild (DM)", async () => {

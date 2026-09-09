@@ -13,7 +13,7 @@ if (!window.electronAPI) {
     getStatus: function () {
       var self = this;
       return self.apiFetch("/api/status").catch(function () {
-        return { online: true, uptime: 84200, memoryMb: 245.6, cpuPercent: 34, ping: 42, guilds: 18, members: 45200, commands: 24 };
+        return { __demo: true, online: true, uptime: 84200, memoryMb: 245.6, cpuPercent: 34, ping: 42, guilds: 18, members: 45200, commands: 24 };
       });
     },
 
@@ -53,8 +53,9 @@ if (!window.electronAPI) {
     apiFetch: function (endpoint, options) {
       var settings = {};
       try { settings = JSON.parse(localStorage.getItem("botSettings") || "{}"); } catch {}
-      var baseUrl = (settings.apiUrl || "http://localhost:3002").replace(/\/$/, "");
+      var baseUrl = (settings.apiUrl || "http://31.220.79.90:3002").replace(/\/$/, "");
       var token = settings.token || "";
+      try { token = token || sessionStorage.getItem("botPanelToken") || ""; } catch {}
       var url = baseUrl + endpoint;
       var fetchOpts = Object.assign({}, options, {
         headers: Object.assign({

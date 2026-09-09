@@ -111,7 +111,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
           flags: [MessageFlags.Ephemeral],
         });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -297,7 +299,9 @@ async function handleRaidShield(interaction: ChatInputCommandInteraction): Promi
       if (logChannel?.isTextBased()) {
         await logChannel.send({ embeds: [embed] });
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   logAction(
@@ -326,7 +330,9 @@ async function handleRaidShield(interaction: ChatInputCommandInteraction): Promi
               .setTimestamp();
             await logChannel.send({ embeds: [offEmbed] });
           }
-        } catch { logger.error("[Silent catch]"); }
+        } catch {
+          logger.error("[Silent catch]");
+        }
       }
     } catch (error) {
       logger.error(
@@ -389,7 +395,9 @@ async function handleSpamAnalysis(interaction: ChatInputCommandInteraction): Pro
         if (!lastId) break;
         lastId = messages.last()?.id;
       }
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 
   if (allMessages.length === 0) {

@@ -1,5 +1,5 @@
 /**
- * knowledgeCrons.ts — Scheduled cron jobs for 5 GitHub knowledge syncers
+ * knowledgeCrons.ts — Scheduled cron jobs for GitHub knowledge syncers
  */
 import { schedule, ScheduledTask } from "node-cron";
 import logger from "../utils/logger.js";
@@ -9,6 +9,8 @@ import {
   syncFreeBooks,
   syncSystemDesign,
   syncAwesomeLists,
+  syncExtraGithubRepos,
+  syncDeepGithubRepos,
 } from "../services/knowledgeIngestion.js";
 
 const crons: ScheduledTask[] = [];
@@ -65,14 +67,27 @@ export function startKnowledgeCrons(): void {
   );
 
   // Initial sync after 60s on startup (staggered)
-  setTimeout(() => void syncPublicApis().catch(() => {}), 60_000);
-  setTimeout(() => void syncCodeSnippets().catch(() => {}), 90_000);
-  setTimeout(() => void syncFreeBooks().catch(() => {}), 120_000);
-  setTimeout(() => void syncSystemDesign().catch(() => {}), 150_000);
-  setTimeout(() => void syncAwesomeLists().catch(() => {}), 180_000);
+  setTimeout(() => void syncPublicApis().catch(() => {}), 8_000);
+  setTimeout(() => void syncCodeSnippets().catch(() => {}), 20_000);
+  setTimeout(() => void syncFreeBooks().catch(() => {}), 35_000);
+  setTimeout(() => void syncSystemDesign().catch(() => {}), 50_000);
+  setTimeout(() => void syncAwesomeLists().catch(() => {}), 65_000);
+  setTimeout(() => void syncExtraGithubRepos().catch(() => {}), 12_000);
+  setTimeout(() => void syncDeepGithubRepos().catch(() => {}), 25_000);
+
+  crons.push(
+    schedule("0 7 1 * *", () => {
+      void syncExtraGithubRepos().catch((e) =>
+        logger.error(`[EXTRA_REPOS] Cron: ${e instanceof Error ? e.message : String(e)}`),
+      );
+      void syncDeepGithubRepos().catch((e) =>
+        logger.error(`[DEEP_REPOS] Cron: ${e instanceof Error ? e.message : String(e)}`),
+      );
+    }),
+  );
 
   for (const c of crons) if (c.unref) c.unref();
-  logger.info("[KnowledgeCrons] 5 knowledge sync crons started (monthly/bi-weekly)");
+  logger.info("[KnowledgeCrons] Knowledge sync crons started (monthly/bi-weekly)");
 }
 
 export function stopKnowledgeCrons(): void {

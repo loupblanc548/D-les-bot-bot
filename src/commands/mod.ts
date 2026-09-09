@@ -208,7 +208,24 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     await handleModExtra(interaction, client);
   } else {
     // Try existing handlers first, then stub
-    const existingSubs = ["warn","mute","unmute","kick","ban","timeout","clear","unlock","purge","history","slowmode","lock","softban","tempban","purgeuser","snipe"];
+    const existingSubs = [
+      "warn",
+      "mute",
+      "unmute",
+      "kick",
+      "ban",
+      "timeout",
+      "clear",
+      "unlock",
+      "purge",
+      "history",
+      "slowmode",
+      "lock",
+      "softban",
+      "tempban",
+      "purgeuser",
+      "snipe",
+    ];
     if (existingSubs.includes(action)) {
       await handleModeration(interaction, client);
     } else {

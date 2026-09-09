@@ -1,9 +1,7 @@
 /**
  * githubReleases.ts — Monitor GitHub repos for new releases and tags.
  *
- * Polls the GitHub API for releases on tracked repos and posts
- * formatted embeds to the appropriate Discord channel.
- * Auto-translates release notes to French.
+ * Liste = githubKnowledgeCatalog (trackReleases).
  */
 
 import { Client, TextChannel, EmbedBuilder } from "discord.js";
@@ -11,8 +9,9 @@ import logger from "../utils/logger.js";
 import { safeInterval } from "../utils/safe-interval.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { translateAutoToFrench } from "../utils/translator.js";
+import { releaseRepos } from "./githubKnowledgeCatalog.js";
 
-const CHECK_INTERVAL_MS = parseInt(process.env.GITHUB_RELEASES_INTERVAL_MS || "1800000", 10); // 30 min
+const CHECK_INTERVAL_MS = parseInt(process.env.GITHUB_RELEASES_INTERVAL_MS || "1800000", 10);
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 let releasesInterval: NodeJS.Timeout | null = null;
 
@@ -26,47 +25,18 @@ interface TrackedRepo {
   emoji: string;
 }
 
-// Repos à surveiller — modifiable via env ou directement ici
-const LOG_CHANNEL = process.env.LOG_CHANNEL_ID || "";
-const TRACKED_REPOS: TrackedRepo[] = [
-  // ── Emulateurs ──
-  { owner: "PCSX2", repo: "pcsx2", platform: "playstation", label: "PCSX2 (PS2 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
-  { owner: "RPCS3", repo: "rpcs3", platform: "playstation", label: "RPCS3 (PS3 Emulator)", channelId: LOG_CHANNEL, color: 0x003791, emoji: "🕹️" },
-  { owner: "RetroArch", repo: "RetroArch", platform: "nintendo", label: "RetroArch", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "dolphin-emu", repo: "dolphin", platform: "nintendo", label: "Dolphin (Wii/GC Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "cemu-project", repo: "Cemu", platform: "nintendo", label: "Cemu (Wii U Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "xenia-project", repo: "xenia", platform: "xbox", label: "Xenia (Xbox 360 Emulator)", channelId: LOG_CHANNEL, color: 0x107c10, emoji: "🎯" },
-  { owner: "yuzu-emu", repo: "yuzu", platform: "nintendo", label: "Yuzu (Switch Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "Ryujinx", repo: "Ryujinx", platform: "nintendo", label: "Ryujinx (Switch Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "melonDS-emu", repo: "melonDS", platform: "nintendo", label: "melonDS (DS Emulator)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-  { owner: "mupen64plus", repo: "mupen64plus-core", platform: "nintendo", label: "mupen64plus (N64)", channelId: LOG_CHANNEL, color: 0xe60012, emoji: "🎲" },
-
-  // ── Moteurs de jeu open source ──
-  { owner: "OpenRCT2", repo: "OpenRCT2", platform: "steam", label: "OpenRCT2 (RollerCoaster Tycoon)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "OpenMW", repo: "openmw", platform: "steam", label: "OpenMW (Morrowind)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "0ad", repo: "0ad", platform: "steam", label: "0 A.D. (RTS)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "OpenRA", repo: "OpenRA", platform: "steam", label: "OpenRA (C&C/Red Alert)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "minetest", repo: "minetest", platform: "steam", label: "Minetest (Voxel Sandbox)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "godotengine", repo: "godot", platform: "steam", label: "Godot Engine", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-
-  // ── Mods / Outils communautaires ──
-  { owner: "LavaGaming", repo: "MelonLoader", platform: "steam", label: "MelonLoader (Mod Loader)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "BepInEx", repo: "BepInEx", platform: "steam", label: "BepInEx (Mod Framework)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "ModOrganizer2", repo: "modorganizer", platform: "steam", label: "Mod Organizer 2", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-
-  // ── Outils Steam ──
-  { owner: "ValveSoftware", repo: "source-sdk-2013", platform: "steam", label: "Valve Source SDK", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "SteamRE", repo: "SteamKit", platform: "steam", label: "SteamKit (Steam API)", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-  { owner: "SteamDatabase", repo: "steam-api", platform: "steam", label: "SteamDatabase", channelId: LOG_CHANNEL, color: 0x1b2838, emoji: "🎮" },
-
-  // ── Outils Discord / Bot ──
-  { owner: "discordjs", repo: "discord.js", platform: "general", label: "discord.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
-  { owner: "prisma", repo: "prisma", platform: "general", label: "Prisma ORM", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🤖" },
-
-  // ── Outils réseau ──
-  { owner: "axios", repo: "axios", platform: "general", label: "Axios (HTTP Client)", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🔧" },
-  { owner: "nodejs", repo: "node", platform: "general", label: "Node.js", channelId: LOG_CHANNEL, color: 0x5865f2, emoji: "🔧" },
-];
+function getTrackedRepos(): TrackedRepo[] {
+  const channelId = process.env.LOG_CHANNEL_ID || "";
+  return releaseRepos().map((e) => ({
+    owner: e.owner,
+    repo: e.repo,
+    platform: e.platform || "general",
+    label: e.label || `${e.owner}/${e.repo}`,
+    channelId,
+    color: e.color ?? 0x5865f2,
+    emoji: e.emoji ?? "📦",
+  }));
+}
 
 interface GitHubRelease {
   tag_name: string;
@@ -110,7 +80,6 @@ async function checkRepoReleases(client: Client, repo: TrackedRepo): Promise<voi
       const dedupKey = `github:${repo.owner}/${repo.repo}:${release.tag_name}`;
       if (dedupCache.isAlreadyProcessed("game_updates", dedupKey)) continue;
 
-      // Auto-traduction FR forcée
       let displayTitle = release.name || release.tag_name;
       let displayBody = release.body || "Pas de notes de version.";
       try {
@@ -122,10 +91,14 @@ async function checkRepoReleases(client: Client, repo: TrackedRepo): Promise<voi
         if (bodyResult && bodyResult.detectedLanguage !== "fr") {
           displayBody = bodyResult.translatedText;
         }
-      } catch { logger.error("[Silent catch]"); }
+      } catch {
+        logger.error("[Silent catch]");
+      }
 
       const totalDownloads = release.assets.reduce((sum, a) => sum + a.download_count, 0);
-      const timestamp = release.published_at ? Math.floor(new Date(release.published_at).getTime() / 1000) : Math.floor(Date.now() / 1000);
+      const timestamp = release.published_at
+        ? Math.floor(new Date(release.published_at).getTime() / 1000)
+        : Math.floor(Date.now() / 1000);
 
       const embed = new EmbedBuilder()
         .setAuthor({ name: `${repo.emoji} ${repo.label}` })
@@ -138,44 +111,64 @@ async function checkRepoReleases(client: Client, repo: TrackedRepo): Promise<voi
           { name: "👤 Auteur", value: release.author?.login || "N/A", inline: true },
           { name: "📅 Publié", value: `<t:${timestamp}:R>`, inline: true },
         )
-        .setFooter({ text: `GitHub Releases • ${repo.owner}/${repo.repo}${release.prerelease ? " • PRE-RELEASE" : ""}` })
+        .setFooter({
+          text: `GitHub Releases • ${repo.owner}/${repo.repo}${release.prerelease ? " • PRE-RELEASE" : ""}`,
+        })
         .setTimestamp(release.published_at ? new Date(release.published_at) : new Date());
 
       if (totalDownloads > 0) {
-        embed.addFields({ name: "📥 Téléchargements", value: totalDownloads.toLocaleString("fr-FR"), inline: true });
+        embed.addFields({
+          name: "📥 Téléchargements",
+          value: totalDownloads.toLocaleString("fr-FR"),
+          inline: true,
+        });
       }
 
       if (release.assets.length > 0) {
-        const assetsList = release.assets.slice(0, 5).map(a => `• [${a.name}](${a.browser_download_url}) (${a.download_count.toLocaleString("fr-FR")} DL)`).join("\n");
+        const assetsList = release.assets
+          .slice(0, 5)
+          .map(
+            (a) =>
+              `• [${a.name}](${a.browser_download_url}) (${a.download_count.toLocaleString("fr-FR")} DL)`,
+          )
+          .join("\n");
         embed.addFields({ name: "📎 Assets", value: assetsList.slice(0, 1024), inline: false });
       }
 
       try {
         await channel.send({ embeds: [embed] });
         await dedupCache.markAsProcessed("game_updates", dedupKey);
-        logger.info(`[GitHubReleases] Release postée: ${repo.owner}/${repo.repo} ${release.tag_name}`);
+        logger.info(
+          `[GitHubReleases] Release postée: ${repo.owner}/${repo.repo} ${release.tag_name}`,
+        );
         await new Promise((resolve) => setTimeout(resolve, 800));
       } catch (err) {
-        logger.error(`[GitHubReleases] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`);
+        logger.error(
+          `[GitHubReleases] Erreur envoi: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   } catch (err) {
-    logger.debug(`[GitHubReleases] Erreur fetch ${repo.owner}/${repo.repo}: ${err instanceof Error ? err.message : String(err)}`);
+    logger.debug(
+      `[GitHubReleases] Erreur fetch ${repo.owner}/${repo.repo}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
 async function checkAllRepos(client: Client): Promise<void> {
-  logger.info(`[GitHubReleases] Vérification de ${TRACKED_REPOS.length} repos...`);
-  for (const repo of TRACKED_REPOS) {
+  const tracked = getTrackedRepos();
+  logger.info(`[GitHubReleases] Vérification de ${tracked.length} repos...`);
+  for (const repo of tracked) {
     await checkRepoReleases(client, repo);
   }
 }
 
 export function startGitHubReleasesMonitor(client: Client): void {
   if (releasesInterval) return;
-  logger.info(`[GitHubReleases] Monitoring ${TRACKED_REPOS.length} repos (intervalle: ${CHECK_INTERVAL_MS / 60000}min)`);
+  logger.info(
+    `[GitHubReleases] Monitoring ${getTrackedRepos().length} repos (intervalle: ${CHECK_INTERVAL_MS / 60000}min)`,
+  );
 
-  // Premier check après 30s (laisser le bot se connecter)
   setTimeout(() => checkAllRepos(client), 30000);
 
   releasesInterval = safeInterval("GitHubReleases", () => checkAllRepos(client), CHECK_INTERVAL_MS);

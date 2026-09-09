@@ -19,7 +19,8 @@ import logger from "../utils/logger.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ReflectionAction = "continue" | "retry" | "retry_different" | "abort" | "done" | "pivot";
+export type ReflectionAction =
+  "continue" | "retry" | "retry_different" | "abort" | "done" | "pivot";
 
 export interface ReflectionResult {
   action: ReflectionAction;

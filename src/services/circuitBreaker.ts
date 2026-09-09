@@ -78,7 +78,11 @@ export function registerAlertDispatcher(cb: AlertCallback): void {
  * Begin tracking a new agent interaction.
  * Returns the initial state. Throws if too many concurrent agents are running.
  */
-export function beginInteraction(userId: string, guildId: string, isLongTask = false): CircuitBreakerState {
+export function beginInteraction(
+  userId: string,
+  guildId: string,
+  isLongTask = false,
+): CircuitBreakerState {
   const interactionId = `${userId}-${Date.now()}`;
   const maxLoops = isLongTask ? MAX_LOOPS_LONG_TASK : MAX_LOOPS;
 
@@ -205,7 +209,9 @@ export function createTrippedEmbed(state: CircuitBreakerState): EmbedBuilder {
         "\n" +
         boxLine(`Agent loop exceeded safety threshold`) +
         "\n" +
-        boxLine(`Max loops: ${(state as any)._maxLoops || MAX_LOOPS} | Reached: ${state.loopCount}`) +
+        boxLine(
+          `Max loops: ${(state as any)._maxLoops || MAX_LOOPS} | Reached: ${state.loopCount}`,
+        ) +
         "\n" +
         boxLine(`Tokens consumed: ${state.tokensConsumed}`) +
         "\n" +

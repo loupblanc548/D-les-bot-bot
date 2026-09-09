@@ -188,7 +188,9 @@ export async function delegateToExpert(
           markModelSuccess(fallbackModel);
           return result;
         }
-      } catch { logger.error("[Silent catch]"); } finally {
+      } catch {
+        logger.error("[Silent catch]");
+      } finally {
         releaseModel(fallbackModel);
       }
     }

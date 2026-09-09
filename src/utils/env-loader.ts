@@ -7,6 +7,23 @@ import { z } from "zod";
 
 import logger from "./logger.js";
 
+/** Strip comments, quotes, and unicode dashes glued onto API keys in .env files. */
+export function sanitizeSecret(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+  if (!trimmed) return undefined;
+  const token = trimmed
+    .split(/[\s#\u2014\u2013]+/)[0]
+    ?.trim()
+    .replace(/^["']+|["']+$/g, "");
+  return token || undefined;
+}
+
+const optionalSecret = z.preprocess(sanitizeSecret, z.string().optional());
+
 // Environment variable schema with validation
 const envSchema = z.object({
   // Discord (required)
@@ -16,12 +33,16 @@ const envSchema = z.object({
   OWNER_ID: z.string().min(1, "OWNER_ID is required"),
 
   // OpenRouter AI (optional — local Ollama can run the chatbot without external keys)
-  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: optionalSecret,
   OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v3:free"),
-  AI_SYSTEM_PROMPT: z.string().default("Tu es un assistant utile et concis. Reponds en francais."),
+  AI_SYSTEM_PROMPT: z
+    .string()
+    .default(
+      "Tu aides sur Discord. Reponds dans la langue de l'utilisateur. Sois utile, precis, et naturel.",
+    ),
 
   // OpenAI (optional — premium tier, used first if available)
-  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: optionalSecret,
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
 
   // Twitch (optional)
@@ -90,13 +111,16 @@ const envSchema = z.object({
   // Steam (optional)
   STEAM_API_KEY: z.string().optional(),
 
+  // Have I Been Pwned v3 (optional — Pwned Passwords stays free without a key)
+  HIBP_API_KEY: optionalSecret,
+
   // ─── Nouvelles APIs externes (optionnelles) ──────────────────────────────
   PERSPECTIVE_API_KEY: z.string().optional(),
   GIPHY_API_KEY: z.string().optional(),
   YOUTUBE_API_KEY: z.string().optional(),
   SPOTIFY_CLIENT_ID: z.string().optional(),
   SPOTIFY_CLIENT_SECRET: z.string().optional(),
-  RAWG_API_KEY: z.string().optional(),
+  RAWG_API_KEY: optionalSecret,
   NEWS_API_KEY: z.string().optional(),
   SCREENSHOT_API_KEY: z.string().optional(),
   HF_API_KEY: z.string().optional(),
@@ -110,14 +134,15 @@ const envSchema = z.object({
   IGDB_CLIENT_ID: z.string().optional(),
   IGDB_CLIENT_SECRET: z.string().optional(),
   STEAMGRIDDB_API_KEY: z.string().optional(),
+  GITHUB_TOKEN: z.string().optional(),
   UPTIMEROBOT_API_KEY: z.string().optional(),
 
   // ─── Multi-provider AI (free tiers) ──────────────────────────────────────
-  GROQ_API_KEY: z.string().optional(),
+  GROQ_API_KEY: optionalSecret,
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
-  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: optionalSecret,
   GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
-  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_API_KEY: optionalSecret,
   CEREBRAS_API_KEY: z.string().optional(),
   CEREBRAS_MODEL: z.string().default("llama3.1-70b"),
   SAMBANOVA_API_KEY: z.string().optional(),
@@ -214,6 +239,12 @@ const envSchema = z.object({
   PRICE_TRACK_CHANNEL_ID: z.string().optional(),
   TRENDS_CHANNEL_ID: z.string().optional(),
   VIRAL_CHANNEL_ID: z.string().optional(),
+  REPORT_CHANNEL_ID: z.string().optional(),
+  REPORT_ROLE_ID: z.string().optional(),
+  BOOST_CHANNEL_ID: z.string().optional(),
+  MANUAL_REPORT_CHANNEL_ID: z.string().optional(),
+  CREATORS_CHANNEL_ID: z.string().optional(),
+  GENERAL_CHANNEL_ID: z.string().optional(),
 
   // Crash webhook & Bull Board
   CRASH_WEBHOOK_URL: z.string().optional(),

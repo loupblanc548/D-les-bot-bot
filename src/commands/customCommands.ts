@@ -15,14 +15,26 @@ export const commands = [
     .setName("customcmd")
     .setDescription("Gère les commandes personnalisées du serveur")
     .addSubcommand((sub) =>
-      sub.setName("create").setDescription("Crée une commande personnalisée")
-        .addStringOption((o) => o.setName("nom").setDescription("Nom de la commande (sans /)").setRequired(true))
-        .addStringOption((o) => o.setName("reponse").setDescription("Réponse du bot").setRequired(true))
-        .addStringOption((o) => o.setName("description").setDescription("Description de la commande").setRequired(false)),
+      sub
+        .setName("create")
+        .setDescription("Crée une commande personnalisée")
+        .addStringOption((o) =>
+          o.setName("nom").setDescription("Nom de la commande (sans /)").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("reponse").setDescription("Réponse du bot").setRequired(true),
+        )
+        .addStringOption((o) =>
+          o.setName("description").setDescription("Description de la commande").setRequired(false),
+        ),
     )
     .addSubcommand((sub) =>
-      sub.setName("delete").setDescription("Supprime une commande personnalisée")
-        .addStringOption((o) => o.setName("nom").setDescription("Nom de la commande à supprimer").setRequired(true)),
+      sub
+        .setName("delete")
+        .setDescription("Supprime une commande personnalisée")
+        .addStringOption((o) =>
+          o.setName("nom").setDescription("Nom de la commande à supprimer").setRequired(true),
+        ),
     )
     .addSubcommand((sub) =>
       sub.setName("list").setDescription("Liste toutes les commandes personnalisées"),
@@ -39,7 +51,10 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   if (sub === "create") {
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-    const name = interaction.options.getString("nom", true).toLowerCase().replace(/[^a-z0-9-]/g, "");
+    const name = interaction.options
+      .getString("nom", true)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "");
     const response = interaction.options.getString("reponse", true);
     const description = interaction.options.getString("description") || "Commande personnalisée";
 
@@ -58,13 +73,18 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
     }
 
     logger.info(`[CustomCmd] Commande /${name} créée par ${interaction.user.username}`);
-    await interaction.editReply({ content: `✅ Commande personnalisée \`${name}\` créée ! Elle répondra: "${response.substring(0, 100)}"` });
+    await interaction.editReply({
+      content: `✅ Commande personnalisée \`${name}\` créée ! Elle répondra: "${response.substring(0, 100)}"`,
+    });
   }
 
   if (sub === "delete") {
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-    const name = interaction.options.getString("nom", true).toLowerCase().replace(/[^a-z0-9-]/g, "");
+    const name = interaction.options
+      .getString("nom", true)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "");
 
     try {
       await prisma.$executeRaw`DELETE FROM custom_commands WHERE guildId = ${interaction.guildId} AND name = ${name}`;
@@ -80,29 +100,40 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
 
     let cmds: { name: string; response: string; description: string }[] = [];
     try {
-      cmds = await prisma.$queryRaw`SELECT name, response, description FROM custom_commands WHERE guildId = ${interaction.guildId}` as any;
+      cmds =
+        (await prisma.$queryRaw`SELECT name, response, description FROM custom_commands WHERE guildId = ${interaction.guildId}`) as any;
     } catch (err) {
       logger.error(`[CustomCmd] List error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     if (cmds.length === 0) {
-      await interaction.editReply({ content: "Aucune commande personnalisée. Utilisez `/customcmd create` pour en créer une." });
+      await interaction.editReply({
+        content: "Aucune commande personnalisée. Utilisez `/customcmd create` pour en créer une.",
+      });
       return;
     }
 
     const embed = new EmbedBuilder()
       .setTitle("📝 Commandes personnalisées")
       .setColor(0x6366f1)
-      .setDescription(cmds.map((c) => `**${c.name}** — ${c.description}\n> ${c.response.substring(0, 80)}`).join("\n\n"));
+      .setDescription(
+        cmds
+          .map((c) => `**${c.name}** — ${c.description}\n> ${c.response.substring(0, 80)}`)
+          .join("\n\n"),
+      );
 
     await interaction.editReply({ embeds: [embed] });
   }
 }
 
 // Handler for custom command triggers (called from message events)
-export async function handleCustomCommand(guildId: string, commandName: string): Promise<string | null> {
+export async function handleCustomCommand(
+  guildId: string,
+  commandName: string,
+): Promise<string | null> {
   try {
-    const results = await prisma.$queryRaw`SELECT response FROM custom_commands WHERE guildId = ${guildId} AND name = ${commandName}` as any[];
+    const results =
+      (await prisma.$queryRaw`SELECT response FROM custom_commands WHERE guildId = ${guildId} AND name = ${commandName}`) as any[];
     if (results.length > 0) return results[0].response;
   } catch (err) {
     logger.debug(`[CustomCmd] Trigger error: ${err instanceof Error ? err.message : String(err)}`);

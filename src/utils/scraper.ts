@@ -1,14 +1,14 @@
-import logger from './logger.js';
+import logger from "./logger.js";
 
-type Browser = import('playwright').Browser;
-type BrowserContext = import('playwright').BrowserContext;
-type Page = import('playwright').Page;
+type Browser = import("playwright").Browser;
+type BrowserContext = import("playwright").BrowserContext;
+type Page = import("playwright").Page;
 
 let browser: Browser | null = null;
 let context: BrowserContext | null = null;
 
 const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
 /**
  * Lance (ou récupère) un navigateur Chromium headless.
@@ -20,11 +20,15 @@ const DEFAULT_USER_AGENT =
  */
 async function applyAntiDetection(ctx: BrowserContext): Promise<void> {
   await ctx.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
   });
 }
 
-export async function launchBrowser(): Promise<{ browser: Browser; context: BrowserContext; page: Page }> {
+export async function launchBrowser(): Promise<{
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+}> {
   if (browser?.isConnected()) {
     context = await browser.newContext({
       userAgent: DEFAULT_USER_AGENT,
@@ -33,22 +37,22 @@ export async function launchBrowser(): Promise<{ browser: Browser; context: Brow
     });
     await applyAntiDetection(context);
     const page = await context.newPage();
-    logger.debug('[Scraper] Reusing existing browser instance');
+    logger.debug("[Scraper] Reusing existing browser instance");
     return { browser, context, page };
   }
 
-  logger.info('[Scraper] Launching Chromium...');
-  const { chromium } = await import('playwright');
+  logger.info("[Scraper] Launching Chromium...");
+  const { chromium } = await import("playwright");
   browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-blink-features=AutomationControlled",
+      "--disable-web-security",
+      "--disable-features=IsolateOrigins,site-per-process",
     ],
   });
 
@@ -64,11 +68,11 @@ export async function launchBrowser(): Promise<{ browser: Browser; context: Brow
   const page = await context.newPage();
 
   // Bloque les dialogues (alert/confirm/prompt)
-  page.on('dialog', async (dialog) => {
+  page.on("dialog", async (dialog) => {
     await dialog.dismiss();
   });
 
-  logger.info('[Scraper] Chromium launched successfully');
+  logger.info("[Scraper] Chromium launched successfully");
   return { browser: browser!, context: context!, page };
 }
 
@@ -81,8 +85,8 @@ export async function closeBrowser(): Promise<void> {
     context = null;
     await browser?.close();
     browser = null;
-    logger.info('[Scraper] Browser closed');
+    logger.info("[Scraper] Browser closed");
   } catch (err) {
-    logger.warn('[Scraper] Error closing browser: ' + String(err));
+    logger.warn("[Scraper] Error closing browser: " + String(err));
   }
 }

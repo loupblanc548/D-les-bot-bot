@@ -68,6 +68,11 @@ const SHELL_WHITELIST: Array<{ cmd: string; args: string[] }> = [
   { cmd: "ls", args: ["-la"] },
   { cmd: "cat", args: ["/etc/os-release"] },
   { cmd: "uname", args: ["-a"] },
+  { cmd: "hostname", args: [] },
+  { cmd: "whoami", args: [] },
+  { cmd: "date", args: [] },
+  { cmd: "pwd", args: [] },
+  { cmd: "id", args: [] },
   { cmd: "netstat", args: ["-tlnp"] },
   { cmd: "ss", args: ["-tlnp"] },
   { cmd: "du", args: ["-sh"] },
@@ -77,7 +82,11 @@ const SHELL_WHITELIST: Array<{ cmd: string; args: string[] }> = [
 // Shell metacharacters that allow command chaining/injection
 const SHELL_METACHARS = /[;|`$()><\n\r]/;
 
-function isCommandAllowed(cmd: string): { allowed: boolean; binary: string; args: string[] } {
+export function isCommandAllowed(cmd: string): {
+  allowed: boolean;
+  binary: string;
+  args: string[];
+} {
   const trimmed = cmd.trim();
 
   // Reject if any shell metacharacter is present
@@ -123,6 +132,12 @@ function isCommandAllowed(cmd: string): { allowed: boolean; binary: string; args
   return { allowed: false, binary: "", args: [] };
 }
 
+export function formatShellWhitelist(): string {
+  return SHELL_WHITELIST.map((w) => (w.args.length ? `${w.cmd} ${w.args.join(" ")}` : w.cmd)).join(
+    ", ",
+  );
+}
+
 function truncate(s: string): string {
   return s.length > MAX_OUTPUT ? s.slice(0, MAX_OUTPUT) + "\n... (truncated)" : s;
 }
@@ -166,13 +181,31 @@ export const EXTERNAL_TOOLS: AgentToolDef[] = [
     function: {
       name: "ssh_command",
       description:
-        "Exécute une commande shell sur le VPS. Whitelist de commandes sûres (uptime, free, df, pm2, docker, git, etc.). Nécessite AGENT_SSH_ENABLED=true.",
+        "Exécute une commande shell (terminal/CMD du VPS). Whitelist : uptime, free -h, df -h, pm2 list, docker ps, git status, hostname, whoami, etc. Admin/owner only.",
       parameters: {
         type: "object",
         properties: {
           command: {
             type: "string",
             description: "Commande à exécuter (ex: 'pm2 list', 'df -h', 'docker ps')",
+          },
+        },
+        required: ["command"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "run_terminal",
+      description:
+        "Vrai terminal du serveur (CMD/shell Linux). À appeler si on demande un CMD, un terminal, bash, « lance uptime », « pm2 list ». Pas une commande Discord slash. Whitelist only, admin/owner.",
+      parameters: {
+        type: "object",
+        properties: {
+          command: {
+            type: "string",
+            description: "Commande shell (ex: 'uptime', 'pm2 list', 'df -h', 'hostname')",
           },
         },
         required: ["command"],
@@ -414,7 +447,7 @@ const dynamicCrons = new Map<string, ScheduledTask>();
 export async function executeExternalTool(
   toolName: string,
   args: Record<string, any>,
-  _ctx: ToolContext,
+  ctx: ToolContext,
 ): Promise<ToolCallResult | null> {
   logger.info(`[AgentToolsExt] 🔧 ${toolName} args=${JSON.stringify(args).slice(0, 150)}`);
 
@@ -491,24 +524,37 @@ export async function executeExternalTool(
         };
       }
 
-      // ─── 3. SSH Command ─────────
-      case "ssh_command": {
-        if (!SSH_ENABLED)
-          return { success: false, data: "SSH désactivé. Set AGENT_SSH_ENABLED=true" };
+      // ─── 3. Terminal / CMD ─────────
+      case "ssh_command":
+      case "run_terminal": {
+        const isOwner = Boolean(process.env.OWNER_ID && ctx.userId === process.env.OWNER_ID);
+        if (!SSH_ENABLED && !isOwner) {
+          return {
+            success: false,
+            data: "Terminal désactivé. Réservé au owner, ou set AGENT_SSH_ENABLED=true.",
+          };
+        }
         const command = String(args.command ?? "");
         const check = isCommandAllowed(command);
         if (!check.allowed) {
           return {
             success: false,
-            data: `Commande non autorisée. Whitelist: ${SHELL_WHITELIST.map((w) => `${w.cmd} ${w.args.join(" ")}`).join(", ")}`,
+            data: `Commande refusée (whitelist uniquement).\nAutorisées: ${formatShellWhitelist()}`,
           };
         }
-        // Use execFile (no shell interpretation) instead of exec (passes through shell)
-        const { stdout, stderr } = await execFileAsync(check.binary, check.args, {
-          timeout: 10_000,
-          maxBuffer: 1024 * 1024,
-        });
-        return { success: true, data: truncate(stdout + (stderr ? `\nSTDERR:\n${stderr}` : "")) };
+        try {
+          const { stdout, stderr } = await execFileAsync(check.binary, check.args, {
+            timeout: 10_000,
+            maxBuffer: 1024 * 1024,
+          });
+          return {
+            success: true,
+            data: truncate(stdout + (stderr ? `\nSTDERR:\n${stderr}` : "")),
+          };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { success: false, data: `Échec terminal: ${msg}` };
+        }
       }
 
       // ─── 4. DB Query ─────────

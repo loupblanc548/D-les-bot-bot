@@ -148,7 +148,9 @@ export async function sendPaginatedEmbed(
   collector.on("end", async () => {
     try {
       await message.edit({ components: [] });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   });
 }
 

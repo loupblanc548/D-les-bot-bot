@@ -1,5 +1,6 @@
 import type { ToolCallResult } from "../agentTools.js";
 import { checkUrlForSsrf } from "../../utils/ssrfGuard.js";
+import { getActivity, getNumberFact } from "../freeApis.js";
 
 const ok = (d: string): ToolCallResult => ({ success: true, data: d });
 const err = (d: string): ToolCallResult => ({ success: false, data: d });
@@ -125,17 +126,11 @@ export async function toolBoardgameSearch(args: Record<string, any>): Promise<To
 }
 
 export async function toolRandomFact(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "trivia").trim();
-  const num = args.number ? String(args.number) : "random";
-  try {
-    const res = await fetch(`http://numbersapi.com/${num}/${type}`, {
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) return err("API error");
-    return ok(`🔢 ${await res.text()}`);
-  } catch (e) {
-    return err(`Erreur: ${e}`);
-  }
+  const num =
+    args.number === undefined || args.number === "random" ? "random" : Number(args.number);
+  const fact = await getNumberFact(Number.isFinite(num as number) ? (num as number) : "random");
+  if (!fact) return err("Aucun fait trouvé");
+  return ok(`🔢 ${fact}`);
 }
 
 export async function toolThisDayInHistory(_a: Record<string, any>): Promise<ToolCallResult> {
@@ -198,19 +193,12 @@ export async function toolWordOfTheDay(args: Record<string, any>): Promise<ToolC
   );
 }
 
-export async function toolBoredActivity(args: Record<string, any>): Promise<ToolCallResult> {
-  const type = String(args.type || "").trim();
-  try {
-    const url = type
-      ? `https://www.boredapi.com/api/activity?type=${type}`
-      : "https://www.boredapi.com/api/activity";
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return err("API error");
-    const d = (await res.json()) as { activity?: string; type?: string; participants?: number };
-    return ok(`🎯 **Activité:** ${d.activity}\nType: ${d.type} | Participants: ${d.participants}`);
-  } catch (e) {
-    return err(`Erreur: ${e}`);
-  }
+export async function toolBoredActivity(_args: Record<string, any>): Promise<ToolCallResult> {
+  const activity = await getActivity();
+  if (!activity) return err("Aucune activité trouvée");
+  return ok(
+    `🎯 **Activité:** ${activity.activity}\nType: ${activity.type} | Participants: ${activity.participants}`,
+  );
 }
 
 export async function toolChuckNorrisFact(_a: Record<string, any>): Promise<ToolCallResult> {
@@ -312,9 +300,7 @@ export async function toolGeocodeAddress(args: Record<string, any>): Promise<Too
   }
 }
 
-export async function toolDistanceCalculator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolDistanceCalculator(args: Record<string, any>): Promise<ToolCallResult> {
   const lat1 = Number(args.lat1),
     lon1 = Number(args.lon1),
     lat2 = Number(args.lat2),
@@ -348,9 +334,7 @@ export async function toolPeriodicTable(args: Record<string, any>): Promise<Tool
   }
 }
 
-export async function toolFakePersonGenerator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolFakePersonGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const nat = String(args.nationality || "").trim();
   try {
     const res = await fetch(
@@ -376,9 +360,7 @@ export async function toolFakePersonGenerator(
   }
 }
 
-export async function toolGitignoreGenerator(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolGitignoreGenerator(args: Record<string, any>): Promise<ToolCallResult> {
   const stack = String(args.stack || "")
     .trim()
     .toLowerCase();
@@ -422,9 +404,7 @@ export async function toolNpmPackageInfo(args: Record<string, any>): Promise<Too
   }
 }
 
-export async function toolOpenLibrarySearch(
-  args: Record<string, any>,
-): Promise<ToolCallResult> {
+export async function toolOpenLibrarySearch(args: Record<string, any>): Promise<ToolCallResult> {
   const q = String(args.query || "").trim();
   if (!q) return err("Paramètre: query");
   try {

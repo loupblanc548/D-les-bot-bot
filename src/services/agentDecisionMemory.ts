@@ -24,7 +24,9 @@ export interface AgentDecision {
 const memoryStore: AgentDecision[] = [];
 const MAX_MEMORY = 500;
 
-export async function recordDecision(decision: Omit<AgentDecision, "id" | "createdAt">): Promise<void> {
+export async function recordDecision(
+  decision: Omit<AgentDecision, "id" | "createdAt">,
+): Promise<void> {
   try {
     await prisma.$executeRaw`
       INSERT INTO "AgentDecision" ("type", "action", "success", "context", "createdAt")
@@ -47,8 +49,13 @@ export async function getRecentDecisions(type: string, limit = 5): Promise<Agent
       LIMIT ${limit}
     `;
     if (rows && rows.length > 0) return rows;
-  } catch { logger.error("[Silent catch]"); }
-  return memoryStore.filter((d) => d.type === type).slice(-limit).reverse();
+  } catch {
+    logger.error("[Silent catch]");
+  }
+  return memoryStore
+    .filter((d) => d.type === type)
+    .slice(-limit)
+    .reverse();
 }
 
 export async function getFailedDecisions(type: string, limit = 3): Promise<AgentDecision[]> {
@@ -60,15 +67,27 @@ export async function getFailedDecisions(type: string, limit = 3): Promise<Agent
       LIMIT ${limit}
     `;
     if (rows && rows.length > 0) return rows;
-  } catch { logger.error("[Silent catch]"); }
-  return memoryStore.filter((d) => d.type === type && !d.success).slice(-limit).reverse();
+  } catch {
+    logger.error("[Silent catch]");
+  }
+  return memoryStore
+    .filter((d) => d.type === type && !d.success)
+    .slice(-limit)
+    .reverse();
 }
 
-export async function wasRecentAction(type: string, actionSubstring: string, withinMinutes = 60): Promise<boolean> {
+export async function wasRecentAction(
+  type: string,
+  actionSubstring: string,
+  withinMinutes = 60,
+): Promise<boolean> {
   const recent = await getRecentDecisions(type, 10);
   const cutoff = Date.now() - withinMinutes * 60 * 1000;
   return recent.some(
-    (d) => d.createdAt && new Date(d.createdAt).getTime() > cutoff && d.action.toLowerCase().includes(actionSubstring.toLowerCase()),
+    (d) =>
+      d.createdAt &&
+      new Date(d.createdAt).getTime() > cutoff &&
+      d.action.toLowerCase().includes(actionSubstring.toLowerCase()),
   );
 }
 
@@ -84,5 +103,7 @@ export async function cleanupOldDecisions(): Promise<void> {
   try {
     await prisma.$executeRaw`DELETE FROM "AgentDecision" WHERE "createdAt" < NOW() - INTERVAL '30 days'`;
     logger.info("[DecisionMemory] Vieilles décisions nettoyées");
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 }

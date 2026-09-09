@@ -9,6 +9,7 @@ services:
     volumes:
       - ./backups:/app/backups
       - ./logs:/app/logs
+    mem_limit: 2g
     healthcheck:
       test: ["CMD", "node", "-e", "const http=require('http');const start=Date.now();http.get('http://localhost:3000/health',r=>{if(r.statusCode!==200){process.exit(1);}let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);if(j.status!=='ok'){process.exit(1);}process.exit(0);}catch{process.exit(1);}});}).on('error',()=>process.exit(1));"]
       interval: 30s
@@ -24,6 +25,8 @@ services:
       POSTGRES_USER: discord_bot
       POSTGRES_PASSWORD: discord_bot
       POSTGRES_DB: discord_bot
+    command: postgres -c shared_buffers=256MB -c max_connections=40 -c work_mem=8MB
+    mem_limit: 512m
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
@@ -38,6 +41,8 @@ services:
     image: redis:7-alpine
     container_name: discord-bot-redis
     restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    mem_limit: 192m
     ports:
       - "6379:6379"
     volumes:

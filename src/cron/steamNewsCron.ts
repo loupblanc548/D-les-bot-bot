@@ -7,6 +7,7 @@ import { dbCache } from "../utils/cache.js";
 import { metricsCollector } from "../utils/metrics.js";
 import { dedupCache } from "../utils/deduplicationCache.js";
 import { generateCardAttachment } from "../utils/notificationCards.js";
+import { oneLineEmbedTitle } from "../utils/embedLayout.js";
 import {
   alertCronFailure as _alertCronFailure,
   alertNotificationFailure,
@@ -326,7 +327,7 @@ async function checkTrackedGames(client: Client): Promise<void> {
         if (!channel) continue;
 
         const embed = new EmbedBuilder()
-          .setTitle("📋 " + title)
+          .setTitle("📋 " + oneLineEmbedTitle(title, 80))
           .setURL(link)
           .setColor(cfg.color)
           .setAuthor({
@@ -363,13 +364,11 @@ async function checkTrackedGames(client: Client): Promise<void> {
           if (cardAttachment) {
             embed.setImage(`attachment://${cardAttachment.name}`);
             await channel.send({
-              content: "📋 **Nouveau patch note detecte sur " + cfg.label + " !**",
               embeds: [embed],
               files: [cardAttachment],
             });
           } else {
             await channel.send({
-              content: "📋 **Nouveau patch note detecte sur " + cfg.label + " !**",
               embeds: [embed],
             });
           }

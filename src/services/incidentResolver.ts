@@ -247,7 +247,9 @@ export async function submitForValidation(
         source: proposal.analysis.source,
       }),
     });
-  } catch { logger.error("[Silent catch]"); }
+  } catch {
+    logger.error("[Silent catch]");
+  }
 
   logger.info(
     `[IncidentResolver] Correctif ${approved ? "approuvé" : "rejeté"} — ${proposal.action} pour ${proposal.analysis.category}`,

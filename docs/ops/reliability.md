@@ -40,9 +40,10 @@ This document describes the reliability patterns implemented in the bot:
 
 | Variable            | Default                   | Description      |
 | ------------------- | ------------------------- | ---------------- |
-| `LOCAL_LLM_ENABLED` | true                      | Enable local LLM |
-| `LOCAL_LLM_URL`     | http://127.0.0.1:11434/v1 | Ollama endpoint  |
-| `LOCAL_LLM_MODEL`   | qwen2.5:14b               | Model name       |
+| `LOCAL_LLM_ENABLED` | false                     | Opt-in local Ollama (Qwen/Llama) |
+| `OLLAMA_STANDBY`    | true                      | Force unload — no RAM load       |
+| `LOCAL_LLM_URL`     | http://127.0.0.1:11434/v1 | Ollama endpoint                  |
+| `LOCAL_LLM_MODEL`   | qwen2.5:14b               | Model name (on disk until Llama) |
 | `AI_PROVIDER_ORDER` | local,openai,openrouter   | Fallback order   |
 
 ## How It Works

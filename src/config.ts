@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { loadEnv } from "./utils/env-loader.js";
+import { shouldUseLocalOllama } from "./utils/localLlmGate.js";
 
 dotenv.config();
 
@@ -24,7 +25,7 @@ export const config = {
 
   // Twitch
   twitterAccounts: env.TWITTER_ACCOUNTS || "",
-  twitterChannel: env.TWITTER_CHANNEL_ID || env.LOG_CHANNEL_ID || "",
+  twitterChannel: env.TWITTER_CHANNEL_ID || "",
   twitchClientId: env.TWITCH_CLIENT_ID || "",
   twitchClientSecret: env.TWITCH_CLIENT_SECRET || "",
 
@@ -159,6 +160,9 @@ export const config = {
   // Steam
   steamApiKey: env.STEAM_API_KEY || "",
 
+  // Have I Been Pwned v3
+  hibpApiKey: env.HIBP_API_KEY || "",
+
   // ===== API Base URLs =====
   openRouterBaseUrl: env.OPENROUTER_BASE_URL,
   twitchApiBaseUrl: env.TWITTER_API_BASE_URL,
@@ -231,6 +235,13 @@ export const config = {
   priceTrackChannel: env.PRICE_TRACK_CHANNEL_ID || "",
   trendsChannel: env.TRENDS_CHANNEL_ID || "",
   viralChannel: env.VIRAL_CHANNEL_ID || "",
+  // Security / community channels — env overrides; hardcoded fallbacks preserve current production
+  reportChannel: env.REPORT_CHANNEL_ID || "1520866527753011220",
+  reportRoleId: env.REPORT_ROLE_ID || "1402362014264983762",
+  boostChannel: env.BOOST_CHANNEL_ID || "1203399031351545887",
+  manualReportChannel: env.MANUAL_REPORT_CHANNEL_ID || "1515767173740757112",
+  creatorsChannel: env.CREATORS_CHANNEL_ID || "",
+  generalChannel: env.GENERAL_CHANNEL_ID || "1134242473334554774",
 
   // ─── Rate Limiting ────────────────────────────────────────────────────────
   rateLimit: {
@@ -268,9 +279,11 @@ export function validateConfig(): { errors: string[]; warnings: string[] } {
   // Discord (fatal)
   if (!config.token) errors.push("DISCORD_TOKEN manquant dans .env");
   if (!config.clientId) errors.push("DISCORD_CLIENT_ID manquant dans .env");
-  // AI: local Ollama is a valid standalone mode; external providers are optional.
-  if (!config.openRouterApiKey && process.env.LOCAL_LLM_ENABLED === "false") {
-    warnings.push("Aucun provider IA externe configuré et LLM local désactivé");
+  // AI: Ollama/Qwen is standby by default — cloud keys are required until Llama.
+  if (!config.openRouterApiKey && !shouldUseLocalOllama()) {
+    warnings.push(
+      "Aucun provider IA cloud configuré — Ollama/Qwen est en standby (poids sur disque, pas en RAM)",
+    );
   }
   // Channels (warning - le bot fonctionne sans)
   if (!config.logChannel)

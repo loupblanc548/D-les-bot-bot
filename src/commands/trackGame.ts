@@ -150,7 +150,9 @@ async function handleTrackGame(interaction: ChatInputCommandInteraction) {
       await interaction.editReply({
         content: "❌ Une erreur est survenue lors de l'ajout du jeu.",
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -194,7 +196,9 @@ async function handleUntrackGame(interaction: ChatInputCommandInteraction) {
       await interaction.editReply({
         content: "❌ Une erreur est survenue lors de la suppression.",
       });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }
 
@@ -240,6 +244,8 @@ async function handleListTracked(interaction: ChatInputCommandInteraction) {
     logger.error("[TrackGame] Erreur list:", String(error));
     try {
       await interaction.editReply({ content: "❌ Une erreur est survenue lors du listage." });
-    } catch { logger.error("[Silent catch]"); }
+    } catch {
+      logger.error("[Silent catch]");
+    }
   }
 }

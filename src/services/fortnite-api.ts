@@ -20,6 +20,10 @@ const SHOP_URL = "https://fortnite-api.com/v2/shop";
 // Cache TTL 15 minutes (la boutique change une fois par jour)
 const CACHE_TTL_MS = config.fortniteCacheTtlMs;
 const shopCache = new Map<string, { data: FortniteShopResponse | null; ts: number }>();
+
+export function invalidateShopCache(): void {
+  shopCache.clear();
+}
 let lastSweep = 0;
 const SWEEP_COOLDOWN_MS = 60_000;
 
@@ -115,9 +119,7 @@ export function extractAllNamesFromEntry(entry: Record<string, any>): string[] {
 
   // 3. Si rien trouvé, log en debug uniquement (évite le spam de warnings)
   if (names.size === 0) {
-    fortniteLogger.debug(
-      `[FortniteAPI] Entrée sans nom (offerId: ${entry.offerId || "inconnu"})`,
-    );
+    fortniteLogger.debug(`[FortniteAPI] Entrée sans nom (offerId: ${entry.offerId || "inconnu"})`);
   }
 
   return [...names];
@@ -376,7 +378,10 @@ export async function checkWishlistMatches(client: Client): Promise<number> {
     );
 
     fortniteLogger.info("\ud83d\udd0d [Wishlist] Récupération des wishlists en base...");
-    const wishlistItems = await prisma.wishlist.findMany({ take: 1000 });
+    const wishlistItems = await prisma.wishlist.findMany({
+      where: { platform: "fortnite" },
+      take: 1000,
+    });
     fortniteLogger.info(
       "\ud83d\udcca [Wishlist] " + wishlistItems.length + " entrée(s) wishlist trouvée(s)",
     );
@@ -587,7 +592,10 @@ export async function runWishlistRetrospective(client: Client): Promise<number> 
     fortniteLogger.info(
       "\ud83d\udd0d [Wishlist Retrospective] Récupération des wishlists en base...",
     );
-    const wishlistItems = await prisma.wishlist.findMany({ take: 1000 });
+    const wishlistItems = await prisma.wishlist.findMany({
+      where: { platform: "fortnite" },
+      take: 1000,
+    });
     fortniteLogger.info(
       "\ud83d\udcca [Wishlist Retrospective] " +
         wishlistItems.length +

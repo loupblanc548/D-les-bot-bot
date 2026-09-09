@@ -87,9 +87,10 @@ describe("detectPlatforms", () => {
     expect(result.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("returns empty array for unrelated title", () => {
-    const result = detectPlatforms("Today weather forecast");
-    expect(result).toEqual([]);
+  it("does not route GTA or monitor reviews to Fortnite or Nintendo", () => {
+    expect(detectPlatforms("GTA 6 MONEY LAUNDERING")).toEqual([]);
+    expect(detectPlatforms("Gigabyte GO27Q24A Review")).toEqual([]);
+    expect(detectPlatforms("Cyberpunk Edgerunners gun still unfinished")).toEqual([]);
   });
 
   it("is case insensitive", () => {
@@ -160,8 +161,8 @@ describe("buildPlatformEmbed", () => {
     const platform = PLATFORM_CONFIGS[0];
 
     const embed = buildPlatformEmbed(article, platform);
-
     expect(embed).toBeInstanceOf(EmbedBuilder);
+    expect((embed.data.title || "").length).toBeLessThanOrEqual(90);
   });
 
   it("truncates content over 1800 chars", () => {

@@ -1,0 +1,184 @@
+/* John control panel — chat, mémoire, connexion */
+
+.sidebar-logo-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.live-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+}
+.live-chip.live {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: var(--success-bg);
+}
+.live-chip.demo {
+  color: #fcd34d;
+  border-color: rgba(234, 179, 8, 0.35);
+  background: var(--warning-bg);
+}
+.live-chip.off {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: var(--danger-bg);
+}
+
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.bento-value--sm {
+  font-size: 16px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.muted-copy {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.chat-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 180px);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chat-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-bubble {
+  max-width: min(720px, 86%);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.chat-bubble--john {
+  align-self: flex-start;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+}
+.chat-bubble--me {
+  align-self: flex-end;
+  background: var(--accent-bg);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+.chat-bubble--wait {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.chat-composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.chat-composer input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.wish-list {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.wish-chip {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+#activity-feed,
+.activity-list {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+body:not(.is-electron) #titlebar-controls {
+  display: none;
+}
+
+.ping-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ping-list li {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.ping-list .ping-meta {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
