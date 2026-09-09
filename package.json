@@ -73,7 +73,7 @@
     "googleapis": "^173.0.0",
     "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
-    "jsdom": "^30.0.0",
+    "jsdom": "^30.0.1",
     "jsonwebtoken": "^9.0.3",
     "libphonenumber-js": "^1.13.7",
     "libsodium-wrappers": "^0.8.4",
