@@ -4,7 +4,7 @@ import type { ToolContext } from "./agentTools.js";
 
 function ctx(): ToolContext {
   return {
-    client: { guilds: { cache: { get: () => undefined } } } as ToolContext["client"],
+    client: { guilds: { cache: { get: () => undefined } } } as unknown as ToolContext["client"],
     message: {} as ToolContext["message"],
     userId: "1",
     guildId: "1",

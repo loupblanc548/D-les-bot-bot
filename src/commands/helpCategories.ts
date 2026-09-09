@@ -72,7 +72,8 @@ export const CATEGORIES: Category[] = [
       "`/security config antiraid [action] - Mode anti-raid`\n" +
       "`/security config word-filter [action] - Filtre mots interdits`\n" +
       "`/security defense raid-shield - Bouclier anti-raid`\n" +
-      "`/security defense lockdown-server - Verrouillage serveur`",
+      "`/security defense lockdown-server - Verrouillage serveur`\n" +
+      "`/security defense playbook - Parades réseau (pas d'attaque)`",
   },
   {
     id: "ai",

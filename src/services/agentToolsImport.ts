@@ -30,6 +30,14 @@ async function getJson(url: string, timeoutMs = 8000): Promise<unknown> {
   return res.json();
 }
 
+/** discord.js Guild n'expose pas maximumEmojis / maximumStickers. */
+function emojiStickerCaps(tier: number): { emojis: number; stickers: number } {
+  if (tier >= 3) return { emojis: 250, stickers: 60 };
+  if (tier >= 2) return { emojis: 150, stickers: 30 };
+  if (tier >= 1) return { emojis: 100, stickers: 15 };
+  return { emojis: 50, stickers: 5 };
+}
+
 function def(
   name: string,
   description: string,
@@ -128,12 +136,13 @@ add(
   async (_args, ctx) => {
     const guild = ctx.client.guilds.cache.get(ctx.guildId);
     if (!guild) return err("Serveur introuvable");
+    const caps = emojiStickerCaps(guild.premiumTier);
     return ok({
       name: guild.name,
       premiumTier: guild.premiumTier,
       boosts: guild.premiumSubscriptionCount ?? 0,
-      emojiSlots: guild.maximumEmojis,
-      stickers: guild.maximumStickers,
+      emojiSlots: caps.emojis,
+      stickers: caps.stickers,
     });
   },
 );
@@ -145,9 +154,10 @@ add(
     if (!guild) return err("Serveur introuvable");
     await guild.emojis.fetch().catch(() => null);
     await guild.stickers.fetch().catch(() => null);
+    const caps = emojiStickerCaps(guild.premiumTier);
     return ok({
-      emojis: `${guild.emojis.cache.size} / ${guild.maximumEmojis}`,
-      stickers: `${guild.stickers.cache.size} / ${guild.maximumStickers}`,
+      emojis: `${guild.emojis.cache.size} / ${caps.emojis}`,
+      stickers: `${guild.stickers.cache.size} / ${caps.stickers}`,
       animated: guild.emojis.cache.filter((e) => e.animated).size,
     });
   },

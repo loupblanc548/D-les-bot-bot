@@ -17,6 +17,7 @@ export const CHAT_FIRST_SLASH = [
   "mc",
   "admin",
   "wishlist",
+  "fiches",
   "config",
   "privacy",
   "killswitch",
@@ -35,6 +36,7 @@ const SLASH_BLURB: Record<(typeof CHAT_FIRST_SLASH)[number], string> = {
   mc: "Minecraft Bedrock",
   admin: "administration (staff)",
   wishlist: "wishlist jeux",
+  fiches: "fiches Discord par domaine (cartes natives)",
   config: "configuration du bot",
   privacy: "confidentialité / données",
   killswitch: "coupe-circuit d'urgence",
@@ -88,7 +90,7 @@ export function matchSlashCommands(query: string): string[] {
 export const CHAT_FIRST_COMMANDS_HINT =
   "\n\n## COMMANDES DISCORD\n" +
   "Il n'existe AUCUNE commande préfixe `!` : !help, !cmd, !commands n'existent pas. " +
-  "Le menu Discord s'ouvre avec `/`. Groupes : /help, /bot, /game, /ai, /mod, /security, /mc, /admin, /wishlist, /config, /privacy, /killswitch, /learn-stats. " +
+  "Le menu Discord s'ouvre avec `/`. Groupes : /help, /bot, /game, /ai, /mod, /security, /mc, /admin, /wishlist, /fiches, /config, /privacy, /killswitch, /learn-stats. " +
   "Si on demande une commande (cmd, slash, « c'est quoi la commande pour… ») → list_bot_commands avec le sujet. " +
   "Donne le `/groupe sous-commande` réel (ex: Steam → /game steam, pas /steam). " +
   "Si on veut aussi le résultat maintenant, fais-le en chat avec tes tools. " +

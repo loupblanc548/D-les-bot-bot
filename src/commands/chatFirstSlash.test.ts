@@ -14,6 +14,7 @@ describe("chatFirstSlash", () => {
     expect(isChatFirstSlash("game")).toBe(true);
     expect(isChatFirstSlash("ai")).toBe(true);
     expect(isChatFirstSlash("mod")).toBe(true);
+    expect(isChatFirstSlash("fiches")).toBe(true);
     expect(isChatFirstSlash("steam")).toBe(false);
     expect(CHAT_FIRST_SLASH).toContain("game");
   });
