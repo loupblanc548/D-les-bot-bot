@@ -11,113 +11,114 @@
  */
 
 import { Client, Message } from "discord.js";
-import logger from "../utils/logger.js";
+import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
 import { config } from "../config.js";
-import { callLlm } from "./aiGateway.js";
-import { NVIDIA_TOOLS_MODEL, nvidiaModelSupportsTools } from "./nvidiaNim.js";
-import { isErrorResponse, sanitizeResponse } from "./responseClassifier.js";
 import {
-  markModelSuccess,
-  recordModelLatency,
-  isModelAvailable,
-  getAllAvailableModels,
-  ensureAtLeastOneModelAvailable,
-} from "./modelRotation.js";
+  buildPersonalitySystemPrompt,
+  getPersonalityMaxTokens,
+  getPersonalityModel,
+  getPersonalityTemperature,
+} from "../infrastructure/middleware/personalityMiddleware.js";
+import prisma from "../prisma.js";
+import { detectLanguage, getFlag, getNativeName } from "../utils/languageDetector.js";
+import logger from "../utils/logger.js";
 import { sanitizeForLlm, wrapUntrustedToolContent } from "../utils/promptSanitizer.js";
-import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
+import { formatMemoriesForPrompt, persistMemoryToDb, storeMemory } from "./agentMemory.js";
+import { detectAmbiguity, formatPlanForPrompt, generatePlan } from "./agentPlanner.js";
 import {
+  reflectOnStasis,
+  reflectOnToolResult,
+  resetRetries,
+  type ToolExecutionResult,
+} from "./agentReflector.js";
+import { isRestrictedTool, requestToolApproval } from "./agentSoarGate.js";
+import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
+import {
+  getApiKeyStatusLine,
+  getToolHints,
+  isPrivateChannel,
+  routeTools,
+  suggestToolChain,
+} from "./agentToolRouter.js";
+import {
+  type AgentToolDef,
   ALL_AGENT_TOOLS,
   executeTool,
   generateToolListPrompt,
   type ToolContext,
-  type AgentToolDef,
 } from "./agentTools.js";
-import { delegateToExpert, DELEGATE_TOOL } from "./orchestrator.js";
-import prisma from "../prisma.js";
-import { saveSpokenFacts } from "./memoryHints.js";
-import {
-  beginInteraction,
-  recordLoop,
-  completeInteraction,
-  tripBreaker,
-  createTrippedEmbed,
-} from "./circuitBreaker.js";
-import { generatePlan, formatPlanForPrompt, detectAmbiguity } from "./agentPlanner.js";
-import { storeMemory, formatMemoriesForPrompt, persistMemoryToDb } from "./agentMemory.js";
-import {
-  reflectOnToolResult,
-  resetRetries,
-  reflectOnStasis,
-  type ToolExecutionResult,
-} from "./agentReflector.js";
-import {
-  initSession as initCognitiveSession,
-  purgeSession as purgeCognitiveSession,
-  checkCognitiveStasis,
-} from "./cognitiveLoopEngine.js";
-import {
-  routeTools,
-  getToolHints,
-  suggestToolChain,
-  getApiKeyStatusLine,
-  isPrivateChannel,
-} from "./agentToolRouter.js";
-import { isRestrictedTool, requestToolApproval } from "./agentSoarGate.js";
-import { isLowRisk, getRiskLevel } from "./toolRiskRegistry.js";
-import { getFeedbackHints } from "./proactiveAgent.js";
-import { getAgentLoopModel } from "./modelRouter.js";
-import { getCustomInstructions } from "./customInstructions.js";
-import { summarizeWithGemini, isGeminiAvailable } from "./gemini.js";
-import {
-  isLocalLlmAvailable,
-  isLocalLlmVisionAvailable,
-  getLocalLlmVisionModelName,
-  chatWithLocalLlm,
-  LOCAL_LLM_MODEL_NAME,
-} from "./localLlm.js";
-import { recordLocalLlm, recordApiLlm, recordDelegation, logStatsSummary } from "./llmStats.js";
-import { isKilled } from "./killSwitch.js";
-import { detectLanguage, getNativeName, getFlag } from "../utils/languageDetector.js";
-import {
-  buildPersonalitySystemPrompt,
-  getPersonalityModel,
-  getPersonalityTemperature,
-  getPersonalityMaxTokens,
-} from "../infrastructure/middleware/personalityMiddleware.js";
-import { mentionAwarenessBlock } from "./mentionInbox.js";
-import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
-import { githubKnowledgePromptBlock } from "./githubKnowledgeCatalog.js";
-import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
-import { getCachedResponse, cacheResponse } from "./aiCache.js";
-import { getCachedToolResult, setCachedToolResult, isToolCacheable } from "./toolResultCache.js";
-import { getTrivialResponse } from "./trivialFastPath.js";
-import {
-  loadUserFacts,
-  loadUserNotes,
-  searchKnowledge,
-  appendUserFact,
-  searchQA,
-  saveQA,
-} from "./obsidianMemory.js";
-import {
-  getUserPreferences,
-  recordInteraction,
-  formatPreferencesForPrompt,
-  setUserLanguage,
-} from "./userPreferences.js";
-import { detectPrefetchableTool, formatPrefetchResult } from "./toolPrefetch.js";
+import { cacheResponse, getCachedResponse } from "./aiCache.js";
+import { callLlm } from "./aiGateway.js";
 import type { ChatRuntimeSignal } from "./chatRuntime.js";
 import {
-  agentLoopIterations,
-  agentLoopDuration,
-  agentModelUsed,
-  agentToolCalls,
+  beginInteraction,
+  completeInteraction,
+  createTrippedEmbed,
+  recordLoop,
+  tripBreaker,
+} from "./circuitBreaker.js";
+import {
+  checkCognitiveStasis,
+  initSession as initCognitiveSession,
+  purgeSession as purgeCognitiveSession,
+} from "./cognitiveLoopEngine.js";
+import { getCustomInstructions } from "./customInstructions.js";
+import { isGeminiAvailable, summarizeWithGemini } from "./gemini.js";
+import { githubKnowledgePromptBlock } from "./githubKnowledgeCatalog.js";
+import { isKilled } from "./killSwitch.js";
+import { logStatsSummary, recordApiLlm, recordDelegation, recordLocalLlm } from "./llmStats.js";
+import {
+  chatWithLocalLlm,
+  getLocalLlmVisionModelName,
+  isLocalLlmAvailable,
+  isLocalLlmVisionAvailable,
+  LOCAL_LLM_MODEL_NAME,
+} from "./localLlm.js";
+import { saveSpokenFacts } from "./memoryHints.js";
+import { mentionAwarenessBlock } from "./mentionInbox.js";
+import {
+  ensureAtLeastOneModelAvailable,
+  getAllAvailableModels,
+  isModelAvailable,
+  markModelSuccess,
+  recordModelLatency,
+} from "./modelRotation.js";
+import { getAgentLoopModel } from "./modelRouter.js";
+import { NVIDIA_TOOLS_MODEL, nvidiaModelSupportsTools } from "./nvidiaNim.js";
+import {
+  appendUserFact,
+  loadUserFacts,
+  loadUserNotes,
+  saveQA,
+  searchKnowledge,
+  searchQA,
+} from "./obsidianMemory.js";
+import { DELEGATE_TOOL, delegateToExpert } from "./orchestrator.js";
+import { getFeedbackHints } from "./proactiveAgent.js";
+import {
   agentCacheHits,
   agentCacheMisses,
-  agentLoopMaxedOut,
   agentCognitiveStasis,
+  agentLoopDuration,
+  agentLoopIterations,
+  agentLoopMaxedOut,
+  agentModelUsed,
+  agentToolCalls,
   agentToolCallsDaily,
 } from "./prometheusExporter.js";
+import { isErrorResponse, sanitizeResponse } from "./responseClassifier.js";
+import { classifyTaskComplexity, getModelChainForTask } from "./taskModelRouter.js";
+import { GRADE_REQUIRED_REPLY, checkToolPermission, isGuildActionTool } from "./toolGuardrails.js";
+import { detectPrefetchableTool, formatPrefetchResult } from "./toolPrefetch.js";
+import { getCachedToolResult, isToolCacheable, setCachedToolResult } from "./toolResultCache.js";
+import { getRiskLevel, isLowRisk } from "./toolRiskRegistry.js";
+import { getTrivialResponse } from "./trivialFastPath.js";
+import {
+  formatPreferencesForPrompt,
+  getUserPreferences,
+  recordInteraction,
+  setUserLanguage,
+} from "./userPreferences.js";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -766,6 +767,7 @@ async function runAgentLoopInternal(
   ];
 
   // 2. Boucle Think → Act → Observe → Respond
+  let gradeRefusal = false;
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     signal?.throwIfAborted();
     logger.info(`[AgentLoop] 🔄 Itération ${iteration + 1}/${maxIterations}`);
@@ -969,11 +971,11 @@ async function runAgentLoopInternal(
     // Toute vraie question → API cloud pour une vraie réflexion.
     const lowerUserMsg = userMessage.toLowerCase();
     const TRIVIAL_LOCAL_PATTERNS = [
-      /^\s*(?:salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir)\s*[\?？]?\s*$/i,
+      /^\s*(?:salut|bonjour|hey|coucou|yo|hello|hi|cc|bonsoir)\s*[?？]?\s*$/i,
       /^\s*(?:merci|thanks|thx|cimer|merci beaucoup)\s*$/i,
       /^\s*(?:ok|okay|d.accord|compris|noted|vu|entendu)\s*$/i,
-      /^\s*(?:ça va|ca va|comment ça va|how are you)\s*[\?？]?\s*$/i,
-      /^\s*(?:qui es.tu|t['e]?s qui|who are you)\s*[\?？]?\s*$/i,
+      /^\s*(?:ça va|ca va|comment ça va|how are you)\s*[?？]?\s*$/i,
+      /^\s*(?:qui es.tu|t['e]?s qui|who are you)\s*[?？]?\s*$/i,
       /^\s*(?:mdr|lol|xd|haha|ptdr)\s*$/i,
       /^\s*[\p{Emoji}\s]+$/u,
     ];
@@ -1399,6 +1401,33 @@ async function runAgentLoopInternal(
                   agentToolCalls.labels(toolName, "fail").inc();
                   agentToolCallsDaily.labels(toolName).inc();
                 }
+              } else if (isGuildActionTool(toolName)) {
+                const perm = await checkToolPermission(
+                  ctx.client,
+                  ctx.guildId,
+                  ctx.userId,
+                  toolName,
+                );
+                if (!perm.allowed) {
+                  result = { success: false, data: perm.reason };
+                  recordToolFailure(toolName);
+                  agentToolCalls.labels(toolName, "fail").inc();
+                  agentToolCallsDaily.labels(toolName).inc();
+                } else {
+                  logger.info(
+                    `[AgentLoop] Action serveur autorisée sans DM (${perm.level}): ${toolName}`,
+                  );
+                  result = await executeTool(toolName, args, ctx);
+                  if (result.success) {
+                    recordToolSuccess(toolName);
+                    agentToolCalls.labels(toolName, "success").inc();
+                    agentToolCallsDaily.labels(toolName).inc();
+                  } else {
+                    recordToolFailure(toolName);
+                    agentToolCalls.labels(toolName, "fail").inc();
+                    agentToolCallsDaily.labels(toolName).inc();
+                  }
+                }
               } else if (isRestrictedTool(toolName)) {
                 // Medium/high risk — SOAR gate required
                 const risk = getRiskLevel(toolName) ?? "unclassified";
@@ -1454,6 +1483,10 @@ async function runAgentLoopInternal(
           `[AgentLoop] 🔧 ${toolName} → ${result.success ? "OK" : "FAIL"}: ${String(result.data ?? "").slice(0, 100)}`,
         );
 
+        if (String(result.data ?? "") === GRADE_REQUIRED_REPLY) {
+          return { tool_call_id: tc.id, content: GRADE_REQUIRED_REPLY };
+        }
+
         // ─── MODULE C: Auto-réflexion sur le résultat du tool ───
         const toolExecResult: ToolExecutionResult = {
           toolName,
@@ -1482,6 +1515,16 @@ async function runAgentLoopInternal(
             retryResult = (await executeTool(toolName, retryArgs, ctx)) as ToolExecutionResult & {
               data: string;
             };
+          } else if (isGuildActionTool(toolName)) {
+            const perm = await checkToolPermission(ctx.client, ctx.guildId, ctx.userId, toolName);
+            retryResult = perm.allowed
+              ? ((await executeTool(toolName, retryArgs, ctx)) as ToolExecutionResult & {
+                  data: string;
+                })
+              : ({
+                  success: false,
+                  data: perm.reason,
+                } as ToolExecutionResult & { data: string });
           } else if (isRestrictedTool(toolName)) {
             const approved = await requestToolApproval(toolName, retryArgs, message.author.id);
             retryResult = approved
@@ -1533,8 +1576,21 @@ async function runAgentLoopInternal(
       });
     }
 
+    if (toolResults.some((result) => String(result.content ?? "") === GRADE_REQUIRED_REPLY)) {
+      gradeRefusal = true;
+      break;
+    }
+
     // La boucle continue : l'IA va recevoir les résultats des tools
     // et soit demander d'autres tools, soit formuler sa réponse finale
+  }
+
+  if (gradeRefusal) {
+    logger.info("[AgentLoop] Refus : grade requis");
+    completeInteraction(breakerState);
+    purgeCognitiveSession(cognitiveSessionId);
+    resetRetries(breakerState.interactionId);
+    return GRADE_REQUIRED_REPLY;
   }
 
   // Si on a épuisé les itérations, retourner la dernière réponse

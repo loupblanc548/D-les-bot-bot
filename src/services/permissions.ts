@@ -150,13 +150,40 @@ async function computePermissionLevel(member: GuildMember): Promise<PermissionLe
     return PermissionLevel.MODERATOR;
   }
 
-  // Fallback: vérifier les permissions Discord directement
-  // Si un membre a les permissions modérateur sans avoir le rôle, on lui accorde le niveau
-  if (member.permissions.has(MOD_REQUIRED_PERMISSIONS)) {
+  if (member.guild.ownerId && member.id === member.guild.ownerId) {
+    return PermissionLevel.ADMIN;
+  }
+
+  // Le droit « Gérer les messages » ne suffit pas. Il faut le rôle Modérateur,
+  // ou un rôle placé au-dessus dans la liste du serveur.
+  const guildRoles = member.guild.roles.cache.values?.() ?? [];
+  const memberRoles = member.roles.cache.values?.() ?? [];
+  if (hasModeratorRoleOrHigher(memberRoles, guildRoles)) {
     return PermissionLevel.MODERATOR;
   }
 
   return PermissionLevel.EVERYONE;
+}
+
+const MODERATOR_ROLE_NAME = /^mod[ée]rateur$/i;
+
+/** Vrai si le membre a le rôle nommé Modérateur, ou un rôle plus haut dans la hiérarchie. */
+export function hasModeratorRoleOrHigher(
+  memberRoles: Iterable<{ position: number }>,
+  guildRoles: Iterable<{ name: string; position: number }>,
+): boolean {
+  let floor: number | null = null;
+  for (const role of guildRoles) {
+    if (MODERATOR_ROLE_NAME.test(role.name)) {
+      floor = role.position;
+      break;
+    }
+  }
+  if (floor === null) return false;
+  for (const role of memberRoles) {
+    if (role.position >= floor) return true;
+  }
+  return false;
 }
 
 export async function requireAdmin(interaction: CommandInteraction): Promise<boolean> {

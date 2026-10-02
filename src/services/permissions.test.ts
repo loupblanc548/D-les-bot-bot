@@ -17,8 +17,19 @@ vi.mock("../config", () => ({
   },
 }));
 
-import { getPermissionLevel, requireAdmin, requireMod, PermissionLevel } from "./permissions.js";
-import type { GuildMember, CommandInteraction, Guild } from "discord.js";
+import {
+  getPermissionLevel,
+  hasModeratorRoleOrHigher,
+  requireAdmin,
+  requireMod,
+  PermissionLevel,
+} from "./permissions.js";
+import {
+  PermissionFlagsBits,
+  type GuildMember,
+  type CommandInteraction,
+  type Guild,
+} from "discord.js";
 
 let _memberIdCounter = 0;
 
@@ -154,6 +165,36 @@ describe("getPermissionLevel", () => {
     const member = mockMember({ roleIds: ["role-static-mod"] });
     const level = await getPermissionLevel(member);
     expect(level).toBe(PermissionLevel.MODERATOR);
+  });
+
+  it("does not treat Manage Messages alone as the moderator role", async () => {
+    const prisma = await import("../prisma.js");
+    const { config } = await import("../config.js");
+    config.adminRoles = [];
+    config.modRoles = [];
+    (prisma.default.guildConfig.findUnique as any).mockResolvedValue(null);
+
+    const base = mockMember({ roleIds: ["libérateur"] });
+    const member = {
+      ...base,
+      permissions: {
+        has: (perm: bigint | string) =>
+          perm !== PermissionFlagsBits.Administrator && perm !== "Administrator",
+      },
+    } as GuildMember;
+    const level = await getPermissionLevel(member);
+    expect(level).toBe(PermissionLevel.EVERYONE);
+  });
+
+  it("accepts the Modérateur role and any role placed above it", () => {
+    const guildRoles = [
+      { name: "streameur", position: 34 },
+      { name: "Modérateur", position: 33 },
+      { name: "libérateur de la démocratie contrôlé", position: 30 },
+    ];
+    expect(hasModeratorRoleOrHigher([{ position: 33 }], guildRoles)).toBe(true);
+    expect(hasModeratorRoleOrHigher([{ position: 34 }], guildRoles)).toBe(true);
+    expect(hasModeratorRoleOrHigher([{ position: 30 }], guildRoles)).toBe(false);
   });
 
   it("should return EVERYONE for members with no special roles", async () => {

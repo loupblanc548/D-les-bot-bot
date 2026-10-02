@@ -165,6 +165,10 @@ async function checkAllRepos(client: Client): Promise<void> {
 
 export function startGitHubReleasesMonitor(client: Client): void {
   if (releasesInterval) return;
+  if (process.env.GITHUB_RELEASES_ENABLED !== "true") {
+    logger.info("[GitHubReleases] Annonces de versions coupées (GITHUB_RELEASES_ENABLED != true)");
+    return;
+  }
   logger.info(
     `[GitHubReleases] Monitoring ${getTrackedRepos().length} repos (intervalle: ${CHECK_INTERVAL_MS / 60000}min)`,
   );

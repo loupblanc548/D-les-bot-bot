@@ -1,7 +1,7 @@
 /**
  * agentSystemPrompt.test.ts
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildAgentOperatingRules } from "./agentSystemPrompt.js";
 
 describe("buildAgentOperatingRules", () => {
@@ -17,6 +17,9 @@ describe("buildAgentOperatingRules", () => {
     expect(rules).toContain("42");
     expect(rules).not.toMatch(/COMMANDANT/i);
     expect(rules).toMatch(/TYPE A/i);
+    expect(rules).toMatch(/deleteMessages/);
+    expect(rules).toMatch(/N'écris JAMAIS que c'est fait/);
+    expect(rules).toMatch(/Tu n'as pas le grade requis pour ça/);
   });
 
   it("tells John to use a real server terminal for CMD, not Discord slash", () => {

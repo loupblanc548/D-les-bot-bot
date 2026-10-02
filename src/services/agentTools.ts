@@ -10,63 +10,63 @@
  * de ceux qu'il juge nécessaires.
  */
 
-import { Client, Message, TextChannel, ChannelType } from "discord.js";
+import { execFileSync } from "child_process";
+import { ChannelType, Client, Message, TextChannel } from "discord.js";
+import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
+import { config } from "../config.js";
 import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
-import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
+import { exaSearch } from "./agentReach.js";
+import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
+import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
+import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
+import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
+import { executeFreeTool, FREE_TOOLS } from "./agentToolsFree.js";
+import { executeImportTool, IMPORT_TOOL_NAMES, IMPORT_TOOLS } from "./agentToolsImport.js";
+import { executeKaliTool, KALI_TOOLS } from "./agentToolsKali.js";
+import { executeOrphanTool, ORPHAN_TOOLS } from "./agentToolsOrphan.js";
+import { handleRetailerTool, RETAILER_TOOL_DEFS } from "./agentToolsRetailers.js";
+import { getOpenAIClient } from "./ai.js";
+import { isAssemblyAiAvailable, transcribeAudio } from "./assemblyAi.js";
+import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
 import {
-  loadCasier,
   formatCasierForAgent,
-  loadGuildSanctionLog,
   formatGuildSanctionLog,
+  loadCasier,
+  loadGuildSanctionLog,
 } from "./casierQuery.js";
 import { recordCasierSanction } from "./casierRecorder.js";
 import { presentCasierFromTool } from "./casierVisual.js";
+import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
+import { isCohereAvailable, rerankDocuments } from "./cohere.js";
+import { setDigestConfig } from "./communityDigest.js";
+import { isContext7Available, searchDocumentation } from "./context7.js";
+import {
+  auditDesignForSlop,
+  getAceternityComponentDoc,
+  getAceternityComponents,
+  getGodlyInspiration,
+  listImpeccableCommands,
+} from "./designTools.js";
+import { presentDomainFicheFromTool } from "./domainFiches.js";
+import { generateImage } from "./freeApis.js";
+import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
+import { matchGithubCatalog } from "./githubKnowledgeCatalog.js";
+import { executeMemoryTool, MEMORY_TOOLS } from "./memoryTools.js";
+import { listRecentMentions } from "./mentionInbox.js";
 import {
   findNetworkDefenseItem,
   formatNetworkDefenseForAgent,
   presentNetworkDefenseFromTool,
 } from "./networkDefenseBrief.js";
-import { presentDomainFicheFromTool } from "./domainFiches.js";
-import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
-import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
-import { KALI_TOOLS, executeKaliTool } from "./agentToolsKali.js";
-import { braveWebSearch, isBraveSearchAvailable } from "./braveSearch.js";
-import { exaSearch } from "./agentReach.js";
-import { rerankDocuments, isCohereAvailable } from "./cohere.js";
-import { transcribeAudio, isAssemblyAiAvailable } from "./assemblyAi.js";
-import { analyzeImageWithGemini, isGeminiAvailable } from "./gemini.js";
-import { listRecentMentions } from "./mentionInbox.js";
-import { matchGithubCatalog } from "./githubKnowledgeCatalog.js";
-import { executeCode, formatSandboxResult, isE2BConfigured } from "./codeSandbox.js";
-import { FREE_TOOLS, executeFreeTool } from "./agentToolsFree.js";
-import { EXTERNAL_TOOLS, executeExternalTool } from "./agentToolsExternal.js";
-import { EXTRA_TOOLS, executeExtraTool } from "./agentToolsExtra.js";
-import { ORPHAN_TOOLS, executeOrphanTool } from "./agentToolsOrphan.js";
-import { ingestUrl, searchKnowledge } from "./webIngestion.js";
-import { getOpenAIClient } from "./ai.js";
-import { config } from "../config.js";
 import { classifyNsfw } from "./nsfwClassifier.js";
-import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.js";
-import { setDigestConfig } from "./communityDigest.js";
 import { generateMultiplePasswords } from "./passwordGenerator.js";
-import { createTempEmail, checkTempEmailInbox, PRIVACY_WARNING } from "./tempEmail.js";
-import { generateImage } from "./freeApis.js";
 import { removeBackground } from "./removeBg.js";
-import { MEMORY_TOOLS, executeMemoryTool } from "./memoryTools.js";
-import { RETAILER_TOOL_DEFS, handleRetailerTool } from "./agentToolsRetailers.js";
-import { IMPORT_TOOLS, IMPORT_TOOL_NAMES, executeImportTool } from "./agentToolsImport.js";
-import { searchDocumentation, isContext7Available } from "./context7.js";
-import { execFileSync } from "child_process";
-import {
-  getGodlyInspiration,
-  getAceternityComponents,
-  getAceternityComponentDoc,
-  listImpeccableCommands,
-  auditDesignForSlop,
-} from "./designTools.js";
+import { checkTempEmailInbox, createTempEmail, PRIVACY_WARNING } from "./tempEmail.js";
+import { startVoiceTranslation, stopVoiceTranslation } from "./voiceTranslation.js";
+import { ingestUrl, searchKnowledge } from "./webIngestion.js";
 
 // ─── Cache web (évite les requêtes répétées) ────────────────────────────────
 const webCache = new Map<string, { data: string; ts: number }>();
@@ -218,13 +218,19 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "deleteMessages",
       description:
-        "Supprime un nombre précis de messages récents dans le salon actuel. Utilisé en cas de spam ou flood.",
+        "Supprime des messages dans un salon du serveur. Obligatoire pour « supprime / vide / purge ce salon ». Ne jamais dire que c'est fait sans appeler cet outil.",
       parameters: {
         type: "object",
         properties: {
           amount: {
             type: "number",
-            description: "Le nombre de messages à supprimer (max 100).",
+            description:
+              "Nombre de messages récents à supprimer. 100 pour vider le salon (lots de 100, plafond 500).",
+          },
+          channelId: {
+            type: "string",
+            description:
+              "ID du salon à vider. Omettre pour le salon du message. Doit être sur le même serveur.",
           },
         },
         required: ["amount"],
@@ -1771,20 +1777,70 @@ async function toolDeleteMessages(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<ToolCallResult> {
-  const amount = Math.min(100, Math.max(1, Number(args.amount) || 5));
-  const channel = ctx.client.channels.cache.get(ctx.channelId) as TextChannel | undefined;
-  if (!channel || !channel.isTextBased()) {
-    return { success: false, data: "Salon introuvable ou non textuel" };
+  const rawAmount = args.amount;
+  const wantAll =
+    rawAmount == null || ["all", "tout", "tous"].includes(String(rawAmount).toLowerCase());
+  const target = wantAll ? 500 : Math.min(500, Math.max(1, Number(rawAmount) || 10));
+  const channelId = String(args.channelId || ctx.channelId).replace(/\D/g, "");
+  const channel = (await ctx.client.channels
+    .fetch(channelId)
+    .catch((): null => null)) as TextChannel | null;
+  if (!channel || !channel.isTextBased() || typeof channel.bulkDelete !== "function") {
+    return { success: false, data: "Salon introuvable ou non textuel." };
+  }
+  if (channel.guildId !== ctx.guildId) {
+    return { success: false, data: "Ce salon n'est pas sur ce serveur." };
   }
 
-  const messages = await channel.messages.fetch({ limit: amount });
-  const deleted = await channel.bulkDelete(messages, true).catch((): null => null);
+  const me =
+    channel.guild.members.me ?? (await channel.guild.members.fetchMe().catch((): null => null));
+  if (!me?.permissionsIn(channel).has("ManageMessages")) {
+    return {
+      success: false,
+      data: `Permission « Gérer les messages » manquante dans #${channel.name}. Rien n'a été supprimé.`,
+    };
+  }
 
-  const count = deleted?.size ?? 0;
-  return {
-    success: true,
-    data: `${count} messages supprimés dans #${channel.name}.`,
-  };
+  const twoWeeks = 14 * 24 * 60 * 60 * 1000;
+  let total = 0;
+  for (let round = 0; round < 8 && total < target; round++) {
+    const limit = Math.min(100, target - total);
+    const fetched = await channel.messages.fetch({ limit }).catch((): null => null);
+    if (!fetched || fetched.size === 0) break;
+    const fresh = fetched.filter((msg) => Date.now() - msg.createdTimestamp < twoWeeks);
+    if (fresh.size === 0) {
+      return {
+        success: total > 0,
+        data:
+          total > 0
+            ? `${total} messages supprimés dans #${channel.name}. Le reste a plus de 14 jours : Discord refuse le vidage groupé.`
+            : `Aucun message supprimé dans #${channel.name} : ils ont plus de 14 jours, Discord refuse le vidage groupé.`,
+      };
+    }
+    try {
+      if (fresh.size === 1) {
+        await fresh.first()?.delete();
+        total += 1;
+        break;
+      }
+      const deleted = await channel.bulkDelete(fresh, true);
+      const count = deleted.size;
+      if (count === 0) break;
+      total += count;
+      if (count < limit) break;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        data: `Suppression refusée dans #${channel.name} : ${reason}. ${total} message(s) déjà supprimé(s).`,
+      };
+    }
+  }
+
+  if (total === 0) {
+    return { success: false, data: `Aucun message supprimé dans #${channel.name}.` };
+  }
+  return { success: true, data: `${total} messages supprimés dans #${channel.name}.` };
 }
 
 async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {
@@ -2241,9 +2297,7 @@ async function toolSearchYouTube(args: Record<string, any>): Promise<ToolCallRes
       const output = JSON.stringify(results);
       setCached(cacheKey, output);
       return { success: true, data: output };
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   return { success: false, data: "Aucun résultat YouTube" };

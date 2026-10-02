@@ -9,11 +9,15 @@
  * before executing the action, not just that the bot has permissions.
  */
 
-import type { Client, GuildMember } from "discord.js";
+import type { Client } from "discord.js";
 import logger from "../utils/logger.js";
+import { getPermissionLevel, PermissionLevel as StaffRank } from "./permissions.js";
 
 /** Permission levels (ascending) */
 export type PermissionLevel = "user" | "moderator" | "admin";
+
+/** Phrase dite telle quelle quand le demandeur n'a pas le grade. */
+export const GRADE_REQUIRED_REPLY = "Tu n'as pas le grade requis pour ça.";
 
 /** Actions that require at least moderator level */
 const MODERATOR_ACTIONS = new Set([
@@ -30,7 +34,23 @@ const MODERATOR_ACTIONS = new Set([
   "createEmbed",
   "setChannelTopic",
   "emergency_channel_freeze",
+  "pinMessage",
 ]);
+
+/** Discord actions the requester's own permissions authorize. No second DM. */
+const GUILD_ACTION_TOOLS = new Set([
+  ...MODERATOR_ACTIONS,
+  "banUser",
+  "deleteChannel",
+  "createChannel",
+  "createInvite",
+  "pinMessage",
+]);
+GUILD_ACTION_TOOLS.delete("sendDM");
+
+export function isGuildActionTool(toolName: string): boolean {
+  return GUILD_ACTION_TOOLS.has(toolName);
+}
 
 /** Actions that require admin level */
 const ADMIN_ACTIONS = new Set([
@@ -44,76 +64,30 @@ const ADMIN_ACTIONS = new Set([
   "run_terminal",
 ]);
 
-/** Role name patterns that count as "moderator" */
-const MOD_ROLE_PATTERNS = [
-  /mod[ée]rateur/i,
-  /moderator/i,
-  /mod/i,
-  /staff/i,
-  /helper/i,
-  /support/i,
-  /guard/i,
-  /sentinel/i,
-];
-
-/** Role name patterns that count as "admin" */
-const ADMIN_ROLE_PATTERNS = [
-  /admin/i,
-  /administrator/i,
-  /owner/i,
-  /founder/i,
-  /gérant/i,
-  /gerant/i,
-  /manager/i,
-];
-
 /**
- * Determine the permission level of a user based on their Discord permissions and roles.
+ * Niveau réel du demandeur. Un droit Discord isolé (gérer les messages)
+ * ne compte pas : il faut le rôle Modérateur, un rôle au-dessus, ou admin.
  */
 export async function getUserPermissionLevel(
   client: Client,
   guildId: string,
   userId: string,
 ): Promise<PermissionLevel> {
-  if (process.env.OWNER_ID && userId === process.env.OWNER_ID) return "admin";
   try {
-    const guild = client.guilds.cache.get(guildId);
+    const guild =
+      client.guilds.cache.get(guildId) ?? (await client.guilds.fetch(guildId).catch(() => null));
     if (!guild) return "user";
 
     const member = await guild.members.fetch(userId).catch(() => null);
     if (!member) return "user";
 
-    // Discord permissions shortcut
-    if (member.permissions.has("Administrator")) return "admin";
-
-    // Check roles for admin patterns
-    const roleNames = member.roles.cache.map((r) => r.name);
-    for (const name of roleNames) {
-      if (ADMIN_ROLE_PATTERNS.some((p) => p.test(name))) return "admin";
+    if (guild.roles.cache.size <= 1) {
+      await guild.roles.fetch().catch(() => null);
     }
 
-    // Check Discord permissions for moderator-level
-    if (
-      member.permissions.has("ModerateMembers") ||
-      member.permissions.has("KickMembers") ||
-      member.permissions.has("BanMembers") ||
-      member.permissions.has("ManageMessages") ||
-      member.permissions.has("ManageRoles") ||
-      member.permissions.has("ManageChannels")
-    ) {
-      // Has mod permissions but not admin → check if also has mod role
-      for (const name of roleNames) {
-        if (MOD_ROLE_PATTERNS.some((p) => p.test(name))) return "moderator";
-      }
-      // Has Discord mod permissions but no mod role → still allow as moderator
-      return "moderator";
-    }
-
-    // Check roles for moderator patterns (even without Discord perms)
-    for (const name of roleNames) {
-      if (MOD_ROLE_PATTERNS.some((p) => p.test(name))) return "moderator";
-    }
-
+    const level = await getPermissionLevel(member);
+    if (level >= StaffRank.ADMIN) return "admin";
+    if (level >= StaffRank.MODERATOR) return "moderator";
     return "user";
   } catch (err) {
     logger.warn(`[Guardrails] Failed to check permissions for ${userId}: ${err}`);
@@ -142,7 +116,7 @@ export async function checkToolPermission(
       return {
         allowed: false,
         level,
-        reason: `⚠️ Action refusée: "${toolName}" nécessite des droits administrateur. Votre niveau: ${level}.`,
+        reason: GRADE_REQUIRED_REPLY,
       };
     }
   }
@@ -156,7 +130,7 @@ export async function checkToolPermission(
       return {
         allowed: false,
         level,
-        reason: `⚠️ Action refusée: "${toolName}" nécessite au moins le rôle modérateur. Vous n'avez pas les permissions nécessaires.`,
+        reason: GRADE_REQUIRED_REPLY,
       };
     }
   }

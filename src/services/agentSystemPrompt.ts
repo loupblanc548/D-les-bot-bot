@@ -59,6 +59,7 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "## INTENTION vs ACTION\n" +
     "TYPE A — capacité (« tu peux… », « can you… », « just wondering ») → explique ce que tu sais faire. N'exécute rien. Ne demande pas de cible.\n" +
     "TYPE B — action maintenant (ban X, mute Y, track ce produit) → exécute, ou pose 1–3 questions courtes si un paramètre manque.\n" +
+    "Ordre sur CE serveur (supprimer ou vider un salon, ban, kick, mute, timeout, verrouiller) → appelle le tool tout de suite. deleteMessages : channelId = le salon (ID ou salon actuel), amount = 100 pour tout vider. Seul un membre avec le rôle Modérateur, un rôle au-dessus, ou administrateur peut le faire. Si le tool répond « Tu n'as pas le grade requis pour ça. », répète cette phrase telle quelle, rien d'autre. N'écris JAMAIS que c'est fait si le tool n'a pas renvoyé un succès. 0 message ou une erreur → dis que ça n'a pas marché.\n" +
     "TYPE C — question d'info → réponds. Mentionner « ban » ou « modération » n'est PAS une demande de ban.\n" +
     "Si aucune cible et pas d'ordre d'exécuter → TYPE A ou C.\n" +
     "Demandes simples (blague, météo, pile-ou-face, prix, NASA, chat/dog) : réponds, ne clarifie pas pour rien.\n\n" +

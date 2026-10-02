@@ -13,7 +13,7 @@
 
 import logger from "../utils/logger.js";
 import { getAvailableFreeModels } from "./modelRotation.js";
-import { NVIDIA_DEFAULT_MODEL, NVIDIA_MODEL_TIERS, isNvidiaNimAvailable } from "./nvidiaNim.js";
+import { isNvidiaNimAvailable, NVIDIA_DEFAULT_MODEL, NVIDIA_MODEL_TIERS } from "./nvidiaNim.js";
 
 // ─── Niveaux de complexité ───────────────────────────────────────────────────
 
@@ -77,6 +77,7 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
       /\b(news|actu|article|blog|hacker\s?news)\b/i,
       /\b(github|repo|trending|gist)\b/i,
       /\b(discord|server|serveur|member|membre|role|rôle)\b/i,
+      /\b(supprim\w*|effac\w*|purg\w*|nettoi\w*|banni\w*|ban|kick\w*|mute\w*|timeout\w*|expuls\w*|averti\w*|verrouill\w*|déverrouill\w*|deverrouill\w*|épingl\w*|epingl\w*|renomm\w*)\b/i,
       /\b(email|phone|ip|domain|url|breach|fuite)\b/i,
       /\b(track|tracker|suivre|pister|surveille|alerte|notification)\b/i,
       /\b(amazon|ebay|fnac|cdiscount|darty|boulanger|ldlc|decathlon|backmarket|vinted|leboncoin|rakuten|ikea|zalando|alternate|mindfactory|caseking|dealabs|mydealz|hotukdeals|idealo|pricespy|cdkeys|fanatical|eneba|kinguin|g2a|shopto|games365|basecom|gamesplanet)\b/i,
