@@ -210,7 +210,7 @@ export async function getAceternityComponentDoc(componentName: string): Promise<
     const codeBlocks: string[] = [];
     const codeMatches = html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g);
     for (const m of codeMatches) {
-      const code = m[1].replace(/<[^>]+>/g, "").trim();
+      const code = m[1].replace(/<[^>]*>?/g, "").trim();
       if (code.length > 20 && code.length < 3000) {
         codeBlocks.push(code);
       }

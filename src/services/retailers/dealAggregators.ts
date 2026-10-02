@@ -289,7 +289,7 @@ async function searchPriceSpy(
       html.match(/class="product[\s\S]*?(?=class="product|<div class="pagination)/g) || [];
     for (const block of blocks.slice(0, limit)) {
       const titleMatch = block.match(/<a[^>]*>([\s\S]*?)<\/a>/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch = block.match(/(\d+[.,]\d{2})\s*[€£]/);
       const price = priceMatch ? parsePrice(priceMatch[1]) : 0;
       const urlMatch = block.match(/href="([^"]+)"/);

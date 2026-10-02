@@ -109,7 +109,7 @@ async function executeSearch(query: string): Promise<{ results: string; sources:
       const linkMatches = html.match(/<a class="result__a" href="([^"]+)"/g);
       if (snippetMatches) {
         for (const m of snippetMatches.slice(0, 5)) {
-          const text = m.replace(/<[^>]+>/g, "").trim();
+          const text = m.replace(/<[^>]*>?/g, "").trim();
           snippets.push(text);
         }
       }

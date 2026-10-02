@@ -10,6 +10,7 @@
  */
 
 import logger from "../utils/logger.js";
+import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -1669,7 +1670,7 @@ async function fetchWiktionaryDefinition(word: string, lang = "fr"): Promise<str
 
     const defs = data.definitions
       .slice(0, 3)
-      .map((d) => `(${d.partOfSpeech || ""}) ${d.definition.replace(/<[^>]+>/g, "").trim()}`)
+      .map((d) => `(${d.partOfSpeech || ""}) ${d.definition.replace(/<[^>]*>?/g, "").trim()}`)
       .join("\n");
 
     return `**${word}**\n\n${defs}\n\nSource: https://${lang}.wiktionary.org/wiki/${encodeURIComponent(word)}`;
@@ -1993,8 +1994,8 @@ async function duckDuckGoSearch(
       const url = m[1]
         .replace(/\/\/duckduckgo\.com\/l\/\?uddg=/, "")
         .replace(/&rut=.*/, decodeURIComponent);
-      const title = m[2].replace(/<[^>]+>/g, "").trim();
-      const desc = m[3].replace(/<[^>]+>/g, "").trim();
+      const title = m[2].replace(/<[^>]*>?/g, "").trim();
+      const desc = m[3].replace(/<[^>]*>?/g, "").trim();
       if (title && url && desc) results.push({ title, url, description: desc, snippet: desc });
     }
     return results;
@@ -2062,16 +2063,7 @@ async function learnFromWeb(): Promise<void> {
       }
 
       // Construire la Q&A depuis le résultat web (nettoyé et tronqué)
-      const cleanDesc = (result.description || result.snippet || "")
-        .replace(/<[^>]+>/g, "")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 500);
+      const cleanDesc = stripAllHtml(result.description || result.snippet || "").slice(0, 500);
 
       const question = `Quelles sont les dernières nouvelles sur "${subject}" ?`;
       const answer = `**${subject}**\n\n${cleanDesc}\n\nSource: ${result.url}`;

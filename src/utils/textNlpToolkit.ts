@@ -665,7 +665,7 @@ export function textHtmlToMarkdown(html: string): string {
     .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, "$1")
     .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n\n")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+    .replace(/<[^>]*>?/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

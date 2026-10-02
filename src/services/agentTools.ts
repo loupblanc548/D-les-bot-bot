@@ -2724,7 +2724,7 @@ async function toolGetWiktionaryDefinition(args: Record<string, any>): Promise<T
             language: restData.language || lang,
             definitions: restData.definitions.slice(0, 5).map((d) => ({
               type: d.partOfSpeech || "",
-              definition: d.definition.replace(/<[^>]+>/g, "").trim(),
+              definition: d.definition.replace(/<[^>]*>?/g, "").trim(),
             })),
             url: `https://${lang}.wiktionary.org/wiki/${encodeURIComponent(word)}`,
           });

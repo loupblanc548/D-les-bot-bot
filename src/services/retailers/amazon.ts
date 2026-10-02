@@ -96,7 +96,7 @@ async function searchScraping(
         const titleMatch =
           blockHtml.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/) ||
           blockHtml.match(/<span[^>]*class="[^"]*a-text-normal[^"]*"[^>]*>([\s\S]*?)<\/span>/);
-        const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+        const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
 
         // Prix
         const priceMatch =
@@ -373,7 +373,7 @@ async function getAmazonDeals(country: CountryCode, limit = 10): Promise<Retaile
         const blockHtml = html.slice(blockStart - 200, blockStart + 3000);
 
         const titleMatch = blockHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/);
-        const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+        const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
 
         const priceMatch = blockHtml.match(/a-offscreen"[^>]*>([\d.,]+)\s*€/);
         const priceStr = priceMatch ? priceMatch[1].replace(",", ".").replace(/[^\d.]/g, "") : "";

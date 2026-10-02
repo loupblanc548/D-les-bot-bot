@@ -834,7 +834,7 @@ async function handleText(toolName: string, args: Args): Promise<ToolCallResult 
           .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, "[$2]($1)")
           .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
           .replace(/<br\s*\/?>/gi, "\n")
-          .replace(/<[^>]+>/g, "")
+          .replace(/<[^>]*>?/g, "")
           .trim();
         return ok(md);
       }

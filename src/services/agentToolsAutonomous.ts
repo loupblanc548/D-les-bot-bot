@@ -3399,7 +3399,7 @@ async function tOpenWebPage(args: Record<string, any>): Promise<ToolCallResult> 
       const text = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<[^>]+>/g, " ")
+        .replace(/<[^>]*>?/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, maxLength);

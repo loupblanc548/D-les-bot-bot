@@ -120,12 +120,13 @@ function detectPlatforms(title: string): Platform[] {
 function cleanSummary(content: string): string {
   // Supprimer les balises HTML
   const cleanText = content
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*>?/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/[<>]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 

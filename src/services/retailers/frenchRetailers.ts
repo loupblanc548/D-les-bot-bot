@@ -44,7 +44,7 @@ async function searchCdiscount(
       const titleMatch =
         block.match(/<a[^>]*class="[^"]*jsProductTitleLink[^"]*"[^>]*>([\s\S]*?)<\/a>/) ||
         block.match(/title="([^"]+)"/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch =
         block.match(/class="[^"]*price[^"]*"[^>]*>[\s\S]*?([\d.,]+)/) ||
         block.match(/(\d+[.,]\d{2})\s*€/);
@@ -106,7 +106,7 @@ async function searchFnac(
       const titleMatch = block.match(
         /class="Article-title[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/,
       );
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch =
         block.match(/class="userPrice[^"]*"[^>]*>[\s\S]*?([\d.,]+)/) ||
         block.match(/(\d+[.,]\d{2})\s*€/);
@@ -168,7 +168,7 @@ async function searchDarty(
       const titleMatch =
         block.match(/class="[^"]*product_name[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/) ||
         block.match(/title="([^"]+)"/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch =
         block.match(/class="darty_prix[^"]*"[^>]*>[\s\S]*?([\d.,]+)/) ||
         block.match(/(\d+[.,]\d{2})\s*€/);
@@ -288,7 +288,7 @@ async function searchLDLC(
       const titleMatch =
         block.match(/<a[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/a>/) ||
         block.match(/title="([^"]+)"/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch =
         block.match(/class="[^"]*price[^"]*"[^>]*>[\s\S]*?([\d.,]+)/) ||
         block.match(/(\d+[.,]\d{2})\s*€/);
@@ -421,7 +421,7 @@ async function searchBackMarket(
     const blocks = html.match(/data-product="[^"]*"[\s\S]*?(?=<\/article>|<\/div>)/g) || [];
     for (const block of blocks.slice(0, limit)) {
       const titleMatch = block.match(/<a[^>]*>([\s\S]*?)<\/a>/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch =
         block.match(/class="[^"]*price[^"]*"[^>]*>[\s\S]*?([\d.,]+)/) ||
         block.match(/(\d+[.,]\d{2})\s*€/);
@@ -740,7 +740,7 @@ async function searchZalando(
     const blocks = html.match(/data-article-id="[^"]*"[\s\S]*?(?=<\/article>|<\/div>)/g) || [];
     for (const block of blocks.slice(0, limit)) {
       const titleMatch = block.match(/<a[^>]*>([\s\S]*?)<\/a>/);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
       const priceMatch = block.match(/(\d+[.,]\d{2})\s*€/) || block.match(/(\d+[.,]\d{2})\s*CHF/);
       const price = priceMatch ? parsePrice(priceMatch[1]) : 0;
       const urlMatch = block.match(/href="([^"]+)"/);

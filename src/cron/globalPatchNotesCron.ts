@@ -75,7 +75,7 @@ function generateSummary(content: string): string {
   if (!content) return "Aucune description disponible";
 
   // Remove HTML tags
-  let cleanText = content.replace(/<[^>]*>/g, "");
+  let cleanText = content.replace(/<[^>]*>?/g, "");
 
   // Remove BBCode tags
   cleanText = cleanText.replace(/\[\/?[a-z]+\]/gi, "");
@@ -251,7 +251,7 @@ async function checkPatchNotes(client: Client): Promise<void> {
             (typeof rawXml === "string" ? rawXml.match(/<title[^>]*>([^<]+)<\/title>/gi) : null) ||
             [];
           items = titleMatches.slice(1).map((t, _i) => ({
-            title: t.replace(/<[^>]+>/g, ""),
+            title: t.replace(/<[^>]*>?/g, ""),
             link: "",
             pubDate: new Date().toISOString(),
             content: "",

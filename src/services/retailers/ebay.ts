@@ -167,7 +167,7 @@ async function searchScraping(
     for (const block of itemBlocks.slice(0, limit)) {
       try {
         const titleMatch = block.match(/class="s-item__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/);
-        const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+        const title = titleMatch ? titleMatch[1].replace(/<[^>]*>?/g, "").trim() : "";
         if (!title || title === "Shop on eBay") continue;
 
         const priceMatch = block.match(/class="s-item__price[^"]*"[^>]*>([\d.,]+)/);

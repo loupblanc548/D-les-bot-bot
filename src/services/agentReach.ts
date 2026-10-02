@@ -7,7 +7,7 @@ const EXA_SEARCH_BASE = "https://api.exa.ai/search";
 
 function sanitizeHtml(input: string): string {
   return input
-    .replace(/<[^>]*>/g, "")
+    .replace(/<[^>]*>?/g, "")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -16,6 +16,7 @@ function sanitizeHtml(input: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/&#\d+;/g, "")
     .replace(/&[a-zA-Z]+;/g, "")
+    .replace(/[<>]/g, "")
     .trim();
 }
 

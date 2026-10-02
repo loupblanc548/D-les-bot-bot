@@ -132,8 +132,7 @@ export function sanitizeHtml(
     // Trouver la fin du tag '>'
     const gtIdx = html.indexOf(">", tagEnd);
     if (gtIdx === -1) {
-      // Tag malformé — escape
-      result += "&lt;" + html.slice(ltIdx + 1);
+      result += escapeHtml(html.slice(ltIdx));
       break;
     }
 
@@ -276,7 +275,7 @@ export function htmlToMarkdown(html: string): string {
     .replace(
       /<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis,
       (_match, href: string, text: string) => {
-        const cleanText = text.replace(/<[^>]*>/g, "").trim();
+        const cleanText = text.replace(/<[^>]*>?/g, "").trim();
         return cleanText ? `[${cleanText}](${href})` : "";
       },
     )
@@ -320,8 +319,8 @@ export function htmlToMarkdown(html: string): string {
     .replace(/<span[^>]*>/gi, "")
     // Marqueurs
     .replace(/<mark[^>]*>(.*?)<\/mark>/gis, "**$1**")
-    // Supprimer les tags restants
-    .replace(/<[^>]*>/g, "")
+    // Supprimer les tags restants, y compris une balise jamais fermée par >
+    .replace(/<[^>]*>?/g, "")
     // Nettoyer les espaces
     .replace(/\n{3,}/g, "\n\n")
     .replace(/^\s+/gm, "")
@@ -393,13 +392,10 @@ export function stripAllHtml(html: string): string {
     }
     text += html.slice(i, lt);
     const gt = html.indexOf(">", lt);
-    if (gt === -1) {
-      text += html.slice(lt);
-      break;
-    }
+    if (gt === -1) break;
     i = gt + 1;
   }
-  // Decode entities once
+  // Decode entities once, then drop any < > that decoding rebuilt.
   const entityMap: Record<string, string> = {
     "&nbsp;": " ",
     "&amp;": "&",
@@ -412,5 +408,6 @@ export function stripAllHtml(html: string): string {
   for (const [entity, char] of Object.entries(entityMap)) {
     text = text.split(entity).join(char);
   }
+  text = text.replace(/[<>]/g, "");
   return text.replace(/\s+/g, " ").trim();
 }

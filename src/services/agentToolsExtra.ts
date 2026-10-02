@@ -2767,7 +2767,7 @@ async function toolSearchWikipedia(args: Record<string, any>): Promise<ToolCallR
   const formatted = results
     .map((r: any, i: number) => {
       const url = `https://fr.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, "_"))}`;
-      const snippet = r.snippet?.replace(/<[^>]+>/g, "").slice(0, 200) || "";
+      const snippet = r.snippet?.replace(/<[^>]*>?/g, "").slice(0, 200) || "";
       return `${i + 1}. **[${r.title}](${url})**\n${snippet}...`;
     })
     .join("\n\n");
@@ -3326,7 +3326,7 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
           const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
           const text = (def.text || [])
             .join(" ")
-            .replace(/<[^>]+>/g, "")
+            .replace(/<[^>]*>?/g, "")
             .slice(0, 300);
           if (text) {
             results.push(`${pos} ${text}`.trim());
@@ -3359,7 +3359,7 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
             const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
             const text = (def.text || [])
               .join(" ")
-              .replace(/<[^>]+>/g, "")
+              .replace(/<[^>]*>?/g, "")
               .slice(0, 300);
             if (text) {
               results.push(`${pos} ${text}`.trim());
@@ -3393,7 +3393,7 @@ async function toolDefineWord(args: Record<string, any>): Promise<ToolCallResult
             const pos = def.partOfSpeech ? `*${def.partOfSpeech}*` : "";
             const text = (def.text || [])
               .join(" ")
-              .replace(/<[^>]+>/g, "")
+              .replace(/<[^>]*>?/g, "")
               .slice(0, 300);
             if (text) {
               results.push(`${pos} ${text}`.trim());
@@ -3565,7 +3565,7 @@ async function toolSearchStackOverflow(args: Record<string, any>): Promise<ToolC
       .map((i) => {
         const tags = i.tags?.length ? ` [${i.tags.slice(0, 3).join(", ")}]` : "";
         const answered = i.is_answered ? "✅" : "❌";
-        const body = (i.body_markdown || "").replace(/<[^>]+>/g, "").slice(0, 200);
+        const body = (i.body_markdown || "").replace(/<[^>]*>?/g, "").slice(0, 200);
         return `${answered} **${i.title}**${tags} (score: ${i.score})\n🔗 ${i.link}${body ? `\n${body}` : ""}`;
       })
       .join("\n\n");

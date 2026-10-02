@@ -84,7 +84,7 @@ async function checkSteamUpdates(): Promise<GameUpdate[]> {
             platform: "steam",
             updateType: title.toLowerCase().includes("hotfix") ? "hotfix" : "patch",
             title,
-            description: description.replace(/<[^>]*>/g, "").substring(0, 500),
+            description: description.replace(/<[^>]*>?/g, "").substring(0, 500),
             url: link,
             publishedAt: new Date(pubDate),
           };

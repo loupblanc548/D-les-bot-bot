@@ -75,7 +75,7 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
       if (!newsItem) return null;
       const title = newsItem.title || `${feed.game} Update`;
       const rawContent = (newsItem.contents || "")
-        .replace(/<[^>]+>/g, " ")
+        .replace(/<[^>]*>?/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 3000);
@@ -118,7 +118,7 @@ async function fetchPatchNotes(feed: { game: string; url: string }): Promise<Pat
       textOf(firstItem["content:encoded"]) ||
       ""
     )
-      .replace(/<[^>]+>/g, " ")
+      .replace(/<[^>]*>?/g, " ")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 3000);

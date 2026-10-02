@@ -55,7 +55,7 @@ export function parseRssXmlItems(rawXml: string): RssItem[] {
         pubDate: text(it.pubDate || it.published),
         // RSS <description> ou Atom <content>
         content: text(it.description || it.content),
-        contentSnippet: text(it.description || it.content).replace(/<[^>]*>/g, ""),
+        contentSnippet: text(it.description || it.content).replace(/<[^>]*>?/g, ""),
         // RSS <author>, Atom <author><name>, ou Dublin Core <dc:creator>
         author:
           typeof it.author === "object" && it.author

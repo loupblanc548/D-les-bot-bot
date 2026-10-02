@@ -34,7 +34,7 @@ import { generateStableId } from "../utils/url-cleaner.js";
 function generateSummary(content: string): string {
   if (!content) return "Aucune description disponible";
 
-  let cleanText = content.replace(/<[^>]*>/g, "");
+  let cleanText = content.replace(/<[^>]*>?/g, "");
   cleanText = cleanText.replace(/\[\/?[a-z]+\]/gi, "");
   cleanText = cleanText.replace(/https?:\/\/[^\s]+/g, "");
   cleanText = cleanText.replace(/\s+/g, " ").trim();

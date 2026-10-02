@@ -145,7 +145,7 @@ const MONTHS: Record<string, number> = {
 /** Parse Steam store search dates like "8 Sep, 2026". */
 export function parseSteamSearchDate(text: string): Date | null {
   const cleaned = text
-    .replace(/<[^>]+>/g, " ")
+    .replace(/<[^>]*>?/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned || /coming soon|to be announced|^tba$/i.test(cleaned)) return null;

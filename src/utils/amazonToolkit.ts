@@ -22,9 +22,74 @@
 
 import https from "https";
 import logger from "../utils/logger.js";
-import http from "http";
 import { execFileSync } from "child_process";
 import path from "path";
+
+const ALLOWED_AMAZON_HOSTS = [
+  "api.keepa.com",
+  "www.amazon.com",
+  "amazon.com",
+  "www.amazon.co.uk",
+  "amazon.co.uk",
+  "www.amazon.de",
+  "amazon.de",
+  "www.amazon.fr",
+  "amazon.fr",
+  "www.amazon.it",
+  "amazon.it",
+  "www.amazon.es",
+  "amazon.es",
+  "www.amazon.ca",
+  "amazon.ca",
+  "www.amazon.co.jp",
+  "amazon.co.jp",
+  "www.amazon.com.au",
+  "amazon.com.au",
+  "www.amazon.com.br",
+  "amazon.com.br",
+  "www.amazon.com.mx",
+  "amazon.com.mx",
+  "www.amazon.nl",
+  "amazon.nl",
+  "www.amazon.se",
+  "amazon.se",
+  "www.amazon.pl",
+  "amazon.pl",
+  "www.amazon.com.be",
+  "amazon.com.be",
+  "www.amazon.sg",
+  "amazon.sg",
+  "www.amazon.ae",
+  "amazon.ae",
+  "www.amazon.in",
+  "amazon.in",
+  "www.amazon.com.tr",
+  "amazon.com.tr",
+  "www.amazon.eg",
+  "amazon.eg",
+  "www.amazon.sa",
+  "amazon.sa",
+];
+
+/** True only for Amazon retail hosts and the Keepa API. */
+export function isAllowedAmazonHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return ALLOWED_AMAZON_HOSTS.includes(host);
+}
+
+function allowedHttpsUrl(raw: string): URL {
+  const parsed = new URL(raw);
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    !ALLOWED_AMAZON_HOSTS.includes(host)
+  ) {
+    throw new Error("Hôte refusé");
+  }
+  return parsed;
+}
 
 /** Runs a Puppeteer script in a child Node process; values go through env, never into the code. */
 function runPuppeteerScript(
@@ -45,17 +110,39 @@ function httpsGet(
   url: string,
   headers: Record<string, string> = {},
   timeoutMs = 15_000,
+  redirects = 0,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers, timeout: timeoutMs }, (res) => {
+    let target: URL;
+    try {
+      target = allowedHttpsUrl(url);
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error("Hôte refusé"));
+      return;
+    }
+    const host = target.hostname.toLowerCase();
+    if (!ALLOWED_AMAZON_HOSTS.includes(host)) {
+      reject(new Error("Hôte refusé"));
+      return;
+    }
+    const req = https.get(target, { headers, timeout: timeoutMs }, (res) => {
       if (res.statusCode === 301 || res.statusCode === 302) {
         const loc = res.headers.location;
         if (loc) {
-          httpsGet(
-            loc.startsWith("http") ? loc : `https://www.amazon.com${loc}`,
-            headers,
-            timeoutMs,
-          )
+          if (redirects >= 3) {
+            reject(new Error("trop de redirections"));
+            return;
+          }
+          const next = loc.startsWith("https://")
+            ? loc
+            : loc.startsWith("/") && !loc.startsWith("//")
+              ? `https://${host}${loc}`
+              : "";
+          if (!next) {
+            reject(new Error("redirection refusée"));
+            return;
+          }
+          httpsGet(next, headers, timeoutMs, redirects + 1)
             .then(resolve)
             .catch(reject);
           return;
@@ -80,9 +167,19 @@ function httpsGetJson(
   timeoutMs = 15_000,
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const mod = parsed.protocol === "https:" ? https : http;
-    const req = mod.get(url, { headers, timeout: timeoutMs }, (res) => {
+    let target: URL;
+    try {
+      target = allowedHttpsUrl(url);
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error("Hôte refusé"));
+      return;
+    }
+    const host = target.hostname.toLowerCase();
+    if (!ALLOWED_AMAZON_HOSTS.includes(host)) {
+      reject(new Error("Hôte refusé"));
+      return;
+    }
+    const req = https.get(target, { headers, timeout: timeoutMs }, (res) => {
       let data = "";
       res.on("data", (chunk: Buffer) => (data += chunk.toString()));
       res.on("end", () => {
