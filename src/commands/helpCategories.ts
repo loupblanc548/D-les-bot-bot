@@ -29,7 +29,8 @@ export const CATEGORIES: Category[] = [
     commands:
       "`/bot help - Cette aide`\n" +
       "`/bot status - Statut du bot`\n" +
-      "`/bot restart - Redémarre le bot (admin)`",
+      "`/bot restart - Redémarre le bot (admin)`\n" +
+      "`/bot diagnostic - Auto-diagnostic erreurs + santé (admin)`",
   },
   {
     id: "moderation",

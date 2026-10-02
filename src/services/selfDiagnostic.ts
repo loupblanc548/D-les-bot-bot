@@ -22,6 +22,35 @@ export interface ProblemEntry {
   firstSeen: number;
   lastSeen: number;
   reported: boolean;
+  burstStart: number;
+  burstCount: number;
+  lastBurstAlert: number;
+}
+
+export const BURST = { count: 20, windowMs: 10 * 60_000, cooldownMs: 60 * 60_000 };
+
+type BurstHandler = (entry: ProblemEntry) => void;
+let burstHandler: BurstHandler | null = null;
+
+/** Appelé quand une même erreur explose (BURST.count en BURST.windowMs), au plus une fois par cooldown. */
+export function setBurstHandler(handler: BurstHandler | null): void {
+  burstHandler = handler;
+}
+
+function trackBurst(entry: ProblemEntry, now: number): void {
+  if (entry.level !== "error") return;
+  if (now - entry.burstStart > BURST.windowMs) {
+    entry.burstStart = now;
+    entry.burstCount = 0;
+  }
+  entry.burstCount++;
+  if (entry.burstCount < BURST.count || now - entry.lastBurstAlert < BURST.cooldownMs) return;
+  entry.lastBurstAlert = now;
+  try {
+    burstHandler?.(entry);
+  } catch {
+    // Le handler ne doit pas casser l'appel au logger.
+  }
 }
 
 export interface HealthChecks {
@@ -112,10 +141,11 @@ export function recordProblem(
       existing.totalCount++;
       existing.lastSeen = now;
       if (!existing.location) existing.location = extractLocation(stack);
+      trackBurst(existing, now);
       return;
     }
     if (problems.size >= MAX_ENTRIES) evictOldest();
-    problems.set(fingerprint, {
+    const entry: ProblemEntry = {
       fingerprint,
       level,
       module,
@@ -126,7 +156,12 @@ export function recordProblem(
       firstSeen: now,
       lastSeen: now,
       reported: false,
-    });
+      burstStart: now,
+      burstCount: 0,
+      lastBurstAlert: 0,
+    };
+    problems.set(fingerprint, entry);
+    trackBurst(entry, now);
   } catch {
     // La collecte ne doit jamais casser un appel au logger.
   }
@@ -177,6 +212,27 @@ export function getWindowStart(): number {
 export function resetDiagnosticState(): void {
   problems.clear();
   windowStart = Date.now();
+  burstHandler = null;
+}
+
+export function buildBurstAlert(entry: ProblemEntry): EmbedBuilder[] {
+  return buildFicheEmbeds({
+    title: "🚨 Erreur en rafale",
+    description: `**[${entry.module}]** s'est produite **${entry.burstCount} fois en moins de ${Math.round(BURST.windowMs / 60_000)} min**.`,
+    footer: "Auto-diagnostic · alerte immédiate · 1 alerte max par heure pour ce problème",
+    color: STATUS_COLOR.critical,
+    cards: [
+      {
+        title: "Détail",
+        color: STATUS_COLOR.critical,
+        fields: [
+          { name: "Message", value: entry.sample.slice(0, 1000) },
+          { name: "Code", value: entry.location ? `\`${entry.location}\`` : "—", inline: true },
+          { name: "Total depuis le démarrage", value: `${entry.totalCount}`, inline: true },
+        ],
+      },
+    ],
+  });
 }
 
 // ─── Rapport ────────────────────────────────────────────────────────────────

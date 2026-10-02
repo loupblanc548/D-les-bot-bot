@@ -3582,51 +3582,10 @@ async function toolExecuteCode(args: Record<string, any>): Promise<ToolCallResul
   if (!code) return { success: false, data: "Paramètre manquant: code" };
   if (code.length > 5000) return { success: false, data: "Code trop long (max 5000 caractères)" };
 
-  try {
-    const vm = await import("node:vm");
-    const logs: string[] = [];
-    const sandbox = {
-      console: {
-        log: (...args: any[]) => logs.push(args.map(String).join(" ")),
-        error: (...args: any[]) => logs.push(`[ERROR] ${args.map(String).join(" ")}`),
-        warn: (...args: any[]) => logs.push(`[WARN] ${args.map(String).join(" ")}`),
-      },
-      Math,
-      Date,
-      JSON,
-      Array,
-      Object,
-      String,
-      Number,
-      Boolean,
-      RegExp,
-      Map,
-      Set,
-      parseInt,
-      parseFloat,
-      isNaN,
-      isFinite,
-      encodeURIComponent,
-      decodeURIComponent,
-      setTimeout: () => {},
-      setInterval: () => {},
-      clearTimeout: () => {},
-      clearInterval: () => {},
-    };
-    const context = vm.createContext(sandbox);
-    const script = new vm.Script(code);
-    const result = script.runInContext(context, { timeout: 5000 });
-    const output: string[] = [];
-    if (logs.length > 0) output.push(`stdout:\n${logs.join("\n")}`);
-    if (result !== undefined)
-      output.push(`result: ${JSON.stringify(result, null, 2)?.slice(0, 1000)}`);
-    return { success: true, data: output.join("\n") || "Code exécuté (pas de sortie)" };
-  } catch (err) {
-    return {
-      success: false,
-      data: `Erreur d'exécution: ${err instanceof Error ? err.message : String(err)}`,
-    };
-  }
+  // node:vm n'est pas une frontière de sécurité (Object.constructor → process) : même sandbox que agentTools.
+  const { executeCode, formatSandboxResult } = await import("./codeSandbox.js");
+  const result = await executeCode(code, "javascript");
+  return { success: result.success, data: await formatSandboxResult(result) };
 }
 
 // ─── Unit Converter ──────────────────────────────────────────────────────────

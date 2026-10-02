@@ -63,6 +63,9 @@ jobs:
       - name: 🔍 Linter (ESLint)
         run: npm run lint
 
+      - name: 🐛 Biome (code mort, ==, chaînage optionnel dangereux…)
+        run: npm run lint:biome
+
       - name: 🔎 TypeScript check
         run: npx tsc --noEmit
 

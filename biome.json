@@ -25,7 +25,11 @@
         "useNodejsImportProtocol": "warn"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noAssignInExpressions": "warn",
+        "useIterableCallbackReturn": "warn",
+        "noImplicitAnyLet": "warn",
+        "noControlCharactersInRegex": "warn"
       },
       "correctness": {
         "noUnusedVariables": "off"

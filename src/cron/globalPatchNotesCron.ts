@@ -248,7 +248,7 @@ async function checkPatchNotes(client: Client): Promise<void> {
           const directResponse = await axios.get(DIRECT_REDDIT_RSS_URL, { timeout: 15000 });
           const rawXml = directResponse.data;
           const titleMatches =
-            (typeof rawXml == "string" ? rawXml.match(/<title[^>]*>([^<]+)<\/title>/gi) : null) ||
+            (typeof rawXml === "string" ? rawXml.match(/<title[^>]*>([^<]+)<\/title>/gi) : null) ||
             [];
           items = titleMatches.slice(1).map((t, _i) => ({
             title: t.replace(/<[^>]+>/g, ""),

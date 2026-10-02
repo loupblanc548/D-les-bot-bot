@@ -1020,15 +1020,9 @@ export function followPlayer(username: string): { success: boolean; message: str
   followTarget = username;
   followInterval = setInterval(async () => {
     if (!bot || !followTarget) return;
-    try {
-      // Demander la position du joueur cible via le packet entity
-      // En Bedrock, on utilise inventory_content ou on cherche dans les entités proches
-      // Pour simplifier, on envoie un packet de mouvement vers la dernière position connue du joueur
-      // Le bot se déplace vers le joueur en envoyant des packets de mouvement
-      // (bedrock-protocol expose les entités via les events)
-    } catch {
-      logger.error("[Silent catch]");
-    }
+    // TODO: déplacement non implémenté — demander la position du joueur cible via le
+    // packet entity (bedrock-protocol expose les entités via les events) puis envoyer
+    // des packets de mouvement vers la dernière position connue.
   }, 1000);
 
   if (followInterval.unref) followInterval.unref();

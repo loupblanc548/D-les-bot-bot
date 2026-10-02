@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BURST,
+  buildBurstAlert,
+  setBurstHandler,
   buildDiagnosticReport,
   closeWindow,
   extractLocation,
@@ -114,6 +117,42 @@ describe("recordProblem / capture", () => {
         },
       ]),
     ).not.toThrow();
+  });
+});
+
+describe("burst alert", () => {
+  it("fires once when the same error repeats BURST.count times, then respects the cooldown", () => {
+    const fired: number[] = [];
+    setBurstHandler((e) => fired.push(e.burstCount));
+    const t0 = Date.UTC(2026, 9, 2);
+    for (let i = 0; i < BURST.count + 5; i++)
+      recordProblem("error", [`[Feeds] boom ${i}`], "?", t0 + i);
+    expect(fired).toEqual([BURST.count]);
+    for (let i = 0; i < BURST.count; i++) {
+      recordProblem("error", [`[Feeds] boom ${i}`], "?", t0 + BURST.windowMs + 1 + i);
+    }
+    expect(fired).toHaveLength(1);
+    const later = t0 + BURST.cooldownMs + BURST.windowMs + 10;
+    for (let i = 0; i < BURST.count; i++)
+      recordProblem("error", [`[Feeds] boom ${i}`], "?", later + i);
+    expect(fired).toHaveLength(2);
+  });
+
+  it("ignores warnings and slow trickles", () => {
+    const fired: unknown[] = [];
+    setBurstHandler((e) => fired.push(e));
+    for (let i = 0; i < 50; i++) recordProblem("warn", ["[Steam] rate limited"], "?", i);
+    for (let i = 0; i < 50; i++) recordProblem("error", ["[Slow] x"], "?", i * BURST.windowMs);
+    expect(fired).toHaveLength(0);
+  });
+
+  it("builds a native alert card with the code location", () => {
+    const err = new Error("x");
+    err.stack = "Error: x\n    at f (/app/dist/services/feeds.js:345:1)";
+    recordProblem("error", ["[Feeds] send failed", err]);
+    const text = reportText(buildBurstAlert(getWindowProblems()[0]));
+    expect(text).toContain("Erreur en rafale");
+    expect(text).toContain("dist/services/feeds.js:345");
   });
 });
 

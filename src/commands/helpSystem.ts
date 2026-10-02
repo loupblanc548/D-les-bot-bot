@@ -288,6 +288,7 @@ const HELP_DATA: Record<string, HelpCategory> = {
       { name: "/bot help", description: "Aide générale" },
       { name: "/bot start", description: "Démarrer le bot" },
       { name: "/bot restart", description: "Redémarrer (admin)" },
+      { name: "/bot diagnostic", description: "Auto-diagnostic (admin)" },
       { name: "/bot status", description: "Statut du bot" },
       { name: "/bot uptime", description: "Statistiques d'exécution" },
       { name: "/bot dashboard", description: "Dashboard web" },

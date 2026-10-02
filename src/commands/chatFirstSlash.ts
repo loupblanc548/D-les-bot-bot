@@ -28,7 +28,7 @@ export const CHAT_FIRST_SLASH_SET = new Set<string>(CHAT_FIRST_SLASH);
 
 const SLASH_BLURB: Record<(typeof CHAT_FIRST_SLASH)[number], string> = {
   help: "liste paginée des commandes slash",
-  bot: "aide, statut, restart",
+  bot: "aide, statut, restart, diagnostic",
   game: "Steam, deals, jeux gratuits, Fortnite, patch notes",
   ai: "chat, image, traduction, résumé",
   mod: "modération (warn, mute, ban…)",

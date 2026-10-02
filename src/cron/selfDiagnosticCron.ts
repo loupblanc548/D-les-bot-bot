@@ -6,7 +6,7 @@
  *  - SELF_DIAGNOSTIC_INTERVAL_HOURS=6     fréquence (1 à 168)
  *  - SELF_DIAGNOSTIC_CHANNEL_ID           sinon config.logChannel
  */
-import type { Client } from "discord.js";
+import type { Client, EmbedBuilder } from "discord.js";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import logger, { fortniteLogger } from "../utils/logger.js";
 import { config } from "../config.js";
@@ -14,11 +14,14 @@ import prisma from "../prisma.js";
 import { getMemoryLevel } from "../utils/memoryConfig.js";
 import { postFichesViaRest } from "../services/discordFiche.js";
 import {
+  buildBurstAlert,
   buildDiagnosticReport,
   closeWindow,
   getWindowProblems,
   getWindowStart,
   installDiagnosticCapture,
+  setBurstHandler,
+  type DiagStatus,
   type HealthChecks,
 } from "../services/selfDiagnostic.js";
 
@@ -71,8 +74,20 @@ export async function collectHealthChecks(client: Client): Promise<HealthChecks>
   };
 }
 
+function diagnosticChannelId(): string | undefined {
+  return process.env.SELF_DIAGNOSTIC_CHANNEL_ID || config.logChannel || undefined;
+}
+
+/** Rapport à la demande (/bot diagnostic) : ne clôt pas la fenêtre du rapport périodique. */
+export async function buildCurrentReport(
+  client: Client,
+): Promise<{ status: DiagStatus; embeds: EmbedBuilder[] }> {
+  const health = await collectHealthChecks(client);
+  return buildDiagnosticReport(health, getWindowProblems(), getWindowStart());
+}
+
 export async function runSelfDiagnostic(client: Client): Promise<void> {
-  const channelId = process.env.SELF_DIAGNOSTIC_CHANNEL_ID || config.logChannel;
+  const channelId = diagnosticChannelId();
   if (!channelId) {
     logger.warn(
       "[SelfDiagnostic] Aucun salon de logs configuré (LOG_CHANNEL_ID) — rapport non envoyé",
@@ -97,6 +112,16 @@ export function startSelfDiagnostic(client: Client): void {
   loopHistogram = monitorEventLoopDelay({ resolution: 20 });
   loopHistogram.enable();
 
+  setBurstHandler((entry) => {
+    const channelId = diagnosticChannelId();
+    if (!channelId) return;
+    postFichesViaRest(client, channelId, buildBurstAlert(entry)).catch((err) =>
+      logger.warn(
+        `[SelfDiagnostic] Alerte rafale non envoyée: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
+  });
+
   const intervalMs = selfDiagnosticIntervalMs();
   timer = setInterval(() => {
     runSelfDiagnostic(client).catch((err) =>
@@ -110,6 +135,7 @@ export function startSelfDiagnostic(client: Client): void {
 export function stopSelfDiagnostic(): void {
   if (timer) clearInterval(timer);
   timer = null;
+  setBurstHandler(null);
   loopHistogram?.disable();
   loopHistogram = null;
 }

@@ -23,6 +23,11 @@ export const commands = [
     .addSubcommand((sc) => sc.setName("help").setDescription("Affiche l'aide"))
     .addSubcommand((sc) => sc.setName("status").setDescription("Statut du bot"))
     .addSubcommand((sc) => sc.setName("restart").setDescription("Redémarre le bot (admin)"))
+    .addSubcommand((sc) =>
+      sc
+        .setName("diagnostic")
+        .setDescription("Auto-diagnostic : erreurs du code et santé du bot (admin)"),
+    )
     .toJSON(),
 ];
 
@@ -69,6 +74,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
         .setURL("https://github.com/x0rz/EQGRP_Lost_in_Translation"),
     );
     await interaction.reply({ embeds: [embed], components: [row] });
+  } else if (action === "diagnostic") {
+    await handleDiagnostic(interaction, dc);
   } else if (action === "shard-stats") {
     await handleShardStats(interaction);
   } else if (action === "shard-restart") {
@@ -76,6 +83,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
   } else {
     await handleBotExtra(interaction, dc);
   }
+}
+
+async function handleDiagnostic(interaction: ChatInputCommandInteraction, client: Client) {
+  if (!(await requireAdmin(interaction))) return;
+  await interaction.deferReply({ ephemeral: true });
+  const { buildCurrentReport } = await import("../cron/selfDiagnosticCron.js");
+  const { embeds } = await buildCurrentReport(client);
+  await interaction.editReply({ embeds: embeds.slice(0, 10) });
 }
 
 async function handleShardStats(interaction: ChatInputCommandInteraction): Promise<void> {

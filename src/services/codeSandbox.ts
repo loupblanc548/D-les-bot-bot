@@ -25,6 +25,11 @@ import { autoHealTypeScriptError } from "./agentToolsFree.js";
 const execFileAsync = promisify(execFile);
 
 const E2B_API_KEY = process.env.E2B_API_KEY ?? "";
+/**
+ * L'exécution locale tourne sur l'hôte du bot (souvent root, avec accès au .env).
+ * Elle reste coupée sauf opt-in explicite.
+ */
+const ALLOW_LOCAL = process.env.CODE_SANDBOX_ALLOW_LOCAL === "true";
 const MAX_EXECUTION_TIME_MS = 15_000; // 15s max
 const MAX_OUTPUT_LENGTH = 4000; // Truncate output for Discord
 const LOCAL_TMP_DIR = join(tmpdir(), "jarvis-sandbox");
@@ -54,13 +59,34 @@ export async function executeCode(
     try {
       return await executeWithE2B(code, language, startTime);
     } catch (err) {
-      logger.warn(
-        `[CodeSandbox] E2B failed, falling back to local: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const reason = err instanceof Error ? err.message : String(err);
+      if (!ALLOW_LOCAL) {
+        logger.warn(`[CodeSandbox] E2B failed, local fallback disabled: ${reason}`);
+        return refused(`Sandbox E2B indisponible (${reason}).`, startTime);
+      }
+      logger.warn(`[CodeSandbox] E2B failed, falling back to local: ${reason}`);
     }
   }
 
+  if (!ALLOW_LOCAL) {
+    return refused(
+      "Exécution de code désactivée : aucune sandbox isolée configurée (E2B_API_KEY). " +
+        "L'exécution locale sur le serveur du bot est coupée par sécurité (CODE_SANDBOX_ALLOW_LOCAL=true pour forcer).",
+      startTime,
+    );
+  }
+
   return await executeLocal(code, language, startTime);
+}
+
+function refused(message: string, startTime: number): SandboxResult {
+  return {
+    success: false,
+    stdout: "",
+    stderr: message,
+    exitCode: null,
+    executionTimeMs: Date.now() - startTime,
+  };
 }
 
 // ─── E2B Cloud Sandbox ───────────────────────────────────────────────────────
@@ -168,8 +194,12 @@ async function executeLocal(
       timeout: MAX_EXECUTION_TIME_MS,
       maxBuffer: 1024 * 1024, // 1MB max output
       cwd: sessionDir,
+      // Jamais process.env : il contient les tokens Discord, la base et les clés API.
       env: {
-        ...process.env,
+        PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
+        LANG: process.env.LANG ?? "C.UTF-8",
+        HOME: sessionDir,
+        TMPDIR: sessionDir,
         // Restrict network access for untrusted code (best effort)
         HTTP_PROXY: "127.0.0.1:0",
         HTTPS_PROXY: "127.0.0.1:0",
@@ -297,7 +327,7 @@ function isTypeError(stderr: string): boolean {
  * Vérifie si la sandbox est disponible (E2B ou local).
  */
 export function isSandboxAvailable(): boolean {
-  return true; // Local fallback always available if python3/node is installed
+  return E2B_API_KEY.length > 0 || ALLOW_LOCAL;
 }
 
 /**

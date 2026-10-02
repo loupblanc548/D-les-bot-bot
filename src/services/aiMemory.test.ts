@@ -92,7 +92,7 @@ describe("remember()", () => {
     await remember("user-1", "favoriteGame", "Hades II");
 
     expect(m.memoryFact.upsert).toHaveBeenCalledOnce();
-    const args = m.memoryFact.upsert.mock.calls[0]?.[0] as {
+    const args = m.memoryFact.upsert.mock.calls[0][0] as {
       where: unknown;
       create: { weight: number };
       update: { weight: unknown };
@@ -111,9 +111,8 @@ describe("remember()", () => {
     await remember("u", "k", "v", { ttlDays: 30 });
     const after = Date.now();
 
-    const create = (
-      m.memoryFact.upsert.mock.calls[0]?.[0] as { create: { expiresAt: Date | null } }
-    ).create;
+    const create = (m.memoryFact.upsert.mock.calls[0][0] as { create: { expiresAt: Date | null } })
+      .create;
     expect(create.expiresAt).toBeInstanceOf(Date);
     const diff = create.expiresAt!.getTime();
     expect(diff).toBeGreaterThanOrEqual(before + 30 * 86_400_000);
@@ -168,7 +167,7 @@ describe("recall()", () => {
     expect(snap.recentMessages[0]?.role).toBe("user");
     expect(snap.recentMessages[1]?.role).toBe("assistant");
     expect(m.memoryFact.updateMany).toHaveBeenCalledOnce();
-    const payload = (m.memoryFact.updateMany.mock.calls[0]?.[0] as { data: { weight: unknown } })
+    const payload = (m.memoryFact.updateMany.mock.calls[0][0] as { data: { weight: unknown } })
       .data;
     expect(payload.weight).toEqual({ increment: 0.05 });
   });
@@ -182,7 +181,7 @@ describe("recall()", () => {
     await recall("u", { minWeight: 0.2 });
 
     const where = (
-      m.memoryFact.findMany.mock.calls[0]?.[0] as {
+      m.memoryFact.findMany.mock.calls[0][0] as {
         where: { weight: { gte: number }; OR: unknown };
       }
     ).where;
@@ -206,7 +205,7 @@ describe("recall()", () => {
     await recall("u", { channelId: "c1" });
 
     const where = (
-      m.memoryMessage.findMany.mock.calls[0]?.[0] as {
+      m.memoryMessage.findMany.mock.calls[0][0] as {
         where: { userId: string; channelId: string };
       }
     ).where;
@@ -238,7 +237,7 @@ describe("forgetAll()", () => {
   it("removes facts, messages, and user record in a transaction", async () => {
     await forgetAll("u");
     expect(m.$transaction).toHaveBeenCalledOnce();
-    const ops = m.$transaction.mock.calls[0]?.[0] as Array<unknown>;
+    const ops = m.$transaction.mock.calls[0][0] as Array<unknown>;
     expect(ops).toHaveLength(3);
   });
 });
@@ -278,7 +277,7 @@ describe("setTone() and setSummary()", () => {
   it("setTone upserts with valid tone", async () => {
     m.userMemory.upsert.mockResolvedValue({});
     await setTone("u", "meme");
-    const args = (m.userMemory.upsert.mock.calls[0]?.[0] as { update: { tone: string } }).update;
+    const args = (m.userMemory.upsert.mock.calls[0][0] as { update: { tone: string } }).update;
     expect(args.tone).toBe("meme");
   });
 
@@ -289,7 +288,7 @@ describe("setTone() and setSummary()", () => {
   it("setSummary stores a rolling summary", async () => {
     m.userMemory.upsert.mockResolvedValue({});
     await setSummary("u", "Loves indie roguelikes, lives in EST.");
-    const args = (m.userMemory.upsert.mock.calls[0]?.[0] as { update: { summary: string } }).update;
+    const args = (m.userMemory.upsert.mock.calls[0][0] as { update: { summary: string } }).update;
     expect(args.summary).toContain("roguelikes");
   });
 });
@@ -336,7 +335,7 @@ describe("purgeExpired()", () => {
 
     expect(n).toBe(7);
     const args = (
-      m.memoryFact.deleteMany.mock.calls[0]?.[0] as { where: { expiresAt: { lt: unknown } } }
+      m.memoryFact.deleteMany.mock.calls[0][0] as { where: { expiresAt: { lt: unknown } } }
     ).where;
     expect(args.expiresAt.lt).toBeInstanceOf(Date);
   });
