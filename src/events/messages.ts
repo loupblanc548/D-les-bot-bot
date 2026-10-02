@@ -191,6 +191,7 @@ function getRandomHelldiverReply(lang: SupportedLang = "fr"): string {
 // Detect image/video attachments reliably — Discord often leaves contentType null
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|tiff?|heic|heif|avif|svg)$/i;
 const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|avi|mkv|wmv|flv|m4v)$/i;
+const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|opus|m4a|flac|aac)$/i;
 
 function attachmentPath(url: string): string {
   return url.split(/[?#]/, 1)[0] || url;
@@ -205,6 +206,11 @@ function isMediaAttachment(a: { contentType?: string | null; url: string }): boo
   if (a.contentType?.startsWith("image/") || a.contentType?.startsWith("video/")) return true;
   const path = attachmentPath(a.url);
   return IMAGE_EXTENSIONS.test(path) || VIDEO_EXTENSIONS.test(path);
+}
+
+function isAudioAttachment(a: { contentType?: string | null; url: string }): boolean {
+  if (a.contentType?.startsWith("audio/")) return true;
+  return AUDIO_EXTENSIONS.test(attachmentPath(a.url));
 }
 
 // Multilingual Gemini image analysis prompts
@@ -1483,7 +1489,8 @@ async function handleAiChatMention(
 
     // Si le message est vide après nettoyage → vérifier s'il y a des images jointes
     const allAttachments = [...message.attachments.values()];
-    const hasAttachments = allAttachments.some(isMediaAttachment);
+    const hasAudio = allAttachments.some(isAudioAttachment);
+    const hasAttachments = allAttachments.some(isMediaAttachment) || hasAudio;
     if (allAttachments.length > 0) {
       logger.info(
         `[AIChat] Attachments: ${allAttachments.length} — types: ${allAttachments.map((a) => `ct=${a.contentType || "null"} url=${a.url.slice(-30)}`).join(" | ")}`,
@@ -1510,7 +1517,9 @@ async function handleAiChatMention(
         logger.info(`[AIChat] Retry cue — replaying last unanswered question`);
       }
     }
-    const effectiveContent = cleanedContent || "Analyse cette image et dis-moi ce que tu vois.";
+    const effectiveContent =
+      cleanedContent ||
+      (hasAudio ? "C'est quelle chanson ?" : "Analyse cette image et dis-moi ce que tu vois.");
 
     // « tu es là » → une vraie phrase via le chat, pas un embed / une commande.
     if (isPresencePing(cleanedContent) && !hasAttachments) {
@@ -1586,7 +1595,7 @@ async function handleAiChatMention(
     // ── CACHE DÉSACTIVÉ — le bot doit réfléchir à chaque message, pas rejouer des réponses pré-construites ──
 
     // ── Trivial fast path (réponses instantanées sans API) ──
-    if (imageAttachments.length === 0 && embedImageUrls.length === 0) {
+    if (imageAttachments.length === 0 && embedImageUrls.length === 0 && !hasAudio) {
       const { getTrivialResponse } = await import("../services/trivialFastPath.js");
       const trivial = getTrivialResponse(effectiveContent, message.author.id);
       if (trivial) {
@@ -1679,6 +1688,41 @@ async function handleAiChatMention(
         logger.info(
           `[AIChat] ${imageUrls.length} image(s) jointe(s) — Gemini non configuré, URLs passées à l'agent`,
         );
+      }
+    }
+
+    const audioClip = allAttachments.find(isAudioAttachment);
+    if (audioClip) {
+      const audioUrl = audioClip.url;
+      const onlyIdentify =
+        !cleanedContent ||
+        /\b(shazam\w*|reconnais\w*|quelle chanson|cette musique|this song)\b/i.test(cleanedContent);
+      try {
+        const { identifySongFromUrl } = await import("../services/songIdentify.js");
+        const song = await identifySongFromUrl(audioUrl);
+        const line = [
+          `🎵 ${song.title} — ${song.artist}`,
+          song.album ? song.album : "",
+          song.timecode ? `Repère : ${song.timecode}` : "",
+          song.link,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        if (onlyIdentify && imageAttachments.length === 0) {
+          await message.reply({ content: line, allowedMentions: { repliedUser: false } });
+          void statusIndicator.cleanup();
+          return;
+        }
+        enrichedContent += `\n\n[Chanson reconnue]\n${line}\n`;
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "Reconnaissance impossible";
+        logger.warn(`[AIChat] Reconnaissance audio échouée: ${reason}`);
+        if (onlyIdentify && imageAttachments.length === 0) {
+          await message.reply({ content: reason, allowedMentions: { repliedUser: false } });
+          void statusIndicator.cleanup();
+          return;
+        }
+        enrichedContent += `\n\n[Extrait audio joint: ${audioUrl}]\n(${reason}. Utilise identify_song avec audioUrl=${audioUrl}.)\n`;
       }
     }
 
