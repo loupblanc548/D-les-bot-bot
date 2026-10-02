@@ -855,7 +855,9 @@ async function runAgentLoopInternal(
     for (const m of allModels) {
       if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
-    if (availableTools.length > 0) {
+    // Les questions courtes restent sur le modèle léger. Le gros modèle « tools »
+    // ne passe devant que pour le travail modéré ou complexe.
+    if (availableTools.length > 0 && taskComplexity !== "trivial" && taskComplexity !== "simple") {
       const idx = modelsToTry.indexOf(NVIDIA_TOOLS_MODEL);
       if (idx >= 0) modelsToTry.splice(idx, 1);
       modelsToTry.unshift(NVIDIA_TOOLS_MODEL);

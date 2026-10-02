@@ -346,6 +346,9 @@ export async function executeScraper(options: ScraperOptions): Promise<ScrapedDa
     };
   } finally {
     if (page) await page.close().catch(() => {});
+    const current = browserInstance;
+    browserInstance = null;
+    if (current) await current.close().catch(() => {});
   }
 }
 

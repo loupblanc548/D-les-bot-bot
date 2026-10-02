@@ -486,22 +486,26 @@ export async function takeScreenshot(targetUrl: string): Promise<Buffer | null> 
     }
   }
 
-  // 2. Fallback : Playwright
+  // 2. Fallback : Playwright, fermé dès que la capture est finie.
   const browser = await getPlaywrightBrowser();
   if (!browser) return null;
 
+  let page: import("playwright").Page | null = null;
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 15000 });
     await page.waitForTimeout(2000);
     const buffer = await page.screenshot({ type: "png" });
-    await page.close();
     return Buffer.from(buffer);
   } catch (error) {
     logger.warn(
       `[ExternalAPI] Screenshot error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return null;
+  } finally {
+    await page?.close().catch(() => {});
+    await playwrightBrowser?.close().catch(() => {});
+    playwrightBrowser = null;
   }
 }
 

@@ -166,7 +166,8 @@ export function classifyTaskComplexity(userMessage: string, toolCount = 0): Task
     }
   }
 
-  // Défaut: modéré (la plupart des conversations Discord)
+  // Court et sans mot-clé lourd : modèle léger. Le reste reste modéré.
+  if (msg.length <= 160) return "simple";
   return "moderate";
 }
 

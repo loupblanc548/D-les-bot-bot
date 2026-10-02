@@ -59,7 +59,7 @@ import { startVpsStorageWatchdog } from "./cron/vpsStorageWatchdog.js";
 import { setVpsMaintenanceClient } from "./services/vpsMaintenance.js";
 import { generateHoneytokens } from "./services/honeytokenEngine.js";
 import { setGitHealerClient } from "./services/gitAutoHealer.js";
-import { setKaliClient, ensureKaliContainer } from "./services/agentToolsKali.js";
+import { setKaliClient } from "./services/agentToolsKali.js";
 import { setWhitelistClient } from "./services/killWhitelist.js";
 import { setDiscordClient as setSoarClient } from "./services/activeDefenseEngine.js";
 import { setSoarGateClient } from "./services/agentSoarGate.js";
@@ -443,7 +443,9 @@ export function attachStartupLogic(
           () => {
             setKaliClient(client);
             setWhitelistClient(client);
-            return ensureKaliContainer().catch(() => {});
+            logger.info(
+              "[Startup] Conteneur Kali non démarré (RAM). Il ne part que sur appel explicite.",
+            );
           },
           () => {
             setVpsMaintenanceClient(client);
