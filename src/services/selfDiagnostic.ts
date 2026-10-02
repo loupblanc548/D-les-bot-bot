@@ -300,13 +300,23 @@ function formatDuration(sec: number): string {
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  return d > 0 ? `${d}j ${h}h` : h > 0 ? `${h}h ${m}min` : `${m}min`;
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}j`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || parts.length === 0) parts.push(`${m}min`);
+  return parts.join(" ");
+}
+
+function frCount(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`;
 }
 
 function problemLine(p: ProblemEntry): string {
   const tag = p.reported ? "" : "🆕 ";
   const where = p.location ? `\n  ↳ \`${p.location}\`` : "";
-  const text = p.sample.replace(/^\s*(?:[^\w[]{0,4}\s*)?\[[^\]]{1,40}\]\s*/, "") || p.sample;
+  let text = p.sample.replace(/^\s*(?:[^\w[]{0,4}\s*)?\[[^\]]{1,40}\]\s*/, "") || p.sample;
+  const prefix = `[${p.module}]`;
+  if (text.startsWith(prefix)) text = text.slice(prefix.length).trimStart();
   return `${tag}**[${p.module}]** ×${p.windowCount} — ${text.slice(0, 140)}${where}`;
 }
 
@@ -349,8 +359,8 @@ export function buildDiagnosticReport(
   const windowLabel = formatDuration(Math.max(0, Math.round((now - windowStartMs) / 1000)));
   const summary = [
     `**${STATUS_LABEL[status]}** — fenêtre des dernières ${windowLabel}.`,
-    `Erreurs : **${errorCount}** (${errors.length} distinctes) · Avertissements : **${warnCount}** (${warns.length} distincts)` +
-      (newCount > 0 ? ` · 🆕 ${newCount} nouveau(x)` : ""),
+    `Erreurs : **${errorCount}** (${frCount(errors.length, "distincte", "distinctes")}) · Avertissements : **${warnCount}** (${frCount(warns.length, "distinct", "distincts")})` +
+      (newCount > 0 ? ` · 🆕 ${frCount(newCount, "nouveau", "nouveaux")}` : ""),
     ...(hi.lines.length ? ["", ...hi.lines.map((l) => `⚠️ ${l}`)] : []),
   ].join("\n");
 

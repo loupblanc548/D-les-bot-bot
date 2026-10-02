@@ -187,6 +187,28 @@ describe("health + report", () => {
     expect(text).not.toMatch(/\|\s*-+\s*\|/);
   });
 
+  it("omits zero units and agrees in French", () => {
+    const err = new Error("x");
+    err.stack = "Error: x\n    at f (/app/dist/services/feeds.js:345:1)";
+    recordProblem("error", ["[Feeds] send failed", err]);
+    recordProblem("warn", ["[Steam] rate limited"]);
+    const sixHours = Date.now() - 6 * 3600_000;
+    const { embeds } = buildDiagnosticReport(
+      { ...healthy, uptimeSec: 3 * 86400 + 4 * 3600 },
+      getWindowProblems(),
+      sixHours,
+    );
+    const text = reportText(embeds);
+    expect(text).toContain("6h.");
+    expect(text).not.toContain("0min");
+    expect(text).toMatch(/Erreurs : \*\*1\*\* \(1 distincte\)/);
+    expect(text).toMatch(/Avertissements : \*\*1\*\* \(1 distinct\)/);
+    expect(text).toContain("2 nouveaux");
+    expect(text).toContain("3j 4h");
+    expect(text).toContain("**[Feeds]** ×1 — send failed");
+    expect(text).not.toContain("— [Feeds]");
+  });
+
   it("goes critical on process crashes", () => {
     recordProblem("error", ["[PROCESS] Unhandled Rejection at: x, reason: y"]);
     const { status } = buildDiagnosticReport(healthy, getWindowProblems(), Date.now());

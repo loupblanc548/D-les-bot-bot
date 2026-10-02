@@ -1,8 +1,6 @@
 /**
- * Conversation vocale : John rejoint dès qu'il y a quelqu'un,
- * écoute le micro, répond à voix haute.
- * Désactivé par défaut (rejoindre sans qu'on le demande dérange) :
- * VOICE_HANGOUT_AUTOJOIN=true pour le réactiver.
+ * Conversation vocale à la demande : John n'entre PAS tout seul dans un vocal.
+ * Pour parler, il faut une commande (/vocal, /parle, /tts) ou « en vocal ».
  */
 import {
   EndBehaviorType,
@@ -11,7 +9,7 @@ import {
   VoiceConnectionStatus,
   type VoiceConnection,
 } from "@discordjs/voice";
-import { ChannelType, Client, Guild, VoiceChannel, VoiceState } from "discord.js";
+import { ChannelType, Client, Guild, VoiceChannel } from "discord.js";
 import prism from "prism-media";
 import logger from "../utils/logger.js";
 import { pcmToWavBuffer, transcribeAudio } from "./dictation.js";
@@ -265,30 +263,10 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
   }
 }
 
-export function startVoiceHangout(client: Client): void {
+export function startVoiceHangout(_client: Client): void {
   if (started) return;
-  if (process.env.VOICE_HANGOUT_AUTOJOIN !== "true") {
-    logger.info("[VoiceHangout] Auto-join vocal désactivé (VOICE_HANGOUT_AUTOJOIN != true)");
-    return;
-  }
   started = true;
-  clientRef = client;
-
-  client.on("voiceStateUpdate", (oldState: VoiceState, newState: VoiceState) => {
-    const guildId = newState.guild.id || oldState.guild.id;
-    if (!guildId) return;
-    void reconcileGuild(client, guildId);
-  });
-
-  tickTimer = setInterval(() => {
-    if (!clientRef) return;
-    for (const g of clientRef.guilds.cache.values()) {
-      void reconcileGuild(clientRef, g.id);
-    }
-  }, 20_000);
-  if (tickTimer.unref) tickTimer.unref();
-
-  logger.info("[VoiceHangout] Conversation vocale active — parle, John répond");
+  logger.info("[VoiceHangout] Auto-join vocal désactivé — John ne rejoint que sur demande");
 }
 
 export function stopVoiceHangout(): void {
