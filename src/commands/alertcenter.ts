@@ -139,9 +139,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
   switch (commandName) {
     case "alertcenter": {
       const sub = interaction.options.getSubcommand();
-      if (sub === "pending") await handleAlertPending(interaction, ephemeral);
-      else if (sub === "history") await handleAlertHistory(interaction, ephemeral);
-      else if (sub === "user") await handleAlertUser(interaction, ephemeral);
+      if (sub === "pending") {
+        await handleAlertPending(interaction, ephemeral);
+      } else if (sub === "history") {
+        await handleAlertHistory(interaction, ephemeral);
+      } else if (sub === "user") {
+        await handleAlertUser(interaction, ephemeral);
+      }
       return true;
     }
     case "riskscore":
@@ -152,11 +156,17 @@ export async function handleCommand(interaction: ChatInputCommandInteraction): P
       return true;
     case "alertconfig": {
       const sub = interaction.options.getSubcommand();
-      if (sub === "channel") await handleAlertConfigChannel(interaction, ephemeral);
-      else if (sub === "threshold") await handleAlertConfigThreshold(interaction, ephemeral);
-      else if (sub === "owner_notify") await handleAlertConfigOwnerNotify(interaction, ephemeral);
-      else if (sub === "reset") await handleAlertConfigReset(interaction, ephemeral);
-      else if (sub === "view") await handleAlertConfigView(interaction, ephemeral);
+      if (sub === "channel") {
+        await handleAlertConfigChannel(interaction, ephemeral);
+      } else if (sub === "threshold") {
+        await handleAlertConfigThreshold(interaction, ephemeral);
+      } else if (sub === "owner_notify") {
+        await handleAlertConfigOwnerNotify(interaction, ephemeral);
+      } else if (sub === "reset") {
+        await handleAlertConfigReset(interaction, ephemeral);
+      } else if (sub === "view") {
+        await handleAlertConfigView(interaction, ephemeral);
+      }
       return true;
     }
   }

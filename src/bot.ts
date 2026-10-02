@@ -16,7 +16,8 @@ import * as Sentry from "@sentry/node";
 import { Client, GatewayIntentBits, Options, Partials } from "discord.js";
 import prisma from "./prisma.js";
 import { config, validateConfig } from "./config.js";
-import logger from "./utils/logger.js";
+import logger, { fortniteLogger } from "./utils/logger.js";
+import { installDiagnosticCapture } from "./services/selfDiagnostic.js";
 import { MEMORY_CONFIG } from "./utils/memoryConfig.js";
 import { startHealthServer, setDiscordClient } from "./services/health-http.js";
 import { setupAllWebhooks } from "./services/webhookSetup.js";
@@ -223,6 +224,8 @@ function checkRestartLoop(): { isLoop: boolean; restartCount: number; waitMs: nu
 }
 
 async function main(): Promise<void> {
+  installDiagnosticCapture(logger);
+  installDiagnosticCapture(fortniteLogger, "Fortnite");
   logger.info("=== Discord Surveillance Bot ===");
 
   // ─── Anti-boucle de redémarrage ───────────────────────────────────────

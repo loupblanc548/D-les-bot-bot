@@ -758,13 +758,13 @@ export async function runWishlistRetrospective(client: Client): Promise<number> 
         sentCount +
         " notification(s) envoyée(s) ======\n",
     );
-    return sentCount;
 
     // Broadcast Fortnite update to WebSocket clients
     if (sentCount > 0) {
       broadcastFortniteUpdate({ skins: sentCount });
       pushFortniteDetection("skins", sentCount + " skin(s) trouvé(s) en rétrospective wishlist");
     }
+    return sentCount;
   } catch (err) {
     fortniteLogger.error(
       "\ud83d\udca5 [CRASH WISHLIST RETROSPECTIVE] Erreur fatale dans runWishlistRetrospective :",

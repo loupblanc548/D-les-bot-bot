@@ -23,7 +23,21 @@
 import https from "https";
 import logger from "../utils/logger.js";
 import http from "http";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
+import path from "path";
+
+/** Runs a Puppeteer script in a child Node process; values go through env, never into the code. */
+function runPuppeteerScript(
+  script: string,
+  sessionDir: string,
+  extraEnv: Record<string, string> = {},
+): string {
+  return execFileSync(process.execPath, ["-e", script], {
+    timeout: 45_000,
+    encoding: "utf8",
+    env: { ...process.env, AMAZON_SESSION_DIR: path.resolve(sessionDir), ...extraEnv },
+  });
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -366,7 +380,8 @@ export async function amazonCartMonitor(
 
         // Load saved session if exists
         const fs = require('fs');
-        const cookiesPath = '${sessionDir}/cookies.json';
+        const sessionDir = process.env.AMAZON_SESSION_DIR;
+        const cookiesPath = require('path').join(sessionDir, 'cookies.json');
         if (fs.existsSync(cookiesPath)) {
           const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
           await page.setCookie(...cookies);
@@ -402,19 +417,15 @@ export async function amazonCartMonitor(
         });
 
         // Save cookies for next run
-        if (!fs.existsSync('${sessionDir}')) fs.mkdirSync('${sessionDir}', { recursive: true });
+        if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
         const cookies = await page.cookies();
         fs.writeFileSync(cookiesPath, JSON.stringify(cookies));
 
         await browser.close();
         return JSON.stringify({ itemCount: items.length, items, scrapedAt: new Date().toISOString() });
-      })().catch(e => { logger.error(e); process.exit(1); });
+      })().then(r => console.log(r)).catch(e => { console.error(e); process.exit(1); });
     `;
-    const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
-      timeout: 45_000,
-      encoding: "utf8",
-    });
-    return result;
+    return runPuppeteerScript(script, sessionDir);
   } catch (err) {
     return JSON.stringify({ error: `Cart monitor failed: ${(err as Error).message}` });
   }
@@ -704,7 +715,8 @@ export async function amazonSubscribeSaveCheck(
         const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
         const page = await browser.newPage();
         const fs = require('fs');
-        const cookiesPath = '${sessionDir}/cookies.json';
+        const sessionDir = process.env.AMAZON_SESSION_DIR;
+        const cookiesPath = require('path').join(sessionDir, 'cookies.json');
         if (fs.existsSync(cookiesPath)) {
           const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
           await page.setCookie(...cookies);
@@ -729,13 +741,9 @@ export async function amazonSubscribeSaveCheck(
         });
         await browser.close();
         return JSON.stringify({ subscriptionCount: items.length, items, scrapedAt: new Date().toISOString() });
-      })().catch(e => { logger.error(e); process.exit(1); });
+      })().then(r => console.log(r)).catch(e => { console.error(e); process.exit(1); });
     `;
-    const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
-      timeout: 45_000,
-      encoding: "utf8",
-    });
-    return result;
+    return runPuppeteerScript(script, sessionDir);
   } catch (err) {
     return JSON.stringify({ error: `Subscribe & Save check failed: ${(err as Error).message}` });
   }
@@ -754,12 +762,13 @@ export async function amazonOrderHistory(
         const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
         const page = await browser.newPage();
         const fs = require('fs');
-        const cookiesPath = '${sessionDir}/cookies.json';
+        const sessionDir = process.env.AMAZON_SESSION_DIR;
+        const cookiesPath = require('path').join(sessionDir, 'cookies.json');
         if (fs.existsSync(cookiesPath)) {
           const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
           await page.setCookie(...cookies);
         }
-        await page.goto('https://www.amazon.com/your-orders/orders?timeFilter=year-${year}', { waitUntil: 'networkidle2', timeout: 30000 });
+        await page.goto('https://www.amazon.com/your-orders/orders?timeFilter=year-' + process.env.AMAZON_ORDER_YEAR, { waitUntil: 'networkidle2', timeout: 30000 });
         if (page.url().includes('signin')) {
           await browser.close();
           return JSON.stringify({ error: 'Login required' });
@@ -780,13 +789,12 @@ export async function amazonOrderHistory(
         });
         await browser.close();
         return JSON.stringify({ orderCount: orders.length, orders, year, scrapedAt: new Date().toISOString() });
-      })().catch(e => { logger.error(e); process.exit(1); });
+      })().then(r => console.log(r)).catch(e => { console.error(e); process.exit(1); });
     `;
-    const result = execSync(`node -e "${script.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`, {
-      timeout: 45_000,
-      encoding: "utf8",
-    });
-    return result;
+    if (!/^\d{4}$/.test(year)) {
+      return JSON.stringify({ error: "Invalid year (expected YYYY)" });
+    }
+    return runPuppeteerScript(script, sessionDir, { AMAZON_ORDER_YEAR: year });
   } catch (err) {
     return JSON.stringify({ error: `Order history failed: ${(err as Error).message}` });
   }

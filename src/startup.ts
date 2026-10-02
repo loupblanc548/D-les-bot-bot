@@ -47,6 +47,7 @@ import { startBotHealthCheck } from "./cron/botHealthCheck.js";
 import { startNotificationCleanup } from "./cron/notificationCleanup.js";
 import { startAlertDigest } from "./cron/alertDigest.js";
 import { startSslWatch } from "./cron/sslWatch.js";
+import { startSelfDiagnostic } from "./cron/selfDiagnosticCron.js";
 import { startDailyGamingContent } from "./cron/dailyGamingContent.js";
 import { startSyncFreeForDev } from "./cron/syncFreeForDev.js";
 import { startSyncTypeScriptSkills } from "./cron/syncTypeScriptSkills.js";
@@ -390,6 +391,7 @@ export function attachStartupLogic(
           () => startNotificationCleanup(client),
           () => startAlertDigest(client),
           () => startSslWatch(client),
+          () => startSelfDiagnostic(client),
           () => startDailyGamingContent(client),
           () => handleAutoModeration(client),
           () => handleInviteTracker(client),

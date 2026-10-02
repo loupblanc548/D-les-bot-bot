@@ -357,7 +357,6 @@ export async function sendToChannel(
       logger.error(`[Feeds] Discord API error sur ${channelId}: ${errMsg}`);
       return false;
     }
-    return false;
   } catch (err) {
     logger.error(
       `[Feeds] Erreur envoi channel ${channelId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -385,7 +384,6 @@ export async function sendToChannelWithAttachment(
       );
       return false;
     }
-    return false;
   } catch (err) {
     logger.error(
       `[Feeds] Erreur envoi channel ${channelId} (attachment): ${err instanceof Error ? err.message : String(err)}`,

@@ -3,6 +3,120 @@
  * Called by Quant (the AI brain) via tool handlers in agentToolsExtended.ts
  */
 
+// ─── Safe expression evaluator ──────────────────────────────────────────────
+const SAFE_FUNCS: Record<string, (x: number) => number> = {
+  sin: Math.sin,
+  cos: Math.cos,
+  tan: Math.tan,
+  asin: Math.asin,
+  acos: Math.acos,
+  atan: Math.atan,
+  exp: Math.exp,
+  ln: Math.log,
+  log: Math.log10,
+  sqrt: Math.sqrt,
+  abs: Math.abs,
+};
+const SAFE_CONSTS: Record<string, number> = { pi: Math.PI, e: Math.E };
+
+/**
+ * Evaluates an arithmetic expression in one variable without `eval`.
+ * Expressions come from LLM tool args (user-controlled), so only numbers,
+ * + - * / ^ **, parentheses, the variable, and SAFE_FUNCS/SAFE_CONSTS are accepted.
+ */
+export function evaluateMathExpression(
+  expression: string,
+  variable: string,
+  value: number,
+): number {
+  const src = expression.replace(/\*\*/g, "^").replace(/\s+/g, "");
+  if (src.length === 0 || src.length > 500) throw new Error("Invalid expression");
+  let pos = 0;
+
+  const peek = () => src[pos];
+  const expect = (ch: string) => {
+    if (src[pos] !== ch) throw new Error(`Expected '${ch}' at ${pos}`);
+    pos++;
+  };
+
+  const parseExpr = (): number => {
+    let left = parseTerm();
+    while (peek() === "+" || peek() === "-") {
+      const op = src[pos++];
+      const right = parseTerm();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  };
+
+  const parseTerm = (): number => {
+    let left = parseUnary();
+    while (peek() === "*" || peek() === "/") {
+      const op = src[pos++];
+      const right = parseUnary();
+      left = op === "*" ? left * right : left / right;
+    }
+    return left;
+  };
+
+  const parseUnary = (): number => {
+    if (peek() === "-") {
+      pos++;
+      return -parseUnary();
+    }
+    if (peek() === "+") {
+      pos++;
+      return parseUnary();
+    }
+    return parsePower();
+  };
+
+  const parsePower = (): number => {
+    const base = parseAtom();
+    if (peek() === "^") {
+      pos++;
+      return base ** parseUnary();
+    }
+    return base;
+  };
+
+  const parseAtom = (): number => {
+    const ch = peek();
+    if (ch === "(") {
+      pos++;
+      const v = parseExpr();
+      expect(")");
+      return v;
+    }
+    const num = /^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?/i.exec(src.slice(pos));
+    if (num) {
+      pos += num[0].length;
+      return Number(num[0]);
+    }
+    const ident = /^[a-zA-Z_]\w*/.exec(src.slice(pos));
+    if (ident) {
+      const name = ident[0];
+      pos += name.length;
+      if (name === variable) return value;
+      const fn = SAFE_FUNCS[name.toLowerCase()];
+      if (fn) {
+        expect("(");
+        const v = parseExpr();
+        expect(")");
+        return fn(v);
+      }
+      const constant = SAFE_CONSTS[name.toLowerCase()];
+      if (constant !== undefined) return constant;
+      throw new Error(`Unknown identifier '${name}'`);
+    }
+    throw new Error(`Unexpected '${ch ?? "end"}' at ${pos}`);
+  };
+
+  const result = parseExpr();
+  if (pos !== src.length) throw new Error(`Unexpected '${src[pos]}' at ${pos}`);
+  return result;
+}
+
 // ─── Matrix operations ──────────────────────────────────────────────────────
 export function matrixOperations(matrixA: string, matrixB: string, operation: string): string {
   try {
@@ -136,8 +250,7 @@ export function integralCalculator(
     const h = (hi - lo) / n;
     const f = (x: number) => {
       try {
-        const expr = expression.replace(new RegExp(v, "g"), String(x));
-        return eval(expr);
+        return evaluateMathExpression(expression, v, x);
       } catch {
         return 0;
       }
@@ -169,8 +282,7 @@ export function limitCalculator(expression: string, variable: string, point: num
     const epsilon = 1e-7;
     const f = (x: number) => {
       try {
-        const expr = expression.replace(new RegExp(v, "g"), String(x));
-        return eval(expr);
+        return evaluateMathExpression(expression, v, x);
       } catch {
         return NaN;
       }

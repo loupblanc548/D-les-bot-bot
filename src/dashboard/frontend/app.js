@@ -128,7 +128,7 @@ chatInput.addEventListener("keydown", (e) => {
 chatSend.addEventListener("click", () => sendChat());
 
 document.getElementById("chat-clear").addEventListener("click", () => {
-  chatMessages.innerHTML = "";
+  chatMessages.textContent = "";
   showChatWelcome();
 });
 
@@ -208,7 +208,11 @@ function addChatMessage(role, content) {
   avatar.textContent = role === "user" ? "U" : "AI";
   const bubble = document.createElement("div");
   bubble.className = "chat-msg-bubble";
-  bubble.textContent = content;
+  if (role === "assistant") {
+    bubble.innerHTML = renderMarkdown(content);
+  } else {
+    bubble.textContent = content;
+  }
   msg.appendChild(avatar);
   msg.appendChild(bubble);
   chatMessages.appendChild(msg);
@@ -299,13 +303,17 @@ async function loadStats() {
   try {
     const stats = await api("/bot/stats");
     content.innerHTML = `<div class="stats-grid">
-      <div class="stat-card"><span class="stat-icon">🏰</span><div class="stat-value">${stats.totalGuilds || 0}</div><div class="stat-label">Serveurs</div></div>
-      <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value">${stats.totalUsers || 0}</div><div class="stat-label">Utilisateurs</div></div>
-      <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value">${stats.totalLogs || 0}</div><div class="stat-label">Logs</div></div>
-      <div class="stat-card"><span class="stat-icon">🔨</span><div class="stat-value">${stats.totalSanctions || 0}</div><div class="stat-label">Sanctions</div></div>
-      <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value">${Math.floor((stats.uptime || 0) / 3600)}h</div><div class="stat-label">Uptime</div></div>
-      <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value">${stats.memoryMb || 0}</div><div class="stat-label">Mémoire (MB)</div></div>
+      <div class="stat-card"><span class="stat-icon">🏰</span><div class="stat-value" data-target="${stats.totalGuilds || 0}">0</div><div class="stat-label">Serveurs</div></div>
+      <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value" data-target="${stats.totalUsers || 0}">0</div><div class="stat-label">Utilisateurs</div></div>
+      <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value" data-target="${stats.totalLogs || 0}">0</div><div class="stat-label">Logs</div></div>
+      <div class="stat-card"><span class="stat-icon">🔨</span><div class="stat-value" data-target="${stats.totalSanctions || 0}">0</div><div class="stat-label">Sanctions</div></div>
+      <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value" data-target="${Math.floor((stats.uptime || 0) / 3600)}">0</div><div class="stat-label">Uptime (h)</div></div>
+      <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value" data-target="${stats.memoryMb || 0}">0</div><div class="stat-label">Mémoire (MB)</div></div>
     </div>`;
+    content.querySelectorAll(".stat-value").forEach((el) => {
+      const target = parseInt(el.dataset.target) || 0;
+      animateValue(el, 0, target, 900);
+    });
   } catch (err) {
     content.innerHTML = `<p style="color: var(--danger)">Erreur: ${escapeHtml(err.message)}</p>`;
   }
@@ -496,8 +504,8 @@ function renderMarkdown(text) {
   html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   // Links
   html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" style="color:var(--accent-light);text-decoration:none;border-bottom:1px solid var(--accent-glow);">$1</a>',
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-light);text-decoration:none;border-bottom:1px solid var(--accent-glow);">$1</a>',
   );
   // Bullet lists
   html = html.replace(/^• (.+)$/gm, '<li style="margin-left:1.2rem;list-style:disc;">$1</li>');
@@ -702,53 +710,6 @@ async function pollConnection() {
 }
 
 setInterval(pollConnection, 30000);
-
-// ─── Enhanced Chat Rendering with Markdown ───────────────────────────────────
-
-const _originalAddChatMessage = addChatMessage;
-addChatMessage = function (role, content) {
-  const msg = document.createElement("div");
-  msg.className = `chat-msg ${role}`;
-  const avatar = document.createElement("div");
-  avatar.className = "chat-msg-avatar";
-  avatar.textContent = role === "user" ? "U" : "AI";
-  const bubble = document.createElement("div");
-  bubble.className = "chat-msg-bubble";
-  if (role === "assistant") {
-    bubble.innerHTML = renderMarkdown(content);
-  } else {
-    bubble.textContent = content;
-  }
-  msg.appendChild(avatar);
-  msg.appendChild(bubble);
-  chatMessages.appendChild(msg);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-};
-
-// ─── Enhanced Stats with Animated Counters ───────────────────────────────────
-
-const _originalLoadStats = loadStats;
-loadStats = async function () {
-  const content = document.getElementById("stats-content");
-  try {
-    const stats = await api("/bot/stats");
-    content.innerHTML = `<div class="stats-grid">
-      <div class="stat-card"><span class="stat-icon">🏰</span><div class="stat-value" data-target="${stats.totalGuilds || 0}">0</div><div class="stat-label">Serveurs</div></div>
-      <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value" data-target="${stats.totalUsers || 0}">0</div><div class="stat-label">Utilisateurs</div></div>
-      <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value" data-target="${stats.totalLogs || 0}">0</div><div class="stat-label">Logs</div></div>
-      <div class="stat-card"><span class="stat-icon">🔨</span><div class="stat-value" data-target="${stats.totalSanctions || 0}">0</div><div class="stat-label">Sanctions</div></div>
-      <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value" data-target="${Math.floor((stats.uptime || 0) / 3600)}">0</div><div class="stat-label">Uptime (h)</div></div>
-      <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value" data-target="${stats.memoryMb || 0}">0</div><div class="stat-label">Mémoire (MB)</div></div>
-    </div>`;
-    // Animate counters
-    content.querySelectorAll(".stat-value").forEach((el) => {
-      const target = parseInt(el.dataset.target) || 0;
-      animateValue(el, 0, target, 900);
-    });
-  } catch (err) {
-    content.innerHTML = `<p style="color: var(--danger)">Erreur: ${escapeHtml(err.message)}</p>`;
-  }
-};
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 

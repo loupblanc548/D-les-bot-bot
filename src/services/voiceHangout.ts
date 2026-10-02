@@ -1,6 +1,8 @@
 /**
  * Conversation vocale : John rejoint dès qu'il y a quelqu'un,
  * écoute le micro, répond à voix haute.
+ * Désactivé par défaut (rejoindre sans qu'on le demande dérange) :
+ * VOICE_HANGOUT_AUTOJOIN=true pour le réactiver.
  */
 import {
   EndBehaviorType,
@@ -265,6 +267,10 @@ async function reconcileGuild(client: Client, guildId: string): Promise<void> {
 
 export function startVoiceHangout(client: Client): void {
   if (started) return;
+  if (process.env.VOICE_HANGOUT_AUTOJOIN !== "true") {
+    logger.info("[VoiceHangout] Auto-join vocal désactivé (VOICE_HANGOUT_AUTOJOIN != true)");
+    return;
+  }
   started = true;
   clientRef = client;
 

@@ -43,7 +43,9 @@ export async function handleAutocomplete(interaction: AutocompleteInteraction): 
   if (interaction.commandName !== "mp3") return;
 
   const focused = interaction.options.getFocused(true);
-  if (focused.name !== "nom_du_son") return;
+  if (focused.name !== "nom_du_son") {
+    return;
+  }
 
   const focusedValue = focused.value.toLowerCase();
   const files = listSoundFiles();

@@ -2,8 +2,6 @@ import { Client } from "discord.js";
 import logger from "../utils/logger.js";
 import { startReminderWorker } from "./reminders/worker.js";
 import { startRSSAggregator } from "./rss/aggregator.js";
-import { startSystemDiagnostic } from "./diagnostic/systemDiagnostic.js";
-
 /**
  * Background modules that are not started elsewhere in bot.ts / startup.ts.
  *
@@ -15,6 +13,5 @@ import { startSystemDiagnostic } from "./diagnostic/systemDiagnostic.js";
 export function initializeModules(client: Client): void {
   startReminderWorker(client);
   startRSSAggregator(client);
-  startSystemDiagnostic(client);
-  logger.info("[Modules] Reminder worker, RSS aggregator, weekly diagnostic started");
+  logger.info("[Modules] Reminder worker, RSS aggregator started");
 }
