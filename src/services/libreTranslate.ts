@@ -4,6 +4,7 @@ import {
   translateText as googleTranslate,
   detectLanguage as googleDetect,
 } from "./googleCloudServices.js";
+import { translateWithPublicGoogle, translationEchoesSource } from "../utils/translator.js";
 
 const LIBRETRANSLATE_URL = process.env.LIBRETRANSLATE_URL || "https://libretranslate.com";
 const LIBRETRANSLATE_API_KEY = process.env.LIBRETRANSLATE_API_KEY || "";
@@ -31,12 +32,33 @@ export async function translateAny(
     };
 
   const googleResult = await googleTranslate(text, targetLang, sourceLang).catch((): null => null);
-  if (googleResult && googleResult.confidence > 0) {
+  if (
+    googleResult &&
+    googleResult.confidence > 0 &&
+    !translationEchoesSource(text, googleResult.translatedText)
+  ) {
     return { ...googleResult, provider: "google" };
   }
 
   const libreResult = await libreTranslate(text, targetLang, sourceLang).catch((): null => null);
-  if (libreResult) return { ...libreResult, provider: "libre" };
+  if (libreResult && !translationEchoesSource(text, libreResult.translatedText)) {
+    return { ...libreResult, provider: "libre" };
+  }
+
+  const publicGoogle = await translateWithPublicGoogle(
+    text,
+    sourceLang || "auto",
+    targetLang || "fr",
+  ).catch((): null => null);
+  if (publicGoogle) {
+    return {
+      translatedText: publicGoogle,
+      detectedSourceLanguage: sourceLang ?? "auto",
+      targetLanguage: targetLang,
+      confidence: 0.9,
+      provider: "google",
+    };
+  }
 
   return {
     translatedText: text,

@@ -5,6 +5,7 @@ import {
   getCircuitBreakerState,
   resetCircuitBreaker,
   translateText,
+  translationEchoesSource,
 } from "./translator.js";
 
 import { detectLanguage as mockedDetectLanguage } from "./languageDetector.js";
@@ -352,10 +353,9 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
   });
 
   it("retourne le texte original si tous les services échouent (fallback ultime)", async () => {
-    // Bannir MyMemory
     banMyMemory("Test");
+    global.fetch = vi.fn().mockRejectedValue(new Error("offline"));
 
-    // OpenRouter échoue aussi (pas de clé API)
     const prevKey = process.env.OPENROUTER_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
 
@@ -363,9 +363,47 @@ describe("Circuit Breaker — Fallback OpenRouter", () => {
       const result = await translateText("Hello world", "fr");
 
       expect(result).not.toBeNull();
-      // Fallback ultime: texte original
       expect(result!.translatedText).toBe("Hello world");
       expect(result!.detectedLanguage).toBe("unknown");
+    } finally {
+      process.env.OPENROUTER_API_KEY = prevKey;
+    }
+  });
+
+  it("ne garde pas un refrain anglais renvoyé tel quel par MyMemory", async () => {
+    expect(translationEchoesSource("No More No More", "No more no more.")).toBe(true);
+
+    const prevKey = process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.includes("mymemory")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            responseStatus: 200,
+            responseData: {
+              translatedText: "No more no more.",
+              detectedLanguage: "en",
+              match: 0.97,
+            },
+          }),
+        } as Response;
+      }
+      if (urlStr.includes("translate.googleapis.com")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [[["Plus jamais, plus jamais", "No More No More"]]],
+        } as Response;
+      }
+      return { ok: false, status: 503, json: async () => ({}) } as Response;
+    });
+
+    try {
+      const result = await translateText("No More No More", "fr");
+      expect(result!.translatedText).toBe("Plus jamais, plus jamais");
     } finally {
       process.env.OPENROUTER_API_KEY = prevKey;
     }

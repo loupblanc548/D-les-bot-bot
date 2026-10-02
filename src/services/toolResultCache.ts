@@ -56,6 +56,7 @@ const TOOL_TTL_MS: Record<string, number> = {
   // ── Orphan tools (Phase 1) ──
   // Lyrics: 24h (rarely changes)
   get_lyrics: 24 * 60 * 60 * 1000,
+  identify_song: 60 * 60 * 1000,
   // URL shortener: 24h (same URL = same short link)
   shorten_url: 24 * 60 * 60 * 1000,
   // DNS: 5 minutes (DNS can change)

@@ -8,6 +8,7 @@
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
 import logger from "../utils/logger.js";
 import { getLyrics } from "./lyricsService.js";
+import { identifySongFromUrl } from "./songIdentify.js";
 import { shortenUrl, shortenUrlVgd } from "./urlShortener.js";
 import { captureTweetScreenshot } from "./tweetScreenshot.js";
 import {
@@ -41,6 +42,24 @@ export const ORPHAN_TOOLS: AgentToolDef[] = [
           title: { type: "string", description: "Titre de la chanson" },
         },
         required: ["artist", "title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "identify_song",
+      description:
+        "Reconnaît une chanson à partir d'un extrait audio (message vocal, fichier ou lien), comme Shazam. Utilise cet outil quand on demande quelle est cette musique, de shazamer un son, ou d'identifier une chanson.",
+      parameters: {
+        type: "object",
+        properties: {
+          audioUrl: {
+            type: "string",
+            description: "URL HTTPS de l'extrait audio (pièce jointe Discord ou lien direct)",
+          },
+        },
+        required: ["audioUrl"],
       },
     },
   },
@@ -290,6 +309,29 @@ export async function executeOrphanTool(
           success: true,
           data: `🎵 ${result.title} — ${result.artist} (source: ${result.source})\n\n${lyrics}${result.lyrics.length > 1900 ? "\n...[tronqué]" : ""}`,
         };
+      }
+
+      case "identify_song": {
+        const audioUrl = String(args.audioUrl ?? "").trim();
+        if (!audioUrl) {
+          return {
+            success: false,
+            data: "Envoie un extrait audio (message vocal ou fichier) pour que je reconnaisse la chanson.",
+          };
+        }
+        try {
+          const song = await identifySongFromUrl(audioUrl);
+          const album = song.album ? ` — ${song.album}` : "";
+          const when = song.timecode ? `\nRepère dans le morceau : ${song.timecode}` : "";
+          const link = song.link ? `\n${song.link}` : "";
+          return {
+            success: true,
+            data: `🎵 ${song.title} — ${song.artist}${album}${when}${link}`,
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Reconnaissance impossible";
+          return { success: false, data: message };
+        }
       }
 
       // ── shorten_url ──

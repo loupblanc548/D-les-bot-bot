@@ -5528,6 +5528,22 @@ const TOOL_CATEGORIES: ToolCategory[] = [
     ],
     tools: ["get_lyrics"],
   },
+  {
+    keywords: [
+      "shazam",
+      "shazame",
+      "reconnais cette chanson",
+      "reconnais la chanson",
+      "c'est quelle chanson",
+      "quelle est cette musique",
+      "identifie la chanson",
+      "identifier la chanson",
+      "what song is this",
+      "identify this song",
+      "reconnaissance musicale",
+    ],
+    tools: ["identify_song"],
+  },
   // ═══ URL Shortener ═══
   {
     keywords: [

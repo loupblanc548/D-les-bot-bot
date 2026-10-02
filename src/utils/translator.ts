@@ -203,6 +203,27 @@ async function cacheToRedis(cacheKey: string, result: TranslationResult): Promis
   }
 }
 
+/** True when the "translation" is the source with only case or punctuation changed. */
+export function translationEchoesSource(source: string, translated: string): boolean {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  const left = normalize(source);
+  const right = normalize(translated);
+  return left.length > 0 && left === right;
+}
+
+function rememberTranslation(cacheKey: string, result: TranslationResult): void {
+  if (translationCache.size >= CACHE_MAX_SIZE) {
+    const firstKey = translationCache.keys().next().value;
+    if (firstKey) translationCache.delete(firstKey);
+  }
+  translationCache.set(cacheKey, result);
+}
+
 export async function translateText(
   text: string,
   targetLang: LanguageCode,
@@ -221,8 +242,10 @@ export async function translateText(
       const redisCached = (await redis.get(redisKey)) as string | null;
       if (redisCached) {
         const parsed = JSON.parse(redisCached) as TranslationResult;
-        translationCache.set(cacheKey, parsed); // also populate in-memory cache
-        return parsed;
+        if (!translationEchoesSource(text, parsed.translatedText)) {
+          translationCache.set(cacheKey, parsed);
+          return parsed;
+        }
       }
     }
   } catch {
@@ -231,7 +254,7 @@ export async function translateText(
 
   // Check in-memory cache
   const cached = translationCache.get(cacheKey);
-  if (cached) {
+  if (cached && !translationEchoesSource(text, cached.translatedText)) {
     return cached;
   }
 
@@ -258,7 +281,7 @@ export async function translateText(
   try {
     const { ollamaTranslate, ollamaDetectLanguage } = await import("./ollama.js");
     const translated = await ollamaTranslate(text, targetLang);
-    if (translated && translated.trim().length > 0) {
+    if (translated && translated.trim().length > 0 && !translationEchoesSource(text, translated)) {
       const detected = await ollamaDetectLanguage(text);
       logger.debug(
         `[Translator] Ollama ✓: "${text.slice(0, 30)}..." → "${translated.slice(0, 30)}..."`,
@@ -279,13 +302,8 @@ export async function translateText(
   } else {
     try {
       const openRouterResult = await translateWithOpenRouter(text, sourceLang, targetLang);
-      if (openRouterResult) {
-        // Cache the result
-        if (translationCache.size >= CACHE_MAX_SIZE) {
-          const firstKey = translationCache.keys().next().value;
-          if (firstKey) translationCache.delete(firstKey);
-        }
-        translationCache.set(cacheKey, openRouterResult);
+      if (openRouterResult && !translationEchoesSource(text, openRouterResult.translatedText)) {
+        rememberTranslation(cacheKey, openRouterResult);
         await cacheToRedis(cacheKey, openRouterResult);
         return openRouterResult;
       }
@@ -335,17 +353,16 @@ export async function translateText(
     });
     if (libreRes.ok) {
       const libreData = (await libreRes.json()) as any;
-      if (libreData?.translatedText) {
+      if (
+        libreData?.translatedText &&
+        !translationEchoesSource(text, String(libreData.translatedText))
+      ) {
         const result: TranslationResult = {
           translatedText: libreData.translatedText,
           detectedLanguage:
             sourceLang === "auto" ? libreData.detectedLanguage?.language || "auto" : sourceLang,
         };
-        if (translationCache.size >= CACHE_MAX_SIZE) {
-          const firstKey = translationCache.keys().next().value;
-          if (firstKey) translationCache.delete(firstKey);
-        }
-        translationCache.set(cacheKey, result);
+        rememberTranslation(cacheKey, result);
         await cacheToRedis(cacheKey, result);
         logger.info("[Translator] LibreTranslate ✓ (Plan C)");
         return result;
@@ -354,6 +371,25 @@ export async function translateText(
   } catch (libreErr) {
     logger.debug(
       `[Translator] LibreTranslate indisponible: ${libreErr instanceof Error ? libreErr.message : String(libreErr)}`,
+    );
+  }
+
+  // ── PLAN D: Google public (quand MyMemory renvoie le texte source) ──
+  try {
+    const googleText = await translateWithPublicGoogle(text, sourceLang, targetLang);
+    if (googleText) {
+      const result: TranslationResult = {
+        translatedText: googleText,
+        detectedLanguage: sourceLang === "auto" ? "auto" : sourceLang,
+      };
+      rememberTranslation(cacheKey, result);
+      await cacheToRedis(cacheKey, result);
+      logger.info("[Translator] Google ✓ (Plan D)");
+      return result;
+    }
+  } catch (googleErr) {
+    logger.debug(
+      `[Translator] Google indisponible: ${googleErr instanceof Error ? googleErr.message : String(googleErr)}`,
     );
   }
 
@@ -403,6 +439,11 @@ async function translateWithMyMemory(
       const translatedText = data.responseData.translatedText;
       const detectedLanguage =
         data.responseData.detectedLanguage || (sourceLang === "auto" ? "auto" : sourceLang);
+
+      if (translationEchoesSource(text, translatedText)) {
+        logger.warn("[Translator] MyMemory a renvoyé le texte source — essai suivant");
+        return null;
+      }
 
       logger.debug(
         `[Translator] MyMemory ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
@@ -493,6 +534,10 @@ async function translateWithOpenRouter(
 
       if (data.choices && data.choices[0]?.message?.content) {
         const translatedText = data.choices[0].message.content.trim();
+        if (translationEchoesSource(text, translatedText)) {
+          logger.warn("[Translator] OpenRouter a renvoyé le texte source — essai suivant");
+          return null;
+        }
 
         logger.debug(
           `[Translator] OpenRouter ✓: "${text.slice(0, 30)}..." → "${translatedText.slice(0, 30)}..."`,
@@ -518,6 +563,33 @@ async function translateWithOpenRouter(
     }
     throw new Error("OpenRouter unknown error", { cause: error });
   }
+}
+
+export async function translateWithPublicGoogle(
+  text: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<string | null> {
+  const source = sourceLang === "auto" ? "auto" : sourceLang;
+  const url =
+    "https://translate.googleapis.com/translate_a/single?client=gtx" +
+    `&sl=${encodeURIComponent(source)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return null;
+  const payload: unknown = await response.json();
+  if (!Array.isArray(payload) || !Array.isArray(payload[0])) return null;
+  const translated = payload[0]
+    .map((part) => (Array.isArray(part) && typeof part[0] === "string" ? part[0] : ""))
+    .join("")
+    .trim();
+  if (!translated || translationEchoesSource(text, translated)) return null;
+  return translated;
 }
 
 // ─── Utilitaires ─────────────────────────────────────────────────────────────

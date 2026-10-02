@@ -1290,6 +1290,15 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       },
     ],
     [
+      "identify_song",
+      {
+        level: "low",
+        module: "entertainment",
+        reason:
+          "Identifies a song from a public audio URL. The URL is checked against private addresses before the catalog lookup.",
+      },
+    ],
+    [
       "shorten_url",
       {
         level: "low",
