@@ -218,14 +218,14 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "deleteMessages",
       description:
-        "Supprime des messages dans un salon du serveur. Obligatoire pour « supprime / vide / purge ce salon ». Ne jamais dire que c'est fait sans appeler cet outil.",
+        "Supprime des messages dans un salon du serveur. Obligatoire pour « supprime / vide / purge ce salon ». Les messages de plus de 14 jours partent un par un. Ne jamais dire que c'est fait sans appeler cet outil.",
       parameters: {
         type: "object",
         properties: {
           amount: {
             type: "number",
             description:
-              "Nombre de messages récents à supprimer. 100 pour vider le salon (lots de 100, plafond 500).",
+              "Nombre de messages à supprimer, du plus récent au plus ancien. 100 pour vider le salon (plafond 500). Les plus vieux que 14 jours sont supprimés un par un.",
           },
           channelId: {
             type: "string",
@@ -1803,31 +1803,28 @@ async function toolDeleteMessages(
 
   const twoWeeks = 14 * 24 * 60 * 60 * 1000;
   let total = 0;
+  let skipped = 0;
+  let before: string | undefined;
   for (let round = 0; round < 8 && total < target; round++) {
     const limit = Math.min(100, target - total);
-    const fetched = await channel.messages.fetch({ limit }).catch((): null => null);
+    const fetched = await channel.messages
+      .fetch(before ? { limit, before } : { limit })
+      .catch((): null => null);
     if (!fetched || fetched.size === 0) break;
-    const fresh = fetched.filter((msg) => Date.now() - msg.createdTimestamp < twoWeeks);
-    if (fresh.size === 0) {
-      return {
-        success: total > 0,
-        data:
-          total > 0
-            ? `${total} messages supprimés dans #${channel.name}. Le reste a plus de 14 jours : Discord refuse le vidage groupé.`
-            : `Aucun message supprimé dans #${channel.name} : ils ont plus de 14 jours, Discord refuse le vidage groupé.`,
-      };
-    }
+
+    const ordered = [...fetched.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    before = ordered[0]?.id;
+    const fresh = ordered.filter((msg) => Date.now() - msg.createdTimestamp < twoWeeks);
+    const old = ordered.filter((msg) => Date.now() - msg.createdTimestamp >= twoWeeks);
+
     try {
-      if (fresh.size === 1) {
-        await fresh.first()?.delete();
+      if (fresh.length > 1) {
+        const deleted = await channel.bulkDelete(fresh, true);
+        total += deleted.size;
+      } else if (fresh.length === 1) {
+        await fresh[0]?.delete();
         total += 1;
-        break;
       }
-      const deleted = await channel.bulkDelete(fresh, true);
-      const count = deleted.size;
-      if (count === 0) break;
-      total += count;
-      if (count < limit) break;
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       return {
@@ -1835,12 +1832,36 @@ async function toolDeleteMessages(
         data: `Suppression refusée dans #${channel.name} : ${reason}. ${total} message(s) déjà supprimé(s).`,
       };
     }
+
+    // bulkDelete refuse au-delà de 14 jours. delete() unitaire passe, avec le même droit.
+    for (const msg of old) {
+      if (total >= target) break;
+      try {
+        await msg.delete();
+        total += 1;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      } catch {
+        skipped += 1;
+      }
+    }
+
+    if (fetched.size < limit) break;
   }
 
   if (total === 0) {
-    return { success: false, data: `Aucun message supprimé dans #${channel.name}.` };
+    return {
+      success: false,
+      data:
+        skipped > 0
+          ? `Aucun message supprimé dans #${channel.name} (${skipped} impossible(s), souvent épinglés ou système).`
+          : `Aucun message supprimé dans #${channel.name}.`,
+    };
   }
-  return { success: true, data: `${total} messages supprimés dans #${channel.name}.` };
+  const skippedNote = skipped > 0 ? ` ${skipped} laissé(s) (épinglé ou système).` : "";
+  return {
+    success: true,
+    data: `${total} messages supprimés dans #${channel.name}.${skippedNote}`,
+  };
 }
 
 async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {

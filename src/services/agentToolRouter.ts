@@ -1532,6 +1532,21 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     keywords: [
+      "supprime les message",
+      "supprimer les message",
+      "supprime tout",
+      "efface les message",
+      "vide le salon",
+      "vider le salon",
+      "purge",
+      "nettoie le salon",
+      "delete messages",
+      "clear the channel",
+    ],
+    tools: ["deleteMessages"],
+  },
+  {
+    keywords: [
       "santé",
       "health",
       "ram",
@@ -6707,8 +6722,13 @@ export function routeTools(
     return [];
   }
 
-  // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement
-  if (userMessage.trim().length < 15) {
+  // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement.
+  // Un ordre de modération (« supprime tout ») doit garder deleteMessages.
+  const shortServerAction =
+    /\b(supprim\w*|effac\w*|purg\w*|nettoi\w*|vid(?:e|er|ez|é)|kick\w*|mute\w*|\bban\b)\b/i.test(
+      userMessage,
+    );
+  if (userMessage.trim().length < 15 && !shortServerAction) {
     const ALWAYS_INCLUDE = new Set([
       "searchWeb",
       "readUrl",

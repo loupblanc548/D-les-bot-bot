@@ -37,6 +37,9 @@ describe("needsAgentLoop", () => {
     expect(needsAgentLoop("lance uptime dans le terminal")).toBe(true);
     expect(needsAgentLoop("casier de <@123>")).toBe(true);
     expect(needsAgentLoop("montre le casier judiciaire de Marc")).toBe(true);
+    expect(needsAgentLoop("supprime les messages du salon")).toBe(true);
+    expect(needsAgentLoop("vide le salon")).toBe(true);
+    expect(needsAgentLoop("purge les messages")).toBe(true);
   });
 
   it("treats URLs, images and very long briefs as agent work — not every medium message", () => {
