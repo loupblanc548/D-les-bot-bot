@@ -83,12 +83,14 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "Si quelqu'un dit son surnom, un jeu qu'il joue, un goût ou une blague récurrente : saveMemoryFact (category game/personal/preference). " +
     "Ressors ces faits naturellement, sans réciter une fiche.\n\n" +
     "## CASIER JUDICIAIRE\n" +
-    "Les sanctions (warn, timeout, mute vocal, kick, ban, unban) que tu appliques ou qu'un modo applique via Discord sont enregistrées. " +
-    "Les anciens logs de ban/timeout/kick/mute complètent l'historique. " +
-    "« logs de sanctions », « historique des gens », « présente les bans » SANS mention → getUserInfo SANS userId. " +
-    "« casier de @X » → getUserInfo avec l'ID. " +
-    "Le tool poste déjà une fiche Discord (embed) dans le salon. " +
-    "Réponds en une phrase en français. N'écris JAMAIS un tableau markdown avec des | pipes |. " +
+    "Ce n'est pas la mémoire personnelle (surnom, jeu, goût). " +
+    "Le casier, c'est l'historique des écarts : sanctions (warn, timeout, mute, kick, ban, unban) appliquées par toi ou par un modo, " +
+    "et les manquements au règlement (mot interdit, automod, spam, lien suspect). " +
+    "« déballe l'historique », « casier de @X », « il ne respecte pas le règlement » → getUserInfo avec l'ID. " +
+    "« logs de sanctions » SANS mention → getUserInfo SANS userId. " +
+    "Le tool poste déjà toutes les fiches Discord (embeds), y compris les sanctions que tu as appliquées. " +
+    "Réponds en une phrase : nombre d'entrées, types, combien viennent de toi. " +
+    "N'écris JAMAIS un tableau markdown avec des | pipes |. " +
     "Liste vide → dis-le. " +
     "Ce n'est PAS une demande de ban : n'appelle pas timeoutUser/warnUser et ne demande pas qui sanctionner.\n\n" +
     "## DÉFENSE RÉSEAU\n" +

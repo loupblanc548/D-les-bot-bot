@@ -22,7 +22,10 @@ import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
 import { runAgentLoop, extractAndSaveMemory, loadChannelHistory } from "../services/agentLoop.js";
-import { saveQA } from "../services/obsidianMemory.js";
+import { appendChannelMemory, recallChannelMemory, saveQA } from "../services/obsidianMemory.js";
+import { extractBanOrder } from "../services/banSignal.js";
+import { casierReplyForChat, extractCasierRequest } from "../services/casierQuery.js";
+import { extractChatOrder, resolveChatOrder } from "../services/chatOrders.js";
 import { isTesterBot } from "../utils/testerBots.js";
 import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
 import {
@@ -1443,6 +1446,36 @@ function discordChatPrompt(): string {
   );
 }
 
+async function discordChatPromptWithMemory(channelId: string): Promise<string> {
+  const journal = await recallChannelMemory(channelId).catch(() => "");
+  if (!journal) return discordChatPrompt();
+  return (
+    discordChatPrompt() +
+    "\n\n## Journal Obsidian de ce salon\n" +
+    "Mémoire sauvegardée de la conversation. Sers-t'en pour te souvenir, même d'un échange qui n'est plus dans les derniers messages Discord.\n" +
+    journal
+  );
+}
+
+function rememberTurn(
+  message: { channelId: string; channel: object; author: { username: string } },
+  userText: string,
+  assistantText: string,
+): void {
+  const channelName =
+    "name" in message.channel && typeof message.channel.name === "string"
+      ? message.channel.name
+      : message.channelId;
+  void appendChannelMemory({
+    channelId: message.channelId,
+    channelName,
+    userName: message.author.username,
+    userText,
+    assistantText,
+  }).catch(() => {});
+  void saveQA(userText, assistantText).catch(() => {});
+}
+
 async function retryInsteadOfGo(
   message: Message,
   question: string,
@@ -1742,6 +1775,71 @@ async function handleAiChatMention(
       // Si le deep research échoue, on continue vers l'agent loop
     }
 
+    const banOrder = extractBanOrder(effectiveContent);
+    if (
+      banOrder &&
+      message.guildId &&
+      banOrder.userId !== message.author.id &&
+      banOrder.userId !== client.user?.id
+    ) {
+      const { executeTool } = await import("../services/agentTools.js");
+      const banned = await executeTool(
+        "banUser",
+        { userId: banOrder.userId, reason: banOrder.reason },
+        {
+          client,
+          message: message as Message,
+          userId: message.author.id,
+          guildId: message.guildId,
+          channelId: message.channelId,
+        },
+      );
+      const banText = (banned.data || "Ban impossible.").slice(0, 1900);
+      await message.reply({ content: banText, allowedMentions: { repliedUser: false } });
+      rememberTurn(message, effectiveContent, banText);
+      void statusIndicator.cleanup();
+      return;
+    }
+
+    const casierRequest = extractCasierRequest(effectiveContent);
+    if (casierRequest && message.guildId) {
+      const { executeTool } = await import("../services/agentTools.js");
+      const casier = await executeTool(
+        "getUserInfo",
+        { userId: casierRequest.userId },
+        {
+          client,
+          message: message as Message,
+          userId: message.author.id,
+          guildId: message.guildId,
+          channelId: message.channelId,
+        },
+      );
+      const casierText = casierReplyForChat(casier.data || "Casier illisible.").slice(0, 1900);
+      await message.reply({ content: casierText, allowedMentions: { repliedUser: false } });
+      rememberTurn(message, effectiveContent, casierText);
+      void statusIndicator.cleanup();
+      return;
+    }
+
+    const chatOrder = extractChatOrder(effectiveContent);
+    if (chatOrder && message.guildId) {
+      const ready = resolveChatOrder(chatOrder, message.channelId);
+      const { executeTool } = await import("../services/agentTools.js");
+      const acted = await executeTool(ready.tool, ready.args, {
+        client,
+        message: message as Message,
+        userId: message.author.id,
+        guildId: message.guildId,
+        channelId: message.channelId,
+      });
+      const actedText = (acted.data || "Action impossible.").slice(0, 1900);
+      await message.reply({ content: actedText, allowedMentions: { repliedUser: false } });
+      rememberTurn(message, effectiveContent, actedText);
+      void statusIndicator.cleanup();
+      return;
+    }
+
     // ── FAST PATH: bavardage court sans vraie question → skip agent loop ──
     // Les questions / tâches (code, cuisine, devoirs, recherche…) passent par l'agent.
     const isComplexOrTool = needsAgentLoop(effectiveContent) || imageUrls.length > 0;
@@ -1759,7 +1857,7 @@ async function handleAiChatMention(
               : [],
         );
         const result = await respondChat(enrichedContent, prior, {
-          systemPrompt: discordChatPrompt(),
+          systemPrompt: await discordChatPromptWithMemory(message.channelId),
           temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
@@ -1779,6 +1877,7 @@ async function handleAiChatMention(
           logger.info(
             `[AIChat] ⚡ Fast-path réussi via ${result.provider} (${fastText.length} chars, ${result.latencyMs}ms)`,
           );
+          rememberTurn(message, effectiveContent, fastText);
           return;
         }
         // Total outage: skip the agent loop so recover can give local-llm a fresh budget.
@@ -1906,8 +2005,8 @@ async function handleAiChatMention(
         message.author.username,
       ).catch(() => {});
 
-      // ── Sauvegarder la Q&A dans Obsidian (mémoire long-terme par tiroirs) ──
-      void saveQA(effectiveContent, aiResponse).catch(() => {});
+      // ── Journal Obsidian du salon + Q&A ──
+      rememberTurn(message, effectiveContent, aiResponse);
 
       // ── Nettoyer l'indicateur de statut ──
       void statusIndicator.cleanup();

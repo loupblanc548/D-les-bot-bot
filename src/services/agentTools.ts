@@ -396,7 +396,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     function: {
       name: "getUserInfo",
       description:
-        "Casier / logs de sanctions. Sans userId : derniers bans, timeouts, kicks, mutes du serveur. Avec userId : casier d'un membre. Lecture seule — ne sanctionne pas.",
+        "Casier complet d'un membre : sanctions (warn, timeout, kick, ban, mute) y compris celles appliquées par John, plus les écarts au règlement (filtre, automod, spam). Sans userId : derniers logs du serveur. Lecture seule — ne sanctionne pas. À utiliser pour « déballe l'historique », « casier », « il ne respecte pas le règlement ».",
       parameters: {
         type: "object",
         properties: {
@@ -2205,7 +2205,7 @@ async function toolGetUserInfo(
       });
       return { success: true, data: formatGuildSanctionLog(items) };
     }
-    const snapshot = await loadCasier(ctx.guildId, userId, 50);
+    const snapshot = await loadCasier(ctx.guildId, userId, 80);
     await presentCasierFromTool(ctx, {
       title: "Casier judiciaire",
       items: snapshot.items,

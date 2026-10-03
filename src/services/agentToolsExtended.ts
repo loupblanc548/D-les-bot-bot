@@ -14,6 +14,7 @@ import { fetchRetry } from "../utils/fetchRetry.js";
 import { checkUrlForSsrf } from "../utils/ssrfGuard.js";
 import { translate as deeplTranslate } from "../utils/deepl.js";
 import type { AgentToolDef, ToolCallResult, ToolContext } from "./agentTools.js";
+import { BAN_SIGNAL_CHANNEL_ID, banSignalFields } from "./banSignal.js";
 import { getNumberFact } from "./freeApis.js";
 import { runSetupBasicServerTool } from "./basicServerSetup.js";
 import prisma from "../prisma.js";
@@ -8765,7 +8766,34 @@ async function tBanUser(args: Record<string, any>, ctx: ToolContext): Promise<To
       data: { guildId: ctx.guildId, userId, moderatorId: "AI_AGENT", type: "BAN", reason },
     })
     .catch(() => {});
+  await postBanSignal(ctx, userId, reason).catch((err) => {
+    logger.warn(
+      `[Ban] Signalement non envoyé: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  });
   return { success: true, data: `Utilisateur <@${userId}> banni. Raison: ${reason}` };
+}
+
+async function postBanSignal(ctx: ToolContext, userId: string, reason: string): Promise<void> {
+  const report = await ctx.client.channels.fetch(BAN_SIGNAL_CHANNEL_ID).catch(() => null);
+  if (!report?.isTextBased() || !report.isSendable()) return;
+  const source = await ctx.client.channels.fetch(ctx.channelId).catch(() => null);
+  const channelName = source && "name" in source ? String(source.name) : ctx.channelId;
+  const { EmbedBuilder } = await import("discord.js");
+  const embed = new EmbedBuilder()
+    .setColor(0x8b1e1e)
+    .setTitle("Signalement du bot — ban")
+    .addFields(
+      ...banSignalFields({
+        userId,
+        askedById: ctx.userId,
+        channelId: ctx.channelId,
+        channelName,
+        reason,
+      }),
+    )
+    .setTimestamp();
+  await report.send({ embeds: [embed], allowedMentions: { parse: [] } });
 }
 
 async function tAddRole(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {

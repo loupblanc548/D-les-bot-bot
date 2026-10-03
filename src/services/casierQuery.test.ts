@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  casierReplyForChat,
+  extractCasierRequest,
   mergeCasierItems,
   formatCasierForAgent,
   formatDurationSeconds,
@@ -8,6 +10,22 @@ import {
   escapeMarkdownTableCell,
   formatCasierTable,
 } from "./casierQuery.js";
+
+describe("extractCasierRequest", () => {
+  const target = "1512435587926200391";
+
+  it("prend la personne dont on demande l'historique", () => {
+    expect(extractCasierRequest(`déballe tout l'historique de <@${target}>`)?.userId).toBe(target);
+    expect(extractCasierRequest(`il ne respecte pas le règlement <@${target}>`)?.userId).toBe(
+      target,
+    );
+  });
+
+  it("ne confond pas un ordre de ban avec une lecture de casier", () => {
+    expect(extractCasierRequest(`bannis <@${target}>`)).toBeNull();
+    expect(extractCasierRequest("déballe l'historique")).toBeNull();
+  });
+});
 
 describe("formatDurationSeconds", () => {
   it("formats seconds to a short French label", () => {
@@ -89,7 +107,10 @@ describe("formatCasierForAgent", () => {
     });
     expect(text).not.toMatch(/\| Date \|/);
     expect(text).toMatch(/Timeout/);
+    expect(text).toMatch(/appliquée par John/);
     expect(text).toMatch(/fiche Discord/);
+    expect(casierReplyForChat(text)).not.toMatch(/fiche Discord/);
+    expect(casierReplyForChat(text)).toMatch(/appliquée par John/);
     expect(labelCasierType("BAN")).toBe("Bannissement");
   });
 });

@@ -762,6 +762,70 @@ export async function searchKnowledge(query: string): Promise<string[]> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Journal de salon — tout l'échange est archivé, seul le bout récent est relu
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function appendChannelMemory(input: {
+  channelId: string;
+  channelName: string;
+  userName: string;
+  userText: string;
+  assistantText: string;
+}): Promise<void> {
+  if (!isVaultEnabled() || !input.channelId) return;
+  try {
+    const dir = conversationsDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, `salon-${input.channelId}.md`);
+    const stamp = new Date().toISOString();
+    const userText = input.userText.replace(/\s+/g, " ").trim().slice(0, 2000);
+    const assistantText = input.assistantText.replace(/\s+/g, " ").trim().slice(0, 2000);
+    const block =
+      `\n\n## ${stamp}\n` +
+      `**${input.userName.slice(0, 80)}:** ${userText}\n` +
+      `**John:** ${assistantText}\n`;
+    if (!fs.existsSync(filePath)) {
+      const header =
+        `---\nchannelId: "${input.channelId}"\nchannel: "${input.channelName.replace(/"/g, "")}"\n---\n` +
+        `# ${input.channelName}\n`;
+      fs.writeFileSync(filePath, header + block, "utf-8");
+    } else {
+      fs.appendFileSync(filePath, block, "utf-8");
+    }
+  } catch (err) {
+    logger.debug(
+      `[Obsidian] Journal de salon non écrit: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+/** Dernier morceau du journal Obsidian de ce salon, pour le remettre dans le prompt. */
+export async function recallChannelMemory(channelId: string, maxChars = 8000): Promise<string> {
+  if (!isVaultEnabled() || !channelId) return "";
+  try {
+    const filePath = path.join(conversationsDir(), `salon-${channelId}.md`);
+    if (!fs.existsSync(filePath)) return "";
+    const stat = fs.statSync(filePath);
+    const start = Math.max(0, stat.size - 48_000);
+    const fd = fs.openSync(filePath, "r");
+    try {
+      const buf = Buffer.alloc(stat.size - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+      const text = buf.toString("utf-8");
+      const fromLine = start === 0 ? text : text.slice(text.indexOf("\n") + 1);
+      return fromLine.slice(-maxChars);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    logger.debug(
+      `[Obsidian] Journal de salon illisible: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return "";
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Conversation summaries
 // ─────────────────────────────────────────────────────────────────────────────
 

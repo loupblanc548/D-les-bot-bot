@@ -14,6 +14,15 @@ export const CASIER_LOG_TYPES = [
   "warn",
 ] as const;
 
+/** Écarts au règlement qui ne sont pas une sanction formelle. */
+export const RULE_BREAK_LOG_TYPES = [
+  "automod",
+  "security",
+  "antiphishing",
+  "spam",
+  "raid",
+] as const;
+
 const TYPE_LABELS: Record<string, string> = {
   WARN: "Avertissement",
   TIMEOUT: "Timeout",
@@ -29,7 +38,37 @@ const TYPE_LABELS: Record<string, string> = {
   mute: "Mute vocal serveur",
   tempban: "Bannissement temporaire",
   unban: "Débannissement",
+  FILTRE: "Filtre de mots",
+  filtre: "Filtre de mots",
+  AUTOMOD: "Automod",
+  automod: "Automod",
+  SECURITY: "Alerte sécurité",
+  security: "Alerte sécurité",
+  ANTIPHISHING: "Lien suspect",
+  antiphishing: "Lien suspect",
+  SPAM: "Spam",
+  spam: "Spam",
+  RAID: "Raid",
+  raid: "Raid",
 };
+
+const CASIER_ASK =
+  /\b(casiers?|historiques?|d[ée]balle[rz]?|d[ée]baller|r[èe]glements?|sanctions?|m[ée]faits?|infractions?|irrespects?)\b/i;
+const SANCTION_ORDER = /\b(bannis|bannir|ban|kick|expuls\w*|timeout|mute|avertis|warn)\b/i;
+
+/** Demande de lecture du casier, avec une personne nommée. Un ordre de ban n'en fait pas partie. */
+export function extractCasierRequest(text: string): { userId: string } | null {
+  const source = text.trim();
+  if (!source || !CASIER_ASK.test(source)) return null;
+  if (SANCTION_ORDER.test(source) && !/\b(casiers?|historiques?|d[ée]ball)/i.test(source)) {
+    return null;
+  }
+  const mention = source.match(/<@!?(\d{17,20})>/);
+  const snowflake = source.match(/\b(\d{17,20})\b/);
+  const userId = mention?.[1] ?? snowflake?.[1];
+  if (!userId) return null;
+  return { userId };
+}
 
 export interface CasierItem {
   source: "sanction" | "log";
@@ -319,22 +358,30 @@ function formatCasierHeader(title: string, count: number, extra?: string): strin
   return `**${title}** — ${countBit}${extraBit}`;
 }
 
+/** Enlève la consigne destinée au modèle. Ce qui reste est la phrase à poster dans le salon. */
+export function casierReplyForChat(agentText: string): string {
+  return agentText.replace(/\nLa fiche Discord[\s\S]*$/, "").trim();
+}
+
 export function formatCasierForAgent(snapshot: CasierSnapshot): string {
   const watch = snapshot.underWatch ? "oui" : "non";
   const risk = `Risque **${snapshot.riskScore}** (${snapshot.riskLevel}) · Surveillance ${watch}`;
   if (snapshot.items.length === 0) {
     return [
       formatCasierHeader(`Casier judiciaire de <@${snapshot.userId}>`, 0),
-      "Casier vierge. Aucune sanction ni log (ban, timeout, kick, mute) trouvé.",
+      "Casier vierge. Aucune sanction, aucun écart au règlement (filtre, automod, spam) trouvé.",
       risk,
     ].join("\n");
   }
+
+  const byJohn = snapshot.items.filter((item) => item.moderatorId === "AI_AGENT").length;
+  const johnBit = byJohn > 0 ? ` · ${byJohn} appliquée${byJohn > 1 ? "s" : ""} par John` : "";
 
   return [
     formatCasierHeader(
       `Casier judiciaire de <@${snapshot.userId}>`,
       snapshot.items.length,
-      summarizeCasierTypes(snapshot.items),
+      `${summarizeCasierTypes(snapshot.items)}${johnBit}`,
     ),
     risk,
     "La fiche Discord a été envoyée dans le salon. Réponds en une courte phrase en français. N'écris PAS de tableau markdown (| col |).",
@@ -358,7 +405,7 @@ export async function loadCasier(
 ): Promise<CasierSnapshot> {
   const take = Math.min(100, Math.max(1, limit));
 
-  const [sanctions, logs, riskProfile] = await Promise.all([
+  const [sanctions, logs, riskProfile, filtered] = await Promise.all([
     prisma.sanction.findMany({
       where: { userId, guildId },
       orderBy: { createdAt: "desc" },
@@ -374,7 +421,7 @@ export async function loadCasier(
     }),
     prisma.log.findMany({
       where: {
-        type: { in: [...CASIER_LOG_TYPES] },
+        type: { in: [...CASIER_LOG_TYPES, ...RULE_BREAK_LOG_TYPES] },
         OR: [{ userId }, { targetId: userId }],
       },
       orderBy: { createdAt: "desc" },
@@ -393,12 +440,32 @@ export async function loadCasier(
       where: { userId_guildId: { userId, guildId } },
       select: { riskScore: true, riskLevel: true, underWatch: true },
     }),
+    prisma.wordFilterInfraction
+      .findMany({
+        where: { guildId, userId },
+        orderBy: { createdAt: "desc" },
+        take,
+        select: { createdAt: true, userId: true },
+      })
+      .catch(() => []),
   ]);
+
+  const ruleBreaks: CasierItem[] = filtered.map((hit) => ({
+    source: "log",
+    type: "FILTRE",
+    reason: "Mot interdit dans un message",
+    date: hit.createdAt,
+    moderatorId: null,
+    duration: null,
+    userId: hit.userId,
+  }));
 
   return {
     userId,
     guildId,
-    items: mergeCasierItems(sanctions, logs).slice(0, take),
+    items: [...mergeCasierItems(sanctions, logs), ...ruleBreaks]
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, take),
     riskScore: riskProfile?.riskScore ?? 0,
     riskLevel: riskProfile?.riskLevel ?? "INCONNU",
     underWatch: riskProfile?.underWatch ?? false,

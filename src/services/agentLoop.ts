@@ -89,6 +89,7 @@ import {
   appendUserFact,
   loadUserFacts,
   loadUserNotes,
+  recallChannelMemory,
   saveQA,
   searchKnowledge,
   searchQA,
@@ -650,15 +651,23 @@ async function runAgentLoopInternal(
   );
 
   // 1. Construire le contexte (mémoire + historique + Obsidian) — en parallèle pour la perf
-  const [longTermMemory, channelHistory, obsidianFacts, obsidianNotes, obsidianKnowledge, savedQA] =
-    await Promise.all([
-      loadLongTermMemory(message.author.id),
-      loadChannelHistory(message),
-      loadUserFacts(message.author.id),
-      loadUserNotes(message.author.id),
-      searchKnowledge(userMessage),
-      searchQA(userMessage),
-    ]);
+  const [
+    longTermMemory,
+    channelHistory,
+    obsidianFacts,
+    obsidianNotes,
+    obsidianKnowledge,
+    savedQA,
+    channelJournal,
+  ] = await Promise.all([
+    loadLongTermMemory(message.author.id),
+    loadChannelHistory(message),
+    loadUserFacts(message.author.id),
+    loadUserNotes(message.author.id),
+    searchKnowledge(userMessage),
+    searchQA(userMessage),
+    recallChannelMemory(message.channelId),
+  ]);
 
   // Detect user language for multilingual response
   const langDetection = detectLanguage(userMessage);
@@ -703,6 +712,12 @@ async function runAgentLoopInternal(
     (obsidianNotes ? "\n## Obsidian — Notes sur cet utilisateur\n" + obsidianNotes + "\n" : "") +
     (obsidianKnowledge.length > 0
       ? "\n## Obsidian — Base de connaissances\n" + obsidianKnowledge.join("\n\n") + "\n"
+      : "") +
+    (channelJournal
+      ? "\n## Obsidian — Journal de ce salon\n" +
+        "Mémoire sauvegardée de la conversation. Sers-t'en pour te souvenir, même d'un échange qui n'est plus dans les derniers messages Discord.\n" +
+        channelJournal +
+        "\n"
       : "") +
     (savedQA
       ? "\n## Obsidian — Question déjà répondue précédemment\n" +

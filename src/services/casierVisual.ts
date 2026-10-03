@@ -177,18 +177,26 @@ export async function sendCasierTableToMessage(
 
   try {
     const pages = paginateCasierItems(opts.items);
-    const embeds = buildCasierLayoutEmbeds({
-      title: opts.title,
-      items: pages[0],
-      catalog: opts.items,
-      withUser: opts.withUser,
-      page: 1,
-      pageCount: pages.length,
-    });
     const client = opts.client ?? message.client;
     const channelId = opts.channelId ?? message.channelId;
     if (!channelId) throw new Error("no channel id");
-    await postCasierEmbedsViaRest(client, channelId, embeds);
+    let posted = 0;
+    for (let i = 0; i < pages.length; i++) {
+      const embeds = buildCasierLayoutEmbeds({
+        title: opts.title,
+        items: pages[i],
+        catalog: opts.items,
+        withUser: opts.withUser,
+        page: i + 1,
+        pageCount: pages.length,
+      });
+      await postCasierEmbedsViaRest(client, channelId, embeds);
+      posted += 1;
+    }
+    if (posted === 0) {
+      postedForMessage.delete(key);
+      return false;
+    }
     return true;
   } catch (err) {
     logger.error(

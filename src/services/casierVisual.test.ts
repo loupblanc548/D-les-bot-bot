@@ -69,4 +69,35 @@ describe("sendCasierTableToMessage", () => {
     expect(JSON.stringify(body)).not.toMatch(/casier\.png/);
     expect(body.embeds[1].title).toMatch(/Avertissement/);
   });
+
+  it("posts every page when the history is longer than one card", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "{}",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const many = Array.from({ length: 9 }, (_, index) => ({
+      ...item,
+      reason: `entrée ${index}`,
+    }));
+
+    const ok = await sendCasierTableToMessage(
+      { id: `msg-pages-${Date.now()}`, channelId: "1497977006510440700" } as any,
+      {
+        title: "Casier judiciaire",
+        items: many,
+        withUser: false,
+        guildId: "1133720050331832340",
+        client: { token: "test-token" } as any,
+      },
+    );
+
+    expect(ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const first = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(first.embeds[0].footer.text).toMatch(/page 1\/2/);
+    expect(second.embeds[0].footer.text).toMatch(/page 2\/2/);
+    expect(first.embeds.length + second.embeds.length).toBe(11);
+  });
 });
