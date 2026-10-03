@@ -87,6 +87,11 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       "pinMessage",
       { level: "medium", module: "core", reason: "Modifies channel state — visible to all" },
     ],
+    [
+      "list_bot_commands",
+      { level: "low", module: "core", reason: "Read-only list of the remaining slash commands" },
+    ],
+    ["getBotStatus", { level: "low", module: "core", reason: "Read-only bot health snapshot" }],
 
     // ── Information retrieval (LOW) ──
     ["searchWeb", { level: "low", module: "core", reason: "Read-only web search, no persistence" }],
