@@ -50,8 +50,8 @@ describe("helpCategories — anti-désync du menu /bot help", () => {
   });
 
   it("a exactement une catégorie par commande top-level enregistrée", () => {
-    // 7 commandes top-level actuelles : bot, mod, security, ai, game, mc, admin
-    expect(TOP_LEVEL_COMMANDS.length).toBe(7);
+    // 4 commandes top-level : bot, mc, admin, wishlist
+    expect(TOP_LEVEL_COMMANDS.length).toBe(4);
     expect(CATEGORIES.length).toBeGreaterThanOrEqual(TOP_LEVEL_COMMANDS.length);
   });
 });

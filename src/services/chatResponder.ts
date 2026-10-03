@@ -158,6 +158,8 @@ export interface ChatRespondOptions {
   deadlineMs?: number;
   /** Délai avant le retry silencieux de recoverChatReply (0 en tests) */
   retryDelayMs?: number;
+  /** Nombre de tours d'historique gardés. 8 par défaut, 100 pour le salon Discord. */
+  historyKeep?: number;
 }
 
 export interface ChatRespondResult {
@@ -190,7 +192,7 @@ export async function respondChat(
   const request: LlmCallRequest = {
     messages: [
       { role: "system", content: systemPrompt },
-      ...history.slice(-8),
+      ...history.slice(-(options.historyKeep ?? 8)),
       { role: "user", content: userMessage },
     ],
     maxTokens: options.maxTokens ?? 800,

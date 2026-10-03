@@ -7,50 +7,22 @@
 
 import { CATEGORIES } from "./helpCategories.js";
 
-export const CHAT_FIRST_SLASH = [
-  "help",
-  "bot",
-  "game",
-  "ai",
-  "mod",
-  "security",
-  "mc",
-  "admin",
-  "wishlist",
-  "fiches",
-  "config",
-  "privacy",
-  "killswitch",
-  "learn-stats",
-] as const;
+export const CHAT_FIRST_SLASH = ["wishlist", "mc", "admin", "bot"] as const;
 
 export const CHAT_FIRST_SLASH_SET = new Set<string>(CHAT_FIRST_SLASH);
 
 const SLASH_BLURB: Record<(typeof CHAT_FIRST_SLASH)[number], string> = {
-  help: "liste paginée des commandes slash",
-  bot: "aide, statut, restart, diagnostic",
-  game: "Steam, deals, jeux gratuits, Fortnite, patch notes",
-  ai: "chat, image, traduction, résumé",
-  mod: "modération (warn, mute, ban…)",
-  security: "OSINT, fuites, liens suspects",
-  mc: "Minecraft Bedrock",
-  admin: "administration (staff)",
   wishlist: "wishlist jeux",
-  fiches: "fiches Discord par domaine (cartes natives)",
-  config: "configuration du bot",
-  privacy: "confidentialité / données",
-  killswitch: "coupe-circuit d'urgence",
-  "learn-stats": "stats d'apprentissage",
+  mc: "Minecraft Bedrock",
+  admin: "maintenance et backup",
+  bot: "diagnostic et redémarrage",
 };
 
 const GROUP_CATEGORY_ID: Partial<Record<(typeof CHAT_FIRST_SLASH)[number], string>> = {
   bot: "bot",
-  mod: "moderation",
-  security: "security",
-  ai: "ai",
-  game: "gaming",
   mc: "mc",
   admin: "admin",
+  wishlist: "wishlist",
 };
 
 function commandLines(): string[] {
@@ -90,17 +62,15 @@ export function matchSlashCommands(query: string): string[] {
 export const CHAT_FIRST_COMMANDS_HINT =
   "\n\n## COMMANDES DISCORD\n" +
   "Il n'existe AUCUNE commande préfixe `!` : !help, !cmd, !commands n'existent pas. " +
-  "Le menu Discord s'ouvre avec `/`. Groupes : /help, /bot, /game, /ai, /mod, /security, /mc, /admin, /wishlist, /fiches, /config, /privacy, /killswitch, /learn-stats. " +
-  "Si on demande une commande (cmd, slash, « c'est quoi la commande pour… ») → list_bot_commands avec le sujet. " +
-  "Donne le `/groupe sous-commande` réel (ex: Steam → /game steam, pas /steam). " +
-  "Si on veut aussi le résultat maintenant, fais-le en chat avec tes tools. " +
-  "N'invente jamais une commande hors de cette liste.\n";
+  "Le menu `/` ne contient que /wishlist, /mc, /admin (maintenance, backup) et /bot (diagnostic, restart). " +
+  "Tout le reste (ban, mute, météo, Steam, traduction, vocal, MP3) se fait en discutant, avec les tools. " +
+  "Si on demande une commande slash → list_bot_commands. N'invente jamais une commande hors de cette liste.\n";
 
 export function formatChatFirstSlashHelp(query?: string): string {
   const header =
     "Pas de commande `!` (!help n'existe pas).\n" +
-    "Pour cliquer : tape `/` dans Discord. Liste : **/help** ou **/bot help**.\n" +
-    "John peut aussi le faire en chat si tu veux le résultat tout de suite.\n\n";
+    "Le menu `/` ne garde que wishlist, Minecraft, et l'admin (maintenance, backup, diagnostic, redémarrage).\n" +
+    "Le reste se demande à John en discutant.\n\n";
 
   const q = query?.trim();
   if (q) {

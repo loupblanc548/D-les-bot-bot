@@ -46,6 +46,32 @@ export const TOOL_RISK_REGISTRY: ReadonlyMap<string, ToolRiskEntry> = (() => {
       { level: "high", module: "core", reason: "Bulk deletes Discord messages — irreversible" },
     ],
     [
+      "banUser",
+      {
+        level: "high",
+        module: "core",
+        reason: "Bans a Discord member — irreversible without unban",
+      },
+    ],
+    [
+      "moveOrCopyMessages",
+      {
+        level: "high",
+        module: "core",
+        reason: "Copies or moves Discord messages, move deletes the originals",
+      },
+    ],
+    ["joinVoice", { level: "medium", module: "core", reason: "Joins a voice channel on request" }],
+    ["leaveVoice", { level: "medium", module: "core", reason: "Leaves the current voice channel" }],
+    [
+      "playMp3",
+      {
+        level: "medium",
+        module: "core",
+        reason: "Plays a local MP3 in the requester's voice channel",
+      },
+    ],
+    [
       "timeoutUser",
       {
         level: "high",

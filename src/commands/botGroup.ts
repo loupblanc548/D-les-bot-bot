@@ -19,9 +19,7 @@ import { requireAdmin } from "../services/permissions.js";
 export const commands = [
   new SlashCommandBuilder()
     .setName("bot")
-    .setDescription("Commandes principales du bot")
-    .addSubcommand((sc) => sc.setName("help").setDescription("Affiche l'aide"))
-    .addSubcommand((sc) => sc.setName("status").setDescription("Statut du bot"))
+    .setDescription("Diagnostic et redémarrage")
     .addSubcommand((sc) => sc.setName("restart").setDescription("Redémarre le bot (admin)"))
     .addSubcommand((sc) =>
       sc

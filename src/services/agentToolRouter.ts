@@ -1547,6 +1547,23 @@ const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     keywords: [
+      "bannis",
+      "bannir",
+      "ban ",
+      "déplace les message",
+      "deplace les message",
+      "copie les message",
+      "vers le salon",
+      "rejoins le vocal",
+      "rejoindre le vocal",
+      "joue le mp3",
+      "joue un mp3",
+      "quitte le vocal",
+    ],
+    tools: ["banUser", "moveOrCopyMessages", "joinVoice", "leaveVoice", "playMp3"],
+  },
+  {
+    keywords: [
       "santé",
       "health",
       "ram",
@@ -6725,7 +6742,7 @@ export function routeTools(
   // Messages très courts (<15 chars) sans intention claire → tools essentiels seulement.
   // Un ordre de modération (« supprime tout ») doit garder deleteMessages.
   const shortServerAction =
-    /\b(supprim\w*|effac\w*|purg\w*|nettoi\w*|vid(?:e|er|ez|é)|kick\w*|mute\w*|\bban\b)\b/i.test(
+    /\b(supprim\w*|effac\w*|purg\w*|nettoi\w*|vid(?:e|er|ez|é)|kick\w*|mute\w*|\bban\b|rejoins\w*|vocal|\bmp3\b|d[ée]plac\w*|copi\w*)\b/i.test(
       userMessage,
     );
   if (userMessage.trim().length < 15 && !shortServerAction) {

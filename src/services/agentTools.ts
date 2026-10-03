@@ -11,6 +11,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { join } from "path";
 import { ChannelType, Client, Message, TextChannel } from "discord.js";
 import { formatChatFirstSlashHelp } from "../commands/chatFirstSlash.js";
 import { config } from "../config.js";
@@ -18,6 +19,8 @@ import prisma from "../prisma.js";
 import logger from "../utils/logger.js";
 import { stripAllHtml } from "../utils/sanitizeHtml.js";
 import { safeFetch } from "../utils/ssrfGuard.js";
+import { findSoundFile, joinAndPlay, listSoundFiles, SOUNDS_DIR } from "./audioService.js";
+import { joinVoiceChannelById, leaveVoiceChannel } from "./voiceAgent.js";
 import { exaSearch } from "./agentReach.js";
 import { AUTONOMOUS_TOOLS, executeAutonomousTool } from "./agentToolsAutonomous.js";
 import { EXTENDED_TOOLS, executeExtendedTool } from "./agentToolsExtended.js";
@@ -234,6 +237,71 @@ export const AGENT_TOOLS: AgentToolDef[] = [
           },
         },
         required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "moveOrCopyMessages",
+      description:
+        "Copie ou déplace des messages vers un autre salon du même serveur. mode=move supprime les originaux après copie. Obligatoire pour « déplace / copie ces messages ».",
+      parameters: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            description: "copy ou move. move = copie puis supprime.",
+          },
+          amount: {
+            type: "number",
+            description: "Nombre de messages récents à prendre (défaut 10, plafond 30).",
+          },
+          channelId: {
+            type: "string",
+            description: "Salon source. Omettre pour le salon actuel.",
+          },
+          targetChannelId: {
+            type: "string",
+            description: "Salon de destination (ID ou nom).",
+          },
+        },
+        required: ["targetChannelId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "joinVoice",
+      description:
+        "Rejoint le salon vocal où se trouve la personne qui demande. Uniquement sur demande explicite. Ne pas rejoindre tout seul.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "leaveVoice",
+      description: "Quitte le salon vocal. Uniquement si on le demande.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "playMp3",
+      description:
+        "Joue un MP3 local dans le vocal de la personne qui demande. Demande le nom si besoin. Ne rejoint pas un vocal sans demande.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Nom du fichier ou extrait du titre. Vide = liste les sons.",
+          },
+        },
+        required: [],
       },
     },
   },
@@ -1414,6 +1482,11 @@ const TOOL_NAME_WHITELIST = new Set([
   "solve_math",
   // ── Discord & Modération ──
   "deleteMessages",
+  "banUser",
+  "moveOrCopyMessages",
+  "joinVoice",
+  "leaveVoice",
+  "playMp3",
   "getBotStatus",
   "list_bot_commands",
   "getRecentMentions",
@@ -1547,6 +1620,14 @@ export async function executeTool(
         return await toolAuditDesign(args);
       case "deleteMessages":
         return await toolDeleteMessages(args, ctx);
+      case "moveOrCopyMessages":
+        return await toolMoveOrCopyMessages(args, ctx);
+      case "joinVoice":
+        return await toolJoinVoice(ctx);
+      case "leaveVoice":
+        return await toolLeaveVoice(ctx);
+      case "playMp3":
+        return await toolPlayMp3(args, ctx);
       case "getBotStatus":
         return await toolGetBotStatus(ctx);
       case "list_bot_commands":
@@ -1862,6 +1943,155 @@ async function toolDeleteMessages(
     success: true,
     data: `${total} messages supprimés dans #${channel.name}.${skippedNote}`,
   };
+}
+
+async function resolveGuildTextChannel(
+  client: Client,
+  guildId: string,
+  raw: string,
+): Promise<TextChannel | null> {
+  const id = raw.replace(/\D/g, "");
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return null;
+  if (id.length >= 17) {
+    const channel = (await client.channels.fetch(id).catch((): null => null)) as TextChannel | null;
+    if (channel?.isTextBased() && channel.guildId === guildId) return channel;
+  }
+  const wanted = raw.replace(/^#/, "").trim().toLowerCase();
+  if (!wanted) return null;
+  const match = guild.channels.cache.find(
+    (ch) => ch.isTextBased() && ch.name.toLowerCase() === wanted,
+  );
+  return (match as TextChannel | undefined) ?? null;
+}
+
+async function toolMoveOrCopyMessages(
+  args: Record<string, any>,
+  ctx: ToolContext,
+): Promise<ToolCallResult> {
+  const mode = String(args.mode || "copy").toLowerCase();
+  const wantMove = mode === "move" || mode === "deplace" || mode === "déplace";
+  const amount = Math.min(30, Math.max(1, Number(args.amount) || 10));
+  const source = await resolveGuildTextChannel(
+    ctx.client,
+    ctx.guildId,
+    String(args.channelId || ctx.channelId),
+  );
+  const target = await resolveGuildTextChannel(
+    ctx.client,
+    ctx.guildId,
+    String(args.targetChannelId || ""),
+  );
+  if (!source) return { success: false, data: "Salon source introuvable." };
+  if (!target) return { success: false, data: "Salon de destination introuvable." };
+  if (source.id === target.id) {
+    return { success: false, data: "Le salon de destination est le même que la source." };
+  }
+
+  const fetched = await source.messages
+    .fetch({ limit: Math.min(100, amount + 5) })
+    .catch(() => null);
+  if (!fetched || fetched.size === 0) {
+    return { success: false, data: `Aucun message à prendre dans #${source.name}.` };
+  }
+  const picked = [...fetched.values()]
+    .filter((msg) => !msg.system && (msg.content.trim().length > 0 || msg.attachments.size > 0))
+    .sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+    .slice(-amount);
+
+  let copied = 0;
+  let removed = 0;
+  for (const msg of picked) {
+    const files = [...msg.attachments.values()].map((file) => file.url);
+    const content = msg.content?.slice(0, 1900) || (files.length > 0 ? null : "");
+    if (!content && files.length === 0) continue;
+    try {
+      await target.send({
+        content: content
+          ? `**${msg.author.username}:** ${content}`.slice(0, 2000)
+          : `**${msg.author.username}**`,
+        files: files.slice(0, 10),
+        allowedMentions: { parse: [] },
+      });
+      copied += 1;
+    } catch {
+      continue;
+    }
+    if (!wantMove) continue;
+    try {
+      await msg.delete();
+      removed += 1;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    } catch {
+      // épinglé, système, ou trop vieux pour un droit manquant
+    }
+  }
+
+  if (copied === 0) {
+    return { success: false, data: `Rien n'a été copié vers #${target.name}.` };
+  }
+  const verb = wantMove
+    ? `${copied} message(s) copiés vers #${target.name}, ${removed} retiré(s) de #${source.name}.`
+    : `${copied} message(s) copiés vers #${target.name}.`;
+  return { success: true, data: verb };
+}
+
+async function requesterVoiceChannel(
+  ctx: ToolContext,
+): Promise<
+  | { guild: NonNullable<ReturnType<Client["guilds"]["cache"]["get"]>>; voiceId: string }
+  | { error: string }
+> {
+  const guild = ctx.client.guilds.cache.get(ctx.guildId);
+  if (!guild) return { error: "Serveur introuvable." };
+  const member = await guild.members.fetch(ctx.userId).catch(() => null);
+  const voiceId = member?.voice.channelId;
+  if (!voiceId) return { error: "Tu n'es dans aucun salon vocal." };
+  return { guild, voiceId };
+}
+
+async function toolJoinVoice(ctx: ToolContext): Promise<ToolCallResult> {
+  const where = await requesterVoiceChannel(ctx);
+  if ("error" in where) return { success: false, data: where.error };
+  const joined = await joinVoiceChannelById(ctx.client, ctx.guildId, where.voiceId);
+  return joined
+    ? { success: true, data: "Je suis dans ton salon vocal." }
+    : { success: false, data: "Impossible de rejoindre le vocal." };
+}
+
+async function toolLeaveVoice(ctx: ToolContext): Promise<ToolCallResult> {
+  const left = leaveVoiceChannel(ctx.guildId);
+  return left
+    ? { success: true, data: "J'ai quitté le vocal." }
+    : { success: false, data: "Je n'étais pas en vocal." };
+}
+
+async function toolPlayMp3(args: Record<string, any>, ctx: ToolContext): Promise<ToolCallResult> {
+  const query = String(args.name || "").trim();
+  if (!query) {
+    const names = listSoundFiles()
+      .slice(0, 25)
+      .map((file) => file.displayName);
+    return {
+      success: false,
+      data: names.length > 0 ? `Quel MP3 ? ${names.join(", ")}` : "Aucun MP3 dans assets/sounds.",
+    };
+  }
+  const file = findSoundFile(query);
+  if (!file) return { success: false, data: `MP3 introuvable : ${query}` };
+  const where = await requesterVoiceChannel(ctx);
+  if ("error" in where) return { success: false, data: where.error };
+  try {
+    await joinAndPlay(where.guild, where.voiceId, {
+      type: "file",
+      path: join(SOUNDS_DIR, file.name),
+      displayName: file.displayName,
+    });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return { success: false, data: `Lecture impossible : ${reason}` };
+  }
+  return { success: true, data: `Lecture de ${file.displayName} dans ton vocal.` };
 }
 
 async function toolGetBotStatus(ctx: ToolContext): Promise<ToolCallResult> {

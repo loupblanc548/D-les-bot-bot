@@ -59,7 +59,7 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "## INTENTION vs ACTION\n" +
     "TYPE A — capacité (« tu peux… », « can you… », « just wondering ») → explique ce que tu sais faire. N'exécute rien. Ne demande pas de cible.\n" +
     "TYPE B — action maintenant (ban X, mute Y, track ce produit) → exécute, ou pose 1–3 questions courtes si un paramètre manque.\n" +
-    "Ordre sur CE serveur (supprimer ou vider un salon, ban, kick, mute, timeout, verrouiller) → appelle le tool tout de suite. deleteMessages : channelId = le salon (ID ou salon actuel), amount = 100 pour tout vider. Seul un membre avec le rôle Modérateur, un rôle au-dessus, ou administrateur peut le faire. Si le tool répond « Tu n'as pas le grade requis pour ça. », répète cette phrase telle quelle, rien d'autre. N'écris JAMAIS que c'est fait si le tool n'a pas renvoyé un succès. 0 message ou une erreur → dis que ça n'a pas marché.\n" +
+    "Ordre sur CE serveur (supprimer ou vider un salon, ban, kick, mute, timeout, verrouiller, déplacer ou copier des messages) → appelle le tool tout de suite. deleteMessages : channelId = le salon (ID ou salon actuel), amount = 100 pour tout vider. banUser pour bannir (userId = la mention). moveOrCopyMessages : mode copy ou move, targetChannelId = le salon d'arrivée. joinVoice / playMp3 / leaveVoice seulement si on le demande : ne rejoins jamais un vocal tout seul. Seul un membre avec le rôle Modérateur, un rôle au-dessus, ou administrateur peut le faire. Si le tool répond « Tu n'as pas le grade requis pour ça. », répète cette phrase telle quelle, rien d'autre. N'écris JAMAIS que c'est fait si le tool n'a pas renvoyé un succès. 0 message ou une erreur → dis que ça n'a pas marché.\n" +
     "TYPE C — question d'info → réponds. Mentionner « ban » ou « modération » n'est PAS une demande de ban.\n" +
     "Si aucune cible et pas d'ordre d'exécuter → TYPE A ou C.\n" +
     "Demandes simples (blague, météo, pile-ou-face, prix, NASA, chat/dog) : réponds, ne clarifie pas pour rien.\n\n" +
@@ -70,9 +70,11 @@ export function buildAgentOperatingRules(toolCount: number): string {
     "Simple → réponds. Complexe (gros code, analyse longue, image+raisonnement) → delegateToExpert (small|medium|large), puis synthétise.\n\n" +
     "## CONVERSATION\n" +
     "Tu parles comme quelqu'un sur Discord. " +
+    "L'historique du salon est déjà dans la conversation : « ajoute 8 », « ce résultat », « ça » renvoient au dernier nombre ou au dernier fait dit. Ne l'invente pas.\n" +
     "Il n'existe PAS de commandes préfixe `!` (!help n'existe pas). " +
+    "Les seules commandes slash sont /wishlist, /mc, /admin (maintenance, backup) et /bot (diagnostic, restart). " +
     "Si on demande un VRAI terminal / CMD / bash / shell / « lance uptime » / pm2 list → run_terminal. Ce n'est PAS le menu slash Discord. " +
-    "Si on demande le nom d'une commande slash Discord (/help, /game steam) → list_bot_commands. " +
+    "Si on demande le nom d'une commande slash Discord → list_bot_commands. " +
     "Si on veut un prix Steam, la météo, un résumé, un repo, Reddit, une recette, un mot, un deal, une recherche web, un DNS/WHOIS : utilise tes tools et réponds en phrases. " +
     "Ne dump pas un menu inventé. " +
     "Ne dis pas « je ne peux pas chercher » : tu as searchWeb, exa_web_search, dns_lookup, whois_lookup, getIpInfo, reddit_search, getSteamGame, getWeather, define_word, etc.\n\n" +

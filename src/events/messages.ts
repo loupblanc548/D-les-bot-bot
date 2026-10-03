@@ -21,7 +21,7 @@ import { sendMultiMessage } from "../utils/humanBehavior.js";
 import { addMessageToConversation } from "../services/aiMemory.js";
 import { handleAgentMessageScan } from "../services/agentBrain.js";
 import { handlePersonalityMessage } from "../services/personalityEngine.js";
-import { runAgentLoop, extractAndSaveMemory } from "../services/agentLoop.js";
+import { runAgentLoop, extractAndSaveMemory, loadChannelHistory } from "../services/agentLoop.js";
 import { saveQA } from "../services/obsidianMemory.js";
 import { isTesterBot } from "../utils/testerBots.js";
 import { CHAT_FIRST_COMMANDS_HINT } from "../commands/chatFirstSlash.js";
@@ -1752,13 +1752,20 @@ async function handleAiChatMention(
       try {
         const { respondChat } = await import("../services/chatResponder.js");
         const streamMsg = await (message as Message).reply("💭 ...");
-        const result = await respondChat(enrichedContent, [], {
+        const prior = (await loadChannelHistory(message as Message).catch(() => [])).flatMap(
+          (entry) =>
+            entry.role === "user" || entry.role === "assistant" || entry.role === "system"
+              ? [{ role: entry.role, content: entry.content }]
+              : [],
+        );
+        const result = await respondChat(enrichedContent, prior, {
           systemPrompt: discordChatPrompt(),
           temperature: getPersonalityTemperature(),
           userId: message.author.id,
           guildId: message.guildId ?? undefined,
           maxTokens: 1500,
           deadlineMs: 15_000,
+          historyKeep: 100,
         });
         const fastText = result.content?.trim() ?? "";
         const fastUsable =
@@ -1878,30 +1885,7 @@ async function handleAiChatMention(
       // ── Artifacts: détecter et envoyer des fichiers si la réponse contient du code substantiel ──
       void sendArtifacts(message as Message, aiResponse).catch(() => {});
 
-      // ── Réponse vocale automatique: si l'utilisateur est dans un vocal, parler à voix haute ──
-      if (message.guildId && message.member?.voice?.channelId) {
-        // Détecter la langue depuis le message de l'utilisateur
-        const detectedLang =
-          userLang === "fr" ? "fr" : userLang === "en" ? "en" : (userLang as string);
-        // Utiliser la file d'attente TTS pour parler
-        const voiceChannel = message.member.voice.channel;
-        if (voiceChannel) {
-          enqueueTTS(message.guildId, {
-            text: aiResponse.slice(0, 3000), // limiter pour TTS
-            lang: detectedLang,
-            voiceGender: "homme",
-            voiceChannelId: voiceChannel.id,
-            guildId: message.guildId,
-            adapterCreator: message.guild!.voiceAdapterCreator,
-            shouldStay: false,
-            authorTag: `${message.author.tag} (IA auto)`,
-            channelName: voiceChannel.name,
-          });
-          logger.info(
-            `[AIChat] Réponse vocale auto pour ${message.author.tag} dans #${voiceChannel.name}`,
-          );
-        }
-      }
+      // Le vocal ne se rejoint plus tout seul. joinVoice / playMp3 seulement sur demande.
 
       // ── Sauvegarder la réponse dans la conversation ──
       await addMessageToConversation(

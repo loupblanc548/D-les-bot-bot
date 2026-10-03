@@ -18,55 +18,12 @@ import { EmbedBuilder } from "discord.js";
 export const commands = [
   new SlashCommandBuilder()
     .setName("admin")
-    .setDescription("Commandes d'administration")
+    .setDescription("Maintenance et backup")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand((sc) =>
-      sc
-        .setName("dm")
-        .setDescription("DM à un utilisateur")
-        .addUserOption((o) => o.setName("cible").setDescription("Destinataire").setRequired(true))
-        .addStringOption((o) =>
-          o.setName("message").setDescription("Le message").setRequired(true),
-        ),
-    )
     .addSubcommand((sc) =>
       sc.setName("maintenance").setDescription("Active/désactive le mode maintenance"),
     )
-    .addSubcommand((sc) => sc.setName("clean-duplicates").setDescription("Nettoie les doublons DB"))
     .addSubcommand((sc) => sc.setName("backup").setDescription("Backup manuel de la DB"))
-    .addSubcommand((sc) => sc.setName("guild-config").setDescription("Configuration du serveur"))
-    .addSubcommand((sc) => sc.setName("channel-routing").setDescription("Routage des salons"))
-    .addSubcommand((sc) =>
-      sc
-        .setName("purge-range")
-        .setDescription("Supprime tous les messages entre deux IDs (inclus)")
-        .addStringOption((o) =>
-          o.setName("de").setDescription("ID du premier message").setRequired(true),
-        )
-        .addStringOption((o) =>
-          o.setName("a").setDescription("ID du dernier message").setRequired(true),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("learn-url")
-        .setDescription("Ingère une URL dans la base de connaissances du bot")
-        .addStringOption((o) => o.setName("url").setDescription("URL à ingérer").setRequired(true))
-        .addStringOption((o) =>
-          o
-            .setName("prompt")
-            .setDescription("Prompt personnalisé pour le résumé (optionnel)")
-            .setRequired(false),
-        ),
-    )
-    .addSubcommand((sc) =>
-      sc
-        .setName("search-knowledge")
-        .setDescription("Recherche dans la base de connaissances du bot")
-        .addStringOption((o) =>
-          o.setName("query").setDescription("Requête de recherche").setRequired(true),
-        ),
-    )
     .toJSON(),
 ];
 

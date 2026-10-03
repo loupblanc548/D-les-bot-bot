@@ -124,8 +124,9 @@ import {
 
 const MAX_ITERATIONS = 8;
 const MAX_ITERATIONS_LONG_TASK = 20;
-const MAX_HISTORY_MESSAGES = 15;
-const MAX_MEMORY_FACTS = 12;
+const MAX_HISTORY_MESSAGES = 100;
+const MAX_HISTORY_CHARS = 60_000;
+const MAX_MEMORY_FACTS = 40;
 const AGENT_LOOP_TIMEOUT_MS = 120_000; // 120s max for the entire agent loop (70B needs ~30-50s per iteration with 110 tools)
 const AGENT_LOOP_TIMEOUT_LONG_MS = 180_000; // 180s for complex tasks
 
@@ -416,7 +417,7 @@ async function loadLongTermMemory(userId: string): Promise<string> {
  * Récupère l'historique récent du salon (court-terme).
  * Combine l'historique Discord (messages récents) avec l'historique persisté en DB.
  */
-async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
+export async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
   const history: ChatMessage[] = [];
 
   // 1. Charger l'historique persisté en DB (survit au redémarrage)
@@ -424,7 +425,7 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
     const dbHistory = await prisma.chatHistory.findMany({
       where: { channelId: message.channelId },
       orderBy: { createdAt: "desc" },
-      take: 10, // Last 10 messages from DB
+      take: 50,
     });
     // Reverse to chronological order
     dbHistory.reverse();
@@ -458,41 +459,26 @@ async function loadChannelHistory(message: Message): Promise<ChatMessage[]> {
     logger.error("[Silent catch]");
   }
 
-  // Deduplicate: keep only last MAX_HISTORY_MESSAGES * 2 entries
-  const maxHistory = MAX_HISTORY_MESSAGES * 2;
-  if (history.length > maxHistory) {
-    return history.slice(-maxHistory);
+  const seen = new Set<string>();
+  const unique: ChatMessage[] = [];
+  for (const entry of history) {
+    const key = `${entry.role}:${entry.content.slice(0, 180)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(entry);
   }
 
-  // ─── Context compression: truncate old messages to save tokens ───
-  // Les 6 messages les plus récents gardent leur contenu complet.
-  // Les messages 7-20 sont tronqués à 200 chars.
-  // Au-delà de 20 messages, on remplace par un résumé une-ligne.
-  if (history.length > 6) {
-    const recentCount = 6;
-    const recentMessages = history.slice(-recentCount);
-    const oldMessages = history.slice(0, -recentCount);
-
-    if (oldMessages.length > 14) {
-      // Trop de vieux messages — résumer en une ligne
-      const summaryLine: ChatMessage = {
-        role: "system",
-        content: `[Résumé de ${oldMessages.length} messages précédents — sujets abordés: ${oldMessages
-          .slice(-5)
-          .map((m) => m.content.slice(0, 40))
-          .join(" | ")}]`,
-      };
-      return [summaryLine, ...recentMessages];
-    }
-
-    const compressed = oldMessages.map((m) => ({
-      role: m.role,
-      content: m.content.length > 200 ? m.content.slice(0, 200) + " [...]" : m.content,
-    }));
-    return [...compressed, ...recentMessages];
+  // Garde les messages les plus récents en entier, jusqu'au budget du modèle.
+  const kept: ChatMessage[] = [];
+  let chars = 0;
+  for (let i = unique.length - 1; i >= 0; i--) {
+    const piece = unique[i];
+    if (!piece) continue;
+    if (chars + piece.content.length > MAX_HISTORY_CHARS && kept.length >= 12) break;
+    kept.push(piece);
+    chars += piece.content.length;
   }
-
-  return history;
+  return kept.reverse();
 }
 
 // ─── Boucle principale de l'agent ────────────────────────────────────────────
